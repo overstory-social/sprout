@@ -24,6 +24,10 @@ import { describeFor } from './describe.js';
 import * as D from '../fixtures/darkness.js';
 import type { InstanceId } from './ids.js';
 import { readerOf } from './state.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import { catalogueOf } from './catalogue.js';
+import { declaredId } from './ids.js';
+import { initialState } from './load.js';
 
 describe('a description', () => {
   it('is each `text` the describe ran, in order, from the thing, to the one looking', () => {
@@ -124,6 +128,74 @@ describe('a description', () => {
       describeFor('study#99' as InstanceId, actorOf(state, MARTA), 'look', context),
     ).toThrow(/is not an instance/);
     expect(() => describeFor(LAMP, state.world, 'look', context)).toThrow(/is away/);
+  });
+});
+
+describe('a description that narrows a name', () => {
+  // A kind's body naming the place its instance stands in, which only the run resolves.
+  const BUNDLE = compiledWorld('rooms', {
+    'rooms.sprout': `world rooms is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is Hall { object plaque is Plaque  object sign is Sign  object lantern is Lantern }
+}
+kind Hall is sprout.Place { :lamps 2 }
+kind Sign {
+  describe {
+    if (self.is(Lantern)) { text "A lantern." }
+    else if (hall.is(Hall)) { text "Under {hall.get(:lamps)} lamps." }
+  }
+}
+kind Lantern {
+  describe {
+    if (hall.is(Hall) && hall.get(:lamps) > 1) { text "One of {hall.get(:lamps)} lamps." }
+  }
+}
+kind Plaque {
+  describe {
+    if (hall.is(Hall)) { text "The hall has {hall.get(:lamps)} lamps." } else { text "No hall." }
+  }
+}
+`,
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const catalogue = catalogueOf(BUNDLE, DEFAULT_LIMITS.caps);
+  const hall = declaredId('rooms', ['hall']);
+  const plaque = declaredId('rooms', ['hall', 'plaque']);
+
+  it('binds it for the lines its branch gives, to what it reaches now', () => {
+    const state = initialState(catalogue);
+    const { lines } = describeFor(plaque, plaque, 'look', {
+      state: readerOf(state),
+      catalogue,
+      budget: new Budget(DEFAULT_LIMITS.budgets, 'poll'),
+      passes: (container) => (container === state.world ? WORLD_PASSES_ANYTHING : true),
+    });
+    expect(lines.map((line) => words(line.said))).toEqual([
+      'The hall has {hall.get(:lamps)} lamps.',
+    ]);
+    expect(lines[0]!.bindings.get('hall')).toEqual({ binds: 'object', id: hall });
+  });
+
+  it('binds it for an `else if` link, and for the right of an `&&` and the branch it guards', () => {
+    const state = initialState(catalogue);
+    for (const [thing, said] of [
+      ['sign', 'Under {hall.get(:lamps)} lamps.'],
+      ['lantern', 'One of {hall.get(:lamps)} lamps.'],
+    ] as const) {
+      const id = declaredId('rooms', ['hall', thing]);
+      const { lines } = describeFor(id, id, 'look', {
+        state: readerOf(state),
+        catalogue,
+        budget: new Budget(DEFAULT_LIMITS.budgets, 'poll'),
+        passes: (container) => (container === state.world ? WORLD_PASSES_ANYTHING : true),
+      });
+      expect(
+        lines.map((line) => words(line.said)),
+        thing,
+      ).toEqual([said]);
+      expect(lines[0]!.bindings.get('hall'), thing).toEqual({ binds: 'object', id: hall });
+    }
   });
 });
 

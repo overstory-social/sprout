@@ -95,8 +95,11 @@ npm run check     # the corpus, its golden transcripts, its worlds' own tests an
 ```
 
 There is no CI: the gate and e2e run locally, a PR carries their receipts,
-and the `pr-review` agent re-runs the gate at the PR head. `CLAUDE.md` has
-the rules.
+and the `pr-review` agent re-runs the gate at the PR head. The gate builds the
+C runtime plain to stay fast; the e2e also runs its tests under
+AddressSanitizer and UndefinedBehaviorSanitizer
+(`node scripts/check-runtime-c.mjs --sanitize`), where any report fails.
+`CLAUDE.md` has the rules.
 
 ## Versions, and the language level
 

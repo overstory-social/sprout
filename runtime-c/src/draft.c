@@ -433,7 +433,7 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   sprout_arena fresh, stale;
   sprout_stored_instance *instances;
   sprout_stored_visitor *visitors;
-  sprout_str *tombstones, *written_ids, *visit_ids, *removed, world;
+  sprout_str *tombstones, *written_ids, *visit_ids, *removed, *buried_ids, world;
   size_t i, n = 0, v = 0, t = 0, removed_count = 0;
   NEED(open_check(draft));
   /*
@@ -451,8 +451,9 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   written_ids = (sprout_str *)sprout_arena_take(draft->turn, (draft->written_count + 1) * sizeof *written_ids);
   visit_ids = (sprout_str *)sprout_arena_take(draft->turn, (draft->visitor_count + 1) * sizeof *visit_ids);
   removed = (sprout_str *)sprout_arena_take(draft->turn, (draft->gone_count + 1) * sizeof *removed);
+  buried_ids = (sprout_str *)sprout_arena_take(draft->turn, (draft->buried_count + 1) * sizeof *buried_ids);
   if (instances == NULL || visitors == NULL || tombstones == NULL || written_ids == NULL || visit_ids == NULL ||
-      removed == NULL || !sprout_state_copy_str(&fresh, state->world, &world))
+      removed == NULL || buried_ids == NULL || !sprout_state_copy_str(&fresh, state->world, &world))
     goto no_memory;
 
   for (i = 0; i < state->instance_count; i++) {
@@ -483,7 +484,9 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   for (i = 0; i < state->tombstone_count; i++)
     if (!sprout_state_copy_str(&fresh, state->tombstones[i], &tombstones[t++])) goto no_memory;
   for (i = 0; i < draft->buried_count; i++)
-    if (!sprout_state_copy_str(&fresh, draft->buried[i], &tombstones[t++])) goto no_memory;
+    if (!sprout_state_copy_str(draft->turn, draft->buried[i], &buried_ids[i]) ||
+        !sprout_state_copy_str(&fresh, draft->buried[i], &tombstones[t++]))
+      goto no_memory;
 
   stale = state->arena;
   state->arena = fresh;
@@ -507,7 +510,7 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   changes->visitor_count = draft->visitor_count;
   NEED(sorted_ids(draft->turn, written_ids, draft->written_count, &changes->written));
   NEED(sorted_ids(draft->turn, removed, removed_count, &changes->removed));
-  NEED(sorted_ids(draft->turn, draft->buried, draft->buried_count, &changes->tombstoned));
+  NEED(sorted_ids(draft->turn, buried_ids, draft->buried_count, &changes->tombstoned));
   NEED(sorted_ids(draft->turn, visit_ids, draft->visitor_count, &changes->visitors));
   return SPROUT_DRAFT_OK;
 

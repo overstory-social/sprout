@@ -251,18 +251,42 @@ static const sprout_node *sum_of_ones(size_t terms) {
   return sum;
 }
 
+/* Frees what sum_of_ones built: each `+` node and its items, the shared leaf, and the four leaf nodes under them. */
+static void free_sum(const sprout_node *top) {
+  const sprout_node *leaf = top;
+  sprout_node *sum = (sprout_node *)top;
+  while (leaf->count == 4) leaf = leaf->items[3];
+  if (top != leaf) {
+    free((void *)top->items[0]);
+    free((void *)top->items[1]);
+  }
+  free((void *)leaf->items[0]);
+  free((void *)leaf->items[1]);
+  while (sum != leaf) {
+    sprout_node *inner = (sprout_node *)sum->items[2];
+    free((void *)sum->items);
+    free(sum);
+    sum = inner;
+  }
+  free((void *)leaf->items);
+  free((void *)leaf);
+}
+
 static void a_spine_is_walked_by_loop_however_long_it_is(void) {
   bench b;
   bench_turn t;
   sprout_evaluated result;
   bench_open(&b);
   bench_turn_for(&b, &t, "get reads the property");
-  CHECK_INT(sprout_eval(&t.frame, sum_of_ones(300000), &result), SPROUT_EVAL_OK);
+  const sprout_node *spine = sum_of_ones(300000);
+  CHECK_INT(sprout_eval(&t.frame, spine, &result), SPROUT_EVAL_OK);
   CHECK(result.value.kind == SPROUT_NUMBER && result.value.as.number == 300000);
   /* The first `1`, then for each `+` the `+` itself and the `1` on its right. */
   CHECK_INT(t.meter.steps, 1 + 2 * 299999);
   bench_turn_close(&t);
   bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+  free_sum(spine);
 }
 
 int main(void) {

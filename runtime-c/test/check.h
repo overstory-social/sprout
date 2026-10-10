@@ -84,6 +84,7 @@ static inline void test_release(void *ctx, void *block, size_t bytes) {
   test_heap *heap = (test_heap *)ctx;
   heap->pages--;
   heap->bytes -= (long)bytes;
+  memset(block, 0xDD, bytes); /* a read of released memory sees garbage, with or without a sanitizer */
   free(block);
 }
 

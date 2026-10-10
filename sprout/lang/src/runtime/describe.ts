@@ -27,8 +27,8 @@ import { engineSaid } from './engine-lines.js';
 import {
   boundObject,
   boundValue,
+  branchFrame,
   evaluate,
-  evaluateCondition,
   type Evaluated,
   type Frame,
 } from './evaluate.js';
@@ -194,11 +194,16 @@ function runStatement(
   );
 }
 
-/** An `if` and each `else if` after it, as the chain it is; each link tested past the first is a step. */
+/**
+ * An `if` and each `else if` after it, as the chain it is; each link
+ * tested past the first is a step. A condition that narrows a name binds
+ * it, for the branch it guards, to what it reaches now (`branchFrame`).
+ */
 function runIf(statement: IfStatement, frame: Frame, gives: Gives): void {
   for (let link: IfStatement = statement; ;) {
-    if (evaluateCondition(link.condition, frame)) {
-      runBlock(link.then, frame, gives);
+    const inner = branchFrame(link.condition, frame);
+    if (inner !== null) {
+      runBlock(link.then, inner, gives);
       return;
     }
     const otherwise = link.otherwise;

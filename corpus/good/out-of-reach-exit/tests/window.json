@@ -1,0 +1,29 @@
+{
+  "about": "An exit's label typed where no way out that applies carries it is `not_here`; beside the exit it goes; other words are `unknown`, and a direction with no exit `no_way`.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the clearing." }
+    ] },
+    { "as": "Marta", "type": "enter window", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "go through the window", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "window", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "enter chimney", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "west", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't go that way." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "as": "Marta", "type": "enter window", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the house." }
+    ] }
+  ]
+}

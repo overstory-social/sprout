@@ -7,8 +7,9 @@
 // open role takes what plays a part in the verb. `except` leaves out each
 // thing a noun after it names, and every thing of a kind it names. A set
 // role takes them all at once, and a role that takes one thing takes each
-// in turn, in the order the range walk reached them; either way no more
-// than a set role may bind.
+// in turn, in the order the range walk reached them, leaving out each
+// whose reading its consent pass refuses as the line is read; either way
+// no more than a set role may bind.
 
 import { isActor } from '../../declare/actors.js';
 import { DETERMINERS, humanisedKind } from '../../declare/addressing.js';
@@ -17,6 +18,7 @@ import type { KindRef } from '../../declare/kinds.js';
 import { isEngineVerb, type ResolvedRole, type ResolvedVerb } from '../../declare/verbs.js';
 import type { Budget } from '../budget.js';
 import type { InstanceId } from '../ids.js';
+import { consentPass, type ConsentContext, type Reading } from '../reading.js';
 import type { Instance } from '../state.js';
 import type { Filled } from './fill.js';
 import { fits, nounsOfRun, thingsIn, type Candidate, type NounContext } from './nouns.js';
@@ -60,18 +62,17 @@ export function allIn(
   }
   const everyThing =
     isEngineVerb(verb) || onlyTheActorPlays(verb, role, context.kinds, context.budget);
-  const taken = context.candidates
-    .filter(({ instance, carried }) => {
-      context.budget.spend();
-      if (left.has(instance.id) || instance.id === context.actor || instance.id === context.here) {
-        return false;
-      }
-      if (role.carried && !carried) return false;
-      return takes(role, verb, instance, everyThing);
-    })
-    .slice(0, context.budget.limits.setRoleObjects);
-  if (taken.length === 0) return { fills: 'nothing', start: 0, end: words.length };
+  const reached = context.candidates.filter(({ instance, carried }) => {
+    context.budget.spend();
+    if (left.has(instance.id) || instance.id === context.actor || instance.id === context.here) {
+      return false;
+    }
+    if (role.carried && !carried) return false;
+    return takes(role, verb, instance, everyThing);
+  });
+  if (reached.length === 0) return { fills: 'nothing', start: 0, end: words.length };
   if (role.many) {
+    const taken = reached.slice(0, context.budget.limits.setRoleObjects);
     return {
       fills: 'options',
       options: [
@@ -84,15 +85,33 @@ export function allIn(
       ],
     };
   }
+  // A role that takes one thing is capped once the refused are left out (`allowedOf`).
   return {
     fills: 'all',
-    things: taken.map(({ instance, near }) => ({
+    things: reached.map(({ instance, near }) => ({
       bound: { object: instance.id },
       near,
       literal,
       byName: 0,
     })),
   };
+}
+
+/**
+ * The readings of `all` in a role that takes one thing that are left to
+ * run: the first a set role's figure of those whose consent pass allows,
+ * asked against the world as the line is read, so `drop all` leaves out
+ * what is not in hand and `take all` what already is. Each pass is
+ * charged to the turn, and none is asked past the figure.
+ */
+export function allowedOf(readings: readonly Reading[], context: ConsentContext): Reading[] {
+  const cap = context.budget.limits.setRoleObjects;
+  const allowed: Reading[] = [];
+  for (const reading of readings) {
+    if (allowed.length >= cap) break;
+    if (consentPass(reading, context) === null) allowed.push(reading);
+  }
+  return allowed;
 }
 
 /**

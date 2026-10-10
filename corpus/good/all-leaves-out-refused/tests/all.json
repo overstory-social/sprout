@@ -1,0 +1,46 @@
+{
+  "about": "`all` leaves out what its reading's consent pass would refuse: what is not in hand from `drop all`, though it is inside a sack in hand; what is held from `take all`; and the lamp from `examine all`. Where nothing is left, the line is `not_here`.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
+    ] },
+    { "as": "Marta", "type": "take sack", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a sack." }
+    ] },
+    { "as": "Marta", "type": "take ball", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a ball." }
+    ] },
+    { "as": "Marta", "type": "drop all", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a sack down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a ball down." }
+    ] },
+    { "as": "Marta", "type": "drop all", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "examine all", "expect": [
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a sack." },
+      { "reader": "Marta", "kind": "described", "words": "Inside: a lunch." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a ball." },
+      { "level": "info", "text": "step: sprout.examine" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a lunch." }
+    ] },
+    { "as": "Marta", "type": "take ball", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a ball." }
+    ] },
+    { "as": "Marta", "type": "take all", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a sack." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a lunch." }
+    ] },
+    { "as": "Marta", "type": "take all", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] }
+  ]
+}
