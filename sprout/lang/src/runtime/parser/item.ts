@@ -103,7 +103,10 @@ export function readItem(
   // A word nothing in the world is named by is the grammar's failure, not reach's.
   if (
     filled.fills === 'nothing' &&
-    !inVocabulary(typed.slice(filled.start, filled.end), worldWords({ state, address, budget }))
+    !inVocabulary(
+      typed.slice(filled.start, filled.end),
+      worldWords({ catalogue: context.catalogue, state, address, budget }),
+    )
   ) {
     return answer(state, 'unknown', actor, here);
   }

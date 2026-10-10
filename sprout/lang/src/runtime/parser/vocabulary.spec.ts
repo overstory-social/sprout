@@ -17,6 +17,7 @@ const ATTIC = compiledWorld('attic', {
     '  object cellar is sprout.Place { object barrel is SpiceJar }',
     '}',
     'kind SpiceJar { }',
+    'kind Spark { grammar { name "spark"  nouns "ember" } }',
   ].join('\n'),
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
 });
@@ -26,7 +27,12 @@ function wordsOf() {
   const address = (id: InstanceId) =>
     addressOf(one.draft.instance(id)!, { world: one.draft.world, nicknames: new Map() });
   const before = one.budget.spentSteps;
-  const words = worldWords({ state: one.draft, address, budget: one.budget });
+  const words = worldWords({
+    catalogue: one.catalogue,
+    state: one.draft,
+    address,
+    budget: one.budget,
+  });
   return { words, steps: one.budget.spentSteps - before };
 }
 
@@ -58,6 +64,40 @@ describe('the words a noun may hold in the world', () => {
     }
     expect(words.has('again')).toBe(false);
     expect(words.has('then')).toBe(false);
+  });
+
+  it('are what the bundle writes though nothing is in the world now, destroyed or not yet spawned', () => {
+    const one = turn(ATTIC, []);
+    const world = one.draft.world;
+    // A world whose every thing is gone: only the world itself is left.
+    const bare = {
+      ...one.draft,
+      world,
+      instance: (id: InstanceId) => (id === world ? one.draft.instance(id) : undefined),
+      children: () => [],
+      visitor: () => undefined,
+      tombstoned: () => true,
+    };
+    const words = worldWords({
+      catalogue: one.catalogue,
+      state: bare,
+      address: () => {
+        throw new Error('nothing is addressed');
+      },
+      budget: one.budget,
+    });
+    for (const word of [
+      'lamp',
+      'lantern',
+      'dented',
+      'locket',
+      'barrel',
+      'spark',
+      'ember',
+      'spice',
+    ]) {
+      expect(words.has(word), word).toBe(true);
+    }
   });
 
   it('cost a step for each thing in the world', () => {

@@ -1,5 +1,5 @@
 {
-  "about": "A thing of a run destroyed by an earlier turn of it is not here on its own turn.",
+  "about": "A thing of a run destroyed by an earlier turn of it is not here on its own turn, and named again once it is gone, it is still not here, as is a spark no flint has struck yet: their names are the world's.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about a kitchen." }
@@ -7,6 +7,12 @@
     { "as": "Marta", "type": "burn note and note", "expect": [
       { "level": "info", "text": "step: destroy_declared.burn" },
       { "reader": "Marta", "kind": "said", "words": "The note curls into ash." },
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "burn note", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "burn spark", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] }
   ]

@@ -214,7 +214,7 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
     fills.every((one, at) => {
       if (one.fills !== 'nothing') return true;
       const start = spans[at]!.start;
-      vocabulary ??= worldWords({ state, address, budget });
+      vocabulary ??= worldWords({ catalogue: context.catalogue, state, address, budget });
       return inVocabulary(words.slice(start + one.start, start + one.end), vocabulary);
     });
   for (const phrase of catalogue.phrases) {
