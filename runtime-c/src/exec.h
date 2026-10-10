@@ -51,7 +51,8 @@ typedef enum sprout_effect_kind {
   SPROUT_EFFECT_TOLD,
   SPROUT_EFFECT_REFUSED,
   SPROUT_EFFECT_NOTICE,
-  SPROUT_EFFECT_EXTENSION
+  SPROUT_EFFECT_EXTENSION,
+  SPROUT_EFFECT_DESCRIBED /* a description (`description` set) or a line the engine says as one, such as an `examine`'s `contents` */
 } sprout_effect_kind;
 
 typedef struct sprout_effect_binding {
@@ -59,9 +60,12 @@ typedef struct sprout_effect_binding {
   sprout_evaluated bound;
 } sprout_effect_binding;
 
+struct sprout_description;
+
 /* One line a turn said, unrendered: who reads it, whose body said it, and every name in scope where it was said. */
 typedef struct sprout_effect {
   sprout_effect_kind kind;
+  const struct sprout_description *description; /* DESCRIBED: what the one looking reads, in place of `said` */
   size_t to_count;
   const sprout_str *to;
   sprout_str by;
@@ -283,6 +287,15 @@ typedef struct sprout_move_refusal {
 sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *frame, sprout_str mover, sprout_str item,
                                         sprout_str to, sprout_reach reach, const char *way, sprout_move_end *end,
                                         sprout_move_refusal *refusal);
+
+/*
+ * What `place` says and sends of `actor` leaving it for `other` (`leaving`) or entering it from `other`: the
+ * engine's `leaves` or `arrives` recorded for the visitors in its range, and `:departed` or `:arrived` queued
+ * for everything else there. `other` is left unbound where it is the world, and `way` (which may be NULL)
+ * where the move went through no exit or link. The tree is read as it stands after the move.
+ */
+sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
+                                      sprout_str actor, sprout_str other, const char *way);
 
 /* Whether `to` is in range of a move `mover` proposes: in its range, or an exit or link of its place leads there. */
 sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mover, sprout_str to, bool *reached);

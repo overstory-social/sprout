@@ -110,8 +110,8 @@ static sprout_eval_status told_of(const sprout_frame *frame, sprout_str place, s
  * there. The other end is left unbound where it is the world, and the way
  * where the move went through no exit or link.
  */
-static sprout_eval_status spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
-                                 sprout_str actor, sprout_str other, const char *way) {
+sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
+                                      sprout_str actor, sprout_str other, const char *way) {
   told heard;
   sprout_send send;
   sprout_effect effect;
@@ -303,8 +303,8 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
   if (actor) {
     sprout_owed *owed;
     /* Both places are told as the tree stands after the move; the walks are asked in this order. */
-    EXPR_NEED(spoken(x, frame, true, from, item, to, way));
-    EXPR_NEED(spoken(x, frame, false, to, item, from, way));
+    EXPR_NEED(sprout_move_spoken(x, frame, true, from, item, to, way));
+    EXPR_NEED(sprout_move_spoken(x, frame, false, to, item, from, way));
     owed = (sprout_owed *)sprout_exec_grow(x->turn, (void **)&x->owed, &x->owed_count, &x->owed_capacity, sizeof *x->owed);
     if (owed == NULL) return SPROUT_EVAL_NO_MEMORY;
     owed->mover = item;

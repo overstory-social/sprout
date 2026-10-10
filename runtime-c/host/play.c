@@ -10,15 +10,18 @@
 #include "state.h"
 #include "host.h"
 #include "readings.h"
+#include "script.h"
 #include "viewing.h"
 
 #define USAGE                                                                                          \
   "sproutc: write `sproutc play <world.sproutworld> [--state save.json] [--script script.json]\n"     \
-  "         [--readings file] [--clock N]`. --clock N moves the fake clock on N milliseconds at each\n" \
-  "         read; --readings names the file `node scripts/resolve-script.mjs` wrote for the script.\n"
+  "         [--readings file] [--trace file] [--clock N]`. --clock N moves the fake clock on N\n"     \
+  "         milliseconds at each read; --readings names the file `node scripts/resolve-script.mjs`\n" \
+  "         wrote for the script; --trace names the file one line of the stored world and the log is\n" \
+  "         written to after each step.\n"
 
 typedef struct options {
-  const char *world, *state, *script, *readings;
+  const char *world, *state, *script, *readings, *trace;
   uint64_t clock;
 } options;
 
@@ -40,6 +43,7 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
     const char **slot = strcmp(flag, "--state") == 0     ? &o->state
                         : strcmp(flag, "--script") == 0   ? &o->script
                         : strcmp(flag, "--readings") == 0 ? &o->readings
+                        : strcmp(flag, "--trace") == 0    ? &o->trace
                                                           : NULL;
     if (strcmp(flag, "--clock") == 0) {
       if (i + 1 >= argc || !whole_number(argv[i + 1], &o->clock)) {
@@ -90,131 +94,93 @@ static const char *readings_path(const options *o, char *path, size_t size) {
   return path;
 }
 
-/* What a step needs of the runtime that its public API has no call for yet; NULL where it has one. */
-static const char *no_call_for(const sproutc_step *step) {
-  switch (step->kind) {
-    case SPROUTC_STEP_ARRIVE:
-      return "the runtime has no call for an arrival yet, so the play stops here.";
-    case SPROUTC_STEP_LEAVE:
-      return "the runtime has no call for a departure yet, so the play stops here.";
-    case SPROUTC_STEP_ADVANCE:
-      return "the runtime has no call for the passing of time yet, so the play stops here.";
-    default:
-      return NULL;
-  }
-}
-
 /*
- * Reads the stored world the host holds, opens it against the loaded world as
- * a load does, and writes it back; NULL on success, or words for why not. A
- * save the runtime wrote comes back byte for byte.
+ * Reads the stored world the host holds, or starts a new world's, and opens it against the loaded world as
+ * a load does; NULL on success, or words for why not.
  */
 static char problem[400];
-static const char *rewrite_state(sproutc_host *host, const sprout_world *world, FILE *out) {
-  const char *bytes = NULL, *written;
-  size_t length = 0, written_length;
-  sprout_state *state = NULL;
-  sprout_opened report;
+static const char *open_state(sproutc_host *host, const sprout_world *world, sprout_state **state, sprout_opened *report) {
+  const char *bytes = NULL;
+  size_t length = 0;
   sprout_refusal refusal;
   sprout_status status;
+  *state = NULL;
   /* A store with nothing in it yet is a new world's: an empty one, reconciled below. */
   if (!host->record.read(host->record.ctx, "world", &bytes, &length))
-    status = sprout_state_empty(&host->record, world->header.name, &state);
+    status = sprout_state_empty(&host->record, world->header.name, state);
   else
-    status = sprout_state_read(&host->record, bytes, length, &state, &refusal);
+    status = sprout_state_read(&host->record, bytes, length, state, &refusal);
+  if (status == SPROUT_OK) status = sprout_state_open(*state, world, report, &refusal);
   if (status != SPROUT_OK) {
-    snprintf(problem, sizeof problem, "%s: %s", host->state, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
+    snprintf(problem, sizeof problem, "%s: %s", host->state == NULL ? "the store" : host->state,
+             status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
+    sprout_state_free(*state);
+    *state = NULL;
     return problem;
   }
-  status = sprout_state_open(state, world, &report, &refusal);
-  if (status == SPROUT_OK) status = sprout_state_write(state, &written, &written_length);
-  if (status != SPROUT_OK) {
-    snprintf(problem, sizeof problem, "%s: %s", host->state, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
-    sprout_state_free(state);
-    return problem;
-  }
-  fprintf(out, "state: %zu instances, %zu visitors, %zu dormant, %zu dropped\n", state->instance_count,
-          state->visitor_count, report.dormant_count, report.dropped_count);
-  if (!host->record.write(host->record.ctx, "world", written, written_length)) {
-    sprout_state_free(state);
-    snprintf(problem, sizeof problem, "cannot write the stored world to %s.", host->state);
-    return problem;
-  }
-  sprout_state_free(state);
   return NULL;
 }
 
-/* Plays the script; the exit code. */
-static int play_script(sproutc_host *host, sprout_world *world, sprout_status loaded, sproutc_readings *readings,
-                       FILE *out, FILE *err) {
-  size_t i, n = sproutc_readings_count(readings);
-  fprintf(out, "--- play\n");
-  for (i = 0; i < n; i++) {
-    sproutc_step step;
-    const char *why = sproutc_readings_step(readings, i, &step);
-    const char *missing;
-    size_t t;
-    if (why != NULL) {
-      fprintf(err, "sproutc: %s\n", why);
+/* Writes the state to the stored world; NULL on success, or words for why not. */
+static const char *save_state(sproutc_host *host, sprout_state *state) {
+  const char *written;
+  size_t length;
+  sprout_status status = sprout_state_write(state, &written, &length);
+  if (status != SPROUT_OK) {
+    snprintf(problem, sizeof problem, "%s: %s", host->state, sprout_status_text(status));
+    return problem;
+  }
+  if (!host->record.write(host->record.ctx, "world", written, length)) {
+    snprintf(problem, sizeof problem, "cannot write the stored world to %s.", host->state);
+    return problem;
+  }
+  return NULL;
+}
+
+/* Reads the stored world, opens it, and writes it back; a save the runtime wrote comes back byte for byte. */
+static const char *rewrite_state(sproutc_host *host, const sprout_world *world, FILE *out) {
+  sprout_state *state;
+  sprout_opened report;
+  const char *why = open_state(host, world, &state, &report);
+  if (why != NULL) return why;
+  fprintf(out, "state: %zu instances, %zu visitors, %zu dormant, %zu dropped\n", state->instance_count,
+          state->visitor_count, report.dormant_count, report.dropped_count);
+  why = save_state(host, state);
+  sprout_state_free(state);
+  return why;
+}
+
+/* Plays the script over a state read from the store, or a new world's, and saves it where the store is. */
+static int play(sproutc_host *host, sprout_world *world, const options *o, sproutc_readings *readings, FILE *out,
+                FILE *err) {
+  sprout_state *state;
+  sprout_opened report;
+  FILE *trace = NULL;
+  const char *why = open_state(host, world, &state, &report);
+  int code;
+  if (why != NULL) {
+    fprintf(err, "sproutc: %s\n", why);
+    return 1;
+  }
+  if (o->trace != NULL) {
+    trace = fopen(o->trace, "wb");
+    if (trace == NULL) {
+      fprintf(err, "sproutc: cannot write %s.\n", o->trace);
+      sprout_state_free(state);
       return 1;
     }
-    if (step.kind == SPROUTC_STEP_COMMENT || step.kind == SPROUTC_STEP_SEED) continue;
-    fprintf(out, "## step %zu: %s\n", step.index, step.line);
-    sproutc_host_set_time(host, step.at_seconds);
-    sproutc_host_set_seed(host, step.seed);
-    if (world == NULL) {
-      fprintf(out, "!! the world is not loaded (%s), so the play stops here.\n", sprout_status_text(loaded));
-      return SPROUTC_EXIT_NOT_YET;
-    }
-    missing = no_call_for(&step);
-    if (missing != NULL) {
-      fprintf(out, "!! %s\n", missing);
-      return SPROUTC_EXIT_NOT_YET;
-    }
-    if (step.kind == SPROUTC_STEP_TICK) {
-      sprout_turn turn;
-      sprout_outcome outcome;
-      sprout_status status;
-      memset(&turn, 0, sizeof turn);
-      memset(&outcome, 0, sizeof outcome);
-      turn.kind = SPROUT_TURN_TICK;
-      sproutc_host_begin_turn(host);
-      status = sprout_run_turn(world, NULL, &turn, &outcome);
-      if (status != SPROUT_OK) {
-        fprintf(out, "!! %s\n", sprout_status_text(status));
-        return status == SPROUT_NOT_YET ? SPROUTC_EXIT_NOT_YET : 1;
-      }
-    }
-    for (t = 0; t < step.turns; t++) {
-      sproutc_turn_reading reading;
-      sprout_turn turn;
-      sprout_outcome outcome;
-      sprout_status status;
-      why = sproutc_readings_turn(&step, t, &reading);
-      if (why != NULL) {
-        fprintf(err, "sproutc: %s\n", why);
-        return 1;
-      }
-      if (reading.skip) {
-        fprintf(out, "-- skipped, the parser answered: %s\n", reading.why);
-        continue;
-      }
-      memset(&turn, 0, sizeof turn);
-      memset(&outcome, 0, sizeof outcome);
-      turn.kind = SPROUT_TURN_COMMAND;
-      turn.visitor = step.nickname;
-      turn.command = reading.typed;
-      turn.command_length = strlen(reading.typed);
-      sproutc_host_set_seed(host, reading.seed);
-      sproutc_host_begin_turn(host);
-      status = sprout_run_turn(world, NULL, &turn, &outcome);
-      if (status != SPROUT_OK) {
-        fprintf(out, "!! %s\n", sprout_status_text(status));
-        return status == SPROUT_NOT_YET ? SPROUTC_EXIT_NOT_YET : 1;
-      }
+  }
+  code = sproutc_play_script(host, world, state, readings, out, err, trace);
+  if (trace != NULL) fclose(trace);
+  if (code == 0 && host->state != NULL) {
+    why = save_state(host, state);
+    if (why != NULL) {
+      fprintf(err, "sproutc: %s\n", why);
+      code = 1;
     }
   }
-  return 0;
+  sprout_state_free(state);
+  return code;
 }
 
 int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
@@ -259,7 +225,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
     sproutc_host_close(&host);
     return 1;
   }
-  if (o.state != NULL) {
+  if (o.state != NULL && o.script == NULL) {
     why = rewrite_state(&host, world, out);
     if (why != NULL) {
       fprintf(err, "sproutc: %s\n", why);
@@ -275,7 +241,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
       fprintf(err, "sproutc: %s\n", why);
       code = 1;
     } else {
-      code = play_script(&host, world, loaded, &readings, out, err);
+      code = play(&host, world, &o, &readings, out, err);
       sproutc_readings_close(&readings);
     }
   }

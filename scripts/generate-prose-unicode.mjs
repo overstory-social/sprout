@@ -1,12 +1,17 @@
-// Writes runtime-c/src/prose/unicode.c: the two Unicode rules the TypeScript prose layer takes
-// from the JavaScript runtime, as tables the C runtime reads (the C runtime calls nothing
-// from libc, so it holds no locale or Unicode data of its own).
+// Writes runtime-c/src/prose/unicode.c: the Unicode rules the TypeScript runtime takes from the
+// JavaScript runtime, as tables the C runtime reads (the C runtime calls nothing from libc, so it
+// holds no locale or Unicode data of its own).
 //
 //   - which code points are letters or numbers (`/[\p{L}\p{N}]/u`), the opening a capital
 //     goes past (prose/reflow.ts `capitalise`);
 //   - what `String.prototype.toUpperCase` makes of each code point of the Basic
 //     Multilingual Plane, special casing included, since `capitalise` upper-cases the one
-//     UTF-16 code unit it lands on.
+//     UTF-16 code unit it lands on;
+//   - what `String.prototype.toLowerCase` makes of each code point, special casing included,
+//     and the two classes (`\p{Cased}`, `\p{Case_Ignorable}`) its final-sigma rule reads,
+//     which is how a nickname is typed (runtime/nickname.ts `typedWords`);
+//   - which code points are control or format characters (`/[\p{Cc}\p{Cf}]/u`), which no
+//     nickname may hold.
 //
 // `node scripts/generate-prose-unicode.mjs` rewrites the file. The tables follow the Unicode
 // version of the Node that wrote them (named at the head of the file); the prose goldens
@@ -25,6 +30,32 @@ for (let cp = 0; cp <= LAST; cp++) {
   const last = runs.at(-1);
   if (last !== undefined && last[1] === cp - 1) last[1] = cp;
   else runs.push([cp, cp]);
+}
+
+const runsOf = (test) => {
+  const found = [];
+  for (let cp = 0; cp <= LAST; cp++) {
+    if (surrogate(cp) || !test(String.fromCodePoint(cp))) continue;
+    const last = found.at(-1);
+    if (last !== undefined && last[1] === cp - 1) last[1] = cp;
+    else found.push([cp, cp]);
+  }
+  return found;
+};
+const controls = runsOf((one) => /^[\p{Cc}\p{Cf}]$/u.test(one));
+const cased = runsOf((one) => /^\p{Cased}$/u.test(one));
+const ignorable = runsOf((one) => /^\p{Case_Ignorable}$/u.test(one));
+
+const lower = [];
+for (let cp = 0; cp <= LAST; cp++) {
+  if (surrogate(cp)) continue;
+  const letter = String.fromCodePoint(cp);
+  const made = letter.toLowerCase();
+  if (made === letter) continue;
+  const parts = [...made].map((one) => one.codePointAt(0));
+  if (parts.length > 2)
+    throw new Error(`U+${cp.toString(16)} lower-cases to more than two code points.`);
+  lower.push([cp, ...parts, ...Array(2 - parts.length).fill(0)]);
 }
 
 const upper = [];
@@ -74,17 +105,85 @@ ${wrap(
 )}
 };
 
+/* The runs of code points that are control or format characters (\\p{Cc} and \\p{Cf}), first and last. */
+static const unsigned long CONTROL_RUNS[][2] = {
+${wrap(
+  controls.map(
+    ([first, last]) =>
+      `{0x${first.toString(16).toUpperCase()}, 0x${last.toString(16).toUpperCase()}}`,
+  ),
+  4,
+)}
+};
+
+/* The runs of cased code points (\\p{Cased}) and of case-ignorable ones (\\p{Case_Ignorable}), first and last. */
+static const unsigned long CASED_RUNS[][2] = {
+${wrap(
+  cased.map(
+    ([first, last]) =>
+      `{0x${first.toString(16).toUpperCase()}, 0x${last.toString(16).toUpperCase()}}`,
+  ),
+  4,
+)}
+};
+
+static const unsigned long IGNORABLE_RUNS[][2] = {
+${wrap(
+  ignorable.map(
+    ([first, last]) =>
+      `{0x${first.toString(16).toUpperCase()}, 0x${last.toString(16).toUpperCase()}}`,
+  ),
+  4,
+)}
+};
+
+/* Each code point whose lower case is something else, with that as up to two code points. */
+static const unsigned long LOWER_CASE[][3] = {
+${wrap(
+  lower.map(
+    ([cp, a, b]) =>
+      `{0x${cp.toString(16).toUpperCase()}, 0x${a.toString(16).toUpperCase()}, 0x${b.toString(16).toUpperCase()}}`,
+  ),
+  3,
+)}
+};
+
 #define COUNT(table) (sizeof(table) / sizeof((table)[0]))
 
-bool prose_unicode_letter_or_number(unsigned long cp) {
-  size_t low = 0, high = COUNT(LETTER_RUNS);
+static bool in_runs(const unsigned long (*runs)[2], size_t count, unsigned long cp) {
+  size_t low = 0, high = count;
   while (low < high) {
     size_t middle = low + (high - low) / 2;
-    if (cp < LETTER_RUNS[middle][0]) high = middle;
-    else if (cp > LETTER_RUNS[middle][1]) low = middle + 1;
+    if (cp < runs[middle][0]) high = middle;
+    else if (cp > runs[middle][1]) low = middle + 1;
     else return true;
   }
   return false;
+}
+
+bool prose_unicode_letter_or_number(unsigned long cp) { return in_runs(LETTER_RUNS, COUNT(LETTER_RUNS), cp); }
+
+bool prose_unicode_control_or_format(unsigned long cp) { return in_runs(CONTROL_RUNS, COUNT(CONTROL_RUNS), cp); }
+
+bool prose_unicode_cased(unsigned long cp) { return in_runs(CASED_RUNS, COUNT(CASED_RUNS), cp); }
+
+bool prose_unicode_case_ignorable(unsigned long cp) { return in_runs(IGNORABLE_RUNS, COUNT(IGNORABLE_RUNS), cp); }
+
+size_t prose_unicode_lower(unsigned long cp, unsigned long out[2]) {
+  size_t low = 0, high = COUNT(LOWER_CASE);
+  while (low < high) {
+    size_t middle = low + (high - low) / 2;
+    if (cp < LOWER_CASE[middle][0]) high = middle;
+    else if (cp > LOWER_CASE[middle][0]) low = middle + 1;
+    else {
+      out[0] = LOWER_CASE[middle][1];
+      if (LOWER_CASE[middle][2] == 0) return 1;
+      out[1] = LOWER_CASE[middle][2];
+      return 2;
+    }
+  }
+  out[0] = cp;
+  return 1;
 }
 
 size_t prose_unicode_upper(unsigned long cp, unsigned long out[3]) {
@@ -109,4 +208,6 @@ size_t prose_unicode_upper(unsigned long cp, unsigned long out[3]) {
 `;
 
 writeFileSync(FILE, text);
-console.log(`wrote ${FILE}: ${runs.length} runs, ${upper.length} upper-case entries`);
+console.log(
+  `wrote ${FILE}: ${runs.length} runs, ${upper.length} upper-case entries, ${lower.length} lower-case entries`,
+);

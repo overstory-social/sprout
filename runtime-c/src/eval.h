@@ -125,4 +125,11 @@ typedef struct sprout_spawned {
 sprout_eval_status sprout_spawn(const sprout_frame *frame, const char *kind, sprout_str container,
                                 sprout_spawned *out);
 
+/*
+ * Gives `holder`, an instance made this turn that holds nothing yet, its own copy of everything its kinds' bodies
+ * hold, as a spawn of its kind is given them (the spec's Actors and visitors); nothing is sent for any of them.
+ * Faults, writing nothing, as a spawn does.
+ */
+sprout_eval_status sprout_give_contents(const sprout_frame *frame, sprout_str holder, sprout_spawned *out);
+
 #endif

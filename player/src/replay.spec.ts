@@ -1,101 +1,104 @@
 import { describe, expect, it } from 'vitest';
 
 import { resolveScript } from './readings.js';
-import { blocksOf, expectedBlocks, firstDifference } from './replay.js';
+import { firstDifference, traceOf, whereDifferent, type TraceStep } from './replay.js';
 import { scriptOf } from './fixtures/scripts.js';
 import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
-const printed = (body: string): string => `cartridge: x\n--- play\n${body}`;
+const readings = resolveScript(
+  bundleOf('kiln_yard', KILN_YARD),
+  scriptOf('@arrive Marta\nMarta> fire kiln\nMarta> sing loudly\n'),
+  'yard.json',
+);
 
-describe('blocksOf', () => {
-  it('groups the lines under their steps, marks a skipped turn, and keeps the words a play stopped on', () => {
-    const { blocks, stoppedOn } = blocksOf(
-      printed(
-        '## step 1: @arrive Marta\nMarta: A kiln yard.\n## step 2: Marta> sing\n-- skipped, the parser answered: unknown\n## step 3: @tick\n!! not built yet\n',
-      ),
+/** The trace a runtime that played `readings` exactly would write. */
+function faithful(): Map<number, TraceStep> {
+  const steps = new Map<number, TraceStep>();
+  for (const step of readings.steps) {
+    if (step.after === undefined) continue;
+    steps.set(step.index, {
+      step: step.index,
+      says: step.after.says,
+      turns: step.after.turns,
+      world: step.after.world,
+    });
+  }
+  return steps;
+}
+
+describe('traceOf', () => {
+  it('reads one step to a line, by its index', () => {
+    const trace = traceOf(
+      '{"step":2,"says":[],"turns":[],"world":{}}\n{"step":5,"says":[],"turns":[],"world":{}}\n',
     );
-    expect([...blocks.keys()]).toEqual([1, 2, 3]);
-    expect(blocks.get(1)).toEqual({ lines: ['Marta: A kiln yard.'], unchecked: false });
-    expect(blocks.get(2)?.unchecked).toBe(true);
-    expect(stoppedOn).toBe('not built yet');
+    expect([...trace.keys()]).toEqual([2, 5]);
   });
 
-  it('reads nothing before the play line', () => {
-    expect(blocksOf('name: x\n').blocks.size).toBe(0);
+  it('names the line that is not JSON', () => {
+    expect(() => traceOf('{"step":1}\nnot json\n')).toThrow(/line 2 of the trace is not JSON/);
   });
 });
 
-describe('expectedBlocks', () => {
-  const script = scriptOf('@arrive Marta\nMarta> fire kiln\nMarta> sing loudly\n');
-  const readings = resolveScript(bundleOf('kiln_yard', KILN_YARD), script, 'yard.json');
-
-  it('expects a reader line as its reader and words, and only that', () => {
-    const written = {
-      steps: [
-        {
-          arrive: 'Marta',
-          expect: [{ reader: 'Marta', kind: 'described', words: 'A kiln yard.' }],
-        },
-        { as: 'Marta', type: 'fire kiln', expect: [{ level: 'info' as const, text: 'step: x' }] },
-        { as: 'Marta', type: 'sing loudly' },
-      ],
-    };
-    const blocks = expectedBlocks(written, readings);
-    expect(blocks.get(0)?.lines).toEqual(['Marta: A kiln yard.']);
-    expect(blocks.get(1)?.lines).toEqual([]);
+describe('whereDifferent', () => {
+  it('is null for the same thing, whatever order an object keeps its keys in', () => {
+    expect(whereDifferent({ a: 1, b: [1, 2] }, { b: [1, 2], a: 1 })).toBeNull();
   });
 
-  it('leaves a step unchecked where the parser answered a turn of it', () => {
-    const blocks = expectedBlocks(script, readings);
-    expect(blocks.get(1)?.unchecked).toBe(false);
-    expect(blocks.get(2)?.unchecked).toBe(true);
+  it('names the path to the first difference, and what each side has', () => {
+    expect(whereDifferent({ a: { b: [1, 2] } }, { a: { b: [1, 3] } })).toBe(
+      'a.b[1] is 3 where the TypeScript runtime has 2',
+    );
+    expect(whereDifferent({ a: 1 }, {})).toBe('a is nothing where the TypeScript runtime has 1');
   });
 });
 
 describe('firstDifference', () => {
-  const one = (...lines: string[]) => ({ lines, unchecked: false });
+  it('finds nothing in a runtime that left behind what the TypeScript runtime did', () => {
+    expect(firstDifference(readings, faithful())).toBeNull();
+  });
 
   it('counts a step the play never reached as a difference', () => {
-    const expected = new Map([
-      [0, one()],
-      [1, one('Ines: hi')],
-    ]);
-    expect(firstDifference(expected, new Map([[0, one()]]))).toBe('step 1 was never reached');
+    const trace = faithful();
+    trace.delete(1);
+    expect(firstDifference(readings, trace)).toBe('step 1 was never reached');
   });
 
-  it('names the step whose lines differ and shows both sides', () => {
-    const expected = new Map([
-      [0, one('Ines: hi')],
-      [1, one('Ines: bye')],
-    ]);
-    const actual = new Map([
-      [0, one('Ines: hi')],
-      [1, one('Ines: farewell')],
-    ]);
-    const words = firstDifference(expected, actual);
-    expect(words).toContain('step 1 said');
-    expect(words).toContain('Ines: farewell');
-    expect(words).toContain('Ines: bye');
+  it('names the first line a reader read differently', () => {
+    const trace = faithful();
+    const step = trace.get(0)!;
+    trace.set(0, {
+      ...step,
+      says: step.says.map((said, at) => (at === 0 ? { ...said, words: 'Nothing.' } : said)),
+    });
+    expect(firstDifference(readings, trace)).toMatch(
+      /^step 0 line 1: sproutc says Marta \(described\): Nothing\. and the TypeScript runtime says Marta \(described\): /,
+    );
   });
 
-  it('is silent where every checked step agrees, ignoring an unchecked one on either side', () => {
-    const expected = new Map([
-      [0, one('Ines: hi')],
-      [1, { lines: ['a'], unchecked: true }],
-    ]);
-    const actual = new Map([
-      [0, one('Ines: hi')],
-      [1, one('b')],
-    ]);
-    expect(firstDifference(expected, actual)).toBeNull();
-    expect(
-      firstDifference(new Map([[0, one('x')]]), new Map([[0, { lines: [], unchecked: true }]])),
-    ).toBeNull();
+  it('names the turn the log entry differs in, and where', () => {
+    const trace = faithful();
+    const step = trace.get(1)!;
+    trace.set(1, { ...step, turns: step.turns.map((turn) => ({ ...turn, seed: turn.seed + 1 })) });
+    expect(firstDifference(readings, trace)).toMatch(
+      /^step 1, the log's entry for turn 1 \(command\): seed is 1 where the TypeScript runtime has 0$/,
+    );
   });
 
-  it('tells nothing said from something said', () => {
-    expect(firstDifference(new Map([[0, one('Ines: hi')]]), new Map([[0, one()]]))).toContain(
-      '(nothing)',
+  it('notices a turn one runtime ran and the other did not', () => {
+    const trace = faithful();
+    const step = trace.get(1)!;
+    trace.set(1, { ...step, turns: [] });
+    expect(firstDifference(readings, trace)).toMatch(
+      /^step 1 ran 0 turns in sproutc and 1 in the TypeScript runtime/,
+    );
+  });
+
+  it('names a stored world that differs', () => {
+    const trace = faithful();
+    const step = trace.get(1)!;
+    trace.set(1, { ...step, world: { ...(step.world as object), serial: 99 } });
+    expect(firstDifference(readings, trace)).toMatch(
+      /^step 1, the stored world: serial is 99 where/,
     );
   });
 });

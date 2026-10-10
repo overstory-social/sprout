@@ -87,6 +87,8 @@ static const char *kind_name(sprout_effect_kind kind) {
       return "notice";
     case SPROUT_EFFECT_EXTENSION:
       return "extension";
+    case SPROUT_EFFECT_DESCRIBED:
+      return "described";
   }
   return "";
 }

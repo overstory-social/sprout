@@ -1,6 +1,13 @@
-import { SEED_MAX, SproutList, type InstanceId, type Value } from '@overstory/sprout/lang';
+import {
+  saveWorld,
+  SEED_MAX,
+  SproutList,
+  type InstanceId,
+  type StoredWorld,
+  type Value,
+} from '@overstory/sprout/lang';
 
-import { freshStage, playStep, type Traced } from './play.js';
+import { freshStage, playStep, type Stage, type Traced } from './play.js';
 import { lineOf, secondsOf, type Script, type Step } from './script.js';
 import type { PlayableWorld } from './stand.js';
 
@@ -43,6 +50,54 @@ export type ReadFiller =
   | { readonly role: string; readonly binds: 'value'; readonly value: ReadValue }
   | { readonly role: string; readonly binds: 'unbound' };
 
+/** One line a reader read: whose screen, the kind of line it was and its words. */
+export interface Said {
+  readonly reader: string;
+  readonly kind: string;
+  readonly words: string;
+}
+
+/**
+ * What the log keeps of one turn that ran, as a runtime working from the log's inputs reproduces it: the
+ * seed it drew from, the instant, whom it was for, how it ended, the fault it ended in, the world's last
+ * serial, each effect it told (without where its words were written), who it cut short, and, for catch-up,
+ * the wakes it delivered, consumed after a fault, and left pending.
+ */
+export interface TurnEntry {
+  readonly kind: Traced['turn'];
+  readonly seed: number;
+  readonly seconds: number;
+  readonly who: string | null;
+  readonly outcome: 'done' | 'faulted' | 'refused';
+  readonly fault: string | null;
+  readonly serial: number;
+  readonly effects: readonly {
+    readonly kind: string;
+    readonly from: string;
+    readonly to: string;
+    readonly visit: string;
+    readonly paragraphs: readonly string[];
+  }[];
+  readonly cutShort: readonly string[];
+  readonly delivered?: readonly { readonly object: string; readonly serial: number }[];
+  readonly faulted?: readonly {
+    readonly object: string;
+    readonly serial: number;
+    readonly fault: string;
+  }[];
+  readonly abandoned?: readonly { readonly object: string; readonly serial: number }[];
+}
+
+/** What a step left behind it, which a runtime playing the readings is compared with. */
+export interface After {
+  /** The lines readers read, in order. */
+  readonly says: readonly Said[];
+  /** Every turn that ran and has an entry in the log, in order. */
+  readonly turns: readonly TurnEntry[];
+  /** The stored world once the step is over. */
+  readonly world: StoredWorld;
+}
+
 /** One command turn of a typed line: what the parser made of the text. */
 export type ReadTurn =
   | {
@@ -54,6 +109,8 @@ export type ReadTurn =
       readonly fillers: readonly ReadFiller[];
       /** Whether the consent pass refused the reading; the reading is still one to run. */
       readonly refused: boolean;
+      readonly says: readonly Said[];
+      readonly expect: TurnEntry;
     }
   | {
       readonly typed: string;
@@ -61,6 +118,9 @@ export type ReadTurn =
       readonly skip: true;
       /** The parser's own answer (a passage's name or its words), or `faulted`. */
       readonly why: string;
+      /** What the parser's answer told the reader, and the entry it left, which a runtime that does not parse echoes. */
+      readonly says: readonly Said[];
+      readonly expect: TurnEntry;
     };
 
 /** One step of the script, with the clock and seed it begins under. */
@@ -74,6 +134,8 @@ export type ReadStep = {
    * after takes the next; a tick's and a wake's turns are seeded from it by `turnSeed`.
    */
   readonly seed: number;
+  /** What the step left behind it, once played; absent from a comment and `@seed`. */
+  readonly after?: After;
 } & Facts;
 
 /** What kind of step it is, and what that kind carries. */
@@ -117,9 +179,54 @@ function fillersOf(reading: NonNullable<Traced['reading']>): ReadFiller[] {
   });
 }
 
-function turnOf(traced: Traced, seed: number): ReadTurn {
+/** What `traced` told the readers, one line to each paragraph, by nickname. */
+function saysOf(stage: Stage, traced: Traced): Said[] {
+  return traced.effects.flatMap((effect) => {
+    const reader = stage.state.visitors.get(effect.visit)?.nickname ?? effect.visit;
+    return effect.paragraphs.map((words) => ({ reader, kind: effect.kind, words }));
+  });
+}
+
+/** The entry the log keeps of `traced`. */
+function entryOf(traced: Traced): TurnEntry {
+  const { logged } = traced;
+  const named = (wake: { readonly object: string; readonly serial: number }) => ({
+    object: wake.object,
+    serial: wake.serial,
+  });
+  return {
+    kind: traced.turn,
+    seed: logged.seed,
+    seconds: logged.now,
+    who: logged.who,
+    outcome: logged.outcome === 'closed' ? 'refused' : logged.outcome,
+    fault: traced.faults[0]?.name ?? null,
+    serial: logged.serial,
+    effects: traced.effects.map((effect) => ({
+      kind: effect.kind,
+      from: effect.from,
+      to: effect.to,
+      visit: effect.visit,
+      paragraphs: [...effect.paragraphs],
+    })),
+    cutShort: [...logged.cut],
+    ...(logged.wakes === null
+      ? {}
+      : {
+          delivered: logged.wakes.delivered.map(named),
+          faulted: logged.wakes.faulted.map(({ wake, fault }) => ({
+            ...named(wake),
+            fault: fault.name,
+          })),
+          abandoned: logged.wakes.abandoned.map(named),
+        }),
+  };
+}
+
+function turnOf(stage: Stage, traced: Traced, seed: number): ReadTurn {
   const typed = traced.typed ?? '';
   const { reading } = traced;
+  const echo = { says: saysOf(stage, traced), expect: entryOf(traced) };
   if (reading !== null) {
     return {
       typed,
@@ -129,9 +236,10 @@ function turnOf(traced: Traced, seed: number): ReadTurn {
       actor: reading.actor,
       fillers: fillersOf(reading),
       refused: traced.refused,
+      ...echo,
     };
   }
-  return { typed, seed, skip: true, why: traced.answered ?? 'faulted' };
+  return { typed, seed, skip: true, why: traced.answered ?? 'faulted', ...echo };
 }
 
 function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
@@ -155,11 +263,18 @@ export function resolveScript(world: PlayableWorld, script: Script, name: string
     const begins = { index: i, line: lineOf(step), atSeconds: stage.now, seed: stage.seed };
     const from = stage.turns.length;
     playStep(stage, step, `${name}, step ${i + 1}`);
-    const turns = stage.turns
-      .slice(from)
+    const ran = stage.turns.slice(from);
+    const turns = ran
       .filter((traced) => traced.turn === 'command')
-      .map((traced, k) => turnOf(traced, (begins.seed + k) % (SEED_MAX + 1)));
-    return { ...begins, ...factsOf(step, turns) };
+      .map((traced, k) => turnOf(stage, traced, (begins.seed + k) % (SEED_MAX + 1)));
+    if ('comment' in step || 'seed' in step) return { ...begins, ...factsOf(step, turns) };
+    const after: After = {
+      says: ran.flatMap((traced) => saysOf(stage, traced)),
+      // A world that admits no one runs no turn, and so has no entry.
+      turns: ran.filter((traced) => traced.logged.outcome !== 'closed').map(entryOf),
+      world: saveWorld(stage.state),
+    };
+    return { ...begins, ...factsOf(step, turns), after };
   });
   return { format: 1, script: name, steps };
 }
