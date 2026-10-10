@@ -4,6 +4,9 @@
 
 The inputs behind the design spec: four reviews reconciled, the prior art weighed, and the questions still open. This doc goes stale as the spec settles — the spec is the artifact, this is the reasoning behind it.
 
+Related design documents: [the spec](sprout-design-spec.md), [the build backlog](sprout-build-backlog.md), [the test harness](sprout-test-harness.md), [the server and its protocol](sprout-server.md) and [the Playdate player](sprout-playdate.md).
+
+
 ## Reviewer positions
 
 Three reviews converge on eight findings, conflict on six, and between them correct two claims each of them made. Eric's own material is forward-looking — federating Sprout instances among other things — and is a separate input, not part of this reconciliation.
@@ -1378,6 +1381,19 @@ Only dynamic topology was irreducible, and it is answered by `link` and `connect
 **A place reading another place is refused — decided 2026-10-09 (480, Eric).** A place's `describe` that read another place with `get` faulted every arrival, while an exit's `when` reading it silently did not apply, and `sprout check` passed both. Eric chose to have the compiler refuse a `get` or `is` through a name of another place wherever it can see statically that range keeps them apart (https://github.com/overstory-social/sprout/issues/480), and to leave the runtime's out-of-range fault, and a guard's not applying, as the spec has them. The spec's What it refuses now says so. Built: the read is refused in the own body of a place the world's body declares (its describe, its exits' guards, its passages) when the name is another place the world's body declares, and the world writes no `pass any` other than `false`. A place inside another place is never refused at either end, since it may be moved, as a cart, a boat or a wardrobe is, into range; nor is a thing that may be carried across, or a name in a kind's body. The compile treats a place in the world's body as staying there; a world that moves one into another at run time could be refused a read that would then be in range. (`corpus/bad/other-place-read`.)
 
 **A refusal's words see into the actor's hands — decided 2026-10-09 (476, Eric).** A count of what the actor holds, `actor.count(K)`, in the words a place's refusing exit gave was always 0, since the asker is the place and `sprout.Actor` passes nothing. The Zork port's coffin refusal needs that count. Eric chose to let a refusal's words look into the acting visitor's hands, the way `lit`'s `sees` does (https://github.com/overstory-social/sprout/issues/476), over a checker warning or a line in the manual. The spec's Range now says so, and Sight names the exception. Built: a line whose effect is a refusal renders with the hands of its `actor`, or in a guard its `mover`, passing where that one is a visitor, through every passage it renders; an NPC's refusal opens no hands. Only the actor's hands open, and a shut container in them stays shut. A description, a `say` and a `tell` are unchanged. (`corpus/good/refusal-hands`.)
+
+**What the Playdate epic left for Eric — open, to decide in one sitting (2026-10-10).** Each is built the narrow way and recorded under _Holes in the spec_ with the alternatives it did not take; [the Playdate design](sprout-playdate.md) says how each is built. None is decided. The spec is not edited here: where a sentence is proposed, it is in the hole.
+
+- **462, the cartridge.** `sprout pack` and the file's layout (16-byte header, gzip JSON, the formats and levels refused by number, what a cartridge leaves out). Alternative: a cartridge is a `sprout publish` output and not a command of its own.
+- **493, a store and a cartridge in C.** Stores written sorted, whole numbers only, the cartridge's typed words final, no caps refusal in C; the nickname word set folded in Lua as TypeScript folds it.
+- **494, what a spawn costs.** One for the instance and one per content, a host row for live instances, no extension-typed property in the C evaluator.
+- **495, what a statement records.** The fields an effect keeps for the prose pass, and an extension statement of an extension the world does not pin recording nothing.
+- **497, the C poll.** Three attempts, the same steps as TypeScript, a fault laid against the visitor's place, the budget row reported.
+- **498, the C prose layer.** JavaScript's white space, capitalisation and character counts reproduced as two Unicode 17.0 tables; the engine line `not_a_place` held by the runtime alone (the spec's replaceable-line list gains it, or not).
+- **499, the C turns.** Budget-fault words held by the runtime, a catch-up's one meter and which faults end it, the host's defects refused with words, a faulted departure or wake still changing the store.
+- **500, the Playdate app as a host.** The budget table (and the three rows the spec leaves to the host), the static caps, time and the ten-second tick, one visit a world, nickname pool, the two-file save, and the sentence builder's order and set roles; the view carries no intents.
+- **502, shipped worlds and downloads.** What "graduated" means and `worlds.json` as its list, the index and its fields, Ed25519 over the canonical text with one baked-in key and no revocation or expiry, takedown by omission, the device's file handling.
+- **The media paragraph (_Extensions on a host that is not TypeScript, and the `media` extension_).** One sentence for the spec on hosts that are not TypeScript, `[<path>]` for a caption-less show, optional statement parameters, the `assetBytes` cap, the cartridge's asset listing, and an absent cap reading as unset.
 
 ### Not language questions, but blocking
 
