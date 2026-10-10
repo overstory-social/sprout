@@ -1,8 +1,11 @@
 {
-  "about": "`take [target] from [source]` and `take [target] out of [source]` take a thing the source holds and refuse one it does not; a run shares the source, each its own turn.",
+  "about": "`take [target] from [source]` and `take [target] out of [source]` take a thing the source holds and refuse one it does not, and a source that is no container is `cannot`; a run shares the source, each its own turn.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "take bottle from lamp", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't take the bottle from the lamp." }
     ] },
     { "as": "Marta", "type": "take bottle from sack", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "That isn't in the sack." }

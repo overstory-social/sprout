@@ -836,12 +836,16 @@
             "role": "target",
             "binds": "object",
             "id": "bench.shop.shelf"
+          },
+          {
+            "role": "source",
+            "binds": "unbound"
           }
         ]
       },
       "expect": {
         "how": "refused",
-        "steps": 9,
+        "steps": 11,
         "refused": {
           "by": "bench.shop.shelf",
           "role": "target",
@@ -976,12 +980,16 @@
             "role": "target",
             "binds": "object",
             "id": "bench.shop.brass_key"
+          },
+          {
+            "role": "source",
+            "binds": "unbound"
           }
         ]
       },
       "expect": {
         "how": "acted",
-        "steps": 24,
+        "steps": 26,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1064,12 +1072,16 @@
             "role": "target",
             "binds": "object",
             "id": "bench.shop.book"
+          },
+          {
+            "role": "source",
+            "binds": "unbound"
           }
         ]
       },
       "expect": {
         "how": "acted",
-        "steps": 24,
+        "steps": 26,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1152,6 +1164,10 @@
             "role": "target",
             "binds": "object",
             "id": "bench.shop.book"
+          },
+          {
+            "role": "source",
+            "binds": "unbound"
           }
         ]
       },
@@ -1207,6 +1223,10 @@
             "role": "target",
             "binds": "object",
             "id": "bench.shop.book"
+          },
+          {
+            "role": "source",
+            "binds": "unbound"
           }
         ]
       },
@@ -1214,7 +1234,7 @@
         "how": "fault",
         "fault": "MoveFault",
         "detail": "`bench.shop.book` is out of range of `bench#1`, so it could not be moved.",
-        "steps": 15
+        "steps": 17
       }
     },
     {
@@ -3432,7 +3452,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 35,
+        "steps": 37,
         "spawns": 0,
         "events": 0,
         "effects": [
