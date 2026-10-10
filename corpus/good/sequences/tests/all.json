@@ -1,5 +1,5 @@
 {
-  "about": "`all` takes everything in reach a role may take, each in turn, and `except` leaves things out.",
+  "about": "`all` takes everything in reach a role may take, each in turn, leaving out what its consent pass would refuse, and `except` leaves things out; where nothing is left, the line is `not_here`.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
@@ -14,13 +14,10 @@
       { "reader": "Marta", "kind": "said", "words": "You put a key down." }
     ] },
     { "as": "Marta", "type": "take all except key", "expect": [
-      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] },
     { "as": "Marta", "type": "drop all", "expect": [
-      { "level": "info", "text": "step: sprout.drop" },
-      { "reader": "Marta", "kind": "said", "words": "You put a coin down." },
-      { "level": "info", "text": "step: sprout.drop" },
-      { "reader": "Marta", "kind": "refused", "words": "You are not holding a key." }
+      { "reader": "Marta", "kind": "said", "words": "You put a coin down." }
     ] },
     { "as": "Marta", "type": "take all", "expect": [
       { "level": "info", "text": "step: sprout.take" },

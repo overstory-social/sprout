@@ -18,12 +18,12 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
-import { turn } from '../../fixtures/reading.js';
+import { contextOf, reading, turn } from '../../fixtures/reading.js';
 import { Budget } from '../budget.js';
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import { declaredId, type InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
-import { allIn, onlyTheActorPlays } from './all.js';
+import { allIn, allowedOf, onlyTheActorPlays } from './all.js';
 import type { Filled } from './fill.js';
 
 const one = study();
@@ -142,8 +142,12 @@ describe('`all` in a slot', () => {
     expect(nothing).toEqual({ fills: 'nothing', start: 0, end: 1 });
   });
 
-  it('takes no more than a set role may bind', () => {
-    expect(ids(all('all', 'take', 'target', 'sprout', 3))).toEqual([BRASS_KEY, IRON_KEY, LAMP]);
+  it('takes, for a set role, no more than it may bind', () => {
+    expect(ids(all('all', 'juggle', 'things', 'study', 3))).toEqual([[BRASS_KEY, IRON_KEY, LAMP]]);
+  });
+
+  it('takes, for a role that takes one thing, everything, left to `allowedOf` to cap', () => {
+    expect(ids(all('all', 'take', 'target', 'sprout', 3))).toHaveLength(11);
   });
 });
 
@@ -216,6 +220,52 @@ describe('`all` in an engine verb’s open role', () => {
   it('takes, where the role is carried, only what the actor carries', () => {
     const carried = (id: InstanceId) => id === PEAR || id === BELL;
     expect(ids(inGallery('sprout', 'examine', carried, true))).toEqual([BELL, PEAR]);
+  });
+});
+
+describe('what of `all` is left to run', () => {
+  const gallery = turn(GALLERY, [GALLERY_HALL]);
+  const visitor = gallery.people[0]!;
+  const examining = (id: InstanceId) =>
+    reading(GALLERY, 'examine', visitor, { target: { object: id } }, 'sprout');
+
+  it('is each reading whose consent pass allows, in order, leaving out one refused', () => {
+    const left = allowedOf([APPLE, BELL, GLARE_LAMP, PEAR].map(examining), {
+      ...contextOf(gallery),
+      state: gallery.draft,
+    });
+    expect(left.map((one) => one.bindings.get('target'))).toEqual([
+      { object: APPLE },
+      { object: BELL },
+      { object: PEAR },
+    ]);
+  });
+
+  it('is capped at what a set role may bind after the refused are left out, asking no pass past it', () => {
+    const capped = turn(
+      GALLERY,
+      [GALLERY_HALL],
+      new Budget({ ...DEFAULT_LIMITS.budgets, setRoleObjects: 2 }),
+    );
+    const who = capped.people[0]!;
+    const of = (id: InstanceId) =>
+      reading(GALLERY, 'examine', who, { target: { object: id } }, 'sprout');
+    const left = allowedOf([GLARE_LAMP, APPLE, BELL, PEAR].map(of), {
+      ...contextOf(capped),
+      state: capped.draft,
+    });
+    expect(left.map((one) => one.bindings.get('target'))).toEqual([
+      { object: APPLE },
+      { object: BELL },
+    ]);
+  });
+
+  it('is nothing where every reading is refused, and each pass is charged to the turn', () => {
+    const before = gallery.budget.spentSteps;
+    expect(
+      allowedOf([examining(GLARE_LAMP)], { ...contextOf(gallery), state: gallery.draft }),
+    ).toEqual([]);
+    expect(gallery.budget.spentSteps).toBeGreaterThan(before);
   });
 });
 

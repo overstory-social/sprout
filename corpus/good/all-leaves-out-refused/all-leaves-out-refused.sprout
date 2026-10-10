@@ -1,0 +1,50 @@
+// `all` in a role that takes one thing leaves out each thing whose
+// reading its consent pass would refuse, asked as the line is read (the
+// spec's Parsing › Sequences, again and all). So `drop all` drops what is
+// in hand and leaves the lunch in the sack it holds, which `drop` refuses
+// since it is not held; `take all` leaves out what is already held; and
+// `examine all` passes over the lamp, whose own consent refuses. Where
+// nothing is left, `all` names nothing, and the line is `not_here`. What
+// is left out does not count against the things a line of `all` may run.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {examine} from 'sprout'
+
+world all_leaves_out_refused is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { article the  exit down "down" -> den }
+    object sack is Sack {
+      grammar { name "sack" }
+      object lunch is Toy { grammar { name "lunch" } }
+    }
+    object ball is Toy { grammar { name "ball" } }
+    object lamp is Glare { grammar { name "lamp" } describe { text "A lamp." } }
+  }
+
+  // More marbles than a set role may bind, so a second `take all` holds
+  // that many and still takes the last.
+  object den is sprout.Place {
+    grammar { article the }
+    object red_marble is Toy { grammar { name "red marble" } }
+    object orange_marble is Toy { grammar { name "orange marble" } }
+    object yellow_marble is Toy { grammar { name "yellow marble" } }
+    object green_marble is Toy { grammar { name "green marble" } }
+    object blue_marble is Toy { grammar { name "blue marble" } }
+    object indigo_marble is Toy { grammar { name "indigo marble" } }
+    object violet_marble is Toy { grammar { name "violet marble" } }
+    object white_marble is Toy { grammar { name "white marble" } }
+    object black_marble is Toy { grammar { name "black marble" } }
+  }
+}
+
+kind Toy { }
+kind Sack is sprout.Container { }
+
+kind Glare {
+  as target for examine {
+    permit { refuse "Too bright to look at." }
+  }
+}

@@ -67,7 +67,7 @@ import {
 } from './parser/fill.js';
 import { slotSpans, type SlotSpan } from './parser/match.js';
 import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nouns.js';
-import { allIn, type AllContext } from './parser/all.js';
+import { allIn, allowedOf, type AllContext } from './parser/all.js';
 import { reachOf } from './parser/reach.js';
 import { readItem } from './parser/item.js';
 import { inReach } from './parser/planned.js';
@@ -238,7 +238,11 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
       for (const choice of choicesOf(fills)) {
         budget.spend();
         const each = eachOf(phrase, actor, spans, choice, context);
-        if (each.length === 0) continue;
+        if (each.length === 0) {
+          // `all` that leaves nothing to run names nothing.
+          notHere = true;
+          continue;
+        }
         const [reading, ...rest] = each as [Reading, ...Reading[]];
         if (phrase.only !== null && !takesPart(phrase.only, reading)) continue;
         const ranked: Ranked = {
@@ -561,8 +565,8 @@ function readingKey(reading: Understood): string {
 /**
  * The readings one placement of a phrase's slots makes: the one `choice`
  * fills every slot with, or, where a slot is `all`, one for each thing it
- * takes that no other slot names, in order, each a step; none where `all`
- * takes nothing else.
+ * takes that no other slot names and whose consent pass allows, in order,
+ * each a step; none where `all` leaves nothing.
  */
 function eachOf(
   phrase: TypedPhrase,
@@ -588,11 +592,12 @@ function eachOf(
   const things = (taken.words === undefined ? (taken.each ?? []) : []).filter(
     (one) => !('object' in one.bound && named.has(one.bound.object)),
   );
-  return things.map((thing) => {
+  const readings = things.map((thing) => {
     context.budget.spend();
     const one = choice.map((chosen, slot) => (slot === at ? thing : chosen));
     return readingOf(phrase, actor, spans, one, context);
   });
+  return allowedOf(readings, context);
 }
 
 /** The reading one placement of a phrase's slots makes, every slot filled by `choice`. */
