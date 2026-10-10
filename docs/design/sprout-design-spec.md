@@ -1295,7 +1295,7 @@ Each visitor has their own pronouns, set by their own last command: `it` and `th
 
 `again`, or `g`, runs the visitor's last reading again: the same verb and the same things, not the same words, so a line whose nouns would now mean something else still means what it meant. Its consent pass is asked afresh, and a thing no longer in reach is answered with `not_here`; so is a turn a line planned before it ran, a thing of `all` or of a run or an intent's step, whose thing is no longer in reach when its turn comes, which stops the rest of the line.
 
-`all` fills a role with everything it may take, and `except` leaves things out, by kind or by name: `take all`, `take all except the bronze key`. What `all` takes is every thing in reach whose kind composes the role's kind, for a role of a kind; for an open role of an engine verb, as `examine`'s target, every thing in reach that is not a person and not the visitor's own place, whatever else plays it; for any other open role, every thing in reach whose kind plays a part in the verb, or, for a role only the actor plays, as `take`'s target, every thing in reach that is not a person and not the visitor's own place; and for a carried role, only what the visitor carries. A set role takes them all at once. A role that takes one thing runs once for each, as a sequence would, in the order the range walk reaches them, leaving out each thing whose reading its consent pass would refuse, asked as the line is read, so `take all` passes over what the visitor already holds and `drop all` over what is not in their hands; it stops at the first refusal its turns then meet; a line of `all` runs at most as many turns as a set role may bind objects.
+`all` fills a role with everything it may take, and `except` leaves things out, by kind or by name: `take all`, `take all except the bronze key`. `everything` is another word for `all`, read wherever `all` is, `drop everything except the lamp`; `each` is not. What `all` takes is every thing in reach whose kind composes the role's kind, for a role of a kind; for an open role of an engine verb, as `examine`'s target, every thing in reach that is not a person and not the visitor's own place, whatever else plays it; for any other open role, every thing in reach whose kind plays a part in the verb, or, for a role only the actor plays, as `take`'s target, every thing in reach that is not a person and not the visitor's own place; and for a carried role, only what the visitor carries. A set role takes them all at once. A role that takes one thing runs once for each, as a sequence would, in the order the range walk reaches them, leaving out each thing whose reading its consent pass would refuse, asked as the line is read, so `take all` passes over what the visitor already holds and `drop all` over what is not in their hands; it stops at the first refusal its turns then meet; a line of `all` runs at most as many turns as a set role may bind objects.
 
 A run of things, `take sack and bottle` or `take sack, bottle and lamp`, with a comma before the `and` or without, fills a set role at once, under Set roles; in a role that takes one thing it runs once for each, as `all` does, in the order written, and stops at the first refusal; as with `all`, a line runs at most as many of a run's things as a set role may bind objects. An item that names nothing in reach, or names things that tie, is read on its own turn, its own words alone, every other role keeping what it named when the line began, and answered there as any line's noun is, `not_here` among the answers. A name that holds `and` is still read whole where it names a thing by a noun or its whole name, the longest first, so `the salt and pepper shaker and the lamp` is two things.
 
@@ -2160,7 +2160,7 @@ kind Place {
 // sprout/actor.sprout
 import {Container} from 'container'
 
-verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]" }
+verb take { role target  role source: Container  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]"  "take [target] from [source]"  "take [target] out of [source]" }
 verb drop { role target  "drop [target]"  "put down [target]"  "put [target] down"  "drop [target] here"  "put down [target] here"  "put [target] down here" }
 verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]"  "place [item] in [container]"  "insert [item] into [container]" }
 verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]"  "offer [item] to [recipient]" }
@@ -2175,7 +2175,10 @@ kind Actor {
   accept  (item, from) { if (self.count >= self.get(:capacity)) { refuse hands_full } }
 
   as actor for take {
-    permit { if (self.holds(target)) { refuse "You already have it." } }
+    permit {
+      if (self.holds(target)) { refuse "You already have it." }
+      else if (bound source) { if (!source.holds(target)) { refuse not_in_source } }
+    }
     do     { move target to self  say taken  tell takes }
   }
 
@@ -2208,6 +2211,7 @@ kind Actor {
   passage gives default       { {actor} gives {item} to {recipient}. }
   passage not_carried default { You are not holding {target}. }
   passage not_held default    { You are not holding {item}. }
+  passage not_in_source default { That isn't in {source}. }
   passage held_fast default   { {self} is not something you can carry off. }
   passage not_yours default   { That is for {self} to put down, not you. }
   passage hands_full default  { {self} cannot carry any more. }

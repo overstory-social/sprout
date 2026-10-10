@@ -1,5 +1,6 @@
 // `all` and `except` in a slot (the spec's Parsing › Sequences, again and
-// all): `take all`, `take all except the bronze key and the lamp`. `all`
+// all): `take all`, `take all except the bronze key and the lamp`, and
+// `everything` for `all`, `drop everything except the lamp`. `all`
 // fills a role with everything in reach it may take: a role of a kind
 // takes what composes it; an engine verb's open role, as `examine`'s
 // target, and an open role only the actor plays, as `take`'s, take every
@@ -12,7 +13,7 @@
 // no more than a set role may bind.
 
 import { isActor } from '../../declare/actors.js';
-import { DETERMINERS, humanisedKind } from '../../declare/addressing.js';
+import { ALL_WORDS, DETERMINERS, humanisedKind } from '../../declare/addressing.js';
 import { playsOf } from '../../declare/roles.js';
 import type { KindRef } from '../../declare/kinds.js';
 import { isEngineVerb, type ResolvedRole, type ResolvedVerb } from '../../declare/verbs.js';
@@ -44,7 +45,7 @@ export function allIn(
   context: AllContext,
 ): Filled | null {
   const fills = role.filler?.fills;
-  if (words[0] !== 'all' || !(fills === 'open' || fills === 'kind')) return null;
+  if (!ALL_WORDS.includes(words[0] ?? '') || !(fills === 'open' || fills === 'kind')) return null;
   let literal = 1;
   const left = new Set<InstanceId>();
   if (words.length > 1) {

@@ -12,7 +12,7 @@
 // and the items past it are not read. Every stretch tried is a noun
 // tried, and each is charged as one.
 
-import { CONNECTORS } from '../../declare/addressing.js';
+import { ALL_WORDS, CONNECTORS } from '../../declare/addressing.js';
 import type { ResolvedRole } from '../../declare/verbs.js';
 import { nounsOfRun, thingsIn, type Candidate, type NounContext } from './nouns.js';
 
@@ -71,10 +71,10 @@ function connectorsIn(candidates: readonly Candidate[], context: NounContext): n
   return most;
 }
 
-/** Whether a noun of the run `words` is `all`, which a run of things does not hold. */
+/** Whether a noun of the run `words` is `all` or `everything`, which a run of things does not hold. */
 export function holdsAll(words: readonly string[]): boolean {
   const nouns = nounsOfRun(words);
-  return nouns.length > 1 && nouns.some(({ start }) => words[start] === 'all');
+  return nouns.length > 1 && nouns.some(({ start }) => ALL_WORDS.includes(words[start]!));
 }
 
 /** Whether `words` name something in reach by a noun or its whole name, not adjectives alone. */
