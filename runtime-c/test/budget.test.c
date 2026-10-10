@@ -21,10 +21,11 @@ static void the_step_budget_faults_on_the_step_past_the_hosts_figure(void) {
     CHECK(!sprout_meter_steps(&meter, 1));
     CHECK(meter.faulted);
     CHECK_INT(meter.fault.limit, figure);
+    CHECK_INT(meter.steps, figure + 1);
   }
 }
 
-static void a_charge_of_many_steps_is_all_or_nothing(void) {
+static void a_charge_past_the_figure_is_refused_and_recorded(void) {
   test_heap heap;
   sprout_host host = host_with(&heap);
   sprout_meter meter;
@@ -33,7 +34,9 @@ static void a_charge_of_many_steps_is_all_or_nothing(void) {
   CHECK(sprout_meter_steps(&meter, 10));
   sprout_meter_begin(&meter, &host, SPROUT_TURN_COMMAND);
   CHECK(!sprout_meter_steps(&meter, 11));
-  CHECK_INT(meter.steps, 0);
+  /* The charge that went over is recorded, as the TypeScript meter records it. */
+  CHECK_INT(meter.steps, 11);
+  CHECK_INT(meter.fault.limit, 10);
 }
 
 static void a_budget_the_host_leaves_unset_is_unbounded(void) {
@@ -312,7 +315,7 @@ static void every_budgets_fault_text_is_complete_at_the_widest_numbers(void) {
 
 int main(void) {
   RUN(the_step_budget_faults_on_the_step_past_the_hosts_figure);
-  RUN(a_charge_of_many_steps_is_all_or_nothing);
+  RUN(a_charge_past_the_figure_is_refused_and_recorded);
   RUN(a_budget_the_host_leaves_unset_is_unbounded);
   RUN(a_poll_is_charged_to_the_poll_budget_and_a_command_to_the_turn_budget);
   RUN(a_fault_names_the_message_the_budget_and_the_figure_in_words);

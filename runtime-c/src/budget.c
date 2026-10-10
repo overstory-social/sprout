@@ -70,12 +70,23 @@ static bool exhaust(sprout_meter *meter, const char *budget, const char *unit, u
   return false;
 }
 
-/* Spends `count` of a budget held in `*spent`; false when that passes the limit. */
+/*
+ * Spends `count` of a budget held in `*spent`; false when that passes the
+ * limit. The charge that passes it is recorded (saturating), as the
+ * TypeScript meter records the step that went over, so a faulted turn reads
+ * as having spent the figure and one more.
+ */
 static bool spend(sprout_meter *meter, uint64_t *spent, uint64_t count, sprout_limit limit,
                   const char *budget, const char *unit) {
   if (meter->faulted) return false;
-  if (count > UINT64_MAX - *spent) return exhaust(meter, budget, unit, limit.value);
-  if (limit.set && *spent + count > limit.value) return exhaust(meter, budget, unit, limit.value);
+  if (count > UINT64_MAX - *spent) {
+    *spent = UINT64_MAX;
+    return exhaust(meter, budget, unit, limit.value);
+  }
+  if (limit.set && *spent + count > limit.value) {
+    *spent += count;
+    return exhaust(meter, budget, unit, limit.value);
+  }
   *spent += count;
   return true;
 }

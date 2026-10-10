@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "cartridge.h"
+#include "evaluate.h"
 #include "state.h"
 #include "host.h"
 #include "readings.h"
@@ -228,6 +229,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
   sproutc_readings readings;
   int code = 0;
 
+  if (argc > 0 && strcmp(argv[0], "eval") == 0) return sproutc_evaluate(argc - 1, argv + 1, out, err);
   why = options_of(argc, argv, &o, words, sizeof words);
   if (why != NULL) {
     fprintf(err, "%s\n%s", why, USAGE);
