@@ -35,8 +35,8 @@ typedef struct walked {
 static sprout_eval_status walk(const sprout_frame *frame, const sprout_node *expr, walked *out);
 
 /* A name the frame binds, or the object the name table says it reaches in range of `self`. */
-static sprout_eval_status name_leaf(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out) {
-  const char *name = expr_ident(expr, "name");
+static sprout_eval_status ident_leaf(const sprout_frame *frame, const sprout_node *ident, sprout_evaluated *out) {
+  const char *name = ident == NULL || ident->kind != SPROUT_NODE_OBJECT ? NULL : sprout_node_text(ident, "text");
   const sprout_binding *bound;
   const sprout_node *named;
   sprout_str reached;
@@ -50,7 +50,7 @@ static sprout_eval_status name_leaf(const sprout_frame *frame, const sprout_node
     *out = bound->bound;
     return SPROUT_EVAL_OK;
   }
-  named = sprout_world_bound(frame->world, sprout_node_get(expr, "name"));
+  named = sprout_world_bound(frame->world, ident);
   if (named == NULL) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "`");
@@ -62,6 +62,15 @@ static sprout_eval_status name_leaf(const sprout_frame *frame, const sprout_node
   EXPR_NEED(expr_reached_by_name(frame, named, name, &reached));
   *out = sprout_evaluated_object(reached);
   return SPROUT_EVAL_OK;
+}
+
+static sprout_eval_status name_leaf(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out) {
+  return ident_leaf(frame, sprout_node_get(expr, "name"), out);
+}
+
+sprout_eval_status sprout_eval_ident(const sprout_frame *frame, const sprout_node *ident, sprout_evaluated *out) {
+  EXPR_NEED(expr_spend(frame));
+  return ident_leaf(frame, ident, out);
 }
 
 /* A dotted path, `w2.forest_1.box`: what a narrowing bound it to, else what the checker resolved it to. */

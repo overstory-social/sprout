@@ -11,6 +11,10 @@
 
 #include "../eval.h"
 
+/* The language's integer range (the spec's Properties > The types). */
+#define INTEGER_MIN (-2147483648.0)
+#define INTEGER_MAX 2147483647.0
+
 #define EXPR_NEED(expr)                                      \
   do {                                                       \
     sprout_eval_status need_ = (expr);                       \
@@ -109,6 +113,9 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
 /* What the name table says `written` reaches from `self`'s body, read through: in range, or a fault. */
 sprout_eval_status expr_reached_by_name(const sprout_frame *frame, const sprout_node *named, const char *written,
                                         sprout_str *out);
+/* The instance `named` reaches from `self`'s body, whatever its range; *found is false where nothing is decoded there now. */
+sprout_eval_status expr_named_object(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
+                                     bool *found);
 /* `frame` with the name `operand` tests by `is(K)` bound to what it reaches now, where it is one in a kind's body. */
 sprout_eval_status expr_narrowed(const sprout_frame *frame, const sprout_node *operand, sprout_frame *out);
 const sprout_binding *expr_binding(const sprout_frame *frame, const char *name);

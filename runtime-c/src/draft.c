@@ -321,7 +321,7 @@ sprout_draft_result sprout_draft_put_visitor(sprout_draft *draft, const sprout_s
 /* ---- removing ---- */
 
 /* `id` and everything inside it, all the way down: decoded contents in order, then dormant records by id; each once. */
-static sprout_draft_result subtree(const sprout_draft *draft, sprout_str id, sprout_str **out, size_t *count) {
+sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str id, sprout_str **out, size_t *count) {
   sprout_str *found, *pending, *dormant;
   size_t n = 0, top = 0, capacity;
   const sprout_stored_instance **all;
@@ -372,7 +372,7 @@ sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, cons
   NEED(open_check(draft));
   if (sprout_str_same(id, draft->base->world)) return SPROUT_DRAFT_THE_WORLD;
   if (sprout_draft_instance(draft, id) == NULL) return SPROUT_DRAFT_MISSING;
-  NEED(subtree(draft, id, &found, &n));
+  NEED(sprout_draft_subtree(draft, id, &found, &n));
   for (i = 0; i < n; i++) {
     const sprout_stored_instance *one = sprout_draft_record(draft, found[i]);
     sprout_str *slot;

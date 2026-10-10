@@ -241,6 +241,11 @@ static sprout_eval_status object_named(const sprout_frame *frame, const sprout_n
   return expr_unchecked(frame, "a name the table resolves in a way this runtime does not know");
 }
 
+sprout_eval_status expr_named_object(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
+                                     bool *found) {
+  return object_named(frame, named, out, found);
+}
+
 sprout_eval_status expr_reached_by_name(const sprout_frame *frame, const sprout_node *named, const char *written,
                                         sprout_str *out) {
   sprout_str target = {NULL, 0};
