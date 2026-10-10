@@ -142,18 +142,14 @@ static sprout_eval_status only_the_actor_plays(const sprout_frame *frame, const 
 
 /* The things that fill a role the actor's own place does not: that place fills no role only the actor plays and their own part moves. */
 static sprout_eval_status things_for(scene *s, const sprout_verb *verb, const sprout_role *role, fillings *out) {
-  size_t i, fitting = 0;
+  size_t i;
   bool own_place = false, here_fits = false;
   bool *fit = (bool *)sprout_arena_take(s->frame->turn, (s->thing_count + 1) * sizeof *fit);
   if (fit == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < s->thing_count; i++) {
     fit[i] = fits(role, s->things[i]) && (!role->carried || s->carried[i]);
-    if (fit[i]) {
-      fitting++;
-      if (sprout_str_same(s->things[i]->id, s->here)) here_fits = true;
-    }
+    if (fit[i] && sprout_str_same(s->things[i]->id, s->here)) here_fits = true;
   }
-  (void)fitting;
   if (here_fits) {
     bool moves, only = false;
     EXPR_NEED(sprout_moves_its_filler(s->frame, verb, role, s->actor, &moves));

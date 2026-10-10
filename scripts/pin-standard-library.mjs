@@ -87,4 +87,6 @@ for (const path of manifests) {
   changed++;
   console.log(`pinned ${path}`);
 }
-console.log(`${changed} of ${manifests.length} manifests pinned to ${pin.name} ${pin.version} ${pin.sha}`);
+console.log(
+  `${changed} of ${manifests.length} manifests pinned to ${pin.name} ${pin.version} ${pin.sha}`,
+);

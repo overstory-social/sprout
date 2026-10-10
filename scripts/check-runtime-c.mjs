@@ -75,9 +75,17 @@ try {
 
 const headerWorld = 'arrival-order';
 tools.packWorld(join('corpus/good', headerWorld), join(scratch, 'header.sproutworld'));
-const header = spawnSync(sproutc, ['play', join(scratch, 'header.sproutworld')], { encoding: 'utf8' });
-if (header.status !== 0 || !/^name: arrival_order$/m.test(header.stdout) || !/^files: 5$/m.test(header.stdout)) {
-  console.log(`runtime-c: FAILED, \`sproutc play\` did not print the header and manifest of ${headerWorld}`);
+const header = spawnSync(sproutc, ['play', join(scratch, 'header.sproutworld')], {
+  encoding: 'utf8',
+});
+if (
+  header.status !== 0 ||
+  !/^name: arrival_order$/m.test(header.stdout) ||
+  !/^files: 5$/m.test(header.stdout)
+) {
+  console.log(
+    `runtime-c: FAILED, \`sproutc play\` did not print the header and manifest of ${headerWorld}`,
+  );
   process.stdout.write(header.stdout + header.stderr);
   process.exit(1);
 }
@@ -89,10 +97,15 @@ for (const result of results) {
 }
 const views = tools.replayViews(sproutc, scratch);
 const unlike = views.filter((r) => !r.passed);
-console.log(`runtime-c view: ${views.length - unlike.length} of ${views.length} worlds print the page \`sprout view\` prints`);
-for (const r of unlike) console.log(`runtime-c view: ${r.name}: ${r.words.replace(/\s*\n\s*/g, ' / ')}`);
+console.log(
+  `runtime-c view: ${views.length - unlike.length} of ${views.length} worlds print the page \`sprout view\` prints`,
+);
+for (const r of unlike)
+  console.log(`runtime-c view: ${r.name}: ${r.words.replace(/\s*\n\s*/g, ' / ')}`);
 if (unlike.length > 0) {
-  console.log('runtime-c: FAILED, `sproutc view` prints another page than `sprout view` for the worlds above');
+  console.log(
+    'runtime-c: FAILED, `sproutc view` prints another page than `sprout view` for the worlds above',
+  );
   process.exit(1);
 }
 const passing = results.filter((r) => r.passed).map((r) => r.name);

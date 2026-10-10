@@ -89,7 +89,9 @@ describe('the view goldens', () => {
     expect(goes(named('link not set'))).toEqual([]);
     // a set role, a value role, a refusal and inside_itself
     expect(view(named('set role')).readings.some((r) => r.verb === 'viewbench.juggle')).toBe(true);
-    expect(view(named('witness')).readings.some((r) => r.refused?.[0] === 'Not before me.')).toBe(true);
+    expect(view(named('witness')).readings.some((r) => r.refused?.[0] === 'Not before me.')).toBe(
+      true,
+    );
     expect(
       view(named('inside_itself')).readings.some((r) => r.refused?.[0]?.includes('inside itself')),
     ).toBe(true);

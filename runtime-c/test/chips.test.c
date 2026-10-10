@@ -138,7 +138,6 @@ static void the_tree_is_written_as_json_in_the_form_the_view_specs_write(void) {
   host.page_bytes = 4096;
   sprout_arena_init(&arena, &host);
   build(&b);
-  b.view.reading_count = 6;
   /* Only the look and the say, so the text is short. */
   b.view.readings = &b.readings[4];
   b.view.reading_count = 2;

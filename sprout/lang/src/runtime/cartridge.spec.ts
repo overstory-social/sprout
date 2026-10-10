@@ -149,7 +149,9 @@ verb peer { role target  "Peer\u00a0AT [target],  ÉMILE   now" }
       const written = [
         ...catalogue.verbs.all().flatMap((verb) => verb.phrases),
         ...catalogue.intentPhrases.flatMap(({ intent }) => intent.phrases),
-      ].flatMap((phrase) => phrase.parts.flatMap((part) => (part.part === 'words' ? [part.text] : [])));
+      ].flatMap((phrase) =>
+        phrase.parts.flatMap((part) => (part.part === 'words' ? [part.text] : [])),
+      );
       expect(
         written.filter((text) => text !== typedWords(text).join(' ')),
         name,

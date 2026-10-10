@@ -18,7 +18,7 @@ import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime
 import { initialState, saveWorld } from '../runtime/load.js';
 import { standsInPlace } from '../runtime/live.js';
 import { nicknameRefusal } from '../runtime/nickname.js';
-import { newInstance, nicknamesIn, readerOf, type WorldState } from '../runtime/state.js';
+import { newInstance, nicknamesIn, type WorldState } from '../runtime/state.js';
 import { pollTurn, type TurnHost } from '../runtime/turn.js';
 import { emptyViewParts, viewOf } from '../runtime/view.js';
 import { SproutList } from '../runtime/lists.js';
@@ -192,7 +192,9 @@ export function benchState(scene: Scene): WorldState {
   const standing = scene.standing ?? [[MARTA, 'Marta', YARD]];
   for (const [visit, nickname, where] of standing) {
     const id = draft.mint();
-    draft.add(newInstance(id, { from: 'visitor' }, BENCH.visitorKind!, where, draft.nextSerial(), CAPS));
+    draft.add(
+      newInstance(id, { from: 'visitor' }, BENCH.visitorKind!, where, draft.nextSerial(), CAPS),
+    );
     draft.putVisitor({
       visit,
       nickname,
@@ -222,7 +224,10 @@ export function benchState(scene: Scene): WorldState {
 }
 
 /** The host a catalogue is polled under, with `pollSteps` as given. */
-export function hostOf(catalogue: Catalogue, pollSteps = DEFAULT_LIMITS.budgets.pollSteps): TurnHost {
+export function hostOf(
+  catalogue: Catalogue,
+  pollSteps = DEFAULT_LIMITS.budgets.pollSteps,
+): TurnHost {
   return {
     catalogue,
     budgets: { ...DEFAULT_LIMITS.budgets, pollSteps },
@@ -315,7 +320,10 @@ export function viewJson(view: SeenView): unknown {
 
 function nodeJson(node: ChipNode): unknown {
   return {
-    choices: node.choices.map(({ filler, next }) => ({ filler: fillerJson(filler), next: nodeJson(next) })),
+    choices: node.choices.map(({ filler, next }) => ({
+      filler: fillerJson(filler),
+      next: nodeJson(next),
+    })),
     leaf:
       node.leaf === null
         ? null
@@ -347,7 +355,8 @@ export function viewCase(state: WorldState, host: TurnHost, visit: VisitKey): Vi
   const nicknames = nicknamesIn(state);
   const measured = pollTurn(state, host, (turn) => {
     const context = { ...turn, nicknames, draws: null, actor };
-    if (standsInPlace(turn.state, actor)) renderView(viewOf(actor, context, emptyViewParts()), context);
+    if (standsInPlace(turn.state, actor))
+      renderView(viewOf(actor, context, emptyViewParts()), context);
     return turn.budget.spentSteps;
   });
   const { fault } = polled;
@@ -410,9 +419,12 @@ export const BENCH_CASES: readonly Bench[] = [
   bench('a witness that refuses greys the readings it is asked in', {
     standing: [[MARTA, 'Marta', GALLERY]],
   }),
-  bench('stuffing a sack into the one inside it is greyed with inside_itself, and two tins written alike are two offers', {
-    standing: [[MARTA, 'Marta', STORE]],
-  }),
+  bench(
+    'stuffing a sack into the one inside it is greyed with inside_itself, and two tins written alike are two offers',
+    {
+      standing: [[MARTA, 'Marta', STORE]],
+    },
+  ),
   bench('the cellar is dark: only what is carried is offered, and the way out', {
     standing: [[MARTA, 'Marta', CELLAR]],
   }),
@@ -431,7 +443,12 @@ export const BENCH_CASES: readonly Bench[] = [
   bench('a visitor whose place is not a place any more is told so and offered nothing', {
     moves: [[MARTA, PURSE]],
   }),
-  bench('a poll that spends its budget shows unseen and keeps the parts it had derived', {}, MARTA, 130),
+  bench(
+    'a poll that spends its budget shows unseen and keeps the parts it had derived',
+    {},
+    MARTA,
+    130,
+  ),
   bench('a poll that spends its budget before the exits shows unseen alone', {}, MARTA, 8),
   bench('a poll that spends its budget while rendering keeps every part', {}, MARTA, 244),
 ];
@@ -444,7 +461,13 @@ function arrived(catalogue: Catalogue): { state: WorldState; host: TurnHost; vis
   if (nicknameRefusal(loaded, catalogue, host.budgets, visit, 'Inspector') !== null) {
     throw new Error('the inspector is not admitted.');
   }
-  const done = arrivalTurn(loaded, host, { visit, nickname: 'Inspector', seed: 0, mayHold: null, now: 0 });
+  const done = arrivalTurn(loaded, host, {
+    visit,
+    nickname: 'Inspector',
+    seed: 0,
+    mayHold: null,
+    now: 0,
+  });
   if (!done.committed) throw new Error('the inspector did not arrive.');
   return { state: done.state, host, visit };
 }

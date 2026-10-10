@@ -57,12 +57,21 @@ const text = `/*
 
 /* The runs of code points that are letters or numbers (\\p{L} and \\p{N}), first and last. */
 static const unsigned long LETTER_RUNS[][2] = {
-${wrap(runs.map(([first, last]) => `{0x${first.toString(16).toUpperCase()}, 0x${last.toString(16).toUpperCase()}}`), 4)}
+${wrap(
+  runs.map(
+    ([first, last]) =>
+      `{0x${first.toString(16).toUpperCase()}, 0x${last.toString(16).toUpperCase()}}`,
+  ),
+  4,
+)}
 };
 
 /* Each code point of the Basic Multilingual Plane whose upper case is something else, with that as up to three code points. */
 static const unsigned short UPPER_CASE[][4] = {
-${wrap(upper.map((row) => `{${row.map(hex).join(', ')}}`), 3)}
+${wrap(
+  upper.map((row) => `{${row.map(hex).join(', ')}}`),
+  3,
+)}
 };
 
 #define COUNT(table) (sizeof(table) / sizeof((table)[0]))

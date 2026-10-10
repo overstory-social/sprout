@@ -22,12 +22,25 @@
 // are expected to pass.
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 import { emitCartridge, saveWorld } from '@overstory/sprout/lang';
 import { checkWorld, formatCheck, inspectView } from '@overstory/sprout-cli';
-import { blocksOf, expectedBlocks, firstDifference, readScript, standIn } from '@overstory/sprout-player';
+import {
+  blocksOf,
+  expectedBlocks,
+  firstDifference,
+  readScript,
+  standIn,
+} from '@overstory/sprout-player';
 
 import { readingsPath, resolveFile } from './resolve-script.mjs';
 
@@ -53,15 +66,26 @@ export function playAndCompare(sproutc, cartridge, script) {
   const { blocks, stoppedOn: faulted } = blocksOf(done.stdout ?? '');
   const stopped = [...blocks.keys()].pop();
   if (done.status === 3) {
-    return { how: 'not yet', why: `step ${stopped ?? '?'}: ${faulted ?? 'the runtime said it is not built yet'}` };
+    return {
+      how: 'not yet',
+      why: `step ${stopped ?? '?'}: ${faulted ?? 'the runtime said it is not built yet'}`,
+    };
   }
   if (done.status !== 0) {
     return { how: 'failed', why: (done.stderr || done.stdout || `exit ${done.status}`).trim() };
   }
-  const differs = firstDifference(expectedBlocks(readScript(readFileSync(script, 'utf8'), script), readings), blocks);
+  const differs = firstDifference(
+    expectedBlocks(readScript(readFileSync(script, 'utf8'), script), readings),
+    blocks,
+  );
   if (differs !== null) return { how: 'differs', why: differs };
-  const skipped = readings.steps.filter((s) => s.kind === 'command' && s.turns.some((t) => t.skip)).length;
-  return { how: 'passed', why: skipped === 0 ? '' : `${skipped} step(s) the parser answered were not compared` };
+  const skipped = readings.steps.filter(
+    (s) => s.kind === 'command' && s.turns.some((t) => t.skip),
+  ).length;
+  return {
+    how: 'passed',
+    why: skipped === 0 ? '' : `${skipped} step(s) the parser answered were not compared`,
+  };
 }
 
 function replayOne(sproutc, cartridge, world, transcript, scratch) {
@@ -86,15 +110,28 @@ export function replayWorlds(sproutc, scratch, corpus = 'corpus/good') {
     let result;
     try {
       packWorld(world, cartridge);
-      const transcripts = readdirSync(join(world, 'transcripts')).filter((f) => f.endsWith('.json')).sort();
-      const each = transcripts.map((file) => ({ file, ...replayOne(sproutc, cartridge, world, file, folder) }));
+      const transcripts = readdirSync(join(world, 'transcripts'))
+        .filter((f) => f.endsWith('.json'))
+        .sort();
+      const each = transcripts.map((file) => ({
+        file,
+        ...replayOne(sproutc, cartridge, world, file, folder),
+      }));
       const bad = each.find((one) => one.how !== 'passed');
       result =
         bad === undefined
-          ? { name, passed: true, words: each.map((one) => one.why).filter(Boolean)[0] ?? 'every transcript matches' }
+          ? {
+              name,
+              passed: true,
+              words: each.map((one) => one.why).filter(Boolean)[0] ?? 'every transcript matches',
+            }
           : { name, passed: false, words: `${bad.how}, ${bad.file}, ${bad.why}` };
     } catch (err) {
-      result = { name, passed: false, words: `failed, ${err instanceof Error ? err.message : String(err)}` };
+      result = {
+        name,
+        passed: false,
+        words: `failed, ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
     results.push(result);
   }
@@ -134,12 +171,20 @@ export function replayViews(sproutc, scratch, corpus = 'corpus/good') {
       const done = spawnSync(sproutc, ['view', cartridge, '--state', stored], { encoding: 'utf8' });
       const differs = firstLineDifference(expected.page, done.stdout ?? '');
       if (done.status !== (expected.ok ? 0 : 1)) {
-        results.push({ name, passed: false, words: `exit ${done.status}: ${(done.stderr || done.stdout).trim()}` });
+        results.push({
+          name,
+          passed: false,
+          words: `exit ${done.status}: ${(done.stderr || done.stdout).trim()}`,
+        });
       } else {
         results.push({ name, passed: differs === null, words: differs ?? 'the same page' });
       }
     } catch (err) {
-      results.push({ name, passed: false, words: err instanceof Error ? err.message : String(err) });
+      results.push({
+        name,
+        passed: false,
+        words: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return results;
