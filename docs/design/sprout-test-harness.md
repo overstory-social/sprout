@@ -236,6 +236,33 @@ C runtime), and the contract a host that draws reads is this. `media.show("cella
 `corpus/good/media-room` pins it all: its transcript holds the transcript lines, its `view.txt` the page, and
 `corpus/bad/media-missing-file`, `media-not-one-bit` and `media-bad-names` the words of each refusal.
 
+### 9. The Playdate app
+
+`sprout-player/` is tested without a console and without the Simulator, in three parts, all
+run by `scripts/check-runtime-c.mjs` when `PLAYDATE_SDK_PATH` is set (the gate says on its last
+line which parts ran, and that it skipped when the variable is not set). The Lua modules
+(`sprout-player/test/*_test.lua`, run by a desktop Lua 5.4) are tested as logic: the sentence
+builder over a saved chip tree (`ask`, the guard, the weather; a refused leaf greyed with its
+reason; a set role joined from singletons; a number role on the crank), word wrap in pixels, the
+reader's scrollback, the clock's clamp, the nickname filter, the shelf, and `main.lua` driven
+frame by frame over stand-ins for `playdate` and the engine. The C glue
+has a test program beside each module of `sprout-player/src` (`text`, `files`, `reading_json`,
+`pd_host`, `budgets`, `reply`, `savelog`, `session`, `turns`, `seen`, `bridge`:
+`sprout-player/test/<module>.test.c`), through a fake `PlaydateAPI` that implements only what
+the glue uses, over corpus cartridges: catching up `wakes` after four hours tells nothing,
+`ticks` tells what its place says, a clock set back is clamped, a world left open is put away,
+a damaged save is set aside, and a save that cannot be written is told. `glue.test.c` plays
+`chip-tree` through the registered functions against its transcript and keeps the saves of
+built turns, which `scripts/playdate-player.mjs` then holds to `sproutc`: the save must read
+and write back byte for byte, and the turns built from the view's chips must leave the stored
+world the same lines typed leave (`corpus/good/chip-tree`, `corpus/good/value-first`). The
+whole is also built and run under AddressSanitizer and UndefinedBehaviorSanitizer by
+`node scripts/check-runtime-c.mjs --sanitize`, and the runtime is built at `-O2` under
+`-Werror` by the plain run. The build itself is a test: the Simulator
+target must compile and `pdc` must package the pdx, and the device target is built too where
+`arm-none-eabi-gcc` is installed. What no part can do is run the Simulator or a console, so
+the player on a screen, the crank's feel and the device's speed are checked by hand.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same

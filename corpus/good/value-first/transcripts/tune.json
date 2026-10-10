@@ -1,0 +1,11 @@
+{
+  "about": "A verb that declares its value role first: the reading binds the number before the thing.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
+    ] },
+    { "as": "Marta", "type": "tune 4 on dial", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Tuned." }
+    ] }
+  ]
+}

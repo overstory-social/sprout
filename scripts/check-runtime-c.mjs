@@ -13,6 +13,15 @@
 // cartridge through the built CLI (`cli/dist`), and the replay uses the built
 // player. Without it the packing setup fails and the tests that need it do not run.
 //
+// The last step, in both modes, is sprout-player/ (the Playdate app, scripts/playdate-player.mjs):
+// the Simulator target built with the SDK, the C glue's tests over a fake PlaydateAPI, the Lua
+// tests and the glue's save played through `sproutc`; with `--sanitize` the glue's tests are built
+// and run under the sanitizers too. The plain mode also builds the runtime optimised (-O2) under
+// -Wall -Wextra -Werror, as the device and the shipped Simulator build do. The player step needs
+// PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh fetches the SDK); without it the step is skipped and
+// the last line says so. Where the variable is set, a failing step fails this script, in the gate
+// and in the e2e alike.
+//
 // After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
 // every corpus world with transcripts is packed, its scripts resolved by the
 // TypeScript parser, played through `sproutc`, and diffed with the transcript
@@ -79,6 +88,7 @@ const EXPECTED_PASSING = [
   'troll_room',
   'turn-faults',
   'unknown-word',
+  'value-first',
   'visitor-contents',
 ];
 
@@ -109,6 +119,23 @@ function run(command, args, env) {
   return done.stdout;
 }
 
+/** The Playdate app, which is built on the runtime and plays the cartridges packed above. */
+async function playerStep(sanitized) {
+  const { checkPlayer, sdkPath } = await import('./playdate-player.mjs');
+  if (sdkPath() === null) {
+    console.log(
+      'sprout-player: SKIPPED, PLAYDATE_SDK_PATH is not set to a Playdate SDK (`bash scripts/playdate-sdk.sh` fetches one): the Simulator build, the glue tests and the Lua tests did not run',
+    );
+    return;
+  }
+  try {
+    console.log(await checkPlayer({ sanitize: sanitized }));
+  } catch (err) {
+    console.log(`sprout-player: FAILED, ${err.message}`);
+    process.exit(1);
+  }
+}
+
 if (sanitize) {
   const dir = `${build}-sanitize`;
   run('cmake', ['-S', root, '-B', dir, '-DCMAKE_BUILD_TYPE=Debug', '-DSPROUT_SANITIZE=ON'], {
@@ -121,6 +148,7 @@ if (sanitize) {
   });
   const line = sanitized.split('\n').find((l) => /tests passed/.test(l)) ?? 'ctest ran';
   console.log(`runtime-c (sanitized): ${compiler}, ${line.trim()}`);
+  await playerStep(true);
   process.exit(0);
 }
 
@@ -129,6 +157,17 @@ run('cmake', ['--build', build]);
 const out = run('ctest', ['--test-dir', build, '--output-on-failure']);
 const summary = out.split('\n').find((line) => /tests passed/.test(line)) ?? 'ctest ran';
 console.log(`runtime-c: ${compiler}, ${summary.trim()}`);
+
+// The library alone, optimised, with every warning an error: what the device and the shipped
+// Simulator build compile, which the debug build above does not catch.
+const optimised = `${build}-optimised`;
+run(
+  'cmake',
+  ['-S', root, '-B', optimised, '-DCMAKE_BUILD_TYPE=Release', '-DSPROUT_RUNTIME_TESTS=OFF'],
+  { CC: compiler },
+);
+run('cmake', ['--build', optimised]);
+console.log(`runtime-c (optimised): ${compiler}, -O2 under -Wall -Wextra -Werror builds clean`);
 
 // `sproutc play` on a packed corpus world prints the cartridge's header and manifest.
 const sproutc = join(build, 'sproutc');
@@ -189,3 +228,5 @@ if (passing.join(',') !== EXPECTED_PASSING.join(',')) {
   );
   process.exit(1);
 }
+
+await playerStep(false);
