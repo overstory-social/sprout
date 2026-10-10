@@ -2229,7 +2229,7 @@ any of its lines. `sprout skill` prints its full source.
 
 | verb     | roles                              | phrases                                                     |
 | -------- | ---------------------------------- | ----------------------------------------------------------- |
-| `take`   | `target`                           | `take [target]`, `get [target]`, `pick up [target]`, `pick [target] up`, `grab [target]` |
+| `take`   | `target`, `source: Container`      | `take [target]`, `get [target]`, `pick up [target]`, `pick [target] up`, `grab [target]`, `take [target] from [source]`, `take [target] out of [source]` |
 | `drop`   | `target`                           | `drop [target]`, `put down [target]`, `put [target] down`, `drop [target] here`, `put down [target] here`, `put [target] down here` |
 | `put`    | `item`, `container: Container`     | `put [item] in [container]`, `put [item] into [container]`, `place [item] in [container]`, `insert [item] into [container]` |
 | `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`, `offer [item] to [recipient]` |
@@ -2287,8 +2287,8 @@ what a character says: `words` is their line, its paragraphs as one.
 ### The actor's and container's lines
 
 `sprout.Actor`: `taken`, `takes`, `dropped`, `drops`, `put_in`, `puts_in`,
-`given`, `received`, `gives`, `not_carried`, `not_held`, `held_fast`,
-`not_yours`, `hands_full`, `inventory`. `sprout.Container`: `contents`,
+`given`, `received`, `gives`, `not_carried`, `not_held`, `not_in_source`,
+`held_fast`, `not_yours`, `hands_full`, `inventory`. `sprout.Container`: `contents`,
 `shut`, `full`, `opened` (which includes `contents`), `opens`, `closed`,
 `closes`. `sprout.Lockable`:
 `unlocked`, `unlocks`. `sprout.RequiresHeld`: `needs_held`. `sprout.Fixture`: `immovable`. `sprout.Place`:

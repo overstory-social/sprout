@@ -77,7 +77,7 @@ const ACTOR = `// sprout.Actor: the hands, their capacity, and the guards that m
 // verbs). Its pass rule makes a pocket private (Containers route).
 import {Container} from ${Q}container${Q}
 
-verb take { role target  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]" }
+verb take { role target  role source: Container  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]"  "take [target] from [source]"  "take [target] out of [source]" }
 verb drop { role target  "drop [target]"  "put down [target]"  "put [target] down"  "drop [target] here"  "put down [target] here"  "put [target] down here" }
 verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]"  "place [item] in [container]"  "insert [item] into [container]" }
 verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]"  "offer [item] to [recipient]" }
@@ -92,7 +92,10 @@ kind Actor {
   accept  (item, from) { if (self.count >= self.get(:capacity)) { refuse hands_full } }
 
   as actor for take {
-    permit { if (self.holds(target)) { refuse "You already have it." } }
+    permit {
+      if (self.holds(target)) { refuse "You already have it." }
+      else if (bound source) { if (!source.holds(target)) { refuse not_in_source } }
+    }
     do     { move target to self  say taken  tell takes }
   }
 
@@ -125,6 +128,7 @@ kind Actor {
   passage gives default       { {actor} gives {item} to {recipient}. }
   passage not_carried default { You are not holding {target}. }
   passage not_held default    { You are not holding {item}. }
+  passage not_in_source default { That isn't in {source}. }
   passage held_fast default   { {self} is not something you can carry off. }
   passage not_yours default   { That is for {self} to put down, not you. }
   passage hands_full default  { {self} cannot carry any more. }

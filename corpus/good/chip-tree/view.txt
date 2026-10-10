@@ -56,12 +56,16 @@ what they could type
   help  (sprout.help)
   take guard  (sprout.take)
     target: a guard (hall.guard)
+    source: unbound
   take dial  (sprout.take)
     target: a dial (hall.dial)
+    source: unbound
   take pebble  (sprout.take)
     target: a pebble (hall.pebble)
+    source: unbound
   take shell  (sprout.take)
     target: a shell (hall.shell)
+    source: unbound
   drop guard  (sprout.drop)
     refused: You are not holding a guard.
     target: a guard (hall.guard)

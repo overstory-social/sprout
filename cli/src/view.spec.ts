@@ -79,7 +79,7 @@ kind Rowboat is sprout.Place { as target for take { do { } } }
       '\n  take rowboat  (sprout.take)\n    refused: A rowboat cannot go inside itself.\n',
     );
     expect(page).toContain(
-      '\n  take pouch  (sprout.take)\n    target: a pouch (rowboat.pouch)\n  drop pouch',
+      '\n  take pouch  (sprout.take)\n    target: a pouch (rowboat.pouch)\n    source: unbound\n  drop pouch',
     );
   });
 
@@ -94,7 +94,7 @@ kind Rowboat is sprout.Place { as target for take { do { } } }
     expect(page).toContain(
       '\n  ask guard about …  (sprout.ask)\n    target: a guard (hall.guard)\n    topic: bridge, toll, weather\n',
     );
-    expect(page).not.toContain('unbound');
+    expect(page).not.toContain('topic: unbound');
   });
 
   it('lists what the visitor carries', () => {
