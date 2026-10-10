@@ -18,6 +18,22 @@ add_library(sprout STATIC ${SPROUT_SOURCES})
 target_include_directories(sprout PUBLIC include PRIVATE src)
 target_link_libraries(sprout PUBLIC m)
 
+# The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
+# and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
+set(SPROUTC_MODULES cartridge host inflate play readings)
+
+set(SPROUTC_SOURCES "")
+foreach(module ${SPROUTC_MODULES})
+  list(APPEND SPROUTC_SOURCES host/${module}.c)
+endforeach()
+
+add_library(sproutc_host STATIC ${SPROUTC_SOURCES})
+target_include_directories(sproutc_host PUBLIC host PRIVATE src)
+target_link_libraries(sproutc_host PUBLIC sprout)
+
+add_executable(sproutc host/sproutc.c)
+target_link_libraries(sproutc PRIVATE sproutc_host)
+
 enable_testing()
 
 foreach(module ${SPROUT_MODULES})
@@ -26,4 +42,12 @@ foreach(module ${SPROUT_MODULES})
   target_include_directories(${module}.test PRIVATE src test)
   target_compile_definitions(${module}.test PRIVATE SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens")
   add_test(NAME ${module} COMMAND ${module}.test)
+endforeach()
+
+foreach(module ${SPROUTC_MODULES})
+  add_executable(${module}.host.test test/${module}.host.test.c)
+  target_link_libraries(${module}.host.test PRIVATE sproutc_host)
+  target_include_directories(${module}.host.test PRIVATE src test)
+  target_compile_definitions(${module}.host.test PRIVATE SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens")
+  add_test(NAME host-${module} COMMAND ${module}.host.test)
 endforeach()
