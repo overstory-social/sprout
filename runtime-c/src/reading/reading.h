@@ -98,9 +98,26 @@ sprout_eval_status sprout_uncarried(sprout_exec *x, const sprout_frame *frame, c
 
 /* ---- wildcards.c ---- */
 
+/* The plays `kind` writes for `role` of `verb` alone, a wildcard's left out; NULL where it writes none. */
+const sprout_play_group *sprout_own_plays(const sprout_verb *verb, const char *role, const sprout_kind_def *kind);
+
 /* What `who`, of kind `kind`, runs for its role in the reading's verb. */
 void sprout_plays_for(const sprout_resolved *reading, const sprout_participant *who, const sprout_kind_def *kind,
                       sprout_plays *out);
+
+/* ---- sure.c ---- */
+
+/*
+ * The engine's `inside_itself` where the reading's first sure move, the first `move` written directly in a
+ * `do`, would put a thing inside itself, said as the move would say it; *refused is false where it would
+ * not, or where no `move` is written directly in its `do`s. Each play read is a step.
+ */
+sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+                                        bool *refused, sprout_permit_refusal *out);
+
+/* Whether the first sure move of one of `actor`'s own plays in `verb` moves what fills `role`. */
+sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                           sprout_str actor, bool *moves);
 
 /* ---- effect.c ---- */
 

@@ -186,6 +186,19 @@ as JavaScript does, which pins the Unicode tables the C layer carries
 (`scripts/generate-prose-unicode.mjs`). `runtime-c/test/prose.test.c` replays
 every case, and each `prose_*.test.c` replays its own area beside its direct tests.
 
+The view is held to `pollView` the same way. `view-goldens.spec.ts` compiles a bench
+world (`fixtures/view-bench.ts`: a yard, a gallery of value roles, a cloakroom, two
+sacks, a dark cellar, a link) and writes `views.json`: for each bench case a stored
+world, the visit, the host's poll figures and what `pollView` gave (the view as the
+canonical JSON `view_json.c` writes, the chip tree over it, the steps it spent and the
+fault it raised), and the same for a visitor arriving in every corpus world.
+`runtime-c/test/view.test.c` replays them all, byte for byte, and each of
+`offers`, `options`, `describe`, `darkness`, `chips` and `reading_sure` tests its
+module beside the replay. `sproutc view` prints the page `sprout view` prints; the
+check script compares the two for every corpus world, on its own line apart from
+the transcript replay, over the stored world the TypeScript runtime writes for
+the arrival (the arrival turn is C10's).
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same

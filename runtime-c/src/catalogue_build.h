@@ -55,7 +55,7 @@ sprout_status cat_read_phrases(loader *l, const sprout_node *list, size_t *count
 sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **out);
 sprout_status cat_read_intent(loader *l, const sprout_node *node, sprout_intent *out);
 sprout_status cat_build_typed_phrases(loader *l);
-/* A phrase's text as the tokeniser reads a typed line: lower case, a comma a word of its own. */
+/* A phrase's text, which the cartridge writes as the tokeniser reads a typed line, cut at its single spaces. */
 sprout_status cat_typed_words(loader *l, const char *text, size_t *count, const char ***words);
 
 /* Fills `world` from the cartridge's JSON, whose graph is already read into world->graph. */

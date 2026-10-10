@@ -16,7 +16,10 @@ const write = process.argv.includes('--write');
 const cli = join('cli', 'bin', 'sprout.js');
 const play = (world, script) => {
   try {
-    return { code: 0, out: execFileSync('node', [cli, 'play', world, script], { encoding: 'utf8' }) };
+    return {
+      code: 0,
+      out: execFileSync('node', [cli, 'play', world, script], { encoding: 'utf8' }),
+    };
   } catch (err) {
     return { code: err.status, out: String(err.stdout) + String(err.stderr) };
   }
@@ -39,7 +42,9 @@ for (const name of readdirSync('corpus/good').sort()) {
       continue;
     }
   }
-  for (const file of readdirSync(folder).filter((f) => f.endsWith('.json')).sort()) {
+  for (const file of readdirSync(folder)
+    .filter((f) => f.endsWith('.json'))
+    .sort()) {
     const script = join(folder, file);
     const { code, out } = play(world, script);
     played++;
@@ -56,7 +61,9 @@ for (const name of readdirSync('corpus/good').sort()) {
     const expected = readFileSync(script, 'utf8');
     if (expected !== out) {
       failed++;
-      console.error(`✗ ${script}: the transcript changed\n--- expected\n${expected}--- actual\n${out}`);
+      console.error(
+        `✗ ${script}: the transcript changed\n--- expected\n${expected}--- actual\n${out}`,
+      );
       continue;
     }
     const packed = play(cartridge, script);

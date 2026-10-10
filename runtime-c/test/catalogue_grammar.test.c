@@ -163,7 +163,7 @@ static void the_worlds_own_verbs_are_tried_before_the_standard_librarys(void) {
   sprout_world_free(world);
 }
 
-static void words_are_lower_case_split_on_white_space_and_a_comma_is_a_word_of_its_own(void) {
+static void final_words_are_cut_at_their_single_spaces_and_kept_byte_for_byte(void) {
   test_heap heap;
   sprout_host host = test_host(&heap);
   loader l;
@@ -177,15 +177,16 @@ static void words_are_lower_case_split_on_white_space_and_a_comma_is_a_word_of_i
   l.arena = &arena;
   l.error = error;
   l.capacity = sizeof error;
-  CHECK_INT(cat_typed_words(&l, "Ask  the\tBear,about HONEY ,", &count, &words), SPROUT_OK);
-  CHECK_INT(count, 7);
+  CHECK_INT(cat_typed_words(&l, "ask the bear , about HONEY \xc3\x89 ,", &count, &words), SPROUT_OK);
+  CHECK_INT(count, 8);
   CHECK_STR(words[0], "ask");
   CHECK_STR(words[1], "the");
   CHECK_STR(words[2], "bear");
   CHECK_STR(words[3], ",");
   CHECK_STR(words[4], "about");
-  CHECK_STR(words[5], "honey");
-  CHECK_STR(words[6], ",");
+  CHECK_STR(words[5], "HONEY");
+  CHECK_STR(words[6], "\xc3\x89");
+  CHECK_STR(words[7], ",");
   CHECK_INT(cat_typed_words(&l, "   ", &count, &words), SPROUT_OK);
   CHECK_INT(count, 0);
   sprout_arena_reset(&arena);
@@ -196,6 +197,6 @@ int main(void) {
   RUN(every_verb_of_every_corpus_world_matches_the_dump);
   RUN(every_typed_phrase_matches_the_dump_in_the_order_it_is_tried);
   RUN(the_worlds_own_verbs_are_tried_before_the_standard_librarys);
-  RUN(words_are_lower_case_split_on_white_space_and_a_comma_is_a_word_of_its_own);
+  RUN(final_words_are_cut_at_their_single_spaces_and_kept_byte_for_byte);
   return REPORT();
 }

@@ -296,6 +296,103 @@ sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const
 /* Releases what an outcome holds. */
 void sprout_reading_outcome_free(sprout_reading_outcome *outcome);
 
+/*
+ * A visitor's view (the spec's The runtime > The view): what a poll gives one visitor standing in a
+ * place, as the visitor reads it. Everything a view holds lives until sprout_view_free.
+ */
+typedef struct sprout_seen_thing {
+  sprout_str id;
+  sprout_str name; /* its article and name, or a visitor's nickname */
+} sprout_seen_thing;
+
+/* One way out that applies: an exit by its direction, a link (direction NULL) by its label. */
+typedef struct sprout_seen_exit {
+  const char *direction;
+  const char *label;
+  sprout_str to;
+} sprout_seen_exit;
+
+/* One option of a symbol role: the value it binds, and the words a visitor types for it. */
+typedef struct sprout_seen_option {
+  sprout_str value;
+  sprout_str words;
+} sprout_seen_option;
+
+typedef struct sprout_seen_range {
+  double min, max;
+} sprout_seen_range;
+
+/* What a value role can be filled with: a symbol role's options, or an integer role's ranges. */
+typedef struct sprout_seen_options {
+  const char *role;
+  bool symbol;
+  size_t option_count;
+  const sprout_seen_option *options;
+  size_t range_count;
+  const sprout_seen_range *ranges;
+} sprout_seen_options;
+
+typedef enum sprout_seen_binds {
+  SPROUT_SEEN_UNBOUND, /* a value role (its options are beside the reading) or a tool left out */
+  SPROUT_SEEN_OBJECT,
+  SPROUT_SEEN_SET,
+  SPROUT_SEEN_EXIT
+} sprout_seen_binds;
+
+/* What fills one role of a reading, as a client offers it. */
+typedef struct sprout_seen_filler {
+  const char *role;
+  sprout_seen_binds binds;
+  sprout_seen_thing thing; /* OBJECT */
+  size_t member_count;
+  const sprout_seen_thing *members; /* SET, one at a time as the view offers them */
+  sprout_seen_exit exit;            /* EXIT */
+} sprout_seen_filler;
+
+/* One reading a visitor could make now. */
+typedef struct sprout_seen_reading {
+  const char *verb; /* by its qualified name, `sprout.take` */
+  sprout_str typed; /* the line that types it, each value role's slot written as an ellipsis */
+  bool refused;     /* the consent pass refused it, or the engine would: `refusal` says why */
+  size_t refusal_count;
+  const sprout_str *refusal; /* the refusal, rendered for the visitor, one paragraph each */
+  size_t filler_count;
+  const sprout_seen_filler *fillers; /* one for each role, in the order the verb declares them */
+  size_t options_count;
+  const sprout_seen_options *options;
+} sprout_seen_reading;
+
+typedef struct sprout_seen_view {
+  size_t description_count;
+  const sprout_str *description; /* the place's description as paragraphs; the engine's `unseen` for a poll that faulted */
+  size_t exit_count;
+  const sprout_seen_exit *exits;
+  size_t occupant_count;
+  const sprout_seen_thing *occupants;
+  size_t carried_count;
+  const sprout_seen_thing *carried;
+  size_t reading_count;
+  const sprout_seen_reading *readings;
+  uint64_t steps;          /* what the poll spent of its budget */
+  bool faulted;            /* the poll ran out: the description is `unseen`, the rest is what it derived before */
+  sprout_fault fault;
+  const char *fault_name;  /* the rule broken, for the host's log: `BudgetExhausted` */
+  sprout_str fault_object; /* the visitor's place, which the fault is laid against */
+  void *held;
+} sprout_seen_view;
+
+/*
+ * Polls the view of the visitor under the key `visit` over the committed `state`, under the poll's own
+ * step budget in `host`: derives it, renders it with the visitor as its one reader, draws nothing and
+ * writes nothing. A poll that spends its budget is SPROUT_OK with `faulted` set. A visit the state does not
+ * hold, or one that is away, is SPROUT_BAD_INPUT with `fault.text` saying which.
+ */
+sprout_status sprout_view(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                          sprout_seen_view *view);
+
+/* Releases what a view holds. */
+void sprout_view_free(sprout_seen_view *view);
+
 /* Runs one turn. Declared here; the body lands with the engine and returns SPROUT_NOT_YET. */
 sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_turn *turn,
                               sprout_outcome *outcome);

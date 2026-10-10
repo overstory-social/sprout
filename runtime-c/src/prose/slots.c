@@ -133,7 +133,7 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
     case SPROUT_STRING:
       words = (sprout_str){value.value.as.string.bytes, value.value.as.string.length};
       if (piece->index != SPROUT_NOT_AN_ENTRY && frame->world->option_slot[piece->index] &&
-          !prose_humanised(frame->turn, words, &words))
+          !sprout_humanised(frame->turn, words, &words))
         return SPROUT_EVAL_NO_MEMORY;
       return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
   }

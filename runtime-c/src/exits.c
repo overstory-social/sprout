@@ -18,7 +18,7 @@ typedef struct ways {
 } ways;
 
 /* The library of a qualified name: what precedes its first `.`. */
-static sprout_eval_status library_of(const sprout_frame *frame, const char *origin, const char **library) {
+sprout_eval_status sprout_origin_library(const sprout_frame *frame, const char *origin, const char **library) {
   const char *dot = origin == NULL ? NULL : strchr(origin, '.');
   char *copy;
   if (dot == NULL) return expr_unchecked(frame, "an exit whose origin is not a qualified name");
@@ -29,7 +29,7 @@ static sprout_eval_status library_of(const sprout_frame *frame, const char *orig
 }
 
 /* A fault a guard reads through: a name out of range, or to something destroyed. */
-static bool reads_nothing(const sprout_frame *frame, sprout_eval_status status) {
+bool sprout_reads_nothing(const sprout_frame *frame, sprout_eval_status status) {
   return status == SPROUT_EVAL_FAULT &&
          (strcmp(frame->fault->name, "NameOutOfRange") == 0 || strcmp(frame->fault->name, "DestroyedReference") == 0);
 }
@@ -42,11 +42,11 @@ static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, con
   sprout_eval_status status;
   *out = true;
   if (when == NULL || when->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(library_of(frame, sprout_node_text(exit, "origin"), &at.library));
+  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(exit, "origin"), &at.library));
   at.self = place;
   at.bindings = NULL;
   status = sprout_eval_condition(&at, when, out);
-  if (reads_nothing(frame, status)) {
+  if (sprout_reads_nothing(frame, status)) {
     *out = false;
     return SPROUT_EVAL_OK;
   }
@@ -60,7 +60,7 @@ static sprout_eval_status spoken_by(const sprout_frame *frame, const sprout_node
   if (sprout_node_is(sprout_node_get(said, "kind"), "prose-literal")) {
     out->kind = SPROUT_SPEECH_TEXT;
     out->node = said;
-    return library_of(frame, origin, &out->library);
+    return sprout_origin_library(frame, origin, &out->library);
   }
   out->name = sprout_node_text(said, "text");
   if (place != NULL && sprout_passage_on(place->kind, out->name, out)) return SPROUT_EVAL_OK;
@@ -79,7 +79,7 @@ static sprout_eval_status path_end(const sprout_frame *frame, sprout_str place, 
   at.self = place;
   at.bindings = NULL;
   status = expr_named_identifier(&at, named, to, found);
-  if (reads_nothing(frame, status)) {
+  if (sprout_reads_nothing(frame, status)) {
     *found = false;
     return SPROUT_EVAL_OK;
   }

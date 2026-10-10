@@ -14,6 +14,12 @@
 
 #include "exec.h"
 
+/* The library of a qualified name, which precedes its first `.`, in the turn arena. */
+sprout_eval_status sprout_origin_library(const sprout_frame *frame, const char *origin, const char **library);
+
+/* Whether `status` is a fault a condition reads through: a name out of range, or one to a declared object destroyed. */
+bool sprout_reads_nothing(const sprout_frame *frame, sprout_eval_status status);
+
 /* One way out of a place that applies now. */
 typedef struct sprout_way {
   const char *direction; /* NULL for a link */

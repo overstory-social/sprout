@@ -10,6 +10,7 @@
 // neither source text nor diagnostics. A runtime refuses a format or a
 // level newer than it reads, naming the number.
 
+import { typedWords } from '../declare/addressing.js';
 import { synonymPhrases } from '../declare/synonyms.js';
 import type { ResolvedVerb } from '../declare/verbs.js';
 import { gunzip, gzip } from '../source/gzip.js';
@@ -151,6 +152,38 @@ function withoutSynonyms(): Rewrite {
 }
 
 /**
+ * The typed words travel final (the spec's Parsing): a phrase's words are written as the
+ * tokeniser reads a typed line, lower case, split on white space with each comma a word of its
+ * own, joined by single spaces; and an exit's or a link's label carries the same beside its text.
+ * A reader of another language compares bytes and folds nothing.
+ */
+function withTypedWords(): Rewrite {
+  const labels = new WeakMap<object, unknown>();
+  return (owner, key, value) => {
+    if (key === 'text' && (owner as { part?: unknown }).part === 'words') {
+      return typedWords(value as string).join(' ');
+    }
+    if (key !== 'label' || (value as { kind?: unknown }).kind !== 'grammar-label') return value;
+    let written = labels.get(value as object);
+    if (written === undefined) {
+      const label = value as { text: string };
+      written = { ...label, typed: typedWords(label.text).join(' ') };
+      labels.set(value as object, written);
+    }
+    return written;
+  };
+}
+
+/** The rewrites composed, each seeing what the one before wrote. */
+function composed(...rewrites: Rewrite[]): Rewrite {
+  return (owner, key, value) =>
+    rewrites.reduce<unknown>(
+      (written, rewrite) => (written === undefined ? undefined : rewrite(owner, key, written)),
+      value,
+    );
+}
+
+/**
  * The cartridge a published bundle compiles to. A bundle running with a
  * gap in `absent` is a loaded world and not one that published, and is
  * refused: a cartridge is closed, and a gap is the one thing it cannot hold.
@@ -175,7 +208,7 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
       names: bundle.names,
       optionSlots: bundle.optionSlots,
     },
-    withoutSynonyms(),
+    composed(withoutSynonyms(), withTypedWords()),
   );
   const manifest = bundle.manifest;
   return {

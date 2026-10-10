@@ -22,12 +22,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { pollView } from '@overstory/sprout/lang';
-import {
-  expectationsOf,
-  freshStage,
-  playStep,
-  writeScript,
-} from '@overstory/sprout-player';
+import { expectationsOf, freshStage, playStep, writeScript } from '@overstory/sprout-player';
 
 import { packWorld, playAndCompare } from './replay-runtime-c.mjs';
 import { playableWorld } from './resolve-script.mjs';
@@ -83,7 +78,9 @@ export function nextStep(stage, random) {
 function main() {
   const { world, flags } = argsOf(process.argv.slice(2));
   if (world === undefined || flags.seed === undefined || !/^\d+$/.test(flags.seed)) {
-    console.error('fuzz-runtime: write `node scripts/fuzz-runtime.mjs <world folder> --seed N [--steps 40]`.');
+    console.error(
+      'fuzz-runtime: write `node scripts/fuzz-runtime.mjs <world folder> --seed N [--steps 40]`.',
+    );
     process.exit(2);
   }
   const seed = Number(flags.seed);
@@ -109,7 +106,9 @@ function main() {
     writeFileSync(script, writeScript({ about: `fuzz seed ${seed}`, steps }));
     const result = playAndCompare(sproutc, cartridge, script);
     if (result.how === 'not yet') {
-      console.log(`fuzz-runtime: seed ${seed}: the C runtime says a part of itself is not built (${result.why}); nothing to compare yet.`);
+      console.log(
+        `fuzz-runtime: seed ${seed}: the C runtime says a part of itself is not built (${result.why}); nothing to compare yet.`,
+      );
       rmSync(scratch, { recursive: true, force: true });
       return 0;
     }
@@ -123,8 +122,16 @@ function main() {
   const out = flags.out ?? join(world, 'transcripts');
   mkdirSync(out, { recursive: true });
   const file = join(out, `fuzz-${seed}.json`);
-  writeFileSync(file, writeScript({ about: `fuzz seed ${seed}: the first step on which the runtimes differ is the last.`, steps }));
-  console.log(`fuzz-runtime: seed ${seed}: the runtimes ${outcome.how} after ${steps.length} steps: ${outcome.why}\nwrote ${file}`);
+  writeFileSync(
+    file,
+    writeScript({
+      about: `fuzz seed ${seed}: the first step on which the runtimes differ is the last.`,
+      steps,
+    }),
+  );
+  console.log(
+    `fuzz-runtime: seed ${seed}: the runtimes ${outcome.how} after ${steps.length} steps: ${outcome.why}\nwrote ${file}`,
+  );
   rmSync(scratch, { recursive: true, force: true });
   return 1;
 }

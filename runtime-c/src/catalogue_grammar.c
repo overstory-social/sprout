@@ -135,41 +135,28 @@ sprout_status cat_read_intent(loader *l, const sprout_node *node, sprout_intent 
 
 /* ---- typed phrases ---- */
 
-static bool is_space(char c) {
-  return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
-}
-
-/* The words of a phrase's text as the tokeniser reads a typed line: lower case, a comma a word of its own. */
+/*
+ * The words of a phrase's text: the cartridge writes them final (lower case, a comma a word of its own,
+ * single spaces between), so they are cut at the spaces and compared as bytes.
+ */
 sprout_status cat_typed_words(loader *l, const char *text, size_t *count, const char ***words) {
-  size_t length = strlen(text), n = 0, i, start;
+  size_t length = strlen(text), n = 0, i = 0;
   char *buffer;
   const char **out;
-  buffer = (char *)cat_array(l, length * 2 + 2, 1);
+  buffer = (char *)cat_array(l, length + 1, 1);
   MEMORY(buffer);
   out = (const char **)cat_array(l, length + 1, sizeof(char *));
   MEMORY(out);
-  i = 0;
   while (i < length) {
-    while (i < length && is_space(text[i])) i++;
+    size_t start;
+    while (i < length && text[i] == ' ') i++;
     if (i >= length) break;
-    if (text[i] == ',') {
-      out[n++] = ",";
-      i++;
-      continue;
-    }
     start = i;
-    while (i < length && !is_space(text[i]) && text[i] != ',') i++;
-    {
-      char *word = buffer;
-      size_t k;
-      for (k = 0; k < i - start; k++) {
-        char c = text[start + k];
-        word[k] = (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
-      }
-      word[i - start] = '\0';
-      buffer += i - start + 1;
-      out[n++] = word;
-    }
+    while (i < length && text[i] != ' ') i++;
+    memcpy(buffer, text + start, i - start);
+    buffer[i - start] = '\0';
+    out[n++] = buffer;
+    buffer += i - start + 1;
   }
   *count = n;
   *words = out;

@@ -42,7 +42,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const target = out === -1 ? null : args.splice(out, 2)[1];
   const [world, script] = args;
   if (world === undefined || script === undefined) {
-    console.error('resolve-script: write `node scripts/resolve-script.mjs <world> <script.json> [-o file]`.');
+    console.error(
+      'resolve-script: write `node scripts/resolve-script.mjs <world> <script.json> [-o file]`.',
+    );
     process.exit(2);
   }
   try {
