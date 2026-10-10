@@ -99,7 +99,11 @@ There is no CI: the gate and e2e run locally, a PR carries their receipts,
 and the `pr-review` agent re-runs the gate at the PR head. The gate builds the
 C runtime plain to stay fast; the e2e also runs its tests under
 AddressSanitizer and UndefinedBehaviorSanitizer
-(`node scripts/check-runtime-c.mjs --sanitize`), where any report fails.
+(`node scripts/check-runtime-c.mjs --sanitize`), where any report fails. On Linux
+that run goes under `setarch "$(uname -m)" -R` when `setarch` is installed, because
+AddressSanitizer's fixed shadow memory clashes at random with the high-entropy
+address-space randomisation of newer kernels (large `vm.mmap_rnd_bits`, as on
+WSL2); without `setarch` it prints the remedy, `setarch -R npm run e2e`.
 `CLAUDE.md` has the rules.
 
 ## Playdate

@@ -29,7 +29,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { readingsPath, resolveFile } from './resolve-script.mjs';
-import { runtimeCBuild } from './runtime-c-build.mjs';
+import { runtimeCBuild, sanitizedHere } from './runtime-c-build.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '../..');
 const player = join(root, 'sprout-player');
@@ -40,7 +40,9 @@ export const PLACEHOLDER_WORLDS = ['chip-tree', 'media-room', 'teashop'];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
-function run(command, args, env) {
+/** Runs `command`, behind the words in `prefix` (the sanitized launcher's) where there are any. */
+function run(command, args, env, prefix = []) {
+  if (prefix.length > 0) return run(prefix[0], [...prefix.slice(1), command, ...args], env);
   const done = spawnSync(command, args, { encoding: 'utf8', env: { ...process.env, ...env } });
   if (done.status !== 0) {
     throw new Error(
@@ -129,10 +131,12 @@ export async function buildPlayer({ out = join(player, 'build'), device = true }
  * The gate's part. Returns one line saying which parts ran; throws with the failing command's words.
  * With `sanitize` the Simulator target and its tests are built under AddressSanitizer and
  * UndefinedBehaviorSanitizer, from the cartridges the sanitized runtime build packed, and any report
- * fails; the device target is not built then.
+ * fails; the device target is not built then. The sanitized tests and `sproutc` run behind the
+ * address-space launcher of player/src/aslr.ts, whose line check-runtime-c.mjs has printed.
  */
 export async function checkPlayer({ sanitize = false } = {}) {
   const ran = [];
+  const prefix = sanitize ? sanitizedHere().prefix : [];
   const scratch = mkdtempSync(join(tmpdir(), 'sprout-player-'));
   try {
     await stageWorlds();
@@ -149,15 +153,20 @@ export async function checkPlayer({ sanitize = false } = {}) {
 
     const keep = join(scratch, 'keep');
     mkdirSync(keep);
-    const tests = run('ctest', ['--test-dir', dir, '--output-on-failure'], {
-      PLAYER_KEEP_DIR: keep,
-      ...(sanitize
-        ? {
-            ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
-            UBSAN_OPTIONS: 'halt_on_error=1:print_stacktrace=1',
-          }
-        : {}),
-    });
+    const tests = run(
+      'ctest',
+      ['--test-dir', dir, '--output-on-failure'],
+      {
+        PLAYER_KEEP_DIR: keep,
+        ...(sanitize
+          ? {
+              ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
+              UBSAN_OPTIONS: 'halt_on_error=1:print_stacktrace=1',
+            }
+          : {}),
+      },
+      prefix,
+    );
     const wanted = [
       'text',
       'files',
@@ -180,8 +189,8 @@ export async function checkPlayer({ sanitize = false } = {}) {
     ran.push(/player-lua/.test(tests) ? 'Lua tests passed' : 'Lua tests skipped (no lua5.4)');
 
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
-    ran.push(roundTrip(keep, cartridges, sproutcDir));
-    ran.push(builtMatchesTyped(keep, cartridges, sproutcDir));
+    ran.push(roundTrip(keep, cartridges, sproutcDir, prefix));
+    ran.push(builtMatchesTyped(keep, cartridges, sproutcDir, prefix));
 
     if (sanitize) {
       ran.push('device target not built under the sanitizers');
@@ -201,14 +210,14 @@ export async function checkPlayer({ sanitize = false } = {}) {
 }
 
 /** The save the glue wrote is read and written back by `sproutc` byte for byte. */
-function roundTrip(keep, cartridges, buildDir) {
+function roundTrip(keep, cartridges, buildDir, prefix) {
   const sproutc = join(buildDir, 'sproutc');
   const save = join(keep, 'chip-tree.save.json');
   if (!existsSync(save)) throw new Error('the glue tests left no save to play through sproutc');
   const copy = join(keep, 'roundtrip.json');
   copyFileSync(save, copy);
   const before = readFileSync(copy);
-  run(sproutc, ['play', join(cartridges, 'chip-tree.sproutworld'), '--state', copy]);
+  run(sproutc, ['play', join(cartridges, 'chip-tree.sproutworld'), '--state', copy], {}, prefix);
   if (!before.equals(readFileSync(copy))) {
     throw new Error('sproutc wrote the save back differently from the bytes the player wrote');
   }
@@ -230,7 +239,7 @@ const BUILT_AND_TYPED = [
   { world: 'value-first', built: 'value-first.built.json', lines: ['tune 4 on dial'] },
 ];
 
-export function builtMatchesTyped(keep, cartridges, buildDir) {
+export function builtMatchesTyped(keep, cartridges, buildDir, prefix = []) {
   for (const { world, built, lines } of BUILT_AND_TYPED) {
     const builtPath = join(keep, built);
     if (!existsSync(builtPath)) throw new Error(`the glue tests left no ${built} to compare`);
@@ -244,7 +253,12 @@ export function builtMatchesTyped(keep, cartridges, buildDir) {
     );
     writeFileSync(readingsPath(script), resolveFile(cartridge, script, {}));
     const typed = join(keep, `${world}.typed.state.json`);
-    run(join(buildDir, 'sproutc'), ['play', cartridge, '--script', script, '--state', typed]);
+    run(
+      join(buildDir, 'sproutc'),
+      ['play', cartridge, '--script', script, '--state', typed],
+      {},
+      prefix,
+    );
     if (!readFileSync(builtPath).equals(readFileSync(typed))) {
       throw new Error(
         `${world}: the stored world after the built turns is not the one after the same lines typed`,
