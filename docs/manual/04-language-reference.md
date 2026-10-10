@@ -2668,7 +2668,7 @@ is counted from the turns themselves.
 | `turns`      | how many commands each visitor typed                                                                      |
 | `reading`    | the lines the world could not read (`unread`, with the engine line it answered) or refused (`refused`), each with what the visitor read, and the share of lines typed that each is |
 | `faults`     | every fault, in full, with the step it ended                                                              |
-| `reach`      | places stood in, objects a command named, verbs typed, handlers run and passages rendered, each as `reached` and `never` of how many the world `declared` |
+| `reach`      | places that held a visitor, at any depth (riding a boat reaches each place the boat is in), objects a command named, verbs typed, handlers run and passages rendered, each as `reached` and `never` of how many the world `declared` |
 | `repetition` | the same line typed, or the same answer read, three or more times in a row by one visitor                 |
 
 `reach.passages.never` is the prose nobody saw: every passage, and every

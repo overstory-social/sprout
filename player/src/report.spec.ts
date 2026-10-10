@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bundleOf, KILN_YARD, scriptOf } from './fixtures/index.js';
+import { bundleOf, KILN_YARD, RIVER, scriptOf } from './fixtures/index.js';
 import { playSteps } from './play.js';
 import { reportOf, writeReport, type PlayedRun } from './report.js';
 
@@ -140,6 +140,23 @@ describe('a passage that printed nothing', () => {
     const report = reportOf(quiet, [{ name: 'yard.json', played }]);
     expect(report.reach.passages.never).toContain('kiln_yard.Yard.lamp (yard.sprout:4:11)');
     expect(report.reach.passages.reached).toContain('yard.sprout:3:31 "A kiln yard."');
+  });
+});
+
+describe('the places a playthrough reached', () => {
+  it('counts every place that holds a visitor, so riding a boat reaches the river it is in', () => {
+    const river = bundleOf('river', RIVER);
+    const played = playSteps(
+      river,
+      scriptOf('@arrive Marta\nMarta> go in', 'river.json'),
+      'river.json',
+    );
+    const report = reportOf(river, [{ name: 'river.json', played }]);
+    expect(report.reach.places).toEqual({
+      declared: 3,
+      reached: ['dock', 'reach', 'reach.boat'],
+      never: [],
+    });
   });
 });
 

@@ -190,3 +190,25 @@ verb kick { role target  "kick [target]" }
 }
 `,
 };
+
+/** A boat that is a place, moored in a river that is another: a visitor aboard is in both. */
+export const RIVER: Record<string, string> = {
+  'river.sprout': `world river is sprout.World {
+  visitors are Rower
+  visitors arrive at dock
+
+  object dock is sprout.Place {
+    grammar { exit in "aboard the boat" -> reach.boat }
+    describe { text "A dock." }
+  }
+  object reach is sprout.Place {
+    describe { text "A reach of the river." }
+    object boat is sprout.Place {
+      grammar { exit out "back to the dock" -> dock }
+      describe { text "In the boat." }
+    }
+  }
+}
+`,
+  'rower.sprout': 'kind Rower is sprout.Visitor { }\n',
+};
