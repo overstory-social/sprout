@@ -88,6 +88,8 @@ export interface LaterItem extends RunItem {
 export interface FillContext extends NounContext {
   readonly candidates: readonly Candidate[];
   readonly exits: readonly AppliedWay[];
+  /** Every label a way out in the world is written with (`wayLabels`). */
+  readonly labels: ReadonlySet<string>;
 }
 
 /** What `words`, taken by a slot, fill `role` with. */
@@ -103,7 +105,12 @@ export function fillSlot(
     const exit = exitNamed(words, context.exits);
     if (exit === null) {
       const direction = words.length === 1 ? directionOf(words[0]!) : null;
-      return direction === null ? { fills: 'unfit', things: [] } : { fills: 'no_way', direction };
+      if (direction !== null) return { fills: 'no_way', direction };
+      // A way out of reach: the label of one that does not apply here.
+      if (context.labels.has(labelWords(words).join(' '))) {
+        return { fills: 'nothing', start: 0, end: words.length };
+      }
+      return { fills: 'unfit', things: [] };
     }
     if ('refuses' in exit) return { fills: 'refused', way: exit };
     return {

@@ -1,0 +1,26 @@
+// An exit's label typed where no way out that applies carries it (the
+// spec's Verbs › Exits, Parsing › When nothing matches). The yard's
+// window is a way out written in the world, so in the clearing `enter
+// window`, `go through window` and `window` are answered with `not_here`,
+// as a thing out of reach is; beside it, they go through. Words that are
+// no way out's label anywhere are still `unknown`, and a direction no exit
+// answers is still `no_way`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world out_of_reach_exit is sprout.World {
+  visitors are Person
+  visitors arrive at clearing
+
+  object clearing is sprout.Place {
+    grammar { article the  exit north "north" -> yard }
+  }
+
+  object yard is sprout.Place {
+    grammar { article the  exit west "the window" -> house  exit south "south" -> clearing }
+  }
+
+  object house is sprout.Place {
+    grammar { article the }
+  }
+}

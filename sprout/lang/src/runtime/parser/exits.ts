@@ -6,11 +6,15 @@
 // (the spec's Names › Articles). Only the ways out that apply where the
 // actor stands are asked, which `runtime/exits.ts` says; an exit that
 // refuses is among them, named as any exit is, and is answered with its
-// words rather than read.
+// words rather than read. A label some way out in the world is written
+// with, typed where none that applies carries it, names a way out of
+// reach, which the world's `not_here` answers (the spec's Exits).
 
 import { DETERMINERS, typedWords } from '../../declare/addressing.js';
 import { directionOf, type Direction } from '../../declare/directions.js';
+import type { KindRef } from '../../declare/kinds.js';
 import type { Speech } from '../body.js';
+import type { Catalogue } from '../catalogue.js';
 import type { InstanceId } from '../ids.js';
 
 /** One exit or link that applies where the actor stands: its direction, null for a link, its label, and the place it leads to. */
@@ -52,4 +56,27 @@ export function exitNamed<Way extends AppliedWay>(
 /** A label's words without the article, `my`, `this` or `that` it starts with; a lone word is kept. */
 export function labelWords(words: readonly string[]): readonly string[] {
   return words.length > 1 && DETERMINERS.includes(words[0]!) ? words.slice(1) : words;
+}
+
+/** Each catalogue's labels, read once: a bundle's exits never change. */
+const LABELS = new WeakMap<Catalogue, ReadonlySet<string>>();
+
+/**
+ * Every label an exit or a link in the world is written with, as typed
+ * words without their leading article: those of every kind a spawn may
+ * name and of every object's own kind.
+ */
+export function wayLabels(catalogue: Catalogue): ReadonlySet<string> {
+  const known = LABELS.get(catalogue);
+  if (known !== undefined) return known;
+  const labels = new Set<string>();
+  const add = (kind: KindRef | null) => {
+    for (const way of kind?.exits ?? []) {
+      labels.add(labelWords(typedWords(way.line.label.text)).join(' '));
+    }
+  };
+  for (const kind of catalogue.kinds.values()) add(kind);
+  for (const entry of catalogue.declared.values()) add(entry.kind);
+  LABELS.set(catalogue, labels);
+  return labels;
 }

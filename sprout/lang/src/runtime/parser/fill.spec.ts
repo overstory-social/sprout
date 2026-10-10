@@ -27,7 +27,13 @@ const reaching = (carried: readonly InstanceId[] = []) =>
     return { instance, address, near: 2, carried: carried.includes(id) };
   });
 const candidates = reaching();
-const context = { candidates, exits: EXITS, budget: one.budget, referents: [] };
+const context = {
+  candidates,
+  exits: EXITS,
+  labels: new Set(['through the window']),
+  budget: one.budget,
+  referents: [],
+};
 const verb = (name: string, library = 'study') => STUDY.verbs.qualified(library, name)!;
 const role = (verbName: string, name: string, library = 'study'): ResolvedRole =>
   verb(verbName, library).roles.find((one) => one.name === name)!;
@@ -94,6 +100,18 @@ describe('what a slot’s words fill its role with', () => {
       options: [{ bound: { exit: EXITS[0] }, near: 0, literal: 1, byName: 0 }],
     });
     expect(fill(role('go', 'way', 'sprout'), 'gong')).toEqual({ fills: 'unfit', things: [] });
+  });
+
+  it('names nothing, for an exit role, by the label of a way out in the world that does not apply', () => {
+    expect(fill(role('go', 'way', 'sprout'), 'through the window')).toEqual({
+      fills: 'nothing',
+      start: 0,
+      end: 3,
+    });
+    expect(fill(role('go', 'way', 'sprout'), 'through the door')).toEqual({
+      fills: 'unfit',
+      things: [],
+    });
   });
 
   it('says where the noun that names nothing runs, in a run as in one slot', () => {

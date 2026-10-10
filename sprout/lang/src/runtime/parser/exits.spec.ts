@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { typedWords } from '../../declare/addressing.js';
+import { compiledWorld } from '../../fixtures/bundle.js';
+import { turn } from '../../fixtures/reading.js';
 import { declaredId } from '../ids.js';
-import { exitNamed, labelWords, type CommandExit } from './exits.js';
+import { exitNamed, labelWords, wayLabels, type CommandExit } from './exits.js';
 
 const TO = declaredId('maze', ['hall']);
 
@@ -60,5 +62,30 @@ describe('the exit a visitor names', () => {
       expect(named(line), line).toBeNull();
     }
     expect(exitNamed(['north'], [])).toBeNull();
+  });
+});
+
+// Ways out written on a place, on another inside it, and by a kind, one of them a link.
+const LABELLED = compiledWorld('labelled', {
+  'labelled.sprout': [
+    'world labelled is sprout.World { visitors are Person visitors arrive at clearing',
+    '  object clearing is sprout.Place { grammar { exit north "north" -> yard } }',
+    '  object yard is Yard {',
+    '    grammar { exit west "the window" -> house }',
+    '    object shed is sprout.Place { grammar { exit out "Back Outside" -> yard } }',
+    '  }',
+    '  object house is sprout.Place { }',
+    '}',
+    'kind Yard is sprout.Place { grammar { link onward "a gap in the hedge" } }',
+  ].join('\n'),
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+});
+
+describe('the labels ways out in the world are written with', () => {
+  it('are every exit’s and link’s, as typed words without their article, read once', () => {
+    const { catalogue } = turn(LABELLED, []);
+    const labels = wayLabels(catalogue);
+    expect([...labels].sort()).toEqual(['back outside', 'gap in the hedge', 'north', 'window']);
+    expect(wayLabels(catalogue)).toBe(labels);
   });
 });

@@ -82,6 +82,7 @@ function asking(
   const fill = {
     candidates: reachOf(one.people[0]!, context),
     exits: [],
+    labels: new Set<string>(),
     budget: context.budget,
     referents: [],
   };
