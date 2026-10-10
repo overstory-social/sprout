@@ -19,7 +19,7 @@
 static inline unsigned char *build_cartridge(const char *json, unsigned format, unsigned level,
                                              size_t *length) {
   size_t n = strlen(json), at = 0;
-  unsigned long crc = sproutc_crc32((const unsigned char *)json, n);
+  unsigned long crc = sprout_crc32(0, (const unsigned char *)json, n);
   unsigned char *bytes = (unsigned char *)calloc(16 + 10 + 5 + n + 8, 1);
   if (bytes == NULL) exit(2);
   memcpy(bytes, "SPRT", 4);

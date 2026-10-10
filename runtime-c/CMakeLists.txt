@@ -8,8 +8,8 @@ set(CMAKE_C_EXTENSIONS OFF)
 add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
-  arena budget cartridge catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  graph inflate json lists state status stored stored_check stored_write values)
+  arena budget catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
+  graph inflate json lists load state status stored stored_check stored_write values)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
@@ -22,7 +22,7 @@ target_link_libraries(sprout PUBLIC m)
 
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
-set(SPROUTC_MODULES cartridge host inflate play readings)
+set(SPROUTC_MODULES cartridge host play readings)
 
 set(SPROUTC_SOURCES "")
 foreach(module ${SPROUTC_MODULES})
@@ -64,6 +64,9 @@ foreach(module ${SPROUTC_MODULES})
   add_executable(${module}.host.test test/${module}.host.test.c)
   target_link_libraries(${module}.host.test PRIVATE sproutc_host)
   target_include_directories(${module}.host.test PRIVATE src test)
-  target_compile_definitions(${module}.host.test PRIVATE SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens")
+  target_compile_definitions(${module}.host.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME host-${module} COMMAND ${module}.host.test)
+  set_tests_properties(host-${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()

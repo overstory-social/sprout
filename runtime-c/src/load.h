@@ -7,8 +7,8 @@
  * uses. The caps the cartridge records are the publish record: a world runs
  * under the host's caps, which are read at every load.
  */
-#ifndef SPROUT_CARTRIDGE_H
-#define SPROUT_CARTRIDGE_H
+#ifndef SPROUT_LOAD_H
+#define SPROUT_LOAD_H
 
 #include "world.h"
 

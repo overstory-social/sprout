@@ -173,6 +173,26 @@ static void the_crc_is_the_gzip_polynomials(void) {
   CHECK_INT(sprout_crc32(0, (const unsigned char *)"", 0), 0);
 }
 
+static void a_dynamic_block_gzip_of_the_stored_golden_reads_back_byte_for_byte(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  size_t gz_length, json_length, out_length;
+  unsigned char *gz = (unsigned char *)test_golden("stored-canon.json.gz", &gz_length);
+  char *json = test_golden("stored-canon.json", &json_length);
+  char *out = NULL;
+  const char *why = NULL;
+  sprout_arena_init(&arena, &host);
+  CHECK_INT(sprout_gunzip(&arena, gz, gz_length, &out, &out_length, &why), SPROUT_OK);
+  CHECK_INT(out_length, json_length);
+  CHECK(out != NULL && memcmp(out, json, json_length) == 0);
+  gz[gz_length / 2] ^= 0x55;
+  CHECK_INT(sprout_gunzip(&arena, gz, gz_length, &out, &out_length, &why), SPROUT_BAD_INPUT);
+  sprout_arena_reset(&arena);
+  free(gz);
+  free(json);
+}
+
 int main(void) {
   RUN(a_dynamic_block_inflates);
   RUN(a_fixed_block_inflates);
@@ -184,5 +204,6 @@ int main(void) {
   RUN(a_stream_longer_than_its_trailer_says_is_refused);
   RUN(every_truncation_of_a_vector_is_refused_without_overrun);
   RUN(the_crc_is_the_gzip_polynomials);
+  RUN(a_dynamic_block_gzip_of_the_stored_golden_reads_back_byte_for_byte);
   return REPORT();
 }

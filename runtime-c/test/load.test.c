@@ -1,10 +1,10 @@
 /*
- * Tests for src/cartridge.c: a cartridge is refused in the words the
+ * Tests for src/load.c: a cartridge is refused in the words the
  * TypeScript loader uses when it is not one, was made for a newer format or
  * language level, or is damaged; a host that runs out of memory part way is
  * told so and left holding nothing.
  */
-#include "cartridge.h"
+#include "load.h"
 #include "corpus.h"
 #include "inflate.h"
 

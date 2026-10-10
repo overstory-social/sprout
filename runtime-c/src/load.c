@@ -6,7 +6,7 @@
  * pins are only recorded. Nothing is parsed or checked beyond the shape: a
  * cartridge holds a world that published.
  */
-#include "cartridge.h"
+#include "load.h"
 
 #include <string.h>
 
