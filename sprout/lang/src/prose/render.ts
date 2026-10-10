@@ -85,6 +85,8 @@ export interface Voice {
   readonly self: InstanceId;
   readonly library: string;
   readonly bindings: ReadonlyMap<string, Evaluated>;
+  /** Where the prose is a refusal's words, the acting visitor whose hands they see into. */
+  readonly hands?: InstanceId;
 }
 
 /** `prose` in `voice`, as `reader` reads it, drawing from `draws` where it may draw. */
@@ -113,6 +115,7 @@ function frameOf(voice: Voice, context: RenderContext, draws: Draw | null): Fram
     caps: catalogue.caps,
     names: catalogue.names,
     passes: context.passes,
+    ...(voice.hands === undefined ? {} : { hands: voice.hands }),
   };
 }
 
@@ -210,7 +213,12 @@ function passageOf(
     const bound = frame.bindings.get(carried);
     if (bound !== undefined) bindings.set(carried, bound);
   }
-  const voice = { self: owner.id, library: libraryOf(passage.origin), bindings };
+  const voice = {
+    self: owner.id,
+    library: libraryOf(passage.origin),
+    bindings,
+    ...(frame.hands === undefined ? {} : { hands: frame.hands }),
+  };
   const rendered: Rendered[] = [];
   context.budget.passage(() => {
     pieces(

@@ -11,6 +11,7 @@ import { libraryOf } from '../declare/enums.js';
 import type { Speech } from '../runtime/body.js';
 import type { Evaluated } from '../runtime/evaluate.js';
 import type { InstanceId } from '../runtime/ids.js';
+import type { Said } from '../runtime/reading.js';
 import { charged } from './output.js';
 import { reflow } from './reflow.js';
 import {
@@ -26,6 +27,20 @@ export interface Line {
   readonly by: InstanceId;
   readonly said: Speech;
   readonly bindings: ReadonlyMap<string, Evaluated>;
+  /** What kind of effect it is, where it is one; a refusal's words see into the actor's hands. */
+  readonly effect?: Said['effect'];
+}
+
+/**
+ * The acting visitor whose hands `line` sees into, where it is a
+ * refusal's words: its `actor`, or in a guard, which binds none, its
+ * `mover`; nobody where that one is not a visitor (the spec's Range).
+ */
+function handsOf(line: Line, context: RenderContext): { hands?: InstanceId } {
+  if (line.effect !== 'refused') return {};
+  const acting = line.bindings.get('actor') ?? line.bindings.get('mover');
+  if (acting?.binds !== 'object') return {};
+  return context.state.instance(acting.id)?.made.from === 'visitor' ? { hands: acting.id } : {};
 }
 
 /**
@@ -61,7 +76,12 @@ export function renderedFor(
       ? context.budget.passage(() =>
           renderProse(
             said.passage.body.prose,
-            { self: line.by, library: libraryOf(said.passage.origin), bindings: line.bindings },
+            {
+              self: line.by,
+              library: libraryOf(said.passage.origin),
+              bindings: line.bindings,
+              ...handsOf(line, context),
+            },
             reader,
             context,
             draws,
@@ -69,7 +89,12 @@ export function renderedFor(
         )
       : renderProse(
           said.prose,
-          { self: line.by, library: said.library, bindings: line.bindings },
+          {
+            self: line.by,
+            library: said.library,
+            bindings: line.bindings,
+            ...handsOf(line, context),
+          },
           reader,
           context,
           draws,
