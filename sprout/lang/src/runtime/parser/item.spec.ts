@@ -121,7 +121,13 @@ describe('an item of a run read on its own turn', () => {
   });
 
   it('is `not_here` where its words name nothing in reach', () => {
-    expect(answerOf(item('unicorn', ['sprout', 'take'], 'target', []))).toBe('not_here');
+    expect(answerOf(item('the coin in the box', ['sprout', 'take'], 'target', []))).toBe(
+      'not_here',
+    );
+  });
+
+  it('is `unknown` where a word of it names nothing in the world', () => {
+    expect(answerOf(item('unicorn', ['sprout', 'take'], 'target', []))).toBe('unknown');
   });
 
   it('is `not_carrying` where a carried role names only what the actor does not carry', () => {

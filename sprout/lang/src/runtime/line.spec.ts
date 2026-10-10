@@ -80,7 +80,11 @@ describe('the turns a line runs', () => {
   it('stop at `unknown`, `not_here` and `cannot`, and go on past what acted', () => {
     const lines = (text: string) => played(workshop(), MARTA, text).read['Marta'];
     expect(lines('dance. take pin')).toEqual(['That is not something you can do here.']);
-    expect(lines('take zebra. take pin')).toEqual(['You see nothing like that here.']);
+    // The pin is not in the chest, so the noun names nothing, though each word names something.
+    expect(lines('take the pin in the chest. take pin')).toEqual([
+      'You see nothing like that here.',
+    ]);
+    expect(lines('take zebra. take pin')).toEqual(['That is not something you can do here.']);
     expect(lines('put anvil in pin then take pin')).toEqual([
       "You can't put the anvil in the pin.",
     ]);
@@ -110,13 +114,18 @@ describe('the turns a command plans after its own', () => {
 
   it('stop at the first refusal or answer among them, keeping what ran before', () => {
     expect(lines('take pin and pin and key')).toEqual(['You take a pin.', 'You already have it.']);
-    expect(lines('take pin and zebra and key')).toEqual([
+    expect(lines('take pin and the key in the chest and anvil')).toEqual([
       'You take a pin.',
       'You see nothing like that here.',
     ]);
+    // Nothing in the world is named `zebra` or `dance`.
+    expect(lines('take pin and zebra and key')).toEqual([
+      'You take a pin.',
+      'That is not something you can do here.',
+    ]);
     expect(lines('take pin and dance and take key')).toEqual([
       'You take a pin.',
-      'You see nothing like that here.',
+      'That is not something you can do here.',
     ]);
   });
 

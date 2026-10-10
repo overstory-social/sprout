@@ -383,15 +383,8 @@ describe('choosing among readings', () => {
 describe('the answers', () => {
   it("says `not_here`, in the world's words, of a noun nothing in range answers to, naming nothing", () => {
     const one = study();
-    // The coin is in the shut chest, the barrel in another place, and nothing is a unicorn.
-    const lines = [
-      'take coin',
-      'juggle gong and the coin',
-      'x the barrel',
-      'take barrel',
-      'take unicorn',
-      'take brass key please',
-    ];
+    // The coin is in the shut chest and the barrel in another place.
+    const lines = ['take coin', 'juggle gong and the coin', 'x the barrel', 'take barrel'];
     for (const line of lines) {
       const none = answered(typed(one, line));
       expect(none.answer, line).toBe('not_here');
@@ -400,6 +393,16 @@ describe('the answers', () => {
       expect(none.bindings.get('here'), line).toEqual({ binds: 'object', id: HALL });
       expect([...none.bindings.keys()].sort(), line).toEqual(['actor', 'here']);
     }
+  });
+
+  it('says `unknown` of a noun holding a word nothing in the world is named by', () => {
+    const one = study();
+    // Nothing is a unicorn, and nothing is named `please` or `again`.
+    for (const line of ['take unicorn', 'take brass key please', 'take the gong again']) {
+      expect(answered(typed(one, line)).answer, line).toBe('unknown');
+    }
+    // The barrel is named, though out of reach, and `the`, `in` and `it` are the parser's.
+    expect(answered(typed(one, 'take the barrel in the chest')).answer).toBe('not_here');
   });
 
   it('reads what one phrase reads, though another names nothing in range', () => {

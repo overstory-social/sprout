@@ -21,7 +21,7 @@
     ] },
     { "as": "Marta", "type": "drop key then drop zebra then take coin", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You put a key down." },
-      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
     ] }
   ]
 }
