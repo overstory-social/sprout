@@ -33,7 +33,7 @@ import {
 import { scriptOf, transcriptOf } from './fixtures/scripts.js';
 import { readScript } from './script.js';
 import { readWorld } from './world.js';
-import { bundleOf, KILN_YARD, LANE } from './fixtures/worlds.js';
+import { bundleOf, KILN_YARD, LANE, RIVER } from './fixtures/worlds.js';
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
 const play = (lines: string): string =>
@@ -161,7 +161,7 @@ describe('playScript', () => {
     );
   });
 
-  it('gives each place a tick reaches a turn of its own, seeded after the one before it', () => {
+  it('gives each place a tick reaches a turn of its own, seeded by its own path', () => {
     // The shed ticks as the yard does, so a shared seed would make both say the same.
     const twoYards = bundleOf('kiln_yard', {
       ...KILN_YARD,
@@ -189,7 +189,7 @@ describe('playScript', () => {
     expect(differ.length).toBeGreaterThan(0);
   });
 
-  it('gives each wake an advance delivers a turn of its own, seeded after the one before it', () => {
+  it('gives each wake an advance delivers a turn of its own, seeded by its own path', () => {
     // Two kilns fired together wake together, and each draws one of two lines as it cools.
     const twoKilns = bundleOf('kiln_yard', {
       ...KILN_YARD,
@@ -220,6 +220,46 @@ describe('playScript', () => {
       return first !== second;
     });
     expect(differ.length).toBeGreaterThan(0);
+  });
+
+  it('leaves an object’s draws as they were when an unrelated clock is added and wakes first', () => {
+    const cooling: Record<string, string> = {
+      ...KILN_YARD,
+      'kiln.sprout': KILN_YARD['kiln.sprout']!.replace(
+        'tell "The kiln ticks as it cools."',
+        'tell "{one of}It ticks as it cools.{or}It sighs as it cools.{or}It creaks as it cools.{/one of}"',
+      ),
+    };
+    const alone = bundleOf('kiln_yard', cooling);
+    // An oven of its own kind, fired first, so its wake comes before the kiln's.
+    const withOven = bundleOf('kiln_yard', {
+      ...cooling,
+      'kiln_yard.sprout': cooling['kiln_yard.sprout']!.replace(
+        'object kiln is Kiln',
+        'object kiln is Kiln\n    object oven is Oven',
+      ),
+      'oven.sprout': `kind Oven is sprout.Fixture {
+  as target for fire { do { wake in 1 hours  say "The oven roars." } }
+  on :woke (elapsed) { tell "The oven goes quiet." }
+}
+`,
+    });
+    const cools = (world: typeof alone, fire: string, seed: number) =>
+      transcriptOf(
+        playScript(
+          world,
+          scriptOf(`@arrive Marta\n${fire}Marta> fire kiln\n@seed ${seed}\n@advance 2 hours\n`),
+          'kiln.json',
+        ),
+      )
+        .split('\n')
+        .filter((line) => line.includes('as it cools.') || line.includes('goes quiet'));
+    for (const seed of [0, 1, 2, 3, 4, 5, 6, 7]) {
+      const [kiln] = cools(alone, '', seed);
+      const [oven, kilnBeside] = cools(withOven, 'Marta> fire oven\n', seed);
+      expect(oven, `seed ${seed}: the oven wakes first`).toContain('The oven goes quiet.');
+      expect(kilnBeside, `seed ${seed}`).toBe(kiln);
+    }
   });
 
   it('refuses a nickname the world’s words collide with, admitting nobody', () => {
@@ -509,6 +549,12 @@ describe('a line read as an intent', () => {
 });
 
 describe('the turns a step ran', () => {
+  it('trace every place that holds a visitor, from their own place out', () => {
+    const river = bundleOf('river', RIVER);
+    const played = playSteps(river, scriptOf('@arrive Marta\nMarta> go in'), 'river.json');
+    expect(played[1]!.turns[0]!.standing).toEqual(['river.reach.boat', 'river.reach']);
+  });
+
   it('are traced in order, each with who typed what, what it did, and where everyone then stood', () => {
     const played = playSteps(
       bundle,

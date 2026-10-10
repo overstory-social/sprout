@@ -69,7 +69,10 @@ export type ReadStep = {
   readonly line: string;
   /** Host seconds on the fake clock when the step begins. */
   readonly atSeconds: number;
-  /** The seed the step's first turn is drawn under; each turn after it takes the next. */
+  /**
+   * The step's seed: a command's first turn is drawn under it and each turn
+   * after takes the next; a tick's and a wake's turns are seeded from it by `turnSeed`.
+   */
   readonly seed: number;
 } & Facts;
 

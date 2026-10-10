@@ -272,7 +272,7 @@ it asked`.
 
 Dice in Sprout are not truly random: each moment rolls from a number
 called the _seed_, which starts at 0. That is what makes worlds
-repeatable. If the cat never does anything interesting, try `@seed 14`
+repeatable. If the cat never does anything interesting, try `@seed 23`
 and then `@tick`.
 
 ## Starting somewhere else

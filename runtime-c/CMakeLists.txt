@@ -9,7 +9,7 @@ add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
   arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move outcome range
+  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move outcome prose range
   reading state status stored stored_check stored_write submit values wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
@@ -20,6 +20,9 @@ set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators pas
 
 # The statements' areas, src/stmt/<module>.c, each with test/stmt_<module>.test.c.
 set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speech write)
+
+# Rendering what a turn said, src/prose/<module>.c, each with test/prose_<module>.test.c.
+set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
@@ -36,6 +39,10 @@ endforeach()
 
 foreach(module ${SPROUT_READING_MODULES})
   list(APPEND SPROUT_SOURCES src/reading/${module}.c)
+endforeach()
+
+foreach(module ${SPROUT_PROSE_MODULES})
+  list(APPEND SPROUT_SOURCES src/prose/${module}.c)
 endforeach()
 
 add_library(sprout STATIC ${SPROUT_SOURCES})
@@ -113,6 +120,17 @@ foreach(module ${SPROUT_READING_MODULES})
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME reading_${module} COMMAND reading_${module}.test)
   set_tests_properties(reading_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+endforeach()
+
+foreach(module ${SPROUT_PROSE_MODULES})
+  add_executable(prose_${module}.test test/prose_${module}.test.c)
+  target_link_libraries(prose_${module}.test PRIVATE sprout)
+  target_include_directories(prose_${module}.test PRIVATE src test)
+  target_compile_definitions(prose_${module}.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
+  add_test(NAME prose_${module} COMMAND prose_${module}.test)
+  set_tests_properties(prose_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})

@@ -2634,6 +2634,13 @@ own golden. Time starts at 0 and the seed at 0. Wakes are delivered as
 time advances while someone is in the world; while nobody is, they wait
 for the next arrival.
 
+Each place a tick reaches, and each wake an advance delivers, rolls from
+a seed of its own, made from the step's seed and the place's or the
+object's path (and, for a wake, how many times that object has already
+woken in the advance). So adding a clock to one object never changes
+what another object rolls in a test. A typed line that runs several
+commands gives the first the step's seed and each after it the next.
+
 Interactively, you type the same steps written short: `Marta> take key`,
 `@arrive Marta`, `@leave Marta`, `@tick`, `@advance 40 minutes`,
 `@seed 7`, and `#` for a comment. A line with no `Name>` goes to whoever
@@ -2668,7 +2675,7 @@ is counted from the turns themselves.
 | `turns`      | how many commands each visitor typed                                                                      |
 | `reading`    | the lines the world could not read (`unread`, with the engine line it answered) or refused (`refused`), each with what the visitor read, and the share of lines typed that each is |
 | `faults`     | every fault, in full, with the step it ended                                                              |
-| `reach`      | places stood in, objects a command named, verbs typed, handlers run and passages rendered, each as `reached` and `never` of how many the world `declared` |
+| `reach`      | places that held a visitor, at any depth (riding a boat reaches each place the boat is in), objects a command named, verbs typed, handlers run and passages rendered, each as `reached` and `never` of how many the world `declared` |
 | `repetition` | the same line typed, or the same answer read, three or more times in a row by one visitor                 |
 
 `reach.passages.never` is the prose nobody saw: every passage, and every

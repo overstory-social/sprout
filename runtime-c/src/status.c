@@ -30,6 +30,12 @@ sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sp
   (void)world;
   (void)state;
   (void)turn;
-  if (outcome != NULL) outcome->faulted = false;
+  if (outcome != NULL) {
+    outcome->faulted = false;
+    outcome->line_count = 0;
+    outcome->lines = NULL;
+    outcome->cut_count = 0;
+    outcome->cuts = NULL;
+  }
   return SPROUT_NOT_YET;
 }
