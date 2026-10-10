@@ -198,7 +198,7 @@ static inline void prose_readers(prose_case *c, const sprout_json *to, sprout_ef
 static inline void prose_rename(prose_case *c, const sprout_json *renames) {
   size_t i;
   for (i = 0; i < renames->count; i++) {
-    const sprout_stored_visitor *held = prose_visitor_of(&c->draft, (sprout_str){renames->items[i]->key, renames->items[i]->key_length});
+    const sprout_stored_visitor *held = sprout_visitor_of(&c->draft, (sprout_str){renames->items[i]->key, renames->items[i]->key_length});
     sprout_stored_visitor changed;
     if (held == NULL) {
       fprintf(stderr, "no visitor is %s\n", renames->items[i]->key);

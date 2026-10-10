@@ -10,6 +10,7 @@
 #ifndef SPROUT_PROSE_PROSE_H
 #define SPROUT_PROSE_PROSE_H
 
+#include "../address.h"
 #include "../exec.h"
 #include "../expr/expr.h"
 
@@ -76,11 +77,6 @@ size_t prose_characters(sprout_str text);
 sprout_eval_status prose_object_words(const sprout_frame *frame, sprout_str object, sprout_str reader,
                                       sprout_str *words);
 
-/* An option as a slot renders it: `bone_dry` is "bone dry". */
-bool prose_humanised(sprout_arena *arena, sprout_str option, sprout_str *words);
-
-/* The visitor record whose person is `instance` as the turn stands, or NULL. */
-const sprout_stored_visitor *prose_visitor_of(const sprout_draft *draft, sprout_str instance);
 
 /* ---- output.c: what each reader may still be told ---- */
 
@@ -139,6 +135,15 @@ const char *prose_library_of(sprout_arena *arena, const char *qualified);
 
 /* Enters a passage's depth, faulting the turn past the host's bound; leave it with sprout_meter_leave_passage. */
 sprout_eval_status prose_enter_passage(const prose_reading *reading);
+
+/* ---- prose.c: one line, for one reader ---- */
+
+/*
+ * The paragraphs `said`, said by `by` with `bindings` in scope, renders to for the reader, charged to nobody
+ * and drawing nothing: how a description and a refusal are read in a poll.
+ */
+sprout_eval_status prose_render_speech(const prose_reading *reading, sprout_str by, const sprout_speech *said,
+                                       const sprout_binding *bindings, prose_paragraphs *out);
 
 /* ---- engine_lines.c: the engine's own words ---- */
 

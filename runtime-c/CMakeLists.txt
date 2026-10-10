@@ -8,12 +8,12 @@ set(CMAKE_C_EXTENSIONS OFF)
 add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
-  arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move outcome prose range
-  reading state status stored stored_check stored_write submit values wakes)
+  address arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds darkness describe draft draws
+  effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move offers options outcome
+  prose range reading state status stored stored_check stored_write submit values view wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
-set(SPROUT_READING_MODULES carried consent effect wildcards)
+set(SPROUT_READING_MODULES carried consent effect sure wildcards)
 
 # The evaluator's areas, src/expr/<module>.c, each with test/expr_<module>.test.c.
 set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators passes range show spawn)

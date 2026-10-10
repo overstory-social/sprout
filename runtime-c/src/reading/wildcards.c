@@ -36,6 +36,10 @@ static const sprout_play_group *group_for(const sprout_kind_def *kind, const cha
   return NULL;
 }
 
+const sprout_play_group *sprout_own_plays(const sprout_verb *verb, const char *role, const sprout_kind_def *kind) {
+  return group_for(kind, role, verb->library, verb->name);
+}
+
 void sprout_plays_for(const sprout_resolved *reading, const sprout_participant *who, const sprout_kind_def *kind,
                       sprout_plays *out) {
   const sprout_verb *verb = reading->verb;

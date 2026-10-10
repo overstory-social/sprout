@@ -88,6 +88,9 @@ sprout_eval_status stmt_act(sprout_run *run, const sprout_frame *frame, const sp
 
 /* ---- each.c ---- */
 
+/* What an `each` visits, in order, fixed before the first visit. */
+sprout_eval_status stmt_each_walked(const sprout_frame *frame, const sprout_node *statement, const sprout_str **ids,
+                                    size_t *count);
 /* `each`: the body once for each thing walked, until one ends the body. */
 sprout_eval_status stmt_each(sprout_run *run, const sprout_frame *frame, const sprout_node *statement,
                              sprout_ended *ended);

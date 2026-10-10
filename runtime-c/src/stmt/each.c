@@ -9,9 +9,8 @@
  */
 #include "stmt.h"
 
-/* What the statement visits, in order. */
-static sprout_eval_status walked(const sprout_frame *frame, const sprout_node *statement, const sprout_str **ids,
-                                 size_t *count) {
+sprout_eval_status stmt_each_walked(const sprout_frame *frame, const sprout_node *statement, const sprout_str **ids,
+                                    size_t *count) {
   sprout_evaluated over;
   const sprout_node *filter = sprout_node_get(statement, "filter");
   sprout_str container;
@@ -51,7 +50,7 @@ sprout_eval_status stmt_each(sprout_run *run, const sprout_frame *frame, const s
   const char *variable = expr_ident(statement, "variable");
   const sprout_str *ids;
   size_t count, i;
-  EXPR_NEED(walked(frame, statement, &ids, &count));
+  EXPR_NEED(stmt_each_walked(frame, statement, &ids, &count));
   for (i = 0; i < count; i++) {
     sprout_frame inner = *frame;
     const sprout_binding *bound;

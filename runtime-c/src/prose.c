@@ -103,6 +103,17 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   return SPROUT_EVAL_OK;
 }
 
+sprout_eval_status prose_render_speech(const prose_reading *reading, sprout_str by, const sprout_speech *said,
+                                       const sprout_binding *bindings, prose_paragraphs *out) {
+  speaking line;
+  tape t;
+  line.by = by;
+  line.said = said;
+  line.bindings = bindings;
+  memset(&t, 0, sizeof t);
+  return rendered_for(reading, NULL, &line, &t, out);
+}
+
 static uint64_t characters_of(const prose_paragraphs *paragraphs) {
   uint64_t total = 0;
   size_t i;
@@ -252,7 +263,7 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       if (line->effect->has_speaker) EXPR_NEED(framed(&reading, x->draws, &output, line, &paragraphs));
       else EXPR_NEED(read_by(&reading, x->draws, &output, line, &paragraphs));
       if (paragraphs.count == 0) continue;
-      visitor = prose_visitor_of(x->draft, reading.reader);
+      visitor = sprout_visitor_of(x->draft, reading.reader);
       if (visitor == NULL) {
         sprout_frame frame = prose_frame(&reading, NULL, reading.reader, NULL, NULL);
         expr_text text = expr_text_begin(&frame);
@@ -296,7 +307,7 @@ sprout_status sprout_rendered_outcome(sprout_arena *turn, const sprout_draft *dr
       made[at].text_length = rendered->told[i].paragraphs[j].length;
     }
   for (i = 0; i < rendered->cut_count; i++) {
-    const sprout_stored_visitor *visitor = prose_visitor_of(draft, rendered->cut[i]);
+    const sprout_stored_visitor *visitor = sprout_visitor_of(draft, rendered->cut[i]);
     if (visitor == NULL) return SPROUT_BAD_INPUT;
     cuts[i].recipient = visitor->visit.bytes;
     cuts[i].recipient_length = visitor->visit.length;
