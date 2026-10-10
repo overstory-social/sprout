@@ -103,6 +103,13 @@ describe('what a body sees a container hold', () => {
     expect(contentsSeen(asker(draft, visitor), visitor)).toEqual([MUG]);
   });
 
+  it('sees into the hands it is given as open, and no one else’s', () => {
+    const { draft, visitor } = world();
+    expect(contentsSeen({ ...asker(draft, HALL), hands: visitor }, visitor)).toEqual([MUG]);
+    expect(seenBy({ ...asker(draft, SHELF), hands: visitor }, MUG)).toBe(true);
+    expect(contentsSeen({ ...asker(draft, HALL), hands: HALL }, visitor)).toEqual([]);
+  });
+
   it('keeps only what composes the kind a filter names, from what is seen', () => {
     const { draft } = world();
     const at = asker(draft, CHEST);

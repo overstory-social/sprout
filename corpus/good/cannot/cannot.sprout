@@ -2,7 +2,8 @@
 // matches): its verb or intent understood, a role given something it
 // cannot take, is answered with the world's `cannot`, saying what was
 // understood; a line whose noun nothing in reach answers to is still
-// `not_here`, and one no phrase reads `unknown`.
+// `not_here`, and one no phrase reads, or whose noun holds a word nothing
+// in the world is named by, `unknown`.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 

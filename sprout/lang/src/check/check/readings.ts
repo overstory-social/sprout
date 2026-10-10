@@ -22,6 +22,7 @@ import {
   remembers,
 } from './receivers.js';
 import { elementOf, held, matches } from './values.js';
+import { otherPlaceWords } from '../names.js';
 import { EFFECTS, effectCall } from './writes.js';
 
 /** Every reading this checker knows, for the message when a word is none of them. */
@@ -64,6 +65,13 @@ export function callType(
     return null;
   }
 
+  if (method.text === 'get' || method.text === 'is') {
+    const words = otherPlaceWords(receiver, method.text, context);
+    if (words !== null) {
+      context.diagnostics.refuse(receiver.at, words.message, words.remedy);
+      return null;
+    }
+  }
   switch (method.text) {
     case 'get':
       return getCall(receiver, type, method, args, context);

@@ -52,7 +52,7 @@
     { "as": "Marta", "type": "drop bottle and unicorn and sack", "expect": [
       { "level": "info", "text": "step: sprout.drop" },
       { "reader": "Marta", "kind": "said", "words": "You put a bottle down." },
-      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
     ] },
     { "as": "Marta", "type": "take bottle and sack and lamp", "expect": [
       { "level": "info", "text": "step: sprout.take" },

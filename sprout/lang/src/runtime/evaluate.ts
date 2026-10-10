@@ -75,6 +75,11 @@ export interface Frame {
   readonly passes: PassRule<InstanceId>;
   /** The turn's draws, where the body acts in a write turn; a deciding body and a poll have none. */
   readonly draws?: Draw;
+  /**
+   * The acting visitor whose hands a refusal's words see into, though
+   * `sprout.Actor` passes nothing (the spec's Range); absent elsewhere.
+   */
+  readonly hands?: InstanceId;
 }
 
 /**

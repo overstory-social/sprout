@@ -10,11 +10,13 @@ import {
   boundObject,
   BRASS_KEY,
   CRATE,
+  OAK_DOOR,
   passageFor,
   PRESS,
   proseTurn,
   YARD,
 } from '../fixtures/prose.js';
+import type { InstanceId } from '../runtime/ids.js';
 import { renderFor } from './speech.js';
 
 /** Words in quotes, as a `say` gives them. */
@@ -61,6 +63,69 @@ describe('a line said is rendered for each reader', () => {
       ]),
     };
     expect(renderFor(line, turn.marta, turn.context)).toEqual(['You cannot stand in the crate.']);
+  });
+
+  it('sees into the actor’s hands in a refusal’s words, and nowhere else', () => {
+    const turn = proseTurn();
+    turn.draft.place(BRASS_KEY, turn.marta);
+    // An actor passes nothing, so only open hands let the yard see the key.
+    const context = {
+      ...turn.context,
+      passes: (container: string) => container !== turn.marta && container !== turn.draft.world,
+    };
+    const line = {
+      by: YARD,
+      said: quoted('{actor} holds {actor.count}.'),
+      bindings: new Map([['actor', boundObject(turn.marta)]]),
+    };
+    expect(renderFor({ ...line, effect: 'refused' as const }, turn.marta, context)).toEqual([
+      'You holds 1.',
+    ]);
+    expect(renderFor({ ...line, effect: 'said' as const }, turn.marta, context)).toEqual([
+      'You holds 0.',
+    ]);
+    expect(renderFor(line, turn.marta, context)).toEqual(['You holds 0.']);
+  });
+
+  it('opens only the hands, so a shut container in them stays shut', () => {
+    const turn = proseTurn();
+    turn.draft.place(CRATE, turn.marta);
+    const line = {
+      by: YARD,
+      said: quoted('The crate holds {crate.count}.'),
+      bindings: new Map([
+        ['actor', boundObject(turn.marta)],
+        ['crate', boundObject(CRATE)],
+      ]),
+      effect: 'refused' as const,
+    };
+    const shut = (lid: boolean) => ({
+      ...turn.context,
+      passes: (container: string) =>
+        container !== turn.marta && container !== turn.draft.world && (lid || container !== CRATE),
+    });
+    expect(renderFor(line, turn.marta, shut(false))).toEqual(['The crate holds 0.']);
+    expect(renderFor(line, turn.marta, shut(true))).toEqual(['The crate holds 3.']);
+  });
+
+  it('opens a guard’s mover’s hands where it binds no actor, and no hands but a visitor’s', () => {
+    const turn = proseTurn();
+    turn.draft.place(BRASS_KEY, turn.marta);
+    turn.draft.place(OAK_DOOR, PRESS);
+    const context = {
+      ...turn.context,
+      passes: (container: string) =>
+        container !== turn.marta && container !== PRESS && container !== turn.draft.world,
+    };
+    const refused = (name: string, who: InstanceId) => ({
+      by: YARD,
+      said: quoted(`{${name}.count}.`),
+      bindings: new Map([[name, boundObject(who)]]),
+      effect: 'refused' as const,
+    });
+    expect(renderFor(refused('mover', turn.marta), turn.marta, context)).toEqual(['1.']);
+    expect(renderFor(refused('actor', PRESS), turn.marta, context)).toEqual(['0.']);
+    expect(renderFor(refused('mover', PRESS), turn.marta, context)).toEqual(['0.']);
   });
 
   it('renders nothing of a passage that is absent', () => {

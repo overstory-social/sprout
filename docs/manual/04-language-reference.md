@@ -495,7 +495,9 @@ grammar {
 
 The words are in quotes, or the name of a passage of the place, as
 `refuse` takes them anywhere else; `actor` and `here` may be used in them.
-Going that way, by its direction or its label, reads those words, and
+Like any refusal's words, they see into the visitor's hands, so
+`actor.count(Coffin)` counts the coffins the visitor carries, which a
+description of the place cannot. Going that way, by its direction or its label, reads those words, and
 nothing moves. Such an exit is never offered: it has no chip, `help` does
 not list it, and it does not count toward a place's 8.
 
