@@ -24,7 +24,7 @@ local env = {
 setmetatable(env, { __index = _G })
 
 for _, name in ipairs({
-  "clock", "wrap", "reader", "sentence", "nickname", "shelf", "engine", "images", "canonical", "index", "net",
+  "markup", "clock", "wrap", "reader", "sentence", "nickname", "shelf", "engine", "images", "canonical", "index", "net",
   "config", "downloads", "main",
 }) do
   local chunk = assert(loadfile(here .. "/" .. name .. "_test.lua", "t", env))

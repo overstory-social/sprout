@@ -19,9 +19,14 @@ local Net <const> = import "net"
 local Config <const> = import "config"
 local Downloads <const> = import "downloads"
 local PublicKey <const> = import "publickey"
+local Markup <const> = import "markup"
 
 local pd <const> = playdate
-local gfx <const> = pd.graphics
+-- The screen is the SDK's graphics with one difference: text is drawn plain, since nothing drawn
+-- here is markup and `drawText` would read a world's underscores as italics.
+local gfx <const> = setmetatable({
+  drawText = function(text, x, y) pd.graphics.drawText(Markup.plain(text), x, y) end,
+}, { __index = pd.graphics })
 
 pd.display.setRefreshRate(30)
 
