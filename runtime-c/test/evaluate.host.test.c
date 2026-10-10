@@ -45,13 +45,14 @@ static run sproutc(int argc, char **argv) {
   return r;
 }
 
-/* Writes the golden's stored world of this name to a file and returns its path. */
+/* Writes the golden's stored world of this name under the temp directory and returns its path. */
 static const char *state_file(const sprout_json *golden, const char *name) {
-  static char path[64];
+  static char path[512];
+  const char *dir = getenv("TMPDIR");
   const sprout_json *states = sprout_json_get(golden, "states");
   const sprout_json *stored = sprout_json_get(states, name);
   FILE *file;
-  snprintf(path, sizeof path, "evaluate-host-%s.json", name);
+  snprintf(path, sizeof path, "%s/sprout-evaluate-host-%s.json", dir != NULL && dir[0] != '\0' ? dir : "/tmp", name);
   file = fopen(path, "wb");
   fwrite(stored->bytes, 1, stored->length, file);
   fclose(file);
