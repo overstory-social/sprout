@@ -4,6 +4,7 @@ import { compileBundle } from '../bundle/compile/compile.js';
 import type { Extension } from '../declare/extensions.js';
 import { locationOf } from '../source/source.js';
 import { refusals, warnings, world, worldFiles, worldLine } from '../fixtures/compile.js';
+import { MEDIA as REAL_MEDIA } from '../declare/media.js';
 import { MEDIA, mediaWith } from '../fixtures/extensions.js';
 
 const PINNED = { manifest: { extensions: [{ name: 'media', major: 2 }] } };
@@ -200,6 +201,66 @@ describe('an extension’s value, compared and rendered', () => {
         'A slot does not render `media.Sound`: the extension `media` says it has no words.',
         'Say what it means in words of your own, or with a statement of the extension that shows it.',
       ],
+    ]);
+  });
+});
+
+describe('a statement whose last argument may be left out', () => {
+  /** What compiling a lamp that writes `members`, on a host that installed the real `media`, refuses. */
+  function refusedByMedia(members: string): (string | undefined)[][] {
+    const files = worldFiles(
+      worldLine('object lamp is Lamp'),
+      `extension media 1\nkind Lamp {\n  ${members}\n}`,
+    );
+    const { diagnostics } = compileBundle(
+      world({ files, manifest: { extensions: [{ name: 'media', major: 1 }] } }),
+      { extensions: [REAL_MEDIA] },
+    );
+    return refusals(diagnostics).map((d) => [locationOf(d.at), d.message, d.remedy]);
+  }
+
+  it('is written with or without it', () => {
+    expect(
+      refusedByMedia(
+        'describe { text "A lamp."  media.show("a.png")  media.show("a.png", "a lamp") }',
+      ),
+    ).toEqual([]);
+  });
+
+  it('is refused with fewer arguments than it requires or more than it takes, in the range it takes', () => {
+    expect(
+      refusedByMedia('describe { text "A lamp."  media.show()  media.show("a.png", "x", "y") }'),
+    ).toEqual([
+      [
+        'lamp.sprout:3:30',
+        '`media.show` takes 1 to 2: `image` and `caption?`.',
+        'Write `media.show(image, caption?)`, leaving out what ends in ?.',
+      ],
+      [
+        'lamp.sprout:3:44',
+        '`media.show` takes 1 to 2: `image` and `caption?`.',
+        'Write `media.show(image, caption?)`, leaving out what ends in ?.',
+      ],
+    ]);
+  });
+
+  it('is held to the extension’s own check of what is written out', () => {
+    expect(refusedByMedia('describe { text "A lamp."  media.show("a.png", "") }')).toEqual([
+      [
+        'lamp.sprout:3:30',
+        'A caption needs words.',
+        'Say what the picture shows, as in `media.show("cellar.png", "a cellar")`, or leave the caption out.',
+      ],
+    ]);
+  });
+
+  it('shows an image named in quotes, which a property cannot stand in for', () => {
+    expect(
+      refusedByMedia(
+        ':picture media.Image default "a.png"\n  describe { text "A lamp."  media.show(self.get(:picture)) }',
+      ).map(([, message]) => message),
+    ).toEqual([
+      '`media.show` shows an image named in quotes, so its file can be found and sent with the world.',
     ]);
   });
 });

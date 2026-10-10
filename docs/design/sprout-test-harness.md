@@ -208,6 +208,34 @@ turn to leaving the stored world byte for byte as it was. `seeds.test.c` and
 `nickname.test.c` are held to goldens the TypeScript specs write
 (`seeds.json`, `nicknames.json`, `budgets.json`).
 
+### 8. Extensions on a host that draws
+
+`media` is the one extension the hosts install (the CLI, the player, the server, the language server and the
+C runtime), and the contract a host that draws reads is this. `media.show("cellar.png")` and
+`media.show("cellar.png", "a damp cellar")` stand in a `describe` and in a `do`.
+
+- **The effect's payload** is the JSON object `{"image": "<path>"}` or `{"image": "<path>", "caption": "<text>"}`,
+  `image` first, no `caption` key where there is none. `<path>` is the image's path from the world's folder,
+  `/` between folders. The transcript line a text client reads is the caption, or `[<path>]`.
+- **The asset** sits at `<cartridge>.assets/<path>`, where `<cartridge>` is the cartridge's file name
+  (`media_room.sproutworld.assets/pictures/cabinet.png`), written by `sprout pack`. It is a PNG of one bit a pixel
+  (grey scale, colour type 0, or palette, colour type 3). The cartridge lists each in its `extensions` section,
+  `{"name":"media","major":1,"assets":[{"path":"cellar.png","bytes":80,"sha":"…"}]}`, so a host can check what it
+  loaded. No size is imposed on the picture; the total is the host's `assetBytes` cap, unset by default.
+- **In the C API** a turn's extension effect is a `sprout_told_effect` of kind `SPROUT_LINE_EXTENSION` with
+  `extension`, `statement` and `payload` (JSON text) and its transcript line as its one paragraph (the
+  outcome's `lines`, each pointing at its effect by `effect`); a view's are `sprout_seen_view.effects`, each a
+  `sprout_seen_effect` with the same three and its `transcript`. A description's effects follow its `described`
+  effect in a turn, and in the view they are kept apart from the description's paragraphs.
+- **`sproutc` prints them.** `sproutc play` says `Ines (extension): [cellar.png]` and its `--trace` puts
+  `"extension":"media","statement":"show","payload":{"image":"cellar.png"}` on the effect in the log entry (the
+  TypeScript player writes the same, and the replay compares them); `sproutc view --json` prints
+  `"effects":[{"extension":"media","statement":"show","payload":{"image":"cellar.png"},"transcript":"[cellar.png]"}]`
+  in the view, and the page both runtimes print has an `effects` section after the description when there are any.
+
+`corpus/good/media-room` pins it all: its transcript holds the transcript lines, its `view.txt` the page, and
+`corpus/bad/media-missing-file`, `media-not-one-bit` and `media-bad-names` the words of each refusal.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same

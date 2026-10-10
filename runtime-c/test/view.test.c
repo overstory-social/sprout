@@ -46,6 +46,34 @@ static void the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles(
   CHECK_INT(b.heap.pages, 0);
 }
 
+static void a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line(void) {
+  view_bench b;
+  const sprout_json *worlds;
+  size_t i, found = 0;
+  view_bench_open(&b);
+  worlds = sprout_json_get(b.golden, "corpus");
+  for (i = 0; i < worlds->count; i++) {
+    view_case c;
+    sprout_seen_view view;
+    if (strcmp(view_text(worlds->items[i], "world"), "media-room") != 0) continue;
+    found++;
+    view_corpus_case_open(&b, &c, worlds->items[i]);
+    CHECK_INT(sprout_view(c.world, c.state, &c.host, view_text(worlds->items[i], "visit"), &view), SPROUT_OK);
+    CHECK_INT(view.description_count, 1);
+    CHECK_BYTES(view.description[0].bytes, view.description[0].length, "A damp cellar.");
+    CHECK_INT(view.effect_count, 1);
+    CHECK_STR(view.effects[0].extension, "media");
+    CHECK_STR(view.effects[0].statement, "show");
+    CHECK_BYTES(view.effects[0].payload.bytes, view.effects[0].payload.length, "{\"image\":\"cellar.png\"}");
+    CHECK_BYTES(view.effects[0].transcript.bytes, view.effects[0].transcript.length, "[cellar.png]");
+    sprout_view_free(&view);
+    view_case_close(&c);
+  }
+  CHECK_INT(found, 1);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
 /* The case named, opened and polled. */
 static void polled(view_bench *b, const char *needle, view_case *c, sprout_seen_view *view) {
   const sprout_json *golden = view_case_named(b, needle);
@@ -242,6 +270,7 @@ static void a_host_that_cannot_give_a_page_is_told_so_and_leaks_nothing(void) {
 int main(void) {
   RUN(every_bench_case_is_polled_as_the_oracle_polled_it);
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles);
+  RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);
   RUN(a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived);
   RUN(a_poll_draws_nothing_and_reads_no_clock);

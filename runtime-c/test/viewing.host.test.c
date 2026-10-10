@@ -120,6 +120,27 @@ static void json_prints_the_view_and_the_chip_tree_over_it(void) {
   release(&r);
 }
 
+static void a_picture_in_the_description_is_an_effect_with_its_payload_and_its_transcript_line(void) {
+  char *argv[] = {"view", cartridge_of("media-room"), "--state", (char *)state_file("media-room"), "--json"};
+  run r = sproutc(5, argv);
+  CHECK_INT(r.code, 0);
+  CHECK(strstr(r.out,
+               "{\"description\":[\"A damp cellar.\"],\"effects\":[{\"extension\":\"media\",\"statement\":\"show\","
+               "\"payload\":{\"image\":\"cellar.png\"},\"transcript\":\"[cellar.png]\"}],\"exits\":[") == r.out);
+  release(&r);
+}
+
+static void the_page_lists_the_effect_after_the_description(void) {
+  char *argv[] = {"view", cartridge_of("media-room"), "--state", (char *)state_file("media-room")};
+  char *wanted = page_of("media-room");
+  run r = sproutc(4, argv);
+  CHECK_INT(r.code, 0);
+  CHECK_STR(r.out, wanted);
+  CHECK(strstr(r.out, "\neffects\n  media.show {\"image\":\"cellar.png\"} reads [cellar.png]\n") != NULL);
+  free(wanted);
+  release(&r);
+}
+
 static void a_poll_that_faults_is_shown_as_the_visitor_sees_it_then_the_fault_and_exits_1(void) {
   char *argv[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--poll-steps", "30"};
   run r = sproutc(6, argv);
@@ -171,6 +192,8 @@ int main(void) {
   RUN(the_page_is_the_page_sprout_view_prints);
   RUN(a_value_role_is_written_as_its_options_and_a_refusal_under_its_reading);
   RUN(json_prints_the_view_and_the_chip_tree_over_it);
+  RUN(a_picture_in_the_description_is_an_effect_with_its_payload_and_its_transcript_line);
+  RUN(the_page_lists_the_effect_after_the_description);
   RUN(a_poll_that_faults_is_shown_as_the_visitor_sees_it_then_the_fault_and_exits_1);
   RUN(a_command_line_it_cannot_follow_exits_2_with_words);
   return REPORT();

@@ -1,0 +1,7 @@
+cellar.sprout:8:16  grey.png: This image is not black and white: it has 8 bits to a pixel, and an image here has one.
+                    Save the picture again as a 1-bit PNG, black and white without grey.
+
+cellar.sprout:9:16  "photo.txt" is not the name of an image: an image’s name ends in .png.
+                    Write the name of a .png file in the world’s folder, as in "cellar.png".
+
+refused: 2 problems

@@ -109,7 +109,7 @@ export function nameAssets(
     }
     const problem = named.asset.check(file);
     if (problem !== null) {
-      report.strict(named.at, `${problem.problem} ("${named.path}")`, problem.remedy);
+      report.strict(named.at, `${named.path}: ${problem.problem}`, problem.remedy);
       continue;
     }
     assets.push({ extension: named.extension, path: named.path, bytes: file.bytes, sha: file.sha });

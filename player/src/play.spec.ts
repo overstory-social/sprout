@@ -32,6 +32,7 @@ import {
 } from './play.js';
 import { scriptOf, transcriptOf } from './fixtures/scripts.js';
 import { readScript } from './script.js';
+import { INSTALLED_EXTENSIONS } from './installed.js';
 import { readWorld } from './world.js';
 import { bundleOf, KILN_YARD, LANE, RIVER } from './fixtures/worlds.js';
 
@@ -612,7 +613,11 @@ describe('the stored worlds the C runtime reads and writes back', () => {
   /** A corpus world, compiled as publishing compiles it. */
   const worldBundle = (name: string): Bundle => {
     const read = readWorld(join(corpus, 'good', name));
-    return compileBundle(read.source!, { mode: 'publish', blessed: DEFAULT_BLESSED }).bundle!;
+    return compileBundle(read.source!, {
+      mode: 'publish',
+      blessed: DEFAULT_BLESSED,
+      extensions: INSTALLED_EXTENSIONS,
+    }).bundle!;
   };
 
   /** A stored world in the canonical bytes: keys in the schema's order. */

@@ -2,13 +2,13 @@
 // every file of one world means the same extension by the name.
 import {view} from 'extension_major_differs'
 
-extension media 2
+extension gallery 2
 
 kind Painting {
   grammar { name "painting"  nouns "painting" }
   as target for view {
     do {
-      media.show("cat.png", "a cat")
+      gallery.show("cat.png", "a cat")
       say "You look closely."
     }
   }

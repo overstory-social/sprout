@@ -23,6 +23,9 @@ static void a_pinned_extensions_statement_is_recorded_with_what_it_was_given(voi
   CHECK_STR(c.x.effects[0].said.extension, "media");
   CHECK_STR(c.x.effects[0].said.statement, "play");
   CHECK_INT(c.x.effects[0].said.argument_count, 1);
+  /* The runtime holds code for `media` at major 1 only, so the world's `media` at major 2 records the arguments alone. */
+  CHECK_INT(c.x.effects[0].said.payload.length, 0);
+  CHECK_INT(c.x.effects[0].said.transcript.length, 0);
   CHECK_BYTES(c.x.effects[0].said.arguments[0].as.string.bytes, c.x.effects[0].said.arguments[0].as.string.length,
               "purr.ogg");
   /* Recorded in a handler, it reaches the people in the recorder's place. */

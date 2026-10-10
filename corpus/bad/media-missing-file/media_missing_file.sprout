@@ -1,0 +1,10 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cellar} from 'cellar'
+
+world media_missing_file is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is Cellar { }
+}

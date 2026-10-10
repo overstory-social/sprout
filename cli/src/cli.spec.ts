@@ -13,7 +13,7 @@ import {
 
 import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
-import { playScript, writeScript } from '@overstory/sprout-player';
+import { INSTALLED_EXTENSIONS, playScript, writeScript } from '@overstory/sprout-player';
 import {
   KILN_YARD,
   LANE,
@@ -62,7 +62,7 @@ describe('main', () => {
   it('skill prints the reference this compiler generates, with the usage of this command line in it', () => {
     const io = captured();
     expect(main(['skill'], io)).toBe(0);
-    expect(io.out()).toBe(generateSkill({ usage: USAGE }));
+    expect(io.out()).toBe(generateSkill({ usage: USAGE, extensions: INSTALLED_EXTENSIONS }));
     expect(io.out()).toContain(`## Checking what you wrote\n\n\`\`\`text\n${USAGE}\`\`\``);
     expect(io.err()).toBe('');
     // Generating the skill compiles every example it shows, twice here, which a loaded machine takes seconds over.

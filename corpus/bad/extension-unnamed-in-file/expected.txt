@@ -1,10 +1,10 @@
-painting.sprout:6:10  `media.Image` is a type of the extension `media`, which this file does not name.
-                      Write `extension media 1` at the top of the file.
+painting.sprout:6:10  `gallery.Image` is a type of the extension `gallery`, which this file does not name.
+                      Write `extension gallery 1` at the top of the file.
 
-painting.sprout:10:7  `media.show` is a statement of the extension `media`, which this file does not name.
-                      Write `extension media 1` at the top of the file.
+painting.sprout:10:7  `gallery.show` is a statement of the extension `gallery`, which this file does not name.
+                      Write `extension gallery 1` at the top of the file.
 
-sprout.json:7:28      This host does not provide the extension `media`.
-                      Ask whoever runs this host to install `media`, or take it out of the manifest and every file that names it.
+sprout.json:7:28      This host does not provide the extension `gallery`.
+                      Ask whoever runs this host to install `gallery`, or take it out of the manifest and every file that names it.
 
 refused: 3 problems

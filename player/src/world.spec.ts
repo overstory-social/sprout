@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { libraryHash, STANDARD_LIBRARY } from '@overstory/sprout/lang';
+import { libraryHash, sha256, STANDARD_LIBRARY } from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 import { readWorld } from './world.js';
@@ -102,5 +102,28 @@ describe('readWorld', () => {
     const dir = folder({ 'shop.sprout': 'world shop is sprout.World {}' });
     expect(() => readWorld(join(dir, 'shop.sprout'))).toThrow('not a folder');
     expect(() => readWorld(dir)).toThrow('no sprout.json here');
+  });
+});
+
+describe('the files of a folder that an extension’s values name', () => {
+  it('are looked up by their path from the folder, with their size, hash and first bytes', () => {
+    const dir = folder({
+      'sprout.json': MANIFEST,
+      'pictures/a.png': 'a picture, more or less',
+    });
+    const { assets } = readWorld(dir).source!;
+    const found = assets!('pictures/a.png');
+    expect(found).toMatchObject({ bytes: 23, sha: sha256('a picture, more or less') });
+    expect(new TextDecoder().decode(found!.head)).toBe('a picture, more or less');
+    expect(assets!('pictures/a.png')).toBe(found);
+  });
+
+  it('are null for a file that is not there, a folder, and anything outside the folder', () => {
+    const dir = folder({ 'sprout.json': MANIFEST, 'pictures/a.png': 'x', '../outside.png': 'y' });
+    const { assets } = readWorld(dir).source!;
+    expect(assets!('pictures/none.png')).toBeNull();
+    expect(assets!('pictures')).toBeNull();
+    expect(assets!('../outside.png')).toBeNull();
+    expect(assets!('/etc/passwd')).toBeNull();
   });
 });

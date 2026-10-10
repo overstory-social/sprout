@@ -32,7 +32,7 @@ function problemWithName(name: string): ExtensionProblem | null {
   const outside =
     name.startsWith('/') ||
     name.includes('\\') ||
-    name.split('/').some((part) => part === '..' || part === '');
+    name.split('/').some((part) => part === '..' || part === '.' || part === '');
   if (outside) {
     return {
       problem: `"${name}" does not name a file inside the world’s folder.`,

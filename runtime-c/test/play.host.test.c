@@ -16,12 +16,12 @@ static void put(const char *path, const void *bytes, size_t length) {
   fclose(file);
 }
 
-static void put_world(void) {
+static void put_world_of(const char *world) {
   size_t length;
   char path[1024];
   FILE *file;
   unsigned char *bytes;
-  snprintf(path, sizeof path, "%s/printers_shop.sproutworld", SPROUT_CARTRIDGES);
+  snprintf(path, sizeof path, "%s/%s.sproutworld", SPROUT_CARTRIDGES, world);
   file = fopen(path, "rb");
   if (file == NULL) exit(2);
   fseek(file, 0, SEEK_END);
@@ -33,6 +33,8 @@ static void put_world(void) {
   put(WORLD, bytes, length);
   free(bytes);
 }
+
+static void put_world(void) { put_world_of("printers_shop"); }
 
 static char *slurp(const char *path) {
   static char text[1 << 17];
@@ -61,6 +63,30 @@ static void the_header_and_manifest_are_printed_and_the_world_loads(void) {
   CHECK(strstr(slurp(OUT), "load:") == NULL);
   CHECK_STR(slurp(ERR), "");
   remove(WORLD);
+}
+
+static void a_picture_shown_reads_as_its_transcript_line_and_is_traced_with_its_payload(void) {
+  const char *trace = "sproutc-play-test.trace";
+  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--trace", (char *)trace};
+  const char *readings =
+      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
+      "{\"index\":0,\"line\":\"# hello\",\"atSeconds\":0,\"seed\":0,\"kind\":\"comment\"},"
+      "{\"index\":1,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"}]}";
+  static char output[1 << 17];
+  put_world_of("media-room");
+  put(SCRIPT, "{\"steps\":[]}", 12);
+  put(READINGS, readings, strlen(readings));
+  CHECK_INT(run(6, argv), 0);
+  strcpy(output, slurp(OUT));
+  CHECK(strstr(output, "## step 1: @arrive Ines\nInes (described): A damp cellar.\nInes (extension): [cellar.png]\n") != NULL);
+  CHECK(strstr(output, "this host does not provide") == NULL);
+  strcpy(output, slurp(trace));
+  CHECK(strstr(output, "\"kind\":\"extension\"") != NULL);
+  CHECK(strstr(output, "\"extension\":\"media\",\"statement\":\"show\",\"payload\":{\"image\":\"cellar.png\"}") != NULL);
+  remove(WORLD);
+  remove(SCRIPT);
+  remove(READINGS);
+  remove(trace);
 }
 
 static void a_script_plays_its_steps_through_the_turn_call_and_traces_each(void) {
@@ -187,6 +213,7 @@ static void a_cartridge_the_runtime_refuses_is_refused_with_its_words(void) {
 int main(void) {
   RUN(the_header_and_manifest_are_printed_and_the_world_loads);
   RUN(a_script_plays_its_steps_through_the_turn_call_and_traces_each);
+  RUN(a_picture_shown_reads_as_its_transcript_line_and_is_traced_with_its_payload);
   RUN(a_call_the_runtime_refuses_ends_the_play_with_its_words);
   RUN(a_stored_world_is_read_opened_and_written_back_and_a_second_pass_changes_nothing);
   RUN(a_store_that_is_not_readable_or_is_another_worlds_is_refused_in_words);

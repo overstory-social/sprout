@@ -295,7 +295,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         return tested.ok ? 0 : 1;
       }
       case 'skill':
-        say(generateSkill({ usage: USAGE }));
+        say(generateSkill({ usage: USAGE, extensions: INSTALLED_EXTENSIONS }));
         return 0;
       case 'client':
         return clientConnect(positional, flags, io);

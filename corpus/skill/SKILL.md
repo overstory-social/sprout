@@ -127,7 +127,8 @@ sprout — a Sprout microworld on the command line
   sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
   sprout pack dir [-o world.sproutworld]
                                       compile strictly, then write the world as a cartridge: one file a
-                                      runtime loads in place of the source; without -o, <name>.sproutworld
+                                      runtime loads in place of the source; without -o, <name>.sproutworld;
+                                      the image files it names are copied into <file>.assets/
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
@@ -830,6 +831,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 | `kinds` | kinds in a world | the host’s to set; none by default | the world is refused |
 | `files` | files in a world | the host’s to set; none by default | the world is refused |
 | `sourceBytes` | total source bytes in a world, blessed library source exempt | the host’s to set; none by default | the world is refused |
+| `assetBytes` | total bytes of the files a world’s extensions name, such as images | the host’s to set; none by default | the world is refused |
 
 ### Budgets
 
@@ -860,7 +862,21 @@ And no message or verb may be called `describe`, `depart`, `release`, `accept`, 
 
 ## Extensions this host installs
 
-None. A world that pins an extension this host does not install is refused at publish.
+An extension’s statement may stand in a `do`, a handler or a hook, and in a `describe` where it says so; never in a guard or a `permit`.
+
+### `media 1`
+
+Pin it in the manifest, `"extensions": [{ "name": "media", "major": 1 }]`, and write `extension media 1` at the top of each file that uses it.
+
+| type | compares with `==` | renders in a slot |
+| --- | --- | --- |
+| `media.Image` | yes | — |
+
+| statement | may stand in a `describe` |
+| --- | --- |
+| `media.show(image: media.Image, caption?: string)` | yes |
+
+Show a picture with `media.show("cellar.png")` or `media.show("cellar.png", "a damp cellar")`, in a `describe` or a `do`. The picture is a black-and-white (1-bit) PNG file in the world’s folder; a client that cannot draw reads the caption, or the file’s name in brackets where there is none.
 
 ## Composing the library’s kinds
 

@@ -1,0 +1,13 @@
+cellar.sprout:8:16  "cellar.jpg" is not the name of an image: an image’s name ends in .png.
+                    Write the name of a .png file in the world’s folder, as in "cellar.png".
+
+cellar.sprout:9:16  "../cellar.png" does not name a file inside the world’s folder.
+                    Write the file’s path from the world’s folder with / between folders, as in "pictures/cellar.png".
+
+cellar.sprout:10:5  A caption needs words.
+                    Say what the picture shows, as in `media.show("cellar.png", "a cellar")`, or leave the caption out.
+
+cellar.sprout:11:5  `media.show` takes 1 to 2: `image` and `caption?`.
+                    Write `media.show(image, caption?)`, leaving out what ends in ?.
+
+refused: 4 problems

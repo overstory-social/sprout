@@ -1,13 +1,13 @@
 import {view} from 'extension_not_provided'
 
-extension media 1
+extension gallery 1
 
 kind Painting {
-  :image media.Image default "cat.png"
+  :image gallery.Image default "cat.png"
   grammar { name "painting"  nouns "painting" }
   as target for view {
     do {
-      media.show(self.get(:image), "a cat")
+      gallery.show(self.get(:image), "a cat")
       say "You look closely."
     }
   }

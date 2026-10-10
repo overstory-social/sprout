@@ -1,10 +1,10 @@
 {
-  "name": "extension_unnamed_in_file",
+  "name": "media_not_one_bit",
   "version": "0.1.0",
   "author": "corpus",
   "license": "MIT",
   "level": 1,
-  "extensions": [{ "name": "gallery", "major": 1 }],
+  "extensions": [{ "name": "media", "major": 1 }],
   "libraries": [
     {
       "name": "sprout",
@@ -12,5 +12,5 @@
       "sha": "e07a01d353c34e10d14044970e85c1fc1a1b0ebba0078fa69a2bec86936b95da"
     }
   ],
-  "files": ["extension_unnamed_in_file.sprout", "person.sprout", "painting.sprout"]
+  "files": ["media_not_one_bit.sprout", "person.sprout", "cellar.sprout"]
 }
