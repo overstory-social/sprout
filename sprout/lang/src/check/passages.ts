@@ -15,10 +15,10 @@
 // said from nowhere is checked with `self` alone. A name a passage
 // renders that is bound nowhere it is said from is refused where it is
 // said, and so is one the saying body can never bind, at that body even
-// through a chain of slots; nothing more is said of that passage from there. A passage
-// said or rendered from a body that draws nothing, or a line the engine
-// says in a poll, may not draw either (`chance.ts`), and a draw in it is
-// refused where it is said, as a name it lacks is.
+// through a chain of slots; nothing more is said of that passage from
+// there. A passage said or rendered from a body that draws nothing, or a
+// line the engine says in a poll, may not draw either (`chance.ts`), and
+// a draw in it is refused where it is said, as a name it lacks is.
 
 import type { Expr } from '../syntax/ast.js';
 import type { Prose, ProseIf, ProsePiece } from '../syntax/ast-prose.js';
@@ -389,7 +389,11 @@ function checkSaying(run: Run, saying: Saying): void {
   for (const site of sites) rendered(run, site, saying);
 }
 
-/** `a` reads, or `a` renders `b`, which reads: a chain of passages up to the name read. */
+/**
+ * The words naming the passages from the saying body's down to the one
+ * that reads the name, ending in that verb: "`a` reads", or "`a` renders
+ * `b`, which reads".
+ */
 function chainWords(chain: readonly string[]): string {
   const [first, ...rest] = chain;
   const renders = rest.map((one, i) => (i === 0 ? ` renders ${one}` : `, which renders ${one}`));
