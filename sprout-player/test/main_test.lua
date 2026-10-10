@@ -8,6 +8,7 @@ local test, equal = harness.test, harness.equal
 local function run(scenario)
   -- the Playdate
   local drawn, pressed, calls, seconds = {}, {}, {}, 1000
+  local failing = false
   local menu = {}
   local font = {
     getHeight = function() return 14 end,
@@ -47,10 +48,14 @@ local function run(scenario)
     view = function() return view end,
     turn = function(reading)
       calls[#calls + 1] = "turn " .. reading
-      return '{"committed":true,"result":"done","words":null,"lines":[{"reader":"visit:player","kind":"said","text":"The guard nods."}]}'
+      return '{"committed":true,"result":"done","words":null,"saved":' .. tostring(not failing)
+        .. ',"lines":[{"reader":"visit:player","kind":"said","text":"The guard nods."}]}'
     end,
     tick = function() calls[#calls + 1] = "tick"; return '{"ran":true,"lines":[{"reader":"visit:player","kind":"told","text":"A gust."}]}' end,
-    save = function() return '{"ok":true,"words":""}' end,
+    save = function()
+      calls[#calls + 1] = "save"
+      return failing and '{"ok":false,"words":"No room."}' or '{"ok":true,"words":""}'
+    end,
     close = function() calls[#calls + 1] = "close"; return '{"lines":[]}' end,
   }
 
@@ -74,6 +79,7 @@ local function run(scenario)
     end
     return false
   end
+  function session.failSaves(value) failing = value end
   function session.at(seconds_) seconds = seconds_ end
   function session.calls() return calls end
   function session.menu() return menu end
@@ -178,5 +184,32 @@ test("leaving the world from the menu closes it and shows the shelf", function()
     play.frame()
     equal(count(play.calls(), "close"), 1)
     equal(play.shows("Shelf"), true)
+  end)
+end)
+
+test("a save that cannot be written stops play, says so, and greys the world until it can be", function()
+  run(function(play)
+    play.frame()
+    play.frame("A")
+    play.frame("A")
+    play.frame("A") -- build a sentence
+    play.frame("Down")
+    play.frame("Down")
+    play.frame("Down") -- look
+    play.frame("A")
+    play.failSaves(true)
+    play.frame("A") -- confirm
+    equal(play.shows("The save could not be written"), true, "the words are on the screen")
+    equal(count(play.calls(), "close"), 1, "the world is let go")
+    play.frame("A")
+    equal(play.shows("Shelf"), true)
+    equal(play.shows("stays greyed"), true, "the shelf says why the world is greyed")
+    play.frame("A") -- try to open it: the save still cannot be written
+    equal(play.shows("The save could not be written"), true)
+    play.frame("A")
+    equal(play.shows("Who are you"), false)
+    play.failSaves(false)
+    play.frame("A") -- now it can
+    equal(play.shows("Who are you in chip_tree?"), true)
   end)
 end)

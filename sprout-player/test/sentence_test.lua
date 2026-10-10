@@ -217,3 +217,73 @@ test("the reading built is the same whichever way the visitor got there", functi
   local _, b = choose(second, "take -> a pebble")
   equal(json.encode(a), json.encode(b))
 end)
+
+test("a member of a set whose own reading is refused is greyed, with its reason, and refuses the set", function()
+  local function node(typed, refused)
+    return { choices = {}, leaf = { typed = typed, refused = refused, options = {} } }
+  end
+  local function single(id, name, refused)
+    return {
+      filler = { role = "things", binds = "set", ids = { id }, names = { name } },
+      next = node("juggle " .. name, refused),
+    }
+  end
+  local builder = Sentence.new({
+    chips = { { verb = "x.juggle", next = { choices = {
+      single("a", "a pebble"), single("b", "a stove", { "It is too hot to touch." }), single("c", "a shell") },
+      leaf = nil } } },
+  })
+  choose(builder, "juggle")
+  choose(builder, "a pebble")
+  local greyed
+  for _, entry in ipairs(builder:entries()) do
+    if entry.label == "and a stove" then greyed = entry end
+  end
+  equal(greyed.greyed, true)
+  equal(greyed.reason, "It is too hot to touch.")
+  choose(builder, "and a stove")
+  choose(builder, "that's all")
+  local confirm = builder:entries()[1]
+  equal(confirm.greyed, true)
+  equal(confirm.reason, "a stove: It is too hot to touch.")
+  local done, reason = builder:pick()
+  equal(done, "refused")
+  equal(reason, "a stove: It is too hot to touch.")
+  -- Without the stove the set is fine.
+  builder:back()
+  builder:back()
+  choose(builder, "and a shell")
+  choose(builder, "that's all")
+  equal(builder:entries()[1].greyed, false)
+end)
+
+test("going back out of a set forgets the members picked since", function()
+  local builder = Sentence.new(view())
+  choose(builder, "juggle")
+  choose(builder, "a guard")
+  choose(builder, "and a dial")
+  builder:back()
+  same(labels(builder), { "and a hall", "and a dial", "and a pebble", "and a shell", "that's all" })
+  equal(builder:phrase(), "juggle -> a guard")
+end)
+
+test("a reading binds the roles a thing fills first and its value roles after, as a parsed line does", function()
+  local tree = {
+    chips = { { verb = "x.tune", next = { choices = { {
+      filler = { role = "knob", binds = "object", id = "w.dial", name = "a dial" },
+      next = { choices = {}, leaf = { typed = "tune … on dial", options = {
+        { role = "notch", takes = "integer", ranges = { { min = 0, max = 9 } } } } } },
+    } } } } },
+  }
+  local builder = Sentence.new(tree)
+  choose(builder, "tune")
+  choose(builder, "a dial")
+  builder:nudge(4)
+  choose(builder, "4")
+  local done, reading = choose(builder, "tune -> a dial -> 4")
+  equal(done, "done")
+  equal(reading.fillers[1].role, "knob")
+  equal(reading.fillers[1].id, "w.dial")
+  equal(reading.fillers[2].role, "notch")
+  equal(reading.fillers[2].value, 4)
+end)

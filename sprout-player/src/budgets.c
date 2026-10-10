@@ -20,10 +20,12 @@ void player_budgets(sprout_budgets *b) {
   b->pending_wakes = (sprout_limit){true, 1};
   b->nickname_characters = (sprout_limit){true, 24};
   b->list_elements = (sprout_limit){true, 16};
-  /* The rows the spec leaves to the host: one visitor stands in a world on a device, an extension
-   * can draw nothing here, a turn that takes five seconds has failed, and the live instances are
-   * bounded by 16 MB of RAM. */
-  b->people_per_place = (sprout_limit){true, 1};
+  /* The spec's table gives people in one place no figure (it is unbounded), and a device has one
+   * visitor, so the row stays unset: a bound would gain nothing, and a save copied from another
+   * host could refuse its arrival through `crowded`. */
+  b->people_per_place = (sprout_limit){false, 0};
+  /* The rows the spec leaves to the host: an extension can draw nothing here, a turn that takes
+   * five seconds has failed, and the live instances are bounded by 16 MB of RAM. */
   b->extension_effects = (sprout_limit){true, 64};
   b->wall_clock_ms = (sprout_limit){true, 5000};
   b->instances = (sprout_limit){true, 1024};
@@ -65,12 +67,12 @@ bool player_caps_fit(const sprout_world *world, char *words, size_t size) {
     text_add_number(&out, (uint64_t)recorded);
     text_add(&out, " ");
     text_add(&out, CAPS[i].bounds);
-    text_add(&out, ". This player allows ");
+    text_add(&out, ". This host allows ");
     text_add_number(&out, CAPS[i].allowed);
     text_add(&out, ", ");
     text_add_number(&out, (uint64_t)recorded - CAPS[i].allowed);
     text_add(&out, " fewer.");
   }
-  if (!fits) text_add(&out, " Publish it again under this player's limits.");
+  if (!fits) text_add(&out, " Publish it again under this host's limits.");
   return fits;
 }

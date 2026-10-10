@@ -31,6 +31,8 @@ typedef struct fake_playdate {
   lua_CFunction functions[FAKE_FUNCTIONS];
   int function_count;
   int pages;
+  /* when set, every file opened for writing fails to open, as on a full disk */
+  int fail_writes;
 } fake_playdate;
 
 /* A fake over the two folders. */

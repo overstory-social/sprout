@@ -92,7 +92,7 @@ const char *player_admit(player_session *session, const char *nickname) {
   sprout_status status;
   told_list lines;
   const char *words = "", *reply;
-  bool admitted = false;
+  bool admitted = false, saved;
   if (session->state == NULL) return cannot(session, "admitted", "No world is open.");
   status = sprout_admit(session->world, session->state, &session->host.record, PLAYER_VISIT, nickname,
                         strlen(nickname), &admission);
@@ -124,9 +124,10 @@ const char *player_admit(player_session *session, const char *nickname) {
       told_collect(&arena, &lines, &outcome, PLAYER_VISIT);
     }
   }
-  session_save_if_dirty(session);
-  root = jb_object(&builder, 4);
+  saved = session_save_if_dirty(session);
+  root = jb_object(&builder, 5);
   jb_set(&builder, root, "admitted", jb_bool(&builder, admitted));
+  jb_set(&builder, root, "saved", jb_bool(&builder, saved));
   jb_set(&builder, root, "words", jb_string(&builder, words));
   jb_set(&builder, root, "visit", jb_string(&builder, PLAYER_VISIT));
   jb_set(&builder, root, "lines", jb_told(&builder, &lines));
@@ -149,7 +150,7 @@ const char *player_turn(player_session *session, const char *reading) {
   const sprout_stored_visitor *visitor = session_visitor(session);
   told_list lines;
   const char *why, *text, *actor, *words = NULL, *reply;
-  bool committed = false;
+  bool committed = false, saved;
   const char *result = "refused";
   if (session->state == NULL || visitor == NULL || !session_visitor_present(session, visitor))
     return cannot(session, "ran", "You are not in a world.");
@@ -181,9 +182,10 @@ const char *player_turn(player_session *session, const char *reading) {
       told_collect(&arena, &lines, &outcome, PLAYER_VISIT);
     }
   }
-  session_save_if_dirty(session);
-  root = jb_object(&builder, 4);
+  saved = session_save_if_dirty(session);
+  root = jb_object(&builder, 5);
   jb_set(&builder, root, "committed", jb_bool(&builder, committed));
+  jb_set(&builder, root, "saved", jb_bool(&builder, saved));
   jb_set(&builder, root, "result", jb_string(&builder, result));
   jb_set(&builder, root, "words", words == NULL ? jb_null(&builder) : jb_string(&builder, words));
   jb_set(&builder, root, "lines", jb_told(&builder, &lines));
@@ -274,16 +276,17 @@ const char *player_tick(player_session *session) {
   sprout_json *root;
   told_list lines;
   const sprout_stored_visitor *visitor = session_visitor(session);
-  bool ran = false;
+  bool ran = false, saved;
   if (session->state == NULL || visitor == NULL || !session_visitor_present(session, visitor))
     return cannot(session, "ran", "You are not in a world.");
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
   memset(&lines, 0, sizeof lines);
   ran = wake_due(session, &arena, &lines, player_host_seconds(&session->host));
   ran = tick_places(session, &arena, &lines) || ran;
-  session_save_if_dirty(session);
-  root = jb_object(&builder, 2);
+  saved = session_save_if_dirty(session);
+  root = jb_object(&builder, 3);
   jb_set(&builder, root, "ran", jb_bool(&builder, ran));
+  jb_set(&builder, root, "saved", jb_bool(&builder, saved));
   jb_set(&builder, root, "lines", jb_told(&builder, &lines));
   return session_reply_end(session, &arena, &builder, root);
 }

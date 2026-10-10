@@ -84,3 +84,17 @@ test("the crank moves down the shelf and wraps", function()
   shelf:turn(30, 24)
   equal(shelf:current().title, "a")
 end)
+
+test("a world blocked for its save is greyed with the reason until it is unblocked", function()
+  local shelf = Shelf.new(files({ ["worlds/"] = { "a.sproutworld" } }), engine({
+    ["worlds/a.sproutworld"] = { ok = true, name = "ay" },
+  }))
+  shelf:block("worlds/a.sproutworld", "The save could not be written.")
+  shelf:refresh()
+  equal(shelf:current().ok, false)
+  equal(shelf:current().blocked, true)
+  equal(shelf:current().reason, "The save could not be written.")
+  shelf:unblock("worlds/a.sproutworld")
+  shelf:refresh()
+  equal(shelf:current().ok, true)
+end)

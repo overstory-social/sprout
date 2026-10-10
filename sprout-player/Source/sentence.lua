@@ -7,8 +7,8 @@
 -- A leaf the consent pass refuses is drawn greyed with its reason and cannot be confirmed. A
 -- set role is joined from the singletons the view offers: after the first member the wheel
 -- offers the others and `that's all`; the roles after it are offered under the first member.
--- The view carries no intents, and the tree keeps no position for a value role, so a finished
--- reading lists its picked roles in the tree's order and then its value roles.
+-- The view carries no intents. A finished reading lists the roles a thing fills in the tree's
+-- order and then the value roles, which is the order a parsed line binds them in.
 --
 -- Nothing here touches the graphics API; `entries` and `phrase` are what the screen draws.
 
@@ -41,6 +41,13 @@ local function refusedAll(node)
     if not refusedAll(choice.next) then return false end
   end
   return true
+end
+
+-- Why nothing at or below `node` can be done: the reason of the first reading under it.
+local function reasonUnder(node)
+  if node.leaf ~= nil and node.leaf.refused ~= nil then return table.concat(node.leaf.refused, " ") end
+  if node.leaf == nil and node.choices[1] ~= nil then return reasonUnder(node.choices[1].next) end
+  return nil
 end
 
 -- The reason a leaf is refused, as one line.
@@ -88,6 +95,14 @@ local function copyState(state)
     copy.members = {}
     for i, member in ipairs(state.members) do copy.members[i] = member end
   end
+  if state.chosen then
+    copy.chosen = {}
+    for id in pairs(state.chosen) do copy.chosen[id] = true end
+  end
+  if state.refusals then
+    copy.refusals = {}
+    for i, refusal in ipairs(state.refusals) do copy.refusals[i] = refusal end
+  end
   return copy
 end
 
@@ -103,6 +118,7 @@ function Sentence:entries()
     for i, choice in ipairs(state.node.choices) do
       out[#out + 1] = {
         kind = "filler", label = fillerLabel(choice.filler), greyed = refusedAll(choice.next), index = i,
+        reason = refusedAll(choice.next) and reasonUnder(choice.next) or nil,
       }
     end
     if state.node.leaf ~= nil then
@@ -113,7 +129,11 @@ function Sentence:entries()
       local filler = choice.filler
       local fresh = filler.binds == "set" and not state.chosen[filler.ids[1]]
       if fresh then
-        out[#out + 1] = { kind = "member", label = "and " .. fillerLabel(filler), greyed = false, index = i }
+        local greyed = refusedAll(choice.next)
+        out[#out + 1] = {
+          kind = "member", label = "and " .. fillerLabel(filler), greyed = greyed, index = i,
+          reason = greyed and reasonUnder(choice.next) or nil,
+        }
       end
     end
     out[#out + 1] = { kind = "done", label = "that's all", greyed = false }
@@ -136,7 +156,7 @@ function Sentence:entries()
       end
     end
   else
-    local reason = reasonOf(state.leaf)
+    local reason = reasonOf(state.leaf) or (state.refusals and state.refusals[1]) or nil
     out[#out + 1] = { kind = "confirm", label = self:phrase(), greyed = reason ~= nil, reason = reason }
   end
   return out
@@ -288,7 +308,10 @@ function Sentence:pick()
       next.members = {}
       next.chosen = {}
       for i, id in ipairs(choice.filler.ids) do
-        next.members[i] = { id = id, name = choice.filler.names[i] }
+        next.members[i] = {
+          id = id, name = choice.filler.names[i],
+          reason = refusedAll(choice.next) and reasonUnder(choice.next) or nil,
+        }
         next.chosen[id] = true
       end
       next.setNode = state.node
@@ -302,7 +325,10 @@ function Sentence:pick()
   elseif entry.kind == "member" then
     local choice = state.node.choices[entry.index]
     for i, id in ipairs(choice.filler.ids) do
-      next.members[#next.members + 1] = { id = id, name = choice.filler.names[i] }
+      next.members[#next.members + 1] = {
+        id = id, name = choice.filler.names[i],
+        reason = refusedAll(choice.next) and reasonUnder(choice.next) or nil,
+      }
       next.chosen[id] = true
     end
   elseif entry.kind == "done" and state.stage == "more" then
@@ -312,6 +338,11 @@ function Sentence:pick()
       filler = { role = next.setRole, binds = "set", ids = ids, names = names },
       label = table.concat(names, ", "),
     }
+    -- Each member is judged by its own reading: one refused refuses the set.
+    next.refusals = next.refusals or {}
+    for _, member in ipairs(next.members) do
+      if member.reason ~= nil then next.refusals[#next.refusals + 1] = member.name .. ": " .. member.reason end
+    end
     next.members, next.chosen = nil, nil
     arrive(self, next.setStart.next, next)
   elseif entry.kind == "done" then
@@ -346,6 +377,8 @@ end
 function Sentence:atStart() return #self.history == 0 end
 
 -- The reading the visitor has built, for the engine: the verb and a filler for each role filled.
+-- A parsed line binds the roles a thing fills first, in the order the verb declares them (the
+-- order of the tree), and then its value roles; a role left out is not listed.
 function Sentence:reading()
   local state = self.state
   local fillers = {}

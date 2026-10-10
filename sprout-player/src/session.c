@@ -318,6 +318,7 @@ const char *player_close(player_session *session) {
   sprout_outcome outcome;
   told_list lines = {0};
   const char *reply;
+  bool saved;
   if (!session_reply_begin(session, &arena, &builder)) {
     reply = session_reply_end(session, &arena, &builder, NULL);
   } else {
@@ -325,9 +326,10 @@ const char *player_close(player_session *session) {
       told_collect(&arena, &lines, &outcome, PLAYER_VISIT);
       sprout_outcome_free(&outcome);
     }
-    session_save_if_dirty(session);
-    root = jb_object(&builder, 1);
+    saved = session_save_if_dirty(session);
+    root = jb_object(&builder, 2);
     jb_set(&builder, root, "lines", jb_told(&builder, &lines));
+    jb_set(&builder, root, "saved", jb_bool(&builder, saved));
     reply = session_reply_end(session, &arena, &builder, root);
   }
   release_world(session);

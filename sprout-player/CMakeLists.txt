@@ -46,11 +46,6 @@ endif()
 
 set(SPROUT_RUNTIME_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(../runtime-c ${CMAKE_BINARY_DIR}/runtime-c)
-# The runtime builds clean with -Werror in its own debug build. At -O2 a compiler reports warnings
-# the debug build does not (a truncating strncpy into a zeroed buffer, a variable set on every
-# path that returns), so the optimised builds of this app show them without failing.
-target_compile_options(sprout PRIVATE -Wno-error)
-
 if(TOOLCHAIN STREQUAL "armgcc")
   add_executable(${PLAYDATE_GAME_DEVICE} src/main.c)
   set(PLAYER_GAME ${PLAYDATE_GAME_DEVICE})
@@ -77,15 +72,17 @@ target_link_libraries(${PLAYER_GAME} PRIVATE sprout_player_core)
 if(NOT TOOLCHAIN STREQUAL "armgcc")
   enable_testing()
   set(PLAYER_CARTRIDGES "" CACHE PATH "Folder of packed corpus cartridges the glue's tests open")
-  add_executable(player_glue_test test/glue.test.c test/fake_playdate.c)
-  target_link_libraries(player_glue_test PRIVATE sprout_player_core)
-  target_include_directories(player_glue_test PRIVATE test ../runtime-c/src)
-  target_compile_definitions(player_glue_test PRIVATE PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}")
-  add_test(NAME player-glue COMMAND player_glue_test)
-  add_executable(player_units_test test/units.test.c test/fake_playdate.c)
-  target_link_libraries(player_units_test PRIVATE sprout_player_core)
-  target_include_directories(player_units_test PRIVATE test ../runtime-c/src)
-  add_test(NAME player-units COMMAND player_units_test)
+  # One test program for each module of src/, beside the end-to-end glue test.
+  add_library(player_test_support STATIC test/support.c test/fake_playdate.c)
+  target_link_libraries(player_test_support PUBLIC sprout_player_core)
+  target_include_directories(player_test_support PUBLIC test ../runtime-c/src)
+  target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}")
+  set(PLAYER_TESTS text files reading_json pd_host budgets reply savelog session turns seen bridge glue)
+  foreach(name ${PLAYER_TESTS})
+    add_executable(player_${name}_test test/${name}.test.c)
+    target_link_libraries(player_${name}_test PRIVATE player_test_support)
+    add_test(NAME player-${name} COMMAND player_${name}_test)
+  endforeach()
 
   find_program(PLAYER_LUA NAMES lua5.4 lua54 lua)
   if(PLAYER_LUA)

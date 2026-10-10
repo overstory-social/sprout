@@ -218,7 +218,12 @@ static void fault_of(const sprout_meter *meter, const sprout_eval_fault *fault, 
   outcome->fault.budget = fault->name;
   outcome->fault.limit = 0;
   outcome->fault.message = meter->message;
-  strncpy(outcome->fault.text, fault->text, sizeof outcome->fault.text - 1);
+  {
+    size_t kept = strlen(fault->text);
+    if (kept > sizeof outcome->fault.text - 1) kept = sizeof outcome->fault.text - 1;
+    memcpy(outcome->fault.text, fault->text, kept);
+    outcome->fault.text[kept] = '\0';
+  }
   (void)status;
 }
 

@@ -16,7 +16,7 @@ end
 -- `files` has `listFiles(path)` as `playdate.file` does; `engine` has `inspect(path)`.
 function Shelf.new(files, engine)
   return setmetatable({
-    files = files, engine = engine, entries = {}, verdicts = {}, selected = 1, crank = 0,
+    files = files, engine = engine, entries = {}, verdicts = {}, blocked = {}, selected = 1, crank = 0,
   }, Shelf)
 end
 
@@ -46,11 +46,20 @@ function Shelf:refresh()
       self.verdicts[path] = verdict
     end
     local title = verdict.name or path:match("([^/]+)$"):sub(1, -#SUFFIX - 1)
-    entries[#entries + 1] = { path = path, title = title, ok = verdict.ok, reason = verdict.reason }
+    local entry = { path = path, title = title, ok = verdict.ok, reason = verdict.reason }
+    if verdict.ok and self.blocked[path] ~= nil then
+      entry.ok, entry.reason, entry.blocked = false, self.blocked[path], true
+    end
+    entries[#entries + 1] = entry
   end
   self.entries = entries
   if self.selected > #entries then self.selected = math.max(1, #entries) end
 end
+
+-- A world whose save could not be written is greyed with `reason` until a save succeeds (`unblock`).
+function Shelf:block(path, reason) self.blocked[path] = reason end
+
+function Shelf:unblock(path) self.blocked[path] = nil end
 
 -- Forgets what was learned of the cartridges, for a shelf whose files have changed.
 function Shelf:forget() self.verdicts = {} end

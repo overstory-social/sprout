@@ -1,8 +1,8 @@
 /*
  * The figures this app ships for the spec's Limits: one runtime-budgets table, and the static
  * caps a cartridge is checked against when it is shelved. The spec's table figures are the
- * defaults a host starts from; where it gives none (people in a place, the effects an extension
- * records, the wall clock, the live instances stored) the app chooses for a device with 16 MB
+ * defaults a host starts from; where it gives none (the effects an extension records, the wall clock, the live
+ * instances stored) the app chooses for a device with 16 MB
  * of RAM and a 168 MHz core, and those choices are in the working notes' Holes in the spec.
  *
  * A cartridge that records a static cap larger than the app's is refused at shelve time, cap by
@@ -14,7 +14,7 @@
 
 #include "sprout.h"
 
-/* Fills every row of `budgets`; no row is left unset. */
+/* Fills the rows of `budgets`: every row the spec gives a figure, and the host's own for the rest but people in a place, which the spec leaves unbounded. */
 void player_budgets(sprout_budgets *budgets);
 
 /*

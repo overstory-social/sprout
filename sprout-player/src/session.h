@@ -7,14 +7,15 @@
  *   inspect  { ok, name, reason }            can the cartridge at `path` be shelved
  *   open     { ok, name, hash, words, reason }
  *   load     { ok, fresh, nickname, present, last, recovered, words }
- *   admit    { admitted, words, visit, lines }   catch-up runs first and tells nothing
+ *   admit    { admitted, words, visit, saved, lines }   catch-up runs first and tells nothing
  *   view     { place, description, exits, occupants, carried, chips, faulted }
- *   turn     { committed, result, words, lines }
- *   tick     { ran, lines }
+ *   turn     { committed, result, words, saved, lines }
+ *   tick     { ran, saved, lines }
  *   save     { ok, words }
- *   close    { lines }
+ *   close    { saved, lines }
  *
- * `lines` is an array of { reader, kind, text }. Time is host seconds, clamped so it never goes
+ * `lines` is an array of { reader, kind, text }. `saved` is false when the turn's save could not be
+ * written: the player stops play and says so. Time is host seconds, clamped so it never goes
  * below the last the save recorded (pd_host.h). The save is written after every committed turn.
  */
 #ifndef PLAYER_SESSION_H

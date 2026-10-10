@@ -47,6 +47,7 @@ static SDFile *fake_open(const char *path, FileOptions mode) {
   char full[1100];
   FILE *file = NULL;
   if (mode & kFileWrite) {
+    if (current->fail_writes) return NULL;
     joined(full, sizeof full, current->data, path);
     return fopen(full, "wb");
   }

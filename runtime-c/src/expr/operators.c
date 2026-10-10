@@ -69,12 +69,12 @@ static sprout_eval_status in_range(const sprout_frame *frame, double result, spr
 sprout_eval_status expr_unary(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *operand,
                               sprout_evaluated *out) {
   if (sprout_node_is(sprout_node_get(expr, "operator"), "!")) {
-    bool value;
+    bool value = false;
     EXPR_NEED(expr_as_boolean(frame, operand, &value));
     *out = sprout_evaluated_value(sprout_bool(!value));
     return SPROUT_EVAL_OK;
   } else {
-    double value;
+    double value = 0;
     EXPR_NEED(expr_as_integer(frame, operand, &value));
     return in_range(frame, -value, out);
   }
@@ -101,8 +101,8 @@ sprout_eval_status expr_binary(const sprout_frame *frame, const sprout_node *exp
   const sprout_node *operator_node = sprout_node_get(expr, "operator"), *right = sprout_node_get(expr, "right");
   const char *op = operator_node != NULL && operator_node->kind == SPROUT_NODE_STRING ? operator_node->text : "";
   sprout_evaluated other;
-  double a, b;
-  bool equal, decided;
+  double a = 0, b = 0;
+  bool equal = false, decided = false;
   if (strcmp(op, "&&") == 0) return expr_unchecked(frame, "`&&` above another expression");
   if (strcmp(op, "||") == 0) {
     EXPR_NEED(expr_as_boolean(frame, left, &decided));

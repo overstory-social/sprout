@@ -233,8 +233,8 @@ static sprout_eval_status walk(const sprout_node *block, const sprout_frame *fra
 static sprout_eval_status loop(const prose_reading *reading, const sprout_node *block, const sprout_frame *frame,
                                prose_pieces *out) {
   const char *variable = expr_ident(block, "variable");
-  sprout_evaluated *walked;
-  size_t count, i;
+  sprout_evaluated *walked = NULL;
+  size_t count = 0, i;
   EXPR_NEED(walk(block, frame, &walked, &count));
   for (i = 0; i < count; i++) {
     sprout_frame inner = *frame;

@@ -72,6 +72,17 @@ local function toShelf()
   clock:stop()
 end
 
+-- What is said when a save could not be written: play stops, since a move that is not kept is not played.
+local SAVE_FAILED = "The save could not be written, so play has stopped and your last move was not kept. "
+  .. "Free some room on the console. This world stays greyed until its save can be written."
+
+-- Leaves the world after a save failed: the world is greyed on the shelf and the words are shown.
+local function stopForSave(path)
+  shelf:block(path, SAVE_FAILED)
+  toShelf()
+  showMessage(SAVE_FAILED, "shelf")
+end
+
 local function openWorld(entry)
   local opening = engine:open(entry.path)
   if not opening.ok then
@@ -84,6 +95,15 @@ local function openWorld(entry)
     engine:close()
     showMessage(loaded.words, "shelf")
     return
+  end
+  if entry.blocked then
+    -- A world greyed for its save is opened again only once a save of it succeeds.
+    if not engine:save().ok then
+      engine:close()
+      showMessage(SAVE_FAILED, "shelf")
+      return
+    end
+    shelf:unblock(entry.path)
   end
   opened = entry
   notice = loaded.words ~= "" and loaded.words or nil
@@ -101,6 +121,12 @@ local function admit()
     return
   end
   local admission = engine:admit(name)
+  if admission.saved == false then
+    local path = opened.path
+    engine:close()
+    stopForSave(path)
+    return
+  end
   if not admission.admitted then
     showMessage(admission.words, "nickname")
     return
@@ -115,9 +141,11 @@ local function admit()
 end
 
 local function leave()
+  local path = opened.path
   local left = engine:close()
   if reader ~= nil then told(left.lines) end
   toShelf()
+  if left.saved == false then stopForSave(path) end
 end
 
 local function buildSentence()
@@ -134,6 +162,12 @@ local function confirm()
   if done ~= "done" then return end
   reader:push("typed", builder:phrase())
   local result = engine:turn(reading)
+  if result.saved == false then
+    local path = opened.path
+    engine:close()
+    stopForSave(path)
+    return
+  end
   told(result.lines)
   refreshStatus()
   reader:toNewest()
@@ -155,7 +189,7 @@ local function updateShelf()
   if pd.buttonJustPressed(pd.kButtonA) then
     local entry = shelf:current()
     if entry == nil then return end
-    if not entry.ok then
+    if not entry.ok and not entry.blocked then
       showMessage(entry.reason, "shelf")
     else
       openWorld(entry)
@@ -182,6 +216,12 @@ local function updateReader()
   if pd.buttonJustPressed(pd.kButtonA) then buildSentence() end
   if clock:tickDue(seconds()) then
     local ticked = engine:tick()
+    if ticked.saved == false then
+      local path = opened.path
+      engine:close()
+      stopForSave(path)
+      return
+    end
     if #(ticked.lines or {}) > 0 then
       told(ticked.lines)
       refreshStatus()
