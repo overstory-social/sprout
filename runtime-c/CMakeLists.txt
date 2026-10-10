@@ -18,7 +18,7 @@ endif()
 set(SPROUT_MODULES
   address arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds chips darkness describe draft draws
   effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move offers options outcome
-  prose range reading state status stored stored_check stored_write submit values view view_json wakes)
+  prose range reading seeds state status stored stored_check stored_write submit values view view_json wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
 set(SPROUT_READING_MODULES carried consent effect sure wildcards)
