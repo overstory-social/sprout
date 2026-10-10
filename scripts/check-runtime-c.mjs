@@ -13,6 +13,12 @@
 // cartridge through the built CLI (`cli/dist`), and the replay uses the built
 // player. Without it the packing setup fails and the tests that need it do not run.
 //
+// The last step is sprout-player/ (the Playdate app, scripts/playdate-player.mjs): the Simulator
+// target built with the SDK, the C glue's tests over a fake PlaydateAPI, the Lua tests and the
+// glue's save played through `sproutc`. It needs PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh
+// fetches the SDK); without it the step is skipped and the last line says so. Where the variable
+// is set, a failing step fails this script, in the gate and in the e2e alike.
+//
 // After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
 // every corpus world with transcripts is packed, its scripts resolved by the
 // TypeScript parser, played through `sproutc`, and diffed with the transcript
@@ -187,4 +193,19 @@ if (passing.join(',') !== EXPECTED_PASSING.join(',')) {
     `runtime-c: FAILED, the worlds that pass are not the expected ones (expected: ${EXPECTED_PASSING.join(', ') || 'none'}); update EXPECTED_PASSING in scripts/check-runtime-c.mjs if the change is meant`,
   );
   process.exit(1);
+}
+
+// The Playdate app, which is built on the runtime and plays the cartridges packed above.
+const { checkPlayer, sdkPath } = await import('./playdate-player.mjs');
+if (sdkPath() === null) {
+  console.log(
+    'sprout-player: SKIPPED, PLAYDATE_SDK_PATH is not set to a Playdate SDK (`bash scripts/playdate-sdk.sh` fetches one): the Simulator build, the glue tests and the Lua tests did not run',
+  );
+} else {
+  try {
+    console.log(await checkPlayer());
+  } catch (err) {
+    console.log(`sprout-player: FAILED, ${err.message}`);
+    process.exit(1);
+  }
 }

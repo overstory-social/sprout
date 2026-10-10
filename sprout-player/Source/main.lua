@@ -10,6 +10,7 @@ local Sentence <const> = import "sentence"
 local Nickname <const> = import "nickname"
 local Shelf <const> = import "shelf"
 local Engine <const> = import "engine"
+import "images"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -34,10 +35,10 @@ local reader = nil
 local builder = nil
 local picker = nil
 local opened = nil -- the entry of the cartridge being read
+local notice = nil -- what opening the world has to tell the visitor before they come in
 local mode = "shelf" -- shelf, nickname, reader, sentence, message
 local message = nil
 local backTo = "shelf"
-local visit = nil
 
 local function seconds() return (pd.getSecondsSinceEpoch()) end
 
@@ -85,6 +86,7 @@ local function openWorld(entry)
     return
   end
   opened = entry
+  notice = loaded.words ~= "" and loaded.words or nil
   clock = Clock.new(loaded.last)
   local candidates = Nickname.available(Nickname.POOL, opening.words, loaded.present)
   picker = Nickname.new(candidates, loaded.nickname)
@@ -105,6 +107,7 @@ local function admit()
   end
   reader = newReader()
   reader:push("client", "You are in " .. opened.title .. " as " .. name .. ".")
+  if notice ~= nil then reader:push("notice", notice) end
   told(admission.lines)
   refreshStatus()
   clock:start(seconds())
@@ -190,8 +193,10 @@ local function updateSentence()
   builder:turn(crankChange())
   local state = builder.state
   local numbered = state.stage == "option" and state.leaf.options[state.role].takes == "integer"
-  if pd.buttonJustPressed(pd.kButtonDown) then builder:nudge(1) end
-  if pd.buttonJustPressed(pd.kButtonUp) then builder:nudge(-1) end
+  -- Down moves to the next entry; on a number it takes the number down, as up takes it up.
+  local down = numbered and -1 or 1
+  if pd.buttonJustPressed(pd.kButtonDown) then builder:nudge(down) end
+  if pd.buttonJustPressed(pd.kButtonUp) then builder:nudge(-down) end
   if numbered and pd.buttonJustPressed(pd.kButtonRight) then builder:addNumber(1, true) end
   if numbered and pd.buttonJustPressed(pd.kButtonLeft) then builder:addNumber(-1, true) end
   if pd.buttonJustPressed(pd.kButtonA) then confirm() end

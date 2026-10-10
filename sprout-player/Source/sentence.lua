@@ -194,7 +194,18 @@ function Sentence:nudge(steps)
   end
 end
 
--- Moves the number by `steps` valid numbers' worth (each a step of 1, or BIG_STEP when `big`).
+-- The first or last number a role takes (`dir` 1 for the last, -1 for the first).
+local function edge(ranges, dir)
+  local found = nil
+  for _, range in ipairs(ranges) do
+    local value = dir > 0 and range.max or range.min
+    if found == nil or (dir > 0 and value > found) or (dir < 0 and value < found) then found = value end
+  end
+  return found
+end
+
+-- Moves the number by `steps` (each a step of 1, or BIG_STEP when `big`, and a big step past the
+-- end goes to the end).
 function Sentence:addNumber(steps, big)
   local state = self.state
   local ranges = state.leaf.options[state.role].ranges
@@ -203,7 +214,7 @@ function Sentence:addNumber(steps, big)
   local dir = steps > 0 and 1 or -1
   for _ = 1, math.abs(steps) do
     local next = stepNumber(ranges, state.number + dir * unit, dir)
-    if next == nil then next = stepNumber(ranges, state.number + dir, dir) end
+    if next == nil and big then next = edge(ranges, dir) end
     if next ~= nil then state.number = next end
   end
 end

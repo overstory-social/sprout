@@ -79,6 +79,7 @@ cli/src           the `sprout` command: scaffold and check, the inspectors parse
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 runtime-c/        the C11 runtime: arenas, the host interface, values and lists, a JSON reader, the seeded draws and the budget meter, a gzip inflater, the cartridge loader and its catalogue, the stored world (read, checked, written canonically and reconciled with a world) the one-turn draft, the evaluator and the statements that run a body (the bus, range, moves through consent, wakes, the effects a turn records, and the prose that renders them for each reader), the reading pass (the consent and effect passes, carried roles, wildcard plays, exits and links, intents, the engine's `go`), the call that submits a reading, the turn call (a visitor's arrival and departure, a command, a place's tick, a wake and catch-up, each leaving its entry in the log, with the seeds they draw from and the nicknames visitors are admitted by), and the call that polls a visitor's view (a description, the ways out, who is there, what they carry and every reading they could make, with its refusal and the options of its value roles), each with its `.test.c`, and `host/`, the desktop host `sproutc` that plays a cartridge's script and prints a visitor's view; built and run by CMake and ctest, with the corpus transcripts replayed through it (`node scripts/check-runtime-c.mjs`, after `npm run build`: the tests pack the corpus worlds through the built CLI)
+sprout-player/    the Playdate app: the C runtime under a Lua UI (a shelf, a reader with crank scrolling, the crank sentence builder, a nickname picker), the C functions that register the engine with the Lua runtime, saves under Data, and the device's clock; built by CMake against the Playdate SDK, with its Lua tests and a C test of the glue over a fake `PlaydateAPI`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
@@ -100,6 +101,53 @@ C runtime plain to stay fast; the e2e also runs its tests under
 AddressSanitizer and UndefinedBehaviorSanitizer
 (`node scripts/check-runtime-c.mjs --sanitize`), where any report fails.
 `CLAUDE.md` has the rules.
+
+## Playdate
+
+`sprout-player/` is a Sprout player for the Playdate console. The C engine of `runtime-c/` is
+compiled into the app and registered with the Lua runtime as a few functions (`sprout.open`,
+`sprout.admit`, `sprout.view`, `sprout.turn`, `sprout.tick`, `sprout.save`, `sprout.load`,
+`sprout.close`); everything the player sees is Lua: a shelf of cartridges, a reader whose
+transcript the crank scrolls, a sentence builder that turns the crank over the view's chips (a
+verb, then what fills each role, then a word or a number, then confirm), and a picker for the
+visitor's nickname. A world is saved after every committed turn, one stored world and one log
+tail per world under the app's Data folder, and catches up on the device's clock when it is
+opened again, without narrating what happened while it was closed.
+
+You need the Playdate SDK (Panic's, version 3.1.2; it is never committed here), CMake, a C
+compiler, and the repository built (`npm ci && npm run build`).
+
+```sh
+export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once
+npm run playdate                                             # packs two corpus worlds and builds the pdx
+"$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/simulator/sprout-player.pdx
+```
+
+`scripts/playdate-sdk.sh` fetches the Linux SDK. On macOS or Windows install the SDK from
+play.date/dev and point `PLAYDATE_SDK_PATH` at it; the build there makes the library that
+platform's Simulator loads, and the Simulator pdx it builds runs only on that platform.
+
+`npm run playdate` builds the Simulator pdx at `sprout-player/build/simulator/sprout-player.pdx`
+and, when `arm-none-eabi-gcc` is on the `PATH` (the SDK's macOS installer puts it under
+`/usr/local/playdate`), the device pdx at
+`sprout-player/build/device/sprout-player_DEVICE.pdx`, which holds both binaries and runs in the
+Simulator too. To put it on a console, attach it by USB, unlock it, run the pdx in the Simulator
+and choose Upload Game to Device from the Simulator's Device menu. Cartridges come from the
+app's `worlds/` folder and from the Data folder: a `.sproutworld` made by `sprout pack`,
+copied into `worlds/` of the game's Data folder (in the Simulator,
+`$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/`; on a console, the same
+folder when it is mounted as a disk), shows on the shelf. A cartridge recorded against larger
+static caps than the player allows, or too large for the console's memory, is listed greyed
+with the reason.
+
+Try `chip-tree`: arrive, pick a name with the crank and press A, press A to build a sentence,
+turn the crank to `ask`, A, `a guard`, A, `weather`, A, and A again to confirm; B steps back.
+The system menu has `leave world`.
+
+The Lua tests need only a desktop Lua 5.4: `lua5.4 sprout-player/test/run.lua`. The gate builds
+the Simulator target and runs those tests, the glue's C tests and a round trip of the save
+through `sproutc` whenever `PLAYDATE_SDK_PATH` is set, and says on its last line which parts ran
+(`node scripts/check-runtime-c.mjs`).
 
 ## Versions, and the language level
 

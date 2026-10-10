@@ -208,6 +208,25 @@ turn to leaving the stored world byte for byte as it was. `seeds.test.c` and
 `nickname.test.c` are held to goldens the TypeScript specs write
 (`seeds.json`, `nicknames.json`, `budgets.json`).
 
+### 8. The Playdate app
+
+`sprout-player/` is tested without a console and without the Simulator, in three parts, all
+run by `scripts/check-runtime-c.mjs` when `PLAYDATE_SDK_PATH` is set (the gate says on its last
+line which parts ran, and that it skipped when the variable is not set). The Lua modules
+(`sprout-player/test/*_test.lua`, run by a desktop Lua 5.4) are tested as logic: the sentence
+builder over a saved chip tree (`ask`, the guard, the weather; a refused leaf greyed with its
+reason; a set role joined from singletons; a number role on the crank), word wrap in pixels, the
+reader's scrollback, the clock's clamp, the nickname filter, the shelf, and `main.lua` driven
+frame by frame over stand-ins for `playdate` and the engine. The C glue
+(`sprout-player/test/glue.test.c`) calls the functions Lua calls, through a fake `PlaydateAPI`
+that implements only what the glue uses, over corpus cartridges: it replays `chip-tree`'s
+transcript, catches up `wakes` after four hours and checks it told nothing, ticks `ticks`,
+sets the clock back, leaves a world open and damages a save; and it hands the save to `sproutc`,
+which must read and write it back byte for byte. The build itself is a test: the Simulator
+target must compile and `pdc` must package the pdx, and the device target is built too where
+`arm-none-eabi-gcc` is installed. What no part can do is run the Simulator or a console, so
+the player on a screen, the crank's feel and the device's speed are checked by hand.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same
