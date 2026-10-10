@@ -209,10 +209,16 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
   const offered: OfferedContext = { state, address, fill };
   // A noun that names nothing in reach is `not_here` only where every word
   // of it names something in the world; the world's words are read once.
+  // An exit role's words name nothing only where they are a way out's
+  // label, which is the world's by being written.
   let vocabulary: ReadonlySet<string> | null = null;
-  const named = (spans: readonly SlotSpan[], fills: readonly Filled[]): boolean =>
+  const named = (
+    spans: readonly SlotSpan[],
+    fills: readonly Filled[],
+    way: (role: number) => boolean = () => false,
+  ): boolean =>
     fills.every((one, at) => {
-      if (one.fills !== 'nothing') return true;
+      if (one.fills !== 'nothing' || way(spans[at]!.role)) return true;
       const start = spans[at]!.start;
       vocabulary ??= worldWords({ catalogue: context.catalogue, state, address, budget });
       return inVocabulary(words.slice(start + one.start, start + one.end), vocabulary);
@@ -249,7 +255,7 @@ function readingsOf(words: readonly string[], reader: LineReader): Read {
         // An object's synonym typed where the object is out of reach.
         const reach =
           phrase.only === null
-            ? named(spans, fills)
+            ? named(spans, fills, (role) => phrase.verb.roles[role]?.filler?.fills === 'exit')
             : offeredOutOfReach(phrase, spans, fills, words, offered);
         if (reach) notHere = true;
         continue;
