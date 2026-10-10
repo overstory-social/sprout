@@ -34,11 +34,11 @@ static void the_script_sets_the_seed_and_the_time_and_the_runtime_reads_the_seed
   sproutc_host_set_seed(&host, 4294967295ULL);
   CHECK(host.record.seed(host.record.ctx) == 4294967295ULL);
   sproutc_host_set_time(&host, 2400);
-  CHECK_INT(host.seconds, 2400);
+  CHECK_INT(host.script_seconds, 2400);
   /* The seed and the time are the script's: a clock read moves neither. */
   host.record.now(host.record.ctx);
   CHECK(host.record.seed(host.record.ctx) == 4294967295ULL);
-  CHECK_INT(host.seconds, 2400);
+  CHECK_INT(host.script_seconds, 2400);
   sproutc_host_close(&host);
 }
 

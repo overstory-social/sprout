@@ -21,9 +21,18 @@ describe('resolveScript', () => {
       skip: false,
       verb: 'kiln_yard.fire',
       refused: false,
-      fillers: [{ role: 'target', binds: 'object', id: 'kiln_yard.yard.kiln', name: 'yard.kiln' }],
+      fillers: [{ role: 'target', binds: 'object', id: 'kiln_yard.yard.kiln' }],
     });
     expect(turn?.skip === false && turn.actor).toMatch(/^kiln_yard#/);
+  });
+
+  it('names no words for a filler, only its id, and a value role carries the chosen value', () => {
+    const [turn] = commandOf(resolve('@arrive Marta\nMarta> fire kiln\n').steps[1]).turns;
+    expect(turn?.skip === false && turn.fillers[0]).toEqual({
+      role: 'target',
+      binds: 'object',
+      id: 'kiln_yard.yard.kiln',
+    });
   });
 
   it('marks a line the parser answered instead of reading, so the other runtime skips it', () => {
@@ -45,13 +54,13 @@ describe('resolveScript', () => {
 
   it('records the clock and seed each step begins under, and the seed a script sets', () => {
     const readings = resolve('@seed 7\n@arrive Marta\n@advance 40 minutes\nMarta> fire kiln\n');
-    expect(readings.steps.map((step) => [step.kind, step.now, step.seed])).toEqual([
+    expect(readings.steps.map((step) => [step.kind, step.atSeconds, step.seed])).toEqual([
       ['seed', 0, 0],
       ['arrive', 0, 7],
       ['advance', 0, 7],
       ['command', 2400, 7],
     ]);
-    expect(readings.steps[2]).toMatchObject({ kind: 'advance', seconds: 2400 });
+    expect(readings.steps[2]).toMatchObject({ kind: 'advance', forSeconds: 2400 });
   });
 
   it('numbers the turns of one line with consecutive seeds', () => {

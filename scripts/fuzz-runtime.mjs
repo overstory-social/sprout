@@ -12,7 +12,9 @@
 //
 // While the C runtime answers that a part of itself is not built, the run
 // says so and exits 0 with nothing written, since there is nothing yet to
-// compare. Switching the fuzzer on is that answer going away.
+// compare. Switching the fuzzer on is that answer going away. It is not part
+// of the gate: it joins when the C runtime can run a turn, and until then
+// it is run by hand.
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -56,8 +56,8 @@ static void a_script_stops_at_its_first_turn_and_says_so_with_the_not_yet_exit(v
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--clock", "5"};
   const char *readings =
       "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"# hello\",\"now\":0,\"seed\":0,\"kind\":\"comment\"},"
-      "{\"index\":1,\"line\":\"@arrive Ines\",\"now\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"}]}";
+      "{\"index\":0,\"line\":\"# hello\",\"atSeconds\":0,\"seed\":0,\"kind\":\"comment\"},"
+      "{\"index\":1,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"}]}";
   put_world();
   put(SCRIPT, "{\"steps\":[]}", 12);
   put(READINGS, readings, strlen(readings));

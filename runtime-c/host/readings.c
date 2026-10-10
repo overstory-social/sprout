@@ -95,14 +95,14 @@ const char *sproutc_readings_step(const sproutc_readings *readings, size_t i, sp
   if (readings->steps == NULL || i >= readings->steps->count) return "there is no such step.";
   one = readings->steps->items[i];
   memset(step, 0, sizeof *step);
-  if (one->kind != SPROUT_JSON_OBJECT || !number_of(one, "index", &index) || !number_of(one, "now", &step->now) ||
+  if (one->kind != SPROUT_JSON_OBJECT || !number_of(one, "index", &index) || !number_of(one, "atSeconds", &step->at_seconds) ||
       !number_of(one, "seed", &step->seed) || !kind_of(text_of(one, "kind"), &step->kind) ||
       text_of(one, "line") == NULL)
-    return "a step in the readings file is missing its index, line, now, seed or kind.";
+    return "a step in the readings file is missing its index, line, atSeconds, seed or kind.";
   step->index = (size_t)index;
   step->line = text_of(one, "line");
   step->nickname = text_of(one, "nickname");
-  number_of(one, "seconds", &step->seconds);
+  number_of(one, "forSeconds", &step->for_seconds);
   turns = sprout_json_get(one, "turns");
   if (step->kind == SPROUTC_STEP_COMMAND) {
     if (turns == NULL || turns->kind != SPROUT_JSON_ARRAY || step->nickname == NULL)

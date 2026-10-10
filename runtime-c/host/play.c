@@ -116,7 +116,7 @@ static int play_script(sproutc_host *host, sprout_world *world, sprout_status lo
     }
     if (step.kind == SPROUTC_STEP_COMMENT || step.kind == SPROUTC_STEP_SEED) continue;
     fprintf(out, "## step %zu: %s\n", step.index, step.line);
-    sproutc_host_set_time(host, step.now);
+    sproutc_host_set_time(host, step.at_seconds);
     sproutc_host_set_seed(host, step.seed);
     if (world == NULL) {
       fprintf(out, "!! the world is not loaded (%s), so the play stops here.\n", sprout_status_text(loaded));

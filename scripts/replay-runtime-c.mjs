@@ -11,6 +11,7 @@
 // stored world and the log after each turn have no file to diff, so those
 // are not compared; a step whose line the parser answered rather than read
 // is skipped on both sides and counted. Each is named in the world's line.
+// The comparison itself is player/src/replay.ts.
 //
 // Used by scripts/check-runtime-c.mjs, which owns the list of worlds that
 // are expected to pass.
@@ -21,7 +22,7 @@ import { join } from 'node:path';
 
 import { emitCartridge } from '@overstory/sprout/lang';
 import { checkWorld, formatCheck } from '@overstory/sprout-cli';
-import { readScript } from '@overstory/sprout-player';
+import { blocksOf, expectedBlocks, firstDifference, readScript } from '@overstory/sprout-player';
 
 import { readingsPath, resolveFile } from './resolve-script.mjs';
 
@@ -30,53 +31,6 @@ export function packWorld(dir, file) {
   const checked = checkWorld(dir);
   if (checked.bundle === null) throw new Error(formatCheck(checked));
   writeFileSync(file, emitCartridge(checked.bundle));
-}
-
-/** What `sproutc play` printed after its `--- play` line, as blocks by step; a block with a skipped turn is unchecked. */
-function blocksOf(printed) {
-  const blocks = new Map();
-  const rest = printed.split('--- play\n')[1] ?? '';
-  let current = null;
-  let faulted = null;
-  for (const line of rest.split('\n')) {
-    if (line === '') continue;
-    const step = /^## step (\d+): /.exec(line);
-    if (step !== null) {
-      current = { lines: [], unchecked: false };
-      blocks.set(Number(step[1]), current);
-    } else if (line.startsWith('!! ')) faulted = line.slice(3);
-    else if (current !== null && line.startsWith('-- skipped')) current.unchecked = true;
-    else if (current !== null) current.lines.push(line);
-  }
-  return { blocks, faulted };
-}
-
-/** The lines a transcript expects, by step: the readers' lines as `<reader>: <words>`. */
-function expectedBlocks(script, readings) {
-  const blocks = new Map();
-  for (const step of readings.steps) {
-    if (step.kind === 'comment' || step.kind === 'seed') continue;
-    const written = script.steps[step.index];
-    const lines = (written.expect ?? [])
-      .filter((one) => 'reader' in one)
-      .map((one) => `${one.reader}: ${one.words}`);
-    const unchecked = step.kind === 'command' && step.turns.some((turn) => turn.skip);
-    blocks.set(step.index, { lines, unchecked });
-  }
-  return blocks;
-}
-
-/** The first way `actual` differs from `expected`, in words; null where they agree. */
-function firstDifference(expected, actual) {
-  for (const [index, want] of expected) {
-    const got = actual.get(index);
-    if (got === undefined) return `step ${index} was never reached`;
-    if (want.unchecked || got.unchecked) continue;
-    if (want.lines.join('\n') !== got.lines.join('\n')) {
-      return `step ${index} said\n${got.lines.join('\n') || '(nothing)'}\nand the transcript has\n${want.lines.join('\n') || '(nothing)'}`;
-    }
-  }
-  return null;
 }
 
 /**
@@ -91,7 +45,7 @@ export function playAndCompare(sproutc, cartridge, script) {
   writeFileSync(readingsPath(script), text);
   const readings = JSON.parse(text);
   const done = spawnSync(sproutc, ['play', cartridge, '--script', script], { encoding: 'utf8' });
-  const { blocks, faulted } = blocksOf(done.stdout ?? '');
+  const { blocks, stoppedOn: faulted } = blocksOf(done.stdout ?? '');
   const stopped = [...blocks.keys()].pop();
   if (done.status === 3) {
     return { how: 'not yet', why: `step ${stopped ?? '?'}: ${faulted ?? 'the runtime said it is not built yet'}` };

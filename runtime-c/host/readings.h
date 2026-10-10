@@ -36,11 +36,11 @@ typedef struct sproutc_turn_reading {
 typedef struct sproutc_step {
   size_t index;
   const char *line;
-  uint64_t now; /* seconds on the script's clock when the step begins */
+  uint64_t at_seconds; /* seconds on the script's clock when the step begins */
   uint64_t seed;
   sproutc_step_kind kind;
   const char *nickname;
-  uint64_t seconds; /* an advance: how long */
+  uint64_t for_seconds; /* an advance: how long */
   size_t turns;     /* a command: how many turns the line runs */
   const sprout_json *turn_list;
 } sproutc_step;

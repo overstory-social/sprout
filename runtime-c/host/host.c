@@ -117,7 +117,7 @@ void sproutc_host_close(sproutc_host *host) {
   host->held = NULL;
 }
 
-void sproutc_host_set_time(sproutc_host *host, uint64_t seconds) { host->seconds = seconds; }
+void sproutc_host_set_time(sproutc_host *host, uint64_t seconds) { host->script_seconds = seconds; }
 
 void sproutc_host_set_seed(sproutc_host *host, uint64_t seed) { host->turn_seed = seed; }
 

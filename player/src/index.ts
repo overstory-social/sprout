@@ -8,6 +8,7 @@
 
 export * from './play.js';
 export * from './readings.js';
+export * from './replay.js';
 export * from './report.js';
 export * from './script.js';
 export * from './stand.js';

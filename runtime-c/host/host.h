@@ -7,7 +7,7 @@
  * The clock is a counter, never the machine's: `now` is the milliseconds
  * elapsed since sproutc_host_begin_turn, and each read of it moves the
  * counter on by `step_ms`, so a frozen clock (0) and a ticking one are both
- * deterministic. `seconds` is the script's own time, which a turn's
+ * deterministic. `script_seconds` is the script's own time, which a turn's
  * `elapsed` is made from (Time > Determinism); it moves only when the
  * script says.
  */
@@ -27,7 +27,7 @@ typedef struct sproutc_host {
   uint64_t clock_ms;  /* the counter */
   uint64_t turn_started_ms;
   uint64_t turn_seed;
-  uint64_t seconds;   /* the script's time, in seconds from the start of the play */
+  uint64_t script_seconds; /* the script's time, in seconds from the start of the play */
   char *held;         /* the bytes last read, valid until the next read */
   long pages;         /* pages out, so a leak shows */
 } sproutc_host;

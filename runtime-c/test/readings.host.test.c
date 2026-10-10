@@ -14,13 +14,13 @@ static void written(const char *text) {
 
 static const char *SAMPLE =
     "{\"format\":1,\"script\":\"order.json\",\"steps\":["
-    "{\"index\":0,\"line\":\"@arrive Ines\",\"now\":0,\"seed\":3,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
-    "{\"index\":1,\"line\":\"Ines> north\",\"now\":0,\"seed\":3,\"kind\":\"command\",\"nickname\":\"Ines\",\"turns\":["
+    "{\"index\":0,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":3,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
+    "{\"index\":1,\"line\":\"Ines> north\",\"atSeconds\":0,\"seed\":3,\"kind\":\"command\",\"nickname\":\"Ines\",\"turns\":["
     "{\"typed\":\"north\",\"seed\":3,\"skip\":false,\"verb\":\"sprout.go\",\"actor\":\"w#1\",\"fillers\":["
     "{\"role\":\"way\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"into the cave\",\"to\":\"w.cave\"}],"
     "\"refused\":false},"
     "{\"typed\":\"sing\",\"seed\":4,\"skip\":true,\"why\":\"unknown\"}]},"
-    "{\"index\":2,\"line\":\"@advance 40 minutes\",\"now\":0,\"seed\":3,\"kind\":\"advance\",\"seconds\":2400}]}";
+    "{\"index\":2,\"line\":\"@advance 40 minutes\",\"atSeconds\":0,\"seed\":3,\"kind\":\"advance\",\"forSeconds\":2400}]}";
 
 static void steps_read_with_their_clock_seed_kind_and_nickname(void) {
   sproutc_host host;
@@ -37,7 +37,7 @@ static void steps_read_with_their_clock_seed_kind_and_nickname(void) {
   CHECK_STR(step.line, "@arrive Ines");
   CHECK(sproutc_readings_step(&readings, 2, &step) == NULL);
   CHECK_INT(step.kind, SPROUTC_STEP_ADVANCE);
-  CHECK_INT(step.seconds, 2400);
+  CHECK_INT(step.for_seconds, 2400);
   CHECK(sproutc_readings_step(&readings, 3, &step) != NULL);
   sproutc_readings_close(&readings);
   CHECK_INT(host.pages, 0);

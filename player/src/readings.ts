@@ -1,34 +1,37 @@
 import { SEED_MAX, SproutList, type InstanceId, type Value } from '@overstory/sprout/lang';
 
-import { freshStage, playStep, type Stage, type Traced } from './play.js';
+import { freshStage, playStep, type Traced } from './play.js';
 import { lineOf, secondsOf, type Script, type Step } from './script.js';
-import { pathOf, type PlayableWorld } from './stand.js';
+import type { PlayableWorld } from './stand.js';
 
 // A script read once by the parser, for a runtime that has no parser. Each
 // typed line becomes the reading the TypeScript parser resolved for it, in
 // the world as the script has made it by then: the verb by its qualified
-// name, who acted, and what fills each role by id, shaped as the view's
-// `SeenFiller` shapes it (the spec's The runtime › The log). A line the
-// parser answered instead of reading, or that faulted while being read, is
-// marked `skip` so the other runtime does not run it. The file travels
-// beside the script as `<script>.readings.json`.
+// name, who acted, and what fills each role, by id only (the spec's The
+// runtime › The log). A filler has the fields of the view's `SeenFiller`
+// except the words a visitor reads (`name`, `names`), which a runtime
+// working from ids does not need; a value role carries the value the
+// visitor chose, which `SeenFiller` leaves to `options`. A line the parser
+// answered instead of reading, or that faulted while being read, is marked
+// `skip` so the other runtime does not run it. Times are in seconds, named
+// for what they are: `atSeconds` when a step begins, `forSeconds` for how
+// long an advance lasts. The file travels beside the script as
+// `<script>.readings.json`.
 
 /** A chosen value as JSON: a boolean, a number, a string, or a list of them. */
 export type ReadValue = boolean | number | string | readonly ReadValue[] | null;
 
-/** What fills a role of a resolved reading: a `SeenFiller`, with a value role's chosen value in place of an id. */
+/** What fills a role of a resolved reading: a `SeenFiller` by id alone, with a value role's chosen value. */
 export type ReadFiller =
   | {
       readonly role: string;
       readonly binds: 'object';
       readonly id: InstanceId;
-      readonly name: string;
     }
   | {
       readonly role: string;
       readonly binds: 'set';
       readonly ids: readonly InstanceId[];
-      readonly names: readonly string[];
     }
   | {
       readonly role: string;
@@ -65,7 +68,7 @@ export type ReadStep = {
   readonly index: number;
   readonly line: string;
   /** Host seconds on the fake clock when the step begins. */
-  readonly now: number;
+  readonly atSeconds: number;
   /** The seed the step's first turn is drawn under; each turn after it takes the next. */
   readonly seed: number;
 } & Facts;
@@ -76,7 +79,7 @@ export type Facts =
   | { readonly kind: 'seed' }
   | { readonly kind: 'arrive' | 'leave'; readonly nickname: string }
   | { readonly kind: 'tick' }
-  | { readonly kind: 'advance'; readonly seconds: number }
+  | { readonly kind: 'advance'; readonly forSeconds: number }
   | { readonly kind: 'command'; readonly nickname: string; readonly turns: readonly ReadTurn[] };
 
 /** The whole file. */
@@ -93,16 +96,15 @@ function valueOf(value: Value): ReadValue {
   return value instanceof SproutList ? value.elements.map(valueOf) : null;
 }
 
-function fillersOf(stage: Stage, reading: NonNullable<Traced['reading']>): ReadFiller[] {
-  const named = (id: InstanceId): string => pathOf(stage.state.world, id);
+function fillersOf(reading: NonNullable<Traced['reading']>): ReadFiller[] {
   return reading.verb.roles.map((role): ReadFiller => {
     const bound = reading.bindings.get(role.name);
     if (bound === undefined) return { role: role.name, binds: 'unbound' };
     if ('object' in bound) {
-      return { role: role.name, binds: 'object', id: bound.object, name: named(bound.object) };
+      return { role: role.name, binds: 'object', id: bound.object };
     }
     if ('set' in bound) {
-      return { role: role.name, binds: 'set', ids: bound.set, names: bound.set.map(named) };
+      return { role: role.name, binds: 'set', ids: bound.set };
     }
     if ('exit' in bound) {
       const { direction, label, to } = bound.exit;
@@ -112,7 +114,7 @@ function fillersOf(stage: Stage, reading: NonNullable<Traced['reading']>): ReadF
   });
 }
 
-function turnOf(stage: Stage, traced: Traced, seed: number): ReadTurn {
+function turnOf(traced: Traced, seed: number): ReadTurn {
   const typed = traced.typed ?? '';
   const { reading } = traced;
   if (reading !== null) {
@@ -122,7 +124,7 @@ function turnOf(stage: Stage, traced: Traced, seed: number): ReadTurn {
       skip: false,
       verb: `${reading.verb.library}.${reading.verb.name}`,
       actor: reading.actor,
-      fillers: fillersOf(stage, reading),
+      fillers: fillersOf(reading),
       refused: traced.refused,
     };
   }
@@ -136,7 +138,7 @@ function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
   if ('arrive' in step) return { kind: 'arrive', nickname: step.arrive };
   if ('leave' in step) return { kind: 'leave', nickname: step.leave };
   if ('tick' in step) return { kind: 'tick' };
-  return { kind: 'advance', seconds: secondsOf(step.advance) ?? 0 };
+  return { kind: 'advance', forSeconds: secondsOf(step.advance) ?? 0 };
 }
 
 /**
@@ -147,13 +149,13 @@ function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
 export function resolveScript(world: PlayableWorld, script: Script, name: string): Readings {
   const stage = freshStage(world);
   const steps = script.steps.map((step, i): ReadStep => {
-    const begins = { index: i, line: lineOf(step), now: stage.now, seed: stage.seed };
+    const begins = { index: i, line: lineOf(step), atSeconds: stage.now, seed: stage.seed };
     const from = stage.turns.length;
     playStep(stage, step, `${name}, step ${i + 1}`);
     const turns = stage.turns
       .slice(from)
       .filter((traced) => traced.turn === 'command')
-      .map((traced, k) => turnOf(stage, traced, (begins.seed + k) % (SEED_MAX + 1)));
+      .map((traced, k) => turnOf(traced, (begins.seed + k) % (SEED_MAX + 1)));
     return { ...begins, ...factsOf(step, turns) };
   });
   return { format: 1, script: name, steps };
