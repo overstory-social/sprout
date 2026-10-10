@@ -130,6 +130,27 @@ static sprout_json *options_node(writer *w, const sprout_seen_options *options) 
   return object;
 }
 
+/* An extension's payload as the JSON the extension recorded; null where the runtime holds no code for it. */
+static sprout_json *payload_node(writer *w, sprout_str payload) {
+  sprout_json *root = NULL;
+  sprout_json_error error;
+  if (payload.length == 0) return nothing(w);
+  if (sprout_json_read(w->arena, payload.bytes, payload.length, &root, &error) != SPROUT_OK) {
+    w->ok = false;
+    return nothing(w);
+  }
+  return root;
+}
+
+static sprout_json *effect_node(writer *w, const sprout_seen_effect *effect) {
+  sprout_json *object = made(w, SPROUT_JSON_OBJECT, 4);
+  sprout_json_adopt(object, "extension", cstring(w, effect->extension));
+  sprout_json_adopt(object, "statement", cstring(w, effect->statement));
+  sprout_json_adopt(object, "payload", payload_node(w, effect->payload));
+  sprout_json_adopt(object, "transcript", str(w, effect->transcript));
+  return object;
+}
+
 static sprout_json *reading_node(writer *w, const sprout_seen_reading *reading) {
   sprout_json *object = made(w, SPROUT_JSON_OBJECT, 5);
   sprout_json *fillers = made(w, SPROUT_JSON_ARRAY, reading->filler_count);
@@ -170,12 +191,14 @@ sprout_json *sprout_view_tree(sprout_arena *arena, const sprout_seen_view *view)
   writer w = {arena, true};
   sprout_json *object = made(&w, SPROUT_JSON_OBJECT, 6);
   sprout_json *exits = made(&w, SPROUT_JSON_ARRAY, view->exit_count);
+  sprout_json *effects = made(&w, SPROUT_JSON_ARRAY, view->effect_count);
   sprout_json *readings = made(&w, SPROUT_JSON_ARRAY, view->reading_count);
   size_t i;
+  for (i = 0; i < view->effect_count; i++) sprout_json_adopt(effects, NULL, effect_node(&w, &view->effects[i]));
   for (i = 0; i < view->exit_count; i++) sprout_json_adopt(exits, NULL, exit_node(&w, &view->exits[i]));
   for (i = 0; i < view->reading_count; i++) sprout_json_adopt(readings, NULL, reading_node(&w, &view->readings[i]));
   sprout_json_adopt(object, "description", paragraphs(&w, view->description, view->description_count));
-  sprout_json_adopt(object, "effects", made(&w, SPROUT_JSON_ARRAY, 0));
+  sprout_json_adopt(object, "effects", effects);
   sprout_json_adopt(object, "exits", exits);
   sprout_json_adopt(object, "occupants", things(&w, view->occupants, view->occupant_count));
   sprout_json_adopt(object, "carried", things(&w, view->carried, view->carried_count));

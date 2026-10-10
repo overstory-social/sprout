@@ -46,6 +46,15 @@ sprout_eval_status stmt_written(const sprout_frame *frame, const sprout_node *pa
 sprout_eval_status stmt_acting(const sprout_run *run, const sprout_frame *frame, const char *what);
 sprout_eval_status stmt_deciding(const sprout_run *run, const sprout_frame *frame, const char *what);
 
+/* ---- extension.c ---- */
+
+/*
+ * What an extension's statement records, in `said`; *recorded is false where the world does not pin the extension,
+ * and nothing is spent. Each argument is a step, the recording one more, and it is one of the host's capped effects.
+ */
+sprout_eval_status stmt_extension_said(const sprout_frame *frame, const sprout_node *statement, sprout_speech *said,
+                                       bool *recorded);
+
 /* ---- sends.c ---- */
 
 /* A declared message's qualified name, the key its handlers and pass rules answer to. */

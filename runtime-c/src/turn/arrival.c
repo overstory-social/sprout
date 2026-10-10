@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "../expr/expr.h"
+#include "../media.h"
 #include "../nickname.h"
 #include "../turn.h"
 
@@ -29,6 +30,14 @@ bool turn_is_place(const sprout_frame *frame, sprout_str id) {
 bool turn_stands_in_place(const sprout_frame *frame, sprout_str actor) {
   const sprout_stored_instance *instance = expr_instance(frame, actor);
   return instance != NULL && instance->has_container && turn_is_place(frame, instance->container);
+}
+
+/* Whether the world pins an extension this runtime holds no code for, which its visitors are told is missing. */
+static bool lacks_extension(const sprout_world *world) {
+  size_t i;
+  for (i = 0; i < world->extension_count; i++)
+    if (!sprout_media_holds(world->extensions[i].name, world->extensions[i].major)) return true;
+  return false;
 }
 
 const char *turn_closed_reason(const sprout_frame *frame) {
@@ -234,7 +243,7 @@ static sprout_eval_status admit(turn_run *run, sprout_str visit, sprout_str nick
   EXPR_NEED(drafted(sprout_draft_put_visitor(&run->draft, &put)));
   EXPR_NEED(sprout_exec_drain(x));
   EXPR_NEED(sprout_arrivals_read(x, &frame, arrivals, arrival_count));
-  if (run->world->extension_count > 0) EXPR_NEED(turn_told(&frame, "missing", id, &lines[(*line_count)++]));
+  if (lacks_extension(run->world)) EXPR_NEED(turn_told(&frame, "missing", id, &lines[(*line_count)++]));
   if (gone) EXPR_NEED(turn_told(&frame, "displaced", id, &lines[(*line_count)++]));
   return SPROUT_EVAL_OK;
 }

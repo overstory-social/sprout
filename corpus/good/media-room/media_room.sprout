@@ -1,0 +1,18 @@
+// Images: a place shows a picture beside its words, with no caption, and an
+// item shows one with a caption, in its description and when it is pulled. A
+// client that cannot draw reads the caption, or the picture's file name in
+// brackets where there is none; one that can draws the 1-bit PNG beside the
+// world.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cellar} from 'cellar'
+import {Cabinet} from 'cabinet'
+
+world media_room is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is Cellar {
+    object cabinet is Cabinet
+  }
+}

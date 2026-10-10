@@ -14,7 +14,7 @@ import {
   type MicroworldRecord,
   type SproutStore,
 } from '@overstory/sprout/core';
-import { readWorld } from '@overstory/sprout-player';
+import { INSTALLED_EXTENSIONS, readWorld } from '@overstory/sprout-player';
 
 import type { ServerConfig } from './config.js';
 
@@ -52,6 +52,7 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
     mode: 'publish',
     limits: config.limits,
     blessed: config.blessed,
+    extensions: INSTALLED_EXTENSIONS,
   });
   if (bundle === null) return { refused: renderDiagnostics([...read.diagnostics, ...diagnostics]) };
   const catalogue = catalogueOf(bundle, config.limits.caps);

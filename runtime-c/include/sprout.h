@@ -344,9 +344,18 @@ typedef struct sprout_seen_reading {
   const sprout_seen_options *options;
 } sprout_seen_reading;
 
+/* What an extension's statement in the place's description recorded into the view. */
+typedef struct sprout_seen_effect {
+  const char *extension, *statement;
+  sprout_str payload;    /* as JSON text; empty where the runtime holds no code for the extension */
+  sprout_str transcript; /* the words a client that cannot use the payload reads */
+} sprout_seen_effect;
+
 typedef struct sprout_seen_view {
   size_t description_count;
   const sprout_str *description; /* the place's description as paragraphs; the engine's `unseen` for a poll that faulted */
+  size_t effect_count;
+  const sprout_seen_effect *effects; /* what the description's extension statements recorded, in order */
   size_t exit_count;
   const sprout_seen_exit *exits;
   size_t occupant_count;
@@ -483,6 +492,8 @@ typedef struct sprout_told_effect {
   size_t line_first, line_count; /* its paragraphs among the outcome's lines */
   size_t written_count;
   const sprout_written *written; /* every passage and one-line passage that gave it words, each once, a passage after any it holds */
+  const char *extension, *statement; /* an extension's effect: the statement that recorded it; NULL for any other */
+  sprout_str payload;                /* an extension's effect: its payload as JSON text; empty where the runtime holds no code for the extension */
 } sprout_told_effect;
 
 /* A visit a line would have taken past their output: they read nothing more that turn. */

@@ -6,6 +6,7 @@
 // standing in a world for the inspectors to look through, and a world
 // folder read from disk as the compiler reads it.
 
+export * from './installed.js';
 export * from './play.js';
 export * from './readings.js';
 export * from './replay.js';

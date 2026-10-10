@@ -25,6 +25,8 @@ typedef struct sprout_told {
   const sprout_str *paragraphs;
   size_t written_count;
   const sprout_noted *written; /* every passage and one-line passage that gave the words, each once, a passage after any it holds */
+  const char *extension, *statement; /* an extension's effect: which statement recorded it */
+  sprout_str payload;                /* an extension's effect: its payload as JSON text, empty where the runtime holds no code for it */
 } sprout_told;
 
 /* What a turn's lines rendered to, and whom it cut short, in the order it happened. */

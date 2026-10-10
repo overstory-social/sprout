@@ -12,7 +12,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { CARTRIDGE_EXTENSION, DEFAULT_LIMITS, loadCartridge } from '@overstory/sprout/lang';
-import { readScript, resolveScript, writeReadings } from '@overstory/sprout-player';
+import {
+  INSTALLED_EXTENSIONS,
+  readScript,
+  resolveScript,
+  writeReadings,
+} from '@overstory/sprout-player';
 import { checkWorld, formatCheck } from '@overstory/sprout-cli';
 
 /** The readings file that sits beside `script`: `order.json` gives `order.readings.json`. */
@@ -23,7 +28,10 @@ export function readingsPath(script) {
 /** The world `path` names, to play: a cartridge loaded, or a folder compiled as `sprout check` does. */
 export function playableWorld(path) {
   if (path.endsWith(CARTRIDGE_EXTENSION)) {
-    return loadCartridge(readFileSync(path), { caps: DEFAULT_LIMITS.caps });
+    return loadCartridge(readFileSync(path), {
+      caps: DEFAULT_LIMITS.caps,
+      installed: INSTALLED_EXTENSIONS,
+    });
   }
   const checked = checkWorld(path);
   if (checked.bundle === null) throw new Error(formatCheck(checked));

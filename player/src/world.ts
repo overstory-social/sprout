@@ -1,12 +1,14 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 
 import {
   Diagnostics,
   MANIFEST_FILE,
   parseManifest,
+  sha256,
   SourceFile,
   STANDARD_LIBRARY,
+  type AssetFile,
   type Diagnostic,
   type MicroworldSource,
 } from '@overstory/sprout/lang';
@@ -21,7 +23,8 @@ import {
 // sends it as the vendored `sprout` whenever the manifest names that library; the manifest's
 // pin is checked against it like any vendored source. Where a vendored copy
 // of a library lives in a world folder is unspecified (the working notes'
-// Holes), so nothing else is read as one.
+// Holes), so nothing else is read as one. The other files an extension's
+// values name, such as images, are looked up by path when the compiler asks.
 
 export interface ReadWorld {
   /** The resolved path it was read from. */
@@ -46,6 +49,31 @@ function filesUnder(root: string, dir = root): string[] {
     else if (stat.isFile() && isWorldFile(entry)) out.push(path);
   }
   return out;
+}
+
+/**
+ * The files of the folder `root` an extension's values name, read when
+ * asked for: by path from the folder, null for what is not a file inside it.
+ */
+export function assetsIn(root: string): (path: string) => AssetFile | null {
+  const kept = new Map<string, AssetFile | null>();
+  return (path) => {
+    if (kept.has(path)) return kept.get(path)!;
+    const file = resolve(root, path);
+    let found: AssetFile | null = null;
+    if (file.startsWith(root + sep)) {
+      try {
+        if (statSync(file).isFile()) {
+          const bytes = readFileSync(file);
+          found = { bytes: bytes.length, sha: sha256(bytes), head: bytes.subarray(0, 64) };
+        }
+      } catch {
+        found = null;
+      }
+    }
+    kept.set(path, found);
+    return found;
+  };
 }
 
 /**
@@ -84,7 +112,13 @@ export function readWorld(
   const usesStandard = manifest.libraries.some((pin) => pin.name === STANDARD_LIBRARY.name);
   return {
     path: root,
-    source: { manifestFile, manifest, files, libraries: usesStandard ? [STANDARD_LIBRARY] : [] },
+    source: {
+      manifestFile,
+      manifest,
+      files,
+      libraries: usesStandard ? [STANDARD_LIBRARY] : [],
+      assets: assetsIn(root),
+    },
     diagnostics: diagnostics.all,
   };
 }

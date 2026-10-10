@@ -9,7 +9,7 @@ import {
   type Diagnostic,
   type Span,
 } from '@overstory/sprout/lang';
-import { readWorld } from '@overstory/sprout-player';
+import { INSTALLED_EXTENSIONS, readWorld } from '@overstory/sprout-player';
 
 import { declarationsOf, type DeclarationIndex } from './declarations.js';
 
@@ -70,7 +70,11 @@ export function checkWorld(root: string, unsaved: ReadonlyMap<string, string>): 
       diagnostics: read.diagnostics.map((one) => placed(read.path, new Set(), one)),
       index: { declared: [], imports: [] },
     };
-  const { diagnostics } = compileBundle(read.source, { mode: 'publish', blessed: DEFAULT_BLESSED });
+  const { diagnostics } = compileBundle(read.source, {
+    mode: 'publish',
+    blessed: DEFAULT_BLESSED,
+    extensions: INSTALLED_EXTENSIONS,
+  });
   const own = new Set(read.source.files.map((file) => file.name));
   return {
     root: read.path,

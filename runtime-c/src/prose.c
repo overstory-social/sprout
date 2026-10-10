@@ -85,7 +85,14 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   frame.hands = line->hands;
   switch (said->kind) {
     case SPROUT_SPEECH_ABSENT:
+      return SPROUT_EVAL_OK;
     case SPROUT_SPEECH_RECORDED:
+      /* An extension's effect reads, to a client that cannot use its payload, as its transcript line. */
+      if (said->transcript.length == 0) return SPROUT_EVAL_OK;
+      out->items = (sprout_str *)sprout_arena_take(reading->turn, sizeof(sprout_str));
+      if (out->items == NULL) return SPROUT_EVAL_NO_MEMORY;
+      out->items[0] = said->transcript;
+      out->count = 1;
       return SPROUT_EVAL_OK;
     case SPROUT_SPEECH_PASSAGE:
       prose = sprout_node_get(sprout_node_get(said->node, "body"), "prose");
@@ -316,8 +323,6 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
   reading.notes = NULL;
   for (e = 0; e < x->effect_count; e++) {
     line_to_render *line;
-    /* An extension's effect is the extension's to put into words; the C runtime holds no extension. */
-    if (x->effects[e].kind == SPROUT_EFFECT_EXTENSION) continue;
     if (x->effects[e].description != NULL) {
       /* A description is one effect to the one looking, read whether or not it gave words. */
       prose_paragraphs paragraphs;
@@ -351,6 +356,33 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
         slot->written = notes.items;
       }
       reading.notes = NULL;
+      /* What the description's extension statements recorded is read after it, by the one looking. */
+      for (r = 0; r < x->effects[e].description->recorded_count; r++) {
+        const sprout_spoken *spoken = &x->effects[e].description->recorded[r];
+        speaking recorded_line;
+        tape recorded_tape;
+        prose_paragraphs recorded_words;
+        bool fits;
+        recorded_line.by = spoken->by;
+        recorded_line.said = &spoken->said;
+        recorded_line.bindings = spoken->bindings;
+        recorded_line.hands = (sprout_str){NULL, 0};
+        memset(&recorded_tape, 0, sizeof recorded_tape);
+        EXPR_NEED(rendered_for(&reading, x->draws, &recorded_line, &recorded_tape, &recorded_words));
+        EXPR_NEED(prose_charge(&output, reading.reader, characters_of(&recorded_words), &fits));
+        if (!fits || recorded_words.count == 0) continue;
+        slot = (sprout_told *)sprout_exec_grow(x->turn, (void **)&told, &told_count, &told_capacity, sizeof *slot);
+        if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+        slot->kind = SPROUT_EFFECT_EXTENSION;
+        slot->from = spoken->by;
+        slot->to = reading.reader;
+        slot->visit = visitor->visit;
+        slot->paragraph_count = recorded_words.count;
+        slot->paragraphs = recorded_words.items;
+        slot->extension = spoken->said.extension;
+        slot->statement = spoken->said.statement;
+        slot->payload = spoken->said.payload;
+      }
       continue;
     }
     line = (line_to_render *)sprout_arena_take(x->turn, sizeof *line);
@@ -385,6 +417,11 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
       slot = (sprout_told *)sprout_exec_grow(x->turn, (void **)&told, &told_count, &told_capacity, sizeof *slot);
       if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
       slot->kind = line->effect->kind;
+      if (slot->kind == SPROUT_EFFECT_EXTENSION) {
+        slot->extension = line->effect->said.extension;
+        slot->statement = line->effect->said.statement;
+        slot->payload = line->effect->said.payload;
+      }
       slot->from = line->effect->by;
       slot->to = reading.reader;
       slot->visit = visitor->visit;

@@ -1,0 +1,42 @@
+standing in cellar
+
+description
+  A damp cellar.
+
+effects
+  media.show {"image":"cellar.png"} reads [cellar.png]
+
+ways out
+  none
+
+who else is here
+  nobody
+
+carrying
+  nothing
+
+what they could type
+  pull cellar  (media_room.pull)
+    target: a cellar (cellar)
+  pull cabinet  (media_room.pull)
+    target: a cabinet (cellar.cabinet)
+  look  (sprout.look)
+  examine cellar  (sprout.examine)
+    target: a cellar (cellar)
+  examine cabinet  (sprout.examine)
+    target: a cabinet (cellar.cabinet)
+  inventory  (sprout.inventory)
+  wait  (sprout.wait)
+  help  (sprout.help)
+  take cabinet  (sprout.take)
+    target: a cabinet (cellar.cabinet)
+    source: unbound
+  drop cabinet  (sprout.drop)
+    refused: You are not holding a cabinet.
+    target: a cabinet (cellar.cabinet)
+  ask cellar about …  (sprout.ask)
+    target: a cellar (cellar)
+    topic: nothing it hears
+  ask cabinet about …  (sprout.ask)
+    target: a cabinet (cellar.cabinet)
+    topic: nothing it hears
