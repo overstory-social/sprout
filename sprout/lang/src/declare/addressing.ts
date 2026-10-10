@@ -18,12 +18,15 @@ export const CONNECTORS: readonly string[] = ['and', ','];
  */
 export const RELATIVE_WORDS: readonly string[] = ['in', 'on', 'that', 'is', 'one'];
 
+/** The words that fill a role with everything it may take: `all`, and `everything` for it (the spec's Parsing › Sequences, again and all). */
+export const ALL_WORDS: readonly string[] = ['all', 'everything'];
+
 /**
  * The words of the parser's own, which join commands and name what a line
  * does again or does to everything (the spec's Parsing › Sequences, again
  * and all).
  */
-export const PARSER_WORDS: readonly string[] = ['then', 'again', 'g', 'all', 'except'];
+export const PARSER_WORDS: readonly string[] = ['then', 'again', 'g', ...ALL_WORDS, 'except'];
 
 /** A line as words: lower case, split on white space, each comma a word of its own. */
 export function typedWords(text: string): string[] {

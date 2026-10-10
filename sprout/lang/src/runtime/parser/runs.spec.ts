@@ -187,8 +187,8 @@ describe('a run in a role that takes one thing', () => {
     expect(turns(read('take lamp and brass key'), 'target')).toEqual([LAMP, BRASS_KEY]);
   });
 
-  it('is not understood where `all` is one of its things, before the others or after', () => {
-    for (const line of ['take lamp and all', 'take all and lamp']) {
+  it('is not understood where `all` or `everything` is one of its things, before the others or after', () => {
+    for (const line of ['take lamp and all', 'take all and lamp', 'take everything and lamp']) {
       const outcome = read(line);
       expect('answer' in outcome && outcome.answer, line).toBe('unknown');
     }
