@@ -2370,6 +2370,76 @@
       }
     },
     {
+      "name": "a passage that renders itself faults at depth one",
+      "area": "bounds",
+      "state": "yard",
+      "seed": 1,
+      "skip": 0,
+      "actor": "bench#1",
+      "limits": {
+        "steps": 50000,
+        "output": 8000,
+        "passageDepth": 1
+      },
+      "renames": {},
+      "lines": [
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "ring"
+            }
+          },
+          "bindings": {}
+        }
+      ],
+      "expect": {
+        "fault": "BudgetExhausted",
+        "budget": "passageDepth",
+        "limit": 1,
+        "steps": 1
+      }
+    },
+    {
+      "name": "a passage that renders itself faults at depth two",
+      "area": "bounds",
+      "state": "yard",
+      "seed": 1,
+      "skip": 0,
+      "actor": "bench#1",
+      "limits": {
+        "steps": 50000,
+        "output": 8000,
+        "passageDepth": 2
+      },
+      "renames": {},
+      "lines": [
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "ring"
+            }
+          },
+          "bindings": {}
+        }
+      ],
+      "expect": {
+        "fault": "BudgetExhausted",
+        "budget": "passageDepth",
+        "limit": 2,
+        "steps": 2
+      }
+    },
+    {
       "name": "a passage that renders itself faults at the default depth",
       "area": "bounds",
       "state": "yard",
@@ -3879,7 +3949,7 @@
       }
     },
     {
-      "name": "a move into what holds no actors is refused in the engine’s own words",
+      "name": "the words the fixtures give a move into what holds no actors (the C runtime alone holds them; this pins the fixture’s words, not a renderer’s)",
       "area": "engine",
       "state": "yard",
       "seed": 1,

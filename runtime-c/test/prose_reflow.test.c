@@ -85,6 +85,19 @@ static void a_line_break_is_kept_and_every_line_is_capitalised(void) {
   sprout_arena_reset(&l.arena);
 }
 
+static void a_paragraph_ending_in_a_line_break_is_still_nul_terminated(void) {
+  laid l;
+  prose_paragraphs out;
+  laid_open(&l);
+  words(&l, "hello");
+  line(&l);
+  CHECK(prose_reflow(&l.arena, &l.pieces, &out));
+  CHECK_INT(out.count, 1);
+  CHECK_BYTES(out.items[0].bytes, out.items[0].length, "Hello");
+  CHECK_INT(out.items[0].bytes[out.items[0].length], 0);
+  sprout_arena_reset(&l.arena);
+}
+
 static void a_line_break_at_a_paragraphs_ends_is_trimmed(void) {
   laid l;
   laid_open(&l);
@@ -177,6 +190,7 @@ int main(void) {
   RUN(every_run_of_space_is_one_space_and_a_paragraph_has_none_at_its_ends);
   RUN(a_blank_line_is_a_paragraph_and_a_paragraph_with_nothing_in_it_is_none);
   RUN(a_line_break_is_kept_and_every_line_is_capitalised);
+  RUN(a_paragraph_ending_in_a_line_break_is_still_nul_terminated);
   RUN(a_line_break_at_a_paragraphs_ends_is_trimmed);
   RUN(white_space_is_what_javascript_calls_it);
   RUN(a_passage_in_a_slot_loses_its_padding_and_keeps_breaks_only_where_it_has_words);

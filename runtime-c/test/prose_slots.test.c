@@ -24,7 +24,7 @@ static void conditions_loops_and_choices_render_as_the_oracle_did(void) {
 static void passages_nest_to_the_hosts_depth_and_no_further(void) {
   prose_bench b;
   prose_bench_open(&b);
-  CHECK(prose_replay_area(&b, "bounds") >= 5);
+  CHECK(prose_replay_area(&b, "bounds") >= 7);
   prose_bench_close(&b);
 }
 

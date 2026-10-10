@@ -414,6 +414,20 @@ const BOUNDS: ProseCase[] = [
     lines: [said(['marta'], 'yard.echo', 'tier1')],
   },
   {
+    name: 'a passage that renders itself faults at depth one',
+    area: 'bounds',
+    actor: 'marta',
+    figures: { passageDepth: 1 },
+    lines: [said(['marta'], 'yard.echo', 'ring')],
+  },
+  {
+    name: 'a passage that renders itself faults at depth two',
+    area: 'bounds',
+    actor: 'marta',
+    figures: { passageDepth: 2 },
+    lines: [said(['marta'], 'yard.echo', 'ring')],
+  },
+  {
     name: 'a passage that renders itself faults at the default depth',
     area: 'bounds',
     actor: 'marta',
@@ -503,7 +517,7 @@ function engineCases(): ProseCase[] {
 const ENGINE: ProseCase[] = [
   ...engineCases(),
   {
-    name: 'a move into what holds no actors is refused in the engine’s own words',
+    name: 'the words the fixtures give a move into what holds no actors (the C runtime alone holds them; this pins the fixture’s words, not a renderer’s)',
     area: 'engine',
     actor: 'marta',
     lines: [

@@ -11,7 +11,7 @@ static void every_golden_case_renders_as_the_typescript_prose_layer_did(void) {
   size_t replayed;
   prose_bench_open(&b);
   replayed = prose_replay_area(&b, NULL);
-  CHECK(replayed >= 70);
+  CHECK(replayed >= 73);
   prose_bench_close(&b);
   CHECK_INT(b.heap.pages, 0);
 }

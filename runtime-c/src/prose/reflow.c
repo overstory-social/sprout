@@ -218,7 +218,10 @@ static bool close_paragraph(lines *l, prose_paragraphs *out, size_t *capacity) {
   if (whole.length > 0) {
     sprout_str *slot = (sprout_str *)sprout_exec_grow(l->arena, (void **)&out->items, &out->count, capacity, sizeof *slot);
     if (slot == NULL) return false;
-    *slot = whole;
+    /* Copied out so the paragraph ends in a NUL, as a host prints it. */
+    slot->bytes = sprout_arena_copy(l->arena, whole.bytes, whole.length);
+    if (slot->bytes == NULL) return false;
+    slot->length = whole.length;
   }
   l->count = 0;
   return lines_start(l);

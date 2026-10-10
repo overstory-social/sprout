@@ -41,7 +41,7 @@ typedef struct sprout_budgets {
   sprout_limit output;                /* characters per turn, per recipient */
   sprout_limit events;                /* per turn */
   sprout_limit cascade_depth;
-  sprout_limit passage_depth;
+  sprout_limit passage_depth;         /* a host must set it (the spec's default is 8): a passage naming itself recurses on the C stack until it faults */
   sprout_limit set_role_objects;
   sprout_limit spawns;                /* per turn */
   sprout_limit shortest_wake_seconds;

@@ -311,6 +311,7 @@ static inline void prose_check_told(const sprout_rendered *rendered, const sprou
     CHECK_INT(told->paragraph_count, paragraphs->count);
     for (j = 0; j < told->paragraph_count && j < paragraphs->count; j++) {
       CHECK_BYTES(told->paragraphs[j].bytes, told->paragraphs[j].length, paragraphs->items[j]->bytes);
+      CHECK_INT(told->paragraphs[j].bytes[told->paragraphs[j].length], 0);
       if (told->paragraphs[j].length != paragraphs->items[j]->length ||
           memcmp(told->paragraphs[j].bytes, paragraphs->items[j]->bytes, paragraphs->items[j]->length) != 0)
         fprintf(stderr, "  effect %zu, paragraph %zu\n", i, j);
