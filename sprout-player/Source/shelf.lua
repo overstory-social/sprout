@@ -2,10 +2,11 @@
 -- the app and its Data folder and in each one's `worlds/` folder (`listFiles` reads both the
 -- bundle and the Data folder; a copy in Data shadows the app's), and asks the engine whether
 -- each can be shelved. One it refuses is listed greyed with the engine's reason, and cannot be
--- opened. A world is titled by its name as words, since a cartridge carries no other title and a
--- name is an identifier: `printers_shop` is shelved as `Printers Shop`. Results are kept by file name and size, so a cartridge is inspected once. After the
--- last cartridge comes one more row, "more worlds", which opens the download screen; when the last
--- try at the network failed, `moreNote` says why and the shelf shows it under that row.
+-- opened. A world is titled by its name as words, since a cartridge carries no other title and
+-- a name is an identifier: `printers_shop` is shelved as `Printers Shop`. Results are kept by
+-- file name and size, so a cartridge is inspected once. After the last cartridge comes one more
+-- row, "more worlds", which opens the download screen; when the last try at the network failed,
+-- `moreNote` says why and the shelf shows it under that row.
 
 local Shelf = {}
 Shelf.__index = Shelf
