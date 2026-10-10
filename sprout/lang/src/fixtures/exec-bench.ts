@@ -6,8 +6,6 @@
 // block the cartridge holds for it is found by its structure. Spec support: the package
 // build leaves it out.
 
-import { fileURLToPath } from 'node:url';
-
 import type { Bundle } from '../bundle/bundle.js';
 import { readGraph, type Graph } from '../bundle/cartridge-graph.js';
 import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
@@ -47,13 +45,6 @@ import { read } from './parse.js';
 
 const CAPS = DEFAULT_LIMITS.caps;
 const LIBRARY = 'exec_bench';
-export const GOLDEN = fileURLToPath(
-  new URL('../../../../corpus/goldens/exec.json', import.meta.url),
-);
-export const CARTRIDGE = fileURLToPath(
-  new URL('../../../../corpus/goldens/exec.sproutworld', import.meta.url),
-);
-
 /** The instant every turn runs at, in host seconds. */
 const INSTANT = 1000;
 
