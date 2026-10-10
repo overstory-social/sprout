@@ -329,9 +329,13 @@ the download screen.
 The pdx carries the **graduated** worlds, listed in
 `sprout-player/worlds.json` (`{"graduated": [{"world": "<corpus/good name or
 a path>", "title": "…"}]}`). `scripts/playdate-player.mjs` packs each with
-`sprout pack`, with its assets, into the pdx's `worlds/`. The studio will
-write this file; until then this repository owns it (hole 502). The build
-fails if the app would grey a listed world.
+`sprout pack`, with its assets, into the pdx's `worlds/`, as
+`<name>.sproutworld` for the name the world's manifest gives it. Today the
+list is the worked microworld `printers_shop` and the studio's finished
+`underground_caverns`, reached by path into a `sprout-studio` checkout beside
+this one, so the player's checks need that checkout on a machine with the
+SDK. The studio will write this file; until then this repository owns it
+(hole 502). The build fails if the app would grey a listed world.
 
 The **signed index** (`sprout-player/index.schema.json`) is what the
 download screen fetches: `{ "worlds": [ { title, author, version, bytes,
@@ -396,17 +400,26 @@ compile and `pdc` must package the pdx; the device target is built too where
 `arm-none-eabi-gcc` is installed. `docs/design/sprout-test-harness.md`
 lists each.
 
-### What has never been run on a screen
+### What has run on a screen, and what has not
 
-No machine here has run the Simulator or a console. Not checked:
+The app has run on the Windows Simulator (SDK 3.1.2), from a pdx built on
+WSL2 with the `pdex.dll` that llvm-mingw cross-compiles: the shelf with its
+greyed rows, the nickname picker, the reader's status line and transcript,
+the sentence builder through a `many` role, and turns through the C engine.
+The layout at 400 by 240 reads as designed. Seen there and fixed: the SDK's
+`drawText` reads `_` and `*` as styling, so every world's words are drawn
+through `markup.lua`, which doubles them.
 
-- the layout at 400 by 240 (the shelf, the reader's panel, the wheel);
+Not yet checked:
+
+- a console: the device pdx builds and `pdc` packages it, and no Playdate
+  has been on the bus;
 - the crank's feel (24 degrees a step and 12 degrees a scrolled line are
   guesses);
 - how long `json.decode` takes on the view of a big world on the device;
 - the budgets, tuned on hardware (the Simulator is far faster);
-- the memory of a big world on a console's 16 MB, and the device pdx at all
-  (it builds and `pdc` packages it; it has not run);
+- the memory of a big world on a console's 16 MB (`underground_caverns`
+  packs to 1.5 MB and plays through `sproutc`);
 - a real network fetch, and the system's permission dialog: what the system
   returns when the person refuses is not documented, so a refusal is read
   as `http.new` returning nothing or the request failing, both told in
@@ -427,10 +440,24 @@ memory:
   the Simulator target, a shared library; `arm.cmake` with
   `-DTOOLCHAIN=armgcc` for the device, an ELF that needs `arm-none-eabi-gcc`.
   `pdc` packages either into a pdx.
-- The Simulator pdx holds the library of the platform that built it
-  (`pdex.so` on Linux, a `.dylib` on macOS), so it runs only there. The
-  device pdx holds both binaries (`pdex.bin` and the Simulator's) and runs in
-  the Simulator too. Upload to a console is the Simulator's Device menu.
+- `pdc` packages every `pdex.*` beside the Lua, so one pdx can hold
+  `pdex.so`, `pdex.dylib`, `pdex.dll` and `pdex.bin` and run wherever one of
+  them was built for; a Simulator loads only its own platform's library and
+  never executes `pdex.bin`. `scripts/playdate-player.mjs` builds each it can
+  and runs `pdc` once over all of them, copying the binaries from the build
+  trees itself, because the SDK's copy is a POST_BUILD step that an unchanged
+  target does not repeat. Upload to a console is the Simulator's Device menu,
+  `pdutil install`, or the account's sideload page.
+- The Linux SDK's `pdc` and Simulator are linked against glibc 2.38 and
+  `GLIBCXX_3.4.32`, and the Simulator wants `libwebkit2gtk-4.1`; Debian 12
+  has glibc 2.36. The Windows `pdc.exe` runs from WSL over
+  `\\wsl.localhost\` paths, which is what `scripts/playdate-pdc-wsl.sh`
+  relies on.
+- `playdate.graphics.drawText` styles `*bold*` and `_italic_`; a doubled
+  character is drawn once, plain. `font:drawText` styles nothing.
+- The Simulator's keyboard: the A button is S, B is A, the d-pad the arrow
+  keys. On its first run it shows a modal "Heads up" dialog that takes every
+  key until it is dismissed.
 - The device is a Cortex-M7 (`-mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfloat-abi=hard`)
   at 168 MHz with 16 MB of RAM; its screen is 400 by 240, one bit, and the
   app asks for 30 frames a second.
@@ -469,10 +496,16 @@ The Simulator pdx, and the player's checks, need the SDK:
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # once
-npm run playdate                                             # packs the graduated worlds, builds the pdx
-"$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/simulator/sprout-player.pdx
+npm run playdate                                             # packs the graduated worlds, builds the one pdx
+"$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 node scripts/check-runtime-c.mjs                             # now also builds the Simulator target and runs the Lua and glue tests
 ```
+
+The pdx carries every binary the machine can build and the script says
+which (`carries:` and `not built:`): the host's Simulator library, `pdex.dll`
+where `x86_64-w64-mingw32-gcc` is found, `pdex.bin` where `arm-none-eabi-gcc`
+is. The README's Playdate section has the WSL2 arrangement, where the build
+runs on Linux and the Simulator on Windows.
 
 With the variable unset, the check's last line says the player step was
 skipped, and which parts did not run. `npm run gate` runs the plain check;

@@ -1,9 +1,6 @@
 {
   "graduated": [
-    { "world": "chip-tree", "title": "Chip Tree" },
-    { "world": "teashop", "title": "Teashop" },
-    { "world": "media-room", "title": "Media Room" },
     { "world": "printers_shop", "title": "Printer's Shop" },
-    { "world": "troll_room", "title": "Troll Room" }
+    { "world": "../sprout-studio/worlds/underground_caverns/world", "title": "Underground Caverns" }
   ]
 }

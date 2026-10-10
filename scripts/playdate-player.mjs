@@ -1,14 +1,17 @@
 // Builds sprout-player/ (the Playdate app) and checks it.
 //
-//   node scripts/playdate-player.mjs [--device] [--out <folder>]
+//   node scripts/playdate-player.mjs [--no-device] [--no-windows] [--out <folder>]
 //
-// builds the Simulator pdx (and, with --device, the device pdx as well, which then holds both
-// binaries and runs on the Simulator and on a console) under <folder> (default
-// sprout-player/build), after packing the graduated worlds (sprout-player/worlds.json) into the
-// pdx's worlds/ folder with their assets, and writing Source/publickey.lua: the public key the
-// download screen trusts, read from the file named by SPROUT_INDEX_PUBLIC_KEY (default
+// writes one pdx, <folder>/sprout-player.pdx (default sprout-player/build), that carries every
+// binary this machine can build: the Simulator library of this platform (pdex.so or pdex.dylib),
+// pdex.dll for the Windows Simulator where x86_64-w64-mingw32-gcc is on the path (llvm-mingw
+// cross-compiles it from Linux or macOS), and pdex.bin for a console where arm-none-eabi-gcc is.
+// pdc packages whatever pdex.* lies beside the Lua, so the one pdx runs wherever a binary was
+// built for. Before that it packs the graduated worlds (sprout-player/worlds.json) into the pdx's
+// worlds/ folder with their assets, and writes Source/publickey.lua: the public key the download
+// screen trusts, read from the file named by SPROUT_INDEX_PUBLIC_KEY (default
 // sprout-player/test/index-test.pub, which anyone can sign for, so a build to publish sets it).
-// `npm run playdate` is this with --device when arm-none-eabi-gcc is on the path.
+// `npm run playdate` is this.
 //
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
 // shipping scripts, builds the Simulator target, runs the C glue's tests and the Lua tests, checks
@@ -66,9 +69,11 @@ export function sdkPath() {
 
 /**
  * Reads the list of graduated worlds: each entry names a world folder (a name under corpus/good, or
- * a path from the repository root or absolute) and the title it is listed under. Throws, saying
- * what to write, for a list that is not that shape or that names a world twice or one that is not
- * there.
+ * a path from the repository root or absolute, which may reach into a sibling checkout such as
+ * sprout-studio) and the title it is listed under. The cartridge is named for the world's own name,
+ * the manifest's, since a folder may be called anything. Throws, saying what to write, for a list
+ * that is not that shape, or that names a world twice, one that is not there, or one with no
+ * manifest.
  */
 export function readGraduated(file = WORLDS_FILE) {
   let list;
@@ -78,27 +83,60 @@ export function readGraduated(file = WORLDS_FILE) {
     throw new Error(`${file} cannot be read as JSON: ${err.message}`);
   }
   if (list === null || typeof list !== 'object' || !Array.isArray(list.graduated)) {
-    throw new Error(`${file} should be { "graduated": [ { "world": "<name or path>", "title": "<title>" } ] }.`);
+    throw new Error(
+      `${file} should be { "graduated": [ { "world": "<name or path>", "title": "<title>" } ] }.`,
+    );
   }
   const seen = new Set();
   return list.graduated.map((entry, i) => {
-    if (typeof entry?.world !== 'string' || entry.world === '' || typeof entry.title !== 'string' || entry.title === '') {
-      throw new Error(`${file}: entry ${i + 1} of "graduated" needs a "world" and a "title", both text.`);
+    if (
+      typeof entry?.world !== 'string' ||
+      entry.world === '' ||
+      typeof entry.title !== 'string' ||
+      entry.title === ''
+    ) {
+      throw new Error(
+        `${file}: entry ${i + 1} of "graduated" needs a "world" and a "title", both text.`,
+      );
     }
-    const dir = entry.world.includes('/') ? resolve(root, entry.world) : join(root, 'corpus/good', entry.world);
-    if (!existsSync(dir)) throw new Error(`${file}: the world "${entry.world}" is not at ${dir}.`);
-    const name = basename(dir);
+    const dir = entry.world.includes('/')
+      ? resolve(root, entry.world)
+      : join(root, 'corpus/good', entry.world);
+    if (!existsSync(dir)) {
+      const beside = entry.world.startsWith('../')
+        ? ` (a sibling checkout: clone it beside this repository)`
+        : '';
+      throw new Error(`${file}: the world "${entry.world}" is not at ${dir}${beside}.`);
+    }
+    const name = manifestName(join(dir, 'sprout.json'), file, entry.world);
     if (seen.has(name)) throw new Error(`${file}: the world "${name}" is listed twice.`);
     seen.add(name);
     return { world: entry.world, title: entry.title, dir, file: `${name}.sproutworld` };
   });
 }
 
+/** The world's name as its manifest records it; throws where the manifest is missing or has none. */
+function manifestName(manifest, list, world) {
+  let name;
+  try {
+    name = JSON.parse(readFileSync(manifest, 'utf8')).name;
+  } catch {
+    throw new Error(`${list}: the world "${world}" has no readable sprout.json at ${manifest}.`);
+  }
+  if (typeof name !== 'string' || name === '') {
+    throw new Error(`${list}: the world "${world}" has no "name" in its sprout.json.`);
+  }
+  return name;
+}
+
 /**
  * Packs the graduated worlds into `out` with the built CLI, each as `<name>.sproutworld` beside its
  * `.assets` folder, replacing what was there. Returns the list it packed.
  */
-export async function stageWorlds({ list = readGraduated(), out = join(pdxSource, 'worlds') } = {}) {
+export async function stageWorlds({
+  list = readGraduated(),
+  out = join(pdxSource, 'worlds'),
+} = {}) {
   const { main } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
@@ -127,7 +165,9 @@ export function writePublicKey({
 } = {}) {
   const key = readFileSync(keyFile, 'utf8').trim();
   if (!/^[0-9a-f]{64}$/.test(key)) {
-    throw new Error(`${keyFile} should hold the public key as 64 lowercase hexadecimal digits and nothing else.`);
+    throw new Error(
+      `${keyFile} should hold the public key as 64 lowercase hexadecimal digits and nothing else.`,
+    );
   }
   writeFileSync(
     join(into, 'publickey.lua'),
@@ -144,8 +184,41 @@ function clearBinaries() {
   }
 }
 
-/** Configures and builds one target in `dir`; returns the folder the pdx is in. */
-function build(dir, { device, cartridges, sanitize }) {
+/** The MinGW cross compiler that makes pdex.dll from here, where it is on the path. */
+const MINGW = 'x86_64-w64-mingw32-gcc';
+
+/**
+ * Writes the CMake toolchain file for the Windows library into `dir`: clang or gcc with the MinGW
+ * target, as llvm-mingw and mingw-w64 both name it.
+ */
+function windowsToolchain(dir) {
+  const gcc = spawnSync('which', [MINGW], { encoding: 'utf8' }).stdout.trim();
+  const bin = join(gcc, '..');
+  const file = join(dir, 'toolchain.cmake');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    file,
+    [
+      'set(CMAKE_SYSTEM_NAME Windows)',
+      'set(CMAKE_SYSTEM_PROCESSOR x86_64)',
+      `set(CMAKE_C_COMPILER ${gcc})`,
+      `set(CMAKE_CXX_COMPILER ${join(bin, 'x86_64-w64-mingw32-g++')})`,
+      `set(CMAKE_RC_COMPILER ${join(bin, 'x86_64-w64-mingw32-windres')})`,
+      'set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)',
+      'set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)',
+      'set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)',
+      '',
+    ].join('\n'),
+  );
+  return file;
+}
+
+/**
+ * Configures and builds one target in `dir`; returns the folder the pdx is in. `device` builds
+ * the console's ELF with the SDK's ARM toolchain, `windows` the DLL the Windows Simulator loads,
+ * through the MinGW cross compiler, and only that library, since the tests are native programs.
+ */
+function build(dir, { device, windows, cartridges, sanitize }) {
   const sdk = sdkPath();
   const args = ['-S', player, '-B', dir, '-DCMAKE_BUILD_TYPE=Release'];
   if (device) {
@@ -153,6 +226,8 @@ function build(dir, { device, cartridges, sanitize }) {
       `-DCMAKE_TOOLCHAIN_FILE=${join(sdk, 'C_API/buildsupport/arm.cmake')}`,
       '-DTOOLCHAIN=armgcc',
     );
+  } else if (windows) {
+    args.push(`-DCMAKE_TOOLCHAIN_FILE=${windowsToolchain(dir)}`);
   } else if (cartridges !== undefined) {
     args.push(`-DPLAYER_CARTRIDGES=${cartridges}`);
   }
@@ -165,13 +240,42 @@ function build(dir, { device, cartridges, sanitize }) {
     );
   }
   run('cmake', args, { PLAYDATE_SDK_PATH: sdk });
-  run('cmake', ['--build', dir, '--parallel'], { PLAYDATE_SDK_PATH: sdk });
+  const target = windows ? ['--target', 'sprout-player'] : [];
+  run('cmake', ['--build', dir, '--parallel', ...target], { PLAYDATE_SDK_PATH: sdk });
   return dir;
 }
 
-/** What `npm run playdate` does: the Simulator pdx, and the device's too where arm-none-eabi-gcc is installed. */
-export async function buildPlayer({ out = join(player, 'build'), device = true } = {}) {
-  if (sdkPath() === null) {
+/** The Simulator library this platform's build writes, and the name pdc packages it under. */
+function hostLibrary() {
+  if (process.platform === 'darwin') return { built: 'libsprout-player.dylib', pdex: 'pdex.dylib' };
+  if (process.platform === 'win32') return { built: 'sprout-player.dll', pdex: 'pdex.dll' };
+  return { built: 'libsprout-player.so', pdex: 'pdex.so' };
+}
+
+/**
+ * Puts the binary a build tree wrote beside the Lua as `pdex`, where pdc packages it. The
+ * SDK's CMake copies it there too, but only as a step of a target that was rebuilt, and an
+ * unchanged target after clearBinaries() leaves nothing; the copy here does not depend on that.
+ */
+function placeBinary(dir, built, pdex) {
+  const from = join(dir, built);
+  if (!existsSync(from)) throw new Error(`the build in ${dir} left no ${built}`);
+  copyFileSync(from, join(pdxSource, pdex));
+  return pdex;
+}
+
+/**
+ * What `npm run playdate` does: one pdx with every binary this machine can build, the host's
+ * Simulator library always, pdex.dll where the MinGW cross compiler is installed and this is not
+ * Windows, pdex.bin where arm-none-eabi-gcc is. Returns the pdx and the binaries it carries.
+ */
+export async function buildPlayer({
+  out = join(player, 'build'),
+  device = true,
+  windows = true,
+} = {}) {
+  const sdk = sdkPath();
+  if (sdk === null) {
     throw new Error(
       'PLAYDATE_SDK_PATH is not set to a Playdate SDK. Run `export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"`.',
     );
@@ -185,13 +289,44 @@ export async function buildPlayer({ out = join(player, 'build'), device = true }
   }
   clearBinaries();
   mkdirSync(out, { recursive: true });
-  const built = {
-    simulator: join(build(join(out, 'simulator'), { device: false }), 'sprout-player.pdx'),
-  };
-  if (device && has('arm-none-eabi-gcc')) {
-    built.device = join(build(join(out, 'device'), { device: true }), 'sprout-player_DEVICE.pdx');
+  const binaries = [];
+  const host = hostLibrary();
+  binaries.push(
+    placeBinary(build(join(out, 'simulator'), { device: false }), host.built, host.pdex),
+  );
+  const skipped = [];
+  if (windows && process.platform !== 'win32') {
+    if (has(MINGW)) {
+      binaries.push(
+        placeBinary(
+          build(join(out, 'windows'), { windows: true }),
+          'libsprout-player.dll',
+          'pdex.dll',
+        ),
+      );
+    } else {
+      skipped.push(`pdex.dll (no ${MINGW})`);
+    }
   }
-  return built;
+  if (device) {
+    if (has('arm-none-eabi-gcc')) {
+      placeBinary(
+        build(join(out, 'device'), { device: true }),
+        'sprout-player_DEVICE.elf',
+        'pdex.elf',
+      );
+      binaries.push('pdex.bin');
+    } else {
+      skipped.push('pdex.bin (no arm-none-eabi-gcc)');
+    }
+  }
+  const pdx = join(out, 'sprout-player.pdx');
+  rmSync(pdx, { recursive: true, force: true });
+  run(join(sdk, 'bin/pdc'), ['-sdkpath', sdk, pdxSource, pdx]);
+  for (const name of binaries) {
+    if (!existsSync(join(pdx, name))) throw new Error(`pdc did not package ${name} into ${pdx}`);
+  }
+  return { pdx, binaries, skipped };
 }
 
 /**
@@ -285,7 +420,9 @@ export async function checkPlayer({ sanitize = false } = {}) {
 
 /** Runs the specs of the shipping scripts (the signed index, the graduated list); one line of what ran. */
 export function shippingSpecs() {
-  const specs = ['publish-index.spec.mjs', 'playdate-player.spec.mjs'].map((name) => join(root, 'scripts', name));
+  const specs = ['publish-index.spec.mjs', 'playdate-player.spec.mjs'].map((name) =>
+    join(root, 'scripts', name),
+  );
   run(process.execPath, ['--test', ...specs]);
   return 'shipping script specs passed';
 }
@@ -354,15 +491,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const outAt = args.indexOf('--out');
   const out = outAt >= 0 ? args[outAt + 1] : undefined;
   try {
-    const built = await buildPlayer({ out, device: !args.includes('--no-device') });
-    console.log(`Simulator pdx: ${built.simulator}`);
-    if (built.device === undefined) {
-      console.log('Device pdx: not built (arm-none-eabi-gcc is not installed).');
-    } else {
-      console.log(`Device pdx (runs in the Simulator too): ${built.device}`);
-    }
-    const pdx = built.device ?? built.simulator;
-    console.log(`Open it:  "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" "${pdx}"`);
+    const built = await buildPlayer({
+      out,
+      device: !args.includes('--no-device'),
+      windows: !args.includes('--no-windows'),
+    });
+    console.log(`pdx: ${built.pdx}`);
+    console.log(`carries: ${built.binaries.join(', ')}`);
+    if (built.skipped.length > 0) console.log(`not built: ${built.skipped.join(', ')}`);
+    console.log(`Open it:  "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" "${built.pdx}"`);
   } catch (err) {
     console.error(err.message);
     process.exit(1);
