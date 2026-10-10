@@ -13,6 +13,11 @@
 // is skipped on both sides and counted. Each is named in the world's line.
 // The comparison itself is player/src/replay.ts.
 //
+// The views are compared apart from the transcripts (`replayViews`): for every
+// `corpus/good` world, the stored world a visitor arrives into is written with
+// the TypeScript runtime, `sproutc view` polls the visitor over it, and the page it
+// prints is compared byte for byte with the page `sprout view` prints.
+//
 // Used by scripts/check-runtime-c.mjs, which owns the list of worlds that
 // are expected to pass.
 
@@ -20,9 +25,9 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { emitCartridge } from '@overstory/sprout/lang';
-import { checkWorld, formatCheck } from '@overstory/sprout-cli';
-import { blocksOf, expectedBlocks, firstDifference, readScript } from '@overstory/sprout-player';
+import { emitCartridge, saveWorld } from '@overstory/sprout/lang';
+import { checkWorld, formatCheck, inspectView } from '@overstory/sprout-cli';
+import { blocksOf, expectedBlocks, firstDifference, readScript, standIn } from '@overstory/sprout-player';
 
 import { readingsPath, resolveFile } from './resolve-script.mjs';
 
@@ -92,6 +97,50 @@ export function replayWorlds(sproutc, scratch, corpus = 'corpus/good') {
       result = { name, passed: false, words: `failed, ${err instanceof Error ? err.message : String(err)}` };
     }
     results.push(result);
+  }
+  return results;
+}
+
+/** The first line two pages differ at, in words; null where they are the same page. */
+function firstLineDifference(expected, got) {
+  const wanted = expected.split('\n');
+  const given = got.split('\n');
+  for (let at = 0; at < Math.max(wanted.length, given.length); at++) {
+    if (wanted[at] !== given[at]) {
+      return `line ${at + 1}: sprout view says ${JSON.stringify(wanted[at] ?? '(nothing)')}, sproutc view says ${JSON.stringify(given[at] ?? '(nothing)')}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Polls the visitor who arrives in every world under `corpus/good` through `sproutc view` and compares
+ * the page with `sprout view`'s; one result per world: its name, whether the pages are the same, and
+ * a sentence about the first line that is not.
+ */
+export function replayViews(sproutc, scratch, corpus = 'corpus/good') {
+  const results = [];
+  for (const name of readdirSync(corpus).sort()) {
+    const folder = join(scratch, `${name}-view`);
+    mkdirSync(folder, { recursive: true });
+    const cartridge = join(folder, `${name}.sproutworld`);
+    const stored = join(folder, 'world.json');
+    try {
+      const world = join(corpus, name);
+      packWorld(world, cartridge);
+      const standing = standIn(checkWorld(world).bundle);
+      writeFileSync(stored, JSON.stringify(saveWorld(standing.state)));
+      const expected = inspectView(standing);
+      const done = spawnSync(sproutc, ['view', cartridge, '--state', stored], { encoding: 'utf8' });
+      const differs = firstLineDifference(expected.page, done.stdout ?? '');
+      if (done.status !== (expected.ok ? 0 : 1)) {
+        results.push({ name, passed: false, words: `exit ${done.status}: ${(done.stderr || done.stdout).trim()}` });
+      } else {
+        results.push({ name, passed: differs === null, words: differs ?? 'the same page' });
+      }
+    } catch (err) {
+      results.push({ name, passed: false, words: err instanceof Error ? err.message : String(err) });
+    }
   }
   return results;
 }

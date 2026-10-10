@@ -1,64 +1,22 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_BLESSED } from '../bundle/blessed.js';
 import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
-import { compileBundle } from '../bundle/compile/compile.js';
-import { type Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
-import { MANIFEST_FILE, parseManifest } from '../bundle/manifest.js';
-import { STANDARD_LIBRARY } from '../bundle/standard-library.js';
-import { Diagnostics } from '../source/diagnostics.js';
-import { SourceFile } from '../source/source.js';
 import { typedWords } from '../declare/addressing.js';
 import { kindName } from '../declare/kinds.js';
 import { compiledWorld } from '../fixtures/bundle.js';
+import { compiledCorpus, CORPUS_WORLDS } from '../fixtures/corpus.js';
 import { dumpCatalogue } from '../fixtures/catalogue-dump.js';
 import { catalogueOf } from './catalogue.js';
 import { loadCartridge } from './cartridge.js';
 
-const CORPUS = join(dirname(fileURLToPath(import.meta.url)), '../../../../corpus/good');
-
-function filesUnder(root: string, dir = root): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir).sort()) {
-    if (entry.startsWith('.')) continue;
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) out.push(...filesUnder(root, path));
-    else if (entry.endsWith('.sprout') || entry.endsWith('.prose')) out.push(path);
-  }
-  return out;
-}
-
-/** A corpus world, compiled as publishing compiles it. */
-function compiled(name: string): Bundle {
-  const root = join(CORPUS, name);
-  const diagnostics = new Diagnostics();
-  const manifestFile = new SourceFile(
-    MANIFEST_FILE,
-    readFileSync(join(root, MANIFEST_FILE), 'utf8'),
-  );
-  const manifest = parseManifest(manifestFile, diagnostics)!;
-  const files = filesUnder(root).map(
-    (path) =>
-      new SourceFile(relative(root, path).split('\\').join('/'), readFileSync(path, 'utf8')),
-  );
-  const usesStandard = manifest.libraries.some((pin) => pin.name === STANDARD_LIBRARY.name);
-  const { bundle } = compileBundle(
-    { manifestFile, manifest, files, libraries: usesStandard ? [STANDARD_LIBRARY] : [] },
-    { mode: 'publish', blessed: DEFAULT_BLESSED },
-  );
-  return bundle!;
-}
-
-const WORLDS = readdirSync(CORPUS).sort();
-
 describe('a cartridge runs under the host’s caps, not the ones it recorded', () => {
   it('reads the caps the host gives, while the cartridge keeps what it was checked against', () => {
-    const bundle = compiled('act');
+    const bundle = compiledCorpus('act');
     const bytes = emitCartridge(bundle);
     const host = { ...DEFAULT_LIMITS.caps, listElements: DEFAULT_LIMITS.caps.listElements - 1 };
     expect(loadCartridge(bytes, { caps: host }).caps).toEqual(host);
@@ -67,11 +25,11 @@ describe('a cartridge runs under the host’s caps, not the ones it recorded', (
 });
 
 describe('a cartridge loads to the catalogue compiling the source makes', () => {
-  it('has worlds to load', () => expect(WORLDS.length).toBeGreaterThan(40));
+  it('has worlds to load', () => expect(CORPUS_WORLDS.length).toBeGreaterThan(40));
 
-  for (const name of WORLDS) {
+  for (const name of CORPUS_WORLDS) {
     it(name, () => {
-      const bundle = compiled(name);
+      const bundle = compiledCorpus(name);
       const made = catalogueOf(bundle, DEFAULT_LIMITS.caps);
       const loaded = loadCartridge(emitCartridge(bundle), { caps: DEFAULT_LIMITS.caps });
       expect(loaded.world).toBe(made.world);
@@ -110,8 +68,8 @@ describe('the catalogue of every corpus world, as the C runtime reads it from th
 
   /** One line per world, so a change to one world is one changed line. */
   const dumps = (): string => {
-    const lines = WORLDS.map((name) => {
-      const bundle = compiled(name);
+    const lines = CORPUS_WORLDS.map((name) => {
+      const bundle = compiledCorpus(name);
       const bytes = emitCartridge(bundle);
       const recorded = readCartridge(bytes).caps;
       const made = dumpCatalogue(catalogueOf(bundle, DEFAULT_LIMITS.caps), recorded);
@@ -141,7 +99,7 @@ describe('the catalogue of every corpus world, as the C runtime reads it from th
   it('carries the words of every phrase final, as the tokeniser reads a typed line', () => {
     // A reader in another language compares bytes: lower case in every script, split on every
     // Unicode space, each comma a word of its own, single spaces between.
-    const names = [...WORLDS, 'unicode'];
+    const names = [...CORPUS_WORLDS, 'unicode'];
     for (const name of names) {
       const bundle =
         name === 'unicode'
@@ -155,7 +113,7 @@ verb peer { role target  "Peer\u00a0AT [target],  ÉMILE   now" }
 `,
               'person.sprout': 'kind Person is sprout.Visitor { }\n',
             })
-          : compiled(name);
+          : compiledCorpus(name);
       const catalogue = loadCartridge(emitCartridge(bundle), { caps: DEFAULT_LIMITS.caps });
       const written = [
         ...catalogue.verbs.all().flatMap((verb) => verb.phrases),

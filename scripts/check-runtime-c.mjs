@@ -87,6 +87,14 @@ for (const result of results) {
   const words = result.words.replace(/\s*\n\s*/g, ' / ');
   console.log(`runtime-c replay: ${result.name}: ${result.passed ? 'passes' : 'fails'}, ${words}`);
 }
+const views = tools.replayViews(sproutc, scratch);
+const unlike = views.filter((r) => !r.passed);
+console.log(`runtime-c view: ${views.length - unlike.length} of ${views.length} worlds print the page \`sprout view\` prints`);
+for (const r of unlike) console.log(`runtime-c view: ${r.name}: ${r.words.replace(/\s*\n\s*/g, ' / ')}`);
+if (unlike.length > 0) {
+  console.log('runtime-c: FAILED, `sproutc view` prints another page than `sprout view` for the worlds above');
+  process.exit(1);
+}
 const passing = results.filter((r) => r.passed).map((r) => r.name);
 console.log(
   `runtime-c replay: ${passing.length} of ${results.length} worlds pass${passing.length > 0 ? `: ${passing.join(', ')}` : ''}`,

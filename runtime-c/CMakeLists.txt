@@ -8,9 +8,9 @@ set(CMAKE_C_EXTENSIONS OFF)
 add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
-  address arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds darkness describe draft draws
+  address arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds chips darkness describe draft draws
   effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move offers options outcome
-  prose range reading state status stored stored_check stored_write submit values view wakes)
+  prose range reading state status stored stored_check stored_write submit values view view_json wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
 set(SPROUT_READING_MODULES carried consent effect sure wildcards)
@@ -51,7 +51,7 @@ target_link_libraries(sprout PUBLIC m)
 
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
-set(SPROUTC_MODULES cartridge evaluate host play readings)
+set(SPROUTC_MODULES cartridge evaluate host play readings viewing)
 
 set(SPROUTC_SOURCES "")
 foreach(module ${SPROUTC_MODULES})
