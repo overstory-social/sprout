@@ -3,6 +3,10 @@
 // saying what is missing and skips, unless `--required` is given (the e2e
 // does), which makes the missing tool a failure. It never skips silently.
 //
+// Run `npm run build` first: the C tests pack every corpus world into a
+// cartridge through the built CLI (`cli/dist`), and the replay uses the built
+// player. Without it the packing setup fails and the tests that need it do not run.
+//
 // After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
 // every corpus world with transcripts is packed, its scripts resolved by the
 // TypeScript parser, played through `sproutc`, and diffed with the transcript

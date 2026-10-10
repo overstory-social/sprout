@@ -1,10 +1,12 @@
 /* The `sproutc play` command; see play.h. */
 #include "play.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "cartridge.h"
+#include "state.h"
 #include "host.h"
 #include "readings.h"
 
@@ -100,6 +102,46 @@ static const char *no_call_for(const sproutc_step *step) {
   }
 }
 
+/*
+ * Reads the stored world the host holds, opens it against the loaded world as
+ * a load does, and writes it back; NULL on success, or words for why not. A
+ * save the runtime wrote comes back byte for byte.
+ */
+static char problem[400];
+static const char *rewrite_state(sproutc_host *host, const sprout_world *world, FILE *out) {
+  const char *bytes = NULL, *written;
+  size_t length = 0, written_length;
+  sprout_state *state = NULL;
+  sprout_opened report;
+  sprout_refusal refusal;
+  sprout_status status;
+  /* A store with nothing in it yet is a new world's: an empty one, reconciled below. */
+  if (!host->record.read(host->record.ctx, "world", &bytes, &length))
+    status = sprout_state_empty(&host->record, world->header.name, &state);
+  else
+    status = sprout_state_read(&host->record, bytes, length, &state, &refusal);
+  if (status != SPROUT_OK) {
+    snprintf(problem, sizeof problem, "%s: %s", host->state, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
+    return problem;
+  }
+  status = sprout_state_open(state, world, &report, &refusal);
+  if (status == SPROUT_OK) status = sprout_state_write(state, &written, &written_length);
+  if (status != SPROUT_OK) {
+    snprintf(problem, sizeof problem, "%s: %s", host->state, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
+    sprout_state_free(state);
+    return problem;
+  }
+  fprintf(out, "state: %zu instances, %zu visitors, %zu dormant, %zu dropped\n", state->instance_count,
+          state->visitor_count, report.dormant_count, report.dropped_count);
+  if (!host->record.write(host->record.ctx, "world", written, written_length)) {
+    sprout_state_free(state);
+    snprintf(problem, sizeof problem, "cannot write the stored world to %s.", host->state);
+    return problem;
+  }
+  sprout_state_free(state);
+  return NULL;
+}
+
 /* Plays the script; the exit code. */
 static int play_script(sproutc_host *host, sprout_world *world, sprout_status loaded, sproutc_readings *readings,
                        FILE *out, FILE *err) {
@@ -182,6 +224,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
   sproutc_host host;
   sprout_world *world = NULL;
   sprout_status loaded;
+  sprout_refusal refusal;
   sproutc_readings readings;
   int code = 0;
 
@@ -205,20 +248,34 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
     sproutc_host_close(&host);
     return 1;
   }
-  loaded = sprout_load(&host.record, (const char *)bytes, length, &world);
-  if (loaded != SPROUT_OK) fprintf(out, "load: %s\n", sprout_status_text(loaded));
+  loaded = sprout_load_explained(&host.record, (const char *)bytes, length, &world, &refusal);
+  if (loaded != SPROUT_OK) {
+    fprintf(err, "sproutc: %s: %s\n", o.world, loaded == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(loaded));
+    free(bytes);
+    sproutc_host_close(&host);
+    return 1;
+  }
+  if (o.state != NULL) {
+    why = rewrite_state(&host, world, out);
+    if (why != NULL) {
+      fprintf(err, "sproutc: %s\n", why);
+      sprout_world_free(world);
+      free(bytes);
+      sproutc_host_close(&host);
+      return 1;
+    }
+  }
   if (o.script != NULL) {
     why = sproutc_readings_open(&readings, &host.record, readings_path(&o, path, sizeof path));
     if (why != NULL) {
       fprintf(err, "sproutc: %s\n", why);
       code = 1;
     } else {
-      code = play_script(&host, loaded == SPROUT_OK ? world : NULL, loaded, &readings, out, err);
+      code = play_script(&host, world, loaded, &readings, out, err);
       sproutc_readings_close(&readings);
     }
-  } else if (loaded != SPROUT_OK && loaded != SPROUT_NOT_YET) {
-    code = 1;
   }
+  sprout_world_free(world);
   free(bytes);
   sproutc_host_close(&host);
   return code;

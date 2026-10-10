@@ -18,7 +18,18 @@ static void put(const char *path, const void *bytes, size_t length) {
 
 static void put_world(void) {
   size_t length;
-  unsigned char *bytes = build_cartridge(EMPTY_BODIED_JSON, 1, 1, &length);
+  char path[1024];
+  FILE *file;
+  unsigned char *bytes;
+  snprintf(path, sizeof path, "%s/printers_shop.sproutworld", SPROUT_CARTRIDGES);
+  file = fopen(path, "rb");
+  if (file == NULL) exit(2);
+  fseek(file, 0, SEEK_END);
+  length = (size_t)ftell(file);
+  fseek(file, 0, SEEK_SET);
+  bytes = (unsigned char *)malloc(length);
+  if (bytes == NULL || fread(bytes, 1, length, file) != length) exit(2);
+  fclose(file);
   put(WORLD, bytes, length);
   free(bytes);
 }
@@ -41,13 +52,13 @@ static int run(int argc, char **argv) {
   return code;
 }
 
-static void the_header_and_manifest_are_printed_and_the_load_that_is_not_built_is_told_in_words(void) {
+static void the_header_and_manifest_are_printed_and_the_world_loads(void) {
   char *argv[] = {"play", (char *)WORLD};
   put_world();
   CHECK_INT(run(2, argv), 0);
-  CHECK(strstr(slurp(OUT), "name: bare\n") != NULL);
-  CHECK(strstr(slurp(OUT), "files: 2\n  bare.sprout\n  room.sprout\n") != NULL);
-  CHECK(strstr(slurp(OUT), "load: this part of the runtime is declared and not built yet.\n") != NULL);
+  CHECK(strstr(slurp(OUT), "name: printers_shop\n") != NULL);
+  CHECK(strstr(slurp(OUT), "libraries: 1\n  sprout 0.1.0 ") != NULL);
+  CHECK(strstr(slurp(OUT), "load:") == NULL);
   CHECK_STR(slurp(ERR), "");
   remove(WORLD);
 }
@@ -62,8 +73,7 @@ static void a_script_stops_at_its_first_turn_and_says_so_with_the_not_yet_exit(v
   put(SCRIPT, "{\"steps\":[]}", 12);
   put(READINGS, readings, strlen(readings));
   CHECK_INT(run(6, argv), SPROUTC_EXIT_NOT_YET);
-  CHECK(strstr(slurp(OUT), "--- play\n## step 1: @arrive Ines\n!! the world is not loaded (") != NULL);
-  CHECK(strstr(slurp(OUT), "not built yet.), so the play stops here.\n") != NULL);
+  CHECK(strstr(slurp(OUT), "--- play\n## step 1: @arrive Ines\n!! the runtime has no call for an arrival yet, so the play stops here.\n") != NULL);
   CHECK(strstr(slurp(OUT), "## step 0") == NULL);
   remove(WORLD);
   remove(SCRIPT);
@@ -98,9 +108,60 @@ static void a_bad_command_line_and_a_bad_file_are_refused_in_words(void) {
   remove(SCRIPT);
 }
 
+static void a_stored_world_is_read_opened_and_written_back_and_a_second_pass_changes_nothing(void) {
+  size_t length;
+  const char *state = "sproutc-play-test-state.json";
+  char *argv[] = {"play", (char *)WORLD, "--state", (char *)state};
+  char *canon = test_golden("stored-canon.json", &length);
+  char first[16384], second[16384];
+  put_world();
+  put(state, canon, length);
+  CHECK_INT(run(4, argv), 0);
+  CHECK(strstr(slurp(OUT), "state: 16 instances, 1 visitors, 1 dormant, 2 dropped\n") != NULL);
+  strcpy(first, slurp(state));
+  CHECK(strstr(first, "\"world\":\"printers_shop\"") != NULL);
+  CHECK_INT(run(4, argv), 0);
+  strcpy(second, slurp(state));
+  CHECK_STR(second, first);
+  CHECK(strstr(slurp(OUT), "1 dormant, 0 dropped\n") != NULL);
+  free(canon);
+  remove(state);
+  remove(WORLD);
+}
+
+static void a_store_that_is_not_readable_or_is_another_worlds_is_refused_in_words(void) {
+  const char *state = "sproutc-play-test-state.json";
+  char *argv[] = {"play", (char *)WORLD, "--state", (char *)state};
+  const char *other = "{\"world\":\"teashop\",\"serial\":0,\"instances\":[],\"visitors\":[],\"tombstones\":[]}";
+  put_world();
+  put(state, other, strlen(other));
+  CHECK_INT(run(4, argv), 1);
+  CHECK(strstr(slurp(ERR), "sproutc-play-test-state.json: The stored state is not readable: the store holds `teashop`, and this is `printers_shop`.") != NULL);
+  put(state, "{", 1);
+  CHECK_INT(run(4, argv), 1);
+  CHECK(strstr(slurp(ERR), "the store is not JSON") != NULL);
+  remove(state);
+  remove(WORLD);
+}
+
+static void a_cartridge_the_runtime_refuses_is_refused_with_its_words(void) {
+  unsigned char *bytes;
+  size_t length;
+  char *argv[] = {"play", (char *)WORLD};
+  bytes = build_cartridge(EMPTY_BODIED_JSON, 1, 1, &length);
+  put(WORLD, bytes, length);
+  free(bytes);
+  CHECK_INT(run(2, argv), 1);
+  CHECK(strstr(slurp(ERR), "sproutc-play-test.sproutworld: This cartridge is not shaped as a cartridge is") != NULL);
+  remove(WORLD);
+}
+
 int main(void) {
-  RUN(the_header_and_manifest_are_printed_and_the_load_that_is_not_built_is_told_in_words);
+  RUN(the_header_and_manifest_are_printed_and_the_world_loads);
   RUN(a_script_stops_at_its_first_turn_and_says_so_with_the_not_yet_exit);
+  RUN(a_stored_world_is_read_opened_and_written_back_and_a_second_pass_changes_nothing);
+  RUN(a_store_that_is_not_readable_or_is_another_worlds_is_refused_in_words);
+  RUN(a_cartridge_the_runtime_refuses_is_refused_with_its_words);
   RUN(a_script_with_no_readings_beside_it_is_refused_in_words);
   RUN(a_bad_command_line_and_a_bad_file_are_refused_in_words);
   remove(OUT);

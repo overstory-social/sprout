@@ -148,6 +148,18 @@ over generated input: from a seed it plays offered, refused and unreadable
 lines, ticks and time through both runtimes and writes the first divergence
 as a transcript under the world's `transcripts/`, to be fixed and kept.
 
+The C unit tests that load worlds and stores are held to goldens the
+TypeScript specs write, in `corpus/goldens/`: `catalogues.json` (every corpus
+world's ids, kinds, properties, verbs and typed phrases, written by
+`cartridge.spec.ts`), `stored-worlds.json` (each world's initial state and
+states from its transcripts) and `stored-reopened.json` (stored worlds edited
+against their world, with TypeScript's `loadWorld` result and report), the last
+two written by `play.spec.ts`. A spec compares what it computes with the file
+and fails on a difference; `SPROUT_WRITE_GOLDENS=1 npx vitest run …` rewrites
+it, and the diff is read like any golden. The C tests need the TypeScript build
+first (`npm run build`), since ctest packs the corpus worlds through the built
+CLI.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same

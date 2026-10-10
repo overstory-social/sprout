@@ -25,15 +25,6 @@ const char *sprout_status_text(sprout_status status) {
   return "the runtime gave a status it has no words for.";
 }
 
-sprout_status sprout_load(const sprout_host *host, const char *cartridge, size_t length,
-                          sprout_world **world) {
-  (void)host;
-  (void)cartridge;
-  (void)length;
-  if (world != NULL) *world = NULL;
-  return SPROUT_NOT_YET;
-}
-
 sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_turn *turn,
                               sprout_outcome *outcome) {
   (void)world;

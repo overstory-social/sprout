@@ -13,15 +13,12 @@ static void every_status_has_text_a_host_can_show(void) {
   CHECK(strlen(sprout_status_text((sprout_status)99)) > 10);
 }
 
-static void loading_and_running_a_turn_say_they_are_not_built_yet(void) {
+static void running_a_turn_says_it_is_not_built_yet(void) {
   sprout_host host;
-  sprout_world *world = (sprout_world *)&host;
   sprout_turn turn = {SPROUT_TURN_COMMAND, "v-1", "look", 4};
   sprout_outcome outcome;
   memset(&host, 0, sizeof host);
   outcome.faulted = true;
-  CHECK_INT(sprout_load(&host, "{}", 2, &world), SPROUT_NOT_YET);
-  CHECK(world == NULL);
   CHECK_INT(sprout_run_turn(NULL, NULL, &turn, &outcome), SPROUT_NOT_YET);
   CHECK(!outcome.faulted);
   CHECK(strstr(sprout_status_text(SPROUT_NOT_YET), "not built yet") != NULL);
@@ -29,6 +26,6 @@ static void loading_and_running_a_turn_say_they_are_not_built_yet(void) {
 
 int main(void) {
   RUN(every_status_has_text_a_host_can_show);
-  RUN(loading_and_running_a_turn_say_they_are_not_built_yet);
+  RUN(running_a_turn_says_it_is_not_built_yet);
   return REPORT();
 }

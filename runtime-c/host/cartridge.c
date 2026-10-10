@@ -1,7 +1,6 @@
 /* The cartridge's prefix and header section, read for the desktop host; see cartridge.h. */
 #include "cartridge.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "arena.h"
@@ -30,6 +29,7 @@ const char *sproutc_cartridge_describe(FILE *out, const sprout_host *host, const
   char *json = NULL;
   size_t json_length = 0;
   sprout_arena arena;
+  const char *unpack = NULL;
   sprout_json *root = NULL;
   sprout_json_error error;
   const sprout_json *header, *files, *libraries;
@@ -37,24 +37,21 @@ const char *sproutc_cartridge_describe(FILE *out, const sprout_host *host, const
   static char problem[160];
 
   if (why != NULL) return why;
-  why = sproutc_gunzip(bytes + SPROUTC_CARTRIDGE_HEADER_BYTES, length - SPROUTC_CARTRIDGE_HEADER_BYTES,
-                       &json, &json_length);
-  if (why != NULL) return why;
-  if (sprout_arena_init(&arena, host) != SPROUT_OK) {
-    free(json);
-    return "the host record cannot give the reader memory.";
+  if (sprout_arena_init(&arena, host) != SPROUT_OK) return "the host record cannot give the reader memory.";
+  if (sprout_gunzip(&arena, bytes + SPROUTC_CARTRIDGE_HEADER_BYTES, length - SPROUTC_CARTRIDGE_HEADER_BYTES,
+                    &json, &json_length, &unpack) != SPROUT_OK) {
+    sprout_arena_reset(&arena);
+    return unpack != NULL ? unpack : "the host record cannot give the reader memory.";
   }
   if (sprout_json_read(&arena, json, json_length, &root, &error) != SPROUT_OK) {
     snprintf(problem, sizeof problem, "the cartridge's JSON would not read, at line %zu, column %zu: %s",
              error.line, error.column, error.text);
     sprout_arena_reset(&arena);
-    free(json);
     return problem;
   }
   header = root != NULL && root->kind == SPROUT_JSON_OBJECT ? sprout_json_get(root, "header") : NULL;
   if (header == NULL || header->kind != SPROUT_JSON_OBJECT) {
     sprout_arena_reset(&arena);
-    free(json);
     return "the cartridge has no `header` section: it is damaged, or not from `sprout pack`.";
   }
   fprintf(out, "cartridge format: %u\n", format);
@@ -76,6 +73,5 @@ const char *sproutc_cartridge_describe(FILE *out, const sprout_host *host, const
     fprintf(out, "  %s %s %s\n", text_of(one, "name"), text_of(one, "version"), text_of(one, "sha"));
   }
   sprout_arena_reset(&arena);
-  free(json);
   return NULL;
 }
