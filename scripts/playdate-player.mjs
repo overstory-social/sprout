@@ -15,8 +15,11 @@
 //
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
 // shipping scripts, builds the Simulator target, runs the C glue's tests and the Lua tests, checks
-// that the app shelves every graduated world, and plays the save the glue wrote through `sproutc`.
-// It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
+// that the app shelves every graduated world, plays the save the glue wrote through `sproutc`, and
+// plays each graduated world's listed plays (`"plays"` in worlds.json, scripts under the world's
+// folder) through `sproutc` with the view polled first under the app's poll budget, so every
+// reading a play makes is one the sentence builder could build. It needs the Playdate SDK
+// (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -34,6 +37,7 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { playAndCompare } from './replay-runtime-c.mjs';
 import { readingsPath, resolveFile } from './resolve-script.mjs';
 import { runtimeCBuild, sanitizedHere } from './runtime-c-build.mjs';
 
@@ -70,10 +74,11 @@ export function sdkPath() {
 /**
  * Reads the list of graduated worlds: each entry names a world folder (a name under corpus/good, or
  * a path from the repository root or absolute, which may reach into a sibling checkout such as
- * sprout-studio) and the title it is listed under. The cartridge is named for the world's own name,
+ * sprout-studio), the title it is listed under, and `plays`, scripts under the world's folder the
+ * app must be able to play (none where left out). The cartridge is named for the world's own name,
  * the manifest's, since a folder may be called anything. Throws, saying what to write, for a list
- * that is not that shape, or that names a world twice, one that is not there, or one with no
- * manifest.
+ * that is not that shape, or that names a world twice, one that is not there, one with no
+ * manifest, or a play that is not there.
  */
 export function readGraduated(file = WORLDS_FILE) {
   let list;
@@ -111,8 +116,65 @@ export function readGraduated(file = WORLDS_FILE) {
     const name = manifestName(join(dir, 'sprout.json'), file, entry.world);
     if (seen.has(name)) throw new Error(`${file}: the world "${name}" is listed twice.`);
     seen.add(name);
-    return { world: entry.world, title: entry.title, dir, file: `${name}.sproutworld` };
+    const plays = entry.plays ?? [];
+    if (!Array.isArray(plays) || plays.some((play) => typeof play !== 'string' || play === '')) {
+      throw new Error(
+        `${file}: "plays" of the world "${entry.world}" should be a list of script paths under its folder.`,
+      );
+    }
+    for (const play of plays) {
+      if (!existsSync(join(dir, play)))
+        throw new Error(
+          `${file}: the play "${play}" of the world "${entry.world}" is not at ${join(dir, play)}.`,
+        );
+    }
+    return { world: entry.world, title: entry.title, dir, file: `${name}.sproutworld`, plays };
   });
+}
+
+/** The poll budget the app ships, read from src/budgets.h, the one place it is written. */
+export function appPollSteps() {
+  const header = readFileSync(join(player, 'src/budgets.h'), 'utf8');
+  const match = /^#define PLAYER_POLL_STEPS (\d+)$/m.exec(header);
+  if (match === null)
+    throw new Error('sprout-player/src/budgets.h no longer defines PLAYER_POLL_STEPS.');
+  return Number(match[1]);
+}
+
+/**
+ * Plays each graduated world's listed plays through `sproutc` over the cartridge the build packed, the
+ * view polled before each command under the app's poll budget: every reading must be offered and every
+ * line must be the TypeScript runtime's. Returns one line of what ran; throws naming the first play that
+ * did not.
+ */
+export function checkPlays(staged, cartridges, sproutcDir, scratch, prefix = []) {
+  const steps = appPollSteps();
+  let count = 0;
+  let widest = 0;
+  for (const { dir, file, plays, title } of staged) {
+    for (const play of plays) {
+      const script = join(scratch, `${basename(dir)}-${basename(play)}`);
+      copyFileSync(join(dir, play), script);
+      const result = playAndCompare(
+        join(sproutcDir, 'sproutc'),
+        join(cartridges, file),
+        script,
+        false,
+        {},
+        { offered: true, pollSteps: steps, prefix },
+      );
+      if (result.how !== 'passed') {
+        throw new Error(
+          `${title}: ${play} ${result.how} through the app's view and sproutc:\n${result.why}`,
+        );
+      }
+      count++;
+      widest = Math.max(widest, result.widest);
+    }
+  }
+  return count === 0
+    ? 'no plays listed for the graduated worlds'
+    : `${count} listed play${count === 1 ? '' : 's'} built from the view under the app's ${steps}-step poll budget (the widest poll ${widest} steps)`;
 }
 
 /** The world's name as its manifest records it; throws where the manifest is missing or has none. */
@@ -400,6 +462,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
     ran.push(roundTrip(keep, cartridges, sproutcDir, prefix));
     ran.push(builtMatchesTyped(keep, cartridges, sproutcDir, prefix));
+    ran.push(checkPlays(staged, join(pdxSource, 'worlds'), sproutcDir, scratch, prefix));
 
     if (sanitize) {
       ran.push('device target not built under the sanitizers');

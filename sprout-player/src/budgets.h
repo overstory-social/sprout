@@ -14,6 +14,16 @@
 
 #include "sprout.h"
 
+/*
+ * The poll's step budget, the one figure the app raises above the spec's default of 10,000: a poll
+ * lists every reading a visitor could make, so it grows with the verbs a world declares and the
+ * things in range, and the studio's `underground_caverns` spends 344,254 steps in its fullest room
+ * (the living room with every treasure in the case). The build plays each graduated world's listed
+ * plays under this figure (scripts/playdate-player.mjs), so a world that outgrows it fails the build
+ * rather than greying its rooms.
+ */
+#define PLAYER_POLL_STEPS 500000
+
 /* Fills the rows of `budgets`: every row the spec gives a figure, and the host's own for the rest but people in a place, which the spec leaves unbounded. */
 void player_budgets(sprout_budgets *budgets);
 

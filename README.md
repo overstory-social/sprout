@@ -117,7 +117,9 @@ node scripts/fuzz-runtime.mjs --corpus --readings 2000       # the C runtime aga
 ```
 
 `sproutc` is the C runtime's desktop host, built under `${TMPDIR}/sprout-runtime-c-<hash>/`:
-`sproutc play <cartridge> [--state f] [--script s]`, `sproutc view <cartridge> --state f [--json]`
+`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n]` (with `--offered` the view is
+polled before each command and must offer the reading, as the Playdate's sentence builder needs),
+`sproutc view <cartridge> --state f [--json]`
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each
 check holds the C runtime to.
@@ -170,7 +172,10 @@ A cartridge made by `sprout pack` and copied into the app's Data folder (in the 
 `$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The pdx
 carries the graduated worlds listed in `sprout-player/worlds.json`, today the worked microworld
 `printers_shop` and the studio's finished `underground_caverns`, reached by path in a
-`sprout-studio` checkout beside this one; the shelf's last row fetches more from a signed index
+`sprout-studio` checkout beside this one; a world may list `plays`, scripts under its folder the
+build plays through `sproutc` with the view polled first under the app's poll budget, so the pdx
+never ships a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
+shelf's last row fetches more from a signed index
 (`node scripts/publish-index.mjs --generate-key <prefix>` makes the publisher's key, which never
 enters this repository; `publish-index.mjs <folder> --base-url <url> --key <file>` writes the
 index; the app is built with the public half through `SPROUT_INDEX_PUBLIC_KEY`, and

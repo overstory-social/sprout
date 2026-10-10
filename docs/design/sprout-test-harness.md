@@ -306,6 +306,15 @@ variable is not set).
   `sproutc`: the save must read and write back byte for byte, and the turns
   built from the view's chips must leave the stored world the same lines typed
   leave (`corpus/good/chip-tree`, `corpus/good/value-first`).
+- **The listed plays of the shipped worlds.** Each graduated world may list
+  plays in `sprout-player/worlds.json` (the studio's `underground_caverns`
+  lists the whole of Zork, `tests/walkthrough.json`); the player step resolves
+  each with the TypeScript parser and plays it through `sproutc play
+  --offered --poll-steps` under the app's own poll budget, which polls the
+  view before every command and fails where the reading is not among what it
+  offers, a set role one member at a time, as the sentence builder builds it,
+  and compares every line with the TypeScript runtime's. A world the chips
+  cannot play to the end, or that outgrows the poll budget, fails the build.
 - **Shipped worlds and downloads** are tested at each seam, with no network.
   `ed25519.test.c` holds the signature check to all of RFC 8032 section 7.1's
   vectors (and refuses a key or R of small order or in a non-canonical

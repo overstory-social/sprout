@@ -258,7 +258,10 @@ degrees of crank for a step). It lists the verbs in the view's order, then
 what fills each role, then a word or a number for each value role (a number
 role is on the crank, with left and right moving it by ten), then confirm.
 A leaf the consent pass refuses is drawn greyed with its reason and cannot
-be confirmed. A set role is joined from the singletons the view offers:
+be confirmed. An optional tool is a step of its own, since the view offers
+the reading with it left out and filled by each thing that fits: after the
+target the wheel offers the sword beside "that's all". A set role is
+joined from the singletons the view offers:
 after the first member the wheel offers the others and "that's all", and
 the roles after it are offered under the first member. A finished reading
 lists the roles a thing fills in the tree's order and then its value roles,
@@ -372,13 +375,19 @@ goes back, and the shelf says what happened and still lists what it has.
 ### Budgets the app ships
 
 One table (`src/budgets.c`): the spec's figures where it gives one (50,000
-steps, 10,000 poll steps, 8,000 output characters, 256 events, cascade 20,
-passages 8, set role 8, spawns 8, shortest wake 60 seconds, one pending
-wake, nickname 24, lists 16); people in a place unbounded, since a device
-has one visitor; and where the spec leaves the row to the host, 64
-extension effects a turn, a five-second wall clock and 1,024 live
-instances. The steps are the spec's and are not tuned: the Simulator runs
-far faster than the console. The ten static caps with figures are checked
+steps, 8,000 output characters, 256 events, cascade 20, passages 8, set
+role 8, spawns 8, shortest wake 60 seconds, one pending wake, nickname 24,
+lists 16); people in a place unbounded, since a device has one visitor; and
+where the spec leaves the row to the host, 64 extension effects a turn, a
+five-second wall clock and 1,024 live instances. The poll's budget is the
+app's own, `PLAYER_POLL_STEPS` in `src/budgets.h`, 500,000 where the spec's
+default is 10,000: a poll lists every reading a visitor could make, and the
+studio's `underground_caverns` spends 344,254 steps in its fullest room (the
+living room with every treasure in the case, 12,153 readings, a 2.7 MB chip
+tree); under 10,000 it faulted in 343 of its walkthrough's 354 rooms. The
+build holds each graduated world's listed plays to that figure. The other
+steps are the spec's and are not tuned: the Simulator runs far faster than
+the console. The ten static caps with figures are checked
 against a cartridge's recorded ones when it is shelved, and one recorded
 larger is refused cap by cap in the TypeScript host's words, less the offer
 of an exception; the five the spec leaves to the host (places, objects,
@@ -395,10 +404,15 @@ the save through `sproutc` (the save must read and write back byte for byte,
 and the turns built from the view's chips must leave the stored world the
 same lines typed leave); the download screen over a fake network, files and
 engine; the signature check against RFC 8032; every packed world shelved;
-and the Node specs for the index and the build. The Simulator target must
-compile and `pdc` must package the pdx; the device target is built too where
-`arm-none-eabi-gcc` is installed. `docs/design/sprout-test-harness.md`
-lists each.
+the Node specs for the index and the build; and each graduated world's
+listed plays (`"plays"` in `worlds.json`, scripts under the world's folder)
+played through `sproutc play --offered` over the packed cartridge, the view
+polled before every command under the app's poll budget and each reading
+required to be among what it offers, a set role one member at a time, as the
+sentence builder builds it, with every line the TypeScript runtime's. The
+Simulator target must compile and `pdc` must package the pdx; the device
+target is built too where `arm-none-eabi-gcc` is installed.
+`docs/design/sprout-test-harness.md` lists each.
 
 ### What has run on a screen, and what has not
 
@@ -418,8 +432,11 @@ Not yet checked:
   guesses);
 - how long `json.decode` takes on the view of a big world on the device;
 - the budgets, tuned on hardware (the Simulator is far faster);
-- the memory of a big world on a console's 16 MB (`underground_caverns`
-  packs to 1.5 MB and plays through `sproutc`);
+- the memory and the time of a big world on a console's 16 MB and 168 MHz:
+  `underground_caverns` packs to 1.5 MB, its stored world is 480 KB, and
+  its fullest room polls 344,254 steps into a 2.7 MB chip tree that
+  `json.decode` must read every turn; it plays whole through `sproutc` and
+  the Simulator;
 - a real network fetch, and the system's permission dialog: what the system
   returns when the person refuses is not documented, so a refusal is read
   as `http.new` returning nothing or the request failing, both told in

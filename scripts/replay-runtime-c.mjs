@@ -57,23 +57,39 @@ function transcriptSays(script) {
 /**
  * Plays the script file `script` (its readings are written beside it) over `cartridge` through `sproutc` and
  * compares it with what the TypeScript runtime did, and, where `transcript` is set, with what the script
- * itself expects, under the host's default budgets less any `budgets` given. `how` is `passed`; `differs`, with the first step that went another way in `why`; or
- * `failed`. `echoed` is how many turns the parser answered and the play echoed.
+ * itself expects, under the host's default budgets less any `budgets` given. With `offered`, the view is
+ * polled before each command under `pollSteps` (the host's default where unset) and must offer the reading,
+ * as the Playdate's sentence builder needs it to; `widest` is then the most steps a poll spent; `prefix` is
+ * the words a sanitized `sproutc` is launched behind (player/src/aslr.ts). `how` is
+ * `passed`; `differs`, with the first step that went another way in `why`; or `failed`. `echoed` is how many
+ * turns the parser answered and the play echoed.
  */
-export function playAndCompare(sproutc, cartridge, script, transcript = false, budgets = {}) {
+export function playAndCompare(
+  sproutc,
+  cartridge,
+  script,
+  transcript = false,
+  budgets = {},
+  { offered = false, pollSteps = undefined, prefix = [] } = {},
+) {
   const text = resolveFile(cartridge, script, budgets);
   writeFileSync(readingsPath(script), text);
   const readings = JSON.parse(text);
   const tracePath = `${script}.trace`;
-  const done = spawnSync(sproutc, ['play', cartridge, '--script', script, '--trace', tracePath], {
-    encoding: 'utf8',
-    maxBuffer: 1 << 28,
-  });
+  const args = ['play', cartridge, '--script', script, '--trace', tracePath];
+  if (offered) args.push('--offered');
+  if (pollSteps !== undefined) args.push('--poll-steps', String(pollSteps));
+  const [command, ...before] = [...prefix, sproutc];
+  const done = spawnSync(command, [...before, ...args], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  const widest = Number(
+    /^--- offered: .* the widest poll (\d+) steps$/m.exec(done.stdout ?? '')?.[1] ?? 0,
+  );
   if (done.status !== 0) {
     return {
       how: 'failed',
       why: (done.stderr || done.stdout || `exit ${done.status}`).trim(),
       echoed: 0,
+      widest,
     };
   }
   const trace = traceOf(existsSync(tracePath) ? readFileSync(tracePath, 'utf8') : '');
@@ -83,7 +99,7 @@ export function playAndCompare(sproutc, cartridge, script, transcript = false, b
       sum + (step.kind === 'command' ? step.turns.filter((turn) => turn.skip).length : 0),
     0,
   );
-  if (differs !== null) return { how: 'differs', why: differs, echoed };
+  if (differs !== null) return { how: 'differs', why: differs, echoed, widest };
   if (transcript) {
     const wanted = transcriptSays(readScript(readFileSync(script, 'utf8'), script));
     for (const [index, lines] of wanted) {
@@ -95,11 +111,12 @@ export function playAndCompare(sproutc, cartridge, script, transcript = false, b
           how: 'differs',
           why: `step ${index} said\n${got.join('\n') || '(nothing)'}\nand the transcript has\n${lines.join('\n') || '(nothing)'}`,
           echoed,
+          widest,
         };
       }
     }
   }
-  return { how: 'passed', why: '', echoed };
+  return { how: 'passed', why: '', echoed, widest };
 }
 
 function replayOne(sproutc, cartridge, world, folder, file, scratch) {

@@ -10,7 +10,7 @@ static void every_row_the_spec_gives_a_figure_for_is_set(void) {
   CHECK(sizeof budgets == 16 * sizeof(sprout_limit), "the budgets table has %zu rows", sizeof budgets / sizeof(sprout_limit));
   /* The spec's Runtime budgets table. */
   CHECK(budgets.steps.set && budgets.steps.value == 50000, "steps");
-  CHECK(budgets.poll_steps.set && budgets.poll_steps.value == 10000, "poll steps");
+  CHECK(budgets.poll_steps.set && budgets.poll_steps.value == PLAYER_POLL_STEPS, "poll steps");
   CHECK(budgets.output.set && budgets.output.value == 8000, "output");
   CHECK(budgets.events.set && budgets.events.value == 256, "events");
   CHECK(budgets.cascade_depth.set && budgets.cascade_depth.value == 20, "cascade depth");

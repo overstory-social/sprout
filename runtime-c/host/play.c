@@ -15,14 +15,16 @@
 
 #define USAGE                                                                                          \
   "sproutc: write `sproutc play <world.sproutworld> [--state save.json] [--script script.json]\n"     \
-  "         [--readings file] [--trace file] [--clock N]`. --clock N moves the fake clock on N\n"     \
-  "         milliseconds at each read; --readings names the file `node scripts/resolve-script.mjs`\n" \
-  "         wrote for the script; --trace names the file one line of the stored world and the log is\n" \
-  "         written to after each step.\n"
+  "         [--readings file] [--trace file] [--clock N] [--offered] [--poll-steps N]`. --clock N\n" \
+  "         moves the fake clock on N milliseconds at each read; --readings names the file\n"         \
+  "         `node scripts/resolve-script.mjs` wrote for the script; --trace names the file one line\n" \
+  "         of the stored world and the log is written to after each step; --offered polls the view\n" \
+  "         before each command and fails where it does not offer the reading, under --poll-steps.\n"
 
 typedef struct options {
   const char *world, *state, *script, *readings, *trace;
   uint64_t clock;
+  sproutc_play_options play;
 } options;
 
 static bool whole_number(const char *text, uint64_t *out) {
@@ -50,6 +52,15 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
         snprintf(words, size, "--clock wants a whole number of milliseconds after it, as in `--clock 5`.");
         return words;
       }
+      i++;
+    } else if (strcmp(flag, "--offered") == 0) {
+      o->play.offered = true;
+    } else if (strcmp(flag, "--poll-steps") == 0) {
+      if (i + 1 >= argc || !whole_number(argv[i + 1], &o->play.poll_steps)) {
+        snprintf(words, size, "--poll-steps wants a whole number after it, as in `--poll-steps 200`.");
+        return words;
+      }
+      o->play.has_poll_steps = true;
       i++;
     } else if (slot != NULL) {
       if (i + 1 >= argc) {
@@ -170,7 +181,7 @@ static int play(sproutc_host *host, sprout_world *world, const options *o, sprou
       return 1;
     }
   }
-  code = sproutc_play_script(host, world, state, readings, out, err, trace);
+  code = sproutc_play_script(host, world, state, readings, &o->play, out, err, trace);
   if (trace != NULL) fclose(trace);
   if (code == 0 && host->state != NULL) {
     why = save_state(host, state);

@@ -1,6 +1,10 @@
 {
   "graduated": [
     { "world": "printers_shop", "title": "Printer's Shop" },
-    { "world": "../sprout-studio/worlds/underground_caverns/world", "title": "Underground Caverns" }
+    {
+      "world": "../sprout-studio/worlds/underground_caverns/world",
+      "title": "Underground Caverns",
+      "plays": ["tests/walkthrough.json"]
+    }
   ]
 }

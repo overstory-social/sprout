@@ -10,10 +10,11 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  TEST_PUBLIC_KEY,
-  WORLDS_FILE,
+  appPollSteps,
   readGraduated,
   stageWorlds,
+  TEST_PUBLIC_KEY,
+  WORLDS_FILE,
   writePublicKey,
 } from './playdate-player.mjs';
 
@@ -36,6 +37,39 @@ test("the graduated list in the repository ships the worked microworld and the s
   }
   assert.equal(new Set(list.map((entry) => entry.file)).size, list.length);
   for (const entry of list) assert.ok(existsSync(join(entry.dir, 'sprout.json')), entry.world);
+  const caverns = list.find((entry) => entry.file === 'underground_caverns.sproutworld');
+  assert.deepEqual(caverns.plays, ['tests/walkthrough.json'], 'the whole of Zork is a listed play');
+});
+
+test('a world may list plays under its folder, and one that is not there is refused by name', () => {
+  const list = readGraduated(
+    listFile({
+      graduated: [{ world: 'chip-tree', title: 'Chip Tree', plays: ['transcripts/chips.json'] }],
+    }),
+  );
+  assert.deepEqual(list[0].plays, ['transcripts/chips.json']);
+  assert.deepEqual(
+    readGraduated(listFile({ graduated: [{ world: 'teashop', title: 'T' }] }))[0].plays,
+    [],
+  );
+  assert.throws(
+    () =>
+      readGraduated(
+        listFile({
+          graduated: [{ world: 'chip-tree', title: 'C', plays: ['transcripts/none.json'] }],
+        }),
+      ),
+    /the play "transcripts\/none.json" of the world "chip-tree" is not at/,
+  );
+  assert.throws(
+    () =>
+      readGraduated(listFile({ graduated: [{ world: 'chip-tree', title: 'C', plays: 'chips' }] })),
+    /"plays" of the world "chip-tree" should be a list/,
+  );
+});
+
+test('the poll budget the plays are held to is the one src/budgets.h defines', () => {
+  assert.ok(Number.isInteger(appPollSteps()) && appPollSteps() > 10_000);
 });
 
 test('a world is named by its corpus/good name or by a path from the repository root, and its cartridge for its manifest', () => {
