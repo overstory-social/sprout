@@ -6,7 +6,7 @@
  * the cartridge's graph that holds it; replaying one runs the body, drains
  * the queue, and compares what it ended in with what the TypeScript runtime
  * ended in: the committed state or the fault, the steps, the effects in
- * order, the handlers that ran, the descriptions owed and the readings left.
+ * order, the handlers that ran and the descriptions owed.
  */
 #ifndef SPROUT_TEST_EXEC_FIXTURE_H
 #define SPROUT_TEST_EXEC_FIXTURE_H
@@ -72,23 +72,26 @@ static inline sprout_str exec_str(const char *text) {
   return str;
 }
 
-static inline void exec_bench_open(exec_bench *b) {
+/* A bench over a cartridge and the golden written beside it, both from corpus/goldens. */
+static inline void exec_bench_open_files(exec_bench *b, const char *cartridge, const char *golden) {
   size_t golden_length;
   char *text;
   sprout_json_error error;
   sprout_json *root = NULL;
   memset(b, 0, sizeof *b);
   b->host = corpus_host(&b->heap);
-  b->cartridge = test_golden("exec.sproutworld", &b->cartridge_length);
-  text = test_golden("exec.json", &golden_length);
+  b->cartridge = test_golden(cartridge, &b->cartridge_length);
+  text = test_golden(golden, &golden_length);
   sprout_arena_init(&b->json, &b->host);
   if (sprout_json_read(&b->json, text, golden_length, &root, &error) != SPROUT_OK) {
-    fprintf(stderr, "exec.json: %s\n", error.text);
+    fprintf(stderr, "%s: %s\n", golden, error.text);
     exit(2);
   }
   free(text);
   b->golden = root;
 }
+
+static inline void exec_bench_open(exec_bench *b) { exec_bench_open_files(b, "exec.sproutworld", "exec.json"); }
 
 static inline void exec_bench_close(exec_bench *b) {
   sprout_arena_reset(&b->json);

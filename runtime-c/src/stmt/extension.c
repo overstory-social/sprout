@@ -43,8 +43,7 @@ sprout_eval_status stmt_extension(sprout_run *run, const sprout_frame *frame, co
   effect.said.argument_count = count;
   effect.said.arguments = values;
   if (run->x->records_as_said) {
-    effect.to = run->x->heard_by;
-    effect.to_count = run->x->heard_count;
+    EXPR_NEED(sprout_exec_hearers(run->x, frame, &effect.to, &effect.to_count));
   } else {
     EXPR_NEED(sprout_told_to(run->x, frame, frame->self, SPROUT_TELL_PLACE, &effect.to, &effect.to_count));
   }

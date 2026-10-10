@@ -50,6 +50,18 @@ sprout_status sprout_json_read(sprout_arena *arena, const char *bytes, size_t le
 /* The member of an object with this name (the last, if repeated), or NULL. */
 const sprout_json *sprout_json_get(const sprout_json *object, const char *key);
 
+/* A node of this kind in the arena, with room for `members` where it is an array or an object; NULL when the host refuses a page. */
+sprout_json *sprout_json_make(sprout_arena *arena, sprout_json_kind kind, size_t members);
+
+/* A string node over bytes that outlive the tree. */
+sprout_json *sprout_json_text(sprout_arena *arena, const char *bytes, size_t length);
+
+/*
+ * Adds `child` as the next member of `parent`, whose room was sized when it was made; `key` names it in an
+ * object. A NULL child, a page the host refused, adds nothing: the caller sees it in `parent->count`.
+ */
+void sprout_json_adopt(sprout_json *parent, const char *key, sprout_json *child);
+
 /*
  * The canonical text of a tree, NUL-terminated, in the arena. SPROUT_BAD_INPUT
  * for a number that is not whole, which the stored form does not write.

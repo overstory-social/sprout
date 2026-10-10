@@ -103,6 +103,12 @@ sprout_eval_status sprout_eval_branch(const sprout_frame *frame, const sprout_no
 sprout_eval_status sprout_eval_show(const sprout_frame *frame, const sprout_evaluated *evaluated,
                                     const char **bytes, size_t *length);
 
+struct sprout_json;
+
+/* The same as a tree in the turn arena, for a caller that embeds it in a larger document. */
+sprout_eval_status sprout_eval_node(const sprout_frame *frame, const sprout_evaluated *evaluated,
+                                    struct sprout_json **out);
+
 /* What a spawn made: the new instance and what its kinds gave it, each after what holds it. */
 typedef struct sprout_spawned {
   sprout_str id;

@@ -3,8 +3,8 @@
  * (corpus/goldens/exec.json) is run here against the same cartridge and
  * stored worlds, and must end as the oracle did: the same committed state or
  * the same fault, the same steps, the same effects in the same order, the
- * same handlers run, descriptions owed and readings left for the reading
- * pass. The nineteen kinds of statement are all among them.
+ * same handlers run and descriptions owed. The nineteen kinds of statement
+ * are all among them.
  */
 #include "exec_fixture.h"
 

@@ -821,37 +821,7 @@
       "steps": 37
     }
   ],
-  "unrun": [
-    {
-      "name": "an act names its roles by what they are bound to",
-      "area": "act",
-      "node": 1305,
-      "mode": "act",
-      "self": "exec_bench.hall.dog",
-      "library": "exec_bench",
-      "state": "fresh",
-      "bind": {},
-      "heard": [],
-      "prior": null,
-      "speaker": null,
-      "leftOut": [],
-      "records": "as-said",
-      "seed": null,
-      "instant": 1000,
-      "limits": {
-        "steps": 50000,
-        "events": 256,
-        "cascadeDepth": 20,
-        "spawnsPerTurn": 8,
-        "shortestWakeSeconds": 60,
-        "pendingWakesPerObject": 1,
-        "peoplePerPlace": null,
-        "extensionEffects": null,
-        "listElements": 16,
-        "instances": null
-      }
-    }
-  ],
+  "unrun": [],
   "states": {
     "fresh": "{\"world\":\"exec_bench\",\"serial\":2,\"instances\":[{\"id\":\"exec_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"exec_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench\",\"arrival\":null,\"properties\":{\"arrivals\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.basket\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.bell\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"answers\":{\"type\":\"integer\",\"value\":0},\"depth\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.box\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.box.inner\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.box\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.cell\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest.bin\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.chest\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.chest\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.dog\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"sniffed\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.gate\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.glass\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.glass.moth\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.glass\",\"arrival\":null,\"properties\":{\"drawn\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.keeper\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.keeper.kept\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.keeper\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.lodge\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"closed\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.runner\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"count\":{\"type\":\"integer\",\"value\":0},\"glaze\":{\"type\":\"exec_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"pongs\":{\"type\":\"integer\",\"value\":0},\"trail\":{\"type\":\"integer\",\"value\":0},\"wards\":{\"type\":\"[exec_bench.Glaze]\",\"value\":[\"shino\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":2},\"filled\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.stubborn\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.tent\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.wardrobe\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Marta\",\"instance\":\"exec_bench#1\",\"lastPlace\":\"exec_bench.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
     "worn": "{\"world\":\"exec_bench\",\"serial\":15,\"instances\":[{\"id\":\"exec_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"exec_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#10\",\"made\":{\"from\":\"spawned\",\"kind\":\"exec_bench.Bubble\"},\"container\":\"exec_bench.hall\",\"arrival\":11,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#12\",\"made\":{\"from\":\"spawned\",\"kind\":\"exec_bench.Crate\"},\"container\":\"exec_bench.hall\",\"arrival\":13,\"properties\":{\"n\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#14\",\"made\":{\"from\":\"given\",\"kind\":\"exec_bench.Crate\",\"path\":[\"lid\"]},\"container\":\"exec_bench#12\",\"arrival\":15,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#4\",\"made\":{\"from\":\"visitor\"},\"container\":\"exec_bench.hall.lodge\",\"arrival\":5,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#6\",\"made\":{\"from\":\"visitor\"},\"container\":\"exec_bench.hall.wardrobe\",\"arrival\":7,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#8\",\"made\":{\"from\":\"spawned\",\"kind\":\"exec_bench.Spark\"},\"container\":\"exec_bench.hall\",\"arrival\":9,\"properties\":{\"n\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench\",\"arrival\":null,\"properties\":{\"arrivals\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.basket\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.bell\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"answers\":{\"type\":\"integer\",\"value\":0},\"depth\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.box\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.box.inner\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.box\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.cell\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest.bin\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.chest\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.chest\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.dog\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"sniffed\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.gate\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.glass\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.glass.moth\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.glass\",\"arrival\":null,\"properties\":{\"drawn\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.keeper\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.keeper.kept\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.keeper\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.lodge\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"closed\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.runner\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"count\":{\"type\":\"integer\",\"value\":4},\"glaze\":{\"type\":\"exec_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"pongs\":{\"type\":\"integer\",\"value\":0},\"trail\":{\"type\":\"integer\",\"value\":0},\"wards\":{\"type\":\"[exec_bench.Glaze]\",\"value\":[\"shino\"]}},\"links\":{},\"wakes\":[{\"serial\":3,\"askedAt\":500,\"dueAt\":800}],\"memory\":{\"exec_bench#1\":{\"visits\":{\"type\":\"integer\",\"value\":5}}},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":2},\"filled\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.stubborn\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.tent\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.wardrobe\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Marta\",\"instance\":\"exec_bench#1\",\"lastPlace\":\"exec_bench.hall\",\"referents\":[],\"lastReading\":null},{\"visit\":\"visit-2\",\"nickname\":\"Ines\",\"instance\":\"exec_bench#4\",\"lastPlace\":\"exec_bench.hall.lodge\",\"referents\":[],\"lastReading\":null},{\"visit\":\"visit-3\",\"nickname\":\"Pat\",\"instance\":\"exec_bench#6\",\"lastPlace\":\"exec_bench.hall.wardrobe\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
@@ -861,7 +831,7 @@
     {
       "name": "a let is bound for the rest of the block",
       "area": "write",
-      "node": 660,
+      "node": 665,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -905,7 +875,7 @@
     {
       "name": "set a string",
       "area": "write",
-      "node": 672,
+      "node": 677,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -944,7 +914,7 @@
     {
       "name": "set an option",
       "area": "write",
-      "node": 678,
+      "node": 683,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -983,7 +953,7 @@
     {
       "name": "adjust clamps at the top",
       "area": "write",
-      "node": 684,
+      "node": 689,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1027,7 +997,7 @@
     {
       "name": "adjust clamps at the bottom",
       "area": "write",
-      "node": 692,
+      "node": 697,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1071,7 +1041,7 @@
     {
       "name": "add an element to a list",
       "area": "write",
-      "node": 700,
+      "node": 705,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1110,7 +1080,7 @@
     {
       "name": "add an element the list holds",
       "area": "write",
-      "node": 706,
+      "node": 711,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1149,7 +1119,7 @@
     {
       "name": "remove an element from a list",
       "area": "write",
-      "node": 712,
+      "node": 717,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1188,7 +1158,7 @@
     {
       "name": "remove an element the list lacks",
       "area": "write",
-      "node": 718,
+      "node": 723,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1227,7 +1197,7 @@
     {
       "name": "a new element in a full list faults",
       "area": "write",
-      "node": 724,
+      "node": 729,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1261,7 +1231,7 @@
     {
       "name": "remember writes what self remembers about an actor",
       "area": "write",
-      "node": 730,
+      "node": 735,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1302,7 +1272,7 @@
     {
       "name": "adjust on memory steps from the default",
       "area": "write",
-      "node": 741,
+      "node": 746,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1343,7 +1313,7 @@
     {
       "name": "adjust on memory steps from what was written",
       "area": "write",
-      "node": 752,
+      "node": 757,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1384,7 +1354,7 @@
     {
       "name": "a write that changes a watched property queues its hook",
       "area": "write",
-      "node": 763,
+      "node": 768,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1428,7 +1398,7 @@
     {
       "name": "a write that changes nothing queues no hook",
       "area": "write",
-      "node": 769,
+      "node": 774,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1467,7 +1437,7 @@
     {
       "name": "two changes queue two hooks, each with the value it replaced",
       "area": "write",
-      "node": 775,
+      "node": 780,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1515,7 +1485,7 @@
     {
       "name": "a value the property cannot hold faults",
       "area": "write",
-      "node": 786,
+      "node": 791,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1549,7 +1519,7 @@
     {
       "name": "only self writes self",
       "area": "write",
-      "node": 796,
+      "node": 801,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1585,7 +1555,7 @@
     {
       "name": "text reaches a body that acts",
       "area": "write",
-      "node": 802,
+      "node": 807,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1619,7 +1589,7 @@
     {
       "name": "an if takes its then",
       "area": "if",
-      "node": 804,
+      "node": 809,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1658,7 +1628,7 @@
     {
       "name": "an if takes its else",
       "area": "if",
-      "node": 823,
+      "node": 828,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1697,7 +1667,7 @@
     {
       "name": "an else if is a step of its own",
       "area": "if",
-      "node": 842,
+      "node": 847,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1736,7 +1706,7 @@
     {
       "name": "a let lives to the end of its block",
       "area": "if",
-      "node": 873,
+      "node": 878,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1780,7 +1750,7 @@
     {
       "name": "a condition that narrows a name binds it in its branch",
       "area": "if",
-      "node": 890,
+      "node": 895,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1824,7 +1794,7 @@
     {
       "name": "each visits what a container holds that composes the kind",
       "area": "each",
-      "node": 900,
+      "node": 905,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1868,7 +1838,7 @@
     {
       "name": "each visits every thing without a filter",
       "area": "each",
-      "node": 909,
+      "node": 914,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1916,7 +1886,7 @@
     {
       "name": "each walks a shut chest as empty",
       "area": "each",
-      "node": 917,
+      "node": 922,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1955,7 +1925,7 @@
     {
       "name": "each walks an open chest",
       "area": "each",
-      "node": 917,
+      "node": 922,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2003,7 +1973,7 @@
     {
       "name": "an each inside an each is charged by the step",
       "area": "each",
-      "node": 933,
+      "node": 938,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2059,7 +2029,7 @@
     {
       "name": "an each past the step budget faults",
       "area": "each",
-      "node": 943,
+      "node": 948,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2094,7 +2064,7 @@
     {
       "name": "what an each walks is fixed before its first visit",
       "area": "each",
-      "node": 953,
+      "node": 958,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2146,7 +2116,7 @@
     {
       "name": "a refused move in an each ends the body",
       "area": "each",
-      "node": 957,
+      "node": 962,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2220,7 +2190,7 @@
     {
       "name": "a move that every party allows",
       "area": "move",
-      "node": 966,
+      "node": 971,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2268,7 +2238,7 @@
     {
       "name": "a move into a full place is refused by its accept, in its passage",
       "area": "move",
-      "node": 968,
+      "node": 973,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2331,7 +2301,7 @@
     {
       "name": "depart is asked before accept",
       "area": "move",
-      "node": 970,
+      "node": 975,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2389,7 +2359,7 @@
     {
       "name": "release is asked before accept",
       "area": "move",
-      "node": 972,
+      "node": 977,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2450,7 +2420,7 @@
     {
       "name": "release refuses alone",
       "area": "move",
-      "node": 974,
+      "node": 979,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2511,7 +2481,7 @@
     {
       "name": "an allow ends the guard that wrote it",
       "area": "move",
-      "node": 976,
+      "node": 981,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2559,7 +2529,7 @@
     {
       "name": "a guard that reaches its refuse refuses",
       "area": "move",
-      "node": 978,
+      "node": 983,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2620,7 +2590,7 @@
     {
       "name": "a refused move ends the body",
       "area": "move",
-      "node": 980,
+      "node": 985,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2683,7 +2653,7 @@
     {
       "name": "nothing goes inside itself",
       "area": "move",
-      "node": 987,
+      "node": 992,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2740,7 +2710,7 @@
     {
       "name": "a move into what holds nothing faults",
       "area": "move",
-      "node": 989,
+      "node": 994,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2776,7 +2746,7 @@
     {
       "name": "a move of what is out of range faults",
       "area": "move",
-      "node": 991,
+      "node": 996,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2812,7 +2782,7 @@
     {
       "name": "a move into what is out of range faults",
       "area": "move",
-      "node": 989,
+      "node": 994,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2848,7 +2818,7 @@
     {
       "name": "an actor moved between places is told, and the places tell their people",
       "area": "move",
-      "node": 1295,
+      "node": 1300,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -2934,7 +2904,7 @@
     {
       "name": "a place speaks to the people in its range when someone arrives",
       "area": "move",
-      "node": 1297,
+      "node": 1302,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3020,7 +2990,7 @@
     {
       "name": "an actor is not put in what holds no actors",
       "area": "move",
-      "node": 1299,
+      "node": 1304,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3077,7 +3047,7 @@
     {
       "name": "a move into a full place meets crowded before any guard",
       "area": "move",
-      "node": 1301,
+      "node": 1306,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3139,7 +3109,7 @@
     {
       "name": "without a crowd the same move meets the guards",
       "area": "move",
-      "node": 1301,
+      "node": 1306,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3201,7 +3171,7 @@
     {
       "name": "a spawn within the host’s bound on instances",
       "area": "spawn",
-      "node": 995,
+      "node": 1000,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3245,7 +3215,7 @@
     {
       "name": "a spawn past the host’s bound on instances faults",
       "area": "spawn",
-      "node": 995,
+      "node": 1000,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3279,7 +3249,7 @@
     {
       "name": "a binding to a destroyed object stays readable for the rest of the turn",
       "area": "destroy",
-      "node": 1001,
+      "node": 1006,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3289,7 +3259,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1537,
+        "node": 1559,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3328,7 +3298,7 @@
     {
       "name": "a destroyed object is not destroyed again",
       "area": "destroy",
-      "node": 1544,
+      "node": 1566,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3336,7 +3306,7 @@
       "bind": {},
       "heard": [],
       "prior": {
-        "node": 1544,
+        "node": 1566,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3365,7 +3335,7 @@
     {
       "name": "a destroyed object is out of range of a move",
       "area": "destroy",
-      "node": 1016,
+      "node": 1021,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3375,7 +3345,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1544,
+        "node": 1566,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3404,7 +3374,7 @@
     {
       "name": "a spawn into a destroyed container is out of range",
       "area": "destroy",
-      "node": 1018,
+      "node": 1023,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3414,7 +3384,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1544,
+        "node": 1566,
         "self": "exec_bench#12"
       },
       "speaker": null,
@@ -3443,7 +3413,7 @@
     {
       "name": "a spawn makes an instance in a container",
       "area": "spawn",
-      "node": 1021,
+      "node": 1026,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3491,7 +3461,7 @@
     {
       "name": "a let names the spawned object",
       "area": "spawn",
-      "node": 1024,
+      "node": 1029,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3543,7 +3513,7 @@
     {
       "name": "a spawn is given what its kind holds",
       "area": "spawn",
-      "node": 995,
+      "node": 1000,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3587,7 +3557,7 @@
     {
       "name": "a spawn past the budget faults",
       "area": "spawn",
-      "node": 1032,
+      "node": 1037,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3622,7 +3592,7 @@
     {
       "name": "a spawn out of range faults",
       "area": "spawn",
-      "node": 1018,
+      "node": 1023,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3658,7 +3628,7 @@
     {
       "name": "a spawn into what holds nothing faults",
       "area": "spawn",
-      "node": 1018,
+      "node": 1023,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3694,7 +3664,7 @@
     {
       "name": "destroy takes effect where the body ends",
       "area": "destroy",
-      "node": 1550,
+      "node": 1572,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3733,7 +3703,7 @@
     {
       "name": "finally destroy waits until the queue is empty",
       "area": "destroy",
-      "node": 1557,
+      "node": 1579,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3777,7 +3747,7 @@
     {
       "name": "a destroyed object takes what it sent with it",
       "area": "destroy",
-      "node": 1560,
+      "node": 1582,
       "mode": "act",
       "self": "exec_bench#10",
       "library": "exec_bench",
@@ -3816,7 +3786,7 @@
     {
       "name": "a destroyed container takes what it held",
       "area": "destroy",
-      "node": 1568,
+      "node": 1590,
       "mode": "act",
       "self": "exec_bench#12",
       "library": "exec_bench",
@@ -3855,7 +3825,7 @@
     {
       "name": "connect leads a link to a place",
       "area": "connect",
-      "node": 1157,
+      "node": 1162,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3899,7 +3869,7 @@
     {
       "name": "connecting a link again replaces where it leads",
       "area": "connect",
-      "node": 1162,
+      "node": 1167,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3947,7 +3917,7 @@
     {
       "name": "a link cannot lead to what holds no actors",
       "area": "connect",
-      "node": 1171,
+      "node": 1176,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3981,7 +3951,7 @@
     {
       "name": "a send is delivered once the body has ended, and answered",
       "area": "send",
-      "node": 1043,
+      "node": 1048,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4029,7 +3999,7 @@
     {
       "name": "sends are delivered in the order queued, breadth-first",
       "area": "send",
-      "node": 1045,
+      "node": 1050,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4081,7 +4051,7 @@
     {
       "name": "a send to what is out of range goes nowhere",
       "area": "send",
-      "node": 1048,
+      "node": 1053,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4120,7 +4090,7 @@
     {
       "name": "a send to what is in range of an open chest is delivered",
       "area": "send",
-      "node": 1048,
+      "node": 1053,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4164,7 +4134,7 @@
     {
       "name": "a broadcast walks the sender’s range, into a container that passes the message",
       "area": "send",
-      "node": 1052,
+      "node": 1057,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4228,7 +4198,7 @@
     {
       "name": "a broadcast reaches into an open chest",
       "area": "send",
-      "node": 1052,
+      "node": 1057,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4300,7 +4270,7 @@
     {
       "name": "an each stops at a container that refuses the question",
       "area": "each",
-      "node": 1056,
+      "node": 1061,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4339,7 +4309,7 @@
     {
       "name": "a cascade past the depth budget faults",
       "area": "bus",
-      "node": 1064,
+      "node": 1069,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4374,7 +4344,7 @@
     {
       "name": "a cascade within a smaller depth budget faults at it",
       "area": "bus",
-      "node": 1067,
+      "node": 1072,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4409,7 +4379,7 @@
     {
       "name": "events past the budget fault",
       "area": "bus",
-      "node": 1070,
+      "node": 1075,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4444,7 +4414,7 @@
     {
       "name": "a hook and a handler each run in the order queued",
       "area": "bus",
-      "node": 1073,
+      "node": 1078,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4496,7 +4466,7 @@
     {
       "name": "a wake is raised to the host’s shortest",
       "area": "wake",
-      "node": 1080,
+      "node": 1085,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4535,7 +4505,7 @@
     {
       "name": "a wake asked for longer is kept",
       "area": "wake",
-      "node": 1083,
+      "node": 1088,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4574,7 +4544,7 @@
     {
       "name": "a wake past the pending cap faults",
       "area": "wake",
-      "node": 1086,
+      "node": 1091,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4608,7 +4578,7 @@
     {
       "name": "wakes are kept oldest first",
       "area": "wake",
-      "node": 1091,
+      "node": 1096,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4647,7 +4617,7 @@
     {
       "name": "a host’s longer floor raises a wake further",
       "area": "wake",
-      "node": 1096,
+      "node": 1101,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4686,7 +4656,7 @@
     {
       "name": "cancel wakes takes back every pending wake",
       "area": "wake",
-      "node": 1099,
+      "node": 1104,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4725,7 +4695,7 @@
     {
       "name": "cancel wakes then wake puts off what was coming",
       "area": "wake",
-      "node": 1101,
+      "node": 1106,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4764,7 +4734,7 @@
     {
       "name": "cancel wakes with none pending does nothing",
       "area": "wake",
-      "node": 1105,
+      "node": 1110,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4803,7 +4773,7 @@
     {
       "name": "a tell reaches the people in the teller’s place",
       "area": "speech",
-      "node": 1108,
+      "node": 1113,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4854,7 +4824,7 @@
     {
       "name": "a tell to one reaches a person in range",
       "area": "speech",
-      "node": 1110,
+      "node": 1115,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4911,7 +4881,7 @@
     {
       "name": "a tell to one out of range reaches nobody",
       "area": "speech",
-      "node": 1112,
+      "node": 1117,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4968,7 +4938,7 @@
     {
       "name": "a tell may name a passage",
       "area": "speech",
-      "node": 1114,
+      "node": 1119,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5021,7 +4991,7 @@
     {
       "name": "a tell inside reaches only the teller’s own occupants",
       "area": "speech",
-      "node": 1148,
+      "node": 1153,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5072,7 +5042,7 @@
     {
       "name": "a tell outside reaches only the place around the teller",
       "area": "speech",
-      "node": 1150,
+      "node": 1155,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5123,7 +5093,7 @@
     {
       "name": "a plain tell from a place that holds actors reaches both audiences",
       "area": "speech",
-      "node": 1152,
+      "node": 1157,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5174,7 +5144,7 @@
     {
       "name": "a tell carries every name in scope",
       "area": "speech",
-      "node": 1116,
+      "node": 1121,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5229,7 +5199,7 @@
     {
       "name": "a say is heard by whoever the body speaks to",
       "area": "speech",
-      "node": 641,
+      "node": 646,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5290,7 +5260,7 @@
     {
       "name": "a say may name a passage",
       "area": "speech",
-      "node": 643,
+      "node": 648,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5353,7 +5323,7 @@
     {
       "name": "a tell leaves out the people the reading addresses",
       "area": "speech",
-      "node": 645,
+      "node": 650,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5432,7 +5402,7 @@
     {
       "name": "an NPC’s line is heard from it",
       "area": "speech",
-      "node": 1293,
+      "node": 1298,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5491,9 +5461,177 @@
       }
     },
     {
+      "name": "an act names its roles by what they are bound to",
+      "area": "act",
+      "node": 1310,
+      "mode": "act",
+      "self": "exec_bench.hall.dog",
+      "library": "exec_bench",
+      "state": "fresh",
+      "bind": {},
+      "heard": [],
+      "prior": null,
+      "speaker": null,
+      "leftOut": [],
+      "records": "as-said",
+      "seed": null,
+      "instant": 1000,
+      "limits": {
+        "steps": 50000,
+        "events": 256,
+        "cascadeDepth": 20,
+        "spawnsPerTurn": 8,
+        "shortestWakeSeconds": 60,
+        "pendingWakesPerObject": 1,
+        "peoplePerPlace": null,
+        "extensionEffects": null,
+        "listElements": 16,
+        "instances": null
+      },
+      "expect": {
+        "steps": 15,
+        "spawns": 0,
+        "events": 0,
+        "effects": [],
+        "ran": [],
+        "owed": [],
+        "destroyed": [],
+        "after": "{\"world\":\"exec_bench\",\"serial\":2,\"instances\":[{\"id\":\"exec_bench\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"exec_bench.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench\",\"arrival\":null,\"properties\":{\"arrivals\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.basket\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.bell\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"answers\":{\"type\":\"integer\",\"value\":0},\"depth\":{\"type\":\"integer\",\"value\":0}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.box\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.box.inner\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.box\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.cell\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest.bin\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.chest\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.chest.coin\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.chest\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.dog\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"sniffed\":{\"type\":\"integer\",\"value\":1}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.gate\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.glass\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.glass.moth\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.glass\",\"arrival\":null,\"properties\":{\"drawn\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.keeper\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.keeper.kept\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.keeper\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.lamp\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"lit\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.lodge\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"closed\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.runner\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"count\":{\"type\":\"integer\",\"value\":0},\"glaze\":{\"type\":\"exec_bench.Glaze\",\"value\":\"shino\"},\"label\":{\"type\":\"string\",\"value\":\"salt\"},\"pongs\":{\"type\":\"integer\",\"value\":0},\"trail\":{\"type\":\"integer\",\"value\":0},\"wards\":{\"type\":\"[exec_bench.Glaze]\",\"value\":[\"shino\"]}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":2},\"filled\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.shelf.jar\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall.shelf\",\"arrival\":null,\"properties\":{\"fill\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.stubborn\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.tent\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"exec_bench.hall.wardrobe\",\"made\":{\"from\":\"declared\"},\"container\":\"exec_bench.hall\",\"arrival\":null,\"properties\":{\"open\":{\"type\":\"boolean\",\"value\":false}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"visit-1\",\"nickname\":\"Marta\",\"instance\":\"exec_bench#1\",\"lastPlace\":\"exec_bench.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}"
+      }
+    },
+    {
+      "name": "an act the consent pass refuses is said to whoever hears the actor and ends the body",
+      "area": "act",
+      "node": 1312,
+      "mode": "act",
+      "self": "exec_bench.hall.dog",
+      "library": "exec_bench",
+      "state": "fresh",
+      "bind": {},
+      "heard": [],
+      "prior": null,
+      "speaker": null,
+      "leftOut": [],
+      "records": "as-said",
+      "seed": null,
+      "instant": 1000,
+      "limits": {
+        "steps": 50000,
+        "events": 256,
+        "cascadeDepth": 20,
+        "spawnsPerTurn": 8,
+        "shortestWakeSeconds": 60,
+        "pendingWakesPerObject": 1,
+        "peoplePerPlace": null,
+        "extensionEffects": null,
+        "listElements": 16,
+        "instances": null
+      },
+      "expect": {
+        "steps": 12,
+        "spawns": 0,
+        "events": 0,
+        "effects": [
+          {
+            "effect": "refused",
+            "to": ["exec_bench#1"],
+            "by": "exec_bench.hall.lamp",
+            "speaker": "exec_bench.hall.dog",
+            "said": {
+              "text": "The lamp is not listening.",
+              "library": "exec_bench"
+            },
+            "bindings": {
+              "actor": {
+                "object": "exec_bench.hall.dog"
+              },
+              "here": {
+                "object": "exec_bench.hall"
+              }
+            }
+          }
+        ],
+        "ran": [],
+        "owed": [],
+        "destroyed": [],
+        "after": null
+      }
+    },
+    {
+      "name": "an act at what is out of the actor’s range faults the turn",
+      "area": "act",
+      "node": 1319,
+      "mode": "act",
+      "self": "exec_bench.hall.dog",
+      "library": "exec_bench",
+      "state": "fresh",
+      "bind": {
+        "who": "exec_bench.hall.chest.coin"
+      },
+      "heard": [],
+      "prior": null,
+      "speaker": null,
+      "leftOut": [],
+      "records": "as-said",
+      "seed": null,
+      "instant": 1000,
+      "limits": {
+        "steps": 50000,
+        "events": 256,
+        "cascadeDepth": 20,
+        "spawnsPerTurn": 8,
+        "shortestWakeSeconds": 60,
+        "pendingWakesPerObject": 1,
+        "peoplePerPlace": null,
+        "extensionEffects": null,
+        "listElements": 16,
+        "instances": null
+      },
+      "expect": {
+        "fault": "ActFault",
+        "detail": "`exec_bench.hall.chest.coin` is out of range of `exec_bench.hall.dog`, so `sniff` could not be performed with it.",
+        "steps": 10
+      }
+    },
+    {
+      "name": "an act is one level deeper against the cascade depth",
+      "area": "act",
+      "node": 1310,
+      "mode": "act",
+      "self": "exec_bench.hall.dog",
+      "library": "exec_bench",
+      "state": "fresh",
+      "bind": {},
+      "heard": [],
+      "prior": null,
+      "speaker": null,
+      "leftOut": [],
+      "records": "as-said",
+      "seed": null,
+      "instant": 1000,
+      "limits": {
+        "steps": 50000,
+        "events": 256,
+        "cascadeDepth": 0,
+        "spawnsPerTurn": 8,
+        "shortestWakeSeconds": 60,
+        "pendingWakesPerObject": 1,
+        "peoplePerPlace": null,
+        "extensionEffects": null,
+        "listElements": 16,
+        "instances": null
+      },
+      "expect": {
+        "fault": "BudgetExhausted",
+        "budget": "cascadeDepth",
+        "limit": 0,
+        "steps": 6
+      }
+    },
+    {
       "name": "an extension’s statement records an effect for the people in the place",
       "area": "extension",
-      "node": 1123,
+      "node": 1128,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5546,7 +5684,7 @@
     {
       "name": "recording past the host’s cap faults",
       "area": "extension",
-      "node": 1123,
+      "node": 1128,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",

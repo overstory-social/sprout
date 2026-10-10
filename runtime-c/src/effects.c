@@ -81,7 +81,7 @@ static sprout_eval_status inside(const sprout_exec *x, const sprout_frame *frame
 }
 
 /* The place around `id`: its nearest container, strictly outward, that holds actors. */
-static bool surround_of(const sprout_frame *frame, sprout_str id, sprout_str *surround) {
+bool sprout_surround_of(const sprout_frame *frame, sprout_str id, sprout_str *surround) {
   const sprout_stored_instance *instance = expr_instance(frame, id);
   size_t guard = 0;
   while (instance != NULL && instance->has_container && guard++ < 1000000) {
@@ -120,7 +120,7 @@ static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *fram
   size_t n;
   *out = NULL;
   *count = 0;
-  if (!surround_of(frame, teller, &surround)) return SPROUT_EVAL_OK;
+  if (!sprout_surround_of(frame, teller, &surround)) return SPROUT_EVAL_OK;
   EXPR_NEED(opens_outward(frame, teller, surround, &open));
   if (!open) return SPROUT_EVAL_OK;
   EXPR_NEED(children(frame, surround, &held, &n));

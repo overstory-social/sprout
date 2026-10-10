@@ -82,7 +82,8 @@ static sprout_eval_status named_object(const sprout_frame *frame, sprout_str id,
 }
 
 /* Whether a step of a name is answered by a decoded instance. */
-static bool answers_to(const sprout_frame *frame, const sprout_stored_instance *instance, const sprout_node *step) {
+static bool answers_to(const sprout_frame *frame, const sprout_stored_instance *instance, const sprout_node *step,
+                       bool identifiers) {
   const char *name = sprout_node_text(step, "name");
   size_t length = name == NULL ? 0 : strlen(name);
   switch (instance->made) {
@@ -102,6 +103,7 @@ static bool answers_to(const sprout_frame *frame, const sprout_stored_instance *
     case SPROUT_MADE_SPAWNED: {
       const sprout_node *made_of = sprout_node_get(step, "madeOf");
       size_t i, j;
+      if (identifiers) return false;
       for (i = 0; made_of != NULL && i < made_of->count; i++) {
         const sprout_node *kinds = made_of->items[i];
         bool all = kinds->count > 0;
@@ -116,14 +118,14 @@ static bool answers_to(const sprout_frame *frame, const sprout_stored_instance *
 
 /* The first thing `holder` holds now, in its contents order, that answers to `step`. */
 static sprout_eval_status held_as(const sprout_frame *frame, sprout_str holder, const sprout_node *step,
-                                  sprout_str *out, bool *found) {
+                                  bool identifiers, sprout_str *out, bool *found) {
   const sprout_str *held;
   size_t count, i;
   *found = false;
   if (sprout_draft_children(frame->draft, holder, &held, &count) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {
     const sprout_stored_instance *instance = expr_instance(frame, held[i]);
-    if (instance != NULL && answers_to(frame, instance, step)) {
+    if (instance != NULL && answers_to(frame, instance, step, identifiers)) {
       *out = held[i];
       *found = true;
       return SPROUT_EVAL_OK;
@@ -133,7 +135,8 @@ static sprout_eval_status held_as(const sprout_frame *frame, sprout_str holder, 
 }
 
 /* What `steps` reach from `self`, judged by contents: the first among what `self` holds, else what each container outward holds. */
-static sprout_eval_status nearest(const sprout_frame *frame, const sprout_node *steps, sprout_str *out, bool *found) {
+static sprout_eval_status nearest(const sprout_frame *frame, const sprout_node *steps, bool identifiers,
+                                  sprout_str *out, bool *found) {
   sprout_str holder = frame->self, at;
   size_t i;
   *found = false;
@@ -141,10 +144,10 @@ static sprout_eval_status nearest(const sprout_frame *frame, const sprout_node *
   for (;;) {
     bool here;
     const sprout_stored_instance *instance;
-    EXPR_NEED(held_as(frame, holder, steps->items[0], &at, &here));
+    EXPR_NEED(held_as(frame, holder, steps->items[0], identifiers, &at, &here));
     if (here) {
       for (i = 1; i < steps->count; i++) {
-        EXPR_NEED(held_as(frame, at, steps->items[i], &at, &here));
+        EXPR_NEED(held_as(frame, at, steps->items[i], identifiers, &at, &here));
         if (!here) return SPROUT_EVAL_OK;
       }
       *out = at;
@@ -202,8 +205,8 @@ static sprout_eval_status given_inside(const sprout_frame *frame, sprout_str hol
 }
 
 /* The instance `named` reaches from `self`'s body; *found is false where nothing is decoded there now. */
-static sprout_eval_status object_named(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
-                                       bool *found) {
+static sprout_eval_status object_named(const sprout_frame *frame, const sprout_node *named, bool identifiers,
+                                       sprout_str *out, bool *found) {
   const char *how = sprout_node_text(named, "names");
   *found = false;
   if (how == NULL) return expr_unchecked(frame, "a name the table does not resolve");
@@ -237,41 +240,48 @@ static sprout_eval_status object_named(const sprout_frame *frame, const sprout_n
       return SPROUT_EVAL_OK;
     }
   }
-  if (strcmp(how, "placed") == 0) return nearest(frame, sprout_node_get(named, "steps"), out, found);
+  if (strcmp(how, "placed") == 0) return nearest(frame, sprout_node_get(named, "steps"), identifiers, out, found);
   return expr_unchecked(frame, "a name the table resolves in a way this runtime does not know");
 }
 
 sprout_eval_status expr_named_object(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
                                      bool *found) {
-  return object_named(frame, named, out, found);
+  return object_named(frame, named, false, out, found);
+}
+
+sprout_eval_status expr_named_identifier(const sprout_frame *frame, const sprout_node *named, sprout_str *out,
+                                         bool *found) {
+  return object_named(frame, named, true, out, found);
+}
+
+sprout_eval_status expr_name_out_of_range(const sprout_frame *frame, const char *written, bool found,
+                                          sprout_str target) {
+  expr_text text = expr_text_begin(frame);
+  if (!found) {
+    expr_put(&text, "`");
+    expr_put(&text, written);
+    expr_put(&text, "` reaches nothing here now, so `");
+    expr_put_str(&text, frame->self);
+    expr_put(&text, "` could not read through it.");
+  } else {
+    expr_put(&text, "`");
+    expr_put_str(&text, target);
+    expr_put(&text, "` is out of range of `");
+    expr_put_str(&text, frame->self);
+    expr_put(&text, "`, so it could not be read through `");
+    expr_put(&text, written);
+    expr_put(&text, "`.");
+  }
+  return expr_fail(frame, "NameOutOfRange");
 }
 
 sprout_eval_status expr_reached_by_name(const sprout_frame *frame, const sprout_node *named, const char *written,
                                         sprout_str *out) {
   sprout_str target = {NULL, 0};
   bool found, in_range = false;
-  expr_text text;
-  EXPR_NEED(object_named(frame, named, &target, &found));
+  EXPR_NEED(object_named(frame, named, false, &target, &found));
   if (found && expr_live(frame, target)) EXPR_NEED(expr_reaches(frame, frame->self, target, NULL, &in_range));
-  if (!found || !in_range) {
-    text = expr_text_begin(frame);
-    if (!found) {
-      expr_put(&text, "`");
-      expr_put(&text, written);
-      expr_put(&text, "` reaches nothing here now, so `");
-      expr_put_str(&text, frame->self);
-      expr_put(&text, "` could not read through it.");
-    } else {
-      expr_put(&text, "`");
-      expr_put_str(&text, target);
-      expr_put(&text, "` is out of range of `");
-      expr_put_str(&text, frame->self);
-      expr_put(&text, "`, so it could not be read through `");
-      expr_put(&text, written);
-      expr_put(&text, "`.");
-    }
-    return expr_fail(frame, "NameOutOfRange");
-  }
+  if (!found || !in_range) return expr_name_out_of_range(frame, written, found, target);
   *out = target;
   return SPROUT_EVAL_OK;
 }

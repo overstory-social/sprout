@@ -3,8 +3,9 @@
  * Moving something, Acting): a path is a binding, or an identifier or dotted
  * path the name table resolved. A spawn's container, a move's thing and an
  * act's roles are read through in range of `self`; a move's destination is
- * read under the move's own rule; a send's target is read whatever its range,
- * since the send itself asks.
+ * read under the move's own rule, which also reaches the destination of an
+ * exit or a link of an actor's place; a send's target is read whatever its
+ * range, since the send itself asks.
  */
 #include <string.h>
 
@@ -90,7 +91,7 @@ static sprout_eval_status binding_at(const sprout_frame *frame, const sprout_nod
 }
 
 sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out) {
-  bool bound;
+  bool bound, found, reached = false;
   const char *written;
   const sprout_node *named;
   EXPR_NEED(binding_at(frame, path, out, &bound));
@@ -99,7 +100,10 @@ sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_n
   EXPR_NEED(stmt_written(frame, path, &written));
   named = sprout_world_bound(frame->world, key_of(path));
   if (named == NULL) return unresolved(frame, written);
-  return expr_reached_by_name(frame, named, written, out);
+  EXPR_NEED(expr_named_object(frame, named, out, &found));
+  if (found && expr_live(frame, *out)) EXPR_NEED(sprout_move_reaches(frame, frame->self, *out, &reached));
+  if (!found || !reached) return expr_name_out_of_range(frame, written, found, *out);
+  return SPROUT_EVAL_OK;
 }
 
 sprout_eval_status stmt_target_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out, bool *found) {

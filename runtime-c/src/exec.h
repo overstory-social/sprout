@@ -5,14 +5,16 @@
  * writes only `self`, and records what it says, sends and asks for rather
  * than rendering or delivering it: the words are recorded as passage
  * references with the names in scope, the sends wait in a queue the bus
- * drains breadth-first, and a reading an `act` proposes is recorded for the
- * reading pass. Every charge is against the host's budgets.
+ * drains breadth-first, and a reading an `act` proposes is run on the spot by
+ * the reading pass. Every charge is against the host's budgets.
  *
  * Each module is functions over an exec context, as the evaluator's are over
  * a frame: exec.c runs blocks, stmt/ holds one module per statement area,
  * bus.c the queue, move.c the one place the tree changes, range.c the walk
  * a broadcast and a move's notices make, wakes.c the wakes an object holds,
- * guards.c a consent guard, effects.c what a turn says and who hears it.
+ * guards.c a consent guard, effects.c what a turn says and who hears it,
+ * hearing.c who reads what a reading says, reading.c and reading/ the two
+ * passes of a reading, exits.c the ways out of a place.
  */
 #ifndef SPROUT_EXEC_H
 #define SPROUT_EXEC_H
@@ -123,31 +125,26 @@ typedef struct sprout_pending_role {
   sprout_evaluated filler;
 } sprout_pending_role;
 
-/* How a reading ended: both passes ran, the consent pass refused, the actor is gone, or the pass is not built yet. */
-typedef enum sprout_reading_end {
-  SPROUT_READING_ACTED,
-  SPROUT_READING_REFUSED,
-  SPROUT_READING_GONE,
-  SPROUT_READING_NOT_BUILT
-} sprout_reading_end;
+/* How a reading ended: both passes ran, the consent pass refused, or the actor is gone. */
+typedef enum sprout_reading_end { SPROUT_READING_ACTED, SPROUT_READING_REFUSED, SPROUT_READING_GONE } sprout_reading_end;
 
 struct sprout_exec;
 
 /*
  * Runs the reading `verb` of `actor`, filled by `roles`, through both passes
  * against the exec's draft (the spec's Verbs > Acting): what it says, sends
- * and writes is recorded in the exec as a body's is. `not_built` carries the
- * words for a pass that does not exist yet.
+ * and writes is recorded in the exec as a body's is, and the words of a
+ * refusal are said to whoever would hear the actor. `verb` is written as
+ * the `act` writes it, from `frame->library`.
  */
 typedef sprout_eval_status (*sprout_reading_fn)(struct sprout_exec *x, const sprout_frame *frame, sprout_str actor,
                                                 const char *verb, size_t role_count,
-                                                const sprout_pending_role *roles, sprout_reading_end *end,
-                                                const char **not_built);
+                                                const sprout_pending_role *roles, sprout_reading_end *end);
 
-/* The reading pass, which C07 builds: until then it ends NOT_BUILT with words that say so. */
+/* The reading pass of reading.c, which an exec begins with. */
 sprout_eval_status sprout_run_reading(struct sprout_exec *x, const sprout_frame *frame, sprout_str actor,
                                       const char *verb, size_t role_count, const sprout_pending_role *roles,
-                                      sprout_reading_end *end, const char **not_built);
+                                      sprout_reading_end *end);
 
 /* ---- the context ---- */
 
@@ -168,6 +165,8 @@ typedef struct sprout_exec {
   const sprout_str *left_out; /* whom a plain `tell` leaves out */
   size_t left_out_count;
   bool records_as_said; /* an extension's effect reaches those who read what is said, rather than the teller's place */
+  bool hears_live;      /* what is said is heard by whoever would hear the speaker's `tell` now, rather than by `heard_by` */
+  size_t acting;        /* the `act`s the readings now running stand inside, one deeper against the cascade depth each */
 
   /* What the turn has done, in order. */
   sprout_effect *effects;
@@ -251,6 +250,9 @@ sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, 
 
 /* ---- move.c ---- */
 
+/* How a move reaches its destination: through the mover's range, as a `move` does, or through an exit or a link. */
+typedef enum sprout_reach { SPROUT_REACH_RANGE, SPROUT_REACH_EXIT } sprout_reach;
+
 typedef enum sprout_move_end {
   SPROUT_MOVE_DONE,
   SPROUT_MOVE_REFUSED_BY_GUARD,
@@ -273,10 +275,17 @@ typedef struct sprout_move_refusal {
  * person into a place the host says is full), then the three parties' guards
  * in the spec's order, then the one write. What the engine then tells the
  * world is queued, and what a place speaks of an actor moved between two is
- * recorded.
+ * recorded. `to` is in range of a move `mover` proposes as every place the
+ * mover reaches is and, for an actor, as the destination of an exit or link of
+ * its place that applies; a move made through an exit (`reach`) asks neither,
+ * and names the exit's label as `way` (the spec's Verbs > Acting, Exits).
  */
 sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *frame, sprout_str mover, sprout_str item,
-                                        sprout_str to, sprout_move_end *end, sprout_move_refusal *refusal);
+                                        sprout_str to, sprout_reach reach, const char *way, sprout_move_end *end,
+                                        sprout_move_refusal *refusal);
+
+/* Whether `to` is in range of a move `mover` proposes: in its range, or an exit or link of its place leads there. */
+sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mover, sprout_str to, bool *reached);
 
 /* ---- guards.c ---- */
 
@@ -289,6 +298,37 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
 sprout_eval_status sprout_guard_run(sprout_exec *x, const sprout_node *guard, sprout_str party, sprout_str mover,
                                     const sprout_str *parameters, size_t parameter_count, bool *allowed,
                                     sprout_move_refusal *refusal);
+
+/* ---- hearing.c: who reads what a body says ---- */
+
+/*
+ * Who reads what a `say`, a refused `move` or an extension's line records
+ * now: `heard_by`, or, where an NPC performs a reading, whoever would hear
+ * its `tell` where it stands now (the spec's Verbs > Acting).
+ */
+sprout_eval_status sprout_exec_hearers(const sprout_exec *x, const sprout_frame *frame, const sprout_str **to,
+                                       size_t *count);
+
+/* Who reads what the bodies of a reading say, and whom their plain `tell`s leave out: what an exec holds of it. */
+typedef struct sprout_hearing {
+  const sprout_str *heard_by, *left_out;
+  size_t heard_count, left_out_count;
+  bool has_speaker, records_as_said, hears_live;
+  sprout_str speaker;
+} sprout_hearing;
+
+/*
+ * Sets who reads what a reading of `actor` says, `participants` (the actor
+ * among them) being addressed by it already: the actor, where a person acts;
+ * where an NPC acts, whoever would hear its `tell`, from it. What was set
+ * before goes to `saved`, for sprout_hearing_restore.
+ */
+sprout_eval_status sprout_hear_reading(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                       const sprout_str *participants, size_t count, sprout_hearing *saved);
+void sprout_hearing_restore(sprout_exec *x, const sprout_hearing *saved);
+
+/* A refused move recorded as the refusal it is, said to whoever the body speaks to. */
+sprout_eval_status sprout_record_refusal(sprout_exec *x, const sprout_frame *frame, const sprout_move_refusal *refusal);
 
 /* ---- wakes.c ---- */
 
@@ -305,6 +345,9 @@ sprout_eval_status sprout_exec_record(sprout_exec *x, const sprout_effect *effec
 
 /* Whether `id` is a person: a visitor, rather than an NPC or a thing. */
 bool sprout_is_person(const sprout_frame *frame, sprout_str id);
+
+/* The place around `id`: its nearest container, strictly outward, that holds actors; false where there is none. */
+bool sprout_surround_of(const sprout_frame *frame, sprout_str id, sprout_str *surround);
 
 /* Every name in scope in `frame`, oldest first, for an effect to carry. */
 sprout_eval_status sprout_effect_names(const sprout_frame *frame, const sprout_effect_binding **out, size_t *count);
