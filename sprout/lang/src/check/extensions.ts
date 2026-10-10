@@ -80,17 +80,21 @@ function checkArguments(
   const { parameters } = declared;
   const required = parameters.filter((parameter) => parameter.optional !== true).length;
   if (statement.arguments.length < required || statement.arguments.length > parameters.length) {
-    const takes =
-      required === parameters.length
-        ? `takes ${parameters.length}`
-        : `takes ${required} to ${parameters.length}`;
-    const names = parameters.map((p) => (p.optional === true ? `${p.name}?` : p.name));
+    const names = parameters.map((p) => p.name);
+    const needed = names.slice(0, required);
+    const extra = names.slice(required);
+    const forms =
+      required < parameters.length
+        ? `\`${written}(${needed.join(', ')})\` or \`${written}(${names.join(', ')})\``
+        : `\`${written}(${names.join(', ')})\``;
     context.diagnostics.refuse(
       statement.at,
       parameters.length === 0
         ? `\`${written}\` takes nothing, and is given ${statement.arguments.length}.`
-        : `\`${written}\` ${takes}: ${readable(names)}.`,
-      `Write \`${written}(${names.join(', ')})\`${required < parameters.length ? ', leaving out what ends in ?' : ''}.`,
+        : required < parameters.length
+          ? `\`${written}\` takes ${needed.map((n) => `the ${n}`).join(' and ')}, and may take ${extra.map((n) => `a ${n}`).join(' and ')} after ${needed.length === 1 ? 'it' : 'them'}.`
+          : `\`${written}\` takes ${parameters.length}: ${readable(names)}.`,
+      `Write ${forms}.`,
     );
     return null;
   }

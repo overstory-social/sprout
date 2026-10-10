@@ -2,10 +2,12 @@
  * An extension's statement (the spec's Extensions > The rule, Activation and
  * absence). It records an effect and never performs one: its arguments are
  * evaluated and kept with the extension and the statement, and, for an
- * extension this runtime holds code for (`media`), turned into the payload and
- * the transcript line a client that cannot use it reads. Each recording is a
- * step beyond the statement's own and one of the host's capped effects. A
- * statement of an extension the world does not pin records nothing.
+ * extension this runtime holds code for (`media` at major 1), turned into the
+ * payload and the transcript line a client that cannot use it reads. Each
+ * recording is a step beyond the statement's own and one of the host's capped
+ * effects. A statement of an extension the world does not pin, or pins and
+ * this runtime holds no code for, records nothing (the spec's Activation and
+ * absence).
  */
 #include "stmt.h"
 
@@ -27,7 +29,7 @@ sprout_eval_status stmt_extension_said(const sprout_frame *frame, const sprout_n
   sprout_value *values;
   size_t count = arguments == NULL ? 0 : arguments->count, i;
   *recorded = false;
-  if (pin == NULL) return SPROUT_EVAL_OK;
+  if (pin == NULL || !sprout_media_holds(extension, pin->major)) return SPROUT_EVAL_OK;
   values = (sprout_value *)sprout_arena_take(frame->turn, (count + 1) * sizeof *values);
   if (values == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {
@@ -44,8 +46,7 @@ sprout_eval_status stmt_extension_said(const sprout_frame *frame, const sprout_n
   said->statement = name;
   said->argument_count = count;
   said->arguments = values;
-  if (sprout_media_holds(extension, pin->major))
-    EXPR_NEED(sprout_media_record(frame, name, count, values, &said->payload, &said->transcript));
+  EXPR_NEED(sprout_media_record(frame, name, count, values, &said->payload, &said->transcript));
   *recorded = true;
   return SPROUT_EVAL_OK;
 }

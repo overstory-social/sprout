@@ -233,13 +233,13 @@ describe('a statement whose last argument may be left out', () => {
     ).toEqual([
       [
         'lamp.sprout:3:30',
-        '`media.show` takes 1 to 2: `image` and `caption?`.',
-        'Write `media.show(image, caption?)`, leaving out what ends in ?.',
+        '`media.show` takes the image, and may take a caption after it.',
+        'Write `media.show(image)` or `media.show(image, caption)`.',
       ],
       [
         'lamp.sprout:3:44',
-        '`media.show` takes 1 to 2: `image` and `caption?`.',
-        'Write `media.show(image, caption?)`, leaving out what ends in ?.',
+        '`media.show` takes the image, and may take a caption after it.',
+        'Write `media.show(image)` or `media.show(image, caption)`.',
       ],
     ]);
   });

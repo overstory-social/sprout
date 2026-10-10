@@ -7,14 +7,20 @@ export const EXTENSIONS: readonly Case[] = [
   {
     name: 'an extension’s statement records an effect for the people in the place',
     area: 'extension',
-    body: 'media.play("purr.ogg")',
+    body: 'media.show("purr.png", "a purr")',
     records: 'as-told',
   },
   {
     name: 'recording past the host’s cap faults',
     area: 'extension',
-    body: 'media.play("purr.ogg")',
+    body: 'media.show("purr.png", "a purr")',
     budgets: { extensionEffects: 0 },
+    records: 'as-told',
+  },
+  {
+    name: 'an extension the host does not install records nothing',
+    area: 'extension',
+    body: 'slides.show("purr.png")',
     records: 'as-told',
   },
 ];

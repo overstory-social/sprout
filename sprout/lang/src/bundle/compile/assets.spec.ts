@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emitCartridge, readCartridge } from '../cartridge.js';
+import { CartridgeSchema } from '../cartridge-schema.js';
 import { limitsFrom } from '../limits.js';
 import type { AssetFile } from '../../declare/extensions.js';
 import { MEDIA } from '../../declare/media.js';
@@ -145,5 +146,16 @@ describe('the files an extension’s values name', () => {
     ]);
     const none = compiled('', {}).bundle!;
     expect(readCartridge(emitCartridge(none)).extensions).toEqual([{ name: 'media', major: 1 }]);
+  });
+
+  it('may be missing from the caps of a cartridge packed before the cap existed, which reads as unset', () => {
+    const { bundle } = compiled('', {});
+    const { assetBytes: _unset, ...older } = readCartridge(emitCartridge(bundle!)).caps;
+    const parsed = CartridgeSchema.safeParse({
+      ...readCartridge(emitCartridge(bundle!)),
+      caps: older,
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data!.caps.assetBytes).toBeNull();
   });
 });

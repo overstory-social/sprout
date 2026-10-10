@@ -2818,7 +2818,7 @@
     {
       "name": "an actor moved between places is told, and the places tell their people",
       "area": "move",
-      "node": 1315,
+      "node": 1320,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -2904,7 +2904,7 @@
     {
       "name": "a place speaks to the people in its range when someone arrives",
       "area": "move",
-      "node": 1317,
+      "node": 1322,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -2990,7 +2990,7 @@
     {
       "name": "an actor is not put in what holds no actors",
       "area": "move",
-      "node": 1319,
+      "node": 1324,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3047,7 +3047,7 @@
     {
       "name": "a move into a full place meets crowded before any guard",
       "area": "move",
-      "node": 1321,
+      "node": 1326,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3109,7 +3109,7 @@
     {
       "name": "without a crowd the same move meets the guards",
       "area": "move",
-      "node": 1321,
+      "node": 1326,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3259,7 +3259,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1575,
+        "node": 1582,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3298,7 +3298,7 @@
     {
       "name": "a destroyed object is not destroyed again",
       "area": "destroy",
-      "node": 1582,
+      "node": 1589,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3306,7 +3306,7 @@
       "bind": {},
       "heard": [],
       "prior": {
-        "node": 1582,
+        "node": 1589,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3345,7 +3345,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1582,
+        "node": 1589,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3384,7 +3384,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1582,
+        "node": 1589,
         "self": "exec_bench#12"
       },
       "speaker": null,
@@ -3664,7 +3664,7 @@
     {
       "name": "destroy takes effect where the body ends",
       "area": "destroy",
-      "node": 1588,
+      "node": 1595,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3703,7 +3703,7 @@
     {
       "name": "finally destroy waits until the queue is empty",
       "area": "destroy",
-      "node": 1595,
+      "node": 1602,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3747,7 +3747,7 @@
     {
       "name": "a destroyed object takes what it sent with it",
       "area": "destroy",
-      "node": 1598,
+      "node": 1605,
       "mode": "act",
       "self": "exec_bench#10",
       "library": "exec_bench",
@@ -3786,7 +3786,7 @@
     {
       "name": "a destroyed container takes what it held",
       "area": "destroy",
-      "node": 1606,
+      "node": 1613,
       "mode": "act",
       "self": "exec_bench#12",
       "library": "exec_bench",
@@ -3825,7 +3825,7 @@
     {
       "name": "connect leads a link to a place",
       "area": "connect",
-      "node": 1166,
+      "node": 1171,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3869,7 +3869,7 @@
     {
       "name": "connecting a link again replaces where it leads",
       "area": "connect",
-      "node": 1171,
+      "node": 1176,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3917,7 +3917,7 @@
     {
       "name": "a link cannot lead to what holds no actors",
       "area": "connect",
-      "node": 1180,
+      "node": 1185,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -4991,7 +4991,7 @@
     {
       "name": "a tell inside reaches only the teller’s own occupants",
       "area": "speech",
-      "node": 1157,
+      "node": 1162,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5042,7 +5042,7 @@
     {
       "name": "a tell outside reaches only the place around the teller",
       "area": "speech",
-      "node": 1159,
+      "node": 1164,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5093,7 +5093,7 @@
     {
       "name": "a plain tell from a place that holds actors reaches both audiences",
       "area": "speech",
-      "node": 1161,
+      "node": 1166,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5402,7 +5402,7 @@
     {
       "name": "an NPC’s line is heard from it",
       "area": "speech",
-      "node": 1313,
+      "node": 1318,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5463,7 +5463,7 @@
     {
       "name": "an act names its roles by what they are bound to",
       "area": "act",
-      "node": 1325,
+      "node": 1330,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5502,7 +5502,7 @@
     {
       "name": "an act the consent pass refuses is said to whoever hears the actor and ends the body",
       "area": "act",
-      "node": 1327,
+      "node": 1332,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5560,7 +5560,7 @@
     {
       "name": "an act at what is out of the actor’s range faults the turn",
       "area": "act",
-      "node": 1334,
+      "node": 1339,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5596,7 +5596,7 @@
     {
       "name": "an act is one level deeper against the cascade depth",
       "area": "act",
-      "node": 1325,
+      "node": 1330,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5657,7 +5657,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 4,
+        "steps": 5,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5669,7 +5669,7 @@
             "said": {
               "recorded": {
                 "extension": "media",
-                "statement": "play"
+                "statement": "show"
               }
             },
             "bindings": {}
@@ -5713,7 +5713,46 @@
         "fault": "BudgetExhausted",
         "budget": "extensionEffects",
         "limit": 0,
-        "steps": 3
+        "steps": 4
+      }
+    },
+    {
+      "name": "an extension the host does not install records nothing",
+      "area": "extension",
+      "node": 1140,
+      "mode": "act",
+      "self": "exec_bench.hall.runner",
+      "library": "exec_bench",
+      "state": "fresh",
+      "bind": {},
+      "heard": [],
+      "prior": null,
+      "speaker": null,
+      "leftOut": [],
+      "records": "as-told",
+      "seed": null,
+      "instant": 1000,
+      "limits": {
+        "steps": 50000,
+        "events": 256,
+        "cascadeDepth": 20,
+        "spawnsPerTurn": 8,
+        "shortestWakeSeconds": 60,
+        "pendingWakesPerObject": 1,
+        "peoplePerPlace": null,
+        "extensionEffects": null,
+        "listElements": 16,
+        "instances": null
+      },
+      "expect": {
+        "steps": 1,
+        "spawns": 0,
+        "events": 0,
+        "effects": [],
+        "ran": [],
+        "owed": [],
+        "destroyed": [],
+        "after": null
       }
     }
   ]

@@ -44,7 +44,7 @@ const StaticCapsSchema = z.strictObject({
   kinds: CapSchema,
   files: CapSchema,
   sourceBytes: CapSchema,
-  assetBytes: CapSchema,
+  assetBytes: CapSchema.default(null),
 }) satisfies z.ZodType<StaticCaps>;
 
 /** What a cartridge says about itself, before anything of its world is read. */
