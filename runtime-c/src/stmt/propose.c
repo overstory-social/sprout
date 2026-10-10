@@ -3,9 +3,9 @@
  * a proposal that the engine move a thing into a container through consent,
  * with the object whose body runs it as the mover; a refusal is said to
  * whoever the body speaks to, and ends the body. An `act` is a reading with
- * `self` as the actor and each named role filled; it is recorded for the
- * reading pass, which runs both its passes where the statement stands. The
- * reading pass is the readings' own, B28 on, so the body goes on after it.
+ * `self` as the actor and each named role filled, run on the spot through
+ * the reading pass, which is C07's; a refused one ends the body, as a refused
+ * `move` does, and so does one that destroyed the actor.
  */
 #include "stmt.h"
 
@@ -37,24 +37,31 @@ sprout_eval_status stmt_move(sprout_run *run, const sprout_frame *frame, const s
 
 sprout_eval_status stmt_act(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
   const sprout_node *roles = sprout_node_get(statement, "roles");
-  sprout_pending_reading *reading;
   sprout_pending_role *filled;
-  size_t i;
+  sprout_reading_end end;
+  const char *not_built = NULL;
+  size_t i, count = roles == NULL ? 0 : roles->count;
   EXPR_NEED(stmt_acting(run, frame, "`act`"));
-  filled = (sprout_pending_role *)sprout_arena_take(frame->turn, ((roles == NULL ? 0 : roles->count) + 1) * sizeof *filled);
+  filled = (sprout_pending_role *)sprout_arena_take(frame->turn, (count + 1) * sizeof *filled);
   if (filled == NULL) return SPROUT_EVAL_NO_MEMORY;
-  for (i = 0; roles != NULL && i < roles->count; i++) {
+  for (i = 0; i < count; i++) {
     filled[i].role = expr_ident(roles->items[i], "role");
     EXPR_NEED(stmt_evaluated_at(frame, sprout_node_get(roles->items[i], "filler"), &filled[i].filler));
   }
-  reading = (sprout_pending_reading *)sprout_exec_grow(run->x->turn, (void **)&run->x->readings, &run->x->reading_count,
-                                                       &run->x->reading_capacity, sizeof *run->x->readings);
-  if (reading == NULL) return SPROUT_EVAL_NO_MEMORY;
-  reading->actor = frame->self;
-  reading->verb = expr_ident(statement, "verb");
-  reading->library = frame->library;
-  reading->role_count = roles == NULL ? 0 : roles->count;
-  reading->roles = filled;
-  reading->after = run->x->effect_count;
+  EXPR_NEED(run->x->reading(run->x, frame, frame->self, expr_ident(statement, "verb"), count, filled, &end, &not_built));
+  switch (end) {
+    case SPROUT_READING_NOT_BUILT:
+      return expr_engine(frame, not_built);
+    case SPROUT_READING_REFUSED:
+      run->stopped = SPROUT_STOPPED_REFUSED;
+      return SPROUT_EVAL_OK;
+    case SPROUT_READING_GONE:
+      run->stopped = SPROUT_STOPPED_GONE;
+      return SPROUT_EVAL_OK;
+    case SPROUT_READING_ACTED:
+      break;
+  }
+  /* The reading may have destroyed the actor, and a body whose `self` is gone has nothing left to run for. */
+  if (sprout_draft_instance(run->x->draft, frame->self) == NULL) run->stopped = SPROUT_STOPPED_GONE;
   return SPROUT_EVAL_OK;
 }

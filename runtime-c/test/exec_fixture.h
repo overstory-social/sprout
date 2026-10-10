@@ -117,6 +117,7 @@ static inline void exec_fill_budgets(sprout_budgets *budgets, const sprout_json 
   budgets->people_per_place = exec_limit(limits, "peoplePerPlace");
   budgets->extension_effects = exec_limit(limits, "extensionEffects");
   budgets->list_elements = exec_limit(limits, "listElements");
+  budgets->instances = exec_limit(limits, "instances");
 }
 
 static inline const sprout_str *exec_ids(exec_case *c, const sprout_json *list) {
@@ -298,10 +299,10 @@ static inline void exec_check_effects(exec_bench *b, exec_case *c, const sprout_
   }
 }
 
-static inline void exec_check_trail(exec_bench *b, exec_case *c, const sprout_json *expect) {
+static inline void exec_check_trail(exec_case *c, const sprout_json *expect) {
   const sprout_json *ran = sprout_json_get(expect, "ran"), *owed = sprout_json_get(expect, "owed");
-  const sprout_json *readings = sprout_json_get(expect, "readings"), *destroyed = sprout_json_get(expect, "destroyed");
-  size_t i, j;
+  const sprout_json *destroyed = sprout_json_get(expect, "destroyed");
+  size_t i;
   CHECK_INT(c->x.ran_count, ran->count);
   for (i = 0; i < c->x.ran_count && i < ran->count; i++) {
     CHECK_STR(c->x.ran[i].origin, exec_text(ran->items[i], "origin"));
@@ -312,22 +313,6 @@ static inline void exec_check_trail(exec_bench *b, exec_case *c, const sprout_js
     CHECK(exec_same_str(c->x.owed[i].mover, sprout_json_get(owed->items[i], "mover")));
     CHECK(exec_same_str(c->x.owed[i].place, sprout_json_get(owed->items[i], "place")));
     CHECK_INT(c->x.owed[i].after, exec_number(owed->items[i], "after"));
-  }
-  CHECK_INT(c->x.reading_count, readings->count);
-  for (i = 0; i < c->x.reading_count && i < readings->count; i++) {
-    const sprout_pending_reading *reading = &c->x.readings[i];
-    const sprout_json *want = readings->items[i], *roles = sprout_json_get(want, "roles");
-    CHECK(exec_same_str(reading->actor, sprout_json_get(want, "actor")));
-    CHECK_STR(reading->verb, exec_text(want, "verb"));
-    CHECK_STR(reading->library, exec_text(want, "library"));
-    CHECK_INT(reading->after, exec_number(want, "after"));
-    CHECK_INT(reading->role_count, roles->count);
-    for (j = 0; j < reading->role_count && j < roles->count; j++) {
-      sprout_effect_binding one;
-      one.name = reading->roles[j].role;
-      one.bound = reading->roles[j].filler;
-      exec_check_bindings(b, c, &one, 1, &(sprout_json){.kind = SPROUT_JSON_OBJECT, .count = 1, .items = (sprout_json **)&roles->items[j]});
-    }
   }
   CHECK_INT(c->x.gone_count, destroyed->count);
   for (i = 0; i < c->x.gone_count && i < destroyed->count; i++) CHECK(exec_same_str(c->x.gone[i], destroyed->items[i]));
@@ -360,11 +345,17 @@ static inline void exec_check_after(exec_bench *b, exec_case *c, const sprout_js
 static inline sprout_eval_status exec_replay(exec_bench *b, const sprout_json *golden) {
   exec_case c;
   sprout_ended ended;
-  sprout_eval_status status;
-  const sprout_json *expect = sprout_json_get(golden, "expect"), *fault = sprout_json_get(expect, "fault");
+  sprout_eval_status status = SPROUT_EVAL_OK;
+  const sprout_json *prior, *expect = sprout_json_get(golden, "expect"), *fault = sprout_json_get(expect, "fault");
   int before = check_failures;
   exec_case_open(b, &c, golden);
-  status = sprout_exec_body(&c.x, exec_body_of(&c), &c.frame, SPROUT_BODY_ACT, &ended);
+  prior = sprout_json_get(golden, "prior");
+  if (prior->kind == SPROUT_JSON_OBJECT) {
+    /* A body run first in the same turn, as its own object and with no names bound. */
+    sprout_frame first = sprout_exec_frame(&c.x, exec_str(exec_text(prior, "self")), exec_text(golden, "library"), NULL);
+    status = sprout_exec_body(&c.x, &c.world->graph.entries[(size_t)exec_number(prior, "node")], &first, SPROUT_BODY_ACT, &ended);
+  }
+  if (status == SPROUT_EVAL_OK) status = sprout_exec_body(&c.x, exec_body_of(&c), &c.frame, SPROUT_BODY_ACT, &ended);
   if (status == SPROUT_EVAL_OK) status = sprout_exec_drain(&c.x);
   if (fault == NULL) {
     CHECK_INT(status, SPROUT_EVAL_OK);
@@ -373,7 +364,7 @@ static inline sprout_eval_status exec_replay(exec_bench *b, const sprout_json *g
       CHECK_INT(c.meter.spawns, exec_number(expect, "spawns"));
       CHECK_INT(c.x.events, exec_number(expect, "events"));
       exec_check_effects(b, &c, sprout_json_get(expect, "effects"));
-      exec_check_trail(b, &c, expect);
+      exec_check_trail(&c, expect);
       exec_check_after(b, &c, expect);
     } else {
       fprintf(stderr, "  ended: %s: %s\n", c.fault.name, c.fault.text);
@@ -417,6 +408,16 @@ static inline const sprout_json *exec_named(exec_bench *b, const char *name) {
   for (i = 0; i < cases->count; i++)
     if (strcmp(exec_text(cases->items[i], "name"), name) == 0) return cases->items[i];
   fprintf(stderr, "the golden has no case `%s`\n", name);
+  exit(2);
+}
+
+/* The body the golden locates but does not run, by name; the test aborts if there is none. */
+static inline const sprout_json *exec_unrun(exec_bench *b, const char *name) {
+  const sprout_json *bodies = sprout_json_get(b->golden, "unrun");
+  size_t i;
+  for (i = 0; i < bodies->count; i++)
+    if (strcmp(exec_text(bodies->items[i], "name"), name) == 0) return bodies->items[i];
+  fprintf(stderr, "the golden has no unrun body `%s`\n", name);
   exit(2);
 }
 

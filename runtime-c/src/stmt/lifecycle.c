@@ -66,7 +66,7 @@ sprout_eval_status stmt_destroy(sprout_run *run, const sprout_frame *frame, cons
 }
 
 sprout_eval_status stmt_remove(sprout_exec *x, const sprout_frame *frame, sprout_str id) {
-  const sprout_stored_instance *instance = expr_instance(frame, id);
+  const sprout_stored_instance *instance = sprout_draft_instance(x->draft, id);
   const sprout_str *removed;
   sprout_str *subtree;
   size_t count, i;

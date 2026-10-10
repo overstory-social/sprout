@@ -83,22 +83,6 @@ typedef struct sprout_ran {
   const sprout_node *at;
 } sprout_ran;
 
-/* A role of a reading an `act` proposes, and what fills it. */
-typedef struct sprout_pending_role {
-  const char *role;
-  sprout_evaluated filler;
-} sprout_pending_role;
-
-/* An `act` recorded for the reading pass to run: `self` the actor, the verb as written, and the roles filled. */
-typedef struct sprout_pending_reading {
-  sprout_str actor;
-  const char *verb;
-  const char *library;
-  size_t role_count;
-  const sprout_pending_role *roles;
-  size_t after; /* the effects said before it */
-} sprout_pending_reading;
-
 /* ---- bus.c: the queue ---- */
 
 typedef enum sprout_message_kind {
@@ -131,6 +115,40 @@ typedef struct sprout_send {
   size_t depth;                   /* how deep a cascade it runs */
 } sprout_send;
 
+/* ---- reading.c: the reading pass an `act` runs on the spot ---- */
+
+/* A role of an `act`, and what fills it. */
+typedef struct sprout_pending_role {
+  const char *role;
+  sprout_evaluated filler;
+} sprout_pending_role;
+
+/* How a reading ended: both passes ran, the consent pass refused, the actor is gone, or the pass is not built yet. */
+typedef enum sprout_reading_end {
+  SPROUT_READING_ACTED,
+  SPROUT_READING_REFUSED,
+  SPROUT_READING_GONE,
+  SPROUT_READING_NOT_BUILT
+} sprout_reading_end;
+
+struct sprout_exec;
+
+/*
+ * Runs the reading `verb` of `actor`, filled by `roles`, through both passes
+ * against the exec's draft (the spec's Verbs > Acting): what it says, sends
+ * and writes is recorded in the exec as a body's is. `not_built` carries the
+ * words for a pass that does not exist yet.
+ */
+typedef sprout_eval_status (*sprout_reading_fn)(struct sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                                const char *verb, size_t role_count,
+                                                const sprout_pending_role *roles, sprout_reading_end *end,
+                                                const char **not_built);
+
+/* The reading pass, which C07 builds: until then it ends NOT_BUILT with words that say so. */
+sprout_eval_status sprout_run_reading(struct sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                      const char *verb, size_t role_count, const sprout_pending_role *roles,
+                                      sprout_reading_end *end, const char **not_built);
+
 /* ---- the context ---- */
 
 typedef struct sprout_exec {
@@ -158,8 +176,7 @@ typedef struct sprout_exec {
   size_t owed_count, owed_capacity;
   sprout_ran *ran;
   size_t ran_count, ran_capacity;
-  sprout_pending_reading *readings;
-  size_t reading_count, reading_capacity;
+  sprout_reading_fn reading; /* the reading pass an `act` runs on the spot */
   size_t events; /* deliveries that ran a handler or a hook */
 
   /* What bodies have queued since the queue last drained. */

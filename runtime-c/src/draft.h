@@ -43,6 +43,8 @@ typedef struct sprout_draft {
   sprout_stored_instance *written;
   size_t gone_count, gone_capacity;
   sprout_str *gone; /* ids removed this turn */
+  size_t kept_count, kept_capacity;
+  sprout_stored_instance *kept; /* each decoded instance removed this turn, as it was when removed */
   size_t buried_count, buried_capacity;
   sprout_str *buried;
   size_t visitor_count, visitor_capacity;
@@ -72,6 +74,13 @@ const sprout_stored_instance *sprout_draft_record(const sprout_draft *draft, spr
 
 /* The decoded instance under this id as the turn stands, or NULL: a dormant record is not one. */
 const sprout_stored_instance *sprout_draft_instance(const sprout_draft *draft, sprout_str id);
+
+/*
+ * A decoded instance removed this turn, as it was when removed, or NULL: a
+ * binding to a destroyed object stays readable for the rest of the turn (the
+ * spec's The world model > Destroying). Held in the turn arena.
+ */
+const sprout_stored_instance *sprout_draft_destroyed(const sprout_draft *draft, sprout_str id);
 
 /* The visitor record under this visit as the turn stands, or NULL. */
 const sprout_stored_visitor *sprout_draft_visitor(const sprout_draft *draft, sprout_str visit);

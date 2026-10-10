@@ -55,31 +55,67 @@ static void a_move_in_a_body_that_decides_is_the_engines_defect(void) {
   exec_bench_close(&b);
 }
 
-static void an_act_is_recorded_with_its_roles_and_does_not_stop_the_body(void) {
+/* A reading pass that ends as the test says. */
+static sprout_reading_end ending = SPROUT_READING_ACTED;
+static const char *ran_verb = NULL;
+static size_t ran_roles = 0;
+
+static sprout_eval_status fake_reading(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const char *verb,
+                                       size_t role_count, const sprout_pending_role *roles, sprout_reading_end *end,
+                                       const char **not_built) {
+  (void)x;
+  (void)frame;
+  (void)not_built;
+  CHECK(sprout_str_same(actor, exec_str("exec_bench.hall.dog")));
+  ran_verb = verb;
+  ran_roles = role_count;
+  CHECK_STR(roles[0].role, "target");
+  CHECK(sprout_str_same(roles[0].filler.id, exec_str("exec_bench.hall.lamp")));
+  *end = ending;
+  return SPROUT_EVAL_OK;
+}
+
+static sprout_stopped act_with(exec_bench *b, sprout_reading_end how) {
+  exec_case c;
+  sprout_run run;
+  sprout_stopped stopped;
+  exec_case_open(b, &c, exec_unrun(b, "an act names its roles by what they are bound to"));
+  c.x.reading = fake_reading;
+  ending = how;
+  run = exec_run(&c);
+  CHECK_INT(stmt_act(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
+  CHECK_STR(ran_verb, "sniff");
+  CHECK_INT(ran_roles, 1);
+  stopped = run.stopped;
+  exec_case_close(&c);
+  return stopped;
+}
+
+static void an_act_runs_its_reading_on_the_spot_and_the_body_stops_where_the_reading_says(void) {
+  exec_bench b;
+  exec_bench_open(&b);
+  CHECK_INT(act_with(&b, SPROUT_READING_ACTED), SPROUT_RUNNING);
+  CHECK_INT(act_with(&b, SPROUT_READING_REFUSED), SPROUT_STOPPED_REFUSED);
+  CHECK_INT(act_with(&b, SPROUT_READING_GONE), SPROUT_STOPPED_GONE);
+  exec_bench_close(&b);
+}
+
+static void an_act_before_the_reading_pass_is_built_is_an_engine_error_with_its_words(void) {
   exec_bench b;
   exec_case c;
   sprout_run run;
   exec_bench_open(&b);
-  exec_case_open(&b, &c, exec_named(&b, "an act is recorded for the reading pass"));
+  exec_case_open(&b, &c, exec_unrun(&b, "an act names its roles by what they are bound to"));
   run = exec_run(&c);
-  CHECK_INT(stmt_act(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
-  CHECK_INT(run.stopped, SPROUT_RUNNING);
-  CHECK_INT(c.x.reading_count, 1);
-  CHECK(sprout_str_same(c.x.readings[0].actor, exec_str("exec_bench.hall.dog")));
-  CHECK_STR(c.x.readings[0].verb, "sniff");
-  CHECK_STR(c.x.readings[0].library, "exec_bench");
-  CHECK_INT(c.x.readings[0].role_count, 1);
-  CHECK_STR(c.x.readings[0].roles[0].role, "target");
-  CHECK_INT(c.x.readings[0].roles[0].filler.binds, SPROUT_BINDS_OBJECT);
-  CHECK(sprout_str_same(c.x.readings[0].roles[0].filler.id, exec_str("exec_bench.hall.lamp")));
+  CHECK_INT(stmt_act(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_ENGINE);
+  CHECK(strstr(c.fault.text, "reading pass is not built yet") != NULL);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
 
-static void the_golden_act_and_move_cases_end_as_the_typescript_runtime_did(void) {
+static void the_golden_move_cases_end_as_the_typescript_runtime_did(void) {
   exec_bench b;
   exec_bench_open(&b);
-  CHECK(exec_replay_area(&b, "act") >= 2);
   CHECK(exec_replay_area(&b, "move") >= 14);
   exec_bench_close(&b);
   CHECK_INT(b.heap.pages, 0);
@@ -89,7 +125,8 @@ int main(void) {
   RUN(a_move_every_party_allows_does_not_stop_the_body);
   RUN(a_refused_move_is_said_to_whoever_the_body_speaks_to_and_stops_it);
   RUN(a_move_in_a_body_that_decides_is_the_engines_defect);
-  RUN(an_act_is_recorded_with_its_roles_and_does_not_stop_the_body);
-  RUN(the_golden_act_and_move_cases_end_as_the_typescript_runtime_did);
+  RUN(an_act_runs_its_reading_on_the_spot_and_the_body_stops_where_the_reading_says);
+  RUN(an_act_before_the_reading_pass_is_built_is_an_engine_error_with_its_words);
+  RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
   return REPORT();
 }

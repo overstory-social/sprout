@@ -149,7 +149,7 @@ static sprout_eval_status spoken(sprout_exec *x, const sprout_frame *frame, bool
 sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *frame, sprout_str mover, sprout_str item,
                                         sprout_str to, sprout_move_end *end, sprout_move_refusal *refusal) {
   sprout_str world = x->draft->base->world, from, standing = {NULL, 0};
-  const sprout_stored_instance *moving = expr_instance(frame, item), *destination, *mover_instance;
+  const sprout_stored_instance *moving = sprout_draft_instance(x->draft, item), *destination, *mover_instance;
   bool reached = false, actor, allowed;
   sprout_send send;
   sprout_str parameters[2];
@@ -178,7 +178,8 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     return expr_fail(frame, "MoveFault");
   }
   reached = false;
-  if (expr_live(frame, to)) EXPR_NEED(expr_reaches(frame, mover, to, NULL, &reached));
+  if (sprout_draft_instance(x->draft, to) != NULL && expr_live(frame, to))
+    EXPR_NEED(expr_reaches(frame, mover, to, NULL, &reached));
   if (!reached) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "`");
@@ -188,7 +189,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     expr_put(&text, "`, so nothing could be moved into it.");
     return expr_fail(frame, "MoveFault");
   }
-  destination = expr_instance(frame, to);
+  destination = sprout_draft_instance(x->draft, to);
   if (!sprout_str_same(to, world) && (destination == NULL || !destination->kind->contains)) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "`");

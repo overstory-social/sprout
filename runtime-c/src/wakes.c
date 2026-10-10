@@ -13,7 +13,7 @@
 #include "stmt/stmt.h"
 
 sprout_eval_status sprout_wake_ask(sprout_exec *x, const sprout_frame *frame, uint64_t seconds) {
-  const sprout_stored_instance *self = expr_instance(frame, frame->self);
+  const sprout_stored_instance *self = sprout_draft_instance(frame->draft, frame->self);
   sprout_limit cap = x->world->host.budgets.pending_wakes;
   sprout_stored_instance next;
   sprout_stored_wake wake, *wakes;
@@ -61,7 +61,7 @@ sprout_eval_status sprout_wake_ask(sprout_exec *x, const sprout_frame *frame, ui
 }
 
 sprout_eval_status sprout_wake_cancel(sprout_exec *x, const sprout_frame *frame) {
-  const sprout_stored_instance *self = expr_instance(frame, frame->self);
+  const sprout_stored_instance *self = sprout_draft_instance(frame->draft, frame->self);
   sprout_stored_instance next;
   expr_text text;
   if (self == NULL) {

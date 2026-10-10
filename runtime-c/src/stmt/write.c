@@ -287,7 +287,7 @@ sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const 
   EXPR_NEED(sprout_eval(frame, value_node, &value_evaluated));
   EXPR_NEED(expr_as_value(frame, &value_evaluated, &value));
   method = expr_ident(call, "method");
-  self = expr_instance(frame, frame->self);
+  self = sprout_draft_instance(frame->draft, frame->self);
   if (self == NULL) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "`");

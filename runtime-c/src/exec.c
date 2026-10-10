@@ -22,6 +22,7 @@ void sprout_exec_begin(sprout_exec *x, const sprout_world *world, sprout_draft *
   x->fault = fault;
   x->instant = instant;
   x->depth = 1;
+  x->reading = sprout_run_reading;
 }
 
 sprout_frame sprout_exec_frame(const sprout_exec *x, sprout_str self, const char *library,

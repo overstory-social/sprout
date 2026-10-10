@@ -66,6 +66,52 @@ static void a_spawn_out_of_range_or_into_what_holds_nothing_faults(void) {
   exec_bench_close(&b);
 }
 
+static void a_spawn_that_would_pass_the_hosts_bound_on_instances_faults_and_writes_nothing(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_run run;
+  sprout_str id;
+  size_t held;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a spawn is given what its kind holds"));
+  run = exec_run(&c);
+  held = sprout_draft_held(&c.draft);
+  /* A crate and its lid are two instances; the host will hold one more. */
+  c.host.budgets.instances = (sprout_limit){true, held + 1};
+  CHECK_INT(stmt_spawn(&run, &c.frame, exec_first_statement(&c), &id), SPROUT_EVAL_FAULT);
+  CHECK_STR(c.fault.name, "LifecycleFault");
+  CHECK_STR(c.fault.text, "the host will hold no more instances in this world, so `Crate` could not be spawned.");
+  CHECK_INT(sprout_draft_held(&c.draft), held);
+  c.host.budgets.instances = (sprout_limit){true, held + 2};
+  c.meter.faulted = false;
+  CHECK_INT(stmt_spawn(&run, &c.frame, exec_first_statement(&c), &id), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_draft_held(&c.draft), held + 2);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
+static void a_destroyed_object_stays_readable_for_the_rest_of_the_turn(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_str spark = exec_str("exec_bench#8");
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a binding to a destroyed object stays readable for the rest of the turn"));
+  CHECK(sprout_draft_instance(&c.draft, spark) != NULL);
+  CHECK_INT(stmt_remove(&c.x, &c.frame, spark), SPROUT_EVAL_OK);
+  CHECK(sprout_draft_instance(&c.draft, spark) == NULL);
+  CHECK(expr_instance(&c.frame, spark) != NULL);
+  {
+    sprout_value n;
+    CHECK_INT(expr_get(&c.frame, expr_instance(&c.frame, spark), "n", &n), SPROUT_EVAL_OK);
+    CHECK_INT(n.as.number, 0);
+  }
+  /* It is gone all the same: it cannot be destroyed again. */
+  CHECK_INT(stmt_remove(&c.x, &c.frame, spark), SPROUT_EVAL_ENGINE);
+  CHECK_STR(c.fault.text, "`exec_bench#8` is not an instance in this world.");
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void destroy_takes_effect_where_the_body_ends_and_removes_what_the_object_held(void) {
   exec_bench b;
   exec_case c;
@@ -127,6 +173,8 @@ int main(void) {
   RUN(a_spawn_makes_an_instance_in_the_container_and_tells_the_world);
   RUN(a_spawn_is_given_what_its_kind_holds_and_charged_for_each);
   RUN(a_spawn_out_of_range_or_into_what_holds_nothing_faults);
+  RUN(a_spawn_that_would_pass_the_hosts_bound_on_instances_faults_and_writes_nothing);
+  RUN(a_destroyed_object_stays_readable_for_the_rest_of_the_turn);
   RUN(destroy_takes_effect_where_the_body_ends_and_removes_what_the_object_held);
   RUN(finally_destroy_marks_the_object_for_the_end_of_the_queue);
   RUN(the_world_and_a_person_are_never_destroyed);

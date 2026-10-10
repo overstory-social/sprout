@@ -29,7 +29,8 @@ sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, cons
   expr_text text;
   EXPR_NEED(stmt_acting(run, frame, "`connect`"));
   EXPR_NEED(stmt_object_at(frame, sprout_node_get(statement, "destination"), &to));
-  EXPR_NEED(expr_instance_of(frame, frame->self, &self));
+  self = sprout_draft_instance(frame->draft, frame->self);
+  if (self == NULL) return expr_engine(frame, "a link is connected by what is not an instance.");
   if (!has_link(self->kind, name)) {
     text = expr_text_begin(frame);
     expr_put(&text, "`");
@@ -41,7 +42,7 @@ sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, cons
     expr_put(&text, "` has nothing to connect.");
     return expr_fail(frame, "ConnectFault");
   }
-  place = expr_instance(frame, to);
+  place = sprout_draft_instance(frame->draft, to);
   if (place == NULL || !expr_live(frame, to)) {
     text = expr_text_begin(frame);
     expr_put(&text, "`");

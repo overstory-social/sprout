@@ -95,6 +95,13 @@ const sprout_stored_instance *sprout_draft_record(const sprout_draft *draft, spr
   return found != NULL ? found : sprout_state_find(draft->base, id);
 }
 
+const sprout_stored_instance *sprout_draft_destroyed(const sprout_draft *draft, sprout_str id) {
+  size_t i;
+  for (i = 0; i < draft->kept_count; i++)
+    if (sprout_str_same(draft->kept[i].id, id)) return &draft->kept[i];
+  return NULL;
+}
+
 const sprout_stored_instance *sprout_draft_instance(const sprout_draft *draft, sprout_str id) {
   const sprout_stored_instance *found = sprout_draft_record(draft, id);
   return found != NULL && !found->dormant ? found : NULL;
@@ -376,6 +383,12 @@ sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, cons
   for (i = 0; i < n; i++) {
     const sprout_stored_instance *one = sprout_draft_record(draft, found[i]);
     sprout_str *slot;
+    if (one != NULL && !one->dormant) {
+      sprout_stored_instance *copy = (sprout_stored_instance *)push(draft->turn, (void **)&draft->kept, &draft->kept_count,
+                                                                    &draft->kept_capacity, sizeof *copy);
+      MEMORY(copy);
+      if (sprout_stored_instance_copy(draft->turn, one, copy) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
+    }
     if (one != NULL && one->made == SPROUT_MADE_DECLARED) {
       slot = (sprout_str *)push(draft->turn, (void **)&draft->buried, &draft->buried_count,
                                 &draft->buried_capacity, sizeof *slot);

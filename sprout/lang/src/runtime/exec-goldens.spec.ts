@@ -81,6 +81,12 @@ interface Case {
   readonly records?: 'as-said' | 'as-told';
   /** Rewrites the bundle's nodes before the cartridge is made, for a body the checker would refuse. */
   readonly patch?: (node: Record<string, unknown>) => void;
+  /** The most instances the host will hold beyond those the state starts with; unbounded unless given. */
+  readonly holds?: number;
+  /** Compiled and located but not run: the C runtime's own specs run it where the oracle's pass is not yet built there. */
+  readonly unrun?: true;
+  /** A body run first in the same turn, so that what it destroyed is bound by the case's own. */
+  readonly prior?: { readonly kind: string; readonly self: Who; readonly body: string };
 }
 
 const HALL = ['hall'];
@@ -381,6 +387,51 @@ const CASES: readonly Case[] = [
     heard: ['visitor'],
   },
   // Making and unmaking.
+  {
+    name: 'a spawn within the host’s bound on instances',
+    area: 'spawn',
+    body: 'spawn Crate in hall',
+    holds: 2,
+  },
+  {
+    name: 'a spawn past the host’s bound on instances faults',
+    area: 'spawn',
+    body: 'spawn Crate in hall',
+    holds: 1,
+  },
+  {
+    name: 'a binding to a destroyed object stays readable for the rest of the turn',
+    area: 'destroy',
+    body: 'if (who.is(Spark)) { self.set(:count, who.get(:n) + 3) }',
+    bind: { who: 'spark' },
+    prior: { kind: 'Spark', self: 'spark', body: 'self.set(:n, 4)\n destroy self' },
+    state: 'worn',
+  },
+  {
+    name: 'a destroyed object is not destroyed again',
+    area: 'destroy',
+    kind: 'Spark',
+    self: 'spark',
+    body: 'destroy self',
+    prior: { kind: 'Spark', self: 'spark', body: 'destroy self' },
+    state: 'worn',
+  },
+  {
+    name: 'a destroyed object is out of range of a move',
+    area: 'destroy',
+    body: 'move who to basket',
+    bind: { who: 'spark' },
+    prior: { kind: 'Spark', self: 'spark', body: 'destroy self' },
+    state: 'worn',
+  },
+  {
+    name: 'a spawn into a destroyed container is out of range',
+    area: 'destroy',
+    body: 'spawn Jar in who',
+    bind: { who: 'crate' },
+    prior: { kind: 'Crate', self: 'crate', body: 'destroy self' },
+    state: 'worn',
+  },
   { name: 'a spawn makes an instance in a container', area: 'spawn', body: 'spawn Jar in hall' },
   {
     name: 'a let names the spawned object',
@@ -646,20 +697,15 @@ const CASES: readonly Case[] = [
     heard: ['visitor'],
     speaker: at('dog'),
   },
-  // Readings.
-  {
-    name: 'an act is recorded for the reading pass',
-    area: 'act',
-    kind: 'Dog',
-    self: at('dog'),
-    body: 'act sniff (target: lamp)',
-  },
+  // An `act` runs a reading on the spot, and the reading pass is C07's: these bodies are
+  // located for the C specs of the statement, and C07 adds the cases that run them.
   {
     name: 'an act names its roles by what they are bound to',
     area: 'act',
     kind: 'Dog',
     self: at('dog'),
-    body: 'let t = shelf\n act sniff (target: t)',
+    body: 'act sniff (target: lamp)',
+    unrun: true,
   },
   // Extensions.
   {
@@ -694,10 +740,17 @@ const indent = (body: string): string =>
 function sourceOf(cases: readonly Case[]): string {
   const members = (kind: string): string[] =>
     cases.flatMap((one, i) => {
-      if ((one.kind ?? 'Runner') !== kind) return [];
-      return one.play === true
-        ? [`  as target for p${i} {\n    do {\n${indent(one.body)}\n    }\n  }`]
-        : [`  on :c${i} (who, value) {\n${indent(one.body)}\n  }`];
+      const first =
+        one.prior?.kind === kind
+          ? [`  on :q${i} (who, value) {\n${indent(one.prior.body)}\n  }`]
+          : [];
+      if ((one.kind ?? 'Runner') !== kind) return first;
+      return [
+        ...first,
+        one.play === true
+          ? `  as target for p${i} {\n    do {\n${indent(one.body)}\n    }\n  }`
+          : `  on :c${i} (who, value) {\n${indent(one.body)}\n  }`,
+      ];
     });
   const held = (kind: string, head: string): string =>
     `kind ${kind}${head} {\n${members(kind).join('\n')}\n}`;
@@ -736,9 +789,12 @@ function sourceOf(cases: readonly Case[]): string {
     'message :ping',
     'message :pong',
     'message :chain with integer',
-    ...cases.flatMap((one, i) => (one.play === true ? [] : [`message :c${i} with integer`])),
+    ...cases.flatMap((one, i) => [
+      ...(one.play === true ? [] : [`message :c${i} with integer`]),
+      ...(one.prior === undefined ? [] : [`message :q${i} with integer`]),
+    ]),
     'verb sniff { role target  "sniff [target]" }',
-    `kind Sender {\n  on :ping (who) {\n${cases.flatMap((one, i) => (one.play === true ? [] : [`    broadcast :c${i} with 1`])).join('\n')}\n  }\n}`,
+    `kind Sender {\n  on :ping (who) {\n${cases.flatMap((one, i) => (one.play === true ? [] : [`    broadcast :c${i} with 1`]).concat(one.prior === undefined ? [] : [`    broadcast :q${i} with 1`])).join('\n')}\n  }\n}`,
     ...cases.flatMap((one, i) =>
       one.play === true ? [`verb p${i} { role target  "p${i} [target]" }`] : [],
     ),
@@ -885,18 +941,18 @@ for (let index = BODIES.from; index < BODIES.from + BODIES.count; index++) {
 }
 
 /** The blocks the source writes for the cases, in case order, read by the parser as the author wrote them. */
-function writtenBlocks(): Map<number, unknown> {
+function writtenBlocks(): Map<string, unknown> {
   const parsed = read(SOURCE, `${LIBRARY}.sprout`);
-  const found = new Map<number, unknown>();
+  const found = new Map<string, unknown>();
   eachObject(parsed.declarations, (node) => {
     const message = node['message'] as { text?: string } | undefined;
-    if (node['kind'] === 'handler' && /^c\d+$/.test(message?.text ?? '')) {
-      found.set(Number(message!.text!.slice(1)), node['body']);
+    if (node['kind'] === 'handler' && /^[cq]\d+$/.test(message?.text ?? '')) {
+      found.set(message!.text!.replace(/^c/, ''), node['body']);
     }
     const head = node['head'] as { verb?: { text?: string } } | undefined;
     const verb = head?.verb;
     if (node['kind'] === 'play' && /^p\d+$/.test(verb?.text ?? '') && node['do'] !== null) {
-      found.set(Number(verb!.text!.slice(1)), node['do']);
+      found.set(verb!.text!.slice(1), node['do']);
     }
   });
   return found;
@@ -905,12 +961,12 @@ function writtenBlocks(): Map<number, unknown> {
 const WRITTEN = writtenBlocks();
 // A rewritten body is found as it was rewritten.
 CASES.forEach((one, i) => {
-  if (one.patch !== undefined) eachObject(WRITTEN.get(i), one.patch);
+  if (one.patch !== undefined) eachObject(WRITTEN.get(String(i)), one.patch);
 });
 
 /** The entry of the cartridge's bodies that is case `i`'s body,  */
-function blockOf(i: number): { index: number; block: Record<string, unknown> } {
-  const written = WRITTEN.get(i);
+function blockOf(i: number | string): { index: number; block: Record<string, unknown> } {
+  const written = WRITTEN.get(String(i));
   if (written === undefined) throw new Error(`case ${i} wrote no body`);
   const wanted = JSON.stringify(shapeOf(written));
   const found = BLOCKS.filter(
@@ -1092,7 +1148,11 @@ function saidJson(line: Said): unknown {
 }
 
 /** The wire names the C runtime's host budgets are filled from. */
-function limitsJson(budgets: RuntimeBudgets, caps: StaticCaps): Record<string, number | null> {
+function limitsJson(
+  budgets: RuntimeBudgets,
+  caps: StaticCaps,
+  mayHold: number | null,
+): Record<string, number | null> {
   return {
     steps: budgets.steps,
     events: budgets.events,
@@ -1103,6 +1163,7 @@ function limitsJson(budgets: RuntimeBudgets, caps: StaticCaps): Record<string, n
     peoplePerPlace: budgets.peoplePerPlace,
     extensionEffects: budgets.extensionEffects,
     listElements: caps.listElements,
+    instances: mayHold,
   };
 }
 
@@ -1131,35 +1192,16 @@ function run(
     passes,
     budget,
     draws: new Draws(one.seed ?? 1),
-    mayHold: null,
+    mayHold: one.holds === undefined ? null : draft.held + one.holds,
     now: INSTANT,
   };
-  const readings: unknown[] = [];
   const hearing = {
     heardBy: () => (one.heard ?? []).map(resolve),
     speaker: one.speaker === undefined ? null : resolve(one.speaker),
     leftOut: (one.leftOut ?? []).map(resolve),
     records: one.records ?? 'as-said',
   };
-  const { sink: acting, acted } = actingSink(context, 0, hearing);
-  const sink = {
-    ...acting,
-    act: (
-      actor: InstanceId,
-      performed: { verb: string; library: string; roles: ReadonlyMap<string, Evaluated> },
-    ) => {
-      readings.push({
-        actor,
-        verb: performed.verb,
-        library: performed.library,
-        roles: Object.fromEntries(
-          [...performed.roles].map(([name, one]) => [name, evaluatedJson(one)]),
-        ),
-        after: acted.said.length,
-      });
-      return 'done' as const;
-    },
-  };
+  const { sink, acted } = actingSink(context, 0, hearing);
   const self = resolve(one.self ?? at('runner'));
   const bindings = new Map<string, Evaluated>(
     Object.entries(one.bind ?? {}).map(([name, to]) => [name, boundObject(resolve(to))]),
@@ -1177,8 +1219,16 @@ function run(
     passes,
     draws: context.draws,
   };
-  const limits = limitsJson(budgets, cat.caps);
+  const limits = limitsJson(budgets, cat.caps, context.mayHold);
   try {
+    if (one.prior !== undefined) {
+      runBody(
+        blockOf(`q${i}`).block as never,
+        { ...frame, self: resolve(one.prior.self), bindings: new Map() },
+        'act',
+        sink,
+      );
+    }
     runBody(block as never, frame, 'act', sink);
     const owed: Owed[] = owedBy(acted.notices, acted.said.length);
     const drained = drain(
@@ -1200,7 +1250,6 @@ function run(
           place: o.place,
           after: o.after,
         })),
-        readings,
         destroyed: drained.destroyed,
         after: after === JSON.stringify(built.stored) ? null : after,
       },
@@ -1329,12 +1378,18 @@ describe('the statement goldens', () => {
           Object.entries(one.bind ?? {}).map(([name, to]) => [name, resolve(to)]),
         ),
         heard: (one.heard ?? []).map(resolve),
+        prior:
+          one.prior === undefined
+            ? null
+            : { node: blockOf(`q${i}`).index, self: resolve(one.prior.self) },
         speaker: one.speaker === undefined ? null : resolve(one.speaker),
         leftOut: (one.leftOut ?? []).map(resolve),
         records: one.records ?? 'as-said',
         seed: one.seed ?? null,
         instant: INSTANT,
-        ...run(one, i, built[state], resolve),
+        ...(one.unrun === true
+          ? { limits: limitsJson({ ...DEFAULT_LIMITS.budgets, ...one.budgets }, CAPS, null) }
+          : run(one, i, built[state], resolve)),
       };
     });
     const ranges = RANGES.map((one) => {
@@ -1352,10 +1407,11 @@ describe('the statement goldens', () => {
     const text = `${JSON.stringify(
       {
         ranges,
+        unrun: cases.filter((one, i) => CASES[i]!.unrun === true),
         states: Object.fromEntries(
           Object.entries(built).map(([name, one]) => [name, JSON.stringify(one.stored)]),
         ),
-        cases,
+        cases: cases.filter((one, i) => CASES[i]!.unrun !== true),
       },
       null,
       1,

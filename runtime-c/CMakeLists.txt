@@ -9,7 +9,7 @@ add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
   arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  effects eval exec graph guards inflate json lists load move range state status stored stored_check
+  effects eval exec graph guards inflate json lists load move range reading state status stored stored_check
   stored_write values wakes)
 
 # The evaluator's areas, src/expr/<module>.c, each with test/expr_<module>.test.c.
