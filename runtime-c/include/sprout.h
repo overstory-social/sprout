@@ -103,9 +103,31 @@ typedef struct sprout_fault {
   char text[192];
 } sprout_fault;
 
+/* One line a turn told one person (the spec's The runtime > Effects): a paragraph, for the visit that reads it. */
+typedef struct sprout_line {
+  const char *recipient; /* the visit key, NUL-terminated beyond its length */
+  size_t recipient_length;
+  const char *text; /* UTF-8, NUL-terminated beyond its length */
+  size_t text_length;
+} sprout_line;
+
+/* A visit that read nothing more than it was told, because its output reached the host's figure. */
+typedef struct sprout_cut {
+  const char *recipient;
+  size_t recipient_length;
+} sprout_cut;
+
+/*
+ * What a turn came to. The lines and the cuts are the turn's own, in the order told, valid until
+ * the turn's memory is released; a faulted turn tells nothing.
+ */
 typedef struct sprout_outcome {
   bool faulted;
   sprout_fault fault;
+  size_t line_count;
+  const sprout_line *lines;
+  size_t cut_count;
+  const sprout_cut *cuts;
 } sprout_outcome;
 
 /* Text for a status: a sentence a host can show. */

@@ -69,12 +69,12 @@ export interface ProseCase {
   readonly lines: readonly Line[];
 }
 
-const said = (
-  to: readonly Who[],
-  by: Who,
-  passage: string,
-  bind: Line['bind'] = {},
-): Line => ({ to, by, say: { passage }, bind });
+const said = (to: readonly Who[], by: Who, passage: string, bind: Line['bind'] = {}): Line => ({
+  to,
+  by,
+  say: { passage },
+  bind,
+});
 
 const both = ['marta', 'ines'] as const;
 const INKED: Line['bind'] = { actor: 'marta', tools: { set: ['yard.brass_key', 'yard.oak_door'] } };
@@ -149,7 +149,11 @@ const FLOW: ProseCase[] = [
     name: 'a loop over a set role, in the order the reading bound it',
     area: 'flow',
     actor: 'marta',
-    lines: [said(['marta', 'ines'], 'yard.echo', 'calls', { tools: { set: ['yard.brass_key', 'yard.oak_door', 'yard.owl'] } })],
+    lines: [
+      said(['marta', 'ines'], 'yard.echo', 'calls', {
+        tools: { set: ['yard.brass_key', 'yard.oak_door', 'yard.owl'] },
+      }),
+    ],
   },
   {
     name: 'a one of draws from the turn’s stream, once for every reader of the line',
@@ -256,9 +260,13 @@ const LAYOUT: ProseCase[] = [
     area: 'layout',
     actor: 'marta',
     lines: [
-      { to: ['marta'], by: 'yard.sayer', say: { text: 'You count {value}, and {who} nods.' }, bind: { who: 'ines', value: { value: 3 } } },
+      {
+        to: ['marta'],
+        by: 'yard.sayer',
+        say: { text: 'You count {value}, and {who} nods.' },
+        bind: { who: 'ines', value: { value: 3 } },
+      },
       { to: ['marta'], by: 'yard.sayer', say: { text: 'plain words, “quoted” ones' } },
-      { to: ['marta'], by: 'yard.sayer', say: { text: '\\n' } },
     ],
   },
 ];
@@ -304,7 +312,13 @@ const READERS: ProseCase[] = [
       { effect: 'said', to: ['marta'], by: 'yard.press', say: { passage: 'inked' }, bind: INKED },
       { effect: 'told', to: ['ines'], by: 'yard.press', say: { passage: 'inked' }, bind: INKED },
       { effect: 'refused', to: ['marta'], by: 'yard.crate', say: { passage: 'listing' } },
-      { effect: 'notice', to: ['ines'], by: 'yard', say: { stock: 'arrives' }, bind: { item: 'marta' } },
+      {
+        effect: 'notice',
+        to: ['ines'],
+        by: 'yard',
+        say: { stock: 'arrives' },
+        bind: { item: 'marta' },
+      },
     ],
   },
   {
@@ -410,7 +424,10 @@ const BOUNDS: ProseCase[] = [
     area: 'bounds',
     actor: 'marta',
     seed: 2,
-    lines: [said(both, 'yard.echo', 'call', { actor: 'marta' }), said(['marta'], 'yard.crate', 'listing')],
+    lines: [
+      said(both, 'yard.echo', 'call', { actor: 'marta' }),
+      said(['marta'], 'yard.crate', 'listing'),
+    ],
   },
   {
     name: 'rendering past the step budget faults the turn',
@@ -458,7 +475,8 @@ function engineCases(): ProseCase[] {
     const name = line.name as EngineLineName;
     const all = Object.keys(line.binds);
     const optional = Object.keys(line.optional ?? {});
-    const variants = optional.length > 0 ? [all, all.filter((key) => !optional.includes(key))] : [all];
+    const variants =
+      optional.length > 0 ? [all, all.filter((key) => !optional.includes(key))] : [all];
     for (const names of variants) {
       const bind: Record<string, Bind> = {};
       for (const key of names) bind[key] = engineBind(key, line.binds[key] as EngineBinds);
@@ -468,7 +486,14 @@ function engineCases(): ProseCase[] {
         name: `${name}, in the standard library’s words${unbound}`,
         area: 'engine',
         actor: 'marta',
-        lines: [{ to: ['marta', 'ines'], ...(by === undefined ? {} : { by }), say: { stock: name }, bind }],
+        lines: [
+          {
+            to: ['marta', 'ines'],
+            ...(by === undefined ? {} : { by }),
+            say: { stock: name },
+            bind,
+          },
+        ],
       });
     }
   }

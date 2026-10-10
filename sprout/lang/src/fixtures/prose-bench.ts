@@ -18,12 +18,7 @@ import { Draft } from '../runtime/draft.js';
 import { Draws } from '../runtime/draws.js';
 import type { Effect, Unrendered } from '../runtime/effects.js';
 import { engineLine, engineSaid, STOCK_LINES } from '../runtime/engine-lines.js';
-import {
-  boundObject,
-  boundReadings,
-  boundValue,
-  type Evaluated,
-} from '../runtime/evaluate.js';
+import { boundObject, boundReadings, boundValue, type Evaluated } from '../runtime/evaluate.js';
 import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
 import { initialState, loadWorld, saveWorld } from '../runtime/load.js';
 import { passRules } from '../runtime/passes.js';
@@ -50,7 +45,8 @@ function textsOf(cases: readonly ProseCase[]): string[] {
 const TEXTS = textsOf(PROSE_CASES);
 
 /** A string as source writes it. */
-const quoted = (text: string): string => `"${text.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+const quoted = (text: string): string =>
+  `"${text.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 
 /** Words the lexer reads as prose, written with their escapes so the source holds what the case means. */
 const sayer = (): string =>
@@ -208,15 +204,17 @@ interface Built {
 }
 
 /** A visitor with a record, standing at `place`. */
-function arrive(
-  draft: Draft,
-  visit: string,
-  nickname: string,
-  place: InstanceId,
-): InstanceId {
+function arrive(draft: Draft, visit: string, nickname: string, place: InstanceId): InstanceId {
   const instance = draft.mint();
   draft.add(
-    newInstance(instance, { from: 'visitor' }, catalogue.visitorKind!, place, draft.nextSerial(), CAPS),
+    newInstance(
+      instance,
+      { from: 'visitor' },
+      catalogue.visitorKind!,
+      place,
+      draft.nextSerial(),
+      CAPS,
+    ),
   );
   draft.putVisitor({
     visit: visitKey(visit),
@@ -286,7 +284,8 @@ function speechOf(
   if ('text' in say) return { by, said: { ...engineLine(say.text), library: WORLD } };
   if ('absent' in say) return { by, said: { absent: say.absent } };
   if ('stock' in say) {
-    const words = say.stock === NOT_A_PLACE_LINE ? NOT_A_PLACE : STOCK_LINES[say.stock as EngineLineName];
+    const words =
+      say.stock === NOT_A_PLACE_LINE ? NOT_A_PLACE : STOCK_LINES[say.stock as EngineLineName];
     return { by, said: engineLine(words) };
   }
   return engineSaid(
@@ -309,10 +308,6 @@ function speechJson(speech: Speech): unknown {
     if (speech.text === NOT_A_PLACE) return { engine: NOT_A_PLACE_LINE };
   }
   return { text: speech.text, library: speech.library };
-}
-
-function bindJson(bind: Bind): unknown {
-  return bind;
 }
 
 /** A line as the golden holds it, and as the oracle renders it. */
@@ -344,18 +339,12 @@ function lineOf(
       by: found.by,
       speaker,
       said: speechJson(found.said),
-      bindings: Object.fromEntries(
-        Object.entries(line.bind ?? {}).map(([name, one]) => [name, bindJson(one)]),
-      ),
     },
   };
 }
 
 /** The golden's form of a binding: resolved to what the C runtime reads. */
-function resolvedBinds(
-  line: Line,
-  resolve: (who: Who) => InstanceId,
-): Record<string, unknown> {
+function resolvedBinds(line: Line, resolve: (who: Who) => InstanceId): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(line.bind ?? {}).map(([name, one]) => {
       const evaluated = bound(one, resolve);
@@ -419,7 +408,13 @@ function run(one: ProseCase): Record<string, unknown> {
   const lines: Unrendered[] = made.map(({ said }) => ({ said }));
   const bound = {
     limits: figuresJson(budgets),
-    lines: made.map(({ json }, i) => ({ ...json, bindings: resolvedBinds(one.lines[i]!, resolve) })),
+    renames: Object.fromEntries(
+      Object.entries(one.renames ?? {}).map(([who, nickname]) => [resolve(who), nickname]),
+    ),
+    lines: made.map(({ json }, i) => ({
+      ...json,
+      bindings: resolvedBinds(one.lines[i]!, resolve),
+    })),
   };
   try {
     const effects = renderEffects(lines, {
@@ -469,7 +464,10 @@ export function proseGoldens(): {
       state: one.state ?? 'yard',
       seed: one.seed ?? 1,
       skip: one.skip ?? 0,
-      actor: one.actor === undefined || one.actor === null ? null : resolver(one.state ?? 'yard')(one.actor),
+      actor:
+        one.actor === undefined || one.actor === null
+          ? null
+          : resolver(one.state ?? 'yard')(one.actor),
       ...run(one),
     })),
   };
