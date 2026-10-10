@@ -11,6 +11,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* A SHA-256 in progress: the state, the bytes of the block not yet folded in, and the total length. */
+typedef struct sprout_sha256_context {
+  uint32_t state[8];
+  unsigned char block[64];
+  size_t held;
+  uint64_t length;
+} sprout_sha256_context;
+
+/* SHA-256 of a stream: begin, feed the bytes in any chunks, end into `digest`. */
+void sprout_sha256_begin(sprout_sha256_context *hash);
+void sprout_sha256_feed(sprout_sha256_context *hash, const char *bytes, size_t length);
+void sprout_sha256_end(sprout_sha256_context *hash, unsigned char digest[32]);
+
 /* SHA-256 of `length` bytes into `digest`. */
 void sprout_sha256(const char *bytes, size_t length, unsigned char digest[32]);
 

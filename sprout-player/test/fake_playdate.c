@@ -19,6 +19,7 @@ static void *fake_realloc(void *block, size_t bytes) {
     return NULL;
   }
   if (block == NULL) current->pages++;
+  if (bytes > current->largest) current->largest = bytes;
   return realloc(block, bytes);
 }
 
@@ -138,16 +139,20 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->api.lua = &fake->lua;
 }
 
-const char *fake_call(fake_playdate *fake, const char *name, const char *argument) {
-  int i;
+const char *fake_call_with(fake_playdate *fake, const char *name, int count, const char *const *arguments) {
+  int i, a;
   current = fake;
   for (i = 0; i < fake->function_count; i++) {
     if (strcmp(fake->names[i], name) != 0) continue;
-    fake->arg_count = argument == NULL ? 0 : 1;
-    fake->args[0] = argument;
+    fake->arg_count = count;
+    for (a = 0; a < count && a < FAKE_ARGS; a++) fake->args[a] = arguments[a];
     fake->push_count = 0;
     if (fake->functions[i](NULL) != 1 || fake->push_count != 1) return NULL;
     return fake->pushed;
   }
   return NULL;
+}
+
+const char *fake_call(fake_playdate *fake, const char *name, const char *argument) {
+  return fake_call_with(fake, name, argument == NULL ? 0 : 1, &argument);
 }

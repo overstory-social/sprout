@@ -1,6 +1,7 @@
 # What the build puts beside the sources: the native library the Simulator loads, the device
-# binary, the packed worlds the build stages, and the pdx.
+# binary, the packed worlds the build stages, the public key it bakes in, and the pdx.
 /Source/pdex.*
 /Source/worlds/
+/Source/publickey.lua
 *.pdx/
 build/

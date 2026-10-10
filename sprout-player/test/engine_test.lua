@@ -11,7 +11,7 @@ local function api(replies)
     end
   end
   local table_ = { seen = seen }
-  for _, name in ipairs({ "inspect", "open", "load", "admit", "view", "turn", "tick", "save", "close" }) do
+  for _, name in ipairs({ "inspect", "open", "load", "admit", "view", "turn", "tick", "save", "close", "verify", "digest" }) do
     table_[name] = call(name)
   end
   return table_
@@ -39,6 +39,22 @@ test("each call is decoded from the JSON the C side returns", function()
   equal(#engine:close().lines, 0)
   equal(fake.seen[1].argument, "a.sproutworld")
   equal(fake.seen[4].argument, "Moss")
+end)
+
+test("a signature check and a file digest cross as strings and come back decoded", function()
+  local fake = api({
+    verify = '{"ok":false,"reason":"The signature is not the one the key makes for this text."}',
+    digest = '{"ok":true,"sha256":"ab","bytes":3}',
+  })
+  local engine = Engine.new(fake, json)
+  local verdict = engine:verify("text", "sig", "key")
+  equal(verdict.ok, false)
+  equal(verdict.reason, "The signature is not the one the key makes for this text.")
+  local digest = engine:digest("worlds/a.sproutworld.part")
+  equal(digest.sha256, "ab")
+  equal(digest.bytes, 3)
+  equal(fake.seen[1].argument, "text")
+  equal(fake.seen[2].argument, "worlds/a.sproutworld.part")
 end)
 
 test("a reading crosses as one JSON string", function()

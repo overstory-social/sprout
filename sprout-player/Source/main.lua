@@ -1,7 +1,9 @@
--- sprout-player: the shelf, the nickname picker, the reader and the sentence builder, drawn
--- at 30 frames a second on the 400 x 240 screen. The engine is the C code registered as
--- `sprout`; every call to it goes through `engine.lua`. Ticks are asked for only while the
--- reader is open, never on the shelf, and not while the device sleeps.
+-- sprout-player: the shelf, the download screen, the nickname picker, the reader and the
+-- sentence builder, drawn at 30 frames a second on the 400 x 240 screen. The engine is the C code
+-- registered as `sprout`; every call to it goes through `engine.lua`. Ticks are asked for only
+-- while the reader is open, never on the shelf, and not while the device sleeps. The network is
+-- reached only from the download screen, and only from `update()`, where the system may pause
+-- the game to ask permission.
 
 local Wrap <const> = import "wrap"
 local Clock <const> = import "clock"
@@ -11,6 +13,12 @@ local Nickname <const> = import "nickname"
 local Shelf <const> = import "shelf"
 local Engine <const> = import "engine"
 local Images <const> = import "images"
+local Canonical <const> = import "canonical"
+local Index <const> = import "index"
+local Net <const> = import "net"
+local Config <const> = import "config"
+local Downloads <const> = import "downloads"
+local PublicKey <const> = import "publickey"
 
 local pd <const> = playdate
 local gfx <const> = pd.graphics
@@ -37,7 +45,8 @@ local picker = nil
 local opened = nil -- the entry of the cartridge being read
 local images = nil -- its pictures
 local notice = nil -- what opening the world has to tell the visitor before they come in
-local mode = "shelf" -- shelf, nickname, reader, sentence, message
+local downloads = nil -- the download screen, made the first time it is opened
+local mode = "shelf" -- shelf, downloads, nickname, reader, sentence, message
 local message = nil
 local backTo = "shelf"
 
@@ -78,6 +87,35 @@ end
 
 local function told(lines)
   for _, line in ipairs(lines or {}) do reader:push(line.kind, line.text) end
+end
+
+-- The bundle hashes of the worlds on the shelf, which the download screen marks.
+local function onShelf()
+  local hashes = {}
+  for _, entry in ipairs(shelf.entries) do
+    if entry.hash ~= nil then hashes[entry.hash] = true end
+  end
+  return hashes
+end
+
+local function openDownloads()
+  if downloads == nil then
+    downloads = Downloads.new({
+      net = Net.new(pd.network), files = pd.file, engine = engine, json = json, canonical = Canonical,
+      index = Index, config = Config.effective(pd.datastore), publicKey = PublicKey, installed = onShelf,
+    })
+  end
+  mode = "downloads"
+  downloads:open(seconds())
+  shelf:noteMore(downloads:indexFailure())
+end
+
+local function leaveDownloads()
+  local failure = downloads:indexFailure()
+  downloads:close()
+  shelf:noteMore(failure)
+  mode = "shelf"
+  shelf:refresh()
 end
 
 local function toShelf()
@@ -202,6 +240,7 @@ local function updateShelf()
   if pd.buttonJustPressed(pd.kButtonDown) then shelf:move(1) end
   if pd.buttonJustPressed(pd.kButtonUp) then shelf:move(-1) end
   if pd.buttonJustPressed(pd.kButtonA) then
+    if shelf:onMore() then return openDownloads() end
     local entry = shelf:current()
     if entry == nil then return end
     if not entry.ok and not entry.blocked then
@@ -210,6 +249,27 @@ local function updateShelf()
       openWorld(entry)
     end
   end
+end
+
+local function updateDownloads()
+  local now = seconds()
+  downloads:update(now)
+  local arrived = downloads:takeArrived()
+  if arrived ~= nil then
+    shelf:forget()
+    shelf:refresh()
+  end
+  if downloads:busy() then
+    if pd.buttonJustPressed(pd.kButtonB) then leaveDownloads() end
+    return
+  end
+  downloads:turn(crankChange(), DEGREES_PER_STEP)
+  if pd.buttonJustPressed(pd.kButtonDown) then downloads:move(1) end
+  if pd.buttonJustPressed(pd.kButtonUp) then downloads:move(-1) end
+  if pd.buttonJustPressed(pd.kButtonA) then
+    if downloads.phase == "failed" then openDownloads() else downloads:choose(now) end
+  end
+  if pd.buttonJustPressed(pd.kButtonB) then leaveDownloads() end
 end
 
 local function updateNickname()
@@ -296,27 +356,52 @@ end
 local function drawShelf()
   gfx.drawText("Shelf", MARGIN, 0)
   gfx.drawLine(0, HEADER - 1, 400, HEADER - 1)
-  if #shelf.entries == 0 then
-    drawLines(Wrap.lines("No worlds. Put .sproutworld files in the app's worlds folder, or its Data folder.",
-      400 - 2 * MARGIN, measure), MARGIN, HEADER + 2)
-    return
-  end
-  local first = math.max(1, math.min(shelf.selected - 3, #shelf.entries - ROWS + 1))
+  local total = #shelf.entries + 1
+  local first = math.max(1, math.min(shelf.selected - 3, total - ROWS + 1))
   local y = HEADER + 2
-  for i = first, math.min(#shelf.entries, first + ROWS - 1) do
+  for i = first, math.min(total, first + ROWS - 1) do
     local entry = shelf.entries[i]
-    if not entry.ok then gfx.setDitherPattern(0.5) end
-    gfx.drawText((i == shelf.selected and "> " or "  ") .. entry.title, MARGIN, y)
+    if entry ~= nil and not entry.ok then gfx.setDitherPattern(0.5) end
+    gfx.drawText((i == shelf.selected and "> " or "  ") .. (entry ~= nil and entry.title or "more worlds..."), MARGIN, y)
     gfx.setDitherPattern(0)
     y = y + lineHeight
   end
-  local entry = shelf:current()
   gfx.drawLine(0, 240 - PANEL, 400, 240 - PANEL)
+  local entry = shelf:current()
+  local words = "A opens it"
   if entry ~= nil and not entry.ok then
-    drawLines(Wrap.lines(entry.reason or "", 400 - 2 * MARGIN, measure), MARGIN, 240 - PANEL + 2)
-  else
-    gfx.drawText("A opens it", MARGIN, 240 - PANEL + 2)
+    words = entry.reason or ""
+  elseif shelf:onMore() then
+    words = "A looks for more worlds to download."
+    if shelf.moreNote ~= nil then
+      words = "More worlds could not be fetched. " .. shelf.moreNote .. " Your shelf is as it was."
+    elseif #shelf.entries == 0 then
+      words = "No worlds are on the shelf. " .. words
+    end
   end
+  drawLines(Wrap.lines(words, 400 - 2 * MARGIN, measure), MARGIN, 240 - PANEL + 2)
+end
+
+local function drawDownloads()
+  gfx.drawText("More worlds", MARGIN, 0)
+  gfx.drawLine(0, HEADER - 1, 400, HEADER - 1)
+  local rows = downloads:rows()
+  local first = math.max(1, math.min(downloads.selected - 3, #rows - ROWS + 1))
+  local y = HEADER + 2
+  for i = first, math.min(#rows, first + ROWS - 1) do
+    if rows[i].onShelf then gfx.setDitherPattern(0.5) end
+    gfx.drawText((i == downloads.selected and "> " or "  ") .. rows[i].text, MARGIN, y)
+    gfx.setDitherPattern(0)
+    y = y + lineHeight
+  end
+  gfx.drawLine(0, 240 - PANEL, 400, 240 - PANEL)
+  local words = downloads:panel()
+  if downloads.phase == "failed" then
+    words = words .. " A tries again, B goes back to the shelf."
+  elseif downloads:busy() then
+    words = words .. " B stops."
+  end
+  drawLines(Wrap.lines(words, 400 - 2 * MARGIN, measure), MARGIN, 240 - PANEL + 2)
 end
 
 local function drawNickname()
@@ -348,6 +433,8 @@ function pd.update()
   gfx.clear()
   if mode == "shelf" then
     updateShelf()
+  elseif mode == "downloads" then
+    updateDownloads()
   elseif mode == "nickname" then
     updateNickname()
   elseif mode == "reader" then
@@ -359,6 +446,8 @@ function pd.update()
   end
   if mode == "shelf" then
     drawShelf()
+  elseif mode == "downloads" then
+    drawDownloads()
   elseif mode == "nickname" then
     drawNickname()
   elseif mode == "reader" or mode == "sentence" then

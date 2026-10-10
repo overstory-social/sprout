@@ -36,9 +36,10 @@ local function run(scenario, options)
     graphics = gfx,
     display = { setRefreshRate = function() end },
     file = {
-      listFiles = function(path) return path == "/" and { "chip-tree.sproutworld" } or nil end,
+      listFiles = function(path) return path == "/" and (options.files or { "chip-tree.sproutworld" }) or nil end,
       exists = function(path) return options.pictures ~= nil and options.pictures[path] ~= nil end,
     },
+    network = options.network,
     getSecondsSinceEpoch = function() return seconds end,
     isCrankDocked = function() return true end,
     getCrankChange = function() return 0 end,
@@ -75,6 +76,8 @@ local function run(scenario, options)
   _G.import = function(name)
     if imported[name] then return nil end
     imported[name] = true
+    -- the public key is written by the build, not kept in the source
+    if name == "publickey" then return string.rep("0", 64) end
     return dofile(arg[0]:match("^(.*)/[^/]*$") .. "/../Source/" .. name .. ".lua")
   end
   dofile(arg[0]:match("^(.*)/[^/]*$") .. "/../Source/main.lua")
@@ -117,6 +120,33 @@ test("the shelf lists the cartridge, A opens it, a name is picked, and the reade
     equal(play.shows("There is nothing special about a hall."), true, "the arrival is in the transcript")
     equal(play.shows("chip_tree.hall - exits: north"), true, "the status line")
   end)
+end)
+
+test("more worlds is the last row of the shelf; with no Wi-Fi it says so, and B returns to a shelf that says what happened", function()
+  run(function(play)
+    play.frame()
+    play.frame("Down")
+    equal(play.shows("more worlds..."), true, "the row is listed")
+    equal(play.shows("A looks for more worlds to download."), true, "and says what A does")
+    play.frame("A")
+    equal(play.shows("More worlds"), true, "the download screen")
+    equal(play.shows("No Wi-Fi network is set up"), true, "says why nothing can be fetched")
+    play.frame("B")
+    equal(play.shows("chip_tree"), true, "the shelf still lists what it has")
+    equal(play.shows("More worlds could not be fetched. No Wi-Fi network is set up"), true, "and what happened")
+    play.frame("Up")
+    play.frame("A")
+    equal(play.shows("Who are you in chip_tree?"), true, "a world still opens")
+  end, { network = { kStatusNotAvailable = "n/a", getStatus = function() return "n/a" end, http = {} } })
+end)
+
+test("a Playdate with no network support says to update it, and an empty shelf still offers more worlds", function()
+  run(function(play)
+    play.frame()
+    equal(play.shows("more worlds..."), true)
+    play.frame("A")
+    equal(play.shows("This Playdate's system software has no network support."), true)
+  end, { files = {} })
 end)
 
 test("a picture the place's description records is drawn above the transcript, with its caption", function()

@@ -2,7 +2,9 @@
 -- the app and its Data folder and in each one's `worlds/` folder (`listFiles` reads both the
 -- bundle and the Data folder; a copy in Data shadows the app's), and asks the engine whether
 -- each can be shelved. One it refuses is listed greyed with the engine's reason, and cannot be
--- opened. Results are kept by file name and size, so a cartridge is inspected once.
+-- opened. Results are kept by file name and size, so a cartridge is inspected once. After the
+-- last cartridge comes one more row, "more worlds", which opens the download screen; when the last
+-- try at the network failed, `moreNote` says why and the shelf shows it under that row.
 
 local Shelf = {}
 Shelf.__index = Shelf
@@ -17,6 +19,7 @@ end
 function Shelf.new(files, engine)
   return setmetatable({
     files = files, engine = engine, entries = {}, verdicts = {}, blocked = {}, selected = 1, crank = 0,
+    moreNote = nil,
   }, Shelf)
 end
 
@@ -36,7 +39,7 @@ function Shelf:paths()
   return out
 end
 
--- Lists the shelf again. An entry is { path, title, ok, reason }.
+-- Lists the shelf again. An entry is { path, title, hash, ok, reason }.
 function Shelf:refresh()
   local entries = {}
   for _, path in ipairs(self:paths()) do
@@ -46,14 +49,14 @@ function Shelf:refresh()
       self.verdicts[path] = verdict
     end
     local title = verdict.name or path:match("([^/]+)$"):sub(1, -#SUFFIX - 1)
-    local entry = { path = path, title = title, ok = verdict.ok, reason = verdict.reason }
+    local entry = { path = path, title = title, hash = verdict.hash, ok = verdict.ok, reason = verdict.reason }
     if verdict.ok and self.blocked[path] ~= nil then
       entry.ok, entry.reason, entry.blocked = false, self.blocked[path], true
     end
     entries[#entries + 1] = entry
   end
   self.entries = entries
-  if self.selected > #entries then self.selected = math.max(1, #entries) end
+  if self.selected > #entries + 1 then self.selected = #entries + 1 end
 end
 
 -- A world whose save could not be written is greyed with `reason` until a save succeeds (`unblock`).
@@ -64,11 +67,17 @@ function Shelf:unblock(path) self.blocked[path] = nil end
 -- Forgets what was learned of the cartridges, for a shelf whose files have changed.
 function Shelf:forget() self.verdicts = {} end
 
+-- The selected cartridge, or nil where "more worlds" is selected.
 function Shelf:current() return self.entries[self.selected] end
 
+-- Whether the "more worlds" row is selected.
+function Shelf:onMore() return self.selected == #self.entries + 1 end
+
+-- Says why the last try at the network failed (nil clears it).
+function Shelf:noteMore(reason) self.moreNote = reason end
+
 function Shelf:move(steps)
-  local n = #self.entries
-  if n == 0 then return end
+  local n = #self.entries + 1
   self.selected = (self.selected - 1 + steps) % n + 1
 end
 

@@ -2,5 +2,5 @@ name=sprout-player
 author=Overstory
 description=A player for Sprout worlds: read the world, build a sentence with the crank.
 bundleID=social.overstory.sprout-player
-version=0.1.0
-buildNumber=1
+version=0.2.0
+buildNumber=2

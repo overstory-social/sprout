@@ -44,6 +44,9 @@ void end(void);
 /* Calls a registered function and copies the reply, which the next call overwrites. */
 char *call(const char *name, const char *argument);
 
+/* The same with three string arguments. */
+char *call3(const char *name, const char *first, const char *second, const char *third);
+
 /* A session over the fake, for the tests that call the session's functions directly. */
 player_session *session_new(void);
 /* Copies a reply the session handed back. */

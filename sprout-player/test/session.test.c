@@ -15,9 +15,10 @@ static void the_shelf_asks_whether_each_cartridge_can_be_shelved(void) {
   s = session_new();
   write_text("garbage.sproutworld", "this is not a cartridge");
   good = keep(player_inspect(s, "chip-tree.sproutworld"));
-  CHECK(HAS(good, "\"ok\":true") && HAS(good, "\"name\":\"chip_tree\"") && HAS(good, "\"reason\":null"), "%s", good);
+  CHECK(HAS(good, "\"ok\":true") && HAS(good, "\"name\":\"chip_tree\"") && HAS(good, "\"reason\":null") &&
+            HAS(good, "\"hash\":\"5a9a634cc7238c010d5129c9c325867cbb023b6afee053f396fb0e121c069346\""), "%s", good);
   garbage = keep(player_inspect(s, "garbage.sproutworld"));
-  CHECK(HAS(garbage, "\"ok\":false") && HAS(garbage, "Sprout cartridge"), "%s", garbage);
+  CHECK(HAS(garbage, "\"ok\":false") && HAS(garbage, "Sprout cartridge") && HAS(garbage, "\"hash\":null"), "%s", garbage);
   missing = keep(player_inspect(s, "absent.sproutworld"));
   CHECK(HAS(missing, "\"ok\":false") && HAS(missing, "cannot be read"), "%s", missing);
   end();
