@@ -1,0 +1,26 @@
+{
+  "about": "The hole's refusal, through the passage it renders, and the stone's guard count what Marta carries; the hall's description, which is not a refusal, sees nothing in her hands.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A hall over a narrow hole. It sees 0 coffins in your hands." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The hole is too narrow to climb down, with nothing in your hands to drop first." }
+    ] },
+    { "as": "Marta", "type": "take stone", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The stone will not budge for someone carrying 0 coffins." }
+    ] },
+    { "as": "Marta", "type": "take coffin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a coffin." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You haven't a prayer of getting the coffin down there." }
+    ] },
+    { "as": "Marta", "type": "take stone", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The stone will not budge for someone carrying 1 coffins." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A hall over a narrow hole. It sees 0 coffins in your hands." }
+    ] }
+  ]
+}

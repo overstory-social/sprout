@@ -1,0 +1,27 @@
+import * as sprout from 'sprout'
+
+// A refusal's words see into the acting visitor's hands, though
+// `sprout.Actor` passes nothing: the hall's refusing exit counts the
+// coffins Marta carries, through a passage its words render, and so does
+// the stone's guard, of the one moving it; the hall's describe, which is
+// not a refusal, does not.
+world refusal_hands is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { exit down "down the hole" refuse hole_way }
+    describe { text "A hall over a narrow hole. It sees {actor.count(Coffin)} coffins in your hands." }
+    passage hole_way { {self.cure} }
+    passage cure { {if actor.count(Coffin) > 0}You haven't a prayer of getting the coffin down there.{else}The hole is too narrow to climb down, with nothing in your hands to drop first.{/if} }
+    object coffin is Coffin
+    object stone is Stone
+  }
+}
+
+kind Person is sprout.Visitor { }
+kind Coffin { }
+kind Stone {
+  depart (to) { refuse weighs }
+  passage weighs { {if mover.is(Person)}The stone will not budge for someone carrying {mover.count(Coffin)} coffins.{else}The stone will not budge.{/if} }
+}

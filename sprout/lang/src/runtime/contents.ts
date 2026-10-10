@@ -5,21 +5,27 @@
 // `self` is seen, and a shut chest asked about from outside holds
 // nothing. An object always reaches itself and its own contents, so a
 // container asking about itself sees all it holds. Every range question
-// is charged as any other is.
+// is charged as any other is. A refusal's words see into the acting
+// visitor's hands as well, as sight does (the spec's Range).
 
 import type { KindExpr } from '../syntax/ast.js';
 import { kindName } from '../declare/kinds.js';
 import type { Frame } from './evaluate.js';
 import type { InstanceId } from './ids.js';
 import { isLive, liveTree } from './live.js';
-import { reaches } from './range.js';
+import { reaches, type PassRule } from './range.js';
 
 /** What the frame reads a range question with. */
-type Asker = Pick<Frame, 'state' | 'passes' | 'budget' | 'self'>;
+type Asker = Pick<Frame, 'state' | 'passes' | 'budget' | 'self' | 'hands'>;
 
-/** Whether `id` is live and in range of the frame's `self`. */
+/** Whether `id` is live and in range of the frame's `self`, the frame's open hands passing. */
 export function seenBy(frame: Asker, id: InstanceId): boolean {
-  const range = { tree: liveTree(frame.state), passes: frame.passes, budget: frame.budget };
+  const { hands } = frame;
+  const passes: PassRule<InstanceId> =
+    hands === undefined
+      ? frame.passes
+      : (container, asking) => container === hands || frame.passes(container, asking);
+  const range = { tree: liveTree(frame.state), passes, budget: frame.budget };
   return isLive(frame.state, id) && reaches(range, frame.self, id, 'any');
 }
 
