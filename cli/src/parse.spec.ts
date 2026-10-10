@@ -54,12 +54,14 @@ sprout.help
   help
   ?
 
-sprout.take (target)
+sprout.take (target, source: sprout.Container optional)
   take [target]
   get [target]
   pick up [target]
   pick [target] up
   grab [target]
+  take [target] from [source]
+  take [target] out of [source]
 
 sprout.drop (target)
   drop [target]
@@ -134,7 +136,7 @@ intent sprout.open_with, which does sprout.unlock, then sprout.open
       ),
     });
     const page = formatGrammar(catalogueFor(checkWorld(withSynonyms).bundle!));
-    expect(page).toContain('  grab [target]\n  nab [target]\n');
+    expect(page).toContain('  take [target] out of [source]\n  nab [target]\n');
     expect(page).toContain('  heft [target]   (only with yard.crate)\n');
   });
 });
@@ -174,6 +176,7 @@ refused by a crate (yard.crate) as target, in lane.Crate's permit:
   it('says a reading was drawn from several that tied, and what the visitor is told it meant', () => {
     expect(read('take key').page).toBe(`in yard, "take key" reads as sprout.take
   target: a brass key (yard.brass_key)
+  source: unbound
 drawn from 2 readings that tied, as a turn seeded 0 draws it; the visitor is told first:
   (a brass key)
 every participant consents

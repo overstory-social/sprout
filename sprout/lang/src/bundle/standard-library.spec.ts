@@ -179,14 +179,24 @@ describe('the standard library', () => {
     expect(phrases('go')).toContain('[way]');
   });
 
-  it('gives the actor `take`, `drop`, `put` and `give`, the container a container, the recipient an actor, and none of them optional', () => {
+  it('gives the actor `take`, `drop`, `put` and `give`, the container a container, the recipient an actor, and `take` an optional source a container', () => {
     const actor = verbsByFile().get('sprout/actor.sprout')!;
     expect(Object.fromEntries(actor.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
-      take: ['target:open'],
+      take: ['target:open', 'source:sprout.Container?'],
       drop: ['target:open'],
       put: ['item:open', 'container:sprout.Container'],
       give: ['item:open', 'recipient:sprout.Actor'],
     });
+  });
+
+  it('writes `take … from` and `take … out of` a source, which the bare phrases leave out', () => {
+    const actor = verbsByFile().get('sprout/actor.sprout')!;
+    const take = actor.find((verb) => verb.name === 'take')!.phrases.map((phrase) => phrase.text);
+    expect(take.filter((text) => text.includes('[source]'))).toEqual([
+      'take [target] from [source]',
+      'take [target] out of [source]',
+    ]);
+    expect(take.length).toBeLessThanOrEqual(8);
   });
 
   it('writes every `drop` phrase again with a trailing `here`, a phrase word and not a noun', () => {
@@ -251,6 +261,7 @@ describe('the standard library', () => {
         'gives',
         'not_carried',
         'not_held',
+        'not_in_source',
       ]),
     ).toEqual({
       taken: 'You take {target}.',
@@ -264,6 +275,7 @@ describe('the standard library', () => {
       gives: '{actor} gives {item} to {recipient}.',
       not_carried: 'You are not holding {target}.',
       not_held: 'You are not holding {item}.',
+      not_in_source: "That isn't in {source}.",
     });
   });
 
@@ -460,6 +472,7 @@ describe('the standard library', () => {
       'inventory',
       'not_carried',
       'not_held',
+      'not_in_source',
       'not_yours',
       'put_in',
       'puts_in',
@@ -553,7 +566,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'db34d8622aab862f3b9b2859004472da7888d8ed395105f883616ed4c47f4109',
+      'e07a01d353c34e10d14044970e85c1fc1a1b0ebba0078fa69a2bec86936b95da',
     );
   });
 });

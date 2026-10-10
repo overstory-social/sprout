@@ -164,7 +164,7 @@ describe('an intent’s reading, ranked among verbs’', () => {
 
   it('fills its slots by name, where a verb’s reading fills its roles', () => {
     expect(slotNamesOf(opening(GONG, BRASS_KEY).reading)).toEqual(['y', 'x']);
-    expect(slotNamesOf(taking(GONG).reading)).toEqual(['target']);
+    expect(slotNamesOf(taking(GONG).reading)).toEqual(['target', 'source']);
   });
 
   it('is drawn among its ties as a verb’s is, the thing named from its first slot that differs', () => {

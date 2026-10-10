@@ -1,0 +1,24 @@
+// The standard library's `take` takes a thing from what holds it (the
+// spec's The standard library it needs): `take lunch from sack` and `take
+// lunch out of sack` take it where the sack holds it, and are refused,
+// "That isn't in the sack.", where it does not. A run of things shares the
+// source written after it, each taken or refused on its own turn.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world take_from is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    grammar { article the }
+    object sack is sprout.Container {
+      grammar { name "sack"  article the }
+      object lunch is Food { grammar { name "lunch" } }
+      object garlic is Food { grammar { name "garlic" } }
+    }
+    object bottle is Food { grammar { name "bottle" } }
+  }
+}
+
+kind Food { }
