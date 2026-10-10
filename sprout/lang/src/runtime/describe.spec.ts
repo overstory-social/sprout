@@ -24,6 +24,10 @@ import { describeFor } from './describe.js';
 import * as D from '../fixtures/darkness.js';
 import type { InstanceId } from './ids.js';
 import { readerOf } from './state.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import { catalogueOf } from './catalogue.js';
+import { declaredId } from './ids.js';
+import { initialState } from './load.js';
 
 describe('a description', () => {
   it('is each `text` the describe ran, in order, from the thing, to the one looking', () => {
@@ -124,6 +128,42 @@ describe('a description', () => {
       describeFor('study#99' as InstanceId, actorOf(state, MARTA), 'look', context),
     ).toThrow(/is not an instance/);
     expect(() => describeFor(LAMP, state.world, 'look', context)).toThrow(/is away/);
+  });
+});
+
+describe('a description that narrows a name', () => {
+  // A kind's body naming the place its instance stands in, which only the run resolves.
+  const BUNDLE = compiledWorld('rooms', {
+    'rooms.sprout': `world rooms is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is Hall { object plaque is Plaque }
+}
+kind Hall is sprout.Place { :lamps 2 }
+kind Plaque {
+  describe {
+    if (hall.is(Hall)) { text "The hall has {hall.get(:lamps)} lamps." } else { text "No hall." }
+  }
+}
+`,
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  });
+  const catalogue = catalogueOf(BUNDLE, DEFAULT_LIMITS.caps);
+  const hall = declaredId('rooms', ['hall']);
+  const plaque = declaredId('rooms', ['hall', 'plaque']);
+
+  it('binds it for the lines its branch gives, to what it reaches now', () => {
+    const state = initialState(catalogue);
+    const { lines } = describeFor(plaque, plaque, 'look', {
+      state: readerOf(state),
+      catalogue,
+      budget: new Budget(DEFAULT_LIMITS.budgets, 'poll'),
+      passes: (container) => (container === state.world ? WORLD_PASSES_ANYTHING : true),
+    });
+    expect(lines.map((line) => words(line.said))).toEqual([
+      'The hall has {hall.get(:lamps)} lamps.',
+    ]);
+    expect(lines[0]!.bindings.get('hall')).toEqual({ binds: 'object', id: hall });
   });
 });
 
