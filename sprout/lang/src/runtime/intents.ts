@@ -43,7 +43,10 @@ export function planIntent(intended: IntentReading, context: PlanContext): Readi
   return planned;
 }
 
-/** The reading one step makes of what the slots hold; null where a role it gives cannot be filled so. */
+/**
+ * The reading one step makes of what the slots hold, a set role filled as
+ * the set of its slot's thing; null where a role it gives cannot be filled so.
+ */
 function readingOf(
   step: ResolvedIntentStep,
   intended: IntentReading,
@@ -56,7 +59,8 @@ function readingOf(
       bound !== undefined && 'object' in bound ? state.instance(bound.object) : undefined;
     const declared = step.verb.roles.find((one) => one.name === role)!;
     if (thing === undefined || !fits(declared, thing)) return null;
-    bindings.set(role, bound!);
+    // A slot holds one thing, so a set role it fills is the set of that one.
+    bindings.set(role, declared.many ? { set: [thing.id] } : bound!);
   }
   return { verb: step.verb, actor: intended.actor, bindings };
 }

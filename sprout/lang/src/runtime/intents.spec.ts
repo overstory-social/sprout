@@ -8,6 +8,7 @@ import {
   CRATE,
   KEY,
   MARTA,
+  PIN,
   played,
   workshop,
 } from '../fixtures/workshop.js';
@@ -95,6 +96,12 @@ describe('the steps an intent plans', () => {
   it('leave out a step whose role the slot’s thing does not fit, without reading its `when`', () => {
     expect(planned(after('take key'), 'open crate with key')).toEqual([
       { verb: 'sprout.open', bindings: { target: { object: CRATE } } },
+    ]);
+  });
+
+  it('fill a set role from a slot as the set of the one thing it holds', () => {
+    expect(planned(workshop(), 'fling pin')).toEqual([
+      { verb: 'workshop.toss', bindings: { target: { set: [PIN] } } },
     ]);
   });
 

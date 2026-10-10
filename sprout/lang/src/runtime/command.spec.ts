@@ -911,6 +911,12 @@ describe('an intent, through command turns', () => {
     });
   });
 
+  it('runs a step whose set role a slot fills, as the set of that one thing', () => {
+    const flung = linesIn([MARTA_AT, 'fling pin'])[0]!;
+    expect(flung.read).toEqual(linesIn([MARTA_AT, 'toss pin'])[0]!.read);
+    expect(flung.steps).toEqual(['toss']);
+  });
+
   it('answers `nothing_happens` where every step is left out', () => {
     expect(
       linesIn(

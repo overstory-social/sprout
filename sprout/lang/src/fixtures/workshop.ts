@@ -5,7 +5,8 @@
 // crate is an open container that holds one thing; the anvil is a
 // `sprout.Fixture`; the pin and the key lie loose, and a nail and a tack,
 // both answering to "spike". Its intents: `pick` unlocks only what is
-// locked, and `heft` takes a thing and drops it. Marta and Ines stand in
+// locked, `heft` takes a thing and drops it, and `fling` tosses one thing
+// as `toss`'s set of things. Marta and Ines stand in
 // the hall. Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
@@ -48,6 +49,8 @@ export const WORKSHOP: Bundle = compiledWorld('workshop', {
   do unlock (target: y, tool: x) when (y.get(:locked))
 }
 intent heft { "heft [y]"  do take (target: y) then drop (target: y) }
+intent fling { "fling [y]"  do toss (target: y) }
+verb toss { role target many  "toss [target]" }
 `,
   'pin.sprout': 'kind Pin { }\n',
   'key.sprout': 'kind Key { }\n',
