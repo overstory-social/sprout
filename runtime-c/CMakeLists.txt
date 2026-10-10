@@ -7,6 +7,14 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra -Werror -pedantic)
 
+# -DSPROUT_SANITIZE=ON builds the library, the host and every test under AddressSanitizer and
+# UndefinedBehaviorSanitizer, so a leak, an out-of-bounds access or a use after free fails the test.
+option(SPROUT_SANITIZE "Build with -fsanitize=address,undefined" OFF)
+if(SPROUT_SANITIZE)
+  add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address,undefined)
+endif()
+
 set(SPROUT_MODULES
   arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
   effects engine-verbs eval exec exits graph guards hearing inflate intents json lists load move outcome prose range

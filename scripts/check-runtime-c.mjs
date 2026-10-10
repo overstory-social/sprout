@@ -3,6 +3,12 @@
 // saying what is missing and skips, unless `--required` is given (the e2e
 // does), which makes the missing tool a failure. It never skips silently.
 //
+// With `--sanitize` it configures a second build directory with
+// -DSPROUT_SANITIZE=ON (AddressSanitizer and UndefinedBehaviorSanitizer) and
+// runs only ctest there, with halt_on_error and leak detection on, so any
+// report fails the script. The gate keeps the plain build to stay fast; the
+// e2e runs the sanitized one.
+//
 // Run `npm run build` first: the C tests pack every corpus world into a
 // cartridge through the built CLI (`cli/dist`), and the replay uses the built
 // player. Without it the packing setup fails and the tests that need it do not run.
@@ -21,6 +27,7 @@ import { join } from 'node:path';
 import { runtimeCBuild as build, runtimeCRoot as root } from './runtime-c-build.mjs';
 
 const required = process.argv.includes('--required');
+const sanitize = process.argv.includes('--sanitize');
 
 // The corpus worlds whose transcripts the C runtime replays to the byte, sorted.
 // Today none does: the runtime's load and turn are declared and not built.
@@ -51,6 +58,19 @@ function run(command, args, env) {
     process.exit(1);
   }
   return done.stdout;
+}
+
+if (sanitize) {
+  const dir = `${build}-sanitize`;
+  run('cmake', ['-S', root, '-B', dir, '-DCMAKE_BUILD_TYPE=Debug', '-DSPROUT_SANITIZE=ON'], { CC: compiler });
+  run('cmake', ['--build', dir]);
+  const sanitized = run('ctest', ['--test-dir', dir, '--output-on-failure'], {
+    ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
+    UBSAN_OPTIONS: 'halt_on_error=1:print_stacktrace=1',
+  });
+  const line = sanitized.split('\n').find((l) => /tests passed/.test(l)) ?? 'ctest ran';
+  console.log(`runtime-c (sanitized): ${compiler}, ${line.trim()}`);
+  process.exit(0);
 }
 
 run('cmake', ['-S', root, '-B', build, '-DCMAKE_BUILD_TYPE=Debug'], { CC: compiler });

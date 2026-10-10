@@ -45,13 +45,14 @@ static run sproutc(int argc, char **argv) {
   return r;
 }
 
-/* Writes the golden's stored world of this name to a file and returns its path. */
+/* Writes the golden's stored world of this name under the temp directory and returns its path. */
 static const char *state_file(const sprout_json *golden, const char *name) {
-  static char path[64];
+  static char path[512];
+  const char *dir = getenv("TMPDIR");
   const sprout_json *states = sprout_json_get(golden, "states");
   const sprout_json *stored = sprout_json_get(states, name);
   FILE *file;
-  snprintf(path, sizeof path, "evaluate-host-%s.json", name);
+  snprintf(path, sizeof path, "%s/sprout-evaluate-host-%s.json", dir != NULL && dir[0] != '\0' ? dir : "/tmp", name);
   file = fopen(path, "wb");
   fwrite(stored->bytes, 1, stored->length, file);
   fclose(file);
@@ -75,6 +76,12 @@ static void open_world(world *w) {
   CHECK_INT(sprout_json_read(&w->arena, text, length, &root, &error), SPROUT_OK);
   free(text);
   w->golden = root;
+}
+
+/* Releases the golden's arena and checks every page went back to the host. */
+static void close_world(world *w) {
+  sprout_arena_reset(&w->arena);
+  CHECK_INT(w->heap.pages, 0);
 }
 
 static const sprout_json *golden_case(const world *w, const char *name) {
@@ -108,6 +115,7 @@ static void a_value_is_printed_with_the_steps_it_took(void) {
   CHECK_INT(r.code, 0);
   CHECK_STR(r.out, expected);
   CHECK_STR(r.err, "");
+  close_world(&w);
 }
 
 static void bound_names_and_a_seed_reach_the_expression(void) {
@@ -140,6 +148,7 @@ static void bound_names_and_a_seed_reach_the_expression(void) {
   r = sproutc(10, argv);
   CHECK_INT(r.code, 0);
   CHECK_STR(r.out, "{\"value\":true}\nsteps 1\n");
+  close_world(&w);
 }
 
 static void a_fault_is_printed_in_the_hosts_words_and_exits_one(void) {
@@ -166,6 +175,7 @@ static void a_fault_is_printed_in_the_hosts_words_and_exits_one(void) {
   CHECK_STR(r.out,
             "fault BudgetExhausted: This turn used more steps than the host allows (25) while running message 0, so it "
             "was stopped and nothing it did was kept.\nsteps 26\n");
+  close_world(&w);
 }
 
 static void a_command_line_it_cannot_follow_exits_two_in_words(void) {
@@ -213,6 +223,7 @@ static void a_node_past_the_graph_is_named(void) {
   r = sproutc(8, argv);
   CHECK_INT(r.code, 2);
   CHECK(strstr(r.err, "there is no entry 99999999.") != NULL);
+  close_world(&w);
 }
 
 int main(void) {
