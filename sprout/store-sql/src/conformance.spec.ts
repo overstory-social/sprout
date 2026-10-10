@@ -126,6 +126,7 @@ describe('sqlStore passes the conformance suite on PGlite', () => {
         kinds: null,
         files: null,
         sourceBytes: null,
+        assetBytes: null,
       },
       excepted: false,
       loadedAt: new Date('2026-09-18T12:00:00Z'),

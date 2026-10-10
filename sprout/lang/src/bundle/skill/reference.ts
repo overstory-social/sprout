@@ -301,7 +301,10 @@ function extensionShown(extension: Extension): string {
   ]);
   const statements = extension.statements.map((statement) => {
     const parameters = statement.parameters
-      .map((parameter) => `${parameter.name}: ${parameterType(name, parameter.type)}`)
+      .map(
+        (parameter) =>
+          `${parameter.name}${parameter.optional === true ? '?' : ''}: ${parameterType(name, parameter.type)}`,
+      )
       .join(', ');
     return [code(`${name}.${statement.name}(${parameters})`), statement.describe ? 'yes' : '—'];
   });

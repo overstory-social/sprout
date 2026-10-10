@@ -78,19 +78,25 @@ function checkArguments(
   const extension = context.extensions!.pinned.get(statement.extension.text)!.installed!;
   const written = `${statement.extension.text}.${statement.name.text}`;
   const { parameters } = declared;
-  if (statement.arguments.length !== parameters.length) {
+  const required = parameters.filter((parameter) => parameter.optional !== true).length;
+  if (statement.arguments.length < required || statement.arguments.length > parameters.length) {
+    const takes =
+      required === parameters.length
+        ? `takes ${parameters.length}`
+        : `takes ${required} to ${parameters.length}`;
+    const names = parameters.map((p) => (p.optional === true ? `${p.name}?` : p.name));
     context.diagnostics.refuse(
       statement.at,
       parameters.length === 0
         ? `\`${written}\` takes nothing, and is given ${statement.arguments.length}.`
-        : `\`${written}\` takes ${parameters.length}: ${readable(parameters.map((p) => p.name))}.`,
-      `Write \`${written}(${parameters.map((p) => p.name).join(', ')})\`.`,
+        : `\`${written}\` ${takes}: ${readable(names)}.`,
+      `Write \`${written}(${names.join(', ')})\`${required < parameters.length ? ', leaving out what ends in ?' : ''}.`,
     );
     return null;
   }
   const literals: (Plain | undefined)[] = [];
   let ok = true;
-  parameters.forEach((parameter, index) => {
+  parameters.slice(0, statement.arguments.length).forEach((parameter, index) => {
     const argument = statement.arguments[index]!;
     const type = parameterType(extension, parameter);
     if (type === null) {

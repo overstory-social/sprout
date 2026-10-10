@@ -29,6 +29,7 @@ const CAPS = {
   kinds: null,
   files: null,
   sourceBytes: null,
+  assetBytes: null,
 };
 
 const url = process.env['DATABASE_URL'];

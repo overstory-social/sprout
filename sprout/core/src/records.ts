@@ -82,6 +82,7 @@ export const RecordedCaps = z.object({
   kinds: hostCap,
   files: hostCap,
   sourceBytes: hostCap,
+  assetBytes: hostCap,
 }) satisfies z.ZodType<StaticCaps>;
 export type RecordedCaps = z.infer<typeof RecordedCaps>;
 

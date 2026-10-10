@@ -249,7 +249,12 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
     },
     table: { files: [...tables.files], entries: tables.rest as Entry[] },
     caps: { ...bundle.caps },
-    extensions: bundle.extensions.map(({ name, major }) => ({ name, major })),
+    extensions: bundle.extensions.map(({ name, major }) => {
+      const assets = bundle.assets
+        .filter((asset) => asset.extension === name)
+        .map(({ path, bytes, sha }) => ({ path, bytes, sha }));
+      return assets.length === 0 ? { name, major } : { name, major, assets };
+    }),
   } as Cartridge;
 }
 
