@@ -1,0 +1,4057 @@
+{
+  "world": {
+    "world": "harbour",
+    "serial": 8,
+    "instances": [
+      {
+        "id": "harbour",
+        "made": {
+          "from": "world"
+        },
+        "container": null,
+        "arrival": null,
+        "properties": {},
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour#1",
+        "made": {
+          "from": "visitor"
+        },
+        "container": null,
+        "arrival": null,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "value": 8
+          },
+          "moves": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour#2",
+        "made": {
+          "from": "visitor"
+        },
+        "container": "harbour.quay",
+        "arrival": 3,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "value": 8
+          },
+          "moves": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour#4",
+        "made": {
+          "from": "visitor"
+        },
+        "container": null,
+        "arrival": null,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "value": 8
+          },
+          "moves": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour#5",
+        "made": {
+          "from": "visitor"
+        },
+        "container": "harbour.quay",
+        "arrival": 6,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "value": 8
+          },
+          "moves": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour#7",
+        "made": {
+          "from": "visitor"
+        },
+        "container": "harbour.quay",
+        "arrival": 8,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "value": 8
+          },
+          "moves": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour.cellar",
+        "made": {
+          "from": "declared"
+        },
+        "container": "harbour",
+        "arrival": null,
+        "properties": {},
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour.loft",
+        "made": {
+          "from": "declared"
+        },
+        "container": "harbour",
+        "arrival": null,
+        "properties": {
+          "shut": {
+            "type": "boolean",
+            "value": false
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour.quay",
+        "made": {
+          "from": "declared"
+        },
+        "container": "harbour",
+        "arrival": null,
+        "properties": {
+          "arrivals": {
+            "type": "integer",
+            "value": 0
+          },
+          "boom": {
+            "type": "boolean",
+            "value": false
+          },
+          "closed": {
+            "type": "boolean",
+            "value": false
+          },
+          "departures": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      },
+      {
+        "id": "harbour.quay.gull",
+        "made": {
+          "from": "declared"
+        },
+        "container": "harbour.quay",
+        "arrival": null,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "value": 8
+          },
+          "gone": {
+            "type": "integer",
+            "value": 0
+          },
+          "seen": {
+            "type": "integer",
+            "value": 0
+          }
+        },
+        "links": {},
+        "wakes": [],
+        "memory": {},
+        "lastTick": null
+      }
+    ],
+    "visitors": [
+      {
+        "visit": "v-ines",
+        "nickname": "Ines",
+        "instance": "harbour#2",
+        "lastPlace": "harbour.quay",
+        "referents": [],
+        "lastReading": null
+      },
+      {
+        "visit": "v-marta",
+        "nickname": "Marta",
+        "instance": "harbour#1",
+        "lastPlace": "harbour.quay",
+        "referents": [],
+        "lastReading": null
+      },
+      {
+        "visit": "v-odo",
+        "nickname": "Odo",
+        "instance": "harbour#4",
+        "lastPlace": "harbour.quay",
+        "referents": [],
+        "lastReading": null
+      },
+      {
+        "visit": "v-pell",
+        "nickname": "ΑΣ",
+        "instance": "harbour#5",
+        "lastPlace": "harbour.quay",
+        "referents": [],
+        "lastReading": null
+      },
+      {
+        "visit": "v-quill",
+        "nickname": "İSTANBUL",
+        "instance": "harbour#7",
+        "lastPlace": "harbour.quay",
+        "referents": [],
+        "lastReading": null
+      }
+    ],
+    "tombstones": []
+  },
+  "cases": [
+    {
+      "visit": "v-marta",
+      "nickname": "Marta B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "  Marta \t B\n",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "  Marta \t B\n",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "   ",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "   ",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Mar\u0007ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Mar\u0007ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Mar​ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Mar​ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta‮",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta‮",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Mårta Ø",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Mårta Ø",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMM\" is 24 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 24: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": ":team",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": ":team",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": " :team  marta.b :team ",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": " :team  marta.b :team ",
+        "collides": [":team", "marta.b"],
+        "words": "A nickname's word may not begin with a colon or have a period inside it, and \":team\" and \"marta.b\" do: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": " :team  marta.b :team ",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": " :team  marta.b :team ",
+        "collides": [],
+        "words": "\":team marta.b :team\" is 19 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "marta.b",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "marta.b",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Dr. Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Dr. Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Dr. Marta",
+        "collides": [],
+        "words": "\"Dr. Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta:B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta:B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": ".Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": ".Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "When",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "When",
+      "cap": 7,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta IF when if",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "Marta IF when if",
+        "collides": ["if", "when"],
+        "words": "\"if\" and \"when\" are words every world here reads, so \"Marta IF when if\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta IF when if",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta IF when if",
+        "collides": [],
+        "words": "\"Marta IF when if\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Whenever",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Whenever",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Whenever",
+        "collides": [],
+        "words": "\"Whenever\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ifrit",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ifrit",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Gull",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Gull",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Grey Quay",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Grey Quay",
+        "collides": ["quay"],
+        "words": "\"quay\" is a word this world already reads, so \"Grey Quay\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Grey Quay",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Grey Quay",
+        "collides": [],
+        "words": "\"Grey Quay\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "North Gull north",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "North Gull north",
+        "collides": ["north", "gull"],
+        "words": "\"north\" and \"gull\" are words this world already reads, so \"North Gull north\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "North Gull north",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "North Gull north",
+        "collides": [],
+        "words": "\"North Gull north\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta, B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta, B",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"Marta, B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta, B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta, B",
+        "collides": [],
+        "words": "\"Marta, B\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta and B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta and B",
+        "collides": ["and"],
+        "words": "\"and\" is a word this world already reads, so \"Marta and B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta and B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta and B",
+        "collides": [],
+        "words": "\"Marta and B\" is 11 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "The Marta",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "The Marta",
+        "collides": ["the"],
+        "words": "\"the\" is a word this world already reads, so \"The Marta\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "The Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "The Marta",
+        "collides": [],
+        "words": "\"The Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "NE",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "NE",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Look",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Look",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ines",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "Ines",
+        "collides": [],
+        "words": "Someone here is already called \"Ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ines",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "Ines",
+        "collides": [],
+        "words": "Someone here is already called \"Ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "INES",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "INES",
+        "collides": [],
+        "words": "Someone here is already called \"INES\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "INES",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "INES",
+        "collides": [],
+        "words": "Someone here is already called \"INES\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "  ines ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "  ines ",
+        "collides": [],
+        "words": "Someone here is already called \"ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "  ines ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "  ines ",
+        "collides": [],
+        "words": "Someone here is already called \"ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Odo",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Odo",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ODO",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ODO",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Pell",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Pell",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ας",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ας",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ασ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ασ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ Β",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ Β",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Σ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Σ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΣΑΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΣΑΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ.",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ.",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ, Β",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ΑΣ, Β",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "İstanbul",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "Someone here is already called \"İstanbul\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "İstanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "\"İstanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "istanbul",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "istanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "istanbul",
+        "collides": [],
+        "words": "\"istanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Straße",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Straße",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "STRASSE",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "STRASSE",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ǅ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ǅ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "𐐀𐐁",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "𐐀𐐁",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "𐐨𐐩",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "𐐨𐐩",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "áΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "áΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Ὀδυσσεύς",
+        "collides": [],
+        "words": "\"Ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "ὀδυσσεύς",
+        "collides": [],
+        "words": "\"ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "MARTA  ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-marta",
+      "nickname": "MARTA  ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "  Marta \t B\n",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "  Marta \t B\n",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "   ",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "   ",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Mar\u0007ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Mar\u0007ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Mar​ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Mar​ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta‮",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta‮",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Mårta Ø",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Mårta Ø",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMM\" is 24 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 24: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": ":team",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": ":team",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": " :team  marta.b :team ",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": " :team  marta.b :team ",
+        "collides": [":team", "marta.b"],
+        "words": "A nickname's word may not begin with a colon or have a period inside it, and \":team\" and \"marta.b\" do: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": " :team  marta.b :team ",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": " :team  marta.b :team ",
+        "collides": [],
+        "words": "\":team marta.b :team\" is 19 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "marta.b",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "marta.b",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Dr. Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Dr. Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Dr. Marta",
+        "collides": [],
+        "words": "\"Dr. Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta:B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta:B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": ".Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": ".Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "When",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "When",
+      "cap": 7,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta IF when if",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "Marta IF when if",
+        "collides": ["if", "when"],
+        "words": "\"if\" and \"when\" are words every world here reads, so \"Marta IF when if\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta IF when if",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta IF when if",
+        "collides": [],
+        "words": "\"Marta IF when if\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Whenever",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Whenever",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Whenever",
+        "collides": [],
+        "words": "\"Whenever\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ifrit",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ifrit",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Gull",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Gull",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Grey Quay",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Grey Quay",
+        "collides": ["quay"],
+        "words": "\"quay\" is a word this world already reads, so \"Grey Quay\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Grey Quay",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Grey Quay",
+        "collides": [],
+        "words": "\"Grey Quay\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "North Gull north",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "North Gull north",
+        "collides": ["north", "gull"],
+        "words": "\"north\" and \"gull\" are words this world already reads, so \"North Gull north\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "North Gull north",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "North Gull north",
+        "collides": [],
+        "words": "\"North Gull north\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta, B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta, B",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"Marta, B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta, B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta, B",
+        "collides": [],
+        "words": "\"Marta, B\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta and B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta and B",
+        "collides": ["and"],
+        "words": "\"and\" is a word this world already reads, so \"Marta and B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta and B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta and B",
+        "collides": [],
+        "words": "\"Marta and B\" is 11 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "The Marta",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "The Marta",
+        "collides": ["the"],
+        "words": "\"the\" is a word this world already reads, so \"The Marta\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "The Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "The Marta",
+        "collides": [],
+        "words": "\"The Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "NE",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "NE",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Look",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Look",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ines",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ines",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "INES",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "INES",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "  ines ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "  ines ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Odo",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Odo",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ODO",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ODO",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Pell",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Pell",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ας",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ας",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ασ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ασ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ Β",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ Β",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Σ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Σ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΣΑΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΣΑΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ.",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ.",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ, Β",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ΑΣ, Β",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "İstanbul",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "Someone here is already called \"İstanbul\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "İstanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "\"İstanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "istanbul",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "istanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "istanbul",
+        "collides": [],
+        "words": "\"istanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Straße",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Straße",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "STRASSE",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "STRASSE",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ǅ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ǅ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "𐐀𐐁",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "𐐀𐐁",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "𐐨𐐩",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "𐐨𐐩",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "áΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "áΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Ὀδυσσεύς",
+        "collides": [],
+        "words": "\"Ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-ines",
+      "nickname": "ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "ὀδυσσεύς",
+        "collides": [],
+        "words": "\"ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "  Marta \t B\n",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "  Marta \t B\n",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "   ",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "   ",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Mar\u0007ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Mar\u0007ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Mar​ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Mar​ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta‮",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta‮",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Mårta Ø",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Mårta Ø",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMM\" is 24 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 24: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": ":team",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": ":team",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": " :team  marta.b :team ",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": " :team  marta.b :team ",
+        "collides": [":team", "marta.b"],
+        "words": "A nickname's word may not begin with a colon or have a period inside it, and \":team\" and \"marta.b\" do: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": " :team  marta.b :team ",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": " :team  marta.b :team ",
+        "collides": [],
+        "words": "\":team marta.b :team\" is 19 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "marta.b",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "marta.b",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Dr. Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Dr. Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Dr. Marta",
+        "collides": [],
+        "words": "\"Dr. Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta:B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta:B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": ".Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": ".Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "When",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "When",
+      "cap": 7,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta IF when if",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "Marta IF when if",
+        "collides": ["if", "when"],
+        "words": "\"if\" and \"when\" are words every world here reads, so \"Marta IF when if\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta IF when if",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta IF when if",
+        "collides": [],
+        "words": "\"Marta IF when if\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Whenever",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Whenever",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Whenever",
+        "collides": [],
+        "words": "\"Whenever\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ifrit",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ifrit",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Gull",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Gull",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Grey Quay",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Grey Quay",
+        "collides": ["quay"],
+        "words": "\"quay\" is a word this world already reads, so \"Grey Quay\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Grey Quay",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Grey Quay",
+        "collides": [],
+        "words": "\"Grey Quay\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "North Gull north",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "North Gull north",
+        "collides": ["north", "gull"],
+        "words": "\"north\" and \"gull\" are words this world already reads, so \"North Gull north\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "North Gull north",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "North Gull north",
+        "collides": [],
+        "words": "\"North Gull north\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta, B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta, B",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"Marta, B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta, B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta, B",
+        "collides": [],
+        "words": "\"Marta, B\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta and B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta and B",
+        "collides": ["and"],
+        "words": "\"and\" is a word this world already reads, so \"Marta and B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta and B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta and B",
+        "collides": [],
+        "words": "\"Marta and B\" is 11 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "The Marta",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "The Marta",
+        "collides": ["the"],
+        "words": "\"the\" is a word this world already reads, so \"The Marta\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "The Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "The Marta",
+        "collides": [],
+        "words": "\"The Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "NE",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "NE",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Look",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Look",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ines",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "Ines",
+        "collides": [],
+        "words": "Someone here is already called \"Ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ines",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "Ines",
+        "collides": [],
+        "words": "Someone here is already called \"Ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "INES",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "INES",
+        "collides": [],
+        "words": "Someone here is already called \"INES\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "INES",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "INES",
+        "collides": [],
+        "words": "Someone here is already called \"INES\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "  ines ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "  ines ",
+        "collides": [],
+        "words": "Someone here is already called \"ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "  ines ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "  ines ",
+        "collides": [],
+        "words": "Someone here is already called \"ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Odo",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Odo",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ODO",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ODO",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Pell",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Pell",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ας",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ας",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ασ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ασ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ Β",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ Β",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Σ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Σ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΣΑΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΣΑΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ.",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ.",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ, Β",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ΑΣ, Β",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "İstanbul",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "Someone here is already called \"İstanbul\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "İstanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "\"İstanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "istanbul",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "istanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "istanbul",
+        "collides": [],
+        "words": "\"istanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Straße",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Straße",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "STRASSE",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "STRASSE",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ǅ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ǅ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "𐐀𐐁",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "𐐀𐐁",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "𐐨𐐩",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "𐐨𐐩",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "áΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "áΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Ὀδυσσεύς",
+        "collides": [],
+        "words": "\"Ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-odo",
+      "nickname": "ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "ὀδυσσεύς",
+        "collides": [],
+        "words": "\"ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "  Marta \t B\n",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "  Marta \t B\n",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "   ",
+      "cap": 24,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "   ",
+      "cap": 7,
+      "refused": {
+        "reason": "empty",
+        "nickname": "   ",
+        "collides": [],
+        "words": "Choose a nickname to be known by here."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Mar\u0007ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Mar\u0007ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar\u0007ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Mar​ta",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Mar​ta",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Mar​ta",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta‮",
+      "cap": 24,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta‮",
+      "cap": 7,
+      "refused": {
+        "reason": "not-words",
+        "nickname": "Marta‮",
+        "collides": [],
+        "words": "A nickname is words and nothing else: choose one without hidden or control characters."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Mårta Ø",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Mårta Ø",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMM\" is 24 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 24,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 24: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "MMMMMMMMMMMMMMMMMMMMMMMMM",
+        "collides": [],
+        "words": "\"MMMMMMMMMMMMMMMMMMMMMMMMM\" is 25 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": ":team",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": ":team",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": ":team",
+        "collides": [":team"],
+        "words": "A nickname's word may not begin with a colon, and \":team\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": " :team  marta.b :team ",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": " :team  marta.b :team ",
+        "collides": [":team", "marta.b"],
+        "words": "A nickname's word may not begin with a colon or have a period inside it, and \":team\" and \"marta.b\" do: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": " :team  marta.b :team ",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": " :team  marta.b :team ",
+        "collides": [],
+        "words": "\":team marta.b :team\" is 19 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "marta.b",
+      "cap": 24,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "marta.b",
+      "cap": 7,
+      "refused": {
+        "reason": "source-shaped",
+        "nickname": "marta.b",
+        "collides": ["marta.b"],
+        "words": "A nickname's word may not have a period inside it, and \"marta.b\" does: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Dr. Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Dr. Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Dr. Marta",
+        "collides": [],
+        "words": "\"Dr. Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta:B",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta:B",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": ".Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": ".Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "When",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "When",
+      "cap": 7,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "When",
+        "collides": ["when"],
+        "words": "\"when\" is a word every world here reads, so \"When\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta IF when if",
+      "cap": 24,
+      "refused": {
+        "reason": "reserved",
+        "nickname": "Marta IF when if",
+        "collides": ["if", "when"],
+        "words": "\"if\" and \"when\" are words every world here reads, so \"Marta IF when if\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta IF when if",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta IF when if",
+        "collides": [],
+        "words": "\"Marta IF when if\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Whenever",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Whenever",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Whenever",
+        "collides": [],
+        "words": "\"Whenever\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ifrit",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ifrit",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Gull",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Gull",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Gull",
+        "collides": ["gull"],
+        "words": "\"gull\" is a word this world already reads, so \"Gull\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Grey Quay",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Grey Quay",
+        "collides": ["quay"],
+        "words": "\"quay\" is a word this world already reads, so \"Grey Quay\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Grey Quay",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Grey Quay",
+        "collides": [],
+        "words": "\"Grey Quay\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "North Gull north",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "North Gull north",
+        "collides": ["north", "gull"],
+        "words": "\"north\" and \"gull\" are words this world already reads, so \"North Gull north\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "North Gull north",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "North Gull north",
+        "collides": [],
+        "words": "\"North Gull north\" is 16 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta, B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta, B",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"Marta, B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta, B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta, B",
+        "collides": [],
+        "words": "\"Marta, B\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta and B",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Marta and B",
+        "collides": ["and"],
+        "words": "\"and\" is a word this world already reads, so \"Marta and B\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta and B",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Marta and B",
+        "collides": [],
+        "words": "\"Marta and B\" is 11 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "The Marta",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "The Marta",
+        "collides": ["the"],
+        "words": "\"the\" is a word this world already reads, so \"The Marta\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "The Marta",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "The Marta",
+        "collides": [],
+        "words": "\"The Marta\" is 9 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "NE",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "NE",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "NE",
+        "collides": ["ne"],
+        "words": "\"ne\" is a word this world already reads, so \"NE\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Look",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Look",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "Look",
+        "collides": ["look"],
+        "words": "\"look\" is a word this world already reads, so \"Look\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ines",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "Ines",
+        "collides": [],
+        "words": "Someone here is already called \"Ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ines",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "Ines",
+        "collides": [],
+        "words": "Someone here is already called \"Ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "INES",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "INES",
+        "collides": [],
+        "words": "Someone here is already called \"INES\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "INES",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "INES",
+        "collides": [],
+        "words": "Someone here is already called \"INES\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "  ines ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "  ines ",
+        "collides": [],
+        "words": "Someone here is already called \"ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "  ines ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "  ines ",
+        "collides": [],
+        "words": "Someone here is already called \"ines\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Odo",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Odo",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ODO",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ODO",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Marta",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Pell",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Pell",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ΑΣ",
+        "collides": [],
+        "words": "Someone here is already called \"ΑΣ\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ας",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ας",
+      "cap": 7,
+      "refused": {
+        "reason": "held",
+        "nickname": "ας",
+        "collides": [],
+        "words": "Someone here is already called \"ας\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ασ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ασ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ Β",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ Β",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Σ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Σ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΣΑΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΣΑΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ.",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ.",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ, Β",
+      "cap": 24,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ΑΣ, Β",
+      "cap": 7,
+      "refused": {
+        "reason": "world-word",
+        "nickname": "ΑΣ, Β",
+        "collides": [","],
+        "words": "\",\" is a word this world already reads, so \"ΑΣ, Β\" would not always mean you: choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "İstanbul",
+      "cap": 24,
+      "refused": {
+        "reason": "held",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "Someone here is already called \"İstanbul\": choose another nickname."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "İstanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "İstanbul",
+        "collides": [],
+        "words": "\"İstanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "istanbul",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "istanbul",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "istanbul",
+        "collides": [],
+        "words": "\"istanbul\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Straße",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Straße",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "STRASSE",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "STRASSE",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ǅ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ǅ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ünï",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ünï",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "𐐀𐐁",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "𐐀𐐁",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "𐐨𐐩",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "𐐨𐐩",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "áΣ",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "áΣ",
+      "cap": 7,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "Ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "Ὀδυσσεύς",
+        "collides": [],
+        "words": "\"Ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ὀδυσσεύς",
+      "cap": 24,
+      "refused": null
+    },
+    {
+      "visit": "v-new",
+      "nickname": "ὀδυσσεύς",
+      "cap": 7,
+      "refused": {
+        "reason": "too-long",
+        "nickname": "ὀδυσσεύς",
+        "collides": [],
+        "words": "\"ὀδυσσεύς\" is 8 characters, and a nickname here may have at most 7: choose a shorter one."
+      }
+    }
+  ]
+}

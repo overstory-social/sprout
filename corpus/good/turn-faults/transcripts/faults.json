@@ -28,7 +28,8 @@
       { "level": "error", "text": "the tick of cellar faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
     ] },
     { "leave": "Marta", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." }
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." },
+      { "level": "error", "text": "the departure faulted, IntegerOverflow: 2147483648 is outside the integer range, -2147483648 to 2147483647." }
     ] },
     { "arrive": "Marta", "expect": [
       { "level": "prose", "text": "not admitted: Something went wrong as you arrived, and you have not come in." },

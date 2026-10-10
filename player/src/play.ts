@@ -445,7 +445,7 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
     }),
     { as: nickname, effects: left.quietly.effects, faults: [left.fault] },
   );
-  return [faultLine(stage, 'the departure', left.fault)];
+  return [...turnLines(stage, left.quietly), faultLine(stage, 'the departure', left.fault)];
 }
 
 /**

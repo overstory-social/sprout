@@ -30,8 +30,54 @@ const required = process.argv.includes('--required');
 const sanitize = process.argv.includes('--sanitize');
 
 // The corpus worlds whose transcripts the C runtime replays to the byte, sorted.
-// Today none does: the runtime's load and turn are declared and not built.
-const EXPECTED_PASSING = [];
+// Every corpus world with transcripts or tests does.
+const EXPECTED_PASSING = [
+  'all-in-order',
+  'all-leaves-out-refused',
+  'allowed-first',
+  'arrival-order',
+  'brief',
+  'cancel-wakes',
+  'cannot',
+  'carried',
+  'carried-across',
+  'chip-tree',
+  'comma-commands',
+  'darkness',
+  'destroy-declared',
+  'dotted-paths',
+  'drop-here',
+  'embedded-passage',
+  'engine_lines',
+  'exit-labels',
+  'exit-say',
+  'help_and_wait',
+  'imports',
+  'instance-scope',
+  'intents',
+  'move',
+  'narrowing-and',
+  'nested-offers',
+  'no-way',
+  'out-of-reach-exit',
+  'out-of-reach-synonym',
+  'own-place',
+  'printers_shop',
+  'pronouns',
+  'relatives',
+  'requires-held',
+  'rounds',
+  'runs',
+  'sequences',
+  'shut-contents',
+  'standard-library',
+  'synonyms',
+  'take-from',
+  'teashop',
+  'troll_room',
+  'turn-faults',
+  'visitor-contents',
+];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -62,7 +108,9 @@ function run(command, args, env) {
 
 if (sanitize) {
   const dir = `${build}-sanitize`;
-  run('cmake', ['-S', root, '-B', dir, '-DCMAKE_BUILD_TYPE=Debug', '-DSPROUT_SANITIZE=ON'], { CC: compiler });
+  run('cmake', ['-S', root, '-B', dir, '-DCMAKE_BUILD_TYPE=Debug', '-DSPROUT_SANITIZE=ON'], {
+    CC: compiler,
+  });
   run('cmake', ['--build', dir]);
   const sanitized = run('ctest', ['--test-dir', dir, '--output-on-failure'], {
     ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
