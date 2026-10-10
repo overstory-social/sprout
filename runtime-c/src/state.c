@@ -103,7 +103,17 @@ sprout_stored_visitor *sprout_state_find_visitor(const sprout_state *state, spro
 }
 
 bool sprout_state_tombstoned(const sprout_state *state, sprout_str id) {
-  size_t i;
+  size_t i, lo = 0, hi = state->tombstone_count;
+  if (state->tombstones_sorted) {
+    while (lo < hi) {
+      size_t mid = lo + (hi - lo) / 2;
+      int order = sprout_str_compare(state->tombstones[mid], id);
+      if (order == 0) return true;
+      if (order < 0) lo = mid + 1;
+      else hi = mid;
+    }
+    return false;
+  }
   for (i = 0; i < state->tombstone_count; i++)
     if (sprout_str_same(state->tombstones[i], id)) return true;
   return false;
@@ -123,8 +133,9 @@ sprout_status sprout_state_empty(const sprout_host *host, const char *world_id, 
     return SPROUT_NO_MEMORY;
   }
   state->host = *host;
-  state->arena = boot;
-  state->arena.host = &state->host;
+  state->anchor = boot;
+  state->anchor.host = &state->host;
+  sprout_arena_init(&state->arena, &state->host);
   state->world.length = strlen(world_id);
   state->world.bytes = sprout_arena_copy(&state->arena, world_id, state->world.length);
   if (state->world.bytes == NULL) {
@@ -357,6 +368,28 @@ static sprout_status copy_cstr(sprout_arena *arena, const char *text, sprout_str
 
 /* ---- opening a state against a world ---- */
 
+/* A declared object's id with its place in the tree, to find a container by id. */
+typedef struct by_id {
+  const char *id;
+  size_t index;
+} by_id;
+
+static int by_declared_id(const void *a, const void *b) {
+  return strcmp(((const by_id *)a)->id, ((const by_id *)b)->id);
+}
+
+static size_t declared_index(const by_id *sorted, size_t count, const char *id) {
+  size_t lo = 0, hi = count;
+  while (lo < hi) {
+    size_t mid = lo + (hi - lo) / 2;
+    int order = strcmp(sorted[mid].id, id);
+    if (order == 0) return sorted[mid].index;
+    if (order < 0) lo = mid + 1;
+    else hi = mid;
+  }
+  return (size_t)-1;
+}
+
 typedef struct opening {
   sprout_state *state;
   const sprout_world *world;
@@ -581,6 +614,7 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
   size_t i, extra = 0;
   sprout_stored_instance *made_instances;
   bool *gone;
+  by_id *ids;
   sprout_stored_instance *all;
   memset(&o, 0, sizeof o);
   o.state = state;
@@ -607,7 +641,13 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
   made_instances = (sprout_stored_instance *)sprout_arena_take(
       arena, (world->declared_count + 2) * sizeof *made_instances);
   gone = (bool *)sprout_arena_take(arena, (world->declared_count + 1) * sizeof(bool));
-  if (made_instances == NULL || gone == NULL) return SPROUT_NO_MEMORY;
+  ids = (by_id *)sprout_arena_take(arena, (world->declared_count + 1) * sizeof *ids);
+  if (made_instances == NULL || gone == NULL || ids == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < world->declared_count; i++) {
+    ids[i].id = world->declared[i].id;
+    ids[i].index = i;
+  }
+  PASS(sort_records(arena, ids, world->declared_count, sizeof *ids, by_declared_id));
   if (sprout_state_find(state, state->world) == NULL) {
     if (world->world_kind == NULL) {
       sprout_stored_instance *empty = &made_instances[extra++];
@@ -630,8 +670,8 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
       gone[i] = true;
       continue;
     }
-    for (j = 0; j < i && !gone[i]; j++)
-      if (gone[j] && strcmp(world->declared[j].id, entry->container) == 0) gone[i] = true;
+    j = declared_index(ids, world->declared_count, entry->container);
+    if (j != (size_t)-1 && gone[j]) gone[i] = true;
     if (gone[i] || entry->kind == NULL || sprout_state_find(state, id) != NULL) continue;
     PASS(new_instance(&o, entry->id, SPROUT_MADE_DECLARED, entry->kind, entry->container, &made_instances[extra]));
     PASS(add_id(arena, &created, &created_count, &created_cap, made_instances[extra].id));

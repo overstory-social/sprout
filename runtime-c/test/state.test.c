@@ -9,6 +9,13 @@
 #include "corpus.h"
 #include "state.h"
 
+static sprout_str S(const char *text) {
+  sprout_str s;
+  s.bytes = text;
+  s.length = strlen(text);
+  return s;
+}
+
 static sprout_status read_in(const sprout_host *host, const char *text, size_t length,
                              sprout_state **state, sprout_refusal *why) {
   return sprout_state_read(host, text, length, state, why);
@@ -217,6 +224,199 @@ static void lookups_bisect_once_sorted_and_scan_before(void) {
   sprout_state_free(state);
 }
 
+/* ---- the reconciliation rules, each on a store built by hand ---- */
+
+#define ROW_TAIL ",\"container\":%s,\"arrival\":%s,\"properties\":%s,\"links\":{},\"wakes\":[],\"memory\":%s,\"lastTick\":null}"
+
+static bool listed(const sprout_str *ids, size_t count, const char *id) {
+  size_t i;
+  for (i = 0; i < count; i++)
+    if (sprout_str_is(ids[i], id)) return true;
+  return false;
+}
+
+/* Opens `text` against a corpus world; the state and report stay with the caller. */
+static void open_store(const sprout_host *host, sprout_world *world, const char *text, sprout_state **state,
+                       sprout_opened *report) {
+  sprout_refusal why;
+  CHECK_INT(sprout_state_read(host, text, strlen(text), state, &why), SPROUT_OK);
+  if (*state == NULL) exit(2);
+  CHECK_INT(sprout_state_open(*state, world, report, &why), SPROUT_OK);
+}
+
+static void a_spawn_of_a_kind_that_is_now_the_worlds_or_the_visitors_stays_dormant_and_is_written_back_verbatim(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  char text[4096];
+  const char *out;
+  size_t out_length;
+  const char *odd = "{\"odd\":{\"type\":\"integer\",\"value\":7}}";
+  snprintf(text, sizeof text,
+           "{\"world\":\"printers_shop\",\"serial\":2,\"instances\":["
+           "{\"id\":\"printers_shop#1\",\"made\":{\"from\":\"spawned\",\"kind\":\"%s\"}" ROW_TAIL ","
+           "{\"id\":\"printers_shop#2\",\"made\":{\"from\":\"spawned\",\"kind\":\"%s\"}" ROW_TAIL "],"
+           "\"visitors\":[],\"tombstones\":[]}",
+           world->world_kind->qualified, "\"printers_shop\"", "2", odd, "{}", world->visitor_kind->qualified,
+           "\"printers_shop\"", "1", odd, "{}");
+  open_store(&host, world, text, &state, &report);
+  CHECK(listed(report.dormant, report.dormant_count, "printers_shop#1"));
+  CHECK(listed(report.dormant, report.dormant_count, "printers_shop#2"));
+  CHECK_INT(report.dormant_count, 2);
+  CHECK_INT(report.dropped_count, 0);
+  CHECK_INT(sprout_state_write(state, &out, &out_length), SPROUT_OK);
+  CHECK(strstr(out, "{\"id\":\"printers_shop#1\",\"made\":{\"from\":\"spawned\",\"kind\":\"printers_shop.printers_shop\"},\"container\":\"printers_shop\",\"arrival\":2,\"properties\":{\"odd\":{\"type\":\"integer\",\"value\":7}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}") != NULL);
+  CHECK(sprout_state_find(state, S("printers_shop#2"))->dormant);
+  sprout_state_free(state);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+}
+
+static void a_given_record_is_decoded_while_its_content_path_exists_and_dormant_when_it_is_gone(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("kind-contents", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  char text[4096];
+  snprintf(text, sizeof text,
+           "{\"world\":\"kind_contents\",\"serial\":2,\"instances\":["
+           "{\"id\":\"kind_contents#1\",\"made\":{\"from\":\"given\",\"kind\":\"kind_contents.Lantern\",\"path\":[\"wick\"]}" ROW_TAIL ","
+           "{\"id\":\"kind_contents#2\",\"made\":{\"from\":\"given\",\"kind\":\"kind_contents.Lantern\",\"path\":[\"wax\"]}" ROW_TAIL "],"
+           "\"visitors\":[],\"tombstones\":[]}",
+           "\"kind_contents\"", "1", "{}", "{}", "\"kind_contents\"", "2", "{}", "{}");
+  open_store(&host, world, text, &state, &report);
+  CHECK(!sprout_state_find(state, S("kind_contents#1"))->dormant);
+  CHECK(sprout_state_find(state, S("kind_contents#1"))->kind != NULL);
+  CHECK(sprout_state_find(state, S("kind_contents#2"))->dormant);
+  CHECK(listed(report.dormant, report.dormant_count, "kind_contents#2"));
+  CHECK(!listed(report.dormant, report.dormant_count, "kind_contents#1"));
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
+static void a_world_without_its_kind_keeps_an_empty_dormant_world_record_and_makes_nothing_of_it(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  sprout_refusal why;
+  const char *out;
+  size_t out_length;
+  world->world_kind = NULL;
+  CHECK_INT(sprout_state_empty(&host, "printers_shop", &state), SPROUT_OK);
+  CHECK_INT(sprout_state_open(state, world, &report, &why), SPROUT_OK);
+  CHECK(listed(report.dormant, report.dormant_count, "printers_shop"));
+  CHECK(!listed(report.created, report.created_count, "printers_shop"));
+  CHECK_INT(sprout_state_write(state, &out, &out_length), SPROUT_OK);
+  CHECK(strstr(out, "{\"id\":\"printers_shop\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}") != NULL);
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
+static void a_plain_value_stored_for_a_remembered_property_is_retyped_and_reported(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("brief", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  const char *out;
+  size_t out_length;
+  const char *text =
+      "{\"world\":\"brief\",\"serial\":0,\"instances\":["
+      "{\"id\":\"brief.west_of_house\",\"made\":{\"from\":\"declared\"},\"container\":\"brief\",\"arrival\":null,"
+      "\"properties\":{\"visits\":{\"type\":\"integer\",\"value\":3}},\"links\":{},\"wakes\":[],"
+      "\"memory\":{\"brief\":{\"visits\":{\"type\":\"integer\",\"value\":2},\"gone\":{\"type\":\"integer\",\"value\":1}}},"
+      "\"lastTick\":null}],\"visitors\":[],\"tombstones\":[]}";
+  open_store(&host, world, text, &state, &report);
+  CHECK_INT(report.dropped_count, 2);
+  CHECK_BYTES(report.dropped[0].id.bytes, report.dropped[0].id.length, "brief.west_of_house");
+  CHECK_BYTES(report.dropped[0].property.bytes, report.dropped[0].property.length, "visits");
+  CHECK(!report.dropped[0].has_actor);
+  CHECK_INT(report.dropped[0].why, SPROUT_DROP_RETYPED);
+  CHECK_BYTES(report.dropped[1].property.bytes, report.dropped[1].property.length, "gone");
+  CHECK(report.dropped[1].has_actor);
+  CHECK_INT(report.dropped[1].why, SPROUT_DROP_UNDECLARED);
+  CHECK_INT(sprout_state_write(state, &out, &out_length), SPROUT_OK);
+  CHECK(strstr(out, "\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{\"brief\":{\"visits\":{\"type\":\"integer\",\"value\":2}}}") != NULL);
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
+static void a_value_that_no_longer_fits_reports_it_and_a_retyped_one_reports_that(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  const char *text =
+      "{\"world\":\"printers_shop\",\"serial\":0,\"instances\":["
+      "{\"id\":\"printers_shop\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,"
+      "\"properties\":{\"season\":{\"type\":\"printers_shop.Season\",\"value\":\"monsoon\"}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},"
+      "{\"id\":\"printers_shop.press_yard.press\",\"made\":{\"from\":\"declared\"},\"container\":\"printers_shop.press_yard\",\"arrival\":null,"
+      "\"properties\":{\"inked\":{\"type\":\"integer\",\"value\":1}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],"
+      "\"visitors\":[],\"tombstones\":[]}";
+  open_store(&host, world, text, &state, &report);
+  CHECK_INT(report.dropped_count, 2);
+  CHECK_BYTES(report.dropped[0].property.bytes, report.dropped[0].property.length, "season");
+  CHECK_INT(report.dropped[0].why, SPROUT_DROP_NO_LONGER_FITS);
+  CHECK_BYTES(report.dropped[1].property.bytes, report.dropped[1].property.length, "inked");
+  CHECK_INT(report.dropped[1].why, SPROUT_DROP_RETYPED);
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
+static void an_actor_stored_where_nothing_holds_actors_is_reported_stranded(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  const char *text =
+      "{\"world\":\"printers_shop\",\"serial\":1,\"instances\":["
+      "{\"id\":\"printers_shop#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"printers_shop.composing_room.cabinet\",\"arrival\":1,"
+      "\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],"
+      "\"visitors\":[{\"visit\":\"v\",\"nickname\":\"Marta\",\"instance\":\"printers_shop#1\",\"lastPlace\":null,\"referents\":[],\"lastReading\":null}],"
+      "\"tombstones\":[]}";
+  open_store(&host, world, text, &state, &report);
+  CHECK_INT(report.stranded_count, 1);
+  CHECK(listed(report.stranded, report.stranded_count, "printers_shop#1"));
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
+static void a_destroyed_container_takes_every_declared_child_with_it_by_exact_id_set(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("tree", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  const char *text =
+      "{\"world\":\"tree\",\"serial\":0,\"instances\":[],\"visitors\":[],\"tombstones\":[\"tree.shop_floor\"]}";
+  size_t i, expected = 0, under = 0;
+  open_store(&host, world, text, &state, &report);
+  for (i = 0; i < world->declared_count; i++) {
+    const char *id = world->declared[i].id;
+    bool inside = strcmp(id, "tree.shop_floor") == 0 || strncmp(id, "tree.shop_floor.", 16) == 0;
+    if (inside) {
+      under++;
+      CHECK(!listed(report.created, report.created_count, id));
+      CHECK(sprout_state_find(state, S(id)) == NULL);
+    } else if (world->declared[i].kind != NULL) {
+      expected++;
+      CHECK(listed(report.created, report.created_count, id));
+    }
+  }
+  CHECK(under >= 5);
+  /* The world itself is made too; nothing else is. */
+  CHECK_INT(report.created_count, expected + 1);
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
 int main(void) {
   RUN(a_new_worlds_store_reconciled_is_the_initial_state_the_typescript_load_makes);
   RUN(a_saved_world_reopened_is_unchanged_and_reports_nothing);
@@ -224,5 +424,12 @@ int main(void) {
   RUN(the_store_of_another_world_is_refused_in_words);
   RUN(a_destroyed_declared_object_is_never_made_again_nor_anything_inside_it);
   RUN(lookups_bisect_once_sorted_and_scan_before);
+  RUN(a_spawn_of_a_kind_that_is_now_the_worlds_or_the_visitors_stays_dormant_and_is_written_back_verbatim);
+  RUN(a_given_record_is_decoded_while_its_content_path_exists_and_dormant_when_it_is_gone);
+  RUN(a_world_without_its_kind_keeps_an_empty_dormant_world_record_and_makes_nothing_of_it);
+  RUN(a_plain_value_stored_for_a_remembered_property_is_retyped_and_reported);
+  RUN(a_value_that_no_longer_fits_reports_it_and_a_retyped_one_reports_that);
+  RUN(an_actor_stored_where_nothing_holds_actors_is_reported_stranded);
+  RUN(a_destroyed_container_takes_every_declared_child_with_it_by_exact_id_set);
   return REPORT();
 }

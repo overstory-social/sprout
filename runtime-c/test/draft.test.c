@@ -399,6 +399,41 @@ static void a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone(vo
   }
 }
 
+static void a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_few(void) {
+  fixture f;
+  size_t turn, held_early = 0;
+  long pages_early = 0;
+  begin(&f);
+  for (turn = 1; turn <= 300; turn++) {
+    sprout_draft draft;
+    sprout_changes changes;
+    sprout_stored_instance changed;
+    sprout_stored_visitor visitor;
+    sprout_str id;
+    sprout_draft_open(&draft, &f.turn, f.world, f.state);
+    changed = *sprout_draft_instance(&draft, S(ROOM));
+    changed.has_last_tick = true;
+    changed.last_tick = 1790000000 + turn;
+    CHECK_INT(sprout_draft_write(&draft, &changed), SPROUT_DRAFT_OK);
+    visitor = *sprout_draft_visitor(&draft, S("v-8f2c"));
+    CHECK_INT(sprout_draft_put_visitor(&draft, &visitor), SPROUT_DRAFT_OK);
+    /* A spawn made and destroyed in the same turn leaves nothing behind but its serial. */
+    CHECK_INT(sprout_draft_mint(&draft, &id), SPROUT_DRAFT_OK);
+    CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
+    sprout_arena_reset(&f.turn);
+    if (turn == 20) {
+      held_early = f.state->arena.held;
+      pages_early = f.heap.pages;
+    }
+  }
+  CHECK(held_early > 0);
+  CHECK(f.state->arena.held <= held_early + 4096);
+  CHECK(f.heap.pages <= pages_early);
+  CHECK(sprout_state_find(f.state, S(ROOM))->last_tick == 1790000300);
+  CHECK_INT(f.state->serial, 5 + 300);
+  finish(&f);
+}
+
 int main(void) {
   RUN(reads_go_through_to_the_state_and_dormant_records_are_not_instances);
   RUN(contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_serial);
@@ -411,6 +446,7 @@ int main(void) {
   RUN(two_drafts_on_one_state_mint_the_same_ids);
   RUN(removing_takes_everything_inside_tombstones_declared_objects_and_never_the_world);
   RUN(a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_draft);
+  RUN(a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_few);
   RUN(every_result_has_words);
   RUN(a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone);
   return REPORT();

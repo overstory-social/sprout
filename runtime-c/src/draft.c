@@ -417,57 +417,65 @@ static sprout_draft_result sorted_ids(sprout_arena *arena, const sprout_str *ids
 
 sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *changes) {
   sprout_state *state = draft->base;
-  sprout_arena *arena = &state->arena;
+  sprout_arena fresh, stale;
   sprout_stored_instance *instances;
   sprout_stored_visitor *visitors;
-  sprout_str *tombstones, *written_ids, *visit_ids, *removed;
+  sprout_str *tombstones, *written_ids, *visit_ids, *removed, world;
   size_t i, n = 0, v = 0, t = 0, removed_count = 0;
   NEED(open_check(draft));
+  /*
+   * The live records are copied into a new arena and the old one released, so
+   * the state holds what is live and nothing a past turn left behind; a
+   * refused page leaves the state as it was.
+   */
+  if (sprout_arena_init(&fresh, &state->host) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
   instances = (sprout_stored_instance *)sprout_arena_take(
-      arena, (state->instance_count + draft->written_count + 1) * sizeof *instances);
+      &fresh, (state->instance_count + draft->written_count + 1) * sizeof *instances);
   visitors = (sprout_stored_visitor *)sprout_arena_take(
-      arena, (state->visitor_count + draft->visitor_count + 1) * sizeof *visitors);
+      &fresh, (state->visitor_count + draft->visitor_count + 1) * sizeof *visitors);
   tombstones = (sprout_str *)sprout_arena_take(
-      arena, (state->tombstone_count + draft->buried_count + 1) * sizeof *tombstones);
+      &fresh, (state->tombstone_count + draft->buried_count + 1) * sizeof *tombstones);
   written_ids = (sprout_str *)sprout_arena_take(draft->turn, (draft->written_count + 1) * sizeof *written_ids);
   visit_ids = (sprout_str *)sprout_arena_take(draft->turn, (draft->visitor_count + 1) * sizeof *visit_ids);
   removed = (sprout_str *)sprout_arena_take(draft->turn, (draft->gone_count + 1) * sizeof *removed);
-  MEMORY(instances);
-  MEMORY(visitors);
-  MEMORY(tombstones);
-  MEMORY(written_ids);
-  MEMORY(visit_ids);
-  MEMORY(removed);
+  if (instances == NULL || visitors == NULL || tombstones == NULL || written_ids == NULL || visit_ids == NULL ||
+      removed == NULL || !sprout_state_copy_str(&fresh, state->world, &world))
+    goto no_memory;
 
   for (i = 0; i < state->instance_count; i++) {
     sprout_stored_instance *one = &state->instances[i];
     if (listed(draft->gone, draft->gone_count, one->id)) {
-      removed[removed_count++] = one->id;
+      if (!sprout_state_copy_str(draft->turn, one->id, &removed[removed_count++])) goto no_memory;
       continue;
     }
     if (overlay(draft, one->id) != NULL) continue;
-    instances[n++] = *one;
+    if (sprout_stored_instance_copy(&fresh, one, &instances[n++]) != SPROUT_OK) goto no_memory;
   }
   for (i = 0; i < draft->written_count; i++) {
-    if (sprout_stored_instance_copy(arena, &draft->written[i], &instances[n]) != SPROUT_OK ||
-        sprout_stored_instance_order(arena, &instances[n]) != SPROUT_OK)
-      return SPROUT_DRAFT_NO_MEMORY;
+    if (sprout_stored_instance_copy(&fresh, &draft->written[i], &instances[n]) != SPROUT_OK ||
+        sprout_stored_instance_order(&fresh, &instances[n]) != SPROUT_OK)
+      goto no_memory;
     written_ids[i] = instances[n].id;
     n++;
   }
   for (i = 0; i < state->visitor_count; i++)
-    if (sprout_draft_visitor(draft, state->visitors[i].visit) == &state->visitors[i]) visitors[v++] = state->visitors[i];
+    if (sprout_draft_visitor(draft, state->visitors[i].visit) == &state->visitors[i] &&
+        sprout_stored_visitor_copy(&fresh, &state->visitors[i], &visitors[v++]) != SPROUT_OK)
+      goto no_memory;
   for (i = 0; i < draft->visitor_count; i++) {
-    if (sprout_stored_visitor_copy(arena, &draft->visitors[i], &visitors[v]) != SPROUT_OK)
-      return SPROUT_DRAFT_NO_MEMORY;
+    if (sprout_stored_visitor_copy(&fresh, &draft->visitors[i], &visitors[v]) != SPROUT_OK) goto no_memory;
     visit_ids[i] = visitors[v].visit;
     v++;
   }
-  for (i = 0; i < state->tombstone_count; i++) tombstones[t++] = state->tombstones[i];
-  for (i = 0; i < draft->buried_count; i++) {
-    if (!sprout_state_copy_str(arena, draft->buried[i], &tombstones[t])) return SPROUT_DRAFT_NO_MEMORY;
-    t++;
-  }
+  for (i = 0; i < state->tombstone_count; i++)
+    if (!sprout_state_copy_str(&fresh, state->tombstones[i], &tombstones[t++])) goto no_memory;
+  for (i = 0; i < draft->buried_count; i++)
+    if (!sprout_state_copy_str(&fresh, draft->buried[i], &tombstones[t++])) goto no_memory;
+
+  stale = state->arena;
+  state->arena = fresh;
+  sprout_arena_reset(&stale);
+  state->world = world;
   state->instances = instances;
   state->instance_count = n;
   state->visitors = visitors;
@@ -475,8 +483,8 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   state->tombstones = tombstones;
   state->tombstone_count = t;
   state->serial = draft->serial;
-  if (sprout_state_sort(state) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
   draft->committed = true;
+  if (sprout_state_sort(state) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
 
   memset(changes, 0, sizeof *changes);
   changes->serial = draft->serial;
@@ -489,4 +497,8 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   NEED(sorted_ids(draft->turn, draft->buried, draft->buried_count, &changes->tombstoned));
   NEED(sorted_ids(draft->turn, visit_ids, draft->visitor_count, &changes->visitors));
   return SPROUT_DRAFT_OK;
+
+no_memory:
+  sprout_arena_reset(&fresh);
+  return SPROUT_DRAFT_NO_MEMORY;
 }

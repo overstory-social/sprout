@@ -118,9 +118,13 @@ sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, cons
 sprout_draft_result sprout_draft_put_visitor(sprout_draft *draft, const sprout_stored_visitor *record);
 
 /*
- * Applies the turn to the state it was opened on: the changed records are
- * copied into the state's arena and the state ends sorted, as a save writes
- * it. A draft commits once; `changes` is in the turn arena.
+ * Applies the turn to the state it was opened on: every live record is copied
+ * into a new arena and the old one released, so the state's memory is bounded
+ * by what is live however many turns have committed, and the state ends
+ * sorted, as a save writes it. A refused page leaves the state as it was. The
+ * ids in `changes` that name written records and anything an earlier open
+ * reported are the state's and are valid until the next commit. A draft
+ * commits once; `changes` is in the turn arena.
  */
 sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *changes);
 

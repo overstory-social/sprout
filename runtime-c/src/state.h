@@ -12,12 +12,6 @@
 
 #include "world.h"
 
-/* UTF-8 bytes with their length: a stored string may hold any scalar value, so none is a C string. */
-typedef struct sprout_str {
-  const char *bytes; /* NUL-terminated beyond length */
-  size_t length;
-} sprout_str;
-
 /* A value as JSON holds it: a list is an array, an extension's value the text it persists as. */
 typedef struct sprout_stored_value {
   sprout_kind kind;
@@ -130,7 +124,8 @@ typedef struct sprout_stored_visitor {
 
 struct sprout_state {
   sprout_host host;
-  sprout_arena arena;
+  sprout_arena anchor; /* holds this struct and nothing else, so `arena` can be rebuilt without moving it */
+  sprout_arena arena;  /* everything the state holds; a commit copies the live records into a new one and releases this */
   sprout_str world;
   uint64_t serial; /* the last serial issued, 0 before the first */
   size_t instance_count;
@@ -178,42 +173,6 @@ sprout_status sprout_state_sort(sprout_state *state);
  */
 sprout_status sprout_state_read_shape(const sprout_host *host, const char *bytes, size_t length,
                                       sprout_state **state, sprout_refusal *refusal);
-
-/* A stored value a load did not keep, and why: its property is gone, or it no longer fits. */
-typedef enum sprout_drop_reason { SPROUT_DROP_UNDECLARED, SPROUT_DROP_RETYPED, SPROUT_DROP_NO_LONGER_FITS } sprout_drop_reason;
-
-typedef struct sprout_dropped {
-  sprout_str id;
-  sprout_str property;
-  bool has_actor; /* a remembered value is dropped for the actor it was remembered about */
-  sprout_str actor;
-  sprout_drop_reason why;
-} sprout_dropped;
-
-/* What opening a state against a world made of it. */
-typedef struct sprout_opened {
-  size_t created_count;
-  const sprout_str *created; /* declared objects nothing was stored for and none destroyed, in declared order */
-  size_t dormant_count;
-  const sprout_str *dormant; /* what is kept untouched because it cannot be decoded now, by id */
-  size_t dropped_count;
-  const sprout_dropped *dropped;
-  size_t stranded_count;
-  const sprout_str *stranded; /* actors stored inside something that holds none: an engine error the host reports */
-} sprout_opened;
-
-/*
- * Reconciles the state with the world now (the spec's The runtime > State;
- * The compiler > What absent means): a property keeps its stored value when it
- * still fits the type now declared and falls to the default otherwise; what
- * cannot be decoded because its object or its kind is absent is kept dormant,
- * saved back as it was read; a declared object with nothing stored and no
- * tombstone is made at its defaults; a tombstone is never undone. Instances,
- * visitors and tombstones end up sorted, as a save writes them. A store of
- * another world is SPROUT_BAD_INPUT.
- */
-sprout_status sprout_state_open(sprout_state *state, const sprout_world *world,
-                                sprout_opened *report, sprout_refusal *refusal);
 
 /* The sentence a refusal of the stored form is written as, to `refusal` when it is not NULL. */
 sprout_status sprout_stored_refuse(sprout_refusal *refusal, const char *path, const char *what,
