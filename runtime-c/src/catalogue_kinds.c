@@ -147,6 +147,7 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
   for (i = 0; i < kind->order_count; i++) {
     if (strcmp(kind->order[i], "sprout.World") == 0) kind->composes_world = true;
     if (strcmp(kind->order[i], "sprout.Visitor") == 0) kind->composes_visitor = true;
+    if (strcmp(kind->order[i], "sprout.Actor") == 0) kind->composes_actor = true;
   }
   kind->contains = cat_bool(node, "contains");
   kind->contains_actors = cat_bool(node, "containsActors");

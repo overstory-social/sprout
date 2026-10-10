@@ -5,3 +5,6 @@ corpus/bad/*/expect.json
 corpus/good/*/tests/*.json
 corpus/good/*/transcripts/*.json
 corpus/goldens/stored-canon.json
+corpus/goldens/catalogues.json
+corpus/goldens/stored-worlds.json
+corpus/goldens/stored-reopened.json

@@ -91,7 +91,7 @@ typedef struct sprout_kind_def {
   size_t play_group_count;
   sprout_play_group *plays;
   bool contains, contains_actors;
-  bool composes_world, composes_visitor;
+  bool composes_world, composes_visitor, composes_actor;
   bool spawnable; /* a spawn may name it: not the world's, not a visitor's */
   const sprout_node *node; /* guards, handlers, hooks, passes, grammar and exits stay here */
 } sprout_kind_def;
