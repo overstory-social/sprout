@@ -1,6 +1,7 @@
 /* Tests for src/budget.c: every budget faults at the host's number, and none has a number of its own. */
 #include "budget.h"
 #include "check.h"
+#include "json.h"
 
 static sprout_host host_with(test_heap *heap) { return test_host(heap); }
 
@@ -95,9 +96,7 @@ static void a_fault_names_the_message_the_budget_and_the_figure_in_words(void) {
   CHECK(!sprout_meter_steps(&meter, 1));
   CHECK_INT(meter.fault.message, 12);
   CHECK_STR(meter.fault.budget, "steps");
-  CHECK_STR(meter.fault.text,
-            "This turn used more steps than the host allows (5) while running message 12, so it was "
-            "stopped and nothing it did was kept.");
+  CHECK_STR(meter.fault.text, "steps: a command turn may take 5 steps.");
 }
 
 static void once_faulted_every_later_charge_refuses(void) {
@@ -245,14 +244,86 @@ static void the_wake_floor_nickname_and_crowd_follow_the_hosts_figures(void) {
   CHECK(!sprout_people_allowed(&host.budgets, 4));
 }
 
-static void check_complete(const sprout_meter *meter, const char *budget) {
-  size_t length = strlen(meter->fault.text);
+static sprout_turn_kind kind_named(const char *name) {
+  static const struct {
+    const char *name;
+    sprout_turn_kind kind;
+  } kinds[] = {{"command", SPROUT_TURN_COMMAND}, {"tick", SPROUT_TURN_TICK},       {"wake", SPROUT_TURN_WAKE},
+               {"maintenance", SPROUT_TURN_MAINTENANCE}, {"poll", SPROUT_TURN_POLL},
+               {"arrival", SPROUT_TURN_ARRIVAL},         {"departure", SPROUT_TURN_DEPARTURE}};
+  for (size_t i = 0; i < sizeof kinds / sizeof kinds[0]; i++)
+    if (strcmp(kinds[i].name, name) == 0) return kinds[i].kind;
+  fprintf(stderr, "the golden has a turn kind `%s`\n", name);
+  exit(2);
+}
+
+/* Runs the budget the golden names past its figure, as the TypeScript spec did. */
+static void spend_past(sprout_meter *meter, const char *name, uint64_t figure) {
+  uint64_t held = 0;
+  if (strcmp(name, "steps") == 0 || strcmp(name, "pollSteps") == 0) CHECK(!sprout_meter_steps(meter, figure + 1));
+  else if (strcmp(name, "output") == 0) CHECK_INT(sprout_meter_output(meter, &held, figure + 1, true), SPROUT_OUTPUT_FAULT);
+  else if (strcmp(name, "setRoleObjects") == 0) CHECK(!sprout_meter_set_role(meter, figure + 1));
+  else {
+    bool (*charge)(sprout_meter *) = strcmp(name, "events") == 0             ? sprout_meter_event
+                                     : strcmp(name, "cascadeDepth") == 0     ? sprout_meter_enter_cascade
+                                     : strcmp(name, "spawnsPerTurn") == 0    ? sprout_meter_spawn
+                                     : strcmp(name, "extensionEffects") == 0 ? sprout_meter_effect
+                                                                             : sprout_meter_enter_passage;
+    for (uint64_t i = 0; i < figure; i++) CHECK(charge(meter));
+    CHECK(!charge(meter));
+  }
+}
+
+static void every_budget_says_what_ran_out_in_the_words_the_typescript_runtime_does(void) {
+  test_heap heap;
+  sprout_host host = host_with(&heap);
+  sprout_arena arena;
+  sprout_json *root;
+  sprout_json_error error;
+  size_t length;
+  char *text = test_golden("budgets.json", &length);
+  const sprout_json *cases;
+  sprout_arena_init(&arena, &host);
+  CHECK_INT(sprout_json_read(&arena, text, length, &root, &error), SPROUT_OK);
+  cases = sprout_json_get(root, "cases");
+  CHECK(cases != NULL && cases->count >= 14);
+  for (size_t i = 0; cases != NULL && i < cases->count; i++) {
+    const sprout_json *one = cases->items[i];
+    const char *name = sprout_json_get(one, "name")->bytes;
+    uint64_t figure = (uint64_t)sprout_json_get(one, "limit")->number;
+    sprout_limit set = limit(figure);
+    sprout_meter meter;
+    memset(&host.budgets, 0, sizeof host.budgets);
+    if (strcmp(name, "steps") == 0) host.budgets.steps = set;
+    else if (strcmp(name, "pollSteps") == 0) host.budgets.poll_steps = set;
+    else if (strcmp(name, "output") == 0) host.budgets.output = set;
+    else if (strcmp(name, "events") == 0) host.budgets.events = set;
+    else if (strcmp(name, "cascadeDepth") == 0) host.budgets.cascade_depth = set;
+    else if (strcmp(name, "setRoleObjects") == 0) host.budgets.set_role_objects = set;
+    else if (strcmp(name, "spawnsPerTurn") == 0) host.budgets.spawns = set;
+    else if (strcmp(name, "extensionEffects") == 0) host.budgets.extension_effects = set;
+    else if (strcmp(name, "passageDepth") == 0) host.budgets.passage_depth = set;
+    else {
+      fprintf(stderr, "the golden has a budget `%s`\n", name);
+      exit(2);
+    }
+    sprout_meter_begin(&meter, &host, kind_named(sprout_json_get(one, "kind")->bytes));
+    spend_past(&meter, name, figure);
+    CHECK_STR(meter.fault.text, sprout_json_get(one, "words")->bytes);
+  }
+  sprout_arena_reset(&arena);
+  free(text);
+}
+
+static void check_complete(const sprout_meter *meter, const char *budget, const char *name) {
+  size_t length = strlen(meter->fault.text), n = strlen(name);
   CHECK(meter->faulted);
   CHECK_STR(meter->fault.budget, budget);
-  CHECK(strncmp(meter->fault.text, "This turn used more ", 20) == 0);
-  CHECK(length >= 48 && strcmp(meter->fault.text + length - 48,
-                               ", so it was stopped and nothing it did was kept.") == 0);
-  CHECK(strstr(meter->fault.text, "(18446744073709551614) while running message 18446744073709551615") != NULL);
+  CHECK_INT(meter->fault.message, UINT64_MAX);
+  CHECK(strncmp(meter->fault.text, name, n) == 0 && strncmp(meter->fault.text + n, ": ", 2) == 0);
+  CHECK(length > 0 && meter->fault.text[length - 1] == '.');
+  /* The backstop's words say what its firing means, and name no figure. */
+  if (strcmp(name, "wallClockMs") != 0) CHECK(strstr(meter->fault.text, "18446744073709551614") != NULL);
   CHECK(length + 1 < sizeof meter->fault.text);
 }
 
@@ -273,43 +344,43 @@ static void every_budgets_fault_text_is_complete_at_the_widest_numbers(void) {
   sprout_meter_message(&meter, UINT64_MAX)
   FRESH(SPROUT_TURN_COMMAND);
   CHECK(!sprout_meter_steps(&meter, UINT64_MAX));
-  check_complete(&meter, "steps");
+  check_complete(&meter, "steps", "steps");
   FRESH(SPROUT_TURN_POLL);
   CHECK(!sprout_meter_steps(&meter, UINT64_MAX));
-  check_complete(&meter, "steps per poll");
+  check_complete(&meter, "steps per poll", "pollSteps");
   FRESH(SPROUT_TURN_COMMAND);
   meter.events = UINT64_MAX - 1;
   CHECK(!sprout_meter_event(&meter));
-  check_complete(&meter, "events");
+  check_complete(&meter, "events", "events");
   FRESH(SPROUT_TURN_COMMAND);
   meter.spawns = UINT64_MAX - 1;
   CHECK(!sprout_meter_spawn(&meter));
-  check_complete(&meter, "spawns");
+  check_complete(&meter, "spawns", "spawnsPerTurn");
   FRESH(SPROUT_TURN_COMMAND);
   meter.effects = UINT64_MAX - 1;
   CHECK(!sprout_meter_effect(&meter));
-  check_complete(&meter, "effects");
+  check_complete(&meter, "effects", "extensionEffects");
   FRESH(SPROUT_TURN_COMMAND);
   meter.cascade_depth = UINT64_MAX - 1;
   CHECK(!sprout_meter_enter_cascade(&meter));
-  check_complete(&meter, "cascade depth");
+  check_complete(&meter, "cascade depth", "cascadeDepth");
   FRESH(SPROUT_TURN_COMMAND);
   meter.passage_depth = UINT64_MAX - 1;
   CHECK(!sprout_meter_enter_passage(&meter));
-  check_complete(&meter, "passage depth");
+  check_complete(&meter, "passage depth", "passageDepth");
   FRESH(SPROUT_TURN_COMMAND);
   CHECK(!sprout_meter_set_role(&meter, UINT64_MAX));
-  check_complete(&meter, "objects bound by one set role");
+  check_complete(&meter, "objects bound by one set role", "setRoleObjects");
   FRESH(SPROUT_TURN_COMMAND);
   CHECK(!sprout_meter_pending_wakes(&meter, UINT64_MAX));
-  check_complete(&meter, "pending wakes");
+  check_complete(&meter, "pending wakes", "pendingWakesPerObject");
   FRESH(SPROUT_TURN_COMMAND);
   CHECK_INT(sprout_meter_output(&meter, &held, UINT64_MAX, true), SPROUT_OUTPUT_FAULT);
-  check_complete(&meter, "output");
+  check_complete(&meter, "output", "output");
   FRESH(SPROUT_TURN_COMMAND);
   fake_now = UINT64_MAX;
   CHECK(!sprout_meter_clock(&meter));
-  check_complete(&meter, "wall clock");
+  check_complete(&meter, "wall clock", "wallClockMs");
 #undef FRESH
 }
 
@@ -325,6 +396,7 @@ int main(void) {
   RUN(a_set_role_and_pending_wakes_fault_past_the_hosts_figure);
   RUN(output_faults_the_actor_and_cuts_off_anyone_else_at_the_whole_line);
   RUN(the_wall_clock_backstop_reads_the_hosts_clock_at_the_hosts_figure);
+  RUN(every_budget_says_what_ran_out_in_the_words_the_typescript_runtime_does);
   RUN(every_budgets_fault_text_is_complete_at_the_widest_numbers);
   RUN(the_wake_floor_nickname_and_crowd_follow_the_hosts_figures);
   return REPORT();

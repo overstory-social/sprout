@@ -1,0 +1,88 @@
+{
+  "cases": [
+    {
+      "name": "steps",
+      "kind": "command",
+      "limit": 7,
+      "words": "steps: a command turn may take 7 steps."
+    },
+    {
+      "name": "steps",
+      "kind": "tick",
+      "limit": 7,
+      "words": "steps: a tick turn may take 7 steps."
+    },
+    {
+      "name": "steps",
+      "kind": "wake",
+      "limit": 7,
+      "words": "steps: a wake turn may take 7 steps."
+    },
+    {
+      "name": "steps",
+      "kind": "maintenance",
+      "limit": 7,
+      "words": "steps: a maintenance turn may take 7 steps."
+    },
+    {
+      "name": "steps",
+      "kind": "arrival",
+      "limit": 7,
+      "words": "steps: a arrival turn may take 7 steps."
+    },
+    {
+      "name": "steps",
+      "kind": "departure",
+      "limit": 7,
+      "words": "steps: a departure turn may take 7 steps."
+    },
+    {
+      "name": "pollSteps",
+      "kind": "poll",
+      "limit": 7,
+      "words": "pollSteps: a poll turn may take 7 steps."
+    },
+    {
+      "name": "output",
+      "kind": "command",
+      "limit": 10,
+      "words": "output: one turn may say 10 characters to any one person."
+    },
+    {
+      "name": "events",
+      "kind": "command",
+      "limit": 3,
+      "words": "events: one turn may send 3 events."
+    },
+    {
+      "name": "cascadeDepth",
+      "kind": "command",
+      "limit": 2,
+      "words": "cascadeDepth: events may cascade 2 deep."
+    },
+    {
+      "name": "setRoleObjects",
+      "kind": "command",
+      "limit": 4,
+      "words": "setRoleObjects: one set role may bind 4 objects."
+    },
+    {
+      "name": "spawnsPerTurn",
+      "kind": "command",
+      "limit": 2,
+      "words": "spawnsPerTurn: one turn may spawn 2 objects."
+    },
+    {
+      "name": "extensionEffects",
+      "kind": "command",
+      "limit": 3,
+      "words": "extensionEffects: one turn may record 3 effects of extensions."
+    },
+    {
+      "name": "passageDepth",
+      "kind": "command",
+      "limit": 2,
+      "words": "passageDepth: passages may invoke one another 2 deep."
+    }
+  ]
+}

@@ -173,8 +173,7 @@ static void a_fault_is_printed_in_the_hosts_words_and_exits_one(void) {
   r = sproutc(10, argv);
   CHECK_INT(r.code, 1);
   CHECK_STR(r.out,
-            "fault BudgetExhausted: This turn used more steps than the host allows (25) while running message 0, so it "
-            "was stopped and nothing it did was kept.\nsteps 26\n");
+            "fault BudgetExhausted: steps: a command turn may take 25 steps.\nsteps 26\n");
   close_world(&w);
 }
 

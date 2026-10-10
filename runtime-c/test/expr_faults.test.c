@@ -75,9 +75,7 @@ static void a_step_past_the_hosts_figure_faults_in_the_meters_words(void) {
   CHECK_INT(expr_spend(&h.frame), SPROUT_EVAL_OK);
   CHECK_INT(expr_spend(&h.frame), SPROUT_EVAL_FAULT);
   CHECK_STR(h.fault.name, "BudgetExhausted");
-  CHECK_STR(h.fault.text,
-            "This turn used more steps than the host allows (2) while running message 0, so it was stopped and "
-            "nothing it did was kept.");
+  CHECK_STR(h.fault.text, "steps: a command turn may take 2 steps.");
   CHECK_INT(h.meter.steps, 3);
 }
 
