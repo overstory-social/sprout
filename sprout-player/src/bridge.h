@@ -10,6 +10,8 @@
  *   sprout.tick()             a tick turn and the wakes that have fallen due
  *   sprout.save()             write the save now
  *   sprout.close()            depart, save, release the world
+ *   sprout.verify(text, signature, key)   whether the hexadecimal signature is the key's over the text
+ *   sprout.digest(path)       the SHA-256 and size of a file in the Data folder or the app
  *
  * Each takes strings and returns one JSON string (session.h has the shapes), since a registered
  * function cannot build a table; `engine.lua` decodes them. Nothing else of the engine is reachable from Lua.

@@ -58,8 +58,8 @@ include(${SDK}/C_API/buildsupport/playdate_game.cmake)
 
 # Everything but the entry point, so the glue's tests link the same code the app runs.
 set(PLAYER_SOURCES
-  src/bridge.c src/budgets.c src/files.c src/pd_host.c src/reading_json.c src/reply.c
-  src/savelog.c src/seen.c src/session.c src/text.c src/turns.c)
+  src/bridge.c src/budgets.c src/ed25519.c src/files.c src/pd_host.c src/reading_json.c src/reply.c
+  src/savelog.c src/seen.c src/session.c src/shipping.c src/text.c src/turns.c)
 add_library(sprout_player_core STATIC ${PLAYER_SOURCES})
 target_include_directories(sprout_player_core PUBLIC src PRIVATE ../runtime-c/src)
 target_compile_definitions(sprout_player_core PUBLIC TARGET_EXTENSION=1)
@@ -76,8 +76,9 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
   add_library(player_test_support STATIC test/support.c test/fake_playdate.c)
   target_link_libraries(player_test_support PUBLIC sprout_player_core)
   target_include_directories(player_test_support PUBLIC test ../runtime-c/src)
-  target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}")
-  set(PLAYER_TESTS text files reading_json pd_host budgets reply savelog session turns seen bridge glue)
+  target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
+    PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+  set(PLAYER_TESTS text ed25519 shipping shipped files reading_json pd_host budgets reply savelog session turns seen bridge glue)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)

@@ -75,6 +75,11 @@ char *keep(const char *reply) {
 
 char *call(const char *name, const char *argument) { return keep(fake_call(fake, name, argument)); }
 
+char *call3(const char *name, const char *first, const char *second, const char *third) {
+  const char *const arguments[3] = {first, second, third};
+  return keep(fake_call_with(fake, name, 3, arguments));
+}
+
 player_session *session_new(void) {
   owned = player_session_new(&fake->api);
   CHECK(owned != NULL, "a session");

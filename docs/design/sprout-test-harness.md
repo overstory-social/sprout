@@ -255,7 +255,8 @@ reason; a set role joined from singletons; a number role on the crank), word wra
 reader's scrollback, the clock's clamp, the nickname filter, the shelf, and `main.lua` driven
 frame by frame over stand-ins for `playdate` and the engine. The C glue
 has a test program beside each module of `sprout-player/src` (`text`, `files`, `reading_json`,
-`pd_host`, `budgets`, `reply`, `savelog`, `session`, `turns`, `seen`, `bridge`:
+`pd_host`, `budgets`, `reply`, `savelog`, `session`, `turns`, `seen`, `bridge`, and `ed25519`,
+`shipping` and `shipped`, below:
 `sprout-player/test/<module>.test.c`), through a fake `PlaydateAPI` that implements only what
 the glue uses, over corpus cartridges: catching up `wakes` after four hours tells nothing,
 `ticks` tells what its place says, a clock set back is clamped, a world left open is put away,
@@ -266,7 +267,33 @@ and write back byte for byte, and the turns built from the view's chips must lea
 world the same lines typed leave (`corpus/good/chip-tree`, `corpus/good/value-first`). The
 whole is also built and run under AddressSanitizer and UndefinedBehaviorSanitizer by
 `node scripts/check-runtime-c.mjs --sanitize`, and the runtime is built at `-O2` under
-`-Werror` by the plain run. The build itself is a test: the Simulator
+`-Werror` by the plain run. Shipped worlds and downloads are tested at each seam, with no network. `ed25519.test.c` holds the
+signature check to RFC 8032's vectors (and refuses a changed message, signature or key, an S not
+below the group order, and a key that is no point); `shipping.test.c` calls `sprout.verify` and
+`sprout.digest` as Lua does, and verifies the signature Node made over the committed index
+fixture (`sprout-player/test/fixtures/index.json`, signed with the test key in
+`sprout-player/test/`, whose private half is public on purpose and trusted by nothing real);
+`shipped.test.c` shelves every world in the packed `worlds/` folder, so a graduated world the app
+would grey fails the build. In Lua, `canonical_test.lua` holds the canonical text to the
+fixture's, `index_test.lua` accepts the signed index and refuses one changed after signing, one
+unsigned, oversized or not JSON, and each signed entry the app cannot use; `net_test.lua` drives
+the HTTP adapter over a scripted `playdate.network` (permission refused, a request that cannot be
+queued, an error, a stalled transfer, a redirect and a redirect loop, no Wi-Fi);
+`downloads_test.lua` drives the whole screen over a fake network, files and engine (a download
+with assets placed and reported, a tampered index, no network, permission refused, a checksum
+mismatch, another build's bundle hash, a file shorter or longer than listed, a world the engine
+refuses kept and greyed, a connection that breaks part way, a Playdate out of room, leaving
+mid-download) and asserts what is left on disk each time (nothing, for a world that did not
+arrive); `main_test.lua` drives the shelf's "more worlds" row with no network. In Node,
+`scripts/publish-index.spec.mjs` signs with the test key (the canonical text, the index built from
+packed cartridges and checked against `index.schema.json`, the command's refusals, key
+generation) and `scripts/playdate-player.spec.mjs` packs a fake `worlds.json` (names or paths, a
+list that cannot be used, assets copied, a world that does not pack, the public key written);
+`scripts/playdate-player.mjs` runs both and the build's check of the graduated list. What no part
+can do is fetch over a real network or ask the person's permission: that is checked by hand, in
+the Simulator and on a console.
+
+The build itself is a test: the Simulator
 target must compile and `pdc` must package the pdx, and the device target is built too where
 `arm-none-eabi-gcc` is installed. What no part can do is run the Simulator or a console, so
 the player on a screen, the crank's feel and the device's speed are checked by hand.

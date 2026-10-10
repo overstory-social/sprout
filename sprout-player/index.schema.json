@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://overstory.social/sprout/index.schema.json",
+  "title": "The index of published Sprout worlds",
+  "description": "What the Playdate app's download screen fetches. `signed` is the lower-case hexadecimal Ed25519 signature, made by the publisher's key, over the canonical text of `worlds`: no spaces, object keys in order, strings as JSON.stringify writes them, integers in decimal (scripts/index-signing.mjs `canonicalText`; sprout-player/Source/canonical.lua). The app reads nothing in the index before that signature verifies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["worlds", "signed"],
+  "properties": {
+    "worlds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/world" }
+    },
+    "signed": { "type": "string", "pattern": "^[0-9a-f]{128}$" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "address": {
+      "description": "An http or https address, or one relative to the index's own address.",
+      "type": "string",
+      "minLength": 1
+    },
+    "world": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "author", "version", "bytes", "hash", "sha256", "url"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "author": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "bytes": {
+          "description": "The size of the cartridge file.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "hash": {
+          "description": "The bundle hash: the world's identity (the spec's The compiler > What compiling produces), the `hash` in the cartridge's header.",
+          "$ref": "#/$defs/digest"
+        },
+        "sha256": {
+          "description": "SHA-256 of the cartridge file's bytes.",
+          "$ref": "#/$defs/digest"
+        },
+        "url": { "$ref": "#/$defs/address" },
+        "assets": {
+          "description": "The files beside the cartridge, in its `.assets` folder.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "bytes", "sha256", "url"],
+            "properties": {
+              "path": {
+                "description": "Relative to the assets folder, with `/` between parts and no `..`.",
+                "type": "string",
+                "minLength": 1
+              },
+              "bytes": { "type": "integer", "minimum": 0 },
+              "sha256": { "$ref": "#/$defs/digest" },
+              "url": { "$ref": "#/$defs/address" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -129,9 +129,10 @@ const char *player_inspect(player_session *session, const char *path) {
   bool fits;
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
   fits = shelve(session, path, &world, reason, sizeof reason);
-  root = jb_object(&builder, 3);
+  root = jb_object(&builder, 4);
   jb_set(&builder, root, "ok", jb_bool(&builder, fits));
   jb_set(&builder, root, "name", fits ? jb_string(&builder, world->header.name) : jb_null(&builder));
+  jb_set(&builder, root, "hash", fits ? jb_string(&builder, world->header.hash) : jb_null(&builder));
   jb_set(&builder, root, "reason", fits ? jb_null(&builder) : jb_string(&builder, reason));
   reply = session_reply_end(session, &arena, &builder, root);
   if (world != NULL) sprout_world_free(world);

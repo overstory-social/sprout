@@ -41,4 +41,7 @@ void fake_init(fake_playdate *fake, const char *data, const char *app);
 /* Calls the registered function `name` with up to one string argument; the string it pushed, or NULL if none. */
 const char *fake_call(fake_playdate *fake, const char *name, const char *argument);
 
+/* The same with `count` string arguments. */
+const char *fake_call_with(fake_playdate *fake, const char *name, int count, const char *const *arguments);
+
 #endif

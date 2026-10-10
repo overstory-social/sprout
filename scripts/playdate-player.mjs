@@ -4,13 +4,16 @@
 //
 // builds the Simulator pdx (and, with --device, the device pdx as well, which then holds both
 // binaries and runs on the Simulator and on a console) under <folder> (default
-// sprout-player/build), after packing the placeholder worlds into the pdx's worlds/ folder.
+// sprout-player/build), after packing the graduated worlds (sprout-player/worlds.json) into the
+// pdx's worlds/ folder with their assets, and writing Source/publickey.lua: the public key the
+// download screen trusts, read from the file named by SPROUT_INDEX_PUBLIC_KEY (default
+// sprout-player/test/index-test.pub, which anyone can sign for, so a build to publish sets it).
 // `npm run playdate` is this with --device when arm-none-eabi-gcc is on the path.
 //
-// scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it builds the Simulator
-// target, runs the C glue's tests and the Lua tests, and plays the save the glue wrote through
-// `sproutc`. It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which
-// parts ran.
+// scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
+// shipping scripts, builds the Simulator target, runs the C glue's tests and the Lua tests, checks
+// that the app shelves every graduated world, and plays the save the glue wrote through `sproutc`.
+// It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -25,7 +28,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { readingsPath, resolveFile } from './resolve-script.mjs';
@@ -35,8 +38,11 @@ const root = join(fileURLToPath(import.meta.url), '../..');
 const player = join(root, 'sprout-player');
 const pdxSource = join(player, 'Source');
 
-/** The corpus worlds the pdx carries until the shelf has real cartridges. */
-export const PLACEHOLDER_WORLDS = ['chip-tree', 'media-room', 'teashop'];
+/** The graduated worlds the pdx carries: `{ "graduated": [ { "world", "title" } ] }`. */
+export const WORLDS_FILE = join(player, 'worlds.json');
+
+/** The public key whose signatures the download screen accepts, unless SPROUT_INDEX_PUBLIC_KEY names another. */
+export const TEST_PUBLIC_KEY = join(player, 'test/index-test.pub');
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -56,22 +62,77 @@ export function sdkPath() {
   return path !== undefined && path !== '' && existsSync(join(path, 'C_API')) ? path : null;
 }
 
-/** Packs `worlds` from corpus/good into the pdx source's worlds/ folder with the built CLI. */
-export async function stageWorlds(worlds = PLACEHOLDER_WORLDS) {
+/**
+ * Reads the list of graduated worlds: each entry names a world folder (a name under corpus/good, or
+ * a path from the repository root or absolute) and the title it is listed under. Throws, saying
+ * what to write, for a list that is not that shape or that names a world twice or one that is not
+ * there.
+ */
+export function readGraduated(file = WORLDS_FILE) {
+  let list;
+  try {
+    list = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (err) {
+    throw new Error(`${file} cannot be read as JSON: ${err.message}`);
+  }
+  if (list === null || typeof list !== 'object' || !Array.isArray(list.graduated)) {
+    throw new Error(`${file} should be { "graduated": [ { "world": "<name or path>", "title": "<title>" } ] }.`);
+  }
+  const seen = new Set();
+  return list.graduated.map((entry, i) => {
+    if (typeof entry?.world !== 'string' || entry.world === '' || typeof entry.title !== 'string' || entry.title === '') {
+      throw new Error(`${file}: entry ${i + 1} of "graduated" needs a "world" and a "title", both text.`);
+    }
+    const dir = entry.world.includes('/') ? resolve(root, entry.world) : join(root, 'corpus/good', entry.world);
+    if (!existsSync(dir)) throw new Error(`${file}: the world "${entry.world}" is not at ${dir}.`);
+    const name = basename(dir);
+    if (seen.has(name)) throw new Error(`${file}: the world "${name}" is listed twice.`);
+    seen.add(name);
+    return { world: entry.world, title: entry.title, dir, file: `${name}.sproutworld` };
+  });
+}
+
+/**
+ * Packs the graduated worlds into `out` with the built CLI, each as `<name>.sproutworld` beside its
+ * `.assets` folder, replacing what was there. Returns the list it packed.
+ */
+export async function stageWorlds({ list = readGraduated(), out = join(pdxSource, 'worlds') } = {}) {
   const { main } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
-  const out = join(pdxSource, 'worlds');
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   let said = '';
   const quiet = { write: (text) => ((said += text), true) };
-  for (const name of worlds) {
+  for (const { dir, file, title } of list) {
     said = '';
-    const code = await main(
-      ['pack', join(root, 'corpus/good', name), '-o', join(out, `${name}.sproutworld`)],
-      { stdout: quiet, stderr: quiet, stdin: process.stdin },
-    );
-    if (code !== 0) throw new Error(`${name} did not pack:\n${said}`);
+    const code = await main(['pack', dir, '-o', join(out, file)], {
+      stdout: quiet,
+      stderr: quiet,
+      stdin: process.stdin,
+    });
+    if (code !== 0) throw new Error(`${title} (${dir}) did not pack:\n${said}`);
   }
+  return list;
+}
+
+/**
+ * Writes `Source/publickey.lua`, the key the download screen trusts, from the file named by
+ * `keyFile` (64 hexadecimal digits, as scripts/publish-index.mjs --generate-key writes). Returns
+ * the path of the file read and whether it is the test key.
+ */
+export function writePublicKey({
+  keyFile = process.env.SPROUT_INDEX_PUBLIC_KEY || TEST_PUBLIC_KEY,
+  into = pdxSource,
+} = {}) {
+  const key = readFileSync(keyFile, 'utf8').trim();
+  if (!/^[0-9a-f]{64}$/.test(key)) {
+    throw new Error(`${keyFile} should hold the public key as 64 lowercase hexadecimal digits and nothing else.`);
+  }
+  writeFileSync(
+    join(into, 'publickey.lua'),
+    `-- Generated by scripts/playdate-player.mjs from ${basename(keyFile)}: the Ed25519 public key whose\n` +
+      `-- signature the download screen requires on the index of worlds. Not committed.\nreturn "${key}"\n`,
+  );
+  return { keyFile, isTest: resolve(keyFile) === TEST_PUBLIC_KEY };
 }
 
 /** Removes what an earlier build left beside the Lua: the binaries the pdx is made from. */
@@ -114,6 +175,12 @@ export async function buildPlayer({ out = join(player, 'build'), device = true }
     );
   }
   await stageWorlds();
+  const key = writePublicKey();
+  if (key.isTest) {
+    console.warn(
+      'The download screen trusts the test public key (sprout-player/test/index-test.pub), whose private half is in the repository, so anyone can sign an index it accepts. Set SPROUT_INDEX_PUBLIC_KEY to the file holding your public key for a build you give to anyone else.',
+    );
+  }
   clearBinaries();
   mkdirSync(out, { recursive: true });
   const built = {
@@ -135,7 +202,9 @@ export async function checkPlayer({ sanitize = false } = {}) {
   const ran = [];
   const scratch = mkdtempSync(join(tmpdir(), 'sprout-player-'));
   try {
-    await stageWorlds();
+    ran.push(shippingSpecs());
+    const staged = await stageWorlds();
+    writePublicKey({ keyFile: TEST_PUBLIC_KEY });
     clearBinaries();
     const cartridges = join(sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild, 'cartridges');
     if (!existsSync(cartridges))
@@ -151,6 +220,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
     mkdirSync(keep);
     const tests = run('ctest', ['--test-dir', dir, '--output-on-failure'], {
       PLAYER_KEEP_DIR: keep,
+      PLAYER_SHIPPED_DIR: join(pdxSource, 'worlds'),
       ...(sanitize
         ? {
             ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
@@ -160,6 +230,9 @@ export async function checkPlayer({ sanitize = false } = {}) {
     });
     const wanted = [
       'text',
+      'ed25519',
+      'shipping',
+      'shipped',
       'files',
       'reading_json',
       'pd_host',
@@ -177,6 +250,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       throw new Error(`ctest did not pass the glue's tests ${missing.join(', ')}:\n${tests}`);
     }
     ran.push(`${wanted.length} C test programs passed`);
+    ran.push(`the app shelves all ${staged.length} graduated worlds`);
     ran.push(/player-lua/.test(tests) ? 'Lua tests passed' : 'Lua tests skipped (no lua5.4)');
 
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
@@ -198,6 +272,13 @@ export async function checkPlayer({ sanitize = false } = {}) {
     rmSync(scratch, { recursive: true, force: true });
   }
   return `sprout-player: ${ran.join('; ')}`;
+}
+
+/** Runs the specs of the shipping scripts (the signed index, the graduated list); one line of what ran. */
+export function shippingSpecs() {
+  const specs = ['publish-index.spec.mjs', 'playdate-player.spec.mjs'].map((name) => join(root, 'scripts', name));
+  run(process.execPath, ['--test', ...specs]);
+  return 'shipping script specs passed';
 }
 
 /** The save the glue wrote is read and written back by `sproutc` byte for byte. */

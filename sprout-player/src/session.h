@@ -4,7 +4,7 @@
  * keyed by nothing but the world, since there is one person). Each call returns the JSON text
  * of its reply, valid until the next call on the session; the shapes are:
  *
- *   inspect  { ok, name, reason }            can the cartridge at `path` be shelved
+ *   inspect  { ok, name, hash, reason }      can the cartridge at `path` be shelved; `hash` is its bundle hash
  *   open     { ok, name, hash, words, reason }
  *   load     { ok, fresh, nickname, present, last, recovered, words }
  *   admit    { admitted, words, visit, saved, lines }   catch-up runs first and tells nothing

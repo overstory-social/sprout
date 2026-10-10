@@ -79,7 +79,7 @@ cli/src           the `sprout` command: scaffold and check, the inspectors parse
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 runtime-c/        the C11 runtime: arenas, the host interface, values and lists, a JSON reader, the seeded draws and the budget meter, a gzip inflater, the cartridge loader and its catalogue, the stored world (read, checked, written canonically and reconciled with a world) the one-turn draft, the evaluator and the statements that run a body (the bus, range, moves through consent, wakes, the effects a turn records, and the prose that renders them for each reader), the reading pass (the consent and effect passes, carried roles, wildcard plays, exits and links, intents, the engine's `go`), the call that submits a reading, the turn call (a visitor's arrival and departure, a command, a place's tick, a wake and catch-up, each leaving its entry in the log, with the seeds they draw from and the nicknames visitors are admitted by), and the call that polls a visitor's view (a description, the ways out, who is there, what they carry and every reading they could make, with its refusal and the options of its value roles), each with its `.test.c`, and `host/`, the desktop host `sproutc` that plays a cartridge's script and prints a visitor's view; built and run by CMake and ctest, with the corpus transcripts replayed through it (`node scripts/check-runtime-c.mjs`, after `npm run build`: the tests pack the corpus worlds through the built CLI)
-sprout-player/    the Playdate app: the C runtime under a Lua UI (a shelf, a reader with crank scrolling, the crank sentence builder, a nickname picker), the C functions that register the engine with the Lua runtime, saves under Data, and the device's clock; built by CMake against the Playdate SDK, with its Lua tests and a C test of the glue over a fake `PlaydateAPI`
+sprout-player/    the Playdate app: the C runtime under a Lua UI (a shelf with the graduated worlds in `worlds.json` and a download screen for more, a reader with crank scrolling, the crank sentence builder, a nickname picker), an Ed25519 check of the signed index of worlds,, the C functions that register the engine with the Lua runtime, saves under Data, and the device's clock; built by CMake against the Playdate SDK, with its Lua tests and a C test of the glue over a fake `PlaydateAPI`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
@@ -119,7 +119,7 @@ compiler, and the repository built (`npm ci && npm run build`).
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once
-npm run playdate                                             # packs two corpus worlds and builds the pdx
+npm run playdate                                             # packs the graduated worlds and builds the pdx
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/simulator/sprout-player.pdx
 ```
 
@@ -139,6 +139,55 @@ copied into `worlds/` of the game's Data folder (in the Simulator,
 folder when it is mounted as a disk), shows on the shelf. A cartridge recorded against larger
 static caps than the player allows, or too large for the console's memory, is listed greyed
 with the reason.
+
+### Shipped worlds and downloads
+
+The pdx carries the **graduated** worlds and the shelf can fetch more.
+
+- **`sprout-player/worlds.json`** is the list of graduated worlds:
+  `{ "graduated": [ { "world": "<name under corpus/good, or a path>", "title": "..." } ] }`. The
+  build (`scripts/playdate-player.mjs`) packs each with `sprout pack`, with its `.assets/`, into the
+  pdx's `worlds/`. The studio is a separate codebase and will write this file (its own change
+  there); until then the repository owns it, listing the corpus worlds whose transcripts replay
+  byte for byte through the C runtime and that the app can shelve. The gate fails if the app
+  would grey a listed world.
+- **The index** (`sprout-player/index.schema.json`) is the file the download screen fetches:
+  `{ "worlds": [ { title, author, version, bytes, hash, sha256, url, assets? } ], "signed": "..." }`.
+  `hash` is the world's bundle hash, its identity; `sha256` is the SHA-256 of the cartridge file,
+  which is what proves the bytes arrived whole (`bytes` is its size); `url` is absolute or relative
+  to the index's own address; `assets` lists the files of the cartridge's `.assets` folder the same
+  way. `signed` is an Ed25519 signature, in hexadecimal, over the canonical text of `worlds` (no
+  spaces, keys in order, integers in decimal; `canonicalText` in `scripts/index-signing.mjs`).
+  The app verifies it in C (`sprout-player/src/ed25519.c`, tested against RFC 8032) before it
+  reads anything else in the index, and refuses a changed index with a sentence.
+- **Publishing.** Pack worlds with `sprout pack`, then
+  `node scripts/publish-index.mjs <folder of cartridges> --base-url https://example.com/sprout/ --key <private key file> [--out <folder>]`
+  writes `index.json` (and, with `--out`, copies the cartridges and assets beside it) ready to
+  upload so that `https://example.com/sprout/index.json` is the app's index address.
+- **Keys.** `node scripts/publish-index.mjs --generate-key <path-prefix>` writes `<prefix>.key` (the
+  private key: 64 hexadecimal digits, readable by its owner only) and `<prefix>.pub` (the public
+  half). **The private key never enters this repository**; keep it in a password manager or a
+  secrets store and give the publish step its path with `--key` or `SPROUT_INDEX_KEY`. Build the
+  app with the public half: `SPROUT_INDEX_PUBLIC_KEY=<prefix>.pub npm run playdate` writes it
+  into `Source/publickey.lua` (not committed). Without the variable the build uses
+  `sprout-player/test/index-test.pub`, whose private half is in the repository for the tests, so a
+  build you hand to anyone else must set it. Changing the key means a new build of the app; there
+  is no revocation or expiry inside the index.
+- **Where the app looks.** `sprout-player/Source/config.lua` holds the index address, a placeholder
+  (`worlds.example.invalid`, which never resolves) until a real one is chosen: edit it before a
+  build, or put `downloads.json`, `{ "indexUrl": "http://localhost:8000/index.json" }`, in the
+  app's Data folder (in the Simulator, `$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/`)
+  to point a built app at another address without a build.
+- **On the shelf.** The last row, "more worlds...", opens the download screen. It asks the system
+  for permission to reach the server (with a purpose string; the Playdate shows its own dialog the
+  first time), fetches and verifies the index, lists title, version and size, and on A downloads
+  the cartridge and its assets into the Data folder's `worlds/`. Each file is written as a
+  `.part`, checked against the size and SHA-256 in the signed index, and put in place only
+  whole; the cartridge is last, after the engine has confirmed its bundle hash is the one listed.
+  A world the app cannot play (a newer language level, caps over its budgets, an extension it
+  lacks) is kept and shelved greyed with the engine's reason. With no Wi-Fi network set up, or
+  permission refused, or a server that cannot be reached, the screen says why, B goes back, and
+  the shelf says what happened and still lists what it has.
 
 Try `chip-tree`: arrive, pick a name with the crank and press A, press A to build a sentence,
 turn the crank to `ask`, A, `a guard`, A, `weather`, A, and A again to confirm; B steps back.

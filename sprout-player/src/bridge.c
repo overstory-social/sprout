@@ -2,6 +2,7 @@
 #include "bridge.h"
 
 #include "session.h"
+#include "shipping.h"
 
 static PlaydateAPI *api;
 static player_session *session;
@@ -62,6 +63,16 @@ static int lua_close(lua_State *L) {
   return reply(player_close(session));
 }
 
+static int lua_verify(lua_State *L) {
+  (void)L;
+  return reply(player_verify(session, argument(1), argument(2), argument(3)));
+}
+
+static int lua_digest(lua_State *L) {
+  (void)L;
+  return reply(player_digest(session, argument(1)));
+}
+
 typedef struct registered {
   lua_CFunction function;
   const char *name;
@@ -72,6 +83,7 @@ bool player_register(PlaydateAPI *pd) {
       {lua_inspect, "sprout.inspect"}, {lua_open, "sprout.open"}, {lua_load, "sprout.load"},
       {lua_admit, "sprout.admit"},     {lua_view, "sprout.view"}, {lua_turn, "sprout.turn"},
       {lua_tick, "sprout.tick"},       {lua_save, "sprout.save"}, {lua_close, "sprout.close"},
+      {lua_verify, "sprout.verify"},   {lua_digest, "sprout.digest"},
   };
   size_t i;
   api = pd;

@@ -14,7 +14,7 @@ function Engine:decode(text)
   return self.json.decode(text)
 end
 
--- Whether the cartridge at `path` can be shelved: { ok, name, reason }.
+-- Whether the cartridge at `path` can be shelved: { ok, name, hash, reason }.
 function Engine:inspect(path) return self:decode(self.api.inspect(path)) end
 
 -- Loads the cartridge: { ok, name, hash, words, reason }.
@@ -40,5 +40,11 @@ function Engine:save() return self:decode(self.api.save()) end
 
 -- The visitor leaves and the world is released: { lines }.
 function Engine:close() return self:decode(self.api.close()) end
+
+-- Whether `signature` (hexadecimal) is the key's (hexadecimal) over `text`: { ok, reason }.
+function Engine:verify(text, signature, key) return self:decode(self.api.verify(text, signature, key)) end
+
+-- The SHA-256 and size of the file at `path`: { ok, sha256, bytes, reason }.
+function Engine:digest(path) return self:decode(self.api.digest(path)) end
 
 return Engine

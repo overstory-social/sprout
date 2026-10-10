@@ -1,0 +1,37 @@
+{
+  "worlds": [
+    {
+      "title": "Café \"Moss\"\tTea",
+      "author": "Ada \\ Bo",
+      "version": "1.2.0",
+      "bytes": 26989,
+      "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "url": "https://worlds.example/sprout/cafe-moss.sproutworld",
+      "assets": [
+        {
+          "path": "cellar.png",
+          "bytes": 80,
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "url": "https://worlds.example/sprout/cafe-moss.sproutworld.assets/cellar.png"
+        },
+        {
+          "path": "pictures/the cabinet.png",
+          "bytes": 120,
+          "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "url": "cafe-moss.sproutworld.assets/pictures/the%20cabinet.png"
+        }
+      ]
+    },
+    {
+      "title": "Bell",
+      "author": "Eve",
+      "version": "0.1.0",
+      "bytes": 4096,
+      "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "url": "/sprout/bell.sproutworld"
+    }
+  ],
+  "signed": "1e4aad097caf292b7b3ab6b4011ad2732b54937dc7fcad6052abc990b7258b0cd9c2e1295f2904896ae9c6fbdb1a0c9facaa9acd6f6f41d5fc3f5f27839e8b02"
+}

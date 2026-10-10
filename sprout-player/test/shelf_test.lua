@@ -63,26 +63,65 @@ test("a cartridge is inspected once until the shelf forgets", function()
   equal(#inspector.asked, 2)
 end)
 
-test("an empty shelf has nothing to open and the wheel does not fail", function()
+test("an empty shelf has nothing to open, but still offers more worlds, and the wheel does not fail", function()
   local shelf = Shelf.new(files({}), engine({}))
   shelf:refresh()
   equal(shelf:current(), nil)
+  equal(shelf:onMore(), true)
   shelf:move(1)
   shelf:turn(100, 24)
   equal(shelf:current(), nil)
+  equal(shelf:onMore(), true)
 end)
 
-test("the crank moves down the shelf and wraps", function()
+test("the crank moves down the shelf to more worlds and wraps to the top", function()
   local shelf = Shelf.new(files({ ["worlds/"] = { "a.sproutworld", "b.sproutworld" } }), engine({
     ["worlds/a.sproutworld"] = { ok = true, name = "a" },
     ["worlds/b.sproutworld"] = { ok = true, name = "b" },
   }))
   shelf:refresh()
   equal(shelf:current().title, "a")
+  equal(shelf:onMore(), false)
   shelf:turn(30, 24)
   equal(shelf:current().title, "b")
   shelf:turn(30, 24)
+  equal(shelf:current(), nil)
+  equal(shelf:onMore(), true)
+  shelf:turn(30, 24)
   equal(shelf:current().title, "a")
+  shelf:move(-1)
+  equal(shelf:onMore(), true)
+end)
+
+test("a shelf that shrinks keeps the selection on a row", function()
+  local listings = { ["worlds/"] = { "a.sproutworld", "b.sproutworld" } }
+  local shelf = Shelf.new(files(listings), engine({
+    ["worlds/a.sproutworld"] = { ok = true, name = "a" },
+    ["worlds/b.sproutworld"] = { ok = true, name = "b" },
+  }))
+  shelf:refresh()
+  shelf:move(2)
+  equal(shelf:onMore(), true)
+  listings["worlds/"] = { "a.sproutworld" }
+  shelf:refresh()
+  equal(shelf:onMore(), true)
+  equal(shelf.selected, 2)
+end)
+
+test("a cartridge's bundle hash is kept on its entry for the download screen", function()
+  local shelf = Shelf.new(files({ ["worlds/"] = { "a.sproutworld" } }), engine({
+    ["worlds/a.sproutworld"] = { ok = true, name = "ay", hash = "abc" },
+  }))
+  shelf:refresh()
+  equal(shelf:current().hash, "abc")
+end)
+
+test("why the last try at the network failed is kept for the shelf to say", function()
+  local shelf = Shelf.new(files({}), engine({}))
+  shelf:noteMore("No Wi-Fi.")
+  equal(shelf.moreNote, "No Wi-Fi.")
+  shelf:noteMore(nil)
+  equal(shelf.moreNote, nil)
 end)
 
 test("a world blocked for its save is greyed with the reason until it is unblocked", function()
