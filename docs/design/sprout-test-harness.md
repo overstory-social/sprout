@@ -160,6 +160,18 @@ it, and the diff is read like any golden. The C tests need the TypeScript build
 first (`npm run build`), since ctest packs the corpus worlds through the built
 CLI.
 
+The evaluator is held to the TypeScript one the same way. `eval-goldens.spec.ts`
+compiles a bench world whose bodies hold every expression a case names, packs it
+as `corpus/goldens/eval.sproutworld`, and writes `eval.json`: two stored worlds
+and, for each case, the cartridge entry that holds the expression, the object
+whose body it is, the names bound, the seed and the step budget, and what
+`evaluate.ts` ended in (the value in its canonical form, or the fault's name and
+words) with the steps it spent. `runtime-c/test/eval.test.c` replays every case
+and every spawn, and `sproutc eval` runs one case from the command line. The
+step budget is held to the host's figure and the host's words, which differ from
+the TypeScript budget's detail, so a budget fault is compared by the budget and
+its figure.
+
 ## Still to build
 
 - **Replay determinism**: a log recorded once and replayed against the same

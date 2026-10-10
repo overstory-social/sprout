@@ -22,7 +22,6 @@ import { Draft } from './draft.js';
 import { Draws } from './draws.js';
 import {
   boundObject,
-  boundValue,
   evaluate,
   IntegerOverflow,
   type Evaluated,
@@ -81,12 +80,22 @@ const CASES: readonly Case[] = [
   { name: 'binds ! over < over && over ||', text: '1 + 2 < 4 && !false || 1 < 0' },
   { name: 'compares an option with a property', text: 'self.get(:glaze) == :shino' },
   { name: 'compares an option on the left', text: ':shino != self.get(:glaze)' },
-  { name: 'compares an option property with another option', text: 'self.get(:glaze) == :tenmoku', state: 'worn' },
+  {
+    name: 'compares an option property with another option',
+    text: 'self.get(:glaze) == :tenmoku',
+    state: 'worn',
+  },
   { name: 'compares strings', text: 'self.get(:label) == "salt"' },
   { name: 'compares unequal strings', text: 'self.get(:label) != "sugar"' },
   { name: 'compares booleans', text: 'self.get(:lid) == true' },
-  { name: 'compares two objects by identity', text: 'eval_bench.hall.shelf.jar == eval_bench.hall.shelf.jar' },
-  { name: 'compares two different objects', text: 'eval_bench.hall.shelf.jar != eval_bench.hall.shelf.cup' },
+  {
+    name: 'compares two objects by identity',
+    text: 'eval_bench.hall.shelf.jar == eval_bench.hall.shelf.jar',
+  },
+  {
+    name: 'compares two different objects',
+    text: 'eval_bench.hall.shelf.jar != eval_bench.hall.shelf.cup',
+  },
   { name: '|| leaves its right unevaluated', text: 'true || self.get(:fill) > 5' },
   { name: '&& leaves its right unevaluated', text: 'false && self.get(:fill) > 5' },
   { name: 'the largest integer', text: '2147483647 - 1 + 1' },
@@ -105,16 +114,30 @@ const CASES: readonly Case[] = [
   { name: 'count(K) is those of a kind', text: 'eval_bench.hall.shelf.count(Lidded)' },
   { name: 'count(K) takes those composing the kind', text: 'eval_bench.hall.shelf.count(Jar)' },
   { name: 'count of a place counts what is in range', text: 'eval_bench.hall.count' },
-  { name: 'is asks whether an instance composes a kind', text: 'eval_bench.hall.shelf.cup.is(Jar)' },
+  {
+    name: 'is asks whether an instance composes a kind',
+    text: 'eval_bench.hall.shelf.cup.is(Jar)',
+  },
   { name: 'is asks a kind it does not compose', text: 'eval_bench.hall.shelf.jar.is(Lidded)' },
-  { name: 'holds asks whether a container holds a thing', text: 'eval_bench.hall.shelf.holds(eval_bench.hall.shelf.jar)' },
-  { name: 'holds asks of a thing held elsewhere', text: 'eval_bench.hall.holds(eval_bench.hall.shelf.jar)' },
+  {
+    name: 'holds asks whether a container holds a thing',
+    text: 'eval_bench.hall.shelf.holds(eval_bench.hall.shelf.jar)',
+  },
+  {
+    name: 'holds asks of a thing held elsewhere',
+    text: 'eval_bench.hall.holds(eval_bench.hall.shelf.jar)',
+  },
   // Names.
   { name: 'self names the object', text: 'self == self' },
   { name: 'a name reached from the world', text: 'eval_bench.hall == eval_bench.hall' },
   { name: 'the world by its name', text: 'eval_bench == eval_bench' },
   // Bindings and the play's names.
-  { name: 'recall reads the default', text: 'actor.recall(:visits)', play: true, bind: { actor: 'visitor' } },
+  {
+    name: 'recall reads the default',
+    text: 'actor.recall(:visits)',
+    play: true,
+    bind: { actor: 'visitor' },
+  },
   {
     name: 'recall reads what was written',
     text: 'actor.recall(:visits) + 1',
@@ -122,11 +145,31 @@ const CASES: readonly Case[] = [
     bind: { actor: 'visitor' },
     state: 'worn',
   },
-  { name: 'recall reads a boolean default', text: 'actor.recall(:seen)', play: true, bind: { actor: 'visitor' } },
+  {
+    name: 'recall reads a boolean default',
+    text: 'actor.recall(:seen)',
+    play: true,
+    bind: { actor: 'visitor' },
+  },
   { name: 'is reads a visitor', text: 'actor.is(Person)', play: true, bind: { actor: 'visitor' } },
-  { name: 'a bound name is the object', text: 'actor == actor', play: true, bind: { actor: 'visitor' } },
-  { name: 'bound asks of a name given', text: 'bound tool', play: true, bind: { actor: 'visitor', tool: ['hall', 'shelf', 'jar'] } },
-  { name: 'bound asks of a name not given', text: 'bound tool', play: true, bind: { actor: 'visitor' } },
+  {
+    name: 'a bound name is the object',
+    text: 'actor == actor',
+    play: true,
+    bind: { actor: 'visitor' },
+  },
+  {
+    name: 'bound asks of a name given',
+    text: 'bound tool',
+    play: true,
+    bind: { actor: 'visitor', tool: ['hall', 'shelf', 'jar'] },
+  },
+  {
+    name: 'bound asks of a name not given',
+    text: 'bound tool',
+    play: true,
+    bind: { actor: 'visitor' },
+  },
   {
     name: 'bound lets the body read the tool',
     text: 'bound tool && tool.get(:fill) > 1',
@@ -138,10 +181,25 @@ const CASES: readonly Case[] = [
   { name: '&& narrows the name on its right', text: 'shelf.is(Shelf) && shelf.count(Jar) == 2' },
   { name: '&& narrows a dotted path', text: 'shelf.cup.is(Lidded) && shelf.cup.get(:lid)' },
   { name: 'a name behind a closed container', text: 'vault.coin.is(Jar)' },
-  { name: 'a name reached through a container that passes', text: 'vault.coin.is(Jar)', state: 'worn' },
+  {
+    name: 'a name reached through a container that passes',
+    text: 'vault.coin.is(Jar)',
+    state: 'worn',
+  },
   // Sight.
-  { name: 'sees finds no lit light', text: 'self.sees(sprout.LightSource, :lit)', source: true, self: ['dim'] },
-  { name: 'sees finds a lit light', text: 'self.sees(sprout.LightSource, :lit)', source: true, self: ['dim'], state: 'worn' },
+  {
+    name: 'sees finds no lit light',
+    text: 'self.sees(sprout.LightSource, :lit)',
+    source: true,
+    self: ['dim'],
+  },
+  {
+    name: 'sees finds a lit light',
+    text: 'self.sees(sprout.LightSource, :lit)',
+    source: true,
+    self: ['dim'],
+    state: 'worn',
+  },
   // Draws.
   { name: 'chance draws true from the seed', text: 'chance(3)', seed: 5 },
   { name: 'chance draws false from another seed', text: 'chance(3)', seed: 1 },
@@ -269,7 +327,10 @@ function nodeOf(text: string): { index: number; expr: Expr } {
     ({ expr }) => !INSIDE.has(expr) && JSON.stringify(shapeOf(expr)) === wanted,
   );
   // A literal written alone is the same wherever it stands; anything else must be one place.
-  if (found.length !== 1 && !(found.length > 1 && ['boolean', 'integer', 'string'].includes(found[0]!.expr.kind)))
+  if (
+    found.length !== 1 &&
+    !(found.length > 1 && ['boolean', 'integer', 'string'].includes(found[0]!.expr.kind))
+  )
     throw new Error(`\`${text}\` is written ${found.length} times, not once`);
   return found[0]!;
 }
@@ -364,14 +425,23 @@ function run(one: Case, stored: ReturnType<typeof saveWorld>): Record<string, un
     budget,
     caps: CAPS,
     names,
-    passes: passRules({ state: draft, kinds: catalogue.lookup, caps: CAPS, budget, names: catalogue.names }),
+    passes: passRules({
+      state: draft,
+      kinds: catalogue.lookup,
+      caps: CAPS,
+      budget,
+      names: catalogue.names,
+    }),
     ...(one.seed === undefined ? {} : { draws: new Draws(one.seed) }),
   };
   try {
     return { expect: canonical(evaluate(expr, frame)), steps: budget.spentSteps };
   } catch (thrown) {
     if (thrown instanceof BudgetExhausted) {
-      return { expect: { fault: 'BudgetExhausted', budget: thrown.limit, limit: thrown.allowed }, steps: budget.spentSteps };
+      return {
+        expect: { fault: 'BudgetExhausted', budget: thrown.limit, limit: thrown.allowed },
+        steps: budget.spentSteps,
+      };
     }
     if (thrown instanceof IntegerOverflow || thrown instanceof NameOutOfRange) {
       return { expect: { fault: thrown.name, detail: thrown.message }, steps: budget.spentSteps };
@@ -412,7 +482,11 @@ const SPAWNS: readonly SpawnCase[] = [
     container: ['hall'],
     spawns: 3,
   },
-  { name: 'a spawn of a kind that is not declared', kind: `${LIBRARY}.Missing`, container: ['hall'] },
+  {
+    name: 'a spawn of a kind that is not declared',
+    kind: `${LIBRARY}.Missing`,
+    container: ['hall'],
+  },
 ];
 
 /** Run one spawn against the oracle: the instances made and where, or the fault. */
@@ -442,7 +516,10 @@ function runSpawn(one: SpawnCase, stored: ReturnType<typeof saveWorld>): Record<
       const instance = draft.instance(one)!;
       return { id: one, kind: kindName(instance.kind), container: instance.container };
     });
-    return { expect: { id: made.id, contents: made.contents, placed }, spawned: budget.spentSpawns };
+    return {
+      expect: { id: made.id, contents: made.contents, placed },
+      spawned: budget.spentSpawns,
+    };
   } catch (thrown) {
     if (thrown instanceof BudgetExhausted) {
       return { expect: { fault: thrown.name, budget: thrown.limit, limit: thrown.allowed } };
