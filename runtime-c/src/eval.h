@@ -65,6 +65,7 @@ typedef struct sprout_frame {
   const char *library;  /* the library or world whose kind wrote the body, for a kind written without one */
   const sprout_binding *bindings;
   sprout_eval_fault *fault; /* filled when an evaluation returns SPROUT_EVAL_FAULT or SPROUT_EVAL_ENGINE */
+  sprout_str hands;     /* a refusal's words: the acting visitor whose hands a range question sees into (the spec's Range), or none */
 } sprout_frame;
 
 sprout_evaluated sprout_evaluated_value(sprout_value value);

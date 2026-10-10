@@ -65,6 +65,28 @@ static void a_command_that_faults_tells_the_actor_and_leaves_the_world_byte_for_
   tw_close(&w);
 }
 
+static void a_refusals_words_see_into_the_hands_of_the_visitor_who_acted(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading take;
+  tw_open(&w, "refusal-hands");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  take = tw_reading("sprout.take", tw_person(&w, "v-marta"), &filling, "target", "refusal_hands.hall.stone");
+  tw_command(&w, "v-marta", &take, 1001, &out);
+  CHECK(tw_told(&out, "v-marta", "The stone will not budge for someone carrying 0 coffins."));
+  sprout_outcome_free(&out);
+  take = tw_reading("sprout.take", tw_person(&w, "v-marta"), &filling, "target", "refusal_hands.hall.coffin");
+  tw_command(&w, "v-marta", &take, 1002, &out);
+  sprout_outcome_free(&out);
+  take = tw_reading("sprout.take", tw_person(&w, "v-marta"), &filling, "target", "refusal_hands.hall.stone");
+  tw_command(&w, "v-marta", &take, 1003, &out);
+  CHECK(tw_told(&out, "v-marta", "The stone will not budge for someone carrying 1 coffins."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void a_command_by_someone_not_in_the_world_is_the_hosts_defect_and_writes_nothing(void) {
   turn_world w;
   sprout_outcome out;
@@ -90,6 +112,7 @@ static void a_command_by_someone_not_in_the_world_is_the_hosts_defect_and_writes
 int main(void) {
   RUN(a_command_that_acts_writes_what_it_changed_and_leaves_a_log_entry);
   RUN(a_command_that_faults_tells_the_actor_and_leaves_the_world_byte_for_byte);
+  RUN(a_refusals_words_see_into_the_hands_of_the_visitor_who_acted);
   RUN(a_command_by_someone_not_in_the_world_is_the_hosts_defect_and_writes_nothing);
   return REPORT();
 }

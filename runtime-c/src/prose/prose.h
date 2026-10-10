@@ -167,10 +167,11 @@ sprout_eval_status prose_enter_passage(const prose_reading *reading);
 
 /*
  * The paragraphs `said`, said by `by` with `bindings` in scope, renders to for the reader, charged to nobody
- * and drawing nothing: how a description and a refusal are read in a poll.
+ * and drawing nothing: how a description and a refusal are read in a poll. A refusal's words see into the hands of
+ * the visitor acting (the spec's Range).
  */
 sprout_eval_status prose_render_speech(const prose_reading *reading, sprout_str by, const sprout_speech *said,
-                                       const sprout_binding *bindings, prose_paragraphs *out);
+                                       const sprout_binding *bindings, bool refusal, prose_paragraphs *out);
 
 /* ---- engine_lines.c: the engine's own words ---- */
 

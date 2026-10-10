@@ -64,6 +64,7 @@ const EXPECTED_PASSING = [
   'own-place',
   'printers_shop',
   'pronouns',
+  'refusal-hands',
   'relatives',
   'requires-held',
   'rounds',
@@ -76,6 +77,7 @@ const EXPECTED_PASSING = [
   'teashop',
   'troll_room',
   'turn-faults',
+  'unknown-word',
   'visitor-contents',
 ];
 

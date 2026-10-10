@@ -168,9 +168,9 @@ static sprout_eval_status names_in_scope(const poll *p, const sprout_effect_bind
 }
 
 static sprout_eval_status say_line(poll *p, sprout_str by, const sprout_speech *said, const sprout_binding *bindings,
-                                   strs *out) {
+                                   bool refusal, strs *out) {
   prose_paragraphs paragraphs;
-  EXPR_NEED(prose_render_speech(&p->reading, by, said, bindings, &paragraphs));
+  EXPR_NEED(prose_render_speech(&p->reading, by, said, bindings, refusal, &paragraphs));
   return append(p, out, &paragraphs);
 }
 
@@ -181,10 +181,10 @@ static sprout_eval_status render_description(poll *p, const sprout_description *
   size_t i;
   memset(&lines, 0, sizeof lines);
   for (i = 0; i < description->line_count; i++)
-    EXPR_NEED(say_line(p, description->lines[i].by, &description->lines[i].said, description->lines[i].bindings, &lines));
+    EXPR_NEED(say_line(p, description->lines[i].by, &description->lines[i].said, description->lines[i].bindings, false, &lines));
   if (lines.count == 0)
     EXPR_NEED(say_line(p, description->unremarkable.by, &description->unremarkable.said,
-                       description->unremarkable.bindings, &lines));
+                       description->unremarkable.bindings, false, &lines));
   return keep_strs(keep, &lines, &out->description, &out->description_count);
 }
 
@@ -310,7 +310,7 @@ static sprout_eval_status seen_reading(poll *p, sprout_arena *keep, const sprout
     strs lines;
     memset(&lines, 0, sizeof lines);
     EXPR_NEED(names_in_scope(p, refusal->bindings, refusal->binding_count, &names));
-    EXPR_NEED(say_line(p, refusal->by, &refusal->said, names, &lines));
+    EXPR_NEED(say_line(p, refusal->by, &refusal->said, names, true, &lines));
     EXPR_NEED(keep_strs(keep, &lines, &out->refusal, &out->refusal_count));
   }
   for (i = 0; i < verb->role_count; i++)
@@ -366,7 +366,7 @@ static sprout_eval_status engine_words(poll *p, const char *name, bool in_place,
   sprout_str *one;
   memset(&lines, 0, sizeof lines);
   sprout_engine_said(&p->frame, name, &p->actor, in_place && standing != NULL ? &p->place : NULL, &by, &said);
-  EXPR_NEED(say_line(p, by, &said, NULL, &lines));
+  EXPR_NEED(say_line(p, by, &said, NULL, false, &lines));
   if (lines.count == 0) {
     one = (sprout_str *)sprout_arena_take(keep, sizeof *one);
     if (one == NULL || !put(keep, (sprout_str){stock, strlen(stock)}, one)) return SPROUT_EVAL_NO_MEMORY;

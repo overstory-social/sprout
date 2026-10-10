@@ -39,5 +39,6 @@ sprout_eval_status expr_passes(const sprout_frame *frame, sprout_str container, 
   inside.library = library;
   inside.bindings = NULL;
   inside.draws = NULL;
+  inside.hands = (sprout_str){NULL, 0};
   return sprout_eval_condition(&inside, sprout_node_get(sprout_node_get(written, "declaration"), "rule"), open);
 }

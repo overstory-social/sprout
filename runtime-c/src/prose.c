@@ -50,7 +50,20 @@ typedef struct speaking {
   sprout_str by;
   const sprout_speech *said;
   const sprout_binding *bindings;
+  sprout_str hands; /* a refusal's words: the acting visitor whose hands they see into; bytes NULL for none */
 } speaking;
+
+/* The acting visitor whose hands a refusal's words see into: its `actor`, or in a guard its `mover`, where a visitor. */
+static sprout_str hands_of(const prose_reading *reading, const sprout_binding *bindings) {
+  sprout_frame frame = prose_frame(reading, NULL, (sprout_str){"", 0}, NULL, bindings);
+  const sprout_binding *acting = expr_binding(&frame, "actor");
+  const sprout_stored_instance *instance;
+  if (acting == NULL) acting = expr_binding(&frame, "mover");
+  if (acting == NULL || acting->bound.binds != SPROUT_BINDS_OBJECT) return (sprout_str){NULL, 0};
+  instance = expr_instance(&frame, acting->bound.id);
+  if (instance == NULL || instance->made != SPROUT_MADE_VISITOR) return (sprout_str){NULL, 0};
+  return acting->bound.id;
+}
 
 /*
  * The paragraphs `line` renders to for the reader, charged to nobody. A named passage runs one
@@ -69,6 +82,7 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   memset(out, 0, sizeof *out);
   memset(&rendered, 0, sizeof rendered);
   frame = prose_frame(reading, NULL, line->by, NULL, line->bindings);
+  frame.hands = line->hands;
   switch (said->kind) {
     case SPROUT_SPEECH_ABSENT:
     case SPROUT_SPEECH_RECORDED:
@@ -90,6 +104,7 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   }
   draws = tape_open(t, turn_draws, &copy);
   frame = prose_frame(reading, draws, line->by, library, line->bindings);
+  frame.hands = line->hands;
   if (said->kind == SPROUT_SPEECH_PASSAGE) {
     EXPR_NEED(prose_enter_passage(reading));
     status = prose_render(reading, prose, &frame, &rendered);
@@ -110,12 +125,13 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
 }
 
 sprout_eval_status prose_render_speech(const prose_reading *reading, sprout_str by, const sprout_speech *said,
-                                       const sprout_binding *bindings, prose_paragraphs *out) {
+                                       const sprout_binding *bindings, bool refusal, prose_paragraphs *out) {
   speaking line;
   tape t;
   line.by = by;
   line.said = said;
   line.bindings = bindings;
+  line.hands = refusal ? hands_of(reading, bindings) : (sprout_str){NULL, 0};
   memset(&t, 0, sizeof t);
   return rendered_for(reading, NULL, &line, &t, out);
 }
@@ -175,6 +191,7 @@ static sprout_eval_status npc_says(const prose_reading *reading, line_to_render 
   sprout_engine_said(&frame, "npc_says", &line->effect->speaker, place.bytes == NULL ? NULL : &place, &by,
                      &line->frame_speech);
   line->frame.by = by;
+  line->frame.hands = (sprout_str){NULL, 0};
   line->frame.said = &line->frame_speech;
   made = (sprout_binding *)sprout_arena_take(reading->turn, sizeof *made);
   if (made == NULL) return SPROUT_EVAL_NO_MEMORY;
@@ -250,6 +267,7 @@ static sprout_eval_status read_description(const prose_reading *reading, sprout_
     line.by = spoken->by;
     line.said = &spoken->said;
     line.bindings = spoken->bindings;
+    line.hands = (sprout_str){NULL, 0};
     memset(&t, 0, sizeof t);
     EXPR_NEED(rendered_for(reading, draws, &line, &t, &paragraphs));
     EXPR_NEED(prose_charge(output, reading->reader, characters_of(&paragraphs), &told));
@@ -341,6 +359,7 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
     line->said.by = line->effect->by;
     line->said.said = &line->effect->said;
     EXPR_NEED(names_in_scope(&reading, line->effect->bindings, line->effect->binding_count, &line->said.bindings));
+    line->said.hands = line->effect->kind == SPROUT_EFFECT_REFUSED ? hands_of(&reading, line->said.bindings) : (sprout_str){NULL, 0};
     if (line->effect->has_speaker) EXPR_NEED(npc_says(&reading, line));
     for (r = 0; r < line->effect->to_count; r++) {
       prose_paragraphs paragraphs;

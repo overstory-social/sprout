@@ -86,6 +86,7 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
   library = prose_library_of(frame->turn, speech.origin);
   if (library == NULL) return expr_engine(frame, "a passage was written by what is not a qualified kind.");
   inner = prose_frame(reading, frame->draws, owner.id, library, bindings);
+  inner.hands = frame->hands;
   EXPR_NEED(prose_enter_passage(reading));
   status = pieces(reading, sprout_node_get(sprout_node_get(speech.node, "body"), "prose"), &inner, &rendered);
   sprout_meter_leave_passage(reading->meter);
