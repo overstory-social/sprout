@@ -9,11 +9,18 @@ add_compile_options(-Wall -Wextra -Werror -pedantic)
 
 set(SPROUT_MODULES
   arena budget catalogue catalogue_grammar catalogue_helpers catalogue_kinds draft draws
-  graph inflate json lists load state status stored stored_check stored_write values)
+  eval graph inflate json lists load state status stored stored_check stored_write values)
+
+# The evaluator's areas, src/expr/<module>.c, each with test/expr_<module>.test.c.
+set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators passes range show spawn)
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
   list(APPEND SPROUT_SOURCES src/${module}.c)
+endforeach()
+
+foreach(module ${SPROUT_EXPR_MODULES})
+  list(APPEND SPROUT_SOURCES src/expr/${module}.c)
 endforeach()
 
 add_library(sprout STATIC ${SPROUT_SOURCES})
@@ -22,7 +29,7 @@ target_link_libraries(sprout PUBLIC m)
 
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
-set(SPROUTC_MODULES cartridge host play readings)
+set(SPROUTC_MODULES cartridge evaluate host play readings)
 
 set(SPROUTC_SOURCES "")
 foreach(module ${SPROUTC_MODULES})
@@ -58,6 +65,17 @@ foreach(module ${SPROUT_MODULES})
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME ${module} COMMAND ${module}.test)
   set_tests_properties(${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+endforeach()
+
+foreach(module ${SPROUT_EXPR_MODULES})
+  add_executable(expr_${module}.test test/expr_${module}.test.c)
+  target_link_libraries(expr_${module}.test PRIVATE sprout)
+  target_include_directories(expr_${module}.test PRIVATE src test)
+  target_compile_definitions(expr_${module}.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
+  add_test(NAME expr_${module} COMMAND expr_${module}.test)
+  set_tests_properties(expr_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})

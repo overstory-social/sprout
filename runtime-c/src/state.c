@@ -546,20 +546,11 @@ static const sprout_kind_def *kind_of(const opening *o, const sprout_stored_inst
   return NULL;
 }
 
-/* A new instance at its kind's defaults, with no links, wakes, memory or tick. */
-static sprout_status new_instance(opening *o, const char *id, sprout_made_from made,
-                                  const sprout_kind_def *kind, const char *container,
-                                  sprout_stored_instance *out) {
-  sprout_arena *arena = &o->state->arena;
+sprout_status sprout_stored_instance_defaults(sprout_arena *arena, const sprout_kind_def *kind,
+                                              sprout_stored_instance *out) {
   size_t i, n = 0, plain = 0;
   memset(out, 0, sizeof *out);
-  PASS(copy_cstr(arena, id, &out->id));
-  out->made = made;
   out->kind = kind;
-  if (container != NULL) {
-    out->has_container = true;
-    PASS(copy_cstr(arena, container, &out->container));
-  }
   for (i = 0; i < kind->property_count; i++)
     if (!kind->properties[i].remembered) plain++;
   out->properties = (sprout_stored_property *)sprout_arena_take(arena, (plain + 1) * sizeof *out->properties);
@@ -570,6 +561,21 @@ static sprout_status new_instance(opening *o, const char *id, sprout_made_from m
   }
   out->property_count = n;
   return sort_records(arena, out->properties, out->property_count, sizeof *out->properties, by_property_name);
+}
+
+/* A new instance at its kind's defaults, with no links, wakes, memory or tick. */
+static sprout_status new_instance(opening *o, const char *id, sprout_made_from made,
+                                  const sprout_kind_def *kind, const char *container,
+                                  sprout_stored_instance *out) {
+  sprout_arena *arena = &o->state->arena;
+  PASS(sprout_stored_instance_defaults(arena, kind, out));
+  PASS(copy_cstr(arena, id, &out->id));
+  out->made = made;
+  if (container != NULL) {
+    out->has_container = true;
+    PASS(copy_cstr(arena, container, &out->container));
+  }
+  return SPROUT_OK;
 }
 
 static sprout_status refuse_world(const sprout_state *state, const sprout_world *world, sprout_refusal *refusal) {

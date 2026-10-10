@@ -28,7 +28,9 @@ import {
   type Evaluated,
   type Frame,
 } from './evaluate.js';
+import { kindName } from '../declare/kinds.js';
 import { declaredId, type InstanceId } from './ids.js';
+import { LifecycleFault, spawnInstance } from './lifecycle.js';
 import { SproutList } from './lists.js';
 import { initialState, loadWorld, saveWorld } from './load.js';
 import { NameOutOfRange } from './named.js';
@@ -170,7 +172,7 @@ function sourceOf(cases: readonly Case[]): string {
     '      object jar is Jar',
     '      object cup is Lidded',
     '    }',
-    '    object vault is Vault { object coin is Jar }',
+    '    object vault is Vault { object coin is Jar  object box is Shelf }',
     '  }',
     '  object nook is Place',
     '  object dim is Dim { object lamp is sprout.LightSource }',
@@ -189,6 +191,7 @@ function sourceOf(cases: readonly Case[]): string {
     '  remembers { :seen false :visits 2 min 0 max 9 }',
     '}',
     'kind Lidded is Jar { :lid true }',
+    'kind Crate { contains object lid is Jar object tray is Shelf { object seed is Jar } }',
     'kind Person is sprout.Visitor { :score 0 }',
     'verb tap { role target: Probe  role tool: Jar  "tap [target] with [tool]"  "tap [target]" }',
     'kind Probe is Lidded {',
@@ -377,9 +380,86 @@ function run(one: Case, stored: ReturnType<typeof saveWorld>): Record<string, un
   }
 }
 
+/** What a spawn asks: a kind made in a container by the object whose body ran the `spawn`. */
+interface SpawnCase {
+  readonly name: string;
+  readonly kind: string;
+  readonly container: readonly string[];
+  readonly spawner?: readonly string[];
+  readonly state?: 'fresh' | 'worn';
+  /** The host's cap on spawns per turn, where the case runs it out. */
+  readonly spawns?: number;
+}
+
+const SPAWNS: readonly SpawnCase[] = [
+  { name: 'a spawn makes one instance', kind: `${LIBRARY}.Jar`, container: ['hall'] },
+  { name: 'a spawn is given what its kind holds', kind: `${LIBRARY}.Crate`, container: ['hall'] },
+  {
+    name: 'a spawn into a container that holds nothing',
+    kind: `${LIBRARY}.Jar`,
+    container: ['hall', 'shelf', 'jar'],
+  },
+  { name: 'a spawn out of range', kind: `${LIBRARY}.Jar`, container: ['hall', 'vault', 'box'] },
+  {
+    name: 'a spawn within range of an open container',
+    kind: `${LIBRARY}.Jar`,
+    container: ['hall', 'vault', 'box'],
+    state: 'worn',
+  },
+  {
+    name: 'a spawn charges the instance and each content',
+    kind: `${LIBRARY}.Crate`,
+    container: ['hall'],
+    spawns: 3,
+  },
+  { name: 'a spawn of a kind that is not declared', kind: `${LIBRARY}.Missing`, container: ['hall'] },
+];
+
+/** Run one spawn against the oracle: the instances made and where, or the fault. */
+function runSpawn(one: SpawnCase, stored: ReturnType<typeof saveWorld>): Record<string, unknown> {
+  const loaded = loadWorld(stored, catalogue).state;
+  const draft = new Draft(loaded);
+  const budget = new Budget({
+    ...DEFAULT_LIMITS.budgets,
+    ...(one.spawns === undefined ? {} : { spawnsPerTurn: one.spawns }),
+  });
+  const passes = passRules({
+    state: draft,
+    kinds: catalogue.lookup,
+    caps: CAPS,
+    budget,
+    names: catalogue.names,
+  });
+  const context = { draft, catalogue, passes, budget, draws: new Draws(1), mayHold: null, now: 0 };
+  try {
+    const made = spawnInstance(
+      context,
+      id(...(one.spawner ?? ['hall', 'probe'])),
+      one.kind,
+      id(...one.container),
+    );
+    const placed = [made.id, ...made.contents].map((one) => {
+      const instance = draft.instance(one)!;
+      return { id: one, kind: kindName(instance.kind), container: instance.container };
+    });
+    return { expect: { id: made.id, contents: made.contents, placed }, spawned: budget.spentSpawns };
+  } catch (thrown) {
+    if (thrown instanceof BudgetExhausted) {
+      return { expect: { fault: thrown.name, budget: thrown.limit, limit: thrown.allowed } };
+    }
+    if (thrown instanceof LifecycleFault) {
+      return { expect: { fault: thrown.name, detail: thrown.message } };
+    }
+    throw thrown;
+  }
+}
+
 describe('the evaluator goldens', () => {
   it('writes what the oracle says for every case', () => {
     const stored = states();
+    const visitor = `${LIBRARY}#1`;
+    const resolve = (to: readonly string[] | 'visitor'): string =>
+      to === 'visitor' ? visitor : id(...to);
     const cases = CASES.map((one) => ({
       name: one.name,
       text: one.text,
@@ -387,12 +467,34 @@ describe('the evaluator goldens', () => {
       self: id(...(one.self ?? ['hall', 'probe'])),
       library: LIBRARY,
       state: one.state ?? 'fresh',
-      bind: one.bind,
+      bind: Object.fromEntries(
+        Object.entries(one.bind ?? {}).map(([name, to]) => [name, resolve(to)]),
+      ),
       seed: one.seed ?? null,
       budget: one.steps ?? null,
       ...run(one, stored[one.state ?? 'fresh']),
     }));
-    const text = `${JSON.stringify({ states: stored, cases }, null, 1)}\n`;
+    const spawns = SPAWNS.map((one) => ({
+      name: one.name,
+      kind: one.kind,
+      container: id(...one.container),
+      spawner: id(...(one.spawner ?? ['hall', 'probe'])),
+      library: LIBRARY,
+      state: one.state ?? 'fresh',
+      spawns: one.spawns ?? null,
+      ...runSpawn(one, stored[one.state ?? 'fresh']),
+    }));
+    const text = `${JSON.stringify(
+      {
+        states: Object.fromEntries(
+          Object.entries(stored).map(([name, one]) => [name, JSON.stringify(one)]),
+        ),
+        cases,
+        spawns,
+      },
+      null,
+      1,
+    )}\n`;
     if (process.env['SPROUT_WRITE_GOLDENS'] === '1') {
       writeFileSync(GOLDEN, text);
       writeFileSync(CARTRIDGE, bytes);
