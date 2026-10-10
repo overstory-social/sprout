@@ -18,12 +18,12 @@ import {
   study,
   STUDY,
 } from '../../fixtures/parser.js';
-import { turn } from '../../fixtures/reading.js';
+import { contextOf, reading, turn } from '../../fixtures/reading.js';
 import { Budget } from '../budget.js';
 import { DEFAULT_LIMITS } from '../../bundle/limits.js';
 import { declaredId, type InstanceId } from '../ids.js';
 import { addressOf } from './address.js';
-import { allIn, onlyTheActorPlays } from './all.js';
+import { allIn, allowedOf, onlyTheActorPlays } from './all.js';
 import type { Filled } from './fill.js';
 
 const one = study();
@@ -216,6 +216,33 @@ describe('`all` in an engine verb’s open role', () => {
   it('takes, where the role is carried, only what the actor carries', () => {
     const carried = (id: InstanceId) => id === PEAR || id === BELL;
     expect(ids(inGallery('sprout', 'examine', carried, true))).toEqual([BELL, PEAR]);
+  });
+});
+
+describe('what of `all` is left to run', () => {
+  const gallery = turn(GALLERY, [GALLERY_HALL]);
+  const visitor = gallery.people[0]!;
+  const examining = (id: InstanceId) =>
+    reading(GALLERY, 'examine', visitor, { target: { object: id } }, 'sprout');
+
+  it('is each reading whose consent pass allows, in order, leaving out one refused', () => {
+    const left = allowedOf([APPLE, BELL, GLARE_LAMP, PEAR].map(examining), {
+      ...contextOf(gallery),
+      state: gallery.draft,
+    });
+    expect(left.map((one) => one.bindings.get('target'))).toEqual([
+      { object: APPLE },
+      { object: BELL },
+      { object: PEAR },
+    ]);
+  });
+
+  it('is nothing where every reading is refused, and each pass is charged to the turn', () => {
+    const before = gallery.budget.spentSteps;
+    expect(
+      allowedOf([examining(GLARE_LAMP)], { ...contextOf(gallery), state: gallery.draft }),
+    ).toEqual([]);
+    expect(gallery.budget.spentSteps).toBeGreaterThan(before);
   });
 });
 

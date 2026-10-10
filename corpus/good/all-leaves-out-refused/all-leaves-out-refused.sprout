@@ -1,0 +1,34 @@
+// `all` in a role that takes one thing leaves out each thing whose
+// reading its consent pass would refuse, asked as the line is read (the
+// spec's Parsing › Sequences, again and all). So `drop all` drops what is
+// in hand and leaves the lunch in the sack it holds, which `drop` refuses
+// since it is not held; `take all` leaves out what is already held; and
+// `examine all` passes over the lamp, whose own consent refuses. Where
+// nothing is left, `all` names nothing, and the line is `not_here`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {examine} from 'sprout'
+
+world all_leaves_out_refused is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { article the }
+    object sack is Sack {
+      grammar { name "sack" }
+      object lunch is Toy { grammar { name "lunch" } }
+    }
+    object ball is Toy { grammar { name "ball" } }
+    object lamp is Glare { grammar { name "lamp" } describe { text "A lamp." } }
+  }
+}
+
+kind Toy { }
+kind Sack is sprout.Container { }
+
+kind Glare {
+  as target for examine {
+    permit { refuse "Too bright to look at." }
+  }
+}

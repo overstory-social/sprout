@@ -7,8 +7,9 @@
 // open role takes what plays a part in the verb. `except` leaves out each
 // thing a noun after it names, and every thing of a kind it names. A set
 // role takes them all at once, and a role that takes one thing takes each
-// in turn, in the order the range walk reached them; either way no more
-// than a set role may bind.
+// in turn, in the order the range walk reached them, leaving out each
+// whose reading its consent pass refuses as the line is read; either way
+// no more than a set role may bind.
 
 import { isActor } from '../../declare/actors.js';
 import { DETERMINERS, humanisedKind } from '../../declare/addressing.js';
@@ -17,6 +18,7 @@ import type { KindRef } from '../../declare/kinds.js';
 import { isEngineVerb, type ResolvedRole, type ResolvedVerb } from '../../declare/verbs.js';
 import type { Budget } from '../budget.js';
 import type { InstanceId } from '../ids.js';
+import { consentPass, type ConsentContext, type Reading } from '../reading.js';
 import type { Instance } from '../state.js';
 import type { Filled } from './fill.js';
 import { fits, nounsOfRun, thingsIn, type Candidate, type NounContext } from './nouns.js';
@@ -93,6 +95,16 @@ export function allIn(
       byName: 0,
     })),
   };
+}
+
+/**
+ * The readings of `all` in a role that takes one thing that are left to
+ * run: those whose consent pass allows, asked against the world as the
+ * line is read, so `drop all` leaves out what is not in hand and `take
+ * all` what already is. Each pass is charged to the turn.
+ */
+export function allowedOf(readings: readonly Reading[], context: ConsentContext): Reading[] {
+  return readings.filter((reading) => consentPass(reading, context) === null);
 }
 
 /**

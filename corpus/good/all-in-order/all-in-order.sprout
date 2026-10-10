@@ -6,7 +6,7 @@
 // for a role only the actor plays, as `take`'s, every thing that is not a
 // person and not the visitor's own place. The reading runs once for each,
 // in the order the range walk reaches them, and stops at the first
-// refusal, wherever in that order it falls. A run of things runs in the
+// refusal its turns meet, wherever in that order it falls. A run of things runs in the
 // order written.
 import * as sprout from 'sprout'
 import {Person} from 'person'
@@ -34,14 +34,22 @@ verb polish { role target  "polish [target]" }
 kind Shiny {
   as target for examine {
     permit { allow }
+    do { broadcast :glint }
   }
   as target for polish {
     do { say "It gleams." }
   }
 }
 
+message :glint
+
+// The lamp refuses to be examined once a shiny thing has glinted at it.
+// As the line is read nothing has, so `all` keeps the lamp; by its turn
+// the bell has, so the line stops there.
 kind Glare {
+  :dazzling false
+  on :glint { self.set(:dazzling, true) }
   as target for examine {
-    permit { refuse "Too bright to look at." }
+    permit { if (self.get(:dazzling)) { refuse "Too bright to look at." } }
   }
 }
