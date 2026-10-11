@@ -58,6 +58,7 @@ static void poll_begin(poll *p) {
   sprout_exec_begin(&p->x, p->world, &p->draft, p->turn, &p->meter, NULL, &p->fault, 0);
   p->frame = sprout_exec_frame(&p->x, p->actor, NULL, NULL);
   p->reading.world = p->world;
+  p->reading.graph = &p->world->graph;
   p->reading.draft = &p->draft;
   p->reading.turn = p->turn;
   p->reading.meter = &p->meter;

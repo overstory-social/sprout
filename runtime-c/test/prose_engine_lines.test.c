@@ -27,12 +27,13 @@ static void every_line_the_spec_names_reads_into_nodes(void) {
   size_t i;
   sprout_arena_init(&turn, &host);
   for (i = 0; i < sizeof LINES / sizeof LINES[0]; i++) {
-    const sprout_node *prose = NULL;
+    const sprout_graph *graph = NULL;
+  const sprout_node *prose = NULL;
     bool known = false;
-    CHECK_INT(prose_engine_prose(&turn, &fault, LINES[i], &prose, &known), SPROUT_EVAL_OK);
+    CHECK_INT(prose_engine_prose(&turn, &fault, LINES[i], &prose, &graph, &known), SPROUT_EVAL_OK);
     CHECK(known);
-    CHECK(prose != NULL && sprout_node_is(sprout_node_get(prose, "kind"), "prose"));
-    CHECK(prose != NULL && sprout_node_get(prose, "pieces")->count > 0);
+    CHECK(prose != NULL && sprout_node_is(graph, sprout_node_get(graph, prose, "kind"), "prose"));
+    CHECK(prose != NULL && sprout_node_get(graph, prose, "pieces")->count > 0);
     CHECK(prose_stock_words(LINES[i]) != NULL);
   }
   sprout_arena_reset(&turn);
@@ -44,10 +45,11 @@ static void a_name_that_is_no_engine_line_is_not_one(void) {
   sprout_host host = test_host(&heap);
   sprout_arena turn;
   sprout_eval_fault fault;
+  const sprout_graph *graph = NULL;
   const sprout_node *prose = NULL;
   bool known = true;
   sprout_arena_init(&turn, &host);
-  CHECK_INT(prose_engine_prose(&turn, &fault, "describe", &prose, &known), SPROUT_EVAL_OK);
+  CHECK_INT(prose_engine_prose(&turn, &fault, "describe", &prose, &graph, &known), SPROUT_EVAL_OK);
   CHECK(!known);
   CHECK(prose_stock_words("describe") == NULL);
   sprout_arena_reset(&turn);
@@ -65,20 +67,21 @@ static void a_line_reads_into_the_pieces_the_parser_would_make_of_it(void) {
   sprout_host host = test_host(&heap);
   sprout_arena turn;
   sprout_eval_fault fault;
+  const sprout_graph *graph = NULL;
   const sprout_node *prose = NULL, *pieces, *branch;
   bool known;
   sprout_arena_init(&turn, &host);
-  CHECK_INT(prose_engine_prose(&turn, &fault, "leaves", &prose, &known), SPROUT_EVAL_OK);
-  pieces = sprout_node_get(prose, "pieces");
+  CHECK_INT(prose_engine_prose(&turn, &fault, "leaves", &prose, &graph, &known), SPROUT_EVAL_OK);
+  pieces = sprout_node_get(graph, prose, "pieces");
   /* {item} leaves{if bound to} for {to}{/if}. */
   CHECK_INT(pieces->count, 4);
-  CHECK(sprout_node_is(sprout_node_get(pieces->items[0], "kind"), "prose-slot"));
-  CHECK(sprout_node_is(sprout_node_get(pieces->items[1], "kind"), "prose-words"));
-  branch = pieces->items[2];
-  CHECK(sprout_node_is(sprout_node_get(branch, "kind"), "prose-if"));
-  CHECK(sprout_node_is(sprout_node_get(sprout_node_get(branch, "condition"), "kind"), "bound"));
-  CHECK(sprout_node_get(branch, "otherwise")->kind == SPROUT_NODE_NULL);
-  CHECK_INT(sprout_node_get(sprout_node_get(branch, "then"), "pieces")->count, 2);
+  CHECK(sprout_node_is(graph, sprout_node_get(graph, sprout_item(graph, pieces, 0), "kind"), "prose-slot"));
+  CHECK(sprout_node_is(graph, sprout_node_get(graph, sprout_item(graph, pieces, 1), "kind"), "prose-words"));
+  branch = sprout_item(graph, pieces, 2);
+  CHECK(sprout_node_is(graph, sprout_node_get(graph, branch, "kind"), "prose-if"));
+  CHECK(sprout_node_is(graph, sprout_node_get(graph, sprout_node_get(graph, branch, "condition"), "kind"), "bound"));
+  CHECK(sprout_node_get(graph, branch, "otherwise")->kind == SPROUT_NODE_NULL);
+  CHECK_INT(sprout_node_get(graph, sprout_node_get(graph, branch, "then"), "pieces")->count, 2);
   sprout_arena_reset(&turn);
 }
 

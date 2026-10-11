@@ -36,7 +36,7 @@ static sprout_eval_status walk(const sprout_frame *frame, const sprout_node *exp
 
 /* A name the frame binds, or the object the name table says it reaches in range of `self`. */
 static sprout_eval_status ident_leaf(const sprout_frame *frame, const sprout_node *ident, sprout_evaluated *out) {
-  const char *name = ident == NULL || ident->kind != SPROUT_NODE_OBJECT ? NULL : sprout_node_text(ident, "text");
+  const char *name = ident == NULL || ident->kind != SPROUT_NODE_OBJECT ? NULL : sprout_node_text(frame->graph, ident, "text");
   const sprout_binding *bound;
   const sprout_node *named;
   sprout_str reached;
@@ -65,7 +65,7 @@ static sprout_eval_status ident_leaf(const sprout_frame *frame, const sprout_nod
 }
 
 static sprout_eval_status name_leaf(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out) {
-  return ident_leaf(frame, sprout_node_get(expr, "name"), out);
+  return ident_leaf(frame, sprout_node_get(frame->graph, expr, "name"), out);
 }
 
 sprout_eval_status sprout_eval_ident(const sprout_frame *frame, const sprout_node *ident, sprout_evaluated *out) {
@@ -100,31 +100,31 @@ static sprout_eval_status text_leaf(const sprout_frame *frame, const char *bytes
 }
 
 static sprout_eval_status leaf(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out) {
-  const sprout_node *value = sprout_node_get(expr, "value");
+  const sprout_node *value = sprout_node_get(frame->graph, expr, "value");
   const char *name;
   EXPR_NEED(expr_spend(frame));
-  switch (expr_kind_of(expr)) {
+  switch (expr_kind_of(frame->graph, expr)) {
     case EXPR_BOOLEAN:
       if (value == NULL || value->kind != SPROUT_NODE_BOOL) break;
-      *out = sprout_evaluated_value(sprout_bool(value->boolean));
+      *out = sprout_evaluated_value(sprout_bool(sprout_truth(value)));
       return SPROUT_EVAL_OK;
     case EXPR_INTEGER:
       if (value == NULL || value->kind != SPROUT_NODE_NUMBER) break;
-      *out = sprout_evaluated_value(sprout_number(value->number));
+      *out = sprout_evaluated_value(sprout_number(sprout_node_number(frame->graph, value)));
       return SPROUT_EVAL_OK;
     case EXPR_STRING:
       if (value == NULL || value->kind != SPROUT_NODE_STRING) break;
-      return text_leaf(frame, value->text, value->length, out);
+      return text_leaf(frame, sprout_text(frame->graph, value), sprout_text_length(frame->graph, value), out);
     case EXPR_SYMBOL:
       /* An option, compared or looked for: its bare name, as a value holds it. */
-      name = expr_ident(expr, "name");
+      name = expr_ident(frame->graph, expr, "name");
       if (name == NULL) break;
       return text_leaf(frame, name, strlen(name), out);
     case EXPR_BINDING:
       return name_leaf(frame, expr, out);
     case EXPR_BOUND:
       /* A tool the reading left out, or a value outside what this role-player hears, is not in the frame. */
-      name = expr_ident(expr, "name");
+      name = expr_ident(frame->graph, expr, "name");
       if (name == NULL) break;
       *out = sprout_evaluated_value(sprout_bool(expr_binding(frame, name) != NULL));
       return SPROUT_EVAL_OK;
@@ -144,7 +144,7 @@ static sprout_eval_status leaf(const sprout_frame *frame, const sprout_node *exp
 static sprout_eval_status above(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *below,
                                 sprout_evaluated *out) {
   EXPR_NEED(expr_spend(frame));
-  switch (expr_kind_of(expr)) {
+  switch (expr_kind_of(frame->graph, expr)) {
     case EXPR_UNARY:
       return expr_unary(frame, expr, below, out);
     case EXPR_BINARY:
@@ -175,18 +175,18 @@ static sprout_eval_status spine_of(const sprout_frame *frame, const sprout_node 
       capacity = wanted;
     }
     nodes[used++] = node;
-    switch (expr_kind_of(node)) {
+    switch (expr_kind_of(frame->graph, node)) {
       case EXPR_BINARY:
-        next = sprout_node_get(node, "left");
+        next = sprout_node_get(frame->graph, node, "left");
         break;
       case EXPR_UNARY:
-        next = sprout_node_get(node, "operand");
+        next = sprout_node_get(frame->graph, node, "operand");
         break;
       case EXPR_MEMBER:
-        next = sprout_world_bound(frame->world, node) == NULL ? sprout_node_get(node, "receiver") : NULL;
+        next = sprout_world_bound(frame->world, node) == NULL ? sprout_node_get(frame->graph, node, "receiver") : NULL;
         break;
       case EXPR_CALL:
-        next = sprout_node_get(node, "receiver");
+        next = sprout_node_get(frame->graph, node, "receiver");
         break;
       default:
         next = NULL;
@@ -209,7 +209,7 @@ static sprout_eval_status walk(const sprout_frame *frame, const sprout_node *exp
   for (at = count - 1; at-- > 0;) {
     const sprout_node *node = spine[at];
     bool holds;
-    if (!expr_is_and(node)) {
+    if (!expr_is_and(frame->graph, node)) {
       EXPR_NEED(above(frame, node, &below, &next));
       below = next;
       continue;
@@ -218,14 +218,14 @@ static sprout_eval_status walk(const sprout_frame *frame, const sprout_node *exp
     EXPR_NEED(expr_as_boolean(frame, &below, &holds));
     if (!holds) continue;
     {
-      const sprout_node *left = sprout_node_get(node, "left");
+      const sprout_node *left = sprout_node_get(frame->graph, node, "left");
       sprout_frame read_in;
       /* An `&&` on the left is the node just walked, and `held` is where its right was read. */
-      if (expr_is_and(left)) EXPR_NEED(expr_narrowed(&held, sprout_node_get(left, "right"), &read_in));
+      if (expr_is_and(frame->graph, left)) EXPR_NEED(expr_narrowed(&held, sprout_node_get(frame->graph, left, "right"), &read_in));
       else EXPR_NEED(expr_narrowed(frame, left, &read_in));
       held = read_in;
     }
-    EXPR_NEED(sprout_eval_condition(&held, sprout_node_get(node, "right"), &holds));
+    EXPR_NEED(sprout_eval_condition(&held, sprout_node_get(frame->graph, node, "right"), &holds));
     below = sprout_evaluated_value(sprout_bool(holds));
   }
   out->value = below;
@@ -254,7 +254,7 @@ sprout_eval_status sprout_eval_branch(const sprout_frame *frame, const sprout_no
   EXPR_NEED(walk(&narrowed, condition, &result));
   EXPR_NEED(expr_as_boolean(frame, &result.value, taken));
   if (!*taken) return SPROUT_EVAL_OK;
-  if (expr_is_and(condition)) EXPR_NEED(expr_narrowed(&result.held, sprout_node_get(condition, "right"), inner));
+  if (expr_is_and(frame->graph, condition)) EXPR_NEED(expr_narrowed(&result.held, sprout_node_get(frame->graph, condition, "right"), inner));
   else *inner = narrowed;
   return SPROUT_EVAL_OK;
 }

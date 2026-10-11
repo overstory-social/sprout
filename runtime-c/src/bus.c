@@ -147,21 +147,21 @@ static sprout_eval_status bodies_for(const sprout_exec *x, const sprout_send *se
     memcpy(text, "changed :", 9);
     memcpy(text + 9, send->property, length);
     *on = text;
-    *bodies = sprout_node_map_find(sprout_node_get(kind->node, "hooks"), send->property);
+    *bodies = sprout_node_map_find(&x->world->graph, sprout_node_get(&x->world->graph, kind->node, "hooks"), send->property);
     return SPROUT_EVAL_OK;
   }
   key = send->message == SPROUT_MSG_AUTHORED ? stmt_message_key(x, send->declared) : engine_key(send->message);
   if (key == NULL) return SPROUT_EVAL_NO_MEMORY;
-  table = sprout_node_get(kind->node, "handlers");
+  table = sprout_node_get(&x->world->graph, kind->node, "handlers");
   *on = key;
-  *bodies = sprout_node_map_find(table, key);
+  *bodies = sprout_node_map_find(&x->world->graph, table, key);
   return SPROUT_EVAL_OK;
 }
 
 /* The frame a handler or a hook runs in: `self` the recipient, and each parameter it names bound. */
 static sprout_eval_status frame_for(sprout_exec *x, const sprout_send *send, const sprout_node *body, sprout_frame *out) {
-  const sprout_node *parameters = sprout_node_get(sprout_node_get(body, "declaration"), "parameters");
-  const char *origin = sprout_node_text(body, "origin"), *dot = origin == NULL ? NULL : strchr(origin, '.');
+  const sprout_node *parameters = sprout_node_get(&x->world->graph, sprout_node_get(&x->world->graph, body, "declaration"), "parameters");
+  const char *origin = sprout_node_text(&x->world->graph, body, "origin"), *dot = origin == NULL ? NULL : strchr(origin, '.');
   sprout_evaluated values[2];
   size_t given = passed(send, values), i;
   char *library;
@@ -171,7 +171,8 @@ static sprout_eval_status frame_for(sprout_exec *x, const sprout_send *send, con
   *out = sprout_exec_frame(x, send->recipient, library, NULL);
   for (i = 0; parameters != NULL && i < parameters->count && i < given; i++) {
     const sprout_binding *bound;
-    const char *name = parameters->items[i]->kind == SPROUT_NODE_NULL ? NULL : sprout_node_text(parameters->items[i], "text");
+    const sprout_node *parameter = sprout_item(&x->world->graph, parameters, i);
+    const char *name = parameter->kind == SPROUT_NODE_NULL ? NULL : sprout_node_text(&x->world->graph, parameter, "text");
     if (name == NULL || strcmp(name, "_") == 0) continue;
     bound = sprout_bind(out, name, values[i]);
     if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
@@ -198,17 +199,17 @@ static sprout_eval_status deliver(sprout_exec *x, const sprout_send *send) {
     sprout_frame frame;
     sprout_ended ended;
     sprout_ran *ran;
-    const sprout_node *declaration = sprout_node_get(bodies->items[i], "declaration");
+    const sprout_node *declaration = sprout_node_get(&x->world->graph, sprout_item(&x->world->graph, bodies, i), "declaration");
     /* `destroy self` takes effect as the body that ran it ends, so a composed handler after it has no `self`. */
     if (sprout_draft_instance(x->draft, send->recipient) == NULL) break;
     ran = (sprout_ran *)sprout_exec_grow(x->turn, (void **)&x->ran, &x->ran_count, &x->ran_capacity, sizeof *x->ran);
     if (ran == NULL) return SPROUT_EVAL_NO_MEMORY;
-    ran->origin = sprout_node_text(bodies->items[i], "origin");
+    ran->origin = sprout_node_text(&x->world->graph, sprout_item(&x->world->graph, bodies, i), "origin");
     ran->on = on;
     ran->at = declaration;
-    EXPR_NEED(frame_for(x, send, bodies->items[i], &frame));
+    EXPR_NEED(frame_for(x, send, sprout_item(&x->world->graph, bodies, i), &frame));
     x->depth = send->depth + 1;
-    EXPR_NEED(sprout_exec_body(x, sprout_node_get(declaration, "body"), &frame, SPROUT_BODY_ACT, &ended));
+    EXPR_NEED(sprout_exec_body(x, sprout_node_get(&x->world->graph, declaration, "body"), &frame, SPROUT_BODY_ACT, &ended));
     EXPR_NEED(drop(x));
     EXPR_NEED(enqueue(x));
   }

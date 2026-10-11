@@ -27,6 +27,7 @@ static void open_bench(bench *b, const char *entries) {
   CHECK_INT(sprout_json_read(&b->arena, entries, strlen(entries), &rest, &e), SPROUT_OK);
   CHECK_INT(sprout_graph_read(&b->arena, &b->arena, files, none, none, rest, &b->graph, error, sizeof error), SPROUT_OK);
   b->l.arena = &b->arena;
+  b->l.graph = &b->graph;
   b->l.error = b->error;
   b->l.capacity = sizeof b->error;
 }
@@ -68,13 +69,13 @@ static void strings_flags_and_arrays_are_read_from_nodes(void) {
   open_bench(&b, "[{\"o\":{\"name\":\"oak\",\"yes\":true,\"no\":false,\"n\":3,\"list\":[1],\"words\":[2],\"bad\":[3]}},"
                  "{\"a\":[\"x\",\"y\"]},{\"s\":[\"z\"]},{\"a\":[\"x\",4]}]");
   o = &b.graph.entries[0];
-  CHECK_STR(cat_text(o, "name"), "oak");
-  CHECK(cat_text(o, "n") == NULL);
-  CHECK(cat_text(o, "absent") == NULL);
-  CHECK(cat_bool(o, "yes"));
-  CHECK(!cat_bool(o, "no"));
-  CHECK(!cat_bool(o, "n"));
-  CHECK(!cat_bool(o, "absent"));
+  CHECK_STR(cat_text(&b.graph, o, "name"), "oak");
+  CHECK(cat_text(&b.graph, o, "n") == NULL);
+  CHECK(cat_text(&b.graph, o, "absent") == NULL);
+  CHECK(cat_bool(&b.graph, o, "yes"));
+  CHECK(!cat_bool(&b.graph, o, "no"));
+  CHECK(!cat_bool(&b.graph, o, "n"));
+  CHECK(!cat_bool(&b.graph, o, "absent"));
   CHECK(cat_is_array(&b.graph.entries[1]) && cat_is_array(&b.graph.entries[2]));
   CHECK(!cat_is_array(o) && !cat_is_array(NULL));
   CHECK_INT(cat_strings(&b.l, &b.graph.entries[1], "words", &count, &items), SPROUT_OK);

@@ -130,9 +130,9 @@ static inline const sprout_node *prose_literal(const sprout_world *world, const 
   size_t i;
   for (i = 0; i < world->graph.count; i++) {
     const sprout_node *node = &world->graph.entries[i], *value;
-    if (!sprout_node_is(sprout_node_get(node, "kind"), "prose-literal")) continue;
-    value = sprout_node_get(node, "value");
-    if (value != NULL && value->length == length && memcmp(value->text, text, length) == 0) return node;
+    if (!sprout_node_is(&world->graph, sprout_node_get(&world->graph, node, "kind"), "prose-literal")) continue;
+    value = sprout_node_get(&world->graph, node, "value");
+    if (value != NULL && sprout_text_length(&world->graph, value) == length && memcmp(sprout_text(&world->graph, value), text, length) == 0) return node;
   }
   fprintf(stderr, "the cartridge has no one-line passage \"%s\"\n", text);
   exit(2);
@@ -144,7 +144,7 @@ static inline void prose_speech(prose_case *c, const sprout_json *line, sprout_s
   memset(speech, 0, sizeof *speech);
   if ((one = sprout_json_get(said, "passage")) != NULL) {
     const sprout_stored_instance *by = sprout_draft_instance(&c->draft, prose_str(sprout_json_get(line, "by")));
-    if (by == NULL || !sprout_passage_on(by->kind, prose_text(one, "name"), speech) ||
+    if (by == NULL || !sprout_passage_on(&c->world->graph, by->kind, prose_text(one, "name"), speech) ||
         strcmp(speech->origin, prose_text(one, "origin")) != 0) {
       fprintf(stderr, "the object that says %s has no such passage\n", prose_text(one, "name"));
       exit(2);
@@ -289,8 +289,8 @@ static inline prose_reading prose_reading_of(prose_case *c, const char *reader) 
 static inline const sprout_node *prose_passage_of(prose_case *c, const char *by, const char *name) {
   const sprout_stored_instance *instance = sprout_draft_instance(&c->draft, (sprout_str){by, strlen(by)});
   sprout_speech speech;
-  if (instance == NULL || !sprout_passage_on(instance->kind, name, &speech)) return NULL;
-  return sprout_node_get(sprout_node_get(speech.node, "body"), "prose");
+  if (instance == NULL || !sprout_passage_on(&c->world->graph, instance->kind, name, &speech)) return NULL;
+  return sprout_node_get(&c->world->graph, sprout_node_get(&c->world->graph, speech.node, "body"), "prose");
 }
 
 /* The budget names the golden uses, as the meter names them. */

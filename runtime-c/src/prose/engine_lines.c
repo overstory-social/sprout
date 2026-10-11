@@ -52,72 +52,49 @@ const char *prose_stock_words(const char *name) {
 /* ---- reading a line into nodes ---- */
 
 typedef struct reader {
-  sprout_arena *arena;
+  sprout_builder builder;
   sprout_eval_fault *fault;
   const char *at, *end;
   bool failed;
 } reader;
 
-static sprout_node *node_of(reader *r, sprout_node_kind kind) {
-  sprout_node *node = (sprout_node *)sprout_arena_take(r->arena, sizeof *node);
-  if (node == NULL) {
+static const sprout_node *string_of(reader *r, const char *bytes, size_t length) {
+  return sprout_build_string(&r->builder, bytes, length);
+}
+
+/* An object node of the given kind, then its fields, in order; NULL and failed when any field is. */
+static const sprout_node *object_of(reader *r, const char *kind, const char *const *keys,
+                                    const sprout_node *const *values, size_t count) {
+  const char *all_keys[8];
+  const sprout_node *all_values[8];
+  size_t i;
+  if (count + 1 > 8) {
     r->failed = true;
     return NULL;
   }
-  node->kind = kind;
-  return node;
-}
-
-static sprout_node *string_of(reader *r, const char *bytes, size_t length) {
-  sprout_node *node = node_of(r, SPROUT_NODE_STRING);
-  if (node == NULL) return NULL;
-  node->text = sprout_arena_copy(r->arena, bytes, length);
-  node->length = length;
-  if (node->text == NULL) r->failed = true;
-  return node;
-}
-
-#define FIELDS 8
-
-/* An object node of the given kind, with room for its fields. */
-static sprout_node *object_of(reader *r, const char *kind) {
-  sprout_node *node = node_of(r, SPROUT_NODE_OBJECT);
-  if (node == NULL) return NULL;
-  node->keys = (const char **)sprout_arena_take(r->arena, FIELDS * sizeof *node->keys);
-  node->items = (const sprout_node **)sprout_arena_take(r->arena, FIELDS * sizeof *node->items);
-  if (node->keys == NULL || node->items == NULL) {
-    r->failed = true;
-    return NULL;
+  all_keys[0] = "kind";
+  all_values[0] = string_of(r, kind, strlen(kind));
+  for (i = 0; i < count; i++) {
+    all_keys[i + 1] = keys[i];
+    all_values[i + 1] = values[i];
   }
-  node->keys[0] = "kind";
-  node->items[0] = string_of(r, kind, strlen(kind));
-  node->count = 1;
-  return node;
+  return sprout_build_object(&r->builder, all_keys, all_values, count + 1);
 }
 
-static void put_field(reader *r, sprout_node *object, const char *key, const sprout_node *value) {
-  if (object == NULL || value == NULL || object->count >= FIELDS) {
-    r->failed = true;
-    return;
-  }
-  object->keys[object->count] = key;
-  object->items[object->count++] = value;
+static const sprout_node *one_field(reader *r, const char *kind, const char *key, const sprout_node *value) {
+  return object_of(r, kind, &key, &value, 1);
 }
 
-static sprout_node *ident_of(reader *r, const char *text, size_t length) {
-  sprout_node *ident = object_of(r, "ident");
-  put_field(r, ident, "text", string_of(r, text, length));
-  return ident;
+static const sprout_node *ident_of(reader *r, const char *text, size_t length) {
+  return one_field(r, "ident", "text", string_of(r, text, length));
 }
 
-static sprout_node *binding_of(reader *r, const char *text, size_t length) {
-  sprout_node *binding = object_of(r, "binding");
-  put_field(r, binding, "name", ident_of(r, text, length));
-  return binding;
+static const sprout_node *binding_of(reader *r, const char *text, size_t length) {
+  return one_field(r, "binding", "name", ident_of(r, text, length));
 }
 
 /* The expression the words between braces, or after `if` or `in`, read as. */
-static sprout_node *expression(reader *r, const char *text, size_t length) {
+static const sprout_node *expression(reader *r, const char *text, size_t length) {
   const char *equals = NULL;
   size_t i;
   while (length > 0 && text[0] == ' ') text++, length--;
@@ -125,25 +102,21 @@ static sprout_node *expression(reader *r, const char *text, size_t length) {
   for (i = 0; i + 4 <= length; i++)
     if (memcmp(text + i, " == ", 4) == 0) equals = text + i;
   if (equals != NULL) {
-    sprout_node *binary = object_of(r, "binary"), *right = object_of(r, "integer"), *value = node_of(r, SPROUT_NODE_NUMBER);
-    if (value != NULL) value->number = (double)(equals[4] - '0');
-    put_field(r, right, "value", value);
-    put_field(r, binary, "operator", string_of(r, "==", 2));
-    put_field(r, binary, "left", expression(r, text, (size_t)(equals - text)));
-    put_field(r, binary, "right", right);
-    return binary;
+    static const char *const keys[] = {"operator", "left", "right"};
+    const sprout_node *values[3];
+    values[0] = string_of(r, "==", 2);
+    values[1] = expression(r, text, (size_t)(equals - text));
+    values[2] = one_field(r, "integer", "value", sprout_build_number(&r->builder, (double)(equals[4] - '0')));
+    return object_of(r, "binary", keys, values, 3);
   }
-  if (length > 6 && memcmp(text, "bound ", 6) == 0) {
-    sprout_node *bound = object_of(r, "bound");
-    put_field(r, bound, "name", ident_of(r, text + 6, length - 6));
-    return bound;
-  }
+  if (length > 6 && memcmp(text, "bound ", 6) == 0) return one_field(r, "bound", "name", ident_of(r, text + 6, length - 6));
   for (i = 0; i < length; i++)
     if (text[i] == '.') {
-      sprout_node *member = object_of(r, "member");
-      put_field(r, member, "receiver", expression(r, text, i));
-      put_field(r, member, "member", ident_of(r, text + i + 1, length - i - 1));
-      return member;
+      static const char *const keys[] = {"receiver", "member"};
+      const sprout_node *values[2];
+      values[0] = expression(r, text, i);
+      values[1] = ident_of(r, text + i + 1, length - i - 1);
+      return object_of(r, "member", keys, values, 2);
     }
   return binding_of(r, text, length);
 }
@@ -153,7 +126,7 @@ static bool starts(const reader *r, const char *tag) {
   return (size_t)(r->end - r->at) >= n && memcmp(r->at, tag, n) == 0;
 }
 
-static sprout_node *block(reader *r);
+static const sprout_node *block(reader *r);
 
 /* The tag at `at`, which begins with `{`: the words inside, and where it ends. */
 static const char *tag_end(const reader *r) {
@@ -162,45 +135,34 @@ static const char *tag_end(const reader *r) {
   return close < r->end ? close : NULL;
 }
 
-static sprout_node *array_of(reader *r, const sprout_node **items, size_t count) {
-  sprout_node *array = node_of(r, SPROUT_NODE_ARRAY);
-  if (array == NULL) return NULL;
-  array->items = (const sprout_node **)sprout_arena_take(r->arena, (count + 1) * sizeof *items);
-  if (array->items == NULL) {
-    r->failed = true;
-    return NULL;
-  }
-  if (count > 0) memcpy(array->items, items, count * sizeof *items);
-  array->count = count;
-  return array;
-}
-
 /* `{if c}…{else}…{/if}`, the reader at its `{if`. */
-static sprout_node *conditional(reader *r) {
+static const sprout_node *conditional(reader *r) {
+  static const char *const keys[] = {"condition", "then", "otherwise"};
+  const sprout_node *values[3];
   const char *close = tag_end(r);
-  sprout_node *piece = object_of(r, "prose-if");
   if (close == NULL) {
     r->failed = true;
     return NULL;
   }
-  put_field(r, piece, "condition", expression(r, r->at + 4, (size_t)(close - r->at - 4)));
+  values[0] = expression(r, r->at + 4, (size_t)(close - r->at - 4));
   r->at = close + 1;
-  put_field(r, piece, "then", block(r));
+  values[1] = block(r);
   if (starts(r, "{else}")) {
     r->at += 6;
-    put_field(r, piece, "otherwise", block(r));
+    values[2] = block(r);
   } else {
-    put_field(r, piece, "otherwise", node_of(r, SPROUT_NODE_NULL));
+    values[2] = sprout_build_null(&r->builder);
   }
   if (!starts(r, "{/if}")) r->failed = true;
   else r->at += 5;
-  return piece;
+  return object_of(r, "prose-if", keys, values, 3);
 }
 
 /* `{for x in c}…{/for}` or `{for x of l}…{/for}`, the reader at its `{for`. */
-static sprout_node *loop(reader *r) {
+static const sprout_node *loop(reader *r) {
+  static const char *const keys[] = {"variable", "filter", "walks", "over", "body"};
+  const sprout_node *values[5];
   const char *close = tag_end(r), *word, *over;
-  sprout_node *piece = object_of(r, "prose-for");
   bool of;
   if (close == NULL) {
     r->failed = true;
@@ -209,31 +171,29 @@ static sprout_node *loop(reader *r) {
   word = r->at + 5;
   over = word;
   while (over < close && *over != ' ') over++;
-  put_field(r, piece, "variable", ident_of(r, word, (size_t)(over - word)));
+  values[0] = ident_of(r, word, (size_t)(over - word));
   of = (size_t)(close - over) > 4 && memcmp(over, " of ", 4) == 0;
-  put_field(r, piece, "filter", node_of(r, SPROUT_NODE_NULL));
-  put_field(r, piece, "walks", string_of(r, of ? "of" : "in", 2));
-  put_field(r, piece, "over", expression(r, over + 4, (size_t)(close - over - 4)));
+  values[1] = sprout_build_null(&r->builder);
+  values[2] = string_of(r, of ? "of" : "in", 2);
+  values[3] = expression(r, over + 4, (size_t)(close - over - 4));
   r->at = close + 1;
-  put_field(r, piece, "body", block(r));
+  values[4] = block(r);
   if (!starts(r, "{/for}")) r->failed = true;
   else r->at += 6;
-  return piece;
+  return object_of(r, "prose-for", keys, values, 5);
 }
 
 /* Words and tags up to the tag that closes the block the reader is in. */
-static sprout_node *block(reader *r) {
+static const sprout_node *block(reader *r) {
   const sprout_node *pieces[64];
   size_t count = 0;
-  sprout_node *prose = object_of(r, "prose");
   while (r->at < r->end && !r->failed && count < 64) {
-    sprout_node *piece;
+    const sprout_node *piece;
     if (starts(r, "{/") || starts(r, "{else}")) break;
     if (*r->at != '{') {
       const char *start = r->at;
       while (r->at < r->end && *r->at != '{') r->at++;
-      piece = object_of(r, "prose-words");
-      put_field(r, piece, "text", string_of(r, start, (size_t)(r->at - start)));
+      piece = one_field(r, "prose-words", "text", string_of(r, start, (size_t)(r->at - start)));
     } else if (starts(r, "{if ")) {
       piece = conditional(r);
     } else if (starts(r, "{for ")) {
@@ -244,29 +204,36 @@ static sprout_node *block(reader *r) {
         r->failed = true;
         break;
       }
-      piece = object_of(r, "prose-slot");
-      put_field(r, piece, "expr", expression(r, r->at + 1, (size_t)(close - r->at - 1)));
+      piece = one_field(r, "prose-slot", "expr", expression(r, r->at + 1, (size_t)(close - r->at - 1)));
       r->at = close + 1;
+    }
+    if (piece == NULL) {
+      r->failed = true;
+      break;
     }
     pieces[count++] = piece;
   }
-  put_field(r, prose, "pieces", array_of(r, pieces, count));
-  return prose;
+  return one_field(r, "prose", "pieces", sprout_build_array(&r->builder, pieces, count));
 }
 
 sprout_eval_status prose_engine_prose(sprout_arena *turn, sprout_eval_fault *fault, const char *name,
-                                      const sprout_node **prose, bool *known) {
+                                      const sprout_node **prose, const sprout_graph **graph, bool *known) {
   const char *words = prose_stock_words(name);
-  reader r;
+  reader *r;
   *known = words != NULL;
+  *prose = NULL;
+  *graph = NULL;
   if (words == NULL) return SPROUT_EVAL_OK;
-  memset(&r, 0, sizeof r);
-  r.arena = turn;
-  r.fault = fault;
-  r.at = words;
-  r.end = words + strlen(words);
-  *prose = block(&r);
-  if (r.at != r.end || r.failed) {
+  /* The reader, and the builder's graph with it, live in the turn arena beside the nodes, as the prose refers to them. */
+  r = (reader *)sprout_arena_take(turn, sizeof *r);
+  if (r == NULL) return SPROUT_EVAL_NO_MEMORY;
+  sprout_build_begin(&r->builder, turn);
+  r->fault = fault;
+  r->at = words;
+  r->end = words + strlen(words);
+  *prose = block(r);
+  if (sprout_build_failed(&r->builder)) return SPROUT_EVAL_NO_MEMORY;
+  if (r->at != r->end || r->failed || *prose == NULL) {
     const char *said = "an engine line did not read, which is the engine's defect.";
     size_t i;
     for (i = 0; said[i] != '\0'; i++) fault->text[i] = said[i];
@@ -274,5 +241,6 @@ sprout_eval_status prose_engine_prose(sprout_arena *turn, sprout_eval_fault *fau
     fault->name = "Error";
     return SPROUT_EVAL_ENGINE;
   }
+  *graph = sprout_build_graph(&r->builder);
   return SPROUT_EVAL_OK;
 }

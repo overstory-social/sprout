@@ -10,7 +10,7 @@
 
 /* The path a statement names under `key`. */
 static const sprout_node *path_in(const exec_case *c, const char *key) {
-  return sprout_node_get(exec_first_statement(c), key);
+  return sprout_node_get(&c->world->graph, exec_first_statement(c), key);
 }
 
 static void a_lone_binding_is_read_as_the_object_it_is_bound_to(void) {

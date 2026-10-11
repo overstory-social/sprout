@@ -38,8 +38,8 @@ sprout_eval_status prose_object_words(const sprout_frame *frame, sprout_str obje
     *words = name;
     return SPROUT_EVAL_OK;
   }
-  written = sprout_grammar_text(instance->kind, "article");
-  if (written != NULL) article = written->text;
+  written = sprout_grammar_text(frame->graph, instance->kind, "article");
+  if (written != NULL) article = sprout_text(frame->graph, written);
   else
     article = name.length > 0 && strchr("aeiouAEIOU", name.bytes[0]) != NULL ? "an" : "a";
   if (strcmp(article, "none") == 0) {

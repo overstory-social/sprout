@@ -242,17 +242,17 @@ static sprout_eval_status declared_as(const sprout_frame *frame, const sprout_st
 }
 
 /* `adjust` through a name other than `self` is memory's, as the checker reads it. */
-static bool remembers_through(const sprout_node *call) {
-  const sprout_node *receiver = sprout_node_get(call, "receiver");
-  const char *name = expr_ident(receiver, "name");
-  return expr_kind_of(receiver) == EXPR_BINDING && name != NULL && strcmp(name, "self") != 0;
+static bool remembers_through(const sprout_graph *graph, const sprout_node *call) {
+  const sprout_node *receiver = sprout_node_get(graph, call, "receiver");
+  const char *name = expr_ident(graph, receiver, "name");
+  return expr_kind_of(graph, receiver) == EXPR_BINDING && name != NULL && strcmp(name, "self") != 0;
 }
 
 /* Queues the hook `self`'s kind watches `name` with, once per change. */
 static sprout_eval_status queue_hook(sprout_run *run, const sprout_frame *frame, const sprout_stored_instance *self,
                                      const char *name, const sprout_value *was) {
   sprout_send send;
-  if (sprout_node_map_find(sprout_node_get(self->kind->node, "hooks"), name) == NULL) return SPROUT_EVAL_OK;
+  if (sprout_node_map_find(frame->graph, sprout_node_get(frame->graph, self->kind->node, "hooks"), name) == NULL) return SPROUT_EVAL_OK;
   memset(&send, 0, sizeof send);
   send.message = SPROUT_MSG_CHANGED;
   send.recipient = self->id;
@@ -263,7 +263,7 @@ static sprout_eval_status queue_hook(sprout_run *run, const sprout_frame *frame,
 }
 
 sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
-  const sprout_node *call = sprout_node_get(statement, "expression");
+  const sprout_node *call = sprout_node_get(frame->graph, statement, "expression");
   const sprout_node *name_node, *value_node;
   const sprout_stored_instance *self;
   const sprout_property *property;
@@ -272,21 +272,21 @@ sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const 
   sprout_value value, held, next;
   const char *name, *method;
   EXPR_NEED(stmt_acting(run, frame, "a write"));
-  if (expr_kind_of(call) != EXPR_CALL || expr_argument_count(call) != 2)
+  if (expr_kind_of(frame->graph, call) != EXPR_CALL || expr_argument_count(frame->graph, call) != 2)
     return expr_unchecked(frame, "a statement that does not write");
-  EXPR_NEED(sprout_eval(frame, sprout_node_get(call, "receiver"), &receiver_evaluated));
+  EXPR_NEED(sprout_eval(frame, sprout_node_get(frame->graph, call, "receiver"), &receiver_evaluated));
   EXPR_NEED(expr_as_object(frame, &receiver_evaluated, &receiver));
   /* The call is a step, and so is the property it names. */
   EXPR_NEED(expr_spend(frame));
   EXPR_NEED(expr_spend(frame));
-  name_node = expr_argument(call, 0);
-  if (expr_kind_of(name_node) != EXPR_SYMBOL)
+  name_node = expr_argument(frame->graph, call, 0);
+  if (expr_kind_of(frame->graph, name_node) != EXPR_SYMBOL)
     return expr_unchecked(frame, "a property named without a colon");
-  name = expr_ident(name_node, "name");
-  value_node = expr_argument(call, 1);
+  name = expr_ident(frame->graph, name_node, "name");
+  value_node = expr_argument(frame->graph, call, 1);
   EXPR_NEED(sprout_eval(frame, value_node, &value_evaluated));
   EXPR_NEED(expr_as_value(frame, &value_evaluated, &value));
-  method = expr_ident(call, "method");
+  method = expr_ident(frame->graph, call, "method");
   self = sprout_draft_instance(frame->draft, frame->self);
   if (self == NULL) {
     expr_text text = expr_text_begin(frame);
@@ -296,7 +296,7 @@ sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const 
     frame->fault->name = "Error";
     return SPROUT_EVAL_ENGINE;
   }
-  if (strcmp(method, "remember") == 0 || (strcmp(method, "adjust") == 0 && remembers_through(call))) {
+  if (strcmp(method, "remember") == 0 || (strcmp(method, "adjust") == 0 && remembers_through(frame->graph, call))) {
     EXPR_NEED(declared_as(frame, self, name, true, &property));
     EXPR_NEED(expr_recalled(frame, receiver, name, &held));
     if (strcmp(method, "remember") == 0) {

@@ -118,13 +118,13 @@ sprout_eval_status turn_enter(turn_run *run, sprout_str visitor, sprout_str plac
     out->refused = true;
     return refusal_to(&frame, visitor, by, &said, bound, 2, &out->refusal);
   }
-  guards = destination == NULL ? NULL : sprout_node_get(sprout_node_get(destination->kind->node, "guards"), "accept");
+  guards = destination == NULL ? NULL : sprout_node_get(&run->world->graph, sprout_node_get(&run->world->graph, destination->kind->node, "guards"), "accept");
   parameters[0] = visitor;
   parameters[1] = world;
   for (i = 0; guards != NULL && i < guards->count; i++) {
     sprout_move_refusal refusal;
     bool allowed = true;
-    EXPR_NEED(sprout_guard_run(x, guards->items[i], place, visitor, parameters, 2, &allowed, &refusal));
+    EXPR_NEED(sprout_guard_run(x, sprout_item(&run->world->graph, guards, i), place, visitor, parameters, 2, &allowed, &refusal));
     if (allowed) continue;
     out->refused = true;
     return refusal_to(&frame, visitor, refusal.by, &refusal.said, refusal.bindings, refusal.binding_count,

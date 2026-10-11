@@ -10,6 +10,7 @@
 /* The state of one load: the world being filled and the sentence a refusal is written to. */
 typedef struct loader {
   sprout_world *world;
+  const sprout_graph *graph; /* the world's, which every node read here belongs to */
   sprout_arena *arena;
   char *error;
   size_t capacity;
@@ -37,9 +38,9 @@ sprout_status cat_shaped(loader *l, const char *where);
 void *cat_array(loader *l, size_t count, size_t size);
 bool cat_is_array(const sprout_node *node);
 /* A string field of an object, or NULL. */
-const char *cat_text(const sprout_node *object, const char *key);
+const char *cat_text(const sprout_graph *graph, const sprout_node *object, const char *key);
 /* A boolean field that is true; false when absent. */
-bool cat_bool(const sprout_node *object, const char *key);
+bool cat_bool(const sprout_graph *graph, const sprout_node *object, const char *key);
 /* An array or set of strings. */
 sprout_status cat_strings(loader *l, const sprout_node *list, const char *where, size_t *count,
                           const char ***items);

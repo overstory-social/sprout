@@ -132,6 +132,7 @@ typedef struct prose_notes {
 /* What a passage is rendered by, and for whom. */
 typedef struct prose_reading {
   const sprout_world *world;
+  const sprout_graph *graph; /* the graph the nodes rendered belong to: the world's, or an engine line's own */
   sprout_draft *draft;
   sprout_arena *turn;
   sprout_meter *meter;
@@ -177,10 +178,10 @@ sprout_eval_status prose_render_speech(const prose_reading *reading, sprout_str 
 
 /*
  * The engine's line `name` in the standard library's words, read as a one-line passage in the turn
- * arena; *known is false for a name that is no engine line.
+ * arena, with *graph the graph its nodes belong to; *known is false for a name that is no engine line.
  */
 sprout_eval_status prose_engine_prose(sprout_arena *turn, sprout_eval_fault *fault, const char *name,
-                                      const sprout_node **prose, bool *known);
+                                      const sprout_node **prose, const sprout_graph **graph, bool *known);
 
 /* The standard library's words for an engine line as the spec's Engine lines gives them, or NULL. */
 const char *prose_stock_words(const char *name);

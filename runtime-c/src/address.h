@@ -19,7 +19,7 @@ const sprout_stored_visitor *sprout_visitor_of(const sprout_draft *draft, sprout
 bool sprout_humanised(sprout_arena *arena, sprout_str text, sprout_str *words);
 
 /* The `value` of a text line the composed kind's grammar writes (`name`, `article`), or NULL. */
-const sprout_node *sprout_grammar_text(const sprout_kind_def *kind, const char *line);
+const sprout_node *sprout_grammar_text(const sprout_graph *graph, const sprout_kind_def *kind, const char *line);
 
 /* What `instance` is called, as the engine writes it after its article. */
 sprout_eval_status sprout_name_of(const sprout_frame *frame, const sprout_stored_instance *instance, sprout_str *name);

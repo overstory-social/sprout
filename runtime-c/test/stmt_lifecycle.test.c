@@ -119,7 +119,7 @@ static void destroy_takes_effect_where_the_body_ends_and_removes_what_the_object
   exec_bench_open(&b);
   exec_case_open(&b, &c, exec_named(&b, "a destroyed container takes what it held"));
   run = exec_run(&c);
-  CHECK_INT(stmt_destroy(&run, &c.frame, sprout_node_get(exec_body_of(&c), "statements")->items[1]), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_destroy(&run, &c.frame, sprout_item(&c.world->graph, sprout_node_get(&c.world->graph, exec_body_of(&c), "statements"), 1)), SPROUT_EVAL_OK);
   CHECK(run.destroying);
   CHECK(!run.finally);
   /* Nothing is removed until the body ends. */
@@ -139,7 +139,7 @@ static void finally_destroy_marks_the_object_for_the_end_of_the_queue(void) {
   exec_bench_open(&b);
   exec_case_open(&b, &c, exec_named(&b, "finally destroy waits until the queue is empty"));
   run = exec_run(&c);
-  CHECK_INT(stmt_destroy(&run, &c.frame, sprout_node_get(exec_body_of(&c), "statements")->items[1]), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_destroy(&run, &c.frame, sprout_item(&c.world->graph, sprout_node_get(&c.world->graph, exec_body_of(&c), "statements"), 1)), SPROUT_EVAL_OK);
   CHECK(run.finally);
   CHECK(!run.destroying);
   exec_case_close(&c);

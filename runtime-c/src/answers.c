@@ -86,7 +86,7 @@ static sprout_eval_status contents_of(const sprout_frame *frame, sprout_str thin
   sprout_effect_binding *bound;
   memset(out, 0, sizeof *out);
   *has = false;
-  if (instance == NULL || !sprout_passage_on(instance->kind, "contents", &out->said)) return SPROUT_EVAL_OK;
+  if (instance == NULL || !sprout_passage_on(frame->graph, instance->kind, "contents", &out->said)) return SPROUT_EVAL_OK;
   out->kind = SPROUT_EFFECT_DESCRIBED;
   out->by = thing;
   EXPR_NEED(to_actor(frame, actor, out));

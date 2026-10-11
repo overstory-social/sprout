@@ -377,9 +377,9 @@ sprout_eval_status sprout_told_to_one(const sprout_exec *x, const sprout_frame *
                                       sprout_str one, const sprout_str **out, size_t *count);
 
 /* A passage of a kind as a speech. */
-void sprout_passage_speech(const sprout_passage *passage, sprout_speech *out);
+void sprout_passage_speech(const sprout_graph *graph, const sprout_passage *passage, sprout_speech *out);
 /* The passage a kind has by this name, as a speech; false where it has none. */
-bool sprout_passage_on(const sprout_kind_def *kind, const char *name, sprout_speech *out);
+bool sprout_passage_on(const sprout_graph *graph, const sprout_kind_def *kind, const char *name, sprout_speech *out);
 
 /*
  * The engine's line `name` as it is said of `about` standing in `place`

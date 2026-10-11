@@ -12,7 +12,7 @@
 /* The first guard of this name a kind writes. */
 static const sprout_node *guard_of(const exec_case *c, const char *kind, const char *guard) {
   const sprout_kind_def *def = sprout_world_kind(c->world, kind);
-  return sprout_node_get(sprout_node_get(def->node, "guards"), guard)->items[0];
+  return sprout_item(&c->world->graph, sprout_node_get(&c->world->graph, sprout_node_get(&c->world->graph, def->node, "guards"), guard), 0);
 }
 
 static void a_guard_that_reaches_its_refuse_refuses_in_its_passage(void) {
@@ -60,6 +60,7 @@ static void a_guard_that_writes_an_allow_allows(void) {
 static void a_quoted_refusal_carries_its_words_and_its_library(void) {
   exec_bench b;
   exec_case c;
+  const sprout_node *value;
   sprout_str params[2] = {{"exec_bench.hall.lamp", 20}, {"exec_bench.hall", 15}};
   sprout_move_refusal refusal;
   bool allowed = true;
@@ -71,7 +72,8 @@ static void a_quoted_refusal_carries_its_words_and_its_library(void) {
   CHECK(!allowed);
   CHECK_INT(refusal.said.kind, SPROUT_SPEECH_TEXT);
   CHECK_STR(refusal.said.library, "exec_bench");
-  CHECK_BYTES(sprout_node_get(refusal.said.node, "value")->text, sprout_node_get(refusal.said.node, "value")->length,
+  value = sprout_node_get(&c.world->graph, refusal.said.node, "value");
+  CHECK_BYTES(sprout_text(&c.world->graph, value), sprout_text_length(&c.world->graph, value),
               "Jars only.");
   exec_case_close(&c);
   exec_bench_close(&b);

@@ -52,7 +52,7 @@ static void not_and_minus_act_on_what_they_are_written_on(void) {
   bench_open(&b);
   bench_turn_for(&b, &t, "binds ! over < over && over ||");
   /* `1 + 2 < 4 && !false || 1 < 0`: the `!false` is the right of the `&&` on the left of the `||`. */
-  not_false = sprout_node_get(sprout_node_get(bench_expr(&b, "binds ! over < over && over ||"), "left"), "right");
+  not_false = sprout_node_get(&b.world->graph, sprout_node_get(&b.world->graph, bench_expr(&b, "binds ! over < over && over ||"), "left"), "right");
   CHECK_INT(expr_unary(&t.frame, not_false, &(sprout_evaluated){SPROUT_BINDS_VALUE, sprout_bool(false), {0}, 0, NULL}, &out), SPROUT_EVAL_OK);
   CHECK(is_true(&out));
   CHECK_INT(expr_unary(&t.frame, bench_expr(&b, "negates a property"), &(sprout_evaluated){SPROUT_BINDS_VALUE, sprout_number(3), {0}, 0, NULL}, &out), SPROUT_EVAL_OK);

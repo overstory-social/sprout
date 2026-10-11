@@ -40,10 +40,10 @@ static sprout_json *speech_json(const sprout_frame *frame, const sprout_speech *
       sprout_json_adopt(inner, "name", text_of(frame, speech->name));
       return one_of(frame, "passage", inner);
     case SPROUT_SPEECH_TEXT: {
-      const sprout_node *value = sprout_node_get(speech->node, "value");
+      const sprout_node *value = sprout_node_get(frame->graph, speech->node, "value");
       inner = sprout_json_make(frame->turn, SPROUT_JSON_OBJECT, 2);
       if (inner == NULL) return NULL;
-      sprout_json_adopt(inner, "text", sprout_json_text(frame->turn, value->text, value->length));
+      sprout_json_adopt(inner, "text", sprout_json_text(frame->turn, sprout_text(frame->graph, value), sprout_text_length(frame->graph, value)));
       sprout_json_adopt(inner, "library", text_of(frame, speech->library));
       return inner;
     }
