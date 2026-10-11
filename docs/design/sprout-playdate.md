@@ -342,10 +342,22 @@ A step's seed is drawn from the clock at the step's start and mixed by
 `media.show("cellar.png", "a damp cellar")` in a `describe` or a `do`
 records the effect `{"image": "cellar.png", "caption": "a damp cellar"}`;
 the transcript line a text client reads is the caption, or `[cellar.png]`.
-`Source/images.lua` loads the asset from `<cartridge path>.assets/<image>`
-and the reader draws the newest picture above the transcript, scaled to
-fit 392 by 80 pixels, with its caption under it. A picture a turn shows wins
-over the one the place's description records. The pdx holds a compiled image
+The author places the `media.show` where the picture belongs: in a place's
+`describe` for its scene, in a thing's `describe` or its `examine` for its
+portrait, behind a flag the world keeps for "the first time". The app shows
+what a turn asked for: after the turn's lines are told, every picture its
+effects asked for (and, on arrival, the place's own) is shown one at a time
+on the whole screen (`Source/gallery.lua`), scaled to fit above a caption
+line that also says `2 of 3  crank: next   A: close`, until A or B closes
+them and the transcript reads (a tick's turn can ask for one too, so a picture
+may come up while the reader is open and idle). The crank, or left and right, steps between
+them slat by slat: the picture on screen is held an elastic moment,
+stretched the way it will go, then whizzes out as the next whizzes in and
+lands with the clack the sentence wheel makes; each step ticks. A picture is
+a name until it is drawn: `Source/images.lua` loads the asset from
+`<cartridge path>.assets/<image>` when the screen draws it and lets it go
+when another is on screen or the gallery closes, so pictures never count
+against the world's memory on the console. The pdx holds a compiled image
 under its name without `.png`.
 
 ### Opening a world
