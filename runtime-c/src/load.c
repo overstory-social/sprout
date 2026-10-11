@@ -25,9 +25,10 @@ static void say(sprout_refusal *refusal, const char *a, const char *b, const cha
   parts[2] = c;
   parts[3] = d;
   parts[4] = e;
-  for (i = 0; i < 5; i++) {
+  for (i = 0; i < 5 && used + 1 < sizeof refusal->text; i++) {
+    size_t room = sizeof refusal->text - 1 - used;
     size_t n = parts[i] == NULL ? 0 : strlen(parts[i]);
-    if (used + n >= sizeof refusal->text) n = sizeof refusal->text - 1 - used;
+    if (n > room) n = room;
     if (n > 0) memcpy(refusal->text + used, parts[i], n);
     used += n;
   }
