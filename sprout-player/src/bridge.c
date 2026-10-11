@@ -44,7 +44,7 @@ static int lua_open(lua_State *L) {
 
 static int lua_step(lua_State *L) {
   (void)L;
-  return reply(player_step(session));
+  ANSWER(player_step(session));
 }
 
 static int lua_load(lua_State *L) {
