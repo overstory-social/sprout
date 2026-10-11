@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { arrive, freshStage, playInteractive, filledIn, playSteps, playScript } from '../play.js';
+import { arrive, freshStage, playStep, filledIn, playSteps, playScript } from '../play.js';
 import { scriptOf } from '../fixtures/scripts.js';
 import { bundleOf, LANE, RIVER } from '../fixtures/worlds.js';
 import { bundle } from '../fixtures/play.js';
@@ -40,7 +40,7 @@ describe('a line read one of several ways that tied', () => {
     const lane = bundleOf('lane', LANE);
     const stage = freshStage(lane);
     arrive(stage, 'Marta');
-    const made = playInteractive(stage, 'Marta> take key', 'stdin:2').made!;
+    const made = playStep(stage, { as: 'Marta', type: 'take key' }, 'stdin:2')!;
     const taken = /^You take an? (brass|iron) key\.$/.exec(made[1]!.words ?? '')?.[1];
     expect(made.map((one) => [one.level, one.kind])).toEqual([
       ['prose', 'notice'],
@@ -71,8 +71,8 @@ describe('a line read as an intent', () => {
   it('plays each step it planned as a turn, each told at info as it runs', () => {
     const stage = freshStage(vault);
     arrive(stage, 'Marta');
-    playInteractive(stage, 'Marta> take key', 'stdin:2');
-    const made = playInteractive(stage, 'Marta> open chest with key', 'stdin:3').made!;
+    playStep(stage, { as: 'Marta', type: 'take key' }, 'stdin:2');
+    const made = playStep(stage, { as: 'Marta', type: 'open chest with key' }, 'stdin:3')!;
     expect(made.map((one) => [one.level, one.words ?? one.text])).toEqual([
       ['info', 'step: sprout.unlock'],
       ['prose', 'The lock turns over.'],
