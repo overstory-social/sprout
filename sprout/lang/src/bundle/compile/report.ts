@@ -8,13 +8,6 @@ import type { CompileMode, Absent } from '../absent.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import type { Span } from '../../source/source.js';
 
-/** The rows whose `what` is a kind as written, which names its library when it has one. */
-const KINDS_NAMED: ReadonlySet<Absent['kind']> = new Set([
-  'kind-in-composition',
-  'kind-in-role',
-  'world',
-]);
-
 /** A table cell, written as a sentence: the rows read as `the object is absent`, lower-case. */
 function sentence(cell: string): string {
   return `${cell.charAt(0).toUpperCase()}${cell.slice(1)}.`;
@@ -29,12 +22,13 @@ export class Report {
   readonly diagnostics = new Diagnostics();
   readonly absent: Absent[] = [];
   /**
-   * Libraries the manifest named that did not travel, or travelled at
+   * Whether a library the manifest named did not travel, or travelled at
    * another hash: absent, per the spec's Kinds › Libraries and
-   * namespaces. That is said once, at the manifest; a kind or the world
-   * made of one of them is not asked "is this here" again at publish.
+   * namespaces. At publish that is the whole page: everything made of
+   * the library would be refused once more at each use, so the compile
+   * stops at the manifest and says the one thing it knows.
    */
-  private readonly refusedLibraries = new Set<string>();
+  private unusableLibrary = false;
 
   /** @param anywhere where a gap with nothing of its own to point at is reported. */
   constructor(
@@ -42,9 +36,14 @@ export class Report {
     private readonly anywhere: Span,
   ) {}
 
-  /** Record a library the manifest named as refused, so what it would have held is not asked for twice. */
-  libraryRefused(name: string): void {
-    this.refusedLibraries.add(name);
+  /** Record that a library the manifest named is not usable. */
+  libraryRefused(): void {
+    this.unusableLibrary = true;
+  }
+
+  /** Whether a library the manifest named is not usable, so at publish nothing past the manifest is worth saying. */
+  get stopsAtManifest(): boolean {
+    return this.mode === 'publish' && this.unusableLibrary;
   }
 
   /** Always wrong, in either mode: a refusal that leniency does not soften. */
@@ -73,12 +72,6 @@ export class Report {
    * warned about, and run around.
    */
   gap(absent: Absent, message: string, remedy?: string): void {
-    // A kind or the world made of a library already refused at the
-    // manifest is a consequence of that one problem, not a second one:
-    // at publish it is not said again. At load nothing changes here —
-    // the library's kinds read as absent regardless of why it did not
-    // travel, as the absent table says.
-    if (this.mode === 'publish' && this.saidOfALibrary(absent)) return;
     const at = absent.at ?? this.anywhere;
     if (this.mode === 'publish') {
       this.refuse(at, message, remedy);
@@ -86,21 +79,6 @@ export class Report {
     }
     this.absent.push(absent);
     this.warn(at, `${message} ${sentence(absent.consequence)}`, remedy);
-  }
-
-  /**
-   * Whether a gap is a kind, or the world, written with a library the
-   * manifest's refusal already named — `library.Name`, only for the
-   * `kind-in-composition`, `kind-in-role` and `world` rows, where a
-   * written kind names the library it comes from. A kind written without
-   * one is unaffected: it resolves to nothing for its own reason, and is
-   * still refused.
-   */
-  private saidOfALibrary(absent: Absent): boolean {
-    if (!KINDS_NAMED.has(absent.kind)) return false;
-    const dot = absent.what.indexOf('.');
-    if (dot === -1) return false;
-    return this.refusedLibraries.has(absent.what.slice(0, dot));
   }
 }
 
