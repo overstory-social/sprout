@@ -17,7 +17,16 @@ import { checkLibraries } from './libraries.js';
 import { atKey } from './manifest-fields.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
-import { file, MANIFEST, refusals, SPROUT_SHA, warnings, world } from '../../fixtures/compile.js';
+import {
+  file,
+  MANIFEST,
+  refusals,
+  SPROUT_SHA,
+  warnings,
+  world,
+  WORLD_LINE,
+  worldFiles,
+} from '../../fixtures/compile.js';
 import { nameOf } from '../../fixtures/parse.js';
 
 const SHA = libraryHash(STANDARD_LIBRARY);
@@ -123,6 +132,40 @@ describe('the manifest records every library by version and by the hash of its s
     expect(bundle).toBeNull();
     expect(refusals(diagnostics)[0]!.message).toContain('is not the source the manifest recorded');
     expect(refusals(diagnostics)[0]!.remedy).toContain('Vendor the library again');
+  });
+
+  it('says a mismatch alone at publish, and nothing of the kinds and reads made of the library', () => {
+    const fork: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [STANDARD_LIBRARY.files[0]!, file('glaze.sprout', 'enum Glaze { none }')],
+    };
+    const files = worldFiles(
+      `${WORLD_LINE}\nverb peek { role target: Box "peek [target]" }`,
+      `kind Box is sprout.Container {
+  as target for peek { do { if (self.get(:open)) { say inside } } }
+  passage inside { Empty. }
+}`,
+    );
+    const { bundle, diagnostics } = compileBundle(world({ files, libraries: [fork] }), {
+      mode: 'publish',
+    });
+    expect(bundle).toBeNull();
+    expect(diagnostics.map((d) => [d.severity, d.at.source.name, d.message])).toEqual([
+      [
+        'refusal',
+        'sprout.json',
+        'The library "sprout" that travelled is not the source the manifest recorded.',
+      ],
+    ]);
+  });
+
+  it('runs around a mismatch at load, where the library reads as absent and the world is still compiled', () => {
+    const fork: LibrarySource = {
+      ...STANDARD_LIBRARY,
+      files: [STANDARD_LIBRARY.files[0]!, file('glaze.sprout', 'enum Glaze { none }')],
+    };
+    const { diagnostics } = compileBundle(world({ libraries: [fork] }), { mode: 'load' });
+    expect(diagnostics.some((d) => d.at.source.name !== 'sprout.json')).toBe(true);
   });
 
   it('points a mismatch at the pin, not at a namespace spelled the same', () => {

@@ -131,6 +131,10 @@ export function compileBundle(
   checkManifest(source, report);
   const withheld = checkFiles(source, report);
   const usable = checkLibraries(source, report);
+  // A library that is not the one the manifest recorded is the one
+  // problem a publish has to say: every kind made of it would be
+  // refused again at each use, and that page buries the pin's line.
+  if (report.stopsAtManifest) return { bundle: null, diagnostics: report.diagnostics.sorted() };
   const { level, arrived, charged, files, sourceBytes, exemptBytes } = weighBundle(
     source,
     usable,

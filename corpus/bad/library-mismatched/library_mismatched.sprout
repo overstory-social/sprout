@@ -1,7 +1,8 @@
 // The manifest pins `sprout` at a hash the source that travelled does not
-// hash to. That is said once, at the manifest: the world, what visitors
-// are made of, and the hall are all made of `sprout`, and their kinds
-// being unknown are consequences of the one problem rather than three more.
+// hash to. That is said once, at the manifest, and nothing else is: the
+// world, what visitors are made of, the hall and the box are all made of
+// `sprout`, and the box reads one of its properties, so a page that went
+// on would refuse each of them once more for the one problem.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 
@@ -9,5 +10,15 @@ world library_mismatched is sprout.World {
   visitors are Person
   visitors arrive at hall
 
-  object hall is sprout.Place
+  object hall is sprout.Place {
+    object box is sprout.Container {
+      as target for peek { do { if (self.get(:open)) { say inside } } }
+      passage inside { Empty. }
+    }
+  }
+}
+
+verb peek {
+  role target: sprout.Container
+  "peek [target]"
 }
