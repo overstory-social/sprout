@@ -434,6 +434,19 @@ local function drawReaderPanel()
   gfx.drawText("A: build a sentence   crank: scroll back", MARGIN, 240 - PANEL + 2)
 end
 
+-- The font a slat's word is drawn in: large at the front, the system font beside it, small
+-- curving away; a word too wide for the screen at its tier's size, as a whole sentence at the
+-- confirm stage can be, takes the next size down that fits, or the smallest.
+local function slatFont(row)
+  local sizes = row.tier == "front" and { bigFont, font, smallFont }
+    or row.tier == "near" and { font, smallFont }
+    or { smallFont }
+  for _, size in ipairs(sizes) do
+    if size:getTextWidth(row.entry.label) <= 400 - 2 * MARGIN then return size end
+  end
+  return smallFont
+end
+
 -- The builder: the sentence so far at the top, the drum of choices in the middle with the
 -- selected one in its window, and the selected choice's refusal or the keys at the bottom.
 local function drawSentence()
@@ -446,7 +459,7 @@ local function drawSentence()
   gfx.fillTriangle(MARGIN, centre - 6, MARGIN, centre + 6, MARGIN + 8, centre)
   gfx.fillTriangle(400 - MARGIN, centre - 6, 400 - MARGIN, centre + 6, 400 - MARGIN - 8, centre)
   for _, row in ipairs(Wheel.rows(builder:entries(), builder.selected, builder:fraction())) do
-    local slat = row.tier == "front" and bigFont or row.tier == "near" and font or smallFont
+    local slat = slatFont(row)
     local width, height = slat:getTextWidth(row.entry.label), slat:getHeight()
     local y = centre + row.y - height // 2
     if y >= top and y + height <= bottom then

@@ -22,12 +22,19 @@ local function run(scenario, options)
     getHeight = function() return 14 end,
     getTextWidth = function(_, text) return utf8.len(text) * 6 end,
   }
+  -- the wheel's large font, whose words are twice as wide, and its small one, half as wide
+  local fonts = {
+    ["fonts/Asheville-Sans-24-Light"] = { getHeight = function() return 24 end, getTextWidth = function(_, text) return utf8.len(text) * 12 end },
+    ["fonts/Roobert-10-Bold"] = { getHeight = function() return 12 end, getTextWidth = function(_, text) return utf8.len(text) * 3 end },
+  }
+  local fontUsed = {}
+  local current = font
   local gfx = {
     getSystemFont = function() return font end,
-    font = { new = function() return font end },
-    setFont = function() end,
+    font = { new = function(path) return assert(fonts[path], path) end },
+    setFont = function(chosen) current = chosen end,
     clear = function() drawn = {} end,
-    drawText = function(text) drawn[#drawn + 1] = text end,
+    drawText = function(text) drawn[#drawn + 1] = text; fontUsed[text] = current end,
     drawLine = function() end,
     fillTriangle = function() end,
     setDitherPattern = function() end,
@@ -107,6 +114,7 @@ local function run(scenario, options)
   function session.failSaves(value) failing = value end
   function session.crank(degrees) crank = degrees end
   function session.played() return played end
+  function session.fontOf(text) return fontUsed[text] == font and "system" or fontUsed[text] == fonts["fonts/Asheville-Sans-24-Light"] and "big" or "small" end
   function session.at(seconds_) seconds = seconds_ end
   function session.calls() return calls end
   function session.menu() return menu end
@@ -206,6 +214,7 @@ test("ask, the guard, the weather is built on the wheel and sent to the engine",
     equal(play.shows("weather"), true)
     play.frame("A")
     equal(play.shows("ask -> a guard -> weather"), true, "the sentence to confirm")
+    equal(play.fontOf("ask -> a guard -> weather"), "big", "a sentence that fits the screen is drawn large")
     play.frame("A")
     local sent = nil
     for _, one in ipairs(play.calls()) do
@@ -240,6 +249,9 @@ test("the wheel shows the words around the selected one, ticks as the crank turn
     play.frame("A")
     play.frame("A") -- build a sentence
     equal(play.shows("juggle"), true, "the selected verb, in the window")
+    equal(play.fontOf("juggle"), "big")
+    equal(play.fontOf("turn"), "system")
+    equal(play.fontOf("go"), "small", "two slats down, curving away")
     equal(play.shows("turn"), true, "the next one below")
     equal(play.shows("ask"), true, "the last one above, since the drum wraps")
     equal(play.shows("examine"), false, "the fourth is beyond the drum's edge")
