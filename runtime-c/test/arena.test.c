@@ -11,11 +11,34 @@ static void a_pieces_are_zeroed_aligned_and_distinct(void) {
   a = (char *)sprout_arena_take(&arena, 10);
   b = (char *)sprout_arena_take(&arena, 10);
   CHECK(a != NULL && b != NULL && a != b);
-  CHECK(((uintptr_t)a % 16u) == 0 && ((uintptr_t)b % 16u) == 0);
+  CHECK(((uintptr_t)a % 8u) == 0 && ((uintptr_t)b % 8u) == 0);
   for (int i = 0; i < 10; i++) CHECK(a[i] == 0 && b[i] == 0);
   memset(a, 7, 10);
   CHECK(b[0] == 0);
   sprout_arena_reset(&arena);
+}
+
+static void a_piece_at_a_smaller_alignment_costs_only_what_it_holds(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  char *a, *b, *c, *d, *e;
+  sprout_arena_init(&arena, &host);
+  a = (char *)sprout_arena_take_aligned(&arena, 3, 1);
+  b = (char *)sprout_arena_take_aligned(&arena, 3, 1);
+  c = (char *)sprout_arena_take_aligned(&arena, 4, 4);
+  d = (char *)sprout_arena_take(&arena, 1);
+  e = sprout_arena_copy(&arena, "xy", 2);
+  CHECK(b == a + 3);
+  CHECK(c == a + 8 && ((uintptr_t)c % 4u) == 0);
+  CHECK(d == a + 16 && ((uintptr_t)d % 8u) == 0);
+  CHECK(e == a + 17);
+  CHECK_STR(e, "xy");
+  CHECK(sprout_arena_take_aligned(&arena, 2, 32) != NULL); /* past the largest alignment is the largest */
+  CHECK(sprout_arena_take_aligned(&arena, 2, 3) != NULL);  /* so is one that is no power of two */
+  CHECK(sprout_arena_take_aligned(&arena, 0, 1) != NULL);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
 }
 
 static void it_takes_a_new_page_when_one_is_full_and_reset_releases_them_all(void) {
@@ -90,6 +113,7 @@ static void a_host_without_pages_or_callbacks_is_refused(void) {
 
 int main(void) {
   RUN(a_pieces_are_zeroed_aligned_and_distinct);
+  RUN(a_piece_at_a_smaller_alignment_costs_only_what_it_holds);
   RUN(it_takes_a_new_page_when_one_is_full_and_reset_releases_them_all);
   RUN(a_request_larger_than_a_page_gets_its_own_page);
   RUN(it_copies_bytes_with_a_terminator);
