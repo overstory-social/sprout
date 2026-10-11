@@ -265,6 +265,11 @@ test("the wheel shows the words around the selected one, ticks as the crank turn
     play.frame("A")
     play.frame("B")
     same(play.played(), { 3000, 160, 3000, 660, 392 }, "the d-pad ticks, a pick and a step back each sound")
+    play.crank(16)
+    play.frame()
+    same(play.played(), { 3000, 160, 3000, 660, 392 }, "short of a step, the crank alone sounds nothing")
+    for _ = 1, 20 do play.frame() end
+    same(play.played(), { 3000, 160, 3000, 660, 392, 3000, 160 }, "left past halfway, the drum ticks onto the next word and clacks at rest")
   end)
 end)
 

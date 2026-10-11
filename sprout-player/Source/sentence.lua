@@ -209,16 +209,24 @@ end
 -- How far the crank has turned past the selected entry toward the next, in steps (-1 to 1).
 function Sentence:fraction() return self.crank / Sentence.DEGREES_PER_STEP end
 
--- Lets what the crank left over toward the next step go, `share` of the way each call, so the
--- wheel settles on the selected entry: true the call it arrives there.
+-- Lets the wheel come to rest on the nearest entry, `share` of the way each call: a crank past
+-- half a step completes the step first, so the entry in the window is the one selected, and what
+-- is left is let go from the other side. Returns whether the wheel arrived this call, and the
+-- steps the completion moved (0, 1 or -1).
 function Sentence:settle(share)
-  if self.crank == 0 then return false end
+  local half = Sentence.DEGREES_PER_STEP / 2
+  local steps = self.crank >= half and 1 or self.crank <= -half and -1 or 0
+  if steps ~= 0 then
+    self.crank = self.crank - steps * Sentence.DEGREES_PER_STEP
+    self:nudge(steps)
+  end
+  if self.crank == 0 then return false, steps end
   self.crank = self.crank * (1 - share)
   if math.abs(self.crank) < 0.5 then
     self.crank = 0
-    return true
+    return true, steps
   end
-  return false
+  return false, steps
 end
 
 -- A step of the wheel: a number role changes its number by `steps`, other wheels move.

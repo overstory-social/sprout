@@ -2,6 +2,9 @@ local Wheel = module("wheel")
 local Sentence = module("sentence")
 local test, equal, same = harness.test, harness.equal, harness.same
 
+-- The view the engine gave a visitor in the chip_tree world's hall, for a builder with words on it.
+local function view() return json.decode(fixture("chip-tree.view.json")) end
+
 local function words(n)
   local out = {}
   for i = 1, n do out[i] = { label = "word" .. i } end
@@ -63,16 +66,41 @@ end)
 
 test("the drum settles on the slat once the crank has rested, and says so once", function()
   local builder = Sentence.new({ chips = {} })
-  builder.crank = 12
+  builder.crank = 8
   local wheel = Wheel.new()
   equal(wheel:update(builder, true), nil, "turning: nothing settles")
   for _ = 1, Wheel.REST_FRAMES - 1 do equal(wheel:update(builder, false), nil) end
-  equal(builder:fraction(), 0.5, "the drum is still between slats while the crank rests briefly")
+  equal(math.floor(builder:fraction() * 3 + 0.5), 1, "the drum is still between slats while the crank rests briefly")
   local settled = 0
   for _ = 1, 20 do
-    if wheel:update(builder, false) == "settled" then settled = settled + 1 end
+    local rest, steps = wheel:update(builder, false)
+    if rest == "settled" then settled = settled + 1 end
+    equal(steps, 0, "short of half a step, the selection stays")
   end
   equal(settled, 1)
   equal(builder:fraction(), 0)
   equal(wheel:update(builder, false), nil, "at rest, nothing more")
+end)
+
+test("a drum left with the next word in the window settles on it: the step completes, once, before the clack", function()
+  local builder = Sentence.new(view())
+  builder.crank = 16
+  local wheel = Wheel.new()
+  for _ = 1, Wheel.REST_FRAMES - 1 do equal(wheel:update(builder, false), nil) end
+  equal(builder.selected, 1)
+  local rest, steps = wheel:update(builder, false)
+  equal(steps, 1, "the frame the drum settles, the step the crank had taken past halfway completes")
+  equal(rest, nil, "and the drum is not yet at rest")
+  equal(builder.selected, 2)
+  equal(builder:fraction() < 0, true, "what is left is on the other side of the new slat")
+  local settled, moved = 0, 0
+  for _ = 1, 20 do
+    rest, steps = wheel:update(builder, false)
+    if rest == "settled" then settled = settled + 1 end
+    moved = moved + steps
+  end
+  equal(settled, 1)
+  equal(moved, 0)
+  equal(builder.selected, 2)
+  equal(builder:fraction(), 0)
 end)
