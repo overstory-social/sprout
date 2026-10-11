@@ -136,9 +136,19 @@ static sprout_status read_caps(loader *l, const sprout_json *caps) {
   return SPROUT_OK;
 }
 
-static const char *json_text(const sprout_json *object, const char *key) {
+/* A copy of a JSON string in the world's arena, since the tree it came from is scratch. */
+static const char *kept(loader *l, const sprout_json *string) {
+  return sprout_arena_copy(l->arena, string->bytes, string->length);
+}
+
+/* The string field `key` of an object, kept; NULL when it is absent or not a string, or `*status` tells of no memory. */
+static const char *json_text(loader *l, const sprout_json *object, const char *key, sprout_status *status) {
   const sprout_json *field = sprout_json_get(object, key);
-  return field != NULL && field->kind == SPROUT_JSON_STRING ? field->bytes : NULL;
+  const char *copy;
+  if (field == NULL || field->kind != SPROUT_JSON_STRING) return NULL;
+  copy = kept(l, field);
+  if (copy == NULL) *status = SPROUT_NO_MEMORY;
+  return copy;
 }
 
 static sprout_status read_header(loader *l, const sprout_json *header) {
@@ -147,13 +157,15 @@ static sprout_status read_header(loader *l, const sprout_json *header) {
   const sprout_json *files = sprout_json_get(header, "files");
   const sprout_json *libraries = sprout_json_get(header, "libraries");
   size_t i;
+  sprout_status status = SPROUT_OK;
   if (header == NULL || header->kind != SPROUT_JSON_OBJECT) return cat_shaped(l, "header");
-  h->name = json_text(header, "name");
-  h->namespace_name = json_text(header, "namespace");
-  h->version = json_text(header, "version");
-  h->author = json_text(header, "author");
-  h->license = json_text(header, "license");
-  h->hash = json_text(header, "hash");
+  h->name = json_text(l, header, "name", &status);
+  h->namespace_name = json_text(l, header, "namespace", &status);
+  h->version = json_text(l, header, "version", &status);
+  h->author = json_text(l, header, "author", &status);
+  h->license = json_text(l, header, "license", &status);
+  h->hash = json_text(l, header, "hash", &status);
+  NEED(status);
   if (h->name == NULL || h->namespace_name == NULL || h->version == NULL || h->author == NULL ||
       h->license == NULL || h->hash == NULL || level == NULL || level->kind != SPROUT_JSON_NUMBER ||
       files == NULL || files->kind != SPROUT_JSON_ARRAY || libraries == NULL ||
@@ -165,15 +177,17 @@ static sprout_status read_header(loader *l, const sprout_json *header) {
   MEMORY(h->files);
   for (i = 0; i < files->count; i++) {
     if (files->items[i]->kind != SPROUT_JSON_STRING) return cat_shaped(l, "header.files");
-    h->files[i] = files->items[i]->bytes;
+    h->files[i] = kept(l, files->items[i]);
+    MEMORY(h->files[i]);
   }
   h->library_count = libraries->count;
   h->libraries = (sprout_library *)cat_array(l, libraries->count, sizeof(sprout_library));
   MEMORY(h->libraries);
   for (i = 0; i < libraries->count; i++) {
-    h->libraries[i].name = json_text(libraries->items[i], "name");
-    h->libraries[i].version = json_text(libraries->items[i], "version");
-    h->libraries[i].sha = json_text(libraries->items[i], "sha");
+    h->libraries[i].name = json_text(l, libraries->items[i], "name", &status);
+    h->libraries[i].version = json_text(l, libraries->items[i], "version", &status);
+    h->libraries[i].sha = json_text(l, libraries->items[i], "sha", &status);
+    NEED(status);
     if (h->libraries[i].name == NULL || h->libraries[i].version == NULL ||
         h->libraries[i].sha == NULL)
       return cat_shaped(l, "header.libraries");
@@ -185,8 +199,16 @@ static const sprout_json *section(const sprout_json *root, const char *name) {
   return sprout_json_get(root, name);
 }
 
-sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *root, char *error,
-                                     size_t capacity) {
+/* Zeroed room in the load's scratch for one pointer an entry: a cache the load alone reads. */
+static void *cache_of(sprout_arena *scratch, size_t entries) {
+  size_t bytes = (entries == 0 ? 1 : entries) * sizeof(void *);
+  void *room = sprout_arena_take(scratch, bytes);
+  if (room != NULL) memset(room, 0, bytes);
+  return room;
+}
+
+sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *root, sprout_arena *scratch,
+                                     char *error, size_t capacity) {
   loader load, *l = &load;
   const sprout_json *kinds_section, *tree_section, *grammar_section, *bodies_section, *ext;
   const sprout_node *all, *names, *scoped, *intents, *messages, *verbs, *contents;
@@ -196,9 +218,9 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   load.arena = &world->arena;
   load.error = error;
   load.capacity = capacity;
-  load.kind_cache = (sprout_kind_def **)cat_array(l, world->graph.count, sizeof(sprout_kind_def *));
-  load.verb_cache = (sprout_verb **)cat_array(l, world->graph.count, sizeof(sprout_verb *));
-  load.type_cache = (sprout_decl_type **)cat_array(l, world->graph.count, sizeof(sprout_decl_type *));
+  load.kind_cache = (sprout_kind_def **)cache_of(scratch, world->graph.count);
+  load.verb_cache = (sprout_verb **)cache_of(scratch, world->graph.count);
+  load.type_cache = (sprout_decl_type **)cache_of(scratch, world->graph.count);
   MEMORY(load.kind_cache);
   MEMORY(load.verb_cache);
   MEMORY(load.type_cache);
@@ -309,7 +331,8 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
     MEMORY(world->words);
     for (i = 0; i < words->count; i++) {
       if (words->items[i]->kind != SPROUT_JSON_STRING) return cat_shaped(l, "grammar.words");
-      world->words[i] = words->items[i]->bytes;
+      world->words[i] = kept(l, words->items[i]);
+      MEMORY(world->words[i]);
     }
   }
 
@@ -351,7 +374,9 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   MEMORY(world->extensions);
   for (i = 0; i < ext->count; i++) {
     const sprout_json *major = sprout_json_get(ext->items[i], "major");
-    world->extensions[i].name = json_text(ext->items[i], "name");
+    sprout_status status = SPROUT_OK;
+    world->extensions[i].name = json_text(l, ext->items[i], "name", &status);
+    NEED(status);
     if (world->extensions[i].name == NULL || major == NULL || major->kind != SPROUT_JSON_NUMBER)
       return cat_shaped(l, "extensions");
     world->extensions[i].major = (long)major->number;

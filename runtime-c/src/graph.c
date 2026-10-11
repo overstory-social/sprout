@@ -2,14 +2,25 @@
  * Reads a cartridge's table of entries into nodes (the spec's The compiler >
  * What compiling produces). Every entry is allocated before any is filled,
  * so a reference may point forward or back, and a shared entry is one node.
+ * Scalar cells and field names are interned: a table in the load's scratch
+ * finds the node already made for an equal value, so a word the table writes
+ * a thousand times is one node and one copy of its text.
  */
 #include "graph.h"
 
 #include <string.h>
 
+/* The interning table: open addressing over node pointers, grown by doubling. */
+typedef struct intern {
+  const sprout_node **slots;
+  size_t capacity, used;
+} intern;
+
 typedef struct reader {
   sprout_arena *arena;
+  sprout_arena *scratch;
   sprout_graph *graph;
+  intern table;
   char *error;
   size_t capacity;
 } reader;
@@ -24,6 +35,116 @@ static sprout_status refuse(reader *r, const char *words) {
   return SPROUT_BAD_INPUT;
 }
 
+/* ---- interning ---- */
+
+static uint32_t mix(uint32_t hash, uint32_t word) {
+  hash ^= word;
+  hash *= 16777619u;
+  return hash;
+}
+
+/* FNV-1a over what makes a scalar node the value it is. */
+static uint32_t hash_of(const sprout_node *node) {
+  uint32_t hash = 2166136261u;
+  size_t i;
+  hash = mix(hash, node->kind);
+  switch (node->kind) {
+    case SPROUT_NODE_STRING:
+      for (i = 0; i < node->length; i++) hash = mix(hash, (unsigned char)node->text[i]);
+      break;
+    case SPROUT_NODE_NUMBER: {
+      unsigned char bytes[sizeof(double)];
+      memcpy(bytes, &node->number, sizeof bytes);
+      for (i = 0; i < sizeof bytes; i++) hash = mix(hash, bytes[i]);
+      break;
+    }
+    case SPROUT_NODE_PLACE:
+      hash = mix(hash, (uint32_t)node->line);
+      hash = mix(hash, (uint32_t)(uint16_t)node->file);
+      hash = mix(hash, node->column);
+      break;
+    default:
+      break;
+  }
+  return hash;
+}
+
+static bool same(const sprout_node *a, const sprout_node *b) {
+  if (a->kind != b->kind) return false;
+  switch (a->kind) {
+    case SPROUT_NODE_STRING:
+      return a->length == b->length && memcmp(a->text, b->text, a->length) == 0;
+    case SPROUT_NODE_NUMBER:
+      return memcmp(&a->number, &b->number, sizeof a->number) == 0;
+    case SPROUT_NODE_PLACE:
+      return a->line == b->line && a->file == b->file && a->column == b->column;
+    default:
+      return false;
+  }
+}
+
+/* A slot for `node`'s value in `slots`: the one holding an equal node, or the empty one it goes in. */
+static size_t slot_of(const sprout_node **slots, size_t capacity, const sprout_node *node) {
+  size_t i = hash_of(node) & (capacity - 1);
+  while (slots[i] != NULL && !same(slots[i], node)) i = (i + 1) & (capacity - 1);
+  return i;
+}
+
+static sprout_status grow(reader *r) {
+  intern *t = &r->table;
+  size_t capacity = t->capacity == 0 ? 1024 : t->capacity * 2, i;
+  const sprout_node **slots = (const sprout_node **)sprout_arena_take(r->scratch, capacity * sizeof *slots);
+  if (slots == NULL) return SPROUT_NO_MEMORY;
+  memset(slots, 0, capacity * sizeof *slots);
+  for (i = 0; i < t->capacity; i++)
+    if (t->slots[i] != NULL) slots[slot_of(slots, capacity, t->slots[i])] = t->slots[i];
+  t->slots = slots;
+  t->capacity = capacity;
+  return SPROUT_OK;
+}
+
+/* The node for `probe`'s value: the one made before, or a new one holding its own copy. */
+static const sprout_node *interned(reader *r, const sprout_node *probe, sprout_status *status) {
+  intern *t = &r->table;
+  sprout_node *made;
+  size_t i;
+  *status = SPROUT_OK;
+  if ((t->used + 1) * 2 > t->capacity) {
+    *status = grow(r);
+    if (*status != SPROUT_OK) return NULL;
+  }
+  i = slot_of(t->slots, t->capacity, probe);
+  if (t->slots[i] != NULL) return t->slots[i];
+  made = (sprout_node *)sprout_arena_take(r->arena, sizeof *made);
+  if (made == NULL) {
+    *status = SPROUT_NO_MEMORY;
+    return NULL;
+  }
+  *made = *probe;
+  if (probe->kind == SPROUT_NODE_STRING) {
+    made->text = sprout_arena_copy(r->arena, probe->text, probe->length);
+    if (made->text == NULL) {
+      *status = SPROUT_NO_MEMORY;
+      return NULL;
+    }
+  }
+  t->slots[i] = made;
+  t->used++;
+  return made;
+}
+
+static const sprout_node *interned_string(reader *r, const char *bytes, size_t length, sprout_status *status) {
+  sprout_node probe;
+  memset(&probe, 0, sizeof probe);
+  probe.kind = SPROUT_NODE_STRING;
+  probe.index = SPROUT_NOT_AN_ENTRY;
+  probe.text = bytes;
+  probe.length = length;
+  return interned(r, &probe, status);
+}
+
+/* ---- cells ---- */
+
 static bool is_array_of_one_count(const sprout_json *cell) {
   return cell->kind == SPROUT_JSON_ARRAY && cell->count == 1 &&
          cell->items[0]->kind == SPROUT_JSON_NUMBER;
@@ -31,11 +152,15 @@ static bool is_array_of_one_count(const sprout_json *cell) {
 
 /* The node a cell stands for; NULL with *status set when it cannot be read. */
 static const sprout_node *resolve(reader *r, const sprout_json *cell, sprout_status *status) {
-  sprout_node *node;
+  sprout_node probe;
   *status = SPROUT_OK;
+  memset(&probe, 0, sizeof probe);
+  probe.index = SPROUT_NOT_AN_ENTRY;
   switch (cell->kind) {
     case SPROUT_JSON_NULL:
       return &r->graph->null_node;
+    case SPROUT_JSON_BOOL:
+      return cell->boolean ? &r->graph->true_node : &r->graph->false_node;
     case SPROUT_JSON_ARRAY: {
       double at;
       if (!is_array_of_one_count(cell)) {
@@ -51,53 +176,41 @@ static const sprout_node *resolve(reader *r, const sprout_json *cell, sprout_sta
     }
     case SPROUT_JSON_OBJECT: {
       const sprout_json *p = sprout_json_get(cell, "p");
+      double file, line, column;
       if (p == NULL || cell->count != 1 || p->kind != SPROUT_JSON_ARRAY || p->count != 3 ||
           p->items[0]->kind != SPROUT_JSON_NUMBER || p->items[1]->kind != SPROUT_JSON_NUMBER ||
           p->items[2]->kind != SPROUT_JSON_NUMBER) {
         *status = refuse(r, "an entry holds an object where a place or a reference should be.");
         return NULL;
       }
-      node = (sprout_node *)sprout_arena_take(r->arena, sizeof *node);
-      if (node == NULL) {
-        *status = SPROUT_NO_MEMORY;
-        return NULL;
-      }
-      node->kind = SPROUT_NODE_PLACE;
-      node->file = (long)p->items[0]->number;
-      node->line = (long)p->items[1]->number;
-      node->column = (long)p->items[2]->number;
-      node->index = SPROUT_NOT_AN_ENTRY;
-      if (node->file >= (long)r->graph->file_count) {
+      file = p->items[0]->number;
+      line = p->items[1]->number;
+      column = p->items[2]->number;
+      if (file >= (double)r->graph->file_count) {
         *status = refuse(r, "the cartridge names a file it does not list.");
         return NULL;
       }
-      return node;
+      if (file < -1 || line < 0 || line > INT32_MAX || column < 0 || column > UINT16_MAX) {
+        *status = refuse(r, "a line of the source is longer than 65,535 characters, which a cartridge cannot place.");
+        return NULL;
+      }
+      probe.kind = SPROUT_NODE_PLACE;
+      probe.file = (int16_t)file;
+      probe.line = (int32_t)line;
+      probe.column = (uint16_t)column;
+      return interned(r, &probe, status);
     }
+    case SPROUT_JSON_NUMBER:
+      probe.kind = SPROUT_NODE_NUMBER;
+      probe.number = cell->number;
+      return interned(r, &probe, status);
     default:
-      break;
+      return interned_string(r, cell->bytes, cell->length, status);
   }
-  node = (sprout_node *)sprout_arena_take(r->arena, sizeof *node);
-  if (node == NULL) {
-    *status = SPROUT_NO_MEMORY;
-    return NULL;
-  }
-  node->index = SPROUT_NOT_AN_ENTRY;
-  if (cell->kind == SPROUT_JSON_BOOL) {
-    node->kind = SPROUT_NODE_BOOL;
-    node->boolean = cell->boolean;
-  } else if (cell->kind == SPROUT_JSON_NUMBER) {
-    node->kind = SPROUT_NODE_NUMBER;
-    node->number = cell->number;
-  } else {
-    node->kind = SPROUT_NODE_STRING;
-    node->text = cell->bytes;
-    node->length = cell->length;
-  }
-  return node;
 }
 
 static sprout_status take_items(reader *r, sprout_node *node, size_t count) {
-  node->count = count;
+  node->count = (uint32_t)count;
   if (count == 0) return SPROUT_OK;
   node->items = (const sprout_node **)sprout_arena_take(r->arena, count * sizeof(sprout_node *));
   return node->items == NULL ? SPROUT_NO_MEMORY : SPROUT_OK;
@@ -119,7 +232,9 @@ static sprout_status fill(reader *r, sprout_node *node, const sprout_json *entry
       if (node->keys == NULL) return SPROUT_NO_MEMORY;
     }
     for (i = 0; i < body->count; i++) {
-      node->keys[i] = body->items[i]->key;
+      const sprout_node *key = interned_string(r, body->items[i]->key, body->items[i]->key_length, &status);
+      if (status != SPROUT_OK) return status;
+      node->keys[i] = key->text;
       node->items[i] = resolve(r, body->items[i], &status);
       if (status != SPROUT_OK) return status;
     }
@@ -156,7 +271,13 @@ static sprout_status fill(reader *r, sprout_node *node, const sprout_json *entry
   return SPROUT_OK;
 }
 
-sprout_status sprout_graph_read(sprout_arena *arena, const sprout_json *files,
+static void scalar(sprout_node *node, sprout_node_kind kind) {
+  memset(node, 0, sizeof *node);
+  node->kind = (uint8_t)kind;
+  node->index = SPROUT_NOT_AN_ENTRY;
+}
+
+sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, const sprout_json *files,
                                 const sprout_json *prose, const sprout_json *bodies,
                                 const sprout_json *rest, sprout_graph *graph, char *error,
                                 size_t error_capacity) {
@@ -166,14 +287,16 @@ sprout_status sprout_graph_read(sprout_arena *arena, const sprout_json *files,
   sprout_status status;
   memset(&r, 0, sizeof r);
   r.arena = arena;
+  r.scratch = scratch;
   r.graph = graph;
   r.error = error;
   r.capacity = error_capacity;
 
-
   memset(graph, 0, sizeof *graph);
-  graph->null_node.kind = SPROUT_NODE_NULL;
-  graph->null_node.index = SPROUT_NOT_AN_ENTRY;
+  scalar(&graph->null_node, SPROUT_NODE_NULL);
+  scalar(&graph->true_node, SPROUT_NODE_BOOL);
+  graph->true_node.boolean = true;
+  scalar(&graph->false_node, SPROUT_NODE_BOOL);
   runs[0] = prose;
   runs[1] = bodies;
   runs[2] = rest;
@@ -182,20 +305,27 @@ sprout_status sprout_graph_read(sprout_arena *arena, const sprout_json *files,
     if (runs[run]->kind != SPROUT_JSON_ARRAY) return refuse(&r, "the cartridge's table of entries is not a list.");
     total += runs[run]->count;
   }
+  if (total >= SPROUT_NOT_AN_ENTRY) return refuse(&r, "the cartridge holds more entries than a graph does.");
+  if (files->count > INT16_MAX)
+    return refuse(&r, "the world has more than 32,767 files, which a cartridge cannot place.");
   graph->file_count = files->count;
   if (files->count > 0) {
     graph->files = (const char **)sprout_arena_take(arena, files->count * sizeof(char *));
     if (graph->files == NULL) return SPROUT_NO_MEMORY;
   }
   for (i = 0; i < files->count; i++) {
+    const sprout_node *name;
     if (files->items[i]->kind != SPROUT_JSON_STRING)
       return refuse(&r, "the cartridge's list of files holds something that is not a name.");
-    graph->files[i] = files->items[i]->bytes;
+    name = interned_string(&r, files->items[i]->bytes, files->items[i]->length, &status);
+    if (status != SPROUT_OK) return status;
+    graph->files[i] = name->text;
   }
   graph->count = total;
   graph->entries = (sprout_node *)sprout_arena_take(arena, (total == 0 ? 1 : total) * sizeof(sprout_node));
   if (graph->entries == NULL) return SPROUT_NO_MEMORY;
-  for (i = 0; i < total; i++) graph->entries[i].index = i;
+  memset(graph->entries, 0, (total == 0 ? 1 : total) * sizeof(sprout_node));
+  for (i = 0; i < total; i++) graph->entries[i].index = (uint32_t)i;
   for (run = 0; run < 3; run++) {
     for (i = 0; i < runs[run]->count; i++, at++) {
       status = fill(&r, &graph->entries[at], runs[run]->items[i]);

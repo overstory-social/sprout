@@ -25,7 +25,7 @@ static void open_bench(bench *b, const char *entries) {
   CHECK_INT(sprout_json_read(&b->arena, "[]", 2, &files, &e), SPROUT_OK);
   CHECK_INT(sprout_json_read(&b->arena, "[]", 2, &none, &e), SPROUT_OK);
   CHECK_INT(sprout_json_read(&b->arena, entries, strlen(entries), &rest, &e), SPROUT_OK);
-  CHECK_INT(sprout_graph_read(&b->arena, files, none, none, rest, &b->graph, error, sizeof error), SPROUT_OK);
+  CHECK_INT(sprout_graph_read(&b->arena, &b->arena, files, none, none, rest, &b->graph, error, sizeof error), SPROUT_OK);
   b->l.arena = &b->arena;
   b->l.error = b->error;
   b->l.capacity = sizeof b->error;

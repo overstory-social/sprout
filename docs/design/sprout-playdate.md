@@ -149,7 +149,11 @@ still takes the visitor out and a faulted wake is consumed (hole 499).
 **Memory.** Every allocation comes from the host's `alloc`, in pages of the
 host's size. A turn's arena is dropped whole at its end, and dropping it
 drops the draft. The Playdate host gives it `system->realloc` and a 32 KB
-page.
+page. A loaded world is its graph and catalogue alone: the JSON a cartridge
+is read from is scratch, released once the catalogue is built, and the
+graph's nodes are small (a union for the payload, 32 bytes on a 64-bit host
+and 20 on the console) with every distinct scalar cell and field name held
+once, so a word the table writes a thousand times is one node.
 
 **Determinism.** Nothing a turn does reads the clock, the filesystem or
 the network. The only time is the `elapsed` the host passes. Every draw
