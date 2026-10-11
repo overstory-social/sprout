@@ -8,6 +8,7 @@ import {
   emitCartridge,
   generateSkill,
   loadCartridge,
+  SEED_MAX,
   type Bundle,
 } from '@overstory/sprout/lang';
 import {
@@ -63,10 +64,12 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       through real turns, and print it with every step expecting all it made;
                                       --write saves that over the script; --report writes what it reached, what
                                       was misread or faulted, and the prose it never showed, as JSON
-  sprout play dir [--at place] [--as name] [--debug] [--record file.json]
+  sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json]
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
-                                      the host's; --record writes the session as a script
+                                      the host's; every turn draws from a seed of its own, from a stream begun
+                                      at --seed or, without it, the clock; --record writes the session as a
+                                      script, the seed of each turn kept, so it plays back as it played
   sprout test [dir] [script ...] [--report file.json]    (dir may be a .sproutworld; name its scripts)
                                       run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
@@ -146,6 +149,16 @@ function playable(path: string, say: (text: string) => void): PlayableWorld | nu
     say(`${path}: ${err.message}\n`);
     return null;
   }
+}
+
+/** The seed an interactive session's stream of turn seeds begins from: `--seed`, or the clock where it is not given. */
+function sessionSeed(flags: Parsed['flags']): number {
+  const seed = flags['seed'];
+  if (seed === undefined) return Date.now() % (SEED_MAX + 1);
+  if (seed === true || !/^\d+$/.test(seed) || Number(seed) > SEED_MAX) {
+    throw new Error(`--seed wants a whole number from 0 to ${SEED_MAX}: --seed 7`);
+  }
+  return Number(seed);
 }
 
 /** The file `--report` writes to, or null where it is not given. */
@@ -259,7 +272,12 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
             throw new Error('--record wants a file after it: --record walk.json');
           return playInteractively(
             checked,
-            { ...standing(flags), debug, ...(record === undefined ? {} : { record }) },
+            {
+              ...standing(flags),
+              debug,
+              seed: sessionSeed(flags),
+              ...(record === undefined ? {} : { record }),
+            },
             io,
           );
         }

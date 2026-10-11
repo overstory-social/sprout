@@ -8,12 +8,21 @@ import {
   DEFAULT_LIMITS,
   generateSkill,
   loadCartridge,
+  Draws,
   readCartridgeHeader,
+  SEED_MAX,
 } from '@overstory/sprout/lang';
 
 import { checkWorld } from './check.js';
 import { USAGE, main, parseArgs } from './cli.js';
-import { INSTALLED_EXTENSIONS, playScript, writeScript } from '@overstory/sprout-player';
+import {
+  INSTALLED_EXTENSIONS,
+  playScript,
+  plays,
+  readScript,
+  stepOfLine,
+  writeScript,
+} from '@overstory/sprout-player';
 import {
   KILN_YARD,
   LANE,
@@ -45,6 +54,19 @@ describe('parseArgs', () => {
 /** What a session of `lines` prints with --debug in the world at `dir`: the transcript of that script played. */
 const transcript = (dir: string, lines: string) =>
   transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json'));
+
+/** `lines` as a session begun at seed 0 seeds them: `@seed 0` first, then the stream's next before every line that plays. */
+const seeded = (lines: string): string => {
+  const draws = new Draws(0);
+  const out = ['@seed 0'];
+  for (const line of lines.split('\n')) {
+    if (line === '') continue;
+    const step = stepOfLine(line, 'spec');
+    if (step !== null && plays(step)) out.push(`@seed ${draws.below(SEED_MAX + 1)}`);
+    out.push(line);
+  }
+  return `${out.join('\n')}\n`;
+};
 
 describe('main', () => {
   it('prints the usage and fails with no command, succeeds on help, names an unknown command', () => {
@@ -246,6 +268,22 @@ describe('main', () => {
     expect(bare.err()).toContain('--record wants a file after it');
   });
 
+  it('play with no script begins its turn seeds at --seed, and refuses one that is not a seed', async () => {
+    const dir = worldFolder('kiln_yard', KILN_YARD);
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-seed-')), 'session.json');
+    const io = captured('fire kiln\n');
+    await expect(
+      main(['play', dir, '--as', 'Marta', '--seed', '7', '--record', file], io),
+    ).resolves.toBe(0);
+    const [first] = readScript(readFileSync(file, 'utf8'), 'session.json').steps;
+    expect(first).toEqual({ seed: 7 });
+    for (const bad of [['--seed'], ['--seed', 'x'], ['--seed', String(SEED_MAX + 1)]]) {
+      const refused = captured('');
+      expect(main(['play', dir, ...bad], refused)).toBe(1);
+      expect(refused.err()).toContain(`--seed wants a whole number from 0 to ${SEED_MAX}`);
+    }
+  });
+
   it('play with no script shows only the prose the visitor reads, without --debug', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const io = captured('fire kiln\n');
@@ -258,45 +296,54 @@ describe('main', () => {
 
   it('play with no script (or `-`) and --debug prints the transcript, admitting Inspector unless --as names another', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
-    const asScript = (lines: string) => transcript(dir, `@arrive Marta\n${lines}@leave Marta\n`);
+    const asScript = (lines: string) =>
+      transcript(dir, seeded(`@arrive Marta\n${lines}@leave Marta\n`));
 
     const typed = 'Marta> fire kiln\n@tick\n@advance 2 hours\nMarta> look\n';
     const io = captured(typed);
-    await expect(main(['play', dir, '--as', 'Marta', '--debug'], io)).resolves.toBe(0);
+    await expect(main(['play', dir, '--as', 'Marta', '--seed', '0', '--debug'], io)).resolves.toBe(
+      0,
+    );
     expect(io.out()).toBe(asScript(typed));
 
     const dashed = captured(typed);
-    await expect(main(['play', dir, '-', '--as', 'Marta', '--debug'], dashed)).resolves.toBe(0);
+    await expect(
+      main(['play', dir, '-', '--as', 'Marta', '--seed', '0', '--debug'], dashed),
+    ).resolves.toBe(0);
     expect(dashed.out()).toBe(asScript(typed));
   });
 
   it('a bare typed line addresses whoever most recently arrived and still stands', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const bare = captured('fire kiln\n@tick\n');
-    await expect(main(['play', dir, '--as', 'Marta', '--debug'], bare)).resolves.toBe(0);
+    await expect(
+      main(['play', dir, '--as', 'Marta', '--seed', '0', '--debug'], bare),
+    ).resolves.toBe(0);
     expect(bare.out()).toBe(
-      transcript(dir, '@arrive Marta\nMarta> fire kiln\n@tick\n@leave Marta\n'),
+      transcript(dir, seeded('@arrive Marta\nMarta> fire kiln\n@tick\n@leave Marta\n')),
     );
 
     const second = captured('@arrive Ines\nlook\n');
-    await expect(main(['play', dir, '--debug', '--as', 'Marta'], second)).resolves.toBe(0);
+    await expect(
+      main(['play', dir, '--debug', '--seed', '0', '--as', 'Marta'], second),
+    ).resolves.toBe(0);
     expect(second.out()).toBe(
-      transcript(dir, '@arrive Marta\n@arrive Ines\nInes> look\n@leave Ines\n'),
+      transcript(dir, seeded('@arrive Marta\n@arrive Ines\nInes> look\n@leave Ines\n')),
     );
   });
 
   it('ends the session with a departure turn for whoever is left standing, on Ctrl-D', async () => {
     const dir = worldFolder('kiln_yard', KILN_YARD);
     const io = captured('');
-    await expect(main(['play', '--debug', dir], io)).resolves.toBe(0);
-    expect(io.out()).toBe(transcript(dir, '@arrive Inspector\n@leave Inspector\n'));
+    await expect(main(['play', '--debug', '--seed', '0', dir], io)).resolves.toBe(0);
+    expect(io.out()).toBe(transcript(dir, seeded('@arrive Inspector\n@leave Inspector\n')));
   });
 
   it('refuses a nickname or --at as sprout parse would, admitting nobody', async () => {
     const dir = worldFolder('lane', LANE);
     const refused = captured('');
     await expect(main(['play', dir, '--as', 'crate', '--debug'], refused)).resolves.toBe(0);
-    expect(refused.out()).toBe(
+    expect(refused.out().replace(/^(@seed \d+\n){2}/, '')).toBe(
       '@arrive crate\n  nickname refused: "crate" is a word this world already reads, so "crate" would not always mean you: choose another nickname.\n',
     );
     const nowhere = captured();

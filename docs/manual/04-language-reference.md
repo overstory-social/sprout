@@ -2034,8 +2034,10 @@ rather than every time someone happens to look.
 
 Every roll comes from a seed recorded with each turn, so a world replays
 exactly. One line is rolled once, however many people read it, so
-everyone in the room sees the same outcome. (`sprout play` starts at seed
-0; `@seed` changes it.)
+everyone in the room sees the same outcome. (A script starts at seed 0,
+and `@seed` changes it; an interactive session draws each turn's seed
+from a stream begun at `--seed`, or the clock, and `@seed` begins it
+again.)
 
 ---
 
@@ -2565,7 +2567,7 @@ sprout check [dir] [--json]
 sprout parse [dir]
 sprout parse dir "line" [--at place] [--as name]
 sprout view [dir] [--at place] [--as name]
-sprout play dir [script] [--at place] [--as name] [--report file.json]
+sprout play dir [script] [--at place] [--as name] [--seed n] [--debug] [--record file.json] [--report file.json]
 sprout test [dir] [script ...] [--report file.json]
 sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
 sprout skill
@@ -2580,7 +2582,7 @@ no clock and no extensions.
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
 | `parse`        | with no line: every phrase the world accepts. With a line: how a visitor would read it, and whether it would be refused, without running it. |
 | `view`         | what a visitor is shown and could type.                                                                                   |
-| `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`). |
+| `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`), every turn seeded from a stream begun at `--seed` or the clock. |
 | `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |
 | `mcp`          | serves the world to an AI agent as a visitor and only a visitor, over MCP: tools to `arrive`, `say` a line and `leave`, each answered with the prose that visitor reads. Stdio for one visitor, `--http host:port` for several in one world. `--seed`, `--record`, `--turn-cap` and `--advance-per-turn` are the host's, never shown to the agent. Needs `@overstory/sprout-mcp` installed. |
 | `skill`        | prints the builder's reference, generated from the compiler, as a skill for an AI assistant: `sprout skill > .claude/skills/sprout/SKILL.md`. |
