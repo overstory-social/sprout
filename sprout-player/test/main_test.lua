@@ -3,24 +3,40 @@
 -- device, with what each frame draws captured. It finds the errors the pieces' own tests cannot:
 -- a name the wiring got wrong, a mode that does not lead to the next.
 
-local test, equal = harness.test, harness.equal
+local test, equal, same = harness.test, harness.equal, harness.same
 
 local function run(scenario, options)
   options = options or {}
   -- the Playdate
   local drawn, pressed, calls, seconds = {}, {}, {}, 1000
+  local played, crank = {}, 0
+  -- the sounds: synths that record the pitch of each note
+  local sound = { kWaveNoise = 1, kWaveSquare = 2, kWaveTriangle = 3, kWaveSawtooth = 4 }
+  sound.synth = { new = function() return {
+    setADSR = function() end,
+    playNote = function(_, pitch) played[#played + 1] = pitch end,
+  } end }
   local failing = false
   local menu = {}
   local font = {
     getHeight = function() return 14 end,
     getTextWidth = function(_, text) return utf8.len(text) * 6 end,
   }
+  -- the wheel's large font, whose words are twice as wide, and its small one, half as wide
+  local fonts = {
+    ["fonts/Asheville-Sans-24-Light"] = { getHeight = function() return 24 end, getTextWidth = function(_, text) return utf8.len(text) * 12 end },
+    ["fonts/Roobert-10-Bold"] = { getHeight = function() return 12 end, getTextWidth = function(_, text) return utf8.len(text) * 3 end },
+  }
+  local fontUsed = {}
+  local current = font
   local gfx = {
     getSystemFont = function() return font end,
-    setFont = function() end,
+    font = { new = function(path) return assert(fonts[path], path) end },
+    setFont = function(chosen) current = chosen end,
     clear = function() drawn = {} end,
-    drawText = function(text) drawn[#drawn + 1] = text end,
+    drawText = function(text) drawn[#drawn + 1] = text; fontUsed[text] = current end,
     drawLine = function() end,
+    fillTriangle = function() end,
     setDitherPattern = function() end,
     image = { new = function(name)
       if options.pictures == nil or options.pictures[name] == nil then return nil end
@@ -41,8 +57,9 @@ local function run(scenario, options)
     },
     network = options.network,
     getSecondsSinceEpoch = function() return seconds end,
-    isCrankDocked = function() return true end,
-    getCrankChange = function() return 0 end,
+    sound = sound,
+    isCrankDocked = function() return false end,
+    getCrankChange = function() local change = crank; crank = 0; return change end,
     buttonJustPressed = function(button) return pressed[button] == true end,
     getSystemMenu = function() return { addMenuItem = function(_, title, fn) menu[title] = fn end } end,
   }
@@ -95,6 +112,9 @@ local function run(scenario, options)
     return false
   end
   function session.failSaves(value) failing = value end
+  function session.crank(degrees) crank = degrees end
+  function session.played() return played end
+  function session.fontOf(text) return fontUsed[text] == font and "system" or fontUsed[text] == fonts["fonts/Asheville-Sans-24-Light"] and "big" or "small" end
   function session.at(seconds_) seconds = seconds_ end
   function session.calls() return calls end
   function session.menu() return menu end
@@ -194,6 +214,7 @@ test("ask, the guard, the weather is built on the wheel and sent to the engine",
     equal(play.shows("weather"), true)
     play.frame("A")
     equal(play.shows("ask -> a guard -> weather"), true, "the sentence to confirm")
+    equal(play.fontOf("ask -> a guard -> weather"), "big", "a sentence that fits the screen is drawn large")
     play.frame("A")
     local sent = nil
     for _, one in ipairs(play.calls()) do
@@ -219,6 +240,32 @@ test("a poll that faulted offers nothing, and A shows what it said instead of a 
     play.frame("A")
     equal(play.shows("A: build a sentence"), true, "back in the reader")
   end, { view = "faulted.view.json" })
+end)
+
+test("the wheel shows the words around the selected one, ticks as the crank turns it, and clacks as it settles", function()
+  run(function(play)
+    play.frame()
+    play.frame("A")
+    play.frame("A")
+    play.frame("A") -- build a sentence
+    equal(play.shows("juggle"), true, "the selected verb, in the window")
+    equal(play.fontOf("juggle"), "big")
+    equal(play.fontOf("turn"), "system")
+    equal(play.fontOf("go"), "small", "two slats down, curving away")
+    equal(play.shows("turn"), true, "the next one below")
+    equal(play.shows("ask"), true, "the last one above, since the drum wraps")
+    equal(play.shows("examine"), false, "the fourth is beyond the drum's edge")
+    equal(play.shows("the crank turns the wheel"), true, "the keys")
+    play.crank(30)
+    play.frame()
+    same(play.played(), { 3000 }, "a step of the crank ticks")
+    for _ = 1, 20 do play.frame() end
+    same(play.played(), { 3000, 160 }, "the drum settles with a clack once the crank rests")
+    play.frame("Down")
+    play.frame("A")
+    play.frame("B")
+    same(play.played(), { 3000, 160, 3000, 660, 392 }, "the d-pad ticks, a pick and a step back each sound")
+  end)
 end)
 
 test("B steps back out of the builder to the reader", function()

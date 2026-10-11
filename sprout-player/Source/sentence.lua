@@ -189,7 +189,8 @@ function Sentence:move(steps)
 end
 
 -- Turns the crank by `degrees`: a number role is stepped by it, any other wheel is moved a step
--- for each DEGREES_PER_STEP.
+-- for each DEGREES_PER_STEP. The steps moved, 0 where the crank has not reached one; what is
+-- left over is kept toward the next.
 function Sentence:turn(degrees)
   self.crank = self.crank + degrees
   local steps = 0
@@ -202,6 +203,22 @@ function Sentence:turn(degrees)
     steps = steps - 1
   end
   if steps ~= 0 then self:nudge(steps) end
+  return steps
+end
+
+-- How far the crank has turned past the selected entry toward the next, in steps (-1 to 1).
+function Sentence:fraction() return self.crank / Sentence.DEGREES_PER_STEP end
+
+-- Lets what the crank left over toward the next step go, `share` of the way each call, so the
+-- wheel settles on the selected entry: true the call it arrives there.
+function Sentence:settle(share)
+  if self.crank == 0 then return false end
+  self.crank = self.crank * (1 - share)
+  if math.abs(self.crank) < 0.5 then
+    self.crank = 0
+    return true
+  end
+  return false
 end
 
 -- A step of the wheel: a number role changes its number by `steps`, other wheels move.

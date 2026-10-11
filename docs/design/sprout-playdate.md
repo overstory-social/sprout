@@ -269,6 +269,17 @@ which is the order the TypeScript parser binds them in
 (`corpus/good/value-first` pins it). The view offers readings and not
 intents, so the wheel has no intents at the top (hole 500).
 
+On the screen the wheel is a drum seen from the side (`wheel.lua`): the
+selected word sits large in a window at the drum's front, the words either
+side curve away above and below in smaller type, and the drum turns with
+the crank, so the words rise and fall as it turns; once the crank has
+rested for a few frames the drum settles on the nearest slat. Each slat
+passing the window ticks, the drum settling clacks, a pick and a step back
+each sound a note and a refusal a buzz (`sound.lua`: short notes on the
+SDK's synths, silent where there is no sound to play on). The fonts are
+Panic's Asheville Sans 24 Light and Roobert 10 Bold (CC BY 4.0), shipped
+under `Source/fonts/`.
+
 ### Nickname
 
 The console has no keyboard, so a visitor picks from a pool of plain words
