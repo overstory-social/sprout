@@ -140,7 +140,7 @@ static void a_place_past_what_a_node_holds_is_refused(void) {
   char error[200];
   sprout_arena_init(&arena, &host);
   CHECK_INT(read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[{\"p\":[0,1,70000]}]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge names a place past what a node holds.");
+  CHECK_STR(error, "a line of the source is longer than 65,535 characters, which a cartridge cannot place.");
   CHECK_INT(read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[{\"p\":[0,65535,65535]}]}]", &graph, error), SPROUT_OK);
   CHECK_INT(graph.entries[0].items[0]->column, 65535);
   sprout_arena_reset(&arena);
