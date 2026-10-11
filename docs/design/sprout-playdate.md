@@ -250,7 +250,8 @@ as one source and registered with the Lua runtime at `kEventInitLua`, before
 (`src/bridge.c`). Each takes strings and returns a JSON string. At the
 system's terminate event the engine saves and frees its session, and a call
 that still comes after it (Lua may run one more frame) is refused with
-`The engine has shut down.` rather than run. The app
+`The engine has shut down.` rather than run (a view, whose reply has one
+shape, comes back as the empty view with those words). The app
 sets no update callback; Lua's `update()` runs everything. Everything a
 person sees is Lua; `Source/engine.lua` is the one place the registered
 functions are called.

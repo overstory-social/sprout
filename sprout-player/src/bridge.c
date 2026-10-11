@@ -24,6 +24,11 @@ static int reply(const char *json) {
  */
 #define SHUT_DOWN "{\"ok\":false,\"reason\":\"The engine has shut down.\",\"words\":\"The engine has shut down.\"}"
 
+/* The same for a view, whose reply has one shape: nowhere, with nothing in it, and the words. */
+#define SHUT_DOWN_VIEW                                                                                   \
+  "{\"place\":{\"id\":\"\",\"name\":\"\"},\"description\":[],\"effects\":[],\"exits\":[],\"occupants\":[]," \
+  "\"carried\":[],\"chips\":[],\"faulted\":false,\"words\":\"The engine has shut down.\"}"
+
 /* Refuses the call when there is no session; otherwise the call's own reply. */
 #define ANSWER(call) return reply(session == NULL ? SHUT_DOWN : (call))
 
@@ -49,7 +54,7 @@ static int lua_admit(lua_State *L) {
 
 static int lua_view(lua_State *L) {
   (void)L;
-  ANSWER(player_view(session));
+  return reply(session == NULL ? SHUT_DOWN_VIEW : player_view(session));
 }
 
 static int lua_turn(lua_State *L) {

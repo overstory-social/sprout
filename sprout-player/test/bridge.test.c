@@ -59,7 +59,9 @@ static void the_player_shutting_down_puts_a_visitor_away_and_saves_and_refuses_w
   }
   /* The Lua side may still run a frame after the system's terminate: a call then is refused, not run. */
   CHECK(HAS(call("sprout.tick", NULL), "\"ok\":false,\"reason\":\"The engine has shut down.\""), "a tick after shutdown is refused");
-  CHECK(HAS(call("sprout.view", NULL), "The engine has shut down."), "a view after shutdown is refused");
+  CHECK(HAS(call("sprout.view", NULL), "\"place\":{\"id\":\"\",\"name\":\"\"}") && HAS(call("sprout.view", NULL), "\"occupants\":[]") &&
+            HAS(call("sprout.view", NULL), "\"words\":\"The engine has shut down.\""),
+        "a view after shutdown is the empty view, in its own shape, with the words");
   CHECK(HAS(call("sprout.open", "chip-tree.sproutworld"), "The engine has shut down."), "an open after shutdown is refused");
   fake->function_count = 0;
   CHECK(player_register(&fake->api), "and the player can start again");
