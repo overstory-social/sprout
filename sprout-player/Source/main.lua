@@ -63,7 +63,7 @@ local images = nil -- its pictures
 local gallery = nil -- the pictures the last turn showed, while they are looked at
 local notice = nil -- what opening the world has to tell the visitor before they come in
 local downloads = nil -- the download screen, made the first time it is opened
-local mode = "shelf" -- shelf, downloads, nickname, reader, picture, sentence, message
+local mode = "shelf" -- shelf, downloads, loading, nickname, reader, picture, sentence, message
 local message = nil
 local backTo = "shelf"
 
@@ -153,13 +153,10 @@ local function stopForSave(path)
   showMessage(SAVE_FAILED, "shelf")
 end
 
-local function openWorld(entry)
-  local opening = engine:open(entry.path)
-  if not opening.ok then
-    entry.ok, entry.reason = false, opening.reason
-    showMessage(opening.reason, "shelf")
-    return
-  end
+local loading = nil -- the entry being opened and how far it is: { entry, read, counted }
+
+-- The world is open: its save is read and the nickname picker shown.
+local function finishOpen(entry, words)
   local loaded = engine:load()
   if not loaded.ok then
     engine:close()
@@ -179,9 +176,46 @@ local function openWorld(entry)
   images = Images.new(gfx, pd.file, entry.path)
   notice = loaded.words ~= "" and loaded.words or nil
   clock = Clock.new(loaded.last)
-  local candidates = Nickname.available(Nickname.POOL, opening.words, loaded.present)
+  local candidates = Nickname.available(Nickname.POOL, words, loaded.present)
   picker = Nickname.new(candidates, loaded.nickname)
   mode = "nickname"
+end
+
+-- Reads on a little of the world being opened: a big world takes many frames, each answering the
+-- system in time, behind the loading line.
+local function stepLoading()
+  local step = engine:step()
+  if not step.ok then
+    local entry = loading.entry
+    loading = nil
+    entry.ok, entry.reason = false, step.reason
+    showMessage(step.reason, "shelf")
+    return
+  end
+  loading.read, loading.counted = step.read, step.counted
+  if step.done then
+    local entry = loading.entry
+    loading = nil
+    finishOpen(entry, step.words)
+  end
+end
+
+local function openWorld(entry)
+  local opening = engine:open(entry.path)
+  if not opening.ok then
+    entry.ok, entry.reason = false, opening.reason
+    showMessage(opening.reason, "shelf")
+    return
+  end
+  loading = { entry = entry, read = 0, counted = 0 }
+  mode = "loading"
+  stepLoading()
+end
+
+local function drawLoading()
+  local share = loading.counted > 0 and math.floor(loading.read * 100 / loading.counted) or 0
+  gfx.drawText("Loading " .. loading.entry.title .. "... " .. share .. "%", MARGIN, 0)
+  gfx.drawLine(MARGIN, lineHeight + 4, MARGIN + math.floor((400 - 2 * MARGIN) * share / 100), lineHeight + 4)
 end
 
 local function admit()
@@ -541,6 +575,8 @@ function pd.update()
     updateShelf()
   elseif mode == "downloads" then
     updateDownloads()
+  elseif mode == "loading" then
+    stepLoading()
   elseif mode == "nickname" then
     updateNickname()
   elseif mode == "reader" then
@@ -556,6 +592,8 @@ function pd.update()
     drawShelf()
   elseif mode == "downloads" then
     drawDownloads()
+  elseif mode == "loading" then
+    drawLoading()
   elseif mode == "nickname" then
     drawNickname()
   elseif mode == "reader" then

@@ -58,6 +58,9 @@ sprout_status cat_build_typed_phrases(loader *l);
 /* A phrase's text, which the cartridge writes as the tokeniser reads a typed line, cut at its single spaces. */
 sprout_status cat_typed_words(loader *l, const char *text, size_t *count, const char ***words);
 
+/* Fills only `world->header` and `world->caps` from the cartridge's JSON, for a peek. */
+sprout_status sprout_catalogue_peek(sprout_world *world, const sprout_json *root, char *error, size_t capacity);
+
 /*
  * Fills `world` from the cartridge's JSON, whose graph is already read into world->graph. What the
  * load alone needs (its caches by entry) is taken from `scratch`, which the caller resets afterwards.

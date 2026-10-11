@@ -5,6 +5,14 @@
 
 local test, equal, same = harness.test, harness.equal, harness.same
 
+local function count(calls, prefix)
+  local n = 0
+  for _, one in ipairs(calls) do
+    if one:sub(1, #prefix) == prefix then n = n + 1 end
+  end
+  return n
+end
+
 local function run(scenario, options)
   options = options or {}
   -- the Playdate
@@ -69,7 +77,14 @@ local function run(scenario, options)
   local view = fixture(options.view or "chip-tree.view.json")
   _G.sprout = {
     inspect = function(path) calls[#calls + 1] = "inspect " .. path; return '{"ok":true,"name":"chip_tree","reason":null}' end,
-    open = function() return '{"ok":true,"name":"chip_tree","hash":"abc","words":["guard","hall"]}' end,
+    open = function() calls[#calls + 1] = "open"; return '{"ok":true,"name":"chip_tree","hash":"abc","reason":null}' end,
+    step = function()
+      calls[#calls + 1] = "step"
+      if options.steps ~= nil and count(calls, "step") < options.steps then
+        return '{"ok":true,"done":false,"read":' .. (count(calls, "step") * 10) .. ',"counted":' .. (options.steps * 10) .. '}'
+      end
+      return '{"ok":true,"done":true,"read":30,"counted":30,"words":["guard","hall"]}'
+    end,
     load = function() return '{"ok":true,"fresh":true,"nickname":null,"present":[],"last":0,"recovered":false,"words":""}' end,
     admit = function(name)
       calls[#calls + 1] = "admit " .. name
@@ -121,13 +136,18 @@ local function run(scenario, options)
   scenario(session)
 end
 
-local function count(calls, prefix)
-  local n = 0
-  for _, one in ipairs(calls) do
-    if one:sub(1, #prefix) == prefix then n = n + 1 end
-  end
-  return n
-end
+
+test("a big world is read a step a frame behind a loading line, and then the name is picked", function()
+  run(function(play)
+    play.frame()
+    play.frame("A")
+    equal(play.shows("Loading Chip Tree... 33%"), true, "the first step was taken as A was pressed")
+    play.frame()
+    equal(play.shows("Loading Chip Tree... 66%"), true, "a step a frame")
+    play.frame()
+    equal(play.shows("Who are you in Chip Tree?"), true, "the world is open once the last step is done")
+  end, { steps = 3 })
+end)
 
 test("the shelf lists the cartridge, A opens it, a name is picked, and the reader opens", function()
   run(function(play)
