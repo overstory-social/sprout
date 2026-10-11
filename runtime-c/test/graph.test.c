@@ -190,6 +190,36 @@ static void the_graph_is_read_an_entry_at_a_time_and_its_files_checked_at_the_en
   CHECK_INT(heap.pages, 0);
 }
 
+static void objects_with_the_same_fields_in_the_same_order_share_one_key_array(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  sprout_graph graph;
+  char error[200], rest[4096];
+  size_t at = 0, i;
+  sprout_arena_init(&arena, &host);
+  /* 40 shapes, each twice, so the shape table grows past its first 64 slots while it reads. */
+  at += (size_t)sprintf(rest + at, "[{\"o\":{\"kind\":\"a\",\"x\":1}},{\"o\":{\"kind\":\"b\",\"x\":2}},{\"o\":{\"x\":3,\"kind\":\"c\"}},{\"o\":{\"kind\":\"d\"}}");
+  for (i = 0; i < 80; i++) at += (size_t)sprintf(rest + at, ",{\"o\":{\"k%u\":%u}}", (unsigned)(i % 40), (unsigned)i);
+  at += (size_t)sprintf(rest + at, "]");
+  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", rest, &graph, error), SPROUT_OK);
+  CHECK(graph.entries[0].keys == graph.entries[1].keys);
+  CHECK(graph.entries[2].keys != graph.entries[0].keys);
+  CHECK(graph.entries[3].keys != graph.entries[0].keys);
+  CHECK_STR(sprout_node_text(&graph.entries[2], "kind"), "c");
+  CHECK(sprout_node_get(&graph.entries[1], "x")->number == 2);
+  CHECK(sprout_node_get(&graph.entries[3], "x") == NULL);
+  for (i = 0; i < 40; i++) {
+    char key[8];
+    sprintf(key, "k%u", (unsigned)i);
+    CHECK(graph.entries[4 + i].keys == graph.entries[44 + i].keys);
+    CHECK(sprout_node_get(&graph.entries[44 + i], key)->number == (double)(i + 40));
+  }
+  CHECK(graph.entries[4].keys != graph.entries[5].keys);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_host_that_runs_out_of_memory_is_told_so(void) {
   long pages;
   for (pages = 0; pages < 8; pages++) {
@@ -216,6 +246,7 @@ int main(void) {
   RUN(equal_scalars_are_one_node_and_nothing_points_at_the_json);
   RUN(a_place_past_what_a_node_holds_is_refused);
   RUN(the_graph_is_read_an_entry_at_a_time_and_its_files_checked_at_the_end);
+  RUN(objects_with_the_same_fields_in_the_same_order_share_one_key_array);
   RUN(a_host_that_runs_out_of_memory_is_told_so);
   return REPORT();
 }
