@@ -9,6 +9,7 @@ import {
   generateSkill,
   loadCartridge,
   Draws,
+  CARTRIDGE_FORMAT,
   readCartridgeHeader,
   SEED_MAX,
 } from '@overstory/sprout/lang';
@@ -402,7 +403,7 @@ describe('main', () => {
     expect(main(['pack', dir, '-o', file], packed)).toBe(0);
     expect(packed.out()).toMatch(new RegExp(`^packed lane into ${file}: \\d+ bytes\\n$`));
     const bytes = readFileSync(file);
-    expect(readCartridgeHeader(bytes)).toMatchObject({ format: 1 });
+    expect(readCartridgeHeader(bytes)).toMatchObject({ format: CARTRIDGE_FORMAT });
     expect(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }).declared.size).toBeGreaterThan(0);
 
     const script = join(dir, 'tests', 'walk.json');
