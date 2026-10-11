@@ -21,8 +21,8 @@ import { writeGraph, type Entry, type Rewrite } from './cartridge-graph.js';
 /** The four bytes every cartridge begins with. */
 export const CARTRIDGE_MAGIC = 'SPRT';
 
-/** The layout of the file this code writes and reads; raised only when the layout changes. */
-export const CARTRIDGE_FORMAT = 1;
+/** The layout of the file this code writes and reads; raised only when the layout changes, and only the current one is read. */
+export const CARTRIDGE_FORMAT = 2;
 
 /** The bytes before the compressed JSON. */
 export const CARTRIDGE_HEADER_BYTES = 16;
@@ -53,8 +53,8 @@ function headerBytes(level: number): Uint8Array {
 
 /**
  * What the first sixteen bytes of `bytes` say, refusing a file that is not
- * a cartridge, one of a format newer than this reads, and one written for
- * a language level newer than this compiler's.
+ * a cartridge, one of a format other than the one this reads, and one
+ * written for a language level newer than this compiler's.
  */
 export function readCartridgeHeader(bytes: Uint8Array): CartridgeHeader {
   if (
@@ -76,6 +76,11 @@ export function readCartridgeHeader(bytes: Uint8Array): CartridgeHeader {
   if (format < 1) {
     throw new CartridgeUnreadable(
       `This cartridge says it is format version ${format}, and versions begin at 1. It is damaged.`,
+    );
+  }
+  if (format < CARTRIDGE_FORMAT) {
+    throw new CartridgeUnreadable(
+      `This cartridge is format version ${format}, and this runtime reads version ${CARTRIDGE_FORMAT}. Pack the world again with \`sprout pack\`.`,
     );
   }
   if (level > LANGUAGE_LEVEL) {
@@ -222,6 +227,11 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
       hash: bundle.hash,
       files: [...manifest.files],
       libraries: manifest.libraries.map(({ name, version, sha }) => ({ name, version, sha })),
+      counts: {
+        prose: tables.prose.length,
+        bodies: tables.bodies.length,
+        table: tables.rest.length,
+      },
     },
     kinds: {
       all: roots['kinds']!,

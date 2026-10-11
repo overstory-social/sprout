@@ -64,13 +64,16 @@ the layout is hole 462.
 
 - **Header, 16 bytes.** `SPRT`, the format version and the language level as
   little-endian 16-bit numbers, eight reserved zeros. The format is the
-  layout of the file and moves only when the layout does; the level is the
-  spec's _Language levels_. A reader refuses a format or level newer than
-  it reads, naming the number.
+  layout of the file and moves only when the layout does (it is 2: the body's
+  `header` gained the entry counts); the level is the spec's _Language
+  levels_. A reader refuses a format other than the one it reads, or a level
+  newer than it reads, naming the number and `sprout pack`.
 - **Body.** Gzip-compressed JSON held to one schema
   (`bundle/cartridge-schema.ts`) shared by the writer and the reader. Its
   sections: `header` (name, namespace, version, author, license, the highest
-  language level, the bundle hash, the files and libraries), `kinds`, `tree`
+  language level, the bundle hash, the files and libraries, and `counts`, how
+  many entries each run of the table holds, so a reader can place them all
+  before it reads one), `kinds`, `tree`
   (what the world declares to be where, and where visitors arrive), `verbs`,
   `grammar` (scoped phrases, intents and the word set a nickname is admitted
   against; every phrase's and every exit's and link's label carries its typed
@@ -115,8 +118,11 @@ does, one `.c` file and one `.test.c` per module:
   `lists.c`, `json.c` (a reader into an arena with no recursion, a
   canonical writer), `draws.c` (the seeded draws), `budget.c` (the meter),
   `inflate.c` (gzip).
-- **Loading.** `graph.c`, `load.c`, `catalogue*.c` read a cartridge into a
-  catalogue; `stored*.c` read, check and write the stored world;
+- **Loading.** `load.c` reads a cartridge as a stream: `stream.c` walks the
+  body's JSON text over `inflate.c` a buffer at a time, the small sections are
+  read as trees into the load's scratch and the table's entries one at a time
+  into `graph.c`, and `catalogue*.c` build the catalogue from them, so the body
+  is never whole in memory; `stored*.c` read, check and write the stored world;
   `state.c` reconciles a store with a world; `draft.c` is the one-turn
   copy-on-write layer.
 - **Evaluating.** `eval.c` and `expr/` (the expression kinds), `exec.c` and
@@ -149,8 +155,9 @@ still takes the visitor out and a faulted wake is consumed (hole 499).
 **Memory.** Every allocation comes from the host's `alloc`, in pages of the
 host's size. A turn's arena is dropped whole at its end, and dropping it
 drops the draft. The Playdate host gives it `system->realloc` and a 32 KB
-page. A loaded world is its graph and catalogue alone: the JSON a cartridge
-is read from is scratch, released once the catalogue is built, and the
+page. A loaded world is its graph and catalogue alone: the body is read as
+a stream, an entry at a time, into scratch that is released as it goes, so a
+load's peak is about the loaded world itself, and the
 graph's nodes are small (a union for the payload, 32 bytes on a 64-bit host
 and 20 on the console) with every distinct scalar cell and field name held
 once, so a word the table writes a thousand times is one node.

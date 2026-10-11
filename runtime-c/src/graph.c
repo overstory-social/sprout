@@ -4,26 +4,15 @@
  * so a reference may point forward or back, and a shared entry is one node.
  * Scalar cells and field names are interned: a table in the load's scratch
  * finds the node already made for an equal value, so a word the table writes
- * a thousand times is one node and one copy of its text.
+ * a thousand times is one node and one copy of its text. The reader fills one
+ * entry at a time, so a loader may read the entries from a stream.
  */
 #include "graph.h"
 
 #include <string.h>
 
-/* The interning table: open addressing over node pointers, grown by doubling. */
-typedef struct intern {
-  const sprout_node **slots;
-  size_t capacity, used;
-} intern;
-
-typedef struct reader {
-  sprout_arena *arena;
-  sprout_arena *scratch;
-  sprout_graph *graph;
-  intern table;
-  char *error;
-  size_t capacity;
-} reader;
+typedef sprout_graph_reader reader;
+typedef sprout_intern intern;
 
 static sprout_status refuse(reader *r, const char *words) {
   size_t n = strlen(words);
@@ -186,14 +175,11 @@ static const sprout_node *resolve(reader *r, const sprout_json *cell, sprout_sta
       file = p->items[0]->number;
       line = p->items[1]->number;
       column = p->items[2]->number;
-      if (file >= (double)r->graph->file_count) {
-        *status = refuse(r, "the cartridge names a file it does not list.");
-        return NULL;
-      }
-      if (file < -1 || line < 0 || line > INT32_MAX || column < 0 || column > UINT16_MAX) {
+      if (file < -1 || file > INT16_MAX || line < 0 || line > INT32_MAX || column < 0 || column > UINT16_MAX) {
         *status = refuse(r, "a line of the source is longer than 65,535 characters, which a cartridge cannot place.");
         return NULL;
       }
+      if ((long)file > r->max_file) r->max_file = (long)file;
       probe.kind = SPROUT_NODE_PLACE;
       probe.file = (int16_t)file;
       probe.line = (int32_t)line;
@@ -277,62 +263,88 @@ static void scalar(sprout_node *node, sprout_node_kind kind) {
   node->index = SPROUT_NOT_AN_ENTRY;
 }
 
-sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, const sprout_json *files,
-                                const sprout_json *prose, const sprout_json *bodies,
-                                const sprout_json *rest, sprout_graph *graph, char *error,
-                                size_t error_capacity) {
-  reader r;
-  const sprout_json *runs[3];
-  size_t total = 0, at = 0, i, run;
-  sprout_status status;
-  memset(&r, 0, sizeof r);
-  r.arena = arena;
-  r.scratch = scratch;
-  r.graph = graph;
-  r.error = error;
-  r.capacity = error_capacity;
-
+sprout_status sprout_graph_begin(sprout_graph_reader *r, sprout_graph *graph, sprout_arena *arena,
+                                 sprout_arena *scratch, size_t prose, size_t bodies, size_t rest,
+                                 char *error, size_t error_capacity) {
+  size_t total = prose + bodies + rest, i;
+  memset(r, 0, sizeof *r);
+  r->arena = arena;
+  r->scratch = scratch;
+  r->graph = graph;
+  r->error = error;
+  r->capacity = error_capacity;
+  r->max_file = -1;
   memset(graph, 0, sizeof *graph);
   scalar(&graph->null_node, SPROUT_NODE_NULL);
   scalar(&graph->true_node, SPROUT_NODE_BOOL);
   graph->true_node.boolean = true;
   scalar(&graph->false_node, SPROUT_NODE_BOOL);
-  runs[0] = prose;
-  runs[1] = bodies;
-  runs[2] = rest;
-  if (files->kind != SPROUT_JSON_ARRAY) return refuse(&r, "the cartridge's list of files is not a list.");
-  for (run = 0; run < 3; run++) {
-    if (runs[run]->kind != SPROUT_JSON_ARRAY) return refuse(&r, "the cartridge's table of entries is not a list.");
-    total += runs[run]->count;
-  }
-  if (total >= SPROUT_NOT_AN_ENTRY) return refuse(&r, "the cartridge holds more entries than a graph does.");
-  if (files->count > INT16_MAX)
-    return refuse(&r, "the world has more than 32,767 files, which a cartridge cannot place.");
-  graph->file_count = files->count;
-  if (files->count > 0) {
-    graph->files = (const char **)sprout_arena_take(arena, files->count * sizeof(char *));
-    if (graph->files == NULL) return SPROUT_NO_MEMORY;
-  }
-  for (i = 0; i < files->count; i++) {
-    const sprout_node *name;
-    if (files->items[i]->kind != SPROUT_JSON_STRING)
-      return refuse(&r, "the cartridge's list of files holds something that is not a name.");
-    name = interned_string(&r, files->items[i]->bytes, files->items[i]->length, &status);
-    if (status != SPROUT_OK) return status;
-    graph->files[i] = name->text;
-  }
+  if (total < prose || total < bodies || total >= SPROUT_NOT_AN_ENTRY)
+    return refuse(r, "the cartridge counts more entries than a graph holds.");
   graph->count = total;
   graph->entries = (sprout_node *)sprout_arena_take(arena, (total == 0 ? 1 : total) * sizeof(sprout_node));
   if (graph->entries == NULL) return SPROUT_NO_MEMORY;
   memset(graph->entries, 0, (total == 0 ? 1 : total) * sizeof(sprout_node));
   for (i = 0; i < total; i++) graph->entries[i].index = (uint32_t)i;
+  return SPROUT_OK;
+}
+
+sprout_status sprout_graph_fill(sprout_graph_reader *r, const sprout_json *entry) {
+  if (r->filled >= r->graph->count) return refuse(r, "the cartridge holds more entries than its header counts.");
+  return fill(r, &r->graph->entries[r->filled++], entry);
+}
+
+sprout_status sprout_graph_end(sprout_graph_reader *r, const sprout_json *files) {
+  sprout_graph *graph = r->graph;
+  sprout_status status;
+  size_t i;
+  if (r->filled < graph->count) return refuse(r, "the cartridge holds fewer entries than its header counts.");
+  if (files == NULL || files->kind != SPROUT_JSON_ARRAY) return refuse(r, "the cartridge's list of files is not a list.");
+  if (files->count > INT16_MAX) return refuse(r, "the world has more than 32,767 files, which a cartridge cannot place.");
+  if (r->max_file >= (long)files->count) return refuse(r, "the cartridge names a file it does not list.");
+  graph->file_count = files->count;
+  if (files->count > 0) {
+    graph->files = (const char **)sprout_arena_take(r->arena, files->count * sizeof(char *));
+    if (graph->files == NULL) return SPROUT_NO_MEMORY;
+  }
+  for (i = 0; i < files->count; i++) {
+    const sprout_node *name;
+    if (files->items[i]->kind != SPROUT_JSON_STRING)
+      return refuse(r, "the cartridge's list of files holds something that is not a name.");
+    name = interned_string(r, files->items[i]->bytes, files->items[i]->length, &status);
+    if (status != SPROUT_OK) return status;
+    graph->files[i] = name->text;
+  }
+  return SPROUT_OK;
+}
+
+sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, const sprout_json *files,
+                                const sprout_json *prose, const sprout_json *bodies,
+                                const sprout_json *rest, sprout_graph *graph, char *error,
+                                size_t error_capacity) {
+  sprout_graph_reader r;
+  const sprout_json *runs[3];
+  size_t i, run;
+  sprout_status status;
+  runs[0] = prose;
+  runs[1] = bodies;
+  runs[2] = rest;
+  memset(&r, 0, sizeof r);
+  r.error = error;
+  r.capacity = error_capacity;
+  if (files->kind != SPROUT_JSON_ARRAY) return refuse(&r, "the cartridge's list of files is not a list.");
+  for (run = 0; run < 3; run++)
+    if (runs[run]->kind != SPROUT_JSON_ARRAY) return refuse(&r, "the cartridge's table of entries is not a list.");
+  status = sprout_graph_begin(&r, graph, arena, scratch, prose->count, bodies->count, rest->count, error,
+                              error_capacity);
+  if (status != SPROUT_OK) return status;
   for (run = 0; run < 3; run++) {
-    for (i = 0; i < runs[run]->count; i++, at++) {
-      status = fill(&r, &graph->entries[at], runs[run]->items[i]);
+    for (i = 0; i < runs[run]->count; i++) {
+      status = sprout_graph_fill(&r, runs[run]->items[i]);
       if (status != SPROUT_OK) return status;
     }
   }
-  return SPROUT_OK;
+  return sprout_graph_end(&r, files);
 }
 
 const sprout_node *sprout_graph_cell(const sprout_graph *graph, const sprout_json *cell) {

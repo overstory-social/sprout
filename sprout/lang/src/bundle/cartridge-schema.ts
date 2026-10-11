@@ -62,6 +62,8 @@ const HeaderSchema = z.strictObject({
   files: z.array(z.string()),
   /** The libraries it was linked with, by name, version and the hash of the source linked; the source itself does not travel. */
   libraries: z.array(z.strictObject({ name: z.string(), version: z.string(), sha: z.string() })),
+  /** How many entries each run of the table holds, so a reader can place them all before it reads one. */
+  counts: z.strictObject({ prose: Count, bodies: Count, table: Count }),
 });
 
 /** The sections of a cartridge's JSON. */

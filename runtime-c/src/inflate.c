@@ -1,9 +1,11 @@
 /*
- * Inflate (RFC 1951) and the gzip member around it (RFC 1952). The output is
- * sized from the trailer's ISIZE and every write is bounds-checked against
- * it, so a stream that lies about its length is refused rather than
- * overrun. Huffman decoding is the canonical count-and-symbol walk: no
- * tables beyond the code lengths.
+ * Inflate (RFC 1951) and the gzip member around it (RFC 1952). The decoder
+ * is a small state machine (between blocks, in a stored block, in a coded
+ * block, at the end) so it can stop when the caller's buffer is full and go
+ * on from there; every byte it gives is counted against the trailer's ISIZE,
+ * so a stream that lies about its length is refused rather than overrun.
+ * Huffman decoding is the canonical count-and-symbol walk: no tables beyond
+ * the code lengths.
  */
 #include "inflate.h"
 
@@ -26,22 +28,8 @@ static const unsigned char DISTANCE_EXTRA[30] = {0, 0, 0, 0, 1, 1, 2, 2,  3,  3,
 static const unsigned char CODE_LENGTH_ORDER[19] = {16, 17, 18, 0, 8,  7, 9,  6, 10, 5,
                                                     11, 4,  12, 3, 13, 2, 14, 1, 15};
 
-typedef struct huffman {
-  unsigned short count[MAX_BITS + 1];
-  unsigned short symbol[LITERAL_CODES];
-} huffman;
 
-typedef struct inflater {
-  const unsigned char *in;
-  size_t in_length;
-  size_t in_at;
-  unsigned long bit_buffer;
-  int bit_count;
-  unsigned char *out;
-  size_t out_length;
-  size_t out_at;
-  const char *why;
-} inflater;
+enum { BLOCK, STORED, CODES, END, DONE };
 
 uint32_t sprout_crc32(uint32_t crc, const unsigned char *bytes, size_t length) {
   uint32_t table[256];
@@ -57,13 +45,13 @@ uint32_t sprout_crc32(uint32_t crc, const unsigned char *bytes, size_t length) {
   return ~crc;
 }
 
-static long refuse(inflater *s, const char *why) {
+static long refuse(sprout_inflater *s, const char *why) {
   if (s->why == NULL) s->why = why;
   return -1;
 }
 
 /* The next `need` bits, least significant first; -1 when the stream ends. */
-static long bits(inflater *s, int need) {
+static long bits(sprout_inflater *s, int need) {
   long value;
   while (s->bit_count < need) {
     if (s->in_at >= s->in_length) return refuse(s, "the compressed data ends early");
@@ -77,7 +65,7 @@ static long bits(inflater *s, int need) {
 }
 
 /* Builds a canonical code from lengths; the number of unused codes, negative when over-subscribed. */
-static int construct(huffman *h, const unsigned short *lengths, int n) {
+static int construct(sprout_huffman *h, const unsigned short *lengths, int n) {
   int len, left, symbol;
   unsigned short offsets[MAX_BITS + 1];
   for (len = 0; len <= MAX_BITS; len++) h->count[len] = 0;
@@ -97,7 +85,7 @@ static int construct(huffman *h, const unsigned short *lengths, int n) {
   return left;
 }
 
-static int decode(inflater *s, const huffman *h) {
+static int decode(sprout_inflater *s, const sprout_huffman *h) {
   int code = 0, first = 0, index = 0, len;
   for (len = 1; len <= MAX_BITS; len++) {
     long bit = bits(s, 1);
@@ -114,60 +102,22 @@ static int decode(inflater *s, const huffman *h) {
   return (int)refuse(s, "the compressed data holds a code that is not in its table");
 }
 
-static int codes(inflater *s, const huffman *lit, const huffman *dist) {
-  for (;;) {
-    int symbol = decode(s, lit);
-    if (symbol < 0) return -1;
-    if (symbol < 256) {
-      if (s->out_at >= s->out_length)
-        return (int)refuse(s, "the compressed data is longer than it says");
-      s->out[s->out_at++] = (unsigned char)symbol;
-    } else if (symbol == 256) {
-      return 0;
-    } else {
-      long extra, length, distance;
-      int d;
-      symbol -= 257;
-      if (symbol >= 29)
-        return (int)refuse(s, "the compressed data holds a length that does not exist");
-      extra = bits(s, LENGTH_EXTRA[symbol]);
-      if (extra < 0) return -1;
-      length = LENGTH_BASE[symbol] + extra;
-      d = decode(s, dist);
-      if (d < 0) return -1;
-      if (d >= DISTANCE_CODES)
-        return (int)refuse(s, "the compressed data holds a distance that does not exist");
-      extra = bits(s, DISTANCE_EXTRA[d]);
-      if (extra < 0) return -1;
-      distance = DISTANCE_BASE[d] + extra;
-      if ((size_t)distance > s->out_at)
-        return (int)refuse(s, "the compressed data reaches back before its start");
-      if (s->out_at + (size_t)length > s->out_length)
-        return (int)refuse(s, "the compressed data is longer than it says");
-      while (length-- > 0) {
-        s->out[s->out_at] = s->out[s->out_at - (size_t)distance];
-        s->out_at++;
-      }
-    }
-  }
-}
-
-static int fixed_block(inflater *s) {
-  huffman lit, dist;
+/* The fixed block's tables, into the inflater's. */
+static void fixed_tables(sprout_inflater *s) {
   unsigned short lengths[LITERAL_CODES];
   int i;
   for (i = 0; i < 144; i++) lengths[i] = 8;
   for (; i < 256; i++) lengths[i] = 9;
   for (; i < 280; i++) lengths[i] = 7;
   for (; i < LITERAL_CODES; i++) lengths[i] = 8;
-  construct(&lit, lengths, LITERAL_CODES);
+  construct(&s->lit, lengths, LITERAL_CODES);
   for (i = 0; i < DISTANCE_CODES; i++) lengths[i] = 5;
-  construct(&dist, lengths, DISTANCE_CODES);
-  return codes(s, &lit, &dist);
+  construct(&s->dist, lengths, DISTANCE_CODES);
 }
 
-static int dynamic_block(inflater *s) {
-  huffman lengths_code, lit, dist;
+/* Reads a dynamic block's tables into the inflater's. */
+static int dynamic_tables(sprout_inflater *s) {
+  sprout_huffman lengths_code;
   unsigned short lengths[LITERAL_CODES + DISTANCE_CODES];
   long nlen, ndist, ncode;
   int index, status;
@@ -219,32 +169,52 @@ static int dynamic_block(inflater *s) {
     }
   }
   if (lengths[256] == 0) return (int)refuse(s, "the compressed data has no end-of-block code");
-  status = construct(&lit, lengths, (int)nlen);
-  if (status < 0 || (status > 0 && nlen - lit.count[0] != 1))
+  status = construct(&s->lit, lengths, (int)nlen);
+  if (status < 0 || (status > 0 && nlen - s->lit.count[0] != 1))
     return (int)refuse(s, "the compressed data holds an unusable table of literal codes");
-  status = construct(&dist, lengths + nlen, (int)ndist);
-  if (status < 0 || (status > 0 && ndist - dist.count[0] != 1))
+  status = construct(&s->dist, lengths + nlen, (int)ndist);
+  if (status < 0 || (status > 0 && ndist - s->dist.count[0] != 1))
     return (int)refuse(s, "the compressed data holds an unusable table of distance codes");
-  return codes(s, &lit, &dist);
+  return 0;
 }
 
-static int stored_block(inflater *s) {
-  unsigned len, nlen;
-  s->bit_buffer = 0;
-  s->bit_count = 0;
-  if (s->in_at + 4 > s->in_length) return (int)refuse(s, "the compressed data ends early");
-  len = s->in[s->in_at] | ((unsigned)s->in[s->in_at + 1] << 8);
-  nlen = s->in[s->in_at + 2] | ((unsigned)s->in[s->in_at + 3] << 8);
-  s->in_at += 4;
-  if (len != (~nlen & 0xFFFFu))
-    return (int)refuse(s, "a stored block's length does not match its check");
-  if (s->in_at + len > s->in_length) return (int)refuse(s, "the compressed data ends early");
-  if (s->out_at + len > s->out_length)
-    return (int)refuse(s, "the compressed data is longer than it says");
-  memcpy(s->out + s->out_at, s->in + s->in_at, len);
-  s->in_at += len;
-  s->out_at += len;
+
+/* Reads a block's header and readies the decoder for its bytes. */
+static int begin_block(sprout_inflater *s) {
+  long last = bits(s, 1);
+  long kind = bits(s, 2);
+  if (last < 0 || kind < 0) return -1;
+  s->last = last != 0;
+  if (kind == 0) {
+    unsigned len, nlen;
+    s->bit_buffer = 0;
+    s->bit_count = 0;
+    if (s->in_at + 4 > s->in_length) return (int)refuse(s, "the compressed data ends early");
+    len = s->in[s->in_at] | ((unsigned)s->in[s->in_at + 1] << 8);
+    nlen = s->in[s->in_at + 2] | ((unsigned)s->in[s->in_at + 3] << 8);
+    s->in_at += 4;
+    if (len != (~nlen & 0xFFFFu)) return (int)refuse(s, "a stored block's length does not match its check");
+    s->stored_left = len;
+    s->state = STORED;
+    return 0;
+  }
+  if (kind == 1) {
+    fixed_tables(s);
+  } else if (kind == 2) {
+    if (dynamic_tables(s) < 0) return -1;
+  } else {
+    return (int)refuse(s, "the compressed data holds a block of a kind that does not exist");
+  }
+  s->state = CODES;
   return 0;
+}
+
+/* One byte out: to the caller, into the window, and through the checksum. */
+static void put(sprout_inflater *s, unsigned char *out, size_t *produced, unsigned char byte) {
+  out[(*produced)++] = byte;
+  s->window[s->total & (SPROUT_INFLATE_WINDOW - 1)] = byte;
+  s->total++;
+  s->crc = s->crc_table[(s->crc ^ byte) & 0xFFu] ^ (s->crc >> 8);
 }
 
 static uint32_t le32(const unsigned char *p) {
@@ -293,65 +263,160 @@ static size_t header_end(const unsigned char *b, size_t n, const char **why) {
   return at;
 }
 
-sprout_status sprout_gunzip(sprout_arena *arena, const unsigned char *bytes, size_t length,
-                            char **out, size_t *out_length, const char **why) {
-  inflater s;
-  size_t start, isize;
-  int last;
+
+sprout_status sprout_inflate_begin(sprout_inflater *s, const unsigned char *bytes, size_t length,
+                                   const char **why) {
   const char *reason = NULL;
-  *out = NULL;
-  *out_length = 0;
+  size_t start = header_end(bytes, length, &reason);
+  uint32_t n;
   *why = NULL;
-  start = header_end(bytes, length, &reason);
   if (start == 0) {
     *why = reason;
     return SPROUT_BAD_INPUT;
   }
-  isize = le32(bytes + length - 4);
+  memset(s, 0, sizeof *s);
+  s->size_said = le32(bytes + length - 4);
   /* Deflate cannot expand more than 1032 to 1, so a longer ISIZE is a damaged trailer, not a size to reserve. */
-  if (isize / 1032u > length) {
+  if (s->size_said / 1032u > length) {
     *why = "the gzip trailer gives a length that data this small cannot expand to";
     return SPROUT_BAD_INPUT;
   }
-  memset(&s, 0, sizeof s);
-  s.in = bytes;
-  s.in_length = length - 8;
-  s.in_at = start;
-  s.out_length = isize;
-  s.out = (unsigned char *)sprout_arena_take(arena, isize + 1);
-  if (s.out == NULL) return SPROUT_NO_MEMORY;
-  do {
-    long kind;
-    int status;
-    last = (int)bits(&s, 1);
-    kind = bits(&s, 2);
-    if (last < 0 || kind < 0) {
-      last = -1;
+  s->crc_said = le32(bytes + length - 8);
+  s->in = bytes;
+  s->in_length = length - 8;
+  s->in_at = start;
+  s->state = BLOCK;
+  s->crc = 0xFFFFFFFFu;
+  for (n = 0; n < 256; n++) {
+    uint32_t c = n, k;
+    for (k = 0; k < 8; k++) c = (c & 1u) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+    s->crc_table[n] = c;
+  }
+  return SPROUT_OK;
+}
+
+bool sprout_inflate_done(const sprout_inflater *s) { return s->state == DONE; }
+
+sprout_status sprout_inflate_next(sprout_inflater *s, unsigned char *out, size_t cap, size_t *got,
+                                  const char **why) {
+  size_t produced = 0;
+  *got = 0;
+  *why = NULL;
+  for (;;) {
+    if (s->state == DONE) break;
+    if (s->state == END) {
+      if (s->total != s->size_said) {
+        refuse(s, "the compressed data is shorter than it says");
+        break;
+      }
+      if (~s->crc != s->crc_said) {
+        refuse(s, "the compressed data does not match its checksum");
+        break;
+      }
+      s->state = DONE;
       break;
     }
-    if (kind == 0) status = stored_block(&s);
-    else if (kind == 1) status = fixed_block(&s);
-    else if (kind == 2) status = dynamic_block(&s);
-    else status = (int)refuse(&s, "the compressed data holds a block of a kind that does not exist");
-    if (status < 0) {
-      last = -1;
-      break;
+    if (s->state == BLOCK) {
+      if (begin_block(s) < 0) break;
+      continue;
     }
-  } while (!last);
-  if (last < 0) {
-    *why = s.why;
+    if (s->state == STORED && s->stored_left == 0) {
+      s->state = s->last ? END : BLOCK;
+      continue;
+    }
+    if (produced >= cap) break;
+    if (s->state == STORED) {
+      size_t n = s->stored_left < cap - produced ? s->stored_left : cap - produced;
+      size_t i;
+      if (s->in_at + n > s->in_length) {
+        refuse(s, "the compressed data ends early");
+        break;
+      }
+      if (s->total + n > s->size_said) {
+        refuse(s, "the compressed data is longer than it says");
+        break;
+      }
+      for (i = 0; i < n; i++) put(s, out, &produced, s->in[s->in_at + i]);
+      s->in_at += n;
+      s->stored_left -= n;
+      continue;
+    }
+    if (s->copy_left > 0) {
+      put(s, out, &produced, s->window[(s->total - s->copy_distance) & (SPROUT_INFLATE_WINDOW - 1)]);
+      s->copy_left--;
+      continue;
+    }
+    {
+      int symbol = decode(s, &s->lit);
+      if (symbol < 0) break;
+      if (symbol < 256) {
+        if (s->total >= s->size_said) {
+          refuse(s, "the compressed data is longer than it says");
+          break;
+        }
+        put(s, out, &produced, (unsigned char)symbol);
+      } else if (symbol == 256) {
+        s->state = s->last ? END : BLOCK;
+      } else {
+        long extra, length, distance;
+        int d;
+        symbol -= 257;
+        if (symbol >= 29) {
+          refuse(s, "the compressed data holds a length that does not exist");
+          break;
+        }
+        extra = bits(s, LENGTH_EXTRA[symbol]);
+        if (extra < 0) break;
+        length = LENGTH_BASE[symbol] + extra;
+        d = decode(s, &s->dist);
+        if (d < 0) break;
+        if (d >= DISTANCE_CODES) {
+          refuse(s, "the compressed data holds a distance that does not exist");
+          break;
+        }
+        extra = bits(s, DISTANCE_EXTRA[d]);
+        if (extra < 0) break;
+        distance = DISTANCE_BASE[d] + extra;
+        if ((size_t)distance > s->total) {
+          refuse(s, "the compressed data reaches back before its start");
+          break;
+        }
+        if (s->total + (size_t)length > s->size_said) {
+          refuse(s, "the compressed data is longer than it says");
+          break;
+        }
+        s->copy_left = (size_t)length;
+        s->copy_distance = (size_t)distance;
+      }
+    }
+  }
+  *got = produced;
+  if (s->why != NULL) {
+    *why = s->why;
     return SPROUT_BAD_INPUT;
   }
-  if (s.out_at != isize) {
-    *why = "the compressed data is shorter than it says";
-    return SPROUT_BAD_INPUT;
-  }
-  if (sprout_crc32(0, s.out, s.out_at) != le32(bytes + length - 8)) {
-    *why = "the compressed data does not match its checksum";
-    return SPROUT_BAD_INPUT;
-  }
-  s.out[isize] = '\0';
-  *out = (char *)s.out;
-  *out_length = isize;
+  return SPROUT_OK;
+}
+
+sprout_status sprout_gunzip(sprout_arena *arena, const unsigned char *bytes, size_t length,
+                            char **out, size_t *out_length, const char **why) {
+  sprout_inflater *s;
+  unsigned char *text;
+  size_t got;
+  sprout_status status;
+  *out = NULL;
+  *out_length = 0;
+  s = (sprout_inflater *)sprout_arena_take(arena, sizeof *s);
+  if (s == NULL) return SPROUT_NO_MEMORY;
+  status = sprout_inflate_begin(s, bytes, length, why);
+  if (status != SPROUT_OK) return status;
+  text = (unsigned char *)sprout_arena_take(arena, (size_t)s->size_said + 1);
+  if (text == NULL) return SPROUT_NO_MEMORY;
+  /* One more than the trailer says, so a stream that runs long is refused rather than cut. */
+  status = sprout_inflate_next(s, text, (size_t)s->size_said + 1, &got, why);
+  if (status != SPROUT_OK) return status;
+  text[got] = '\0';
+  *out = (char *)text;
+  *out_length = got;
   return SPROUT_OK;
 }

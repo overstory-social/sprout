@@ -48,7 +48,7 @@ describe('the header of a cartridge', () => {
     expect(view.getUint16(4, true)).toBe(CARTRIDGE_FORMAT);
     expect(view.getUint16(6, true)).toBe(BENCH.level);
     expect([...bytes.subarray(8, 16)]).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
-    expect(readCartridgeHeader(bytes)).toEqual({ format: 1, level: BENCH.level });
+    expect(readCartridgeHeader(bytes)).toEqual({ format: CARTRIDGE_FORMAT, level: BENCH.level });
     // Gzip's own magic follows.
     expect([...bytes.subarray(16, 18)]).toEqual([0x1f, 0x8b]);
   });
@@ -62,9 +62,20 @@ describe('the header of a cartridge', () => {
   });
 
   it('refuses a newer language level, naming both numbers', () => {
-    const message = refusal(() => readCartridge(withHeader(bytes, 1, LANGUAGE_LEVEL + 1)));
+    const message = refusal(() =>
+      readCartridge(withHeader(bytes, CARTRIDGE_FORMAT, LANGUAGE_LEVEL + 1)),
+    );
     expect(message).toContain(`language level ${LANGUAGE_LEVEL + 1}`);
     expect(message).toContain(`up to level ${LANGUAGE_LEVEL}`);
+  });
+
+  it('refuses an older format, since only the current layout is read', () => {
+    const message = refusal(() =>
+      readCartridge(withHeader(bytes, CARTRIDGE_FORMAT - 1, BENCH.level)),
+    );
+    expect(message).toBe(
+      `This cartridge is format version ${CARTRIDGE_FORMAT - 1}, and this runtime reads version ${CARTRIDGE_FORMAT}. Pack the world again with \`sprout pack\`.`,
+    );
   });
 
   it('refuses a format of 0, a file that is not a cartridge, and one too short to be', () => {
@@ -107,6 +118,11 @@ describe('the sections of a cartridge', () => {
     expect(cartridge.prose.entries.length).toBeGreaterThan(0);
     expect(cartridge.bodies.entries.length).toBeGreaterThan(0);
     expect(cartridge.table.entries.length).toBeGreaterThan(0);
+    expect(cartridge.header.counts).toEqual({
+      prose: cartridge.prose.entries.length,
+      bodies: cartridge.bodies.entries.length,
+      table: cartridge.table.entries.length,
+    });
     expect(cartridge.caps).toEqual(BENCH.caps);
   });
 
