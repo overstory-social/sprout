@@ -144,7 +144,11 @@ bytes), `emit`, `ctx`, `page_bytes`, and `budgets`, one row for each figure
 in the spec's _Runtime budgets_ table plus the rows the spec leaves to the
 host. An unset row is unbounded. The library holds no figure of its own.
 
-**The calls.** `sprout_load` reads a cartridge; `sprout_state_open`
+**The calls.** `sprout_load` reads a cartridge, and `sprout_load_begin`,
+`sprout_load_step` and `sprout_load_finish` read one across many calls, a
+budget of entries at a time with its progress told, so a host with frames
+to answer reads a big world behind a loading line; `sprout_peek` reads only
+a cartridge's header and caps, cheap however large it is; `sprout_state_open`
 reconciles a store with it; `sprout_run_turn` runs one of the six turn
 kinds (the spec's _Turns_) and returns an outcome; `sprout_view` polls a
 visitor; `sprout_reading_run` submits a reading; `sprout_admit` checks a
@@ -340,14 +344,26 @@ fit 392 by 80 pixels, with its caption under it. A picture a turn shows wins
 over the one the place's description records. The pdx holds a compiled image
 under its name without `.png`.
 
+### Opening a world
+
+Opening a world is `sprout.open`, which reads and checks the cartridge's
+header and caps, and then `sprout.step` once a frame, each reading 2,000
+entries of the table, behind `Loading Underground Caverns... 37%` with a
+bar, until the step that is done brings the world's words and the nickname
+picker follows. The caverns take about seventy steps. A step that fails
+says why on the shelf, as a refused open does.
+
 ### The shelf
 
 The shelf lists the `.sproutworld` files at the root of the app and of its
 Data folder and in each one's `worlds/` folder (a copy in Data shadows the
-app's). Each is inspected once, by file name and size. One the engine
-refuses (a newer language level, a static cap over the app's, a world too
-big for the console's memory, a damaged file) is listed greyed with the
-engine's reason and cannot be opened. A world is titled by its name as
+app's). Each is inspected once, by file name and size, through
+`sprout_peek`: its header and caps alone, so the shelf costs no more for a
+big world than a small one. One the engine refuses (another format, a newer
+language level, a static cap over the app's, a damaged file) is listed
+greyed with the engine's reason and cannot be opened; a world too big for
+the console's memory is refused at its open, with the same words on the
+shelf afterwards. A world is titled by its name as
 words, since a cartridge carries no other title: `printers_shop` is shelved
 as `Printers Shop`, and the picker and the reader's first line call it the
 same. The last row, "more worlds…", opens the download screen.

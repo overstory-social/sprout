@@ -28,6 +28,11 @@ static int lua_open(lua_State *L) {
   return reply(player_open(session, argument(1)));
 }
 
+static int lua_step(lua_State *L) {
+  (void)L;
+  return reply(player_step(session));
+}
+
 static int lua_load(lua_State *L) {
   (void)L;
   return reply(player_load(session));
@@ -80,7 +85,7 @@ typedef struct registered {
 
 bool player_register(PlaydateAPI *pd) {
   static const registered FUNCTIONS[] = {
-      {lua_inspect, "sprout.inspect"}, {lua_open, "sprout.open"}, {lua_load, "sprout.load"},
+      {lua_inspect, "sprout.inspect"}, {lua_open, "sprout.open"}, {lua_step, "sprout.step"}, {lua_load, "sprout.load"},
       {lua_admit, "sprout.admit"},     {lua_view, "sprout.view"}, {lua_turn, "sprout.turn"},
       {lua_tick, "sprout.tick"},       {lua_save, "sprout.save"}, {lua_close, "sprout.close"},
       {lua_verify, "sprout.verify"},   {lua_digest, "sprout.digest"},

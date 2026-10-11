@@ -233,6 +233,15 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
         table: tables.rest.length,
       },
     },
+    // The caps and the extensions come before the big sections, so a reader that wants only
+    // what a shelf shows can stop once it has them.
+    caps: { ...bundle.caps },
+    extensions: bundle.extensions.map(({ name, major }) => {
+      const assets = bundle.assets
+        .filter((asset) => asset.extension === name)
+        .map(({ path, bytes, sha }) => ({ path, bytes, sha }));
+      return assets.length === 0 ? { name, major } : { name, major, assets };
+    }),
     kinds: {
       all: roots['kinds']!,
       world: roots['world']!,
@@ -258,13 +267,6 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
       optionSlots: roots['optionSlots']!,
     },
     table: { files: [...tables.files], entries: tables.rest as Entry[] },
-    caps: { ...bundle.caps },
-    extensions: bundle.extensions.map(({ name, major }) => {
-      const assets = bundle.assets
-        .filter((asset) => asset.extension === name)
-        .map(({ path, bytes, sha }) => ({ path, bytes, sha }));
-      return assets.length === 0 ? { name, major } : { name, major, assets };
-    }),
   } as Cartridge;
 }
 

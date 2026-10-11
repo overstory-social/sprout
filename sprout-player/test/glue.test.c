@@ -37,7 +37,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
   const sprout_json *reply;
   begin_bridge("transcript");
   json_begin();
-  opened = call("sprout.open", "chip-tree.sproutworld");
+  opened = open_world("chip-tree.sproutworld");
   save_paths(opened, state_path, log_path, sizeof state_path);
   CHECK(HAS(call("sprout.load", NULL), "\"fresh\":true"), "a new world");
   reply = parse(call("sprout.admit", "Marta"));
@@ -72,7 +72,7 @@ static void a_built_turn_leaves_the_stored_world_a_typed_line_does(void) {
   char state_path[200], log_path[200];
   char *opened, *view, *told;
   begin_bridge("value-first");
-  opened = call("sprout.open", "value-first.sproutworld");
+  opened = open_world("value-first.sproutworld");
   save_paths(opened, state_path, log_path, sizeof state_path);
   call("sprout.load", NULL);
   CHECK(HAS(call("sprout.admit", "player"), "\"admitted\":true"), "arriving");
@@ -95,7 +95,7 @@ static void built_turns_leave_the_stored_world_the_typed_lines_do(void) {
   char state_path[200], log_path[200];
   char *opened;
   begin_bridge("chip-tree-built");
-  opened = call("sprout.open", "chip-tree.sproutworld");
+  opened = open_world("chip-tree.sproutworld");
   save_paths(opened, state_path, log_path, sizeof state_path);
   call("sprout.load", NULL);
   call("sprout.admit", "player");

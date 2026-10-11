@@ -1,8 +1,9 @@
 /*
  * Tests for src/load.c: a cartridge is refused in the words the
- * TypeScript loader uses when it is not one, was made for a newer format or
- * language level, or is damaged; a host that runs out of memory part way is
- * told so and left holding nothing.
+ * TypeScript loader uses when it is not one, was made for another format or
+ * a newer language level, or is damaged; a host that runs out of memory part
+ * way is told so and left holding nothing; a load steps across calls, can be
+ * abandoned, and a peek reads only the header and caps.
  */
 #include "load.h"
 #include "corpus.h"
@@ -192,7 +193,98 @@ static void a_loaded_world_keeps_the_header_the_cartridge_recorded(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+static void a_load_steps_across_calls_and_tells_its_progress(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length, read = 0, counted = 0, steps = 0, last = 0;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  sprout_loading *loading = NULL;
+  sprout_refusal why;
+  sprout_world *world, *whole;
+  bool done = false;
+  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  sprout_load_progress(loading, &read, &counted);
+  CHECK_INT(read, 0);
+  CHECK_INT(counted, 0);
+  CHECK(sprout_load_finish(loading) == NULL);
+  while (!done) {
+    CHECK_INT(sprout_load_step(loading, 7, &done, &why), SPROUT_OK);
+    sprout_load_progress(loading, &read, &counted);
+    CHECK(read >= last);
+    last = read;
+    steps++;
+  }
+  CHECK(steps > 100);
+  CHECK(counted > 1000 && read == counted);
+  CHECK_INT(sprout_load_step(loading, 7, &done, &why), SPROUT_OK);
+  CHECK(done);
+  world = sprout_load_finish(loading);
+  CHECK(world != NULL && !sprout_world_peeked(world));
+  CHECK_STR(world->header.name, "printers_shop");
+  CHECK_INT(world->graph.count, counted);
+  CHECK_INT(sprout_load_explained(&host, bytes, length, &whole, &why), SPROUT_OK);
+  CHECK_INT(whole->graph.count, world->graph.count);
+  CHECK_INT(whole->word_count, world->word_count);
+  sprout_world_free(whole);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+}
+
+static void a_load_abandoned_part_way_leaves_nothing(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  sprout_loading *loading = NULL;
+  sprout_refusal why;
+  bool done = false;
+  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  CHECK_INT(sprout_load_step(loading, 40, &done, &why), SPROUT_OK);
+  CHECK(!done);
+  sprout_load_abandon(loading);
+  CHECK_INT(heap.pages, 0);
+  /* A step that fails has freed the load itself. */
+  bytes[length / 2] ^= 0x55;
+  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  CHECK(sprout_load_step(loading, (size_t)-1, &done, &why) == SPROUT_BAD_INPUT);
+  CHECK(strncmp(why.text, "This cartridge cannot be read: ", 31) == 0);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+}
+
+static void a_peek_reads_the_header_and_caps_and_nothing_else(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  sprout_world *world = NULL;
+  sprout_refusal why;
+  long before;
+  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
+  CHECK(world != NULL && sprout_world_peeked(world));
+  CHECK_STR(world->header.name, "printers_shop");
+  CHECK_INT(strlen(world->header.hash), 64);
+  CHECK(world->caps.options_per_enum > 0);
+  CHECK_INT(world->graph.count, 0);
+  CHECK_INT(world->word_count, 0);
+  before = heap.pages;
+  CHECK(before < 8);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+  /* A body with no caps is said so. */
+  bytes = cartridge_of("{\"header\":{\"counts\":{\"prose\":0,\"bodies\":0,\"table\":0}}}", &length);
+  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_BAD_INPUT);
+  CHECK_STR(why.text, "This cartridge is not shaped as a cartridge is at `caps`: it is not what a cartridge holds there.");
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+}
+
 int main(void) {
+  RUN(a_load_steps_across_calls_and_tells_its_progress);
+  RUN(a_load_abandoned_part_way_leaves_nothing);
+  RUN(a_peek_reads_the_header_and_caps_and_nothing_else);
   RUN(a_newer_format_or_level_is_refused_naming_the_number);
   RUN(a_file_that_is_not_a_cartridge_is_refused);
   RUN(a_damaged_body_is_refused_in_words);

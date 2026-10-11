@@ -44,6 +44,12 @@ void end(void);
 /* Calls a registered function and copies the reply, which the next call overwrites. */
 char *call(const char *name, const char *argument);
 
+/* Opens the world at `path` through the registered functions, stepping until it is done; the last reply. */
+char *open_world(const char *path);
+
+/* Opens the world at `path` on `session`, stepping until it is done; the reply of the open or the step that failed, or the last. */
+const char *player_open_whole(player_session *session, const char *path);
+
 /* The same with three string arguments. */
 char *call3(const char *name, const char *first, const char *second, const char *third);
 

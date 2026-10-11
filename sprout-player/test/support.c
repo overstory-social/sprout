@@ -75,6 +75,26 @@ char *keep(const char *reply) {
 
 char *call(const char *name, const char *argument) { return keep(fake_call(fake, name, argument)); }
 
+char *open_world(const char *path) {
+  char *reply = call("sprout.open", path);
+  int steps = 0;
+  if (!HAS(reply, "\"ok\":true")) return reply;
+  do {
+    reply = call("sprout.step", NULL);
+  } while (HAS(reply, "\"done\":false") && ++steps < 100000);
+  return reply;
+}
+
+const char *player_open_whole(player_session *session, const char *path) {
+  const char *reply = player_open(session, path);
+  int steps = 0;
+  if (!HAS(reply, "\"ok\":true")) return reply;
+  do {
+    reply = player_step(session);
+  } while (HAS(reply, "\"done\":false") && ++steps < 100000);
+  return reply;
+}
+
 char *call3(const char *name, const char *first, const char *second, const char *third) {
   const char *const arguments[3] = {first, second, third};
   return keep(fake_call_with(fake, name, 3, arguments));

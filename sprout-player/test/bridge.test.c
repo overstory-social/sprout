@@ -5,12 +5,12 @@
 #include "support.h"
 
 static void every_function_is_registered_under_sprout(void) {
-  static const char *const names[] = {"sprout.inspect", "sprout.open", "sprout.load", "sprout.admit", "sprout.view",
-                                      "sprout.turn",    "sprout.tick", "sprout.save", "sprout.close",
+  static const char *const names[] = {"sprout.inspect", "sprout.open", "sprout.step", "sprout.load", "sprout.admit",
+                                      "sprout.view",    "sprout.turn", "sprout.tick", "sprout.save", "sprout.close",
                                       "sprout.verify",  "sprout.digest"};
   size_t i;
   begin_bridge("register");
-  CHECK(fake->function_count == 11, "registered %d functions", fake->function_count);
+  CHECK(fake->function_count == 12, "registered %d functions", fake->function_count);
   for (i = 0; i < sizeof names / sizeof *names; i++) {
     int j;
     bool found = false;
@@ -24,6 +24,7 @@ static void each_function_hands_lua_one_json_string_and_reads_its_argument(void)
   begin_bridge("arguments");
   CHECK(HAS(call("sprout.inspect", "chip-tree.sproutworld"), "\"name\":\"chip_tree\""), "inspect reads the path");
   CHECK(HAS(call("sprout.open", "chip-tree.sproutworld"), "\"ok\":true"), "open reads the path");
+  CHECK(HAS(open_world("chip-tree.sproutworld"), "\"done\":true"), "step reads on until the world is open");
   CHECK(HAS(call("sprout.load", NULL), "\"fresh\":true"), "load takes none");
   CHECK(HAS(call("sprout.admit", "Marta"), "\"admitted\":true"), "admit reads the nickname");
   CHECK(HAS(call("sprout.view", NULL), "\"place\":{\"id\":\"chip_tree.hall\",\"name\":\"a hall\"}"), "view takes none");
@@ -37,6 +38,7 @@ static void each_function_hands_lua_one_json_string_and_reads_its_argument(void)
 static void a_missing_argument_is_an_empty_one_and_never_a_crash(void) {
   begin_bridge("missing");
   CHECK(HAS(call("sprout.open", NULL), "\"ok\":false"), "open with no path");
+  CHECK(HAS(call("sprout.step", NULL), "No world is being opened."), "step with nothing opening");
   CHECK(HAS(call("sprout.admit", NULL), "No world is open."), "admit with no name");
   CHECK(HAS(call("sprout.turn", NULL), "You are not in a world."), "turn with no reading");
   end();
@@ -48,6 +50,7 @@ static void the_player_shutting_down_puts_a_visitor_away_and_saves(void) {
   begin_bridge("shutdown");
   opened = call("sprout.open", "chip-tree.sproutworld");
   save_paths(opened, state_path, log_path, sizeof state_path);
+  open_world("chip-tree.sproutworld");
   call("sprout.load", NULL);
   call("sprout.admit", "Marta");
   player_shutdown();
