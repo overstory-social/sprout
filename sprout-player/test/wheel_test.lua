@@ -53,6 +53,14 @@ test("turning the drum carries the words up: the next word nears the window and 
   same(labels(far), { "word2", "word5", "word3", "word4" }, "a slat past the drum's edge is left out")
 end)
 
+test("a lone word slides with the crank, as any slat does, and keeps the window", function()
+  local rows = Wheel.rows(words(1), 1, 0.3)
+  equal(#rows, 1)
+  equal(math.floor(rows[1].angle * 10 + 0.5) / 10, -10.8)
+  equal(rows[1].y, -13)
+  equal(rows[1].tier, "front")
+end)
+
 test("the drum settles on the slat once the crank has rested, and says so once", function()
   local builder = Sentence.new({ chips = {} })
   builder.crank = 12
