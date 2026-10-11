@@ -31,15 +31,15 @@ static sprout_eval_status joined(const sprout_frame *frame, sprout_str prefix, c
                                  sprout_str *out) {
   size_t length = prefix.length, i;
   char *text, *at;
-  for (i = 0; parts != NULL && i < parts->count; i++) length += 1 + strlen(parts->items[i]->text);
+  for (i = 0; parts != NULL && i < parts->count; i++) length += 1 + strlen(sprout_text(frame->graph, sprout_item(frame->graph, parts, i)));
   text = (char *)sprout_arena_take(frame->turn, length + 1);
   if (text == NULL) return SPROUT_EVAL_NO_MEMORY;
   memcpy(text, prefix.bytes, prefix.length);
   at = text + prefix.length;
   for (i = 0; parts != NULL && i < parts->count; i++) {
-    size_t n = strlen(parts->items[i]->text);
+    size_t n = strlen(sprout_text(frame->graph, sprout_item(frame->graph, parts, i)));
     *at++ = '.';
-    memcpy(at, parts->items[i]->text, n);
+    memcpy(at, sprout_text(frame->graph, sprout_item(frame->graph, parts, i)), n);
     at += n;
   }
   out->bytes = text;
@@ -84,7 +84,7 @@ static sprout_eval_status named_object(const sprout_frame *frame, sprout_str id,
 /* Whether a step of a name is answered by a decoded instance. */
 static bool answers_to(const sprout_frame *frame, const sprout_stored_instance *instance, const sprout_node *step,
                        bool identifiers) {
-  const char *name = sprout_node_text(step, "name");
+  const char *name = sprout_node_text(frame->graph, step, "name");
   size_t length = name == NULL ? 0 : strlen(name);
   switch (instance->made) {
     case SPROUT_MADE_WORLD:
@@ -101,13 +101,13 @@ static bool answers_to(const sprout_frame *frame, const sprout_stored_instance *
       return instance->path_count > 0 && instance->path[instance->path_count - 1].length == length &&
              memcmp(instance->path[instance->path_count - 1].bytes, name, length) == 0;
     case SPROUT_MADE_SPAWNED: {
-      const sprout_node *made_of = sprout_node_get(step, "madeOf");
+      const sprout_node *made_of = sprout_node_get(frame->graph, step, "madeOf");
       size_t i, j;
       if (identifiers) return false;
       for (i = 0; made_of != NULL && i < made_of->count; i++) {
-        const sprout_node *kinds = made_of->items[i];
+        const sprout_node *kinds = sprout_item(frame->graph, made_of, i);
         bool all = kinds->count > 0;
-        for (j = 0; j < kinds->count && all; j++) all = expr_composes(instance->kind, kinds->items[j]->text);
+        for (j = 0; j < kinds->count && all; j++) all = expr_composes(instance->kind, sprout_text(frame->graph, sprout_item(frame->graph, kinds, j)));
         if (all) return true;
       }
       return false;
@@ -144,10 +144,10 @@ static sprout_eval_status nearest(const sprout_frame *frame, const sprout_node *
   for (;;) {
     bool here;
     const sprout_stored_instance *instance;
-    EXPR_NEED(held_as(frame, holder, steps->items[0], identifiers, &at, &here));
+    EXPR_NEED(held_as(frame, holder, sprout_item(frame->graph, steps, 0), identifiers, &at, &here));
     if (here) {
       for (i = 1; i < steps->count; i++) {
-        EXPR_NEED(held_as(frame, at, steps->items[i], identifiers, &at, &here));
+        EXPR_NEED(held_as(frame, at, sprout_item(frame->graph, steps, i), identifiers, &at, &here));
         if (!here) return SPROUT_EVAL_OK;
       }
       *out = at;
@@ -192,7 +192,7 @@ static sprout_eval_status given_inside(const sprout_frame *frame, sprout_str hol
     if (instance != NULL && instance->made == SPROUT_MADE_GIVEN && sprout_str_is(instance->made_kind, giver) &&
         instance->path_count == path->count) {
       bool same = true;
-      for (j = 0; j < path->count && same; j++) same = sprout_str_is(instance->path[j], path->items[j]->text);
+      for (j = 0; j < path->count && same; j++) same = sprout_str_is(instance->path[j], sprout_text(frame->graph, sprout_item(frame->graph, path, j)));
       if (same) {
         *out = queue[head];
         *found = true;
@@ -207,7 +207,7 @@ static sprout_eval_status given_inside(const sprout_frame *frame, sprout_str hol
 /* The instance `named` reaches from `self`'s body; *found is false where nothing is decoded there now. */
 static sprout_eval_status object_named(const sprout_frame *frame, const sprout_node *named, bool identifiers,
                                        sprout_str *out, bool *found) {
-  const char *how = sprout_node_text(named, "names");
+  const char *how = sprout_node_text(frame->graph, named, "names");
   *found = false;
   if (how == NULL) return expr_unchecked(frame, "a name the table does not resolve");
   if (strcmp(how, "world") == 0) {
@@ -217,22 +217,22 @@ static sprout_eval_status object_named(const sprout_frame *frame, const sprout_n
   }
   if (strcmp(how, "declared") == 0) {
     sprout_str id;
-    EXPR_NEED(joined(frame, world_of(frame), sprout_node_get(named, "path"), &id));
+    EXPR_NEED(joined(frame, world_of(frame), sprout_node_get(frame->graph, named, "path"), &id));
     return named_object(frame, id, out, found);
   }
   if (strcmp(how, "own") == 0) {
     if (declared_form(frame, frame->self)) {
       sprout_str id;
-      EXPR_NEED(joined(frame, frame->self, sprout_node_get(named, "parts"), &id));
+      EXPR_NEED(joined(frame, frame->self, sprout_node_get(frame->graph, named, "parts"), &id));
       return named_object(frame, id, out, found);
     } else {
-      const sprout_node *steps = sprout_node_get(named, "steps");
+      const sprout_node *steps = sprout_node_get(frame->graph, named, "steps");
       sprout_str here = frame->self;
       size_t i;
       for (i = 0; steps != NULL && i < steps->count; i++) {
         bool at;
-        EXPR_NEED(given_inside(frame, here, sprout_node_text(steps->items[i], "giver"),
-                               sprout_node_get(steps->items[i], "path"), &here, &at));
+        EXPR_NEED(given_inside(frame, here, sprout_node_text(frame->graph, sprout_item(frame->graph, steps, i), "giver"),
+                               sprout_node_get(frame->graph, sprout_item(frame->graph, steps, i), "path"), &here, &at));
         if (!at) return SPROUT_EVAL_OK;
       }
       *out = here;
@@ -240,7 +240,7 @@ static sprout_eval_status object_named(const sprout_frame *frame, const sprout_n
       return SPROUT_EVAL_OK;
     }
   }
-  if (strcmp(how, "placed") == 0) return nearest(frame, sprout_node_get(named, "steps"), identifiers, out, found);
+  if (strcmp(how, "placed") == 0) return nearest(frame, sprout_node_get(frame->graph, named, "steps"), identifiers, out, found);
   return expr_unchecked(frame, "a name the table resolves in a way this runtime does not know");
 }
 
@@ -292,21 +292,21 @@ sprout_eval_status expr_narrowed(const sprout_frame *frame, const sprout_node *o
   const sprout_binding *bound;
   sprout_str reached;
   *out = *frame;
-  if (expr_kind_of(operand) != EXPR_CALL || strcmp(expr_ident(operand, "method"), "is") != 0) return SPROUT_EVAL_OK;
-  if (expr_argument_count(operand) != 1) return SPROUT_EVAL_OK;
-  receiver = sprout_node_get(operand, "receiver");
+  if (expr_kind_of(frame->graph, operand) != EXPR_CALL || strcmp(expr_ident(frame->graph, operand, "method"), "is") != 0) return SPROUT_EVAL_OK;
+  if (expr_argument_count(frame->graph, operand) != 1) return SPROUT_EVAL_OK;
+  receiver = sprout_node_get(frame->graph, operand, "receiver");
   /* A name, or a dotted path, which is bound by its text as written. */
-  if (expr_kind_of(receiver) == EXPR_BINDING) {
-    written = expr_ident(receiver, "name");
-    key = sprout_node_get(receiver, "name");
-  } else if (expr_kind_of(receiver) == EXPR_MEMBER) {
+  if (expr_kind_of(frame->graph, receiver) == EXPR_BINDING) {
+    written = expr_ident(frame->graph, receiver, "name");
+    key = sprout_node_get(frame->graph, receiver, "name");
+  } else if (expr_kind_of(frame->graph, receiver) == EXPR_MEMBER) {
     EXPR_NEED(expr_written_members(frame, receiver, &written));
     key = receiver;
   }
   if (written == NULL || key == NULL) return SPROUT_EVAL_OK;
   if (strcmp(written, "self") == 0 || expr_binding(frame, written) != NULL) return SPROUT_EVAL_OK;
   named = sprout_world_bound(frame->world, key);
-  if (named == NULL || !sprout_node_is(sprout_node_get(named, "names"), "placed")) return SPROUT_EVAL_OK;
+  if (named == NULL || !sprout_node_is(frame->graph, sprout_node_get(frame->graph, named, "names"), "placed")) return SPROUT_EVAL_OK;
   EXPR_NEED(expr_reached_by_name(frame, named, written, &reached));
   bound = sprout_bind(frame, written, sprout_evaluated_object(reached));
   if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;

@@ -34,6 +34,7 @@ typedef enum sprout_node_kind {
 
 typedef struct sprout_node sprout_node;
 
+/* Only graph.c and graph_build.c write or read these fields; everything else reads a node through the functions below. */
 struct sprout_node {
   uint8_t kind; /* a sprout_node_kind */
   bool boolean;
@@ -73,6 +74,67 @@ typedef struct sprout_graph {
   sprout_node null_node; /* the one node every null cell is */
   sprout_node true_node, false_node;
 } sprout_graph;
+
+/*
+ * ---- reading a node ----
+ * A node's payload is read through these, with the graph it belongs to: the
+ * graph is what a node's children, text and field names are read through
+ * once the table is the cartridge's own bytes (cartridge format 3 gives it
+ * that layout), so nothing outside graph.c and the builder touches the
+ * fields. `kind` and `count` are read as fields.
+ */
+
+/* An object's `i`th value, an array's or set's `i`th element, or a map's `i`th value. */
+static inline const sprout_node *sprout_item(const sprout_graph *graph, const sprout_node *node, size_t i) {
+  (void)graph;
+  return node->items[i];
+}
+
+/* A map's `i`th key. */
+static inline const sprout_node *sprout_map_key(const sprout_graph *graph, const sprout_node *map, size_t i) {
+  (void)graph;
+  return map->map_keys[i];
+}
+
+/* An object's `i`th field name. */
+static inline const char *sprout_key(const sprout_graph *graph, const sprout_node *object, size_t i) {
+  (void)graph;
+  return object->keys[i];
+}
+
+/* A string node's text, NUL-terminated beyond its length. */
+static inline const char *sprout_text(const sprout_graph *graph, const sprout_node *node) {
+  (void)graph;
+  return node->text;
+}
+
+static inline size_t sprout_text_length(const sprout_graph *graph, const sprout_node *node) {
+  (void)graph;
+  return node->length;
+}
+
+static inline double sprout_node_number(const sprout_graph *graph, const sprout_node *node) {
+  (void)graph;
+  return node->number;
+}
+
+static inline bool sprout_truth(const sprout_node *node) { return node->boolean; }
+
+/* A place's file (-1 where none was kept), line and column. */
+static inline int sprout_place_file(const sprout_graph *graph, const sprout_node *place) {
+  (void)graph;
+  return place->file;
+}
+
+static inline long sprout_place_line(const sprout_graph *graph, const sprout_node *place) {
+  (void)graph;
+  return place->line;
+}
+
+static inline unsigned sprout_place_column(const sprout_graph *graph, const sprout_node *place) {
+  (void)graph;
+  return place->column;
+}
 
 /* The interning table: open addressing over node pointers, grown by doubling in scratch. */
 typedef struct sprout_intern {
@@ -144,18 +206,53 @@ size_t sprout_graph_index(const sprout_graph *graph, const sprout_node *node);
 const sprout_node *sprout_graph_cell(const sprout_graph *graph, const sprout_json *cell);
 
 /* An object's field, or NULL when it has none (or the node is not an object). */
-const sprout_node *sprout_node_get(const sprout_node *object, const char *key);
+const sprout_node *sprout_node_get(const sprout_graph *graph, const sprout_node *object, const char *key);
 
 /* The value a map holds for a key node, or NULL. */
-const sprout_node *sprout_node_map_get(const sprout_node *map, const sprout_node *key);
+const sprout_node *sprout_node_map_get(const sprout_graph *graph, const sprout_node *map, const sprout_node *key);
 
 /* The value a map holds for a string key, or NULL. */
-const sprout_node *sprout_node_map_find(const sprout_node *map, const char *key);
+const sprout_node *sprout_node_map_find(const sprout_graph *graph, const sprout_node *map, const char *key);
 
 /* Whether a node is a string equal to `text`. */
-bool sprout_node_is(const sprout_node *node, const char *text);
+bool sprout_node_is(const sprout_graph *graph, const sprout_node *node, const char *text);
 
 /* A string field of an object as a C string, or NULL when absent or not a string. */
-const char *sprout_node_text(const sprout_node *object, const char *key);
+const char *sprout_node_text(const sprout_graph *graph, const sprout_node *object, const char *key);
+
+/*
+ * ---- graph_build.c: nodes made at run time ----
+ * The engine's own lines are read into nodes while a turn runs; they belong
+ * to a graph of their own, built in an arena, with no entries, so the name
+ * table binds none of them. An object is built whole, its fields in order.
+ */
+typedef struct sprout_builder {
+  sprout_arena *arena;
+  sprout_graph graph;
+  bool failed; /* the arena's host refused a page: what was built since is not to be read */
+} sprout_builder;
+
+void sprout_build_begin(sprout_builder *builder, sprout_arena *arena);
+
+/* An object with these `count` fields, keys and values side by side; NULL and failed on no memory or a NULL value. */
+const sprout_node *sprout_build_object(sprout_builder *builder, const char *const *keys,
+                                       const sprout_node *const *values, size_t count);
+
+/* An array of these `count` elements, copied; NULL and failed on no memory or a NULL element. */
+const sprout_node *sprout_build_array(sprout_builder *builder, const sprout_node *const *items, size_t count);
+
+/* A string node holding a copy of `length` bytes. */
+const sprout_node *sprout_build_string(sprout_builder *builder, const char *bytes, size_t length);
+
+const sprout_node *sprout_build_number(sprout_builder *builder, double number);
+
+/* The graph's one node for true, false or null. */
+const sprout_node *sprout_build_bool(const sprout_builder *builder, bool truth);
+const sprout_node *sprout_build_null(const sprout_builder *builder);
+
+bool sprout_build_failed(const sprout_builder *builder);
+
+/* The graph the built nodes belong to, valid while the arena is. */
+const sprout_graph *sprout_build_graph(const sprout_builder *builder);
 
 #endif

@@ -85,21 +85,21 @@ sprout_eval_status sprout_participants(sprout_exec *x, const sprout_resolved *re
 static sprout_eval_status hears(const sprout_frame *frame, const sprout_node *narrowing, const sprout_value *value,
                                 const sprout_stored_instance *self, bool *heard) {
   *heard = false;
-  if (sprout_node_is(sprout_node_get(narrowing, "narrows"), "range")) {
-    *heard = value->kind == SPROUT_NUMBER && value->as.number >= sprout_node_get(narrowing, "min")->number &&
-             value->as.number <= sprout_node_get(narrowing, "max")->number;
+  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, narrowing, "narrows"), "range")) {
+    *heard = value->kind == SPROUT_NUMBER && value->as.number >= sprout_node_number(frame->graph, sprout_node_get(frame->graph, narrowing, "min")) &&
+             value->as.number <= sprout_node_number(frame->graph, sprout_node_get(frame->graph, narrowing, "max"));
     return SPROUT_EVAL_OK;
   }
   {
-    const sprout_node *property = sprout_node_get(narrowing, "property"), *type = sprout_node_get(property, "type");
+    const sprout_node *property = sprout_node_get(frame->graph, narrowing, "property"), *type = sprout_node_get(frame->graph, property, "type");
     sprout_value held;
     size_t i;
-    if (sprout_node_is(sprout_node_get(type, "type"), "integer")) {
-      *heard = value->kind == SPROUT_NUMBER && value->as.number >= sprout_node_get(type, "min")->number &&
-               value->as.number <= sprout_node_get(type, "max")->number;
+    if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, type, "type"), "integer")) {
+      *heard = value->kind == SPROUT_NUMBER && value->as.number >= sprout_node_number(frame->graph, sprout_node_get(frame->graph, type, "min")) &&
+               value->as.number <= sprout_node_number(frame->graph, sprout_node_get(frame->graph, type, "max"));
       return SPROUT_EVAL_OK;
     }
-    EXPR_NEED(expr_get(frame, self, sprout_node_text(property, "name"), &held));
+    EXPR_NEED(expr_get(frame, self, sprout_node_text(frame->graph, property, "name"), &held));
     if (held.kind != SPROUT_LIST || value->kind != SPROUT_STRING) return SPROUT_EVAL_OK;
     for (i = 0; i < held.as.list->count; i++)
       if (sprout_value_same(&held.as.list->items[i], value)) *heard = true;
@@ -145,7 +145,7 @@ static sprout_eval_status role_in(const sprout_frame *frame, const sprout_resolv
     return SPROUT_EVAL_OK;
   }
   if (held->bound.kind == SPROUT_BOUND_VALUE) {
-    const sprout_node *narrowing = sprout_node_map_find(sprout_node_get(play->node, "narrows"), role->name);
+    const sprout_node *narrowing = sprout_node_map_find(frame->graph, sprout_node_get(frame->graph, play->node, "narrows"), role->name);
     sprout_value value;
     bool heard;
     if (narrowing == NULL) return SPROUT_EVAL_OK;
@@ -208,7 +208,7 @@ sprout_eval_status sprout_consent_pass(sprout_exec *x, const sprout_frame *frame
     for (g = 0; g < plays.count; g++) {
       for (p = 0; p < plays.groups[g]->count; p++) {
         const sprout_play *play = &plays.groups[g]->plays[p];
-        const sprout_node *permit = sprout_node_get(sprout_node_get(play->node, "declaration"), "permit");
+        const sprout_node *permit = sprout_node_get(frame->graph, sprout_node_get(frame->graph, play->node, "declaration"), "permit");
         sprout_frame inside;
         sprout_ended ended;
         if (permit == NULL || permit->kind == SPROUT_NODE_NULL) continue;

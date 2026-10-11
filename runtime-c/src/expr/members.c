@@ -10,7 +10,7 @@
 
 sprout_eval_status expr_member(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *receiver,
                                sprout_evaluated *out) {
-  const char *member = expr_ident(expr, "member");
+  const char *member = expr_ident(frame->graph, expr, "member");
   sprout_str container;
   const sprout_list *list;
   if (member == NULL || strcmp(member, "count") != 0) return expr_unchecked(frame, "a reading other than `count`");
@@ -39,8 +39,8 @@ sprout_eval_status expr_member(const sprout_frame *frame, const sprout_node *exp
 /* The property `:p` names. Reading the name is a node, and costs a step. */
 static sprout_eval_status property_named(const sprout_frame *frame, const sprout_node *written, const char **name) {
   EXPR_NEED(expr_spend(frame));
-  if (expr_kind_of(written) != EXPR_SYMBOL) return expr_unchecked(frame, "a property named without a colon");
-  *name = expr_ident(written, "name");
+  if (expr_kind_of(frame->graph, written) != EXPR_SYMBOL) return expr_unchecked(frame, "a property named without a colon");
+  *name = expr_ident(frame->graph, written, "name");
   return SPROUT_EVAL_OK;
 }
 
@@ -48,12 +48,12 @@ static sprout_eval_status property_named(const sprout_frame *frame, const sprout
 static sprout_eval_status kind_named(const sprout_frame *frame, const sprout_node *written,
                                      const sprout_kind_def **kind) {
   EXPR_NEED(expr_spend(frame));
-  if (expr_kind_of(written) != EXPR_KIND) return expr_unchecked(frame, "a kind named without a capital");
+  if (expr_kind_of(frame->graph, written) != EXPR_KIND) return expr_unchecked(frame, "a kind named without a capital");
   *kind = expr_kind_named(frame, written);
   if (*kind == NULL) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "the kind `");
-    expr_put(&text, expr_ident(written, "name"));
+    expr_put(&text, expr_ident(frame->graph, written, "name"));
     expr_put(&text, "`, which is not declared, reached the evaluator, which the checker refuses.");
     frame->fault->name = "Error";
     return SPROUT_EVAL_ENGINE;
@@ -70,9 +70,9 @@ static sprout_eval_status sees(const sprout_frame *frame, const sprout_node *exp
   const sprout_str *seen;
   size_t count, i;
   bool found = false;
-  if (expr_argument_count(expr) != 2) return expr_unchecked(frame, "`sees` given the wrong number of things");
-  EXPR_NEED(kind_named(frame, expr_argument(expr, 0), &kind));
-  EXPR_NEED(property_named(frame, expr_argument(expr, 1), &name));
+  if (expr_argument_count(frame->graph, expr) != 2) return expr_unchecked(frame, "`sees` given the wrong number of things");
+  EXPR_NEED(kind_named(frame, expr_argument(frame->graph, expr, 0), &kind));
+  EXPR_NEED(property_named(frame, expr_argument(frame->graph, expr, 1), &name));
   EXPR_NEED(expr_as_object(frame, receiver, &from));
   EXPR_NEED(expr_seen_from(frame, from, &seen, &count));
   for (i = 0; i < count && !found; i++) {
@@ -89,7 +89,7 @@ static sprout_eval_status sees(const sprout_frame *frame, const sprout_node *exp
 
 sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *receiver,
                                 sprout_evaluated *out) {
-  const char *method = expr_ident(expr, "method");
+  const char *method = expr_ident(frame->graph, expr, "method");
   const sprout_node *argument;
   const sprout_stored_instance *instance;
   const sprout_kind_def *kind;
@@ -98,8 +98,8 @@ sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *ex
   sprout_value value;
   if (method == NULL) return expr_unchecked(frame, "a call with no method");
   if (strcmp(method, "sees") == 0) return sees(frame, expr, receiver, out);
-  if (expr_argument_count(expr) != 1) return expr_unchecked(frame, "a reading given the wrong number of things");
-  argument = expr_argument(expr, 0);
+  if (expr_argument_count(frame->graph, expr) != 1) return expr_unchecked(frame, "a reading given the wrong number of things");
+  argument = expr_argument(frame->graph, expr, 0);
   if (strcmp(method, "get") == 0) {
     EXPR_NEED(property_named(frame, argument, &name));
     EXPR_NEED(expr_as_object(frame, receiver, &object));

@@ -38,8 +38,8 @@ bool cat_is_array(const sprout_node *node) {
   return node != NULL && (node->kind == SPROUT_NODE_ARRAY || node->kind == SPROUT_NODE_SET);
 }
 
-const char *cat_text(const sprout_node *object, const char *key) {
-  return sprout_node_text(object, key);
+const char *cat_text(const sprout_graph *graph, const sprout_node *object, const char *key) {
+  return sprout_node_text(graph, object, key);
 }
 
 sprout_status cat_strings(loader *l, const sprout_node *list, const char *where, size_t *count,
@@ -50,8 +50,8 @@ sprout_status cat_strings(loader *l, const sprout_node *list, const char *where,
   *items = (const char **)cat_array(l, list->count, sizeof(char *));
   MEMORY(*items);
   for (i = 0; i < list->count; i++) {
-    if (list->items[i]->kind != SPROUT_NODE_STRING) return cat_shaped(l, where);
-    (*items)[i] = list->items[i]->text;
+    if (sprout_item(l->graph, list, i)->kind != SPROUT_NODE_STRING) return cat_shaped(l, where);
+    (*items)[i] = sprout_text(l->graph, sprout_item(l->graph, list, i));
   }
   return SPROUT_OK;
 }
@@ -66,8 +66,8 @@ char *cat_join3(loader *l, const char *a, const char *b, const char *c) {
   return out;
 }
 
-bool cat_bool(const sprout_node *object, const char *key) {
-  const sprout_node *field = sprout_node_get(object, key);
-  return field != NULL && field->kind == SPROUT_NODE_BOOL && field->boolean;
+bool cat_bool(const sprout_graph *graph, const sprout_node *object, const char *key) {
+  const sprout_node *field = sprout_node_get(graph, object, key);
+  return field != NULL && field->kind == SPROUT_NODE_BOOL && sprout_truth(field);
 }
 

@@ -37,12 +37,12 @@ bool sprout_reads_nothing(const sprout_frame *frame, sprout_eval_status status) 
 /* Whether an exit's `when` holds, asked of `place`; a read out of its range, or of a destroyed name, does not. */
 static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, const sprout_node *exit,
                                 const sprout_node *line, bool *out) {
-  const sprout_node *when = sprout_node_get(line, "when");
+  const sprout_node *when = sprout_node_get(frame->graph, line, "when");
   sprout_frame at = *frame;
   sprout_eval_status status;
   *out = true;
   if (when == NULL || when->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(exit, "origin"), &at.library));
+  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(frame->graph, exit, "origin"), &at.library));
   at.self = place;
   at.bindings = NULL;
   status = sprout_eval_condition(&at, when, out);
@@ -57,13 +57,13 @@ static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, con
 static sprout_eval_status spoken_by(const sprout_frame *frame, const sprout_node *said, const char *origin,
                                     const sprout_stored_instance *place, sprout_speech *out) {
   memset(out, 0, sizeof *out);
-  if (sprout_node_is(sprout_node_get(said, "kind"), "prose-literal")) {
+  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, said, "kind"), "prose-literal")) {
     out->kind = SPROUT_SPEECH_TEXT;
     out->node = said;
     return sprout_origin_library(frame, origin, &out->library);
   }
-  out->name = sprout_node_text(said, "text");
-  if (place != NULL && sprout_passage_on(place->kind, out->name, out)) return SPROUT_EVAL_OK;
+  out->name = sprout_node_text(frame->graph, said, "text");
+  if (place != NULL && sprout_passage_on(frame->graph, place->kind, out->name, out)) return SPROUT_EVAL_OK;
   out->kind = SPROUT_SPEECH_ABSENT;
   return SPROUT_EVAL_OK;
 }
@@ -89,22 +89,22 @@ static sprout_eval_status path_end(const sprout_frame *frame, sprout_str place, 
 /* Where an exit leads from `place` now; *found is false where it does not apply. */
 static sprout_eval_status destination_of(const sprout_frame *frame, const sprout_stored_instance *place,
                                          const sprout_node *exit, sprout_str *to, bool *found) {
-  const sprout_node *line = sprout_node_get(exit, "line");
-  const char *kind = sprout_node_text(exit, "kind");
+  const sprout_node *line = sprout_node_get(frame->graph, exit, "line");
+  const char *kind = sprout_node_text(frame->graph, exit, "kind");
   const sprout_stored_instance *there;
   bool applies = true;
   size_t i;
   *found = false;
   if (strcmp(kind, "link") == 0) {
-    const char *name = sprout_node_text(exit, "name");
+    const char *name = sprout_node_text(frame->graph, exit, "name");
     for (i = 0; i < place->link_count; i++)
       if (sprout_str_is(place->links[i].name, name)) {
         *to = place->links[i].to;
         *found = true;
       }
   } else {
-    const sprout_node *leads = sprout_node_get(line, "leads");
-    if (sprout_node_is(sprout_node_get(leads, "kind"), "path")) EXPR_NEED(path_end(frame, place->id, leads, to, found));
+    const sprout_node *leads = sprout_node_get(frame->graph, line, "leads");
+    if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, leads, "kind"), "path")) EXPR_NEED(path_end(frame, place->id, leads, to, found));
   }
   if (!*found || !expr_live(frame, *to)) {
     *found = false;
@@ -147,27 +147,27 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
   size_t seen_count = 0, i;
   if (seen == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < exit_count; i++) {
-    const sprout_node *exit = exits[i], *line = sprout_node_get(exit, "line"), *leads = sprout_node_get(line, "leads");
-    const char *kind = sprout_node_text(exit, "kind"), *direction = NULL;
+    const sprout_node *exit = exits[i], *line = sprout_node_get(frame->graph, exit, "line"), *leads = sprout_node_get(frame->graph, line, "leads");
+    const char *kind = sprout_node_text(frame->graph, exit, "kind"), *direction = NULL;
     sprout_way way;
     sprout_str to;
     bool found, applies;
     memset(&way, 0, sizeof way);
     way.exit = exit;
-    way.label = sprout_node_text(sprout_node_get(line, "label"), "text");
+    way.label = sprout_node_text(frame->graph, sprout_node_get(frame->graph, line, "label"), "text");
     if (strcmp(kind, "exit") == 0) {
-      direction = sprout_node_text(exit, "direction");
+      direction = sprout_node_text(frame->graph, exit, "direction");
       if (decided(seen, seen_count, direction)) continue;
     }
     EXPR_NEED(expr_spend(frame));
-    if (direction != NULL && sprout_node_is(sprout_node_get(leads, "kind"), "grammar-refusal")) {
+    if (direction != NULL && sprout_node_is(frame->graph, sprout_node_get(frame->graph, leads, "kind"), "grammar-refusal")) {
       EXPR_NEED(holds(frame, place->id, exit, line, &applies));
       if (!applies) continue;
       seen[seen_count++] = direction;
       way.direction = direction;
       way.refuses = true;
       way.by = place->id;
-      EXPR_NEED(spoken_by(frame, sprout_node_get(leads, "said"), sprout_node_text(exit, "origin"), place, &way.said));
+      EXPR_NEED(spoken_by(frame, sprout_node_get(frame->graph, leads, "said"), sprout_node_text(frame->graph, exit, "origin"), place, &way.said));
       EXPR_NEED(add(frame, out, &way));
       continue;
     }
@@ -183,12 +183,17 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
 
 sprout_eval_status sprout_ways_from(const sprout_frame *frame, sprout_str place, const sprout_way **found, size_t *count) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
-  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(instance->kind->node, "exits");
+  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(frame->graph, instance->kind->node, "exits");
   ways out = {NULL, 0, 0};
+  const sprout_node **all;
+  size_t i;
   *found = NULL;
   *count = 0;
   if (instance == NULL || exits == NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(applying(frame, instance, exits->items, exits->count, &out));
+  all = (const sprout_node **)sprout_arena_take(frame->turn, (exits->count + 1) * sizeof *all);
+  if (all == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < exits->count; i++) all[i] = sprout_item(frame->graph, exits, i);
+  EXPR_NEED(applying(frame, instance, all, exits->count, &out));
   *found = out.items;
   *count = out.count;
   return SPROUT_EVAL_OK;
@@ -211,7 +216,7 @@ sprout_eval_status sprout_exits_from(const sprout_frame *frame, sprout_str place
 sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str place, const sprout_way *taken,
                                       sprout_saying *out) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
-  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(instance->kind->node, "exits");
+  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(frame->graph, instance->kind->node, "exits");
   const sprout_node **run;
   size_t run_count = 0, i;
   bool any_says = false;
@@ -222,11 +227,11 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
   run = (const sprout_node **)sprout_arena_take(frame->turn, (exits->count + 1) * sizeof *run);
   if (run == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < exits->count; i++) {
-    const sprout_node *exit = exits->items[i], *line = sprout_node_get(exit, "line"), *own;
-    if (!sprout_node_is(sprout_node_get(exit, "kind"), "exit")) continue;
-    if (strcmp(sprout_node_text(exit, "direction"), taken->direction) != 0) continue;
+    const sprout_node *exit = sprout_item(frame->graph, exits, i), *line = sprout_node_get(frame->graph, exit, "line"), *own;
+    if (!sprout_node_is(frame->graph, sprout_node_get(frame->graph, exit, "kind"), "exit")) continue;
+    if (strcmp(sprout_node_text(frame->graph, exit, "direction"), taken->direction) != 0) continue;
     run[run_count++] = exit;
-    own = sprout_node_get(line, "says");
+    own = sprout_node_get(frame->graph, line, "says");
     if (own != NULL && own->kind != SPROUT_NODE_NULL) any_says = true;
   }
   if (!any_says) return SPROUT_EVAL_OK;
@@ -234,10 +239,10 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
   if (applied.count == 0 || applied.items[0].refuses) return SPROUT_EVAL_OK;
   if (!sprout_str_same(applied.items[0].to, taken->to) || strcmp(applied.items[0].label, taken->label) != 0)
     return SPROUT_EVAL_OK;
-  says = sprout_node_get(sprout_node_get(applied.items[0].exit, "line"), "says");
+  says = sprout_node_get(frame->graph, sprout_node_get(frame->graph, applied.items[0].exit, "line"), "says");
   if (says == NULL || says->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
   out->says = true;
   out->by = place;
-  return spoken_by(frame, sprout_node_get(says, "said"), sprout_node_text(applied.items[0].exit, "origin"), instance,
+  return spoken_by(frame, sprout_node_get(frame->graph, says, "said"), sprout_node_text(frame->graph, applied.items[0].exit, "origin"), instance,
                    &out->said);
 }

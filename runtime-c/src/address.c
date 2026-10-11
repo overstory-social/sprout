@@ -73,9 +73,9 @@ static bool identifier_of(const sprout_stored_instance *instance, sprout_str *id
   return false;
 }
 
-const sprout_node *sprout_grammar_text(const sprout_kind_def *kind, const char *line) {
-  const sprout_node *written = sprout_node_get(sprout_node_get(kind->node, "grammar"), line);
-  const sprout_node *value = sprout_node_get(written, "value");
+const sprout_node *sprout_grammar_text(const sprout_graph *graph, const sprout_kind_def *kind, const char *line) {
+  const sprout_node *written = sprout_node_get(graph, sprout_node_get(graph, kind->node, "grammar"), line);
+  const sprout_node *value = sprout_node_get(graph, written, "value");
   return value != NULL && value->kind == SPROUT_NODE_STRING ? value : NULL;
 }
 
@@ -88,9 +88,9 @@ sprout_eval_status sprout_name_of(const sprout_frame *frame, const sprout_stored
     *name = visitor->nickname;
     return SPROUT_EVAL_OK;
   }
-  written = sprout_grammar_text(instance->kind, "name");
+  written = sprout_grammar_text(frame->graph, instance->kind, "name");
   if (written != NULL) {
-    *name = (sprout_str){written->text, written->length};
+    *name = (sprout_str){sprout_text(frame->graph, written), sprout_text_length(frame->graph, written)};
     return SPROUT_EVAL_OK;
   }
   if (identifier_of(instance, &identifier)) return sprout_humanised(frame->turn, identifier, name) ? SPROUT_EVAL_OK : SPROUT_EVAL_NO_MEMORY;

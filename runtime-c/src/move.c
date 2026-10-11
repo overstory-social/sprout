@@ -71,11 +71,11 @@ static sprout_eval_status ask(sprout_exec *x, const sprout_frame *frame, sprout_
                               sprout_str mover, const sprout_str *parameters, size_t count, bool *allowed,
                               sprout_move_refusal *refusal) {
   const sprout_stored_instance *instance = expr_instance(frame, party);
-  const sprout_node *guards = instance == NULL ? NULL : sprout_node_get(sprout_node_get(instance->kind->node, "guards"), guard);
+  const sprout_node *guards = instance == NULL ? NULL : sprout_node_get(frame->graph, sprout_node_get(frame->graph, instance->kind->node, "guards"), guard);
   size_t i;
   *allowed = true;
   for (i = 0; guards != NULL && i < guards->count; i++) {
-    EXPR_NEED(sprout_guard_run(x, guards->items[i], party, mover, parameters, count, allowed, refusal));
+    EXPR_NEED(sprout_guard_run(x, sprout_item(frame->graph, guards, i), party, mover, parameters, count, allowed, refusal));
     if (!*allowed) return SPROUT_EVAL_OK;
   }
   return SPROUT_EVAL_OK;

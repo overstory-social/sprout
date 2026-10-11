@@ -9,18 +9,18 @@
 #include "stmt.h"
 
 /* Whether the kind declares a link by this name. */
-static bool has_link(const sprout_kind_def *kind, const char *name) {
-  const sprout_node *exits = sprout_node_get(kind->node, "exits");
+static bool has_link(const sprout_graph *graph, const sprout_kind_def *kind, const char *name) {
+  const sprout_node *exits = sprout_node_get(graph, kind->node, "exits");
   size_t i;
   for (i = 0; exits != NULL && i < exits->count; i++)
-    if (sprout_node_is(sprout_node_get(exits->items[i], "kind"), "link") &&
-        sprout_node_is(sprout_node_get(exits->items[i], "name"), name))
+    if (sprout_node_is(graph, sprout_node_get(graph, sprout_item(graph, exits, i), "kind"), "link") &&
+        sprout_node_is(graph, sprout_node_get(graph, sprout_item(graph, exits, i), "name"), name))
       return true;
   return false;
 }
 
 sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
-  const char *name = expr_ident(statement, "link");
+  const char *name = expr_ident(frame->graph, statement, "link");
   const sprout_stored_instance *self, *place;
   sprout_str to;
   sprout_stored_instance next;
@@ -28,10 +28,10 @@ sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, cons
   size_t i;
   expr_text text;
   EXPR_NEED(stmt_acting(run, frame, "`connect`"));
-  EXPR_NEED(stmt_object_at(frame, sprout_node_get(statement, "destination"), &to));
+  EXPR_NEED(stmt_object_at(frame, sprout_node_get(frame->graph, statement, "destination"), &to));
   self = sprout_draft_instance(frame->draft, frame->self);
   if (self == NULL) return expr_engine(frame, "a link is connected by what is not an instance.");
-  if (!has_link(self->kind, name)) {
+  if (!has_link(frame->graph, self->kind, name)) {
     text = expr_text_begin(frame);
     expr_put(&text, "`");
     expr_put_str(&text, frame->self);

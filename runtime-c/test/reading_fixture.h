@@ -155,7 +155,7 @@ static inline void reading_check_refusal(exec_bench *b, exec_case *c, const spro
   CHECK_STR(refusal->role, exec_text(want, "role"));
   if (origin->kind == SPROUT_JSON_NULL) CHECK(refusal->refusal.origin == NULL);
   else CHECK(refusal->refusal.origin != NULL && strcmp(refusal->refusal.origin, origin->bytes) == 0);
-  exec_check_speech(&refusal->refusal.said, sprout_json_get(want, "said"));
+  exec_check_speech(&c->world->graph, &refusal->refusal.said, sprout_json_get(want, "said"));
   exec_check_bindings(b, c, refusal->refusal.bindings, refusal->refusal.binding_count, sprout_json_get(want, "bindings"));
 }
 

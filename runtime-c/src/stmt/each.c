@@ -12,14 +12,14 @@
 sprout_eval_status stmt_each_walked(const sprout_frame *frame, const sprout_node *statement, const sprout_str **ids,
                                     size_t *count) {
   sprout_evaluated over;
-  const sprout_node *filter = sprout_node_get(statement, "filter");
+  const sprout_node *filter = sprout_node_get(frame->graph, statement, "filter");
   sprout_str container;
   const sprout_str *seen;
   size_t seen_count, i, kept = 0;
   const sprout_kind_def *kind = NULL;
   sprout_str *found;
-  EXPR_NEED(sprout_eval(frame, sprout_node_get(statement, "over"), &over));
-  if (sprout_node_is(sprout_node_get(statement, "walks"), "of")) {
+  EXPR_NEED(sprout_eval(frame, sprout_node_get(frame->graph, statement, "over"), &over));
+  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, statement, "walks"), "of")) {
     if (over.binds != SPROUT_BINDS_SET)
       return expr_unchecked(frame, "`each ... of` walked what is not a set role");
     *ids = over.items;
@@ -47,7 +47,7 @@ sprout_eval_status stmt_each_walked(const sprout_frame *frame, const sprout_node
 
 sprout_eval_status stmt_each(sprout_run *run, const sprout_frame *frame, const sprout_node *statement,
                              sprout_ended *ended) {
-  const char *variable = expr_ident(statement, "variable");
+  const char *variable = expr_ident(frame->graph, statement, "variable");
   const sprout_str *ids;
   size_t count, i;
   EXPR_NEED(stmt_each_walked(frame, statement, &ids, &count));
@@ -58,7 +58,7 @@ sprout_eval_status stmt_each(sprout_run *run, const sprout_frame *frame, const s
     bound = sprout_bind(frame, variable, sprout_evaluated_object(ids[i]));
     if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
     inner.bindings = bound;
-    EXPR_NEED(stmt_block(run, &inner, sprout_node_get(statement, "body"), ended));
+    EXPR_NEED(stmt_block(run, &inner, sprout_node_get(frame->graph, statement, "body"), ended));
     if (ended->how != SPROUT_END_BODY || run->stopped != SPROUT_RUNNING) return SPROUT_EVAL_OK;
   }
   return SPROUT_EVAL_OK;

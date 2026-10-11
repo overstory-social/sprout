@@ -12,23 +12,23 @@
 /* ---- verbs, phrases, intents, messages ---- */
 
 static sprout_status read_phrase(loader *l, const sprout_node *node, sprout_phrase *out) {
-  const sprout_node *parts = sprout_node_get(node, "parts");
+  const sprout_node *parts = sprout_node_get(l->graph, node, "parts");
   size_t i;
-  out->text = cat_text(node, "text");
+  out->text = cat_text(l->graph, node, "text");
   if (out->text == NULL || !cat_is_array(parts)) return cat_shaped(l, "a phrase");
   out->part_count = parts->count;
   out->parts = (sprout_part *)cat_array(l, parts->count, sizeof(sprout_part));
   MEMORY(out->parts);
   for (i = 0; i < parts->count; i++) {
-    const char *which = cat_text(parts->items[i], "part");
-    const sprout_node *role = sprout_node_get(parts->items[i], "role");
+    const char *which = cat_text(l->graph, sprout_item(l->graph, parts, i), "part");
+    const sprout_node *role = sprout_node_get(l->graph, sprout_item(l->graph, parts, i), "role");
     if (which == NULL) return cat_shaped(l, "a phrase's part");
     if (strcmp(which, "words") == 0) {
-      out->parts[i].text = cat_text(parts->items[i], "text");
+      out->parts[i].text = cat_text(l->graph, sprout_item(l->graph, parts, i), "text");
       if (out->parts[i].text == NULL) return cat_shaped(l, "a phrase's words");
     } else if (strcmp(which, "slot") == 0 && role != NULL && role->kind == SPROUT_NODE_NUMBER) {
       out->parts[i].is_slot = true;
-      out->parts[i].role = (size_t)role->number;
+      out->parts[i].role = (size_t)sprout_node_number(l->graph, role);
     } else {
       return cat_shaped(l, "a phrase's part");
     }
@@ -43,7 +43,7 @@ sprout_status cat_read_phrases(loader *l, const sprout_node *list, size_t *count
   *count = list->count;
   *out = (sprout_phrase *)cat_array(l, list->count, sizeof(sprout_phrase));
   MEMORY(*out);
-  for (i = 0; i < list->count; i++) NEED(read_phrase(l, list->items[i], &(*out)[i]));
+  for (i = 0; i < list->count; i++) NEED(read_phrase(l, sprout_item(l->graph, list, i), &(*out)[i]));
   return SPROUT_OK;
 }
 
@@ -52,7 +52,7 @@ sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **ou
   const sprout_node *roles;
   size_t i, at;
   *out = NULL;
-  at = sprout_graph_index(&l->world->graph, node);
+  at = sprout_graph_index(l->graph, node);
   if (node == NULL || node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY)
     return cat_shaped(l, "a verb");
   if (l->verb_cache[at] != NULL) {
@@ -62,61 +62,61 @@ sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **ou
   verb = (sprout_verb *)cat_array(l, 1, sizeof *verb);
   MEMORY(verb);
   l->verb_cache[at] = verb;
-  verb->library = cat_text(node, "library");
-  verb->name = cat_text(node, "name");
+  verb->library = cat_text(l->graph, node, "library");
+  verb->name = cat_text(l->graph, node, "name");
   if (verb->library == NULL || verb->name == NULL) return cat_shaped(l, "a verb");
   verb->node = node;
-  roles = sprout_node_get(node, "roles");
+  roles = sprout_node_get(l->graph, node, "roles");
   if (!cat_is_array(roles)) return cat_shaped(l, "a verb's roles");
   verb->role_count = roles->count;
   verb->roles = (sprout_role *)cat_array(l, roles->count, sizeof(sprout_role));
   MEMORY(verb->roles);
   for (i = 0; i < roles->count; i++) {
-    const sprout_node *role = roles->items[i];
-    const sprout_node *filler = sprout_node_get(role, "filler");
-    const char *fills = cat_text(filler, "fills");
+    const sprout_node *role = sprout_item(l->graph, roles, i);
+    const sprout_node *filler = sprout_node_get(l->graph, role, "filler");
+    const char *fills = cat_text(l->graph, filler, "fills");
     sprout_role *out_role = &verb->roles[i];
-    out_role->name = cat_text(role, "name");
+    out_role->name = cat_text(l->graph, role, "name");
     if (out_role->name == NULL) return cat_shaped(l, "a verb's role");
-    out_role->many = cat_bool(role, "many");
-    out_role->optional = cat_bool(role, "optional");
-    out_role->carried = cat_bool(role, "carried");
+    out_role->many = cat_bool(l->graph, role, "many");
+    out_role->optional = cat_bool(l->graph, role, "optional");
+    out_role->carried = cat_bool(l->graph, role, "carried");
     if (filler != NULL && filler->kind == SPROUT_NODE_NULL) out_role->filler = SPROUT_FILLER_NONE;
     else if (fills == NULL) return cat_shaped(l, "a role's filler");
     else if (strcmp(fills, "kind") == 0) {
       out_role->filler = SPROUT_FILLER_KIND;
-      NEED(cat_read_kind(l, sprout_node_get(filler, "kind"), (sprout_kind_def **)&out_role->filler_kind));
+      NEED(cat_read_kind(l, sprout_node_get(l->graph, filler, "kind"), (sprout_kind_def **)&out_role->filler_kind));
     } else if (strcmp(fills, "open") == 0) out_role->filler = SPROUT_FILLER_OPEN;
     else if (strcmp(fills, "symbol") == 0) out_role->filler = SPROUT_FILLER_SYMBOL;
     else if (strcmp(fills, "integer") == 0) out_role->filler = SPROUT_FILLER_INTEGER;
     else if (strcmp(fills, "exit") == 0) out_role->filler = SPROUT_FILLER_EXIT;
     else return cat_fail(l, "This cartridge holds a role filler this runtime does not know: `", fills, "`.");
   }
-  NEED(cat_read_phrases(l, sprout_node_get(node, "phrases"), &verb->phrase_count, &verb->phrases));
+  NEED(cat_read_phrases(l, sprout_node_get(l->graph, node, "phrases"), &verb->phrase_count, &verb->phrases));
   *out = verb;
   return SPROUT_OK;
 }
 
 sprout_status cat_read_intent(loader *l, const sprout_node *node, sprout_intent *out) {
-  const sprout_node *steps = sprout_node_get(node, "steps");
+  const sprout_node *steps = sprout_node_get(l->graph, node, "steps");
   size_t i, j;
-  out->library = cat_text(node, "library");
-  out->name = cat_text(node, "name");
+  out->library = cat_text(l->graph, node, "library");
+  out->name = cat_text(l->graph, node, "name");
   if (out->library == NULL || out->name == NULL || !cat_is_array(steps))
     return cat_shaped(l, "an intent");
-  NEED(cat_strings(l, sprout_node_get(node, "slots"), "an intent's slots", &out->slot_count,
+  NEED(cat_strings(l, sprout_node_get(l->graph, node, "slots"), "an intent's slots", &out->slot_count,
                &out->slots));
-  NEED(cat_read_phrases(l, sprout_node_get(node, "phrases"), &out->phrase_count, &out->phrases));
+  NEED(cat_read_phrases(l, sprout_node_get(l->graph, node, "phrases"), &out->phrase_count, &out->phrases));
   out->step_count = steps->count;
   out->steps = (sprout_intent_step *)cat_array(l, steps->count, sizeof(sprout_intent_step));
   MEMORY(out->steps);
   for (i = 0; i < steps->count; i++) {
     sprout_intent_step *step = &out->steps[i];
-    const sprout_node *fillers = sprout_node_get(steps->items[i], "fillers");
+    const sprout_node *fillers = sprout_node_get(l->graph, sprout_item(l->graph, steps, i), "fillers");
     sprout_verb *verb = NULL;
-    NEED(cat_read_verb(l, sprout_node_get(steps->items[i], "verb"), &verb));
+    NEED(cat_read_verb(l, sprout_node_get(l->graph, sprout_item(l->graph, steps, i), "verb"), &verb));
     step->verb = verb;
-    step->when = sprout_node_get(steps->items[i], "when");
+    step->when = sprout_node_get(l->graph, sprout_item(l->graph, steps, i), "when");
     if (fillers == NULL || fillers->kind != SPROUT_NODE_MAP) return cat_shaped(l, "an intent's fillers");
     step->filler_count = fillers->count;
     step->filler_roles = (const char **)cat_array(l, fillers->count, sizeof(char *));
@@ -124,11 +124,11 @@ sprout_status cat_read_intent(loader *l, const sprout_node *node, sprout_intent 
     MEMORY(step->filler_roles);
     MEMORY(step->filler_slots);
     for (j = 0; j < fillers->count; j++) {
-      if (fillers->map_keys[j]->kind != SPROUT_NODE_STRING ||
-          fillers->items[j]->kind != SPROUT_NODE_NUMBER)
+      if (sprout_map_key(l->graph, fillers, j)->kind != SPROUT_NODE_STRING ||
+          sprout_item(l->graph, fillers, j)->kind != SPROUT_NODE_NUMBER)
         return cat_shaped(l, "an intent's fillers");
-      step->filler_roles[j] = fillers->map_keys[j]->text;
-      step->filler_slots[j] = (size_t)fillers->items[j]->number;
+      step->filler_roles[j] = sprout_text(l->graph, sprout_map_key(l->graph, fillers, j));
+      step->filler_slots[j] = (size_t)sprout_node_number(l->graph, sprout_item(l->graph, fillers, j));
     }
   }
   return SPROUT_OK;

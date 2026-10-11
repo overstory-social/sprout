@@ -8,7 +8,7 @@
  */
 #include "reading_fixture.h"
 
-static void check_way(const sprout_way *way, const sprout_json *want) {
+static void check_way(const sprout_graph *graph, const sprout_way *way, const sprout_json *want) {
   const sprout_json *direction = sprout_json_get(want, "direction"), *refuses = sprout_json_get(want, "refuses");
   if (direction->kind == SPROUT_JSON_NULL) CHECK(way->direction == NULL);
   else CHECK(way->direction != NULL && strcmp(way->direction, direction->bytes) == 0);
@@ -18,7 +18,7 @@ static void check_way(const sprout_way *way, const sprout_json *want) {
     CHECK(exec_same_str(way->to, sprout_json_get(want, "to")));
   } else {
     CHECK(exec_same_str(way->by, sprout_json_get(refuses, "by")));
-    exec_check_speech(&way->said, sprout_json_get(refuses, "said"));
+    exec_check_speech(graph, &way->said, sprout_json_get(refuses, "said"));
   }
 }
 
@@ -38,7 +38,7 @@ static void the_ways_out_of_a_place_are_those_that_apply_in_the_order_its_kind_a
     reading_open(&b, &c, want, exec_text(want, "place"));
     CHECK_INT(sprout_ways_from(&c.frame, exec_str(exec_text(want, "place")), &found, &count), SPROUT_EVAL_OK);
     CHECK_INT(count, list->count);
-    for (j = 0; j < count && j < list->count; j++) check_way(&found[j], list->items[j]);
+    for (j = 0; j < count && j < list->count; j++) check_way(&c.world->graph, &found[j], list->items[j]);
     CHECK_INT(c.meter.steps, exec_number(expect, "steps"));
     if (check_failures != before) fprintf(stderr, "  in the case `%s`\n", exec_text(want, "name"));
     exec_case_close(&c);
@@ -138,7 +138,7 @@ static void what_a_way_says_as_it_is_taken_is_asked_of_its_place(void) {
     CHECK_INT(saying.says, says->kind == SPROUT_JSON_OBJECT);
     if (saying.says && says->kind == SPROUT_JSON_OBJECT) {
       CHECK(exec_same_str(saying.by, sprout_json_get(says, "by")));
-      exec_check_speech(&saying.said, sprout_json_get(says, "said"));
+      exec_check_speech(&c.world->graph, &saying.said, sprout_json_get(says, "said"));
     }
     if (check_failures != before) fprintf(stderr, "  in the case `%s`\n", exec_text(sayings->items[i], "name"));
     exec_case_close(&c);

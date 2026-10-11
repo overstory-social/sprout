@@ -19,8 +19,8 @@ static sprout_value read_property(exec_case *c, const char *id, const char *name
 
 /* The write inside the `if` a memory case is written in. */
 static const sprout_node *written_in_the_branch(const exec_case *c) {
-  const sprout_node *branch = sprout_node_get(exec_first_statement(c), "then");
-  return sprout_node_get(branch, "statements")->items[0];
+  const sprout_node *branch = sprout_node_get(&c->world->graph, exec_first_statement(c), "then");
+  return sprout_item(&c->world->graph, sprout_node_get(&c->world->graph, branch, "statements"), 0);
 }
 
 static void set_writes_a_value_the_property_holds(void) {

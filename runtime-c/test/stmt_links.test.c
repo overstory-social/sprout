@@ -9,7 +9,8 @@
 /* Spawns the place the body's first `let` makes and binds it as `name`. */
 static sprout_str spawned_as(exec_case *c, sprout_run *run, const char *name) {
   sprout_str id;
-  const sprout_node *spawn = sprout_node_get(sprout_node_get(exec_body_of(c), "statements")->items[0], "value");
+  const sprout_graph *g = &c->world->graph;
+  const sprout_node *spawn = sprout_node_get(g, sprout_item(g, sprout_node_get(g, exec_body_of(c), "statements"), 0), "value");
   if (stmt_spawn(run, &c->frame, spawn, &id) != SPROUT_EVAL_OK) exit(2);
   c->frame.bindings = sprout_bind(&c->frame, name, sprout_evaluated_object(id));
   return id;
@@ -25,7 +26,7 @@ static void connect_leads_a_link_of_self_to_a_place(void) {
   exec_case_open(&b, &c, exec_named(&b, "connect leads a link to a place"));
   run = exec_run(&c);
   place = spawned_as(&c, &run, "c");
-  CHECK_INT(stmt_connect(&run, &c.frame, sprout_node_get(exec_body_of(&c), "statements")->items[1]), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_connect(&run, &c.frame, sprout_item(&c.world->graph, sprout_node_get(&c.world->graph, exec_body_of(&c), "statements"), 1)), SPROUT_EVAL_OK);
   cell = sprout_draft_instance(&c.draft, c.frame.self);
   CHECK_INT(cell->link_count, 1);
   CHECK_BYTES(cell->links[0].name.bytes, cell->links[0].name.length, "onward");
@@ -43,12 +44,12 @@ static void connecting_a_link_again_replaces_where_it_leads(void) {
   exec_bench_open(&b);
   exec_case_open(&b, &c, exec_named(&b, "connecting a link again replaces where it leads"));
   run = exec_run(&c);
-  statements = sprout_node_get(exec_body_of(&c), "statements");
+  statements = sprout_node_get(&c.world->graph, exec_body_of(&c), "statements");
   first = spawned_as(&c, &run, "c");
-  CHECK_INT(stmt_connect(&run, &c.frame, statements->items[1]), SPROUT_EVAL_OK);
-  CHECK_INT(stmt_spawn(&run, &c.frame, sprout_node_get(statements->items[2], "value"), &second), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_connect(&run, &c.frame, sprout_item(&c.world->graph, statements, 1)), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_spawn(&run, &c.frame, sprout_node_get(&c.world->graph, sprout_item(&c.world->graph, statements, 2), "value"), &second), SPROUT_EVAL_OK);
   c.frame.bindings = sprout_bind(&c.frame, "d", sprout_evaluated_object(second));
-  CHECK_INT(stmt_connect(&run, &c.frame, statements->items[3]), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_connect(&run, &c.frame, sprout_item(&c.world->graph, statements, 3)), SPROUT_EVAL_OK);
   CHECK_INT(sprout_draft_instance(&c.draft, c.frame.self)->link_count, 1);
   CHECK(sprout_str_same(sprout_draft_instance(&c.draft, c.frame.self)->links[0].to, second));
   CHECK(!sprout_str_same(first, second));

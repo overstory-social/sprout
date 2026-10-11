@@ -34,11 +34,11 @@ static sprout_eval_status run_if(described *d, const sprout_frame *scope, const 
   for (;;) {
     bool taken;
     const sprout_node *otherwise;
-    EXPR_NEED(sprout_eval_condition(scope, sprout_node_get(link, "condition"), &taken));
-    if (taken) return run_block(d, scope, sprout_node_get(link, "then"));
-    otherwise = sprout_node_get(link, "otherwise");
+    EXPR_NEED(sprout_eval_condition(scope, sprout_node_get(scope->graph, link, "condition"), &taken));
+    if (taken) return run_block(d, scope, sprout_node_get(scope->graph, link, "then"));
+    otherwise = sprout_node_get(scope->graph, link, "otherwise");
     if (otherwise == NULL || otherwise->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-    if (sprout_node_is(sprout_node_get(otherwise, "kind"), "block")) return run_block(d, scope, otherwise);
+    if (sprout_node_is(scope->graph, sprout_node_get(scope->graph, otherwise, "kind"), "block")) return run_block(d, scope, otherwise);
     EXPR_NEED(expr_spend(scope));
     link = otherwise;
   }
@@ -51,8 +51,8 @@ static sprout_eval_status run_each(described *d, const sprout_frame *scope, cons
   for (i = 0; i < count; i++) {
     sprout_frame inner = *scope;
     EXPR_NEED(expr_spend(scope));
-    EXPR_NEED(bound_with(&inner, expr_ident(statement, "variable"), sprout_evaluated_object(ids[i])));
-    EXPR_NEED(run_block(d, &inner, sprout_node_get(statement, "body")));
+    EXPR_NEED(bound_with(&inner, expr_ident(scope->graph, statement, "variable"), sprout_evaluated_object(ids[i])));
+    EXPR_NEED(run_block(d, &inner, sprout_node_get(scope->graph, statement, "body")));
   }
   return SPROUT_EVAL_OK;
 }
@@ -85,15 +85,15 @@ static sprout_eval_status give_record(described *d, const sprout_frame *scope, c
 
 /* One statement, one step; a `let` adds to the scope, which is its block's. */
 static sprout_eval_status run_statement(described *d, sprout_frame *scope, const sprout_node *statement) {
-  const char *kind = sprout_node_text(statement, "kind");
+  const char *kind = sprout_node_text(scope->graph, statement, "kind");
   EXPR_NEED(expr_spend(scope));
   if (kind == NULL) return expr_unchecked(scope, "a statement with no kind");
   if (strcmp(kind, "let") == 0) {
-    const sprout_node *value = sprout_node_get(statement, "value");
+    const sprout_node *value = sprout_node_get(scope->graph, statement, "value");
     sprout_evaluated bound;
-    if (sprout_node_is(sprout_node_get(value, "kind"), "spawn")) return expr_unchecked(scope, "`spawn` in a `describe`");
+    if (sprout_node_is(scope->graph, sprout_node_get(scope->graph, value, "kind"), "spawn")) return expr_unchecked(scope, "`spawn` in a `describe`");
     EXPR_NEED(sprout_eval(scope, value, &bound));
-    return bound_with(scope, expr_ident(statement, "name"), bound);
+    return bound_with(scope, expr_ident(scope->graph, statement, "name"), bound);
   }
   if (strcmp(kind, "if") == 0) return run_if(d, scope, statement);
   if (strcmp(kind, "each") == 0) return run_each(d, scope, statement);
@@ -105,10 +105,10 @@ static sprout_eval_status run_statement(described *d, sprout_frame *scope, const
 /* A block's statements in order, in a scope of its own: a `let` lives to its `}`. */
 static sprout_eval_status run_block(described *d, const sprout_frame *outer, const sprout_node *block) {
   sprout_frame scope = *outer;
-  const sprout_node *statements = sprout_node_get(block, "statements");
+  const sprout_node *statements = sprout_node_get(outer->graph, block, "statements");
   size_t i;
   for (i = 0; statements != NULL && i < statements->count; i++)
-    EXPR_NEED(run_statement(d, &scope, statements->items[i]));
+    EXPR_NEED(run_statement(d, &scope, sprout_item(outer->graph, statements, i)));
   return SPROUT_EVAL_OK;
 }
 
@@ -158,9 +158,9 @@ sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, 
       return SPROUT_EVAL_OK;
     }
   }
-  describe = sprout_node_get(instance->kind->node, "describe");
+  describe = sprout_node_get(frame->graph, instance->kind->node, "describe");
   if (describe == NULL || describe->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(describe, "origin"), &inside.library));
+  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(frame->graph, describe, "origin"), &inside.library));
   inside.self = thing;
   inside.bindings = NULL;
   if (!sprout_string(frame->turn, seen, strlen(seen), &seen_value)) return SPROUT_EVAL_NO_MEMORY;
@@ -169,7 +169,7 @@ sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, 
   EXPR_NEED(bound_with(&inside, "seen", sprout_evaluated_value(seen_value)));
   memset(&d, 0, sizeof d);
   d.thing = thing;
-  EXPR_NEED(run_block(&d, &inside, sprout_node_get(sprout_node_get(describe, "declaration"), "body")));
+  EXPR_NEED(run_block(&d, &inside, sprout_node_get(frame->graph, sprout_node_get(frame->graph, describe, "declaration"), "body")));
   out->line_count = d.count;
   out->lines = d.lines;
   out->recorded_count = d.recorded_count;

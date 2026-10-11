@@ -22,7 +22,7 @@ static void the_world_is_reached_by_its_name(void) {
   const sprout_node *name;
   bench_open(&b);
   bench_turn_for(&b, &t, "the world by its name");
-  name = sprout_node_get(sprout_node_get(bench_expr(&b, "the world by its name"), "left"), "name");
+  name = sprout_node_get(&b.world->graph, sprout_node_get(&b.world->graph, bench_expr(&b, "the world by its name"), "left"), "name");
   CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, name), "eval_bench", &reached), SPROUT_EVAL_OK);
   CHECK_BYTES(reached.bytes, reached.length, "eval_bench");
   bench_turn_close(&t);
@@ -35,7 +35,7 @@ static void a_declared_object_is_reached_by_its_path(void) {
   sprout_str reached;
   bench_open(&b);
   bench_turn_for(&b, &t, "compares two objects by identity");
-  CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, sprout_node_get(bench_expr(&b, "compares two objects by identity"), "left")),
+  CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, sprout_node_get(&b.world->graph, bench_expr(&b, "compares two objects by identity"), "left")),
                                  "eval_bench.hall.shelf.jar", &reached),
             SPROUT_EVAL_OK);
   CHECK_BYTES(reached.bytes, reached.length, "eval_bench.hall.shelf.jar");
@@ -51,12 +51,12 @@ static void the_nearest_thing_called_that_is_reached_by_what_each_container_hold
   bench_open(&b);
   bench_turn_for(&b, &t, "a name placed nearest");
   root = bench_expr(&b, "a name placed nearest");
-  name = sprout_node_get(sprout_node_get(sprout_node_get(root, "left"), "receiver"), "name");
+  name = sprout_node_get(&b.world->graph, sprout_node_get(&b.world->graph, sprout_node_get(&b.world->graph, root, "left"), "receiver"), "name");
   CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, name), "shelf", &reached), SPROUT_EVAL_OK);
   CHECK_BYTES(reached.bytes, reached.length, "eval_bench.hall.shelf");
   /* And each step after it is among what the one before holds. */
   root = bench_expr(&b, "&& narrows a dotted path");
-  path = sprout_node_get(sprout_node_get(root, "left"), "receiver");
+  path = sprout_node_get(&b.world->graph, sprout_node_get(&b.world->graph, root, "left"), "receiver");
   CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, path), "shelf.cup", &reached), SPROUT_EVAL_OK);
   CHECK_BYTES(reached.bytes, reached.length, "eval_bench.hall.shelf.cup");
   bench_turn_close(&t);
@@ -70,7 +70,7 @@ static void a_name_behind_a_closed_container_is_out_of_range(void) {
   const sprout_node *path;
   bench_open(&b);
   bench_turn_for(&b, &t, "a name behind a closed container");
-  path = sprout_node_get(bench_expr(&b, "a name behind a closed container"), "receiver");
+  path = sprout_node_get(&b.world->graph, bench_expr(&b, "a name behind a closed container"), "receiver");
   CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, path), "vault.coin", &reached), SPROUT_EVAL_FAULT);
   CHECK_STR(t.fault.name, "NameOutOfRange");
   CHECK_STR(t.fault.text,
@@ -81,13 +81,15 @@ static void a_name_behind_a_closed_container_is_out_of_range(void) {
 }
 
 static void a_name_that_reaches_nothing_says_so(void) {
+  const sprout_graph *g;
   bench b;
   bench_turn t;
   sprout_str reached;
   const sprout_node *name;
   bench_open(&b);
   bench_turn_for(&b, &t, "a name placed nearest");
-  name = sprout_node_get(sprout_node_get(sprout_node_get(bench_expr(&b, "a name placed nearest"), "left"), "receiver"), "name");
+  g = &b.world->graph;
+  name = sprout_node_get(g, sprout_node_get(g, sprout_node_get(g, bench_expr(&b, "a name placed nearest"), "left"), "receiver"), "name");
   /* The shelf is gone from where it stood, and nothing else is called that. */
   t.frame.self = bench_id("eval_bench.nook");
   CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, name), "shelf", &reached), SPROUT_EVAL_FAULT);
@@ -106,7 +108,7 @@ static void a_declared_object_destroyed_is_gone_for_good(void) {
   bench_open(&b);
   bench_turn_for(&b, &t, "compares two objects by identity");
   CHECK_INT(sprout_draft_remove(&t.draft, bench_id("eval_bench.hall.shelf.jar"), &removed, &count), SPROUT_DRAFT_OK);
-  CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, sprout_node_get(bench_expr(&b, "compares two objects by identity"), "left")),
+  CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, sprout_node_get(&b.world->graph, bench_expr(&b, "compares two objects by identity"), "left")),
                                  "eval_bench.hall.shelf.jar", &reached),
             SPROUT_EVAL_FAULT);
   CHECK_STR(t.fault.name, "DestroyedReference");
@@ -123,7 +125,7 @@ static void narrowing_a_name_binds_it_to_what_it_reached(void) {
   const sprout_binding *bound;
   bench_open(&b);
   bench_turn_for(&b, &t, "a name placed nearest");
-  is_call = sprout_node_get(bench_expr(&b, "a name placed nearest"), "left");
+  is_call = sprout_node_get(&b.world->graph, bench_expr(&b, "a name placed nearest"), "left");
   CHECK(expr_binding(&t.frame, "shelf") == NULL);
   CHECK_INT(expr_narrowed(&t.frame, is_call, &inner), SPROUT_EVAL_OK);
   bound = expr_binding(&inner, "shelf");

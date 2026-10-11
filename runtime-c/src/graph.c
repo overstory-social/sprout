@@ -437,24 +437,27 @@ const sprout_node *sprout_graph_cell(const sprout_graph *graph, const sprout_jso
   return &graph->entries[(size_t)at];
 }
 
-const sprout_node *sprout_node_get(const sprout_node *object, const char *key) {
+const sprout_node *sprout_node_get(const sprout_graph *graph, const sprout_node *object, const char *key) {
   size_t i;
+  (void)graph;
   if (object == NULL || object->kind != SPROUT_NODE_OBJECT) return NULL;
   for (i = 0; i < object->count; i++)
     if (strcmp(object->keys[i], key) == 0) return object->items[i];
   return NULL;
 }
 
-const sprout_node *sprout_node_map_get(const sprout_node *map, const sprout_node *key) {
+const sprout_node *sprout_node_map_get(const sprout_graph *graph, const sprout_node *map, const sprout_node *key) {
   size_t i;
+  (void)graph;
   if (map == NULL || map->kind != SPROUT_NODE_MAP) return NULL;
   for (i = 0; i < map->count; i++)
     if (map->map_keys[i] == key) return map->items[i];
   return NULL;
 }
 
-const sprout_node *sprout_node_map_find(const sprout_node *map, const char *key) {
+const sprout_node *sprout_node_map_find(const sprout_graph *graph, const sprout_node *map, const char *key) {
   size_t i;
+  (void)graph;
   if (map == NULL || map->kind != SPROUT_NODE_MAP) return NULL;
   for (i = 0; i < map->count; i++)
     if (map->map_keys[i]->kind == SPROUT_NODE_STRING && strcmp(map->map_keys[i]->text, key) == 0)
@@ -462,11 +465,12 @@ const sprout_node *sprout_node_map_find(const sprout_node *map, const char *key)
   return NULL;
 }
 
-bool sprout_node_is(const sprout_node *node, const char *text) {
+bool sprout_node_is(const sprout_graph *graph, const sprout_node *node, const char *text) {
+  (void)graph;
   return node != NULL && node->kind == SPROUT_NODE_STRING && strcmp(node->text, text) == 0;
 }
 
-const char *sprout_node_text(const sprout_node *object, const char *key) {
-  const sprout_node *field = sprout_node_get(object, key);
+const char *sprout_node_text(const sprout_graph *graph, const sprout_node *object, const char *key) {
+  const sprout_node *field = sprout_node_get(graph, object, key);
   return field != NULL && field->kind == SPROUT_NODE_STRING ? field->text : NULL;
 }

@@ -8,18 +8,18 @@
 #include "stmt.h"
 
 void stmt_speech_of(const sprout_frame *frame, const sprout_node *statement, sprout_speech *out) {
-  const sprout_node *said = sprout_node_get(statement, "said");
+  const sprout_node *said = sprout_node_get(frame->graph, statement, "said");
   const sprout_stored_instance *self;
   memset(out, 0, sizeof *out);
-  if (sprout_node_is(sprout_node_get(said, "kind"), "prose-literal")) {
+  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, said, "kind"), "prose-literal")) {
     out->kind = SPROUT_SPEECH_TEXT;
     out->node = said;
     out->library = frame->library;
     return;
   }
-  out->name = sprout_node_text(said, "text");
+  out->name = sprout_node_text(frame->graph, said, "text");
   self = expr_instance(frame, frame->self);
-  if (self != NULL && sprout_passage_on(self->kind, out->name, out)) return;
+  if (self != NULL && sprout_passage_on(frame->graph, self->kind, out->name, out)) return;
   out->kind = SPROUT_SPEECH_ABSENT;
 }
 
@@ -38,8 +38,8 @@ sprout_eval_status stmt_say(sprout_run *run, const sprout_frame *frame, const sp
 }
 
 sprout_eval_status stmt_tell(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
-  const sprout_node *to = sprout_node_get(statement, "to");
-  const sprout_node *direction = sprout_node_get(statement, "direction");
+  const sprout_node *to = sprout_node_get(frame->graph, statement, "to");
+  const sprout_node *direction = sprout_node_get(frame->graph, statement, "direction");
   sprout_effect effect;
   sprout_str one = {NULL, 0};
   sprout_tell_scope scope = SPROUT_TELL_PLACE;
@@ -47,7 +47,7 @@ sprout_eval_status stmt_tell(sprout_run *run, const sprout_frame *frame, const s
   EXPR_NEED(stmt_acting(run, frame, "`tell`"));
   if (named) EXPR_NEED(stmt_object_at(frame, to, &one));
   if (direction != NULL && direction->kind != SPROUT_NODE_NULL)
-    scope = sprout_node_is(sprout_node_get(direction, "word"), "inside") ? SPROUT_TELL_INSIDE : SPROUT_TELL_OUTSIDE;
+    scope = sprout_node_is(frame->graph, sprout_node_get(frame->graph, direction, "word"), "inside") ? SPROUT_TELL_INSIDE : SPROUT_TELL_OUTSIDE;
   memset(&effect, 0, sizeof effect);
   effect.kind = SPROUT_EFFECT_TOLD;
   effect.by = frame->self;

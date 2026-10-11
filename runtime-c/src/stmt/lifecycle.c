@@ -12,10 +12,10 @@
 /* The kind a `spawn` names, as the library that wrote the body names it; a kind absent at load is named for the fault. */
 static sprout_eval_status kind_written(const sprout_frame *frame, const sprout_node *written, const char **qualified) {
   const sprout_kind_def *kind = expr_kind_named(frame, written);
-  const sprout_node *library = sprout_node_get(written, "library");
+  const sprout_node *library = sprout_node_get(frame->graph, written, "library");
   const char *library_text = library == NULL || library->kind == SPROUT_NODE_NULL ? frame->library
-                                                                                  : sprout_node_text(library, "text");
-  const char *name = expr_ident(written, "name");
+                                                                                  : sprout_node_text(frame->graph, library, "text");
+  const char *name = expr_ident(frame->graph, written, "name");
   char *joined;
   size_t library_length;
   if (kind != NULL) {
@@ -37,8 +37,8 @@ sprout_eval_status stmt_spawn(sprout_run *run, const sprout_frame *frame, const 
   sprout_str container;
   sprout_spawned made;
   sprout_send send;
-  EXPR_NEED(kind_written(frame, sprout_node_get(statement, "spawned"), &kind));
-  EXPR_NEED(stmt_object_at(frame, sprout_node_get(statement, "container"), &container));
+  EXPR_NEED(kind_written(frame, sprout_node_get(frame->graph, statement, "spawned"), &kind));
+  EXPR_NEED(stmt_object_at(frame, sprout_node_get(frame->graph, statement, "container"), &container));
   EXPR_NEED(sprout_spawn(frame, kind, container, &made));
   memset(&send, 0, sizeof send);
   send.message = SPROUT_MSG_ENTERED;
@@ -58,9 +58,9 @@ sprout_eval_status stmt_spawn(sprout_run *run, const sprout_frame *frame, const 
 }
 
 sprout_eval_status stmt_destroy(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
-  const sprout_node *after = sprout_node_get(statement, "finally");
+  const sprout_node *after = sprout_node_get(frame->graph, statement, "finally");
   EXPR_NEED(stmt_acting(run, frame, "`destroy`"));
-  if (after != NULL && after->boolean) run->finally = true;
+  if (after != NULL && sprout_truth(after)) run->finally = true;
   else run->destroying = true;
   return SPROUT_EVAL_OK;
 }

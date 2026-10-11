@@ -33,10 +33,10 @@ static sprout_eval_status wrong_count(const sprout_frame *frame, const char *gua
 sprout_eval_status sprout_guard_run(sprout_exec *x, const sprout_node *guard, sprout_str party, sprout_str mover,
                                     const sprout_str *parameters, size_t parameter_count, bool *allowed,
                                     sprout_move_refusal *refusal) {
-  const sprout_node *declaration = sprout_node_get(guard, "declaration");
-  const sprout_node *written = sprout_node_get(declaration, "parameters");
-  const char *origin = sprout_node_text(guard, "origin"), *dot = origin == NULL ? NULL : strchr(origin, '.');
-  const char *name = sprout_node_text(declaration, "guard");
+  const sprout_node *declaration = sprout_node_get(&x->world->graph, guard, "declaration");
+  const sprout_node *written = sprout_node_get(&x->world->graph, declaration, "parameters");
+  const char *origin = sprout_node_text(&x->world->graph, guard, "origin"), *dot = origin == NULL ? NULL : strchr(origin, '.');
+  const char *name = sprout_node_text(&x->world->graph, declaration, "guard");
   sprout_frame frame = sprout_exec_frame(x, party, NULL, NULL);
   sprout_ended ended;
   const sprout_binding *bound;
@@ -52,13 +52,14 @@ sprout_eval_status sprout_guard_run(sprout_exec *x, const sprout_node *guard, sp
   if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
   frame.bindings = bound;
   for (i = 0; i < parameter_count; i++) {
-    const char *parameter = written->items[i]->kind == SPROUT_NODE_NULL ? "_" : sprout_node_text(written->items[i], "text");
+    const sprout_node *given = sprout_item(&x->world->graph, written, i);
+    const char *parameter = given->kind == SPROUT_NODE_NULL ? "_" : sprout_node_text(&x->world->graph, given, "text");
     if (parameter == NULL || strcmp(parameter, "_") == 0) continue;
     bound = sprout_bind(&frame, parameter, sprout_evaluated_object(parameters[i]));
     if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
     frame.bindings = bound;
   }
-  EXPR_NEED(sprout_exec_body(x, sprout_node_get(declaration, "body"), &frame, SPROUT_BODY_DECIDE, &ended));
+  EXPR_NEED(sprout_exec_body(x, sprout_node_get(&x->world->graph, declaration, "body"), &frame, SPROUT_BODY_DECIDE, &ended));
   if (ended.how != SPROUT_END_REFUSE) {
     *allowed = true;
     return SPROUT_EVAL_OK;

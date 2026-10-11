@@ -182,7 +182,7 @@ static inline const sprout_node *exec_body_of(const exec_case *c) {
 
 /* The statement a case's body starts with, which a module's test hands to the module that runs it. */
 static inline const sprout_node *exec_first_statement(const exec_case *c) {
-  return sprout_node_get(exec_body_of(c), "statements")->items[0];
+  return sprout_item(&c->world->graph, sprout_node_get(&c->world->graph, exec_body_of(c), "statements"), 0);
 }
 
 /* A run of an acting body in this case's turn, for the function of a statement module a test calls. */
@@ -230,8 +230,9 @@ static inline const char *exec_effect_name(sprout_effect_kind kind) {
 }
 
 /* The one key of a golden's `said` and its value. */
-static inline void exec_check_speech(const sprout_speech *speech, const sprout_json *said) {
+static inline void exec_check_speech(const sprout_graph *graph, const sprout_speech *speech, const sprout_json *said) {
   const sprout_json *one;
+  const sprout_node *value;
   switch (speech->kind) {
     case SPROUT_SPEECH_PASSAGE:
       one = sprout_json_get(said, "passage");
@@ -244,7 +245,8 @@ static inline void exec_check_speech(const sprout_speech *speech, const sprout_j
       one = sprout_json_get(said, "text");
       CHECK(one != NULL);
       if (one == NULL) return;
-      CHECK_BYTES(sprout_node_get(speech->node, "value")->text, sprout_node_get(speech->node, "value")->length, one->bytes);
+      value = sprout_node_get(graph, speech->node, "value");
+      CHECK_BYTES(sprout_text(graph, value), sprout_text_length(graph, value), one->bytes);
       CHECK_STR(speech->library, exec_text(said, "library"));
       return;
     case SPROUT_SPEECH_ABSENT:
@@ -299,7 +301,7 @@ static inline void exec_check_effects(exec_bench *b, exec_case *c, const sprout_
     CHECK(exec_same_str(effect->by, sprout_json_get(want, "by")));
     if (speaker->kind == SPROUT_JSON_NULL) CHECK(!effect->has_speaker);
     else CHECK(effect->has_speaker && exec_same_str(effect->speaker, speaker));
-    exec_check_speech(&effect->said, sprout_json_get(want, "said"));
+    exec_check_speech(&c->world->graph, &effect->said, sprout_json_get(want, "said"));
     exec_check_bindings(b, c, effect->bindings, effect->binding_count, sprout_json_get(want, "bindings"));
   }
 }

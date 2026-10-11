@@ -30,6 +30,7 @@ sprout_frame sprout_exec_frame(const sprout_exec *x, sprout_str self, const char
   sprout_frame frame;
   memset(&frame, 0, sizeof frame);
   frame.world = x->world;
+  frame.graph = &x->world->graph;
   frame.draft = x->draft;
   frame.turn = x->turn;
   frame.meter = x->meter;
@@ -75,22 +76,22 @@ sprout_eval_status stmt_deciding(const sprout_run *run, const sprout_frame *fram
 
 /* `wake in <n> <unit>`, as the seconds it asks to wait. */
 static sprout_eval_status wake_statement(sprout_run *run, const sprout_frame *frame, const sprout_node *node) {
-  const sprout_node *count = sprout_node_get(sprout_node_get(node, "count"), "value");
-  const char *unit = sprout_node_text(node, "unit");
+  const sprout_node *count = sprout_node_get(frame->graph, sprout_node_get(frame->graph, node, "count"), "value");
+  const char *unit = sprout_node_text(frame->graph, node, "unit");
   double seconds;
   EXPR_NEED(stmt_acting(run, frame, "`wake`"));
   if (count == NULL || unit == NULL) return expr_unchecked(frame, "a `wake` with no count");
-  seconds = count->number * (strcmp(unit, "hours") == 0 ? 3600 : strcmp(unit, "minutes") == 0 ? 60 : 1);
+  seconds = sprout_node_number(frame->graph, count) * (strcmp(unit, "hours") == 0 ? 3600 : strcmp(unit, "minutes") == 0 ? 60 : 1);
   return sprout_wake_ask(run->x, frame, (uint64_t)seconds);
 }
 
 /* A `let`: the value, or the new instance of a `spawn`, bound for the rest of the block. */
 static sprout_eval_status let_statement(sprout_run *run, sprout_frame *scope, const sprout_node *node) {
-  const sprout_node *value = sprout_node_get(node, "value");
-  const char *name = expr_ident(node, "name");
+  const sprout_node *value = sprout_node_get(scope->graph, node, "value");
+  const char *name = expr_ident(scope->graph, node, "name");
   sprout_evaluated bound;
   const sprout_binding *added;
-  if (sprout_node_is(sprout_node_get(value, "kind"), "spawn")) {
+  if (sprout_node_is(scope->graph, sprout_node_get(scope->graph, value, "kind"), "spawn")) {
     sprout_str id;
     EXPR_NEED(stmt_acting(run, scope, "`let ... = spawn`"));
     EXPR_NEED(stmt_spawn(run, scope, value, &id));
@@ -116,11 +117,11 @@ static sprout_eval_status if_statement(sprout_run *run, const sprout_frame *scop
     bool taken;
     sprout_frame inner;
     const sprout_node *otherwise;
-    EXPR_NEED(sprout_eval_branch(scope, sprout_node_get(link, "condition"), &taken, &inner));
-    if (taken) return stmt_block(run, &inner, sprout_node_get(link, "then"), ended);
-    otherwise = sprout_node_get(link, "otherwise");
+    EXPR_NEED(sprout_eval_branch(scope, sprout_node_get(scope->graph, link, "condition"), &taken, &inner));
+    if (taken) return stmt_block(run, &inner, sprout_node_get(scope->graph, link, "then"), ended);
+    otherwise = sprout_node_get(scope->graph, link, "otherwise");
     if (otherwise == NULL || otherwise->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-    if (sprout_node_is(sprout_node_get(otherwise, "kind"), "block")) return stmt_block(run, scope, otherwise, ended);
+    if (sprout_node_is(scope->graph, sprout_node_get(scope->graph, otherwise, "kind"), "block")) return stmt_block(run, scope, otherwise, ended);
     EXPR_NEED(expr_spend(scope));
     link = otherwise;
   }
@@ -129,7 +130,7 @@ static sprout_eval_status if_statement(sprout_run *run, const sprout_frame *scop
 /* One statement, one step; a `let` adds to the scope, which is its block's. */
 static sprout_eval_status statement(sprout_run *run, sprout_frame *scope, const sprout_node *node,
                                     sprout_ended *ended) {
-  const char *kind = sprout_node_text(node, "kind");
+  const char *kind = sprout_node_text(scope->graph, node, "kind");
   sprout_str id;
   EXPR_NEED(expr_spend(scope));
   if (kind == NULL) return expr_unchecked(scope, "a statement with no kind");
@@ -175,10 +176,10 @@ static sprout_eval_status statement(sprout_run *run, sprout_frame *scope, const 
 sprout_eval_status stmt_block(sprout_run *run, const sprout_frame *outer, const sprout_node *block,
                               sprout_ended *ended) {
   sprout_frame scope = *outer;
-  const sprout_node *statements = sprout_node_get(block, "statements");
+  const sprout_node *statements = sprout_node_get(outer->graph, block, "statements");
   size_t i;
   for (i = 0; statements != NULL && i < statements->count; i++) {
-    EXPR_NEED(statement(run, &scope, statements->items[i], ended));
+    EXPR_NEED(statement(run, &scope, sprout_item(outer->graph, statements, i), ended));
     if (ended->how != SPROUT_END_BODY || run->stopped != SPROUT_RUNNING) return SPROUT_EVAL_OK;
   }
   return SPROUT_EVAL_OK;

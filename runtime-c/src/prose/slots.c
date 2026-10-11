@@ -16,6 +16,7 @@ sprout_frame prose_frame(const prose_reading *reading, sprout_draws *draws, spro
   sprout_frame frame;
   memset(&frame, 0, sizeof frame);
   frame.world = reading->world;
+  frame.graph = reading->graph;
   frame.draft = reading->draft;
   frame.turn = reading->turn;
   frame.meter = reading->meter;
@@ -41,8 +42,8 @@ const char *prose_library_of(sprout_arena *arena, const char *qualified) {
 static sprout_eval_status pieces(const prose_reading *reading, const sprout_node *prose, const sprout_frame *frame,
                                  prose_pieces *out);
 
-static bool is_kind(const sprout_node *piece, const char *kind) {
-  return sprout_node_is(sprout_node_get(piece, "kind"), kind);
+static bool is_kind(const sprout_graph *graph, const sprout_node *piece, const char *kind) {
+  return sprout_node_is(graph, sprout_node_get(graph, piece, "kind"), kind);
 }
 
 static sprout_eval_status put_words(const prose_reading *reading, prose_pieces *out, prose_piece_kind kind,
@@ -74,7 +75,7 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
   EXPR_NEED(sprout_eval(frame, receiver, &owner));
   if (owner.binds != SPROUT_BINDS_OBJECT) return expr_engine(frame, "a passage was rendered of what is not an object.");
   instance = expr_instance(frame, owner.id);
-  if (instance == NULL || !sprout_passage_on(instance->kind, name, &speech)) return SPROUT_EVAL_OK;
+  if (instance == NULL || !sprout_passage_on(frame->graph, instance->kind, name, &speech)) return SPROUT_EVAL_OK;
   for (i = 0; i < sizeof CARRIED / sizeof CARRIED[0]; i++) {
     const sprout_binding *carried = expr_binding(frame, CARRIED[i]);
     sprout_frame scope = *frame;
@@ -88,7 +89,7 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
   inner = prose_frame(reading, frame->draws, owner.id, library, bindings);
   inner.hands = frame->hands;
   EXPR_NEED(prose_enter_passage(reading));
-  status = pieces(reading, sprout_node_get(sprout_node_get(speech.node, "body"), "prose"), &inner, &rendered);
+  status = pieces(reading, sprout_node_get(frame->graph, sprout_node_get(frame->graph, speech.node, "body"), "prose"), &inner, &rendered);
   sprout_meter_leave_passage(reading->meter);
   EXPR_NEED(status);
   if (!prose_slotted(frame->turn, &rendered, &slotted)) return SPROUT_EVAL_NO_MEMORY;
@@ -103,15 +104,15 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
 
 static sprout_eval_status slot(const prose_reading *reading, const sprout_node *piece, const sprout_frame *frame,
                                prose_pieces *out) {
-  const sprout_node *expr = sprout_node_get(piece, "expr");
+  const sprout_node *expr = sprout_node_get(frame->graph, piece, "expr");
   sprout_evaluated value;
   sprout_str words;
   char digits[32];
   size_t length, at;
   /* A member the checker resolved as a dotted path's last step is the object it names. */
-  if (expr_kind_of(expr) == EXPR_MEMBER && strcmp(expr_ident(expr, "member"), "count") != 0 &&
+  if (expr_kind_of(frame->graph, expr) == EXPR_MEMBER && strcmp(expr_ident(frame->graph, expr, "member"), "count") != 0 &&
       sprout_world_bound(frame->world, expr) == NULL)
-    return passage_of(reading, sprout_node_get(expr, "receiver"), expr_ident(expr, "member"), frame, out);
+    return passage_of(reading, sprout_node_get(frame->graph, expr, "receiver"), expr_ident(frame->graph, expr, "member"), frame, out);
   EXPR_NEED(sprout_eval(frame, expr, &value));
   switch (value.binds) {
     case SPROUT_BINDS_OBJECT:
@@ -155,11 +156,11 @@ static sprout_eval_status branch(const prose_reading *reading, const sprout_node
     bool taken;
     const sprout_node *otherwise;
     EXPR_NEED(expr_spend(frame));
-    EXPR_NEED(sprout_eval_branch(frame, sprout_node_get(link, "condition"), &taken, &inner));
-    if (taken) return pieces(reading, sprout_node_get(link, "then"), &inner, out);
-    otherwise = sprout_node_get(link, "otherwise");
+    EXPR_NEED(sprout_eval_branch(frame, sprout_node_get(frame->graph, link, "condition"), &taken, &inner));
+    if (taken) return pieces(reading, sprout_node_get(frame->graph, link, "then"), &inner, out);
+    otherwise = sprout_node_get(frame->graph, link, "otherwise");
     if (otherwise == NULL || otherwise->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-    if (is_kind(otherwise, "prose")) return pieces(reading, otherwise, frame, out);
+    if (is_kind(frame->graph, otherwise, "prose")) return pieces(reading, otherwise, frame, out);
     link = otherwise;
   }
 }
@@ -169,14 +170,14 @@ static sprout_eval_status branch(const prose_reading *reading, const sprout_node
 /* A `{one of}`: one of its choices, each as likely, drawn as a step. */
 static sprout_eval_status choose(const prose_reading *reading, const sprout_node *block, const sprout_frame *frame,
                                  prose_pieces *out) {
-  const sprout_node *choices = sprout_node_get(block, "choices");
+  const sprout_node *choices = sprout_node_get(frame->graph, block, "choices");
   uint32_t drawn;
   EXPR_NEED(expr_spend(frame));
   if (frame->draws == NULL)
     return expr_engine(frame, "a `{one of}` was rendered where nothing draws, which the checker refuses.");
   if (choices == NULL || choices->count == 0 || !sprout_draws_below(frame->draws, choices->count, &drawn))
     return expr_engine(frame, "a `{one of}` was written with nothing to choose, which the checker refuses.");
-  return pieces(reading, choices->items[drawn], frame, out);
+  return pieces(reading, sprout_item(frame->graph, choices, drawn), frame, out);
 }
 
 /* ---- {for} ---- */
@@ -185,13 +186,13 @@ static sprout_eval_status choose(const prose_reading *reading, const sprout_node
 static sprout_eval_status walk(const sprout_node *block, const sprout_frame *frame, sprout_evaluated **walked,
                                size_t *count) {
   sprout_evaluated over, *found;
-  const sprout_node *filter = sprout_node_get(block, "filter");
+  const sprout_node *filter = sprout_node_get(frame->graph, block, "filter");
   const sprout_str *ids;
   const sprout_kind_def *kind = NULL;
   size_t n, kept = 0, i;
   sprout_str container;
-  EXPR_NEED(sprout_eval(frame, sprout_node_get(block, "over"), &over));
-  if (sprout_node_is(sprout_node_get(block, "walks"), "of")) {
+  EXPR_NEED(sprout_eval(frame, sprout_node_get(frame->graph, block, "over"), &over));
+  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, block, "walks"), "of")) {
     if (over.binds == SPROUT_BINDS_SET || over.binds == SPROUT_BINDS_READINGS) n = over.count;
     else if (over.binds == SPROUT_BINDS_VALUE && over.value.kind == SPROUT_LIST) n = over.value.as.list->count;
     else return expr_engine(frame, "`{for … of}` walked what is not a list or a set, which the checker refuses.");
@@ -233,7 +234,7 @@ static sprout_eval_status walk(const sprout_node *block, const sprout_frame *fra
 /* A `{for}`: its body once for each thing or element walked, each iteration a step. */
 static sprout_eval_status loop(const prose_reading *reading, const sprout_node *block, const sprout_frame *frame,
                                prose_pieces *out) {
-  const char *variable = expr_ident(block, "variable");
+  const char *variable = expr_ident(frame->graph, block, "variable");
   sprout_evaluated *walked = NULL;
   size_t count = 0, i;
   EXPR_NEED(walk(block, frame, &walked, &count));
@@ -249,7 +250,7 @@ static sprout_eval_status loop(const prose_reading *reading, const sprout_node *
     if (inner.bindings != NULL)
       inner.bindings = sprout_bind(&inner, "$count", sprout_evaluated_value(sprout_number((double)count)));
     if (inner.bindings == NULL) return SPROUT_EVAL_NO_MEMORY;
-    EXPR_NEED(pieces(reading, sprout_node_get(block, "body"), &inner, out));
+    EXPR_NEED(pieces(reading, sprout_node_get(frame->graph, block, "body"), &inner, out));
   }
   return SPROUT_EVAL_OK;
 }
@@ -258,17 +259,17 @@ static sprout_eval_status loop(const prose_reading *reading, const sprout_node *
 
 static sprout_eval_status pieces(const prose_reading *reading, const sprout_node *prose, const sprout_frame *frame,
                                  prose_pieces *out) {
-  const sprout_node *list = sprout_node_get(prose, "pieces");
+  const sprout_node *list = sprout_node_get(frame->graph, prose, "pieces");
   size_t i;
   for (i = 0; list != NULL && i < list->count; i++) {
-    const sprout_node *piece = list->items[i];
-    const char *kind = sprout_node_text(piece, "kind");
+    const sprout_node *piece = sprout_item(frame->graph, list, i);
+    const char *kind = sprout_node_text(frame->graph, piece, "kind");
     const sprout_node *text;
     if (kind == NULL) return expr_unchecked(frame, "a piece of prose with no kind");
     if (strcmp(kind, "prose-words") == 0) {
-      text = sprout_node_get(piece, "text");
+      text = sprout_node_get(frame->graph, piece, "text");
       if (text == NULL || text->kind != SPROUT_NODE_STRING) return expr_unchecked(frame, "words with no text");
-      EXPR_NEED(put_words(reading, out, PROSE_WORDS, text->text, text->length));
+      EXPR_NEED(put_words(reading, out, PROSE_WORDS, sprout_text(frame->graph, text), sprout_text_length(frame->graph, text)));
     } else if (strcmp(kind, "prose-paragraph") == 0) {
       EXPR_NEED(put_words(reading, out, PROSE_PARAGRAPH, NULL, 0));
     } else if (strcmp(kind, "prose-newline") == 0) {

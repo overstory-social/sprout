@@ -30,7 +30,7 @@ static const sprout_message *message_in(const sprout_world *world, const char *l
 /* The message a send names, reached from the library that wrote the body; NULL where it is absent at load. */
 static sprout_eval_status declared_message(const sprout_frame *frame, const sprout_node *statement,
                                            const sprout_message **out) {
-  const char *name = expr_ident(statement, "message");
+  const char *name = expr_ident(frame->graph, statement, "message");
   size_t i;
   *out = NULL;
   for (i = 0; i < sizeof ENGINE_MESSAGES / sizeof *ENGINE_MESSAGES; i++)
@@ -59,7 +59,7 @@ const char *stmt_message_key(const sprout_exec *x, const sprout_message *declare
 
 /* What a send carries, where it carries anything. */
 static sprout_eval_status carried(const sprout_frame *frame, const sprout_node *statement, sprout_send *send) {
-  const sprout_node *value = sprout_node_get(statement, "value");
+  const sprout_node *value = sprout_node_get(frame->graph, statement, "value");
   sprout_evaluated evaluated;
   if (value == NULL || value->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
   EXPR_NEED(sprout_eval(frame, value, &evaluated));
@@ -75,7 +75,7 @@ sprout_eval_status stmt_send(sprout_run *run, const sprout_frame *frame, const s
   const char *key;
   sprout_send send;
   EXPR_NEED(stmt_acting(run, frame, "`send`"));
-  EXPR_NEED(stmt_target_at(frame, sprout_node_get(statement, "target"), &target, &found));
+  EXPR_NEED(stmt_target_at(frame, sprout_node_get(frame->graph, statement, "target"), &target, &found));
   EXPR_NEED(declared_message(frame, statement, &declared));
   if (declared == NULL) return SPROUT_EVAL_OK;
   memset(&send, 0, sizeof send);
