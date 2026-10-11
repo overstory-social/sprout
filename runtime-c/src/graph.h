@@ -11,8 +11,9 @@
  * is a union and nothing else but its kind and count, so it is 16 bytes on a
  * 32-bit console; a scalar cell (a string, a number, a place, true or false)
  * is one node per distinct value, shared by every entry that holds it, and
- * lies outside the entries array, which is how it is told from an entry.
- * Nothing a node holds points at the JSON it was read from.
+ * lies outside the entries array, which is how it is told from an entry; and
+ * the key array of every object with the same field names in the same order
+ * is one array. Nothing a node holds points at the JSON it was read from.
  */
 #ifndef SPROUT_GRAPH_H
 #define SPROUT_GRAPH_H
@@ -79,6 +80,18 @@ typedef struct sprout_intern {
   size_t capacity, used;
 } sprout_intern;
 
+/* A shape: the key array objects with these field names, in this order, share. */
+typedef struct sprout_shape {
+  const char **keys;
+  uint32_t count;
+} sprout_shape;
+
+/* The shapes seen: open addressing over the key sequences, grown by doubling in scratch. */
+typedef struct sprout_shape_table {
+  sprout_shape *slots;
+  size_t capacity, used;
+} sprout_shape_table;
+
 /*
  * A graph being read: begun with the entries' counts, so a reference may
  * point forward; filled one entry at a time, in the table's order; ended with
@@ -89,6 +102,9 @@ typedef struct sprout_graph_reader {
   sprout_arena *scratch;
   sprout_graph *graph;
   sprout_intern table;
+  sprout_shape_table shapes;
+  const char **probe_keys; /* the keys of the object being filled, before its shape is found */
+  size_t probe_capacity;
   size_t filled;
   long max_file; /* the highest file a place named, checked against the files at the end */
   char *error;

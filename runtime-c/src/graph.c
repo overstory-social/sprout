@@ -4,7 +4,9 @@
  * so a reference may point forward or back, and a shared entry is one node.
  * Scalar cells and field names are interned: a table in the load's scratch
  * finds the node already made for an equal value, so a word the table writes
- * a thousand times is one node and one copy of its text. The reader fills one
+ * a thousand times is one node and one copy of its text; and objects with the
+ * same field names in the same order share one key array, found the same way,
+ * since a world's objects come in a few hundred shapes. The reader fills one
  * entry at a time, so a loader may read the entries from a stream.
  */
 #include "graph.h"
@@ -131,6 +133,76 @@ static const sprout_node *interned_string(reader *r, const char *bytes, size_t l
   return interned(r, &probe, status);
 }
 
+/* ---- shapes ---- */
+
+static uint32_t shape_hash(const char **keys, uint32_t count) {
+  uint32_t hash = 2166136261u, i;
+  hash = mix(hash, count);
+  for (i = 0; i < count; i++) {
+    uintptr_t key = (uintptr_t)keys[i];
+    size_t b;
+    for (b = 0; b < sizeof key; b++) hash = mix(hash, (uint32_t)(key >> (8 * b)) & 0xffu);
+  }
+  return hash;
+}
+
+static bool same_shape(const sprout_shape *shape, const char **keys, uint32_t count) {
+  return shape->count == count && memcmp(shape->keys, keys, count * sizeof *keys) == 0;
+}
+
+static size_t shape_slot(const sprout_shape *slots, size_t capacity, const char **keys, uint32_t count) {
+  size_t i = shape_hash(keys, count) & (capacity - 1);
+  while (slots[i].keys != NULL && !same_shape(&slots[i], keys, count)) i = (i + 1) & (capacity - 1);
+  return i;
+}
+
+static sprout_status grow_shapes(reader *r) {
+  sprout_shape_table *t = &r->shapes;
+  size_t capacity = t->capacity == 0 ? 64 : t->capacity * 2, i;
+  sprout_shape *slots = (sprout_shape *)sprout_arena_take(r->scratch, capacity * sizeof *slots);
+  if (slots == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < t->capacity; i++)
+    if (t->slots[i].keys != NULL) slots[shape_slot(slots, capacity, t->slots[i].keys, t->slots[i].count)] = t->slots[i];
+  t->slots = slots;
+  t->capacity = capacity;
+  return SPROUT_OK;
+}
+
+/* The one key array for this sequence of interned keys: the one made before, or a new copy. */
+static const char **shared_keys(reader *r, const char **keys, uint32_t count, sprout_status *status) {
+  sprout_shape_table *t = &r->shapes;
+  const char **made;
+  size_t i;
+  *status = SPROUT_OK;
+  if ((t->used + 1) * 2 > t->capacity) {
+    *status = grow_shapes(r);
+    if (*status != SPROUT_OK) return NULL;
+  }
+  i = shape_slot(t->slots, t->capacity, keys, count);
+  if (t->slots[i].keys != NULL) return t->slots[i].keys;
+  made = (const char **)sprout_arena_take_aligned(r->arena, count * sizeof *made, sizeof *made);
+  if (made == NULL) {
+    *status = SPROUT_NO_MEMORY;
+    return NULL;
+  }
+  memcpy(made, keys, count * sizeof *made);
+  t->slots[i].keys = made;
+  t->slots[i].count = count;
+  t->used++;
+  return made;
+}
+
+/* Room in the probe for an object's keys. */
+static sprout_status probe_room(reader *r, size_t count) {
+  size_t capacity = r->probe_capacity == 0 ? 16 : r->probe_capacity;
+  if (count <= r->probe_capacity) return SPROUT_OK;
+  while (capacity < count) capacity *= 2;
+  r->probe_keys = (const char **)sprout_arena_take(r->scratch, capacity * sizeof *r->probe_keys);
+  if (r->probe_keys == NULL) return SPROUT_NO_MEMORY;
+  r->probe_capacity = capacity;
+  return SPROUT_OK;
+}
+
 /* ---- cells ---- */
 
 static bool is_array_of_one_count(const sprout_json *cell) {
@@ -196,7 +268,8 @@ static const sprout_node *resolve(reader *r, const sprout_json *cell, sprout_sta
 static sprout_status take_items(reader *r, sprout_node *node, size_t count) {
   node->count = (uint32_t)count;
   if (count == 0) return SPROUT_OK;
-  node->items = (const sprout_node **)sprout_arena_take(r->arena, count * sizeof(sprout_node *));
+  node->items = (const sprout_node **)sprout_arena_take_aligned(r->arena, count * sizeof(sprout_node *),
+                                                                sizeof(sprout_node *));
   return node->items == NULL ? SPROUT_NO_MEMORY : SPROUT_OK;
 }
 
@@ -212,13 +285,17 @@ static sprout_status fill(reader *r, sprout_node *node, const sprout_json *entry
     status = take_items(r, node, body->count);
     if (status != SPROUT_OK) return status;
     if (body->count > 0) {
-      node->keys = (const char **)sprout_arena_take(r->arena, body->count * sizeof(char *));
-      if (node->keys == NULL) return SPROUT_NO_MEMORY;
+      status = probe_room(r, body->count);
+      if (status != SPROUT_OK) return status;
+      for (i = 0; i < body->count; i++) {
+        const sprout_node *key = interned_string(r, body->items[i]->key, body->items[i]->key_length, &status);
+        if (status != SPROUT_OK) return status;
+        r->probe_keys[i] = key->text;
+      }
+      node->keys = shared_keys(r, r->probe_keys, (uint32_t)body->count, &status);
+      if (status != SPROUT_OK) return status;
     }
     for (i = 0; i < body->count; i++) {
-      const sprout_node *key = interned_string(r, body->items[i]->key, body->items[i]->key_length, &status);
-      if (status != SPROUT_OK) return status;
-      node->keys[i] = key->text;
       node->items[i] = resolve(r, body->items[i], &status);
       if (status != SPROUT_OK) return status;
     }
@@ -236,8 +313,8 @@ static sprout_status fill(reader *r, sprout_node *node, const sprout_json *entry
     status = take_items(r, node, body->count);
     if (status != SPROUT_OK) return status;
     if (body->count > 0) {
-      node->map_keys =
-          (const sprout_node **)sprout_arena_take(r->arena, body->count * sizeof(sprout_node *));
+      node->map_keys = (const sprout_node **)sprout_arena_take_aligned(
+          r->arena, body->count * sizeof(sprout_node *), sizeof(sprout_node *));
       if (node->map_keys == NULL) return SPROUT_NO_MEMORY;
     }
     for (i = 0; i < body->count; i++) {
@@ -300,7 +377,7 @@ sprout_status sprout_graph_end(sprout_graph_reader *r, const sprout_json *files)
   if (r->max_file >= (long)files->count) return refuse(r, "the cartridge names a file it does not list.");
   graph->file_count = files->count;
   if (files->count > 0) {
-    graph->files = (const char **)sprout_arena_take(r->arena, files->count * sizeof(char *));
+    graph->files = (const char **)sprout_arena_take_aligned(r->arena, files->count * sizeof(char *), sizeof(char *));
     if (graph->files == NULL) return SPROUT_NO_MEMORY;
   }
   for (i = 0; i < files->count; i++) {
