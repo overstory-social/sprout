@@ -7,8 +7,9 @@ import {
   freshStage,
   heard,
   leave,
-  playInteractive,
+  playStep,
   playSteps,
+  typedStep,
 } from '../play.js';
 import { scriptOf } from '../fixtures/scripts.js';
 import { bundle } from '../fixtures/play.js';
@@ -116,46 +117,37 @@ describe('defaultVisitor', () => {
   });
 });
 
-describe('playInteractive', () => {
-  it('reads a `Name> text` line exactly as the script grammar does', () => {
+describe('typedStep', () => {
+  it('reads a `Name> text` line exactly as the script grammar does, playing nothing', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
-    const outcome = playInteractive(stage, 'Marta> fire kiln', 'stdin:2');
-    expect(outcome.line).toBe('Marta> fire kiln');
-    expect(outcome.step).toEqual({ as: 'Marta', type: 'fire kiln' });
-    expect(outcome.made).toEqual([
-      {
-        level: 'prose',
-        text: 'Marta (said): The chamber takes the flame.',
-        words: 'The chamber takes the flame.',
-        kind: 'said',
-        shown: 'The chamber takes the flame.',
-        reader: 'Marta',
-      },
-    ]);
+    const before = stage.turns.length;
+    expect(typedStep(stage, 'Marta> fire kiln', 'stdin:2')).toEqual({
+      line: 'Marta> fire kiln',
+      step: { as: 'Marta', type: 'fire kiln' },
+    });
+    expect(stage.turns).toHaveLength(before);
   });
 
-  it('reads a host line and a comment as steps, and a blank line as none, the comment and blank making nothing', () => {
+  it('reads a host line and a comment as steps, and a blank line as none with an empty line', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
-    expect(playInteractive(stage, '# aside', 'stdin:2')).toEqual({
+    expect(typedStep(stage, '# aside', 'stdin:2')).toEqual({
       line: '# aside',
       step: { comment: 'aside' },
-      made: null,
     });
-    expect(playInteractive(stage, '', 'stdin:3')).toEqual({ line: '', step: null, made: null });
-    const ticked = playInteractive(stage, '@tick', 'stdin:4');
-    expect(ticked.step).toEqual({ tick: true });
-    expect(ticked.made).not.toBeNull();
+    expect(typedStep(stage, '', 'stdin:3')).toEqual({ line: '', step: null });
+    expect(typedStep(stage, '@tick', 'stdin:4')).toEqual({ line: '@tick', step: { tick: true } });
+    expect(typedStep(stage, '@seed 7', 'stdin:5')).toEqual({ line: '@seed 7', step: { seed: 7 } });
   });
 
   it('throws, naming where and what to write, for a line none of the grammar reads', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
-    expect(() => playInteractive(stage, '@dance', 'stdin:2')).toThrow(
+    expect(() => typedStep(stage, '@dance', 'stdin:2')).toThrow(
       'stdin:2: `@dance` is not something the host does here.',
     );
-    expect(() => playInteractive(stage, '@advance soon', 'stdin:3')).toThrow(
+    expect(() => typedStep(stage, '@advance soon', 'stdin:3')).toThrow(
       'stdin:3: write how long passes, as in `@advance 40 minutes`.',
     );
   });
@@ -163,20 +155,11 @@ describe('playInteractive', () => {
   it('fills in a bare line’s addressee, and throws naming where, where nobody stands to address it', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
-    const outcome = playInteractive(stage, 'fire kiln', 'stdin:2');
-    expect(outcome.line).toBe('Marta> fire kiln');
-    expect(outcome.step).toEqual({ as: 'Marta', type: 'fire kiln' });
-    expect(outcome.made).toEqual([
-      {
-        level: 'prose',
-        text: 'Marta (said): The chamber takes the flame.',
-        words: 'The chamber takes the flame.',
-        kind: 'said',
-        shown: 'The chamber takes the flame.',
-        reader: 'Marta',
-      },
-    ]);
-    expect(() => playInteractive(freshStage(bundle), 'look', 'stdin:1')).toThrow(
+    expect(typedStep(stage, 'fire kiln', 'stdin:2')).toEqual({
+      line: 'Marta> fire kiln',
+      step: { as: 'Marta', type: 'fire kiln' },
+    });
+    expect(() => typedStep(freshStage(bundle), 'look', 'stdin:1')).toThrow(
       'stdin:1: nobody is standing to hear it',
     );
   });
@@ -187,7 +170,7 @@ describe('actedBy', () => {
     const stage = freshStage(bundle);
     arrive(stage, 'Marta');
     arrive(stage, 'Ines');
-    playInteractive(stage, 'Marta> fire kiln', 'stdin:3');
+    playStep(stage, { as: 'Marta', type: 'fire kiln' }, 'stdin:3');
     expect(actedBy(stage, 'Ines', 'Marta', 'fire kiln')).toEqual(['Marta tries to fire kiln.']);
   });
 

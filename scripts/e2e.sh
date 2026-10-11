@@ -62,12 +62,12 @@ const { places, passages } = r.reach;
 if (places.never.length > 0 || passages.never.length === 0 || r.faults.length > 0) process.exit(1);
 console.log(`reached ${places.reached.length} of ${places.declared} places, ${passages.reached.length} of ${passages.declared} passages`);
 '
-printf 'look\n' | npx sprout play shed --debug --record session.json > interactive.txt
+printf 'look\n' | npx sprout play shed --seed 0 --debug --record session.json > interactive.txt
 grep -qx '  Inspector (described): There is nothing special about a hall.' interactive.txt
 npx sprout play shed session.json > replayed.json
 diff -u session.json replayed.json
 echo "played shed interactively from a here-document and recorded it; the recording plays back as written"
-printf 'look\n' | npx sprout play shed - --debug > interactive-dash.txt
+printf 'look\n' | npx sprout play shed - --seed 0 --debug > interactive-dash.txt
 diff -u interactive.txt interactive-dash.txt
 echo "\`-\` for the script plays interactively too"
 printf 'look\n' | npx sprout play shed > interactive-prose.txt

@@ -240,11 +240,10 @@ function trace(
   });
 }
 
-/** One interactive line played: the line as the grammar writes it, the step it is, and what it made. */
-export interface Interactive {
+/** One interactive line read: the line as the grammar writes it, and the step it is. */
+export interface Typed {
   readonly line: string;
   readonly step: Step | null;
-  readonly made: readonly Made[] | null;
 }
 
 /** What a line made, as the transcript writes it: `(nothing)` where nothing was. */
@@ -712,11 +711,11 @@ export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets
  * line grammar: `Marta> take brass key` addresses Marta by name; a bare
  * `take brass key` addresses whoever `defaultVisitor` names, since the
  * prompt already said whose turn it is. The line with a bare line's
- * addressee filled in, the step it is (null for a blank line), and what
- * it made. Thrown, naming where, where nobody stands to address a bare
- * line or the line is none of the grammar's.
+ * addressee filled in, and the step it is (null, and an empty line, for
+ * a blank line); nothing is played. Thrown, naming where, where nobody
+ * stands to address a bare line or the line is none of the grammar's.
  */
-export function playInteractive(stage: Stage, raw: string, where: string): Interactive {
+export function typedStep(stage: Stage, raw: string, where: string): Typed {
   const trimmed = raw.trim();
   const bare = trimmed !== '' && !/^[@#]/.test(trimmed) && !TYPED_LINE.test(trimmed);
   let step: Step | null;
@@ -727,8 +726,7 @@ export function playInteractive(stage: Stage, raw: string, where: string): Inter
     }
     step = { as: nickname, type: trimmed };
   } else step = stepOfLine(trimmed, where);
-  if (step === null) return { line: '', step: null, made: null };
-  return { line: lineOf(step), step, made: playStep(stage, step, where) };
+  return step === null ? { line: '', step: null } : { line: lineOf(step), step };
 }
 
 /**

@@ -5,7 +5,8 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { playScript, readScript } from '@overstory/sprout-player';
+import { Draws, SEED_MAX } from '@overstory/sprout/lang';
+import { playScript, plays, readScript, stepOfLine } from '@overstory/sprout-player';
 import {
   bundleOf,
   KILN_YARD,
@@ -19,8 +20,27 @@ import { playInteractively } from './interactive.js';
 
 const kilnYard = bundleOf('kiln_yard', KILN_YARD);
 const lane = bundleOf('lane', LANE);
+
+/** The first `n` seeds of the stream begun from `begun`, as a session draws them. */
+const stream = (begun: number, n: number): number[] => {
+  const draws = new Draws(begun);
+  return Array.from({ length: n }, () => draws.below(SEED_MAX + 1));
+};
+
+/** `lines` as a session seeds them: `@seed 0` first, then the stream's next before every line that plays. */
+const seeded = (lines: string): string => {
+  const draws = new Draws(0);
+  const out = ['@seed 0'];
+  for (const line of lines.split('\n')) {
+    if (line === '') continue;
+    const step = stepOfLine(line, 'spec');
+    if (step !== null && plays(step)) out.push(`@seed ${draws.below(SEED_MAX + 1)}`);
+    out.push(line);
+  }
+  return `${out.join('\n')}\n`;
+};
 const asScript = (lines: string) =>
-  transcriptOf(playScript(kilnYard, scriptOf(lines), 'yard.json'));
+  transcriptOf(playScript(kilnYard, scriptOf(seeded(lines)), 'yard.json'));
 
 describe('playInteractively with debug, which prints what a script of the same lines prints', () => {
   it('admits Inspector, unless told another name, prints what they read, and prompts nothing more when stdin is empty', async () => {
@@ -57,12 +77,17 @@ describe('playInteractively with debug, which prints what a script of the same l
     expect(await playInteractively(lane, { at: 'shed', nickname: 'Marta', debug: true }, io)).toBe(
       0,
     );
+    const [first, second, third] = stream(0, 3);
     expect(io.out()).toBe(
       [
+        '@seed 0',
+        `@seed ${first}`,
         '@arrive Marta',
         '  Marta (described): Tools hang in rows.',
+        `@seed ${second}`,
         'Marta> go out',
         '  Marta (described): A muddy yard.',
+        `@seed ${third}`,
         '@leave Marta',
         '  Marta (notice): You leave, and take what you carry with you.',
         '',
@@ -74,7 +99,7 @@ describe('playInteractively with debug, which prints what a script of the same l
     const io = captured('look\n');
     expect(await playInteractively(lane, { nickname: 'crate', debug: true }, io)).toBe(0);
     expect(io.out()).toBe(
-      '@arrive crate\n  nickname refused: "crate" is a word this world already reads, ' +
+      `@seed 0\n@seed ${stream(0, 1)[0]}\n@arrive crate\n  nickname refused: "crate" is a word this world already reads, ` +
         'so "crate" would not always mean you: choose another nickname.\n',
     );
   });
@@ -83,7 +108,7 @@ describe('playInteractively with debug, which prints what a script of the same l
     const io = captured('look\n');
     expect(await playInteractively(lane, { at: 'loft', debug: true }, io)).toBe(1);
     expect(io.err()).toContain('write one of its places');
-    expect(io.out()).toBe('');
+    expect(io.out()).toBe(`@seed 0\n@seed ${stream(0, 1)[0]}\n`);
   });
 
   it('refuses a malformed typed line, naming where, and stops there', async () => {
@@ -122,7 +147,9 @@ describe('playInteractively with debug, which prints what a script of the same l
     (io.stdin as unknown as { isTTY: boolean }).isTTY = true;
     const played = playInteractively(kilnYard, { nickname: 'Marta', debug: true }, io);
     await new Promise((resolve) => setImmediate(resolve));
-    expect(out).toBe('@arrive Marta\n  Marta (described): A kiln yard.\nMarta> ');
+    expect(out).toBe(
+      `@seed 0\n@seed ${stream(0, 1)[0]}\n@arrive Marta\n  Marta (described): A kiln yard.\nMarta> `,
+    );
     stdin.write('fire kiln\n');
     await new Promise((resolve) => setImmediate(resolve));
     expect(out).toContain('Marta (said): The chamber takes the flame.');
@@ -211,15 +238,22 @@ describe('playInteractively with record', () => {
     expect(await playInteractively(kilnYard, { nickname: 'Marta', record: file }, io)).toBe(0);
     const recorded = readScript(readFileSync(file, 'utf8'), 'session.json');
     expect(recorded.steps.map((step) => Object.keys(step)[0])).toEqual([
+      'seed',
+      'seed',
       'arrive',
+      'seed',
       'as',
+      'seed',
       'arrive',
+      'seed',
       'as',
+      'seed',
       'tick',
       'comment',
+      'seed',
       'leave',
     ]);
-    expect(recorded.steps[1]).toEqual({
+    expect(recorded.steps[4]).toEqual({
       as: 'Marta',
       type: 'fire kiln',
       expect: [{ reader: 'Marta', kind: 'said', words: 'The chamber takes the flame.' }],
@@ -253,12 +287,54 @@ describe('playInteractively with record', () => {
     const io = captured('fire kiln\n@dance\n');
     expect(await playInteractively(kilnYard, { nickname: 'Marta', record: file }, io)).toBe(1);
     const recorded = readScript(readFileSync(file, 'utf8'), 'session.json');
-    expect(recorded.steps).toHaveLength(2);
+    expect(recorded.steps.map((step) => Object.keys(step)[0])).toEqual([
+      'seed',
+      'seed',
+      'arrive',
+      'seed',
+      'as',
+    ]);
   });
 
   it('refuses --at, since a script brings everyone in where visitors arrive', async () => {
     const io = captured('look\n');
     expect(await playInteractively(lane, { at: 'shed', record: recording() }, io)).toBe(1);
     expect(io.err()).toContain('--record cannot keep --at');
+  });
+});
+
+describe('playInteractively seeds every turn from a stream', () => {
+  const recording = () => join(mkdtempSync(join(tmpdir(), 'sprout-seed-')), 'session.json');
+  const seedsOf = (file: string): number[] =>
+    readScript(readFileSync(file, 'utf8'), 'session.json').steps.flatMap((step) =>
+      'seed' in step ? [step.seed] : [],
+    );
+
+  it('begins the stream from the seed given, recording it first and the next of it before every turn', async () => {
+    const file = recording();
+    const io = captured('fire kiln\n@tick\n# aside\n');
+    expect(
+      await playInteractively(kilnYard, { nickname: 'Marta', record: file, seed: 7 }, io),
+    ).toBe(0);
+    expect(seedsOf(file)).toEqual([7, ...stream(7, 4)]);
+  });
+
+  it('begins from 0 where no seed is given, so a session is replayable and a test of it stable', async () => {
+    const file = recording();
+    await playInteractively(kilnYard, { nickname: 'Marta', record: file }, captured('fire kiln\n'));
+    expect(seedsOf(file)).toEqual([0, ...stream(0, 3)]);
+  });
+
+  it('begins the stream again from a typed `@seed`, which is kept as the step it is', async () => {
+    const file = recording();
+    const io = captured('fire kiln\n@seed 5\nlook\n');
+    expect(await playInteractively(kilnYard, { nickname: 'Marta', record: file }, io)).toBe(0);
+    expect(seedsOf(file)).toEqual([0, ...stream(0, 2), 5, ...stream(5, 2)]);
+  });
+
+  it('refuses a typed seed past the largest there is, naming where', async () => {
+    const io = captured(`@seed ${SEED_MAX + 1}\n`);
+    expect(await playInteractively(kilnYard, { nickname: 'Marta' }, io)).toBe(1);
+    expect(io.err()).toBe(`sprout: stdin:2: a seed is a whole number from 0 to ${SEED_MAX}.\n`);
   });
 });

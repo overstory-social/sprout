@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
-import { keeps } from '@overstory/sprout/lang';
+import { Draws, keeps, SEED_MAX } from '@overstory/sprout/lang';
 
 import {
   actedBy,
@@ -12,8 +12,10 @@ import {
   heard,
   INSPECTOR,
   leave,
-  playInteractive,
+  lineOf,
+  playStep,
   plays,
+  typedStep,
   writeScript,
   type Made,
   type PlayableWorld,
@@ -37,6 +39,12 @@ import {
 // turn for whoever is still standing, as a last `@leave` would. With
 // `record`, the session is also written as a script, each step expecting
 // all it made, so playing it back makes the same.
+//
+// Every turn draws from a seed of its own, the next of a mulberry32
+// stream begun from `seed` (the spec's Chance › The seed leaves each
+// turn's seed to the host), set by a seed step before it, which the
+// recording keeps so it replays every draw and `debug` shows as the
+// host's line it is. A typed `@seed n` begins the stream again from n.
 
 /** The streams a session reads and writes. */
 export interface Io {
@@ -46,10 +54,11 @@ export interface Io {
   stdin?: NodeJS.ReadableStream;
 }
 
-/** Where and as whom a session stands, whether it prints everything, and where to record it as a script. */
+/** Where and as whom a session stands, whether it prints everything, where to record it as a script, and the seed its stream of turn seeds begins from (0 where none is given). */
 export interface SessionOptions extends StandOptions {
   readonly debug?: boolean;
   readonly record?: string;
+  readonly seed?: number;
 }
 
 /** What `made` shows on `viewer`'s screen, in order: the prose they read, the console's own, and errors. */
@@ -106,9 +115,20 @@ export async function playInteractively(
     if (made === null) return;
     write(debug ? heard(made).map((one) => `  ${one.text}`) : shownTo(viewer, made));
   };
+  /** A seed step, played and kept, and shown in debug as the host's line. */
+  const seedStep = (step: Step & { seed: number }, where: string) => {
+    keep(step, playStep(stage, step, where));
+    if (debug) write([lineOf(step)]);
+  };
+  const begun = options.seed ?? 0;
+  let seeds = new Draws(begun);
+  /** The next seed of the stream, as the step before the turn it is for. */
+  const draw = (where: string) => seedStep({ seed: seeds.below(SEED_MAX + 1) }, where);
 
   const nickname = options.nickname ?? INSPECTOR;
   try {
+    seedStep({ seed: begun }, 'the session');
+    draw('the arrival');
     const made = arrive(stage, nickname, options.at);
     keep({ arrive: nickname }, made);
     if (debug) write([`@arrive ${nickname}`]);
@@ -134,18 +154,26 @@ export async function playInteractively(
     prompt();
     for await (const raw of lines) {
       at += 1;
+      const where = `stdin:${at}`;
       const before = defaultVisitor(stage);
-      const outcome = playInteractive(stage, raw, `stdin:${at}`);
-      keep(outcome.step, outcome.made);
-      if (!tty) write([outcome.line]);
+      const { line, step } = typedStep(stage, raw, where);
+      if (step !== null && 'seed' in step) {
+        if (step.seed > SEED_MAX) {
+          throw new Error(`${where}: a seed is a whole number from 0 to ${SEED_MAX}.`);
+        }
+        seeds = new Draws(step.seed);
+      }
+      if (step !== null && plays(step)) draw(where);
+      const made = step === null ? null : playStep(stage, step, where);
+      keep(step, made);
+      if (!tty) write([line]);
       // Whoever the prompt is now watches: an arrival hands the screen to
       // the one who came in, and the last departure leaves it with them.
       const viewer = defaultVisitor(stage) ?? before;
-      const { step } = outcome;
       if (!debug && viewer !== null && step !== null && 'as' in step && step.as !== viewer) {
         write(actedBy(stage, viewer, step.as, step.type));
       }
-      print(outcome.made, viewer);
+      print(made, viewer);
       prompt();
     }
   } catch (err) {
@@ -157,6 +185,7 @@ export async function playInteractively(
   const departing = defaultVisitor(stage);
   if (departing !== null) {
     if (tty) io.stdout.write('\n');
+    draw('the departure');
     if (debug) write([`@leave ${departing}`]);
     const made = leave(stage, departing, 'end of session');
     keep({ leave: departing }, made);

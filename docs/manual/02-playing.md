@@ -300,7 +300,8 @@ sprout play corpus/good/printers_shop --as Marta --record walk.json
 ```
 
 When you leave, `walk.json` holds everything you did as a _script_: a
-list of steps, each with everything the world said in answer. Pass the
+list of steps, each with everything the world said in answer, and the
+seed each turn drew from, so a world that rolls dice rolls the same. Pass the
 file to `sprout play` and it plays it again, from a fresh world:
 
 ```sh
