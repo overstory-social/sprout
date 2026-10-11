@@ -23,16 +23,18 @@ Wheel.SETTLE = 0.45
 function Wheel.new() return setmetatable({ still = 0 }, Wheel) end
 
 -- A frame of the drum, `builder` already turned by the crank and `turned` whether the crank moved
--- this frame: "settled" the frame the drum comes to rest on a slat after being between two, nil
--- otherwise.
+-- this frame. Returns "settled" the frame the drum comes to rest on a slat after being between
+-- two (nil otherwise), and the steps the settling moved the selection, which is 1 or -1 the frame
+-- a drum left past halfway completes its step and 0 otherwise.
 function Wheel:update(builder, turned)
   if turned then
     self.still = 0
-    return nil
+    return nil, 0
   end
   self.still = self.still + 1
-  if self.still < Wheel.REST_FRAMES then return nil end
-  return builder:settle(Wheel.SETTLE) and "settled" or nil
+  if self.still < Wheel.REST_FRAMES then return nil, 0 end
+  local arrived, steps = builder:settle(Wheel.SETTLE)
+  return arrived and "settled" or nil, steps
 end
 
 -- The slats nearest the front first, so each word is placed once, where it is nearest.

@@ -336,7 +336,9 @@ end
 local function updateSentence()
   local change = crankChange()
   if builder:turn(change) ~= 0 then sound:play("tick") end
-  if wheel:update(builder, change ~= 0) == "settled" then sound:play("clack") end
+  local rest, completed = wheel:update(builder, change ~= 0)
+  if completed ~= 0 then sound:play("tick") end
+  if rest == "settled" then sound:play("clack") end
   local state = builder.state
   local numbered = state.stage == "option" and state.leaf.options[state.role].takes == "integer"
   -- Down moves to the next entry; on a number it takes the number down, as up takes it up.
