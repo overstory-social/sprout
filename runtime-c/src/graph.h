@@ -6,6 +6,11 @@
  * expressions, everything else). Reading it gives each entry a node whose
  * `index` is its place in the table, which is how a body's names are bound:
  * the name table maps the node written to the node it reached.
+ *
+ * A node is small, because a world holds hundreds of thousands: its payload
+ * is a union, and a scalar cell (a string, a number, a place, true or false)
+ * is one node per distinct value, shared by every entry that holds it. Nothing
+ * a node holds points at the JSON it was read from.
  */
 #ifndef SPROUT_GRAPH_H
 #define SPROUT_GRAPH_H
@@ -27,20 +32,32 @@ typedef enum sprout_node_kind {
 typedef struct sprout_node sprout_node;
 
 struct sprout_node {
-  sprout_node_kind kind;
+  uint8_t kind; /* a sprout_node_kind */
   bool boolean;
-  double number;
-  const char *text; /* a string, NUL-terminated beyond length */
-  size_t length;
-  long file, line, column; /* a place */
-  size_t count;            /* fields, elements, members or pairs */
-  const char **keys;       /* an object's field names; a map's keys are nodes instead */
-  const sprout_node **items;     /* an object's values, an array's or set's elements, a map's values */
-  const sprout_node **map_keys;  /* a map's keys, beside items */
-  size_t index;            /* the entry's place in the table, or SIZE_MAX for a scalar cell */
+  uint32_t count; /* fields, elements, members or pairs */
+  union {
+    double number;
+    struct {
+      const char *text; /* a string, NUL-terminated beyond length */
+      size_t length;
+    };
+    struct {
+      int32_t line; /* a place */
+      int16_t file;
+      uint16_t column;
+    };
+    struct {
+      const sprout_node **items; /* an object's values, an array's or set's elements, a map's values */
+      union {
+        const char **keys;            /* an object's field names */
+        const sprout_node **map_keys; /* a map's keys, beside items */
+      };
+    };
+  };
+  uint32_t index; /* the entry's place in the table, or SPROUT_NOT_AN_ENTRY for a scalar cell */
 };
 
-#define SPROUT_NOT_AN_ENTRY ((size_t)-1)
+#define SPROUT_NOT_AN_ENTRY UINT32_MAX
 
 typedef struct sprout_graph {
   size_t count; /* entries */
@@ -48,13 +65,15 @@ typedef struct sprout_graph {
   size_t file_count;
   const char **files;
   sprout_node null_node; /* the one node every null cell is */
+  sprout_node true_node, false_node;
 } sprout_graph;
 
 /*
- * Reads the three runs of entries and the files spans name. SPROUT_BAD_INPUT
+ * Reads the three runs of entries and the files spans name, interning scalars
+ * through a table in `scratch`, which the caller resets afterwards. SPROUT_BAD_INPUT
  * with `error` set to a sentence when an entry is malformed or refers past the table.
  */
-sprout_status sprout_graph_read(sprout_arena *arena, const sprout_json *files,
+sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, const sprout_json *files,
                                 const sprout_json *prose, const sprout_json *bodies,
                                 const sprout_json *rest, sprout_graph *graph, char *error,
                                 size_t error_capacity);

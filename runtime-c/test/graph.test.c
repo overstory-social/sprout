@@ -1,7 +1,8 @@
 /*
  * Tests for src/graph.c: the table of entries a cartridge holds is read into
  * nodes that share what the table shares, with forward references, places and
- * the three runs under one numbering; a malformed table is refused in words.
+ * the three runs under one numbering; equal scalars are one node, and the
+ * JSON read from can be released; a malformed table is refused in words.
  */
 #include "check.h"
 #include "graph.h"
@@ -14,7 +15,7 @@ static sprout_status read_graph(sprout_arena *arena, const char *files, const ch
   if (sprout_json_read(arena, prose, strlen(prose), &p, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
   if (sprout_json_read(arena, bodies, strlen(bodies), &b, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
   if (sprout_json_read(arena, rest, strlen(rest), &r, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
-  return sprout_graph_read(arena, f, p, b, r, graph, error, 200);
+  return sprout_graph_read(arena, arena, f, p, b, r, graph, error, 200);
 }
 
 static void a_shared_entry_is_one_node_and_references_run_across_the_three_runs(void) {
@@ -85,6 +86,67 @@ static void a_forward_reference_and_a_place_without_a_listed_file_are_handled_in
   sprout_arena_reset(&arena);
 }
 
+static void equal_scalars_are_one_node_and_nothing_points_at_the_json(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena, scratch;
+  sprout_graph graph;
+  sprout_json *f, *p, *b, *r;
+  sprout_json_error e;
+  char error[200];
+  const sprout_node *first, *second;
+  sprout_arena_init(&arena, &host);
+  sprout_arena_init(&scratch, &host);
+  const char *table =
+      "[{\"o\":{\"kind\":\"word\",\"at\":{\"p\":[0,2,5]},\"n\":7,\"yes\":true}},"
+                             "{\"o\":{\"kind\":\"word\",\"at\":{\"p\":[0,2,5]},\"n\":7,\"yes\":true,\"no\":false}},"
+                             "{\"a\":[\"kind\",\"other\",{\"p\":[0,2,6]},8]}]";
+  CHECK_INT(sprout_json_read(&scratch, "[\"a.sprout\"]", 12, &f, &e), SPROUT_OK);
+  CHECK_INT(sprout_json_read(&scratch, "[]", 2, &p, &e), SPROUT_OK);
+  CHECK_INT(sprout_json_read(&scratch, "[]", 2, &b, &e), SPROUT_OK);
+  CHECK_INT(sprout_json_read(&scratch, table, strlen(table), &r, &e), SPROUT_OK);
+  CHECK_INT(sprout_graph_read(&arena, &scratch, f, p, b, r, &graph, error, 200), SPROUT_OK);
+  /* The JSON is released: everything the graph reads from here is its own. */
+  sprout_arena_reset(&scratch);
+  first = &graph.entries[0];
+  second = &graph.entries[1];
+  CHECK(sprout_node_get(first, "kind") == sprout_node_get(second, "kind"));
+  /* A string equal to a field name shares its text. */
+  CHECK(graph.entries[2].items[0]->text == first->keys[0]);
+  CHECK(sprout_node_get(first, "kind") != graph.entries[2].items[1]);
+  CHECK(sprout_node_get(first, "at") == sprout_node_get(second, "at"));
+  CHECK(sprout_node_get(first, "at") != graph.entries[2].items[2]);
+  CHECK(sprout_node_get(first, "n") == sprout_node_get(second, "n"));
+  CHECK(sprout_node_get(first, "n") != graph.entries[2].items[3]);
+  CHECK(sprout_node_get(first, "yes") == &graph.true_node);
+  CHECK(sprout_node_get(second, "no") == &graph.false_node);
+  CHECK(first->keys[0] == second->keys[0]);
+  CHECK_STR(first->keys[0], "kind");
+  CHECK_STR(graph.files[0], "a.sprout");
+  CHECK_INT(sprout_node_get(first, "at")->line, 2);
+  CHECK_INT(sprout_node_get(first, "at")->column, 5);
+  CHECK(sprout_node_get(first, "n")->number == 7);
+  CHECK(graph.entries[2].items[3]->number == 8);
+  CHECK(sizeof(sprout_node) <= 32);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
+static void a_place_past_what_a_node_holds_is_refused(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  sprout_graph graph;
+  char error[200];
+  sprout_arena_init(&arena, &host);
+  CHECK_INT(read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[{\"p\":[0,1,70000]}]}]", &graph, error), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge names a place past what a node holds.");
+  CHECK_INT(read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[{\"p\":[0,65535,65535]}]}]", &graph, error), SPROUT_OK);
+  CHECK_INT(graph.entries[0].items[0]->column, 65535);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_host_that_runs_out_of_memory_is_told_so(void) {
   long pages;
   for (pages = 0; pages < 8; pages++) {
@@ -108,6 +170,8 @@ static void a_host_that_runs_out_of_memory_is_told_so(void) {
 int main(void) {
   RUN(a_shared_entry_is_one_node_and_references_run_across_the_three_runs);
   RUN(a_forward_reference_and_a_place_without_a_listed_file_are_handled_in_words);
+  RUN(equal_scalars_are_one_node_and_nothing_points_at_the_json);
+  RUN(a_place_past_what_a_node_holds_is_refused);
   RUN(a_host_that_runs_out_of_memory_is_told_so);
   return REPORT();
 }

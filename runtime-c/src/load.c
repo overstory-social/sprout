@@ -99,8 +99,8 @@ static sprout_status read_body(sprout_world *world, sprout_arena *scratch,
     return status;
   }
   if (status != SPROUT_OK) return status;
-  /* The tree stays in the world's arena: names and text in the graph point into it. */
-  status = sprout_json_read(&world->arena, text, text_length, &root, &json_error);
+  /* The tree is scratch: the graph and the catalogue copy what they keep from it. */
+  status = sprout_json_read(scratch, text, text_length, &root, &json_error);
   if (status == SPROUT_BAD_INPUT) {
     say(refusal, "This cartridge cannot be read: its body is not JSON.", NULL, NULL, NULL, NULL);
     return status;
@@ -121,7 +121,7 @@ static sprout_status read_body(sprout_world *world, sprout_arena *scratch,
     return SPROUT_BAD_INPUT;
   }
   error[0] = '\0';
-  status = sprout_graph_read(&world->arena, files, entries_of(root, "prose"),
+  status = sprout_graph_read(&world->arena, scratch, files, entries_of(root, "prose"),
                              entries_of(root, "bodies"), entries_of(root, "table"), &world->graph,
                              error, sizeof error);
   if (status == SPROUT_BAD_INPUT) {
@@ -130,7 +130,7 @@ static sprout_status read_body(sprout_world *world, sprout_arena *scratch,
   }
   if (status != SPROUT_OK) return status;
   error[0] = '\0';
-  status = sprout_catalogue_build(world, root, error, sizeof error);
+  status = sprout_catalogue_build(world, root, scratch, error, sizeof error);
   if (status == SPROUT_BAD_INPUT) say(refusal, error, NULL, NULL, NULL, NULL);
   return status;
 }
