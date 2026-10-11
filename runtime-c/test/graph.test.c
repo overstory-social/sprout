@@ -35,7 +35,18 @@ static void a_shared_entry_is_one_node_and_references_run_across_the_three_runs(
   b = &graph.entries[1];
   CHECK_INT(a->kind, SPROUT_NODE_OBJECT);
   CHECK(sprout_node_get(a, "next") == b);
-  CHECK_INT(b->index, 1);
+  CHECK_INT(sprout_graph_index(&graph, b), 1);
+  CHECK_INT(sprout_graph_index(&graph, &graph.entries[4]), 4);
+  CHECK(sprout_graph_index(&graph, sprout_node_get(b, "value")) == SPROUT_NOT_AN_ENTRY);
+  CHECK(sprout_graph_index(&graph, sprout_node_get(b, "at")) == SPROUT_NOT_AN_ENTRY);
+  CHECK(sprout_graph_index(&graph, &graph.null_node) == SPROUT_NOT_AN_ENTRY);
+  {
+    sprout_node outside;
+    memset(&outside, 0, sizeof outside);
+    CHECK(sprout_graph_index(&graph, &outside) == SPROUT_NOT_AN_ENTRY);
+    CHECK(sprout_graph_index(&graph, NULL) == SPROUT_NOT_AN_ENTRY);
+    CHECK(sprout_graph_index(NULL, b) == SPROUT_NOT_AN_ENTRY);
+  }
   CHECK(sprout_node_get(b, "value")->number == 8);
   CHECK_INT(sprout_node_get(b, "at")->kind, SPROUT_NODE_PLACE);
   CHECK_INT(sprout_node_get(b, "at")->line, 3);

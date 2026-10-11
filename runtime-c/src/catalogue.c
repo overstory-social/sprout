@@ -369,15 +369,19 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   MEMORY(world->option_slot);
   names = sprout_graph_cell(&world->graph, sprout_json_get(bodies_section, "names"));
   if (names == NULL || names->kind != SPROUT_NODE_MAP) return cat_shaped(l, "bodies.names");
-  for (i = 0; i < names->count; i++)
-    if (names->map_keys[i]->index != SPROUT_NOT_AN_ENTRY) world->bound[names->map_keys[i]->index] = names->items[i];
+  for (i = 0; i < names->count; i++) {
+    size_t at = sprout_graph_index(&world->graph, names->map_keys[i]);
+    if (at != SPROUT_NOT_AN_ENTRY) world->bound[at] = names->items[i];
+  }
   {
     const sprout_node *slots_set =
         sprout_graph_cell(&world->graph, sprout_json_get(bodies_section, "optionSlots"));
     if (slots_set == NULL || slots_set->kind != SPROUT_NODE_SET)
       return cat_shaped(l, "bodies.optionSlots");
-    for (i = 0; i < slots_set->count; i++)
-      if (slots_set->items[i]->index != SPROUT_NOT_AN_ENTRY) world->option_slot[slots_set->items[i]->index] = true;
+    for (i = 0; i < slots_set->count; i++) {
+      size_t at = sprout_graph_index(&world->graph, slots_set->items[i]);
+      if (at != SPROUT_NOT_AN_ENTRY) world->option_slot[at] = true;
+    }
   }
 
   ext = section(root, "extensions");
@@ -451,6 +455,7 @@ const sprout_content *sprout_world_content_at(const sprout_world *world, const c
 }
 
 const sprout_node *sprout_world_bound(const sprout_world *world, const sprout_node *written) {
-  if (written == NULL || written->index == SPROUT_NOT_AN_ENTRY) return NULL;
-  return world->bound[written->index];
+  size_t at = sprout_graph_index(&world->graph, written);
+  if (at == SPROUT_NOT_AN_ENTRY) return NULL;
+  return world->bound[at];
 }

@@ -50,17 +50,18 @@ sprout_status cat_read_phrases(loader *l, const sprout_node *list, size_t *count
 sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **out) {
   sprout_verb *verb;
   const sprout_node *roles;
-  size_t i;
+  size_t i, at;
   *out = NULL;
-  if (node == NULL || node->kind != SPROUT_NODE_OBJECT || node->index == SPROUT_NOT_AN_ENTRY)
+  at = sprout_graph_index(&l->world->graph, node);
+  if (node == NULL || node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY)
     return cat_shaped(l, "a verb");
-  if (l->verb_cache[node->index] != NULL) {
-    *out = l->verb_cache[node->index];
+  if (l->verb_cache[at] != NULL) {
+    *out = l->verb_cache[at];
     return SPROUT_OK;
   }
   verb = (sprout_verb *)cat_array(l, 1, sizeof *verb);
   MEMORY(verb);
-  l->verb_cache[node->index] = verb;
+  l->verb_cache[at] = verb;
   verb->library = cat_text(node, "library");
   verb->name = cat_text(node, "name");
   if (verb->library == NULL || verb->name == NULL) return cat_shaped(l, "a verb");

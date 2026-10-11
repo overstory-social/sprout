@@ -128,7 +128,6 @@ static const sprout_node *interned_string(reader *r, const char *bytes, size_t l
   sprout_node probe;
   memset(&probe, 0, sizeof probe);
   probe.kind = SPROUT_NODE_STRING;
-  probe.index = SPROUT_NOT_AN_ENTRY;
   probe.text = bytes;
   probe.length = length;
   return interned(r, &probe, status);
@@ -216,7 +215,6 @@ static const sprout_node *resolve(reader *r, const sprout_json *cell, sprout_sta
   sprout_node probe;
   *status = SPROUT_OK;
   memset(&probe, 0, sizeof probe);
-  probe.index = SPROUT_NOT_AN_ENTRY;
   switch (cell->kind) {
     case SPROUT_JSON_NULL:
       return &r->graph->null_node;
@@ -337,13 +335,12 @@ static sprout_status fill(reader *r, sprout_node *node, const sprout_json *entry
 static void scalar(sprout_node *node, sprout_node_kind kind) {
   memset(node, 0, sizeof *node);
   node->kind = (uint8_t)kind;
-  node->index = SPROUT_NOT_AN_ENTRY;
 }
 
 sprout_status sprout_graph_begin(sprout_graph_reader *r, sprout_graph *graph, sprout_arena *arena,
                                  sprout_arena *scratch, size_t prose, size_t bodies, size_t rest,
                                  char *error, size_t error_capacity) {
-  size_t total = prose + bodies + rest, i;
+  size_t total = prose + bodies + rest;
   memset(r, 0, sizeof *r);
   r->arena = arena;
   r->scratch = scratch;
@@ -362,7 +359,6 @@ sprout_status sprout_graph_begin(sprout_graph_reader *r, sprout_graph *graph, sp
   graph->entries = (sprout_node *)sprout_arena_take(arena, (total == 0 ? 1 : total) * sizeof(sprout_node));
   if (graph->entries == NULL) return SPROUT_NO_MEMORY;
   memset(graph->entries, 0, (total == 0 ? 1 : total) * sizeof(sprout_node));
-  for (i = 0; i < total; i++) graph->entries[i].index = (uint32_t)i;
   return SPROUT_OK;
 }
 
@@ -422,6 +418,15 @@ sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, cons
     }
   }
   return sprout_graph_end(&r, files);
+}
+
+size_t sprout_graph_index(const sprout_graph *graph, const sprout_node *node) {
+  uintptr_t at = (uintptr_t)node, first, past;
+  if (graph == NULL || node == NULL || graph->entries == NULL) return SPROUT_NOT_AN_ENTRY;
+  first = (uintptr_t)graph->entries;
+  past = (uintptr_t)(graph->entries + graph->count);
+  if (at < first || at >= past) return SPROUT_NOT_AN_ENTRY;
+  return (size_t)(node - graph->entries);
 }
 
 const sprout_node *sprout_graph_cell(const sprout_graph *graph, const sprout_json *cell) {

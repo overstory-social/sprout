@@ -107,7 +107,7 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
   sprout_evaluated value;
   sprout_str words;
   char digits[32];
-  size_t length;
+  size_t length, at;
   /* A member the checker resolved as a dotted path's last step is the object it names. */
   if (expr_kind_of(expr) == EXPR_MEMBER && strcmp(expr_ident(expr, "member"), "count") != 0 &&
       sprout_world_bound(frame->world, expr) == NULL)
@@ -135,7 +135,8 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
       return put_words(reading, out, PROSE_WORDS, words.bytes, length);
     case SPROUT_STRING:
       words = (sprout_str){value.value.as.string.bytes, value.value.as.string.length};
-      if (piece->index != SPROUT_NOT_AN_ENTRY && frame->world->option_slot[piece->index] &&
+      at = sprout_graph_index(&frame->world->graph, piece);
+      if (at != SPROUT_NOT_AN_ENTRY && frame->world->option_slot[at] &&
           !sprout_humanised(frame->turn, words, &words))
         return SPROUT_EVAL_NO_MEMORY;
       return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);

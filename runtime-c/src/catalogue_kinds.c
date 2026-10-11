@@ -13,18 +13,20 @@
 sprout_status cat_read_type(loader *l, const sprout_node *node, const sprout_decl_type **out) {
   sprout_decl_type *type;
   const char *tag;
+  size_t at;
   *out = NULL;
   if (node == NULL || node->kind == SPROUT_NODE_NULL) return SPROUT_OK;
   if (node->kind != SPROUT_NODE_OBJECT) return cat_shaped(l, "a type");
-  if (node->index != SPROUT_NOT_AN_ENTRY && l->type_cache[node->index] != NULL) {
-    *out = l->type_cache[node->index];
+  at = sprout_graph_index(&l->world->graph, node);
+  if (at != SPROUT_NOT_AN_ENTRY && l->type_cache[at] != NULL) {
+    *out = l->type_cache[at];
     return SPROUT_OK;
   }
   tag = cat_text(node, "type");
   if (tag == NULL) return cat_shaped(l, "a type");
   type = (sprout_decl_type *)cat_array(l, 1, sizeof *type);
   MEMORY(type);
-  if (node->index != SPROUT_NOT_AN_ENTRY) l->type_cache[node->index] = type;
+  if (at != SPROUT_NOT_AN_ENTRY) l->type_cache[at] = type;
   if (strcmp(tag, "boolean") == 0) {
     type->kind = SPROUT_DECL_BOOLEAN;
     type->key = "boolean";
@@ -124,18 +126,18 @@ static sprout_status read_property(loader *l, const sprout_node *name_node,
 sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def **out) {
   sprout_kind_def *kind;
   const sprout_node *properties, *passages, *plays;
-  size_t i, j;
+  size_t i, j, at;
   *out = NULL;
   if (node == NULL || node->kind == SPROUT_NODE_NULL) return SPROUT_OK;
-  if (node->kind != SPROUT_NODE_OBJECT || node->index == SPROUT_NOT_AN_ENTRY)
-    return cat_shaped(l, "a kind");
-  if (l->kind_cache[node->index] != NULL) {
-    *out = l->kind_cache[node->index];
+  at = sprout_graph_index(&l->world->graph, node);
+  if (node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY) return cat_shaped(l, "a kind");
+  if (l->kind_cache[at] != NULL) {
+    *out = l->kind_cache[at];
     return SPROUT_OK;
   }
   kind = (sprout_kind_def *)cat_array(l, 1, sizeof *kind);
   MEMORY(kind);
-  l->kind_cache[node->index] = kind;
+  l->kind_cache[at] = kind;
   kind->library = cat_text(node, "library");
   kind->name = cat_text(node, "name");
   if (kind->library == NULL || kind->name == NULL) return cat_shaped(l, "a kind");
