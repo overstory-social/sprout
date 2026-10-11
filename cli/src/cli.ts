@@ -281,6 +281,11 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
             io,
           );
         }
+        if (flags['seed'] !== undefined) {
+          throw new Error(
+            '--seed is for play with no script: a script seeds its own turns, with `{ "seed": 7 }` steps.',
+          );
+        }
         const name = basename(script);
         const read = readScript(readFileSync(script, 'utf8'), name);
         const steps = playSteps(checked, read, name);

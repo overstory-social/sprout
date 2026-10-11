@@ -282,6 +282,9 @@ describe('main', () => {
       expect(main(['play', dir, ...bad], refused)).toBe(1);
       expect(refused.err()).toContain(`--seed wants a whole number from 0 to ${SEED_MAX}`);
     }
+    const scripted = captured('');
+    expect(main(['play', dir, file, '--seed', '7'], scripted)).toBe(1);
+    expect(scripted.err()).toContain('--seed is for play with no script');
   });
 
   it('play with no script shows only the prose the visitor reads, without --debug', async () => {
