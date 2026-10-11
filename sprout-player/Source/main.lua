@@ -85,9 +85,8 @@ local function showPictures(effects)
   if images == nil then return end
   local held = {}
   for _, asked in ipairs(Images.allAsked(effects)) do
-    if images:load(asked.image) ~= nil then held[#held + 1] = asked end
+    if images:has(asked.image) then held[#held + 1] = asked end
   end
-  images:releaseAll()
   if #held == 0 then return end
   gallery = Gallery.new(held)
   mode = "picture"
@@ -295,9 +294,9 @@ local function confirm()
   end
   told(result.lines)
   refreshStatus(result.lines)
-  showPictures(result.lines)
   reader:toNewest()
   closeBuilder()
+  showPictures(result.lines)
 end
 
 -- ---- input ----
@@ -395,7 +394,10 @@ end
 -- Draws one of the gallery's pictures with its top shifted by `y`, scaled to fit above the caption line.
 local function drawPicture(shown)
   local picture = images:picture(shown.picture, lineHeight)
-  if picture == nil then return end
+  if picture == nil then
+    gfx.drawText("This picture cannot be read.", MARGIN, 110 + shown.y)
+    return
+  end
   local top = math.floor((240 - lineHeight - 4 - picture.shown) / 2)
   Images.draw(picture, gfx, top + shown.y)
 end

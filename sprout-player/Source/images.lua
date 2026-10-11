@@ -54,6 +54,15 @@ function Images:load(path)
   return found or nil
 end
 
+-- Whether the cartridge holds the image at `path`, without loading it.
+function Images:has(path)
+  local full = self.folder .. path
+  for _, name in ipairs({ full:gsub("%.png$", ""), full }) do
+    if self.files.exists(name) or self.files.exists(name .. ".pdi") then return true end
+  end
+  return false
+end
+
 -- Lets a loaded picture go, so the screen holds only what it draws.
 function Images:release(path) self.loaded[path] = nil end
 

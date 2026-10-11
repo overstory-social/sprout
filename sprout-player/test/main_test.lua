@@ -92,6 +92,11 @@ local function run(scenario, options)
     end,
     view = function() return view end,
     turn = function(reading)
+      if options.turnPicture then
+        calls[#calls + 1] = "turn " .. reading
+        return '{"committed":true,"result":"done","words":"","saved":true,"lines":[{"reader":"visit:player","kind":"said","text":"The guard nods."},'
+          .. '{"reader":"visit:player","kind":"extension","text":"the cabinet, open","extension":"media","statement":"show","payload":{"image":"pictures/cabinet.png","caption":"the cabinet, open"}}]}'
+      end
       calls[#calls + 1] = "turn " .. reading
       return '{"committed":true,"result":"done","words":null,"saved":' .. tostring(not failing)
         .. ',"lines":[{"reader":"visit:player","kind":"said","text":"The guard nods."}]}'
@@ -216,6 +221,29 @@ test("the pictures a place shows on arrival fill the screen, the crank steps bet
       ["chip-tree.sproutworld.assets/pictures/cabinet"] = true,
     },
   })
+end)
+
+test("a typed turn's picture fills the screen once the sentence is sent, and A returns to the reader", function()
+  run(function(play)
+    play.frame()
+    play.frame("A")
+    play.frame("A")
+    play.frame("A") -- build a sentence
+    for _ = 1, 11 do play.frame("Down") end
+    play.frame("A")
+    play.frame("Down")
+    play.frame("A")
+    play.frame("Down")
+    play.frame("Down")
+    play.frame("A")
+    equal(play.shows("ask -> a guard -> weather"), true, "the sentence to confirm")
+    play.frame("A")
+    equal(play.shows("[picture chip-tree.sproutworld.assets/pictures/cabinet]"), true, "the turn's picture, after the builder closes")
+    equal(play.shows("the cabinet, open"), true)
+    play.frame("A")
+    equal(play.shows("The guard nods."), true, "closed: the turn's words are in the reader")
+    equal(play.shows("A: build a sentence"), true)
+  end, { turnPicture = true, pictures = { ["chip-tree.sproutworld.assets/pictures/cabinet"] = true } })
 end)
 
 test("a world whose pictures are not there reads as text alone", function()

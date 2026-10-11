@@ -349,7 +349,8 @@ what a turn asked for: after the turn's lines are told, every picture its
 effects asked for (and, on arrival, the place's own) is shown one at a time
 on the whole screen (`Source/gallery.lua`), scaled to fit above a caption
 line that also says `2 of 3  crank: next   A: close`, until A or B closes
-them and the transcript reads. The crank, or left and right, steps between
+them and the transcript reads (a tick's turn can ask for one too, so a picture
+may come up while the reader is open and idle). The crank, or left and right, steps between
 them slat by slat: the picture on screen is held an elastic moment,
 stretched the way it will go, then whizzes out as the next whizzes in and
 lands with the clack the sentence wheel makes; each step ticks. A picture is
