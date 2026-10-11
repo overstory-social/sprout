@@ -13,6 +13,7 @@ local Nickname <const> = import "nickname"
 local Shelf <const> = import "shelf"
 local Engine <const> = import "engine"
 local Images <const> = import "images"
+local Gallery <const> = import "gallery"
 local Canonical <const> = import "canonical"
 local Index <const> = import "index"
 local Net <const> = import "net"
@@ -59,9 +60,10 @@ local wheel = nil -- the drum the builder's choices are drawn on
 local picker = nil
 local opened = nil -- the entry of the cartridge being read
 local images = nil -- its pictures
+local gallery = nil -- the pictures the last turn showed, while they are looked at
 local notice = nil -- what opening the world has to tell the visitor before they come in
 local downloads = nil -- the download screen, made the first time it is opened
-local mode = "shelf" -- shelf, downloads, nickname, reader, sentence, message
+local mode = "shelf" -- shelf, downloads, nickname, reader, picture, sentence, message
 local message = nil
 local backTo = "shelf"
 
@@ -77,16 +79,18 @@ local function newReader()
   })
 end
 
--- Shows the picture a turn's lines ask for, or else the one the place's description does: the
--- newest of each. `images` is the open cartridge's.
-local function showPicture(lines, view)
-  local asked = Images.newest(lines) or Images.newest(view.effects)
-  local picture = asked ~= nil and images ~= nil and images:picture(asked, lineHeight) or nil
-  if picture ~= nil then
-    local shown = picture
-    shown.draw = function(g, y) Images.draw(shown, g, y) end
+-- Shows the pictures `effects` (a turn's lines, or a view's) ask for, those the cartridge holds,
+-- one at a time on the whole screen until the person closes them; nothing when none is asked.
+local function showPictures(effects)
+  if images == nil then return end
+  local held = {}
+  for _, asked in ipairs(Images.allAsked(effects)) do
+    if images:load(asked.image) ~= nil then held[#held + 1] = asked end
   end
-  reader:setPicture(picture, lineHeight)
+  images:releaseAll()
+  if #held == 0 then return end
+  gallery = Gallery.new(held)
+  mode = "picture"
 end
 
 local function refreshStatus(lines)
@@ -96,7 +100,6 @@ local function refreshStatus(lines)
   local exits = {}
   for _, one in ipairs(view.exits) do exits[#exits + 1] = one.direction or one.label end
   reader:setStatus(view.place.name, here, exits)
-  if lines ~= nil then showPicture(lines, view) end
   return view
 end
 
@@ -203,9 +206,14 @@ local function admit()
   reader:push("client", "You are in " .. opened.title .. " as " .. name .. ".")
   if notice ~= nil then reader:push("notice", notice) end
   told(admission.lines)
-  refreshStatus(admission.lines)
+  local view = refreshStatus(admission.lines)
   clock:start(seconds())
   mode = "reader"
+  -- Arriving, the place's own pictures are shown with the turn's.
+  local effects = {}
+  for _, line in ipairs(admission.lines or {}) do effects[#effects + 1] = line end
+  for _, effect in ipairs(view.effects or {}) do effects[#effects + 1] = effect end
+  showPictures(effects)
 end
 
 local function leave()
@@ -253,6 +261,7 @@ local function confirm()
   end
   told(result.lines)
   refreshStatus(result.lines)
+  showPictures(result.lines)
   reader:toNewest()
   closeBuilder()
 end
@@ -329,8 +338,49 @@ local function updateReader()
     if #(ticked.lines or {}) > 0 then
       told(ticked.lines)
       refreshStatus(ticked.lines)
+      showPictures(ticked.lines)
     end
   end
+end
+
+local function closePictures()
+  gallery = nil
+  images:releaseAll()
+  mode = "reader"
+end
+
+local function updatePictures()
+  local change = crankChange()
+  if gallery:turn(change) ~= 0 then sound:play("tick") end
+  if pd.buttonJustPressed(pd.kButtonRight) or pd.buttonJustPressed(pd.kButtonDown) then gallery:nudge(1); sound:play("tick") end
+  if pd.buttonJustPressed(pd.kButtonLeft) or pd.buttonJustPressed(pd.kButtonUp) then gallery:nudge(-1); sound:play("tick") end
+  if gallery:update() == "clack" then sound:play("clack") end
+  if pd.buttonJustPressed(pd.kButtonA) or pd.buttonJustPressed(pd.kButtonB) then closePictures() end
+end
+
+-- Draws one of the gallery's pictures with its top shifted by `y`, scaled to fit above the caption line.
+local function drawPicture(shown)
+  local picture = images:picture(shown.picture, lineHeight)
+  if picture == nil then return end
+  local top = math.floor((240 - lineHeight - 4 - picture.shown) / 2)
+  Images.draw(picture, gfx, top + shown.y)
+end
+
+local function drawPictures()
+  local frame = gallery:frame()
+  if frame.leaving ~= nil then drawPicture(frame.leaving) end
+  if frame.current ~= nil then drawPicture(frame.current) end
+  if frame.current ~= nil and frame.leaving == nil then
+    -- The one on screen is the only one held; the rest wait on disk.
+    for _, other in ipairs(gallery.pictures) do
+      if other.image ~= frame.current.picture.image then images:release(other.image) end
+    end
+  end
+  gfx.drawLine(0, 240 - lineHeight - 4, 400, 240 - lineHeight - 4)
+  local caption = frame.current ~= nil and frame.current.picture.caption or nil
+  if caption ~= nil and caption ~= "" then gfx.drawText(caption, MARGIN, 240 - lineHeight - 2) end
+  local where = gallery:count() > 1 and (gallery.selected .. " of " .. gallery:count() .. "  crank: next   A: close") or "A: close"
+  gfx.drawText(where, 400 - MARGIN - measure(where), 240 - lineHeight - 2)
 end
 
 local function updateSentence()
@@ -495,6 +545,8 @@ function pd.update()
     updateNickname()
   elseif mode == "reader" then
     updateReader()
+  elseif mode == "picture" then
+    updatePictures()
   elseif mode == "sentence" then
     updateSentence()
   elseif mode == "message" then
@@ -509,6 +561,8 @@ function pd.update()
   elseif mode == "reader" then
     reader:draw(gfx, lineHeight)
     drawReaderPanel()
+  elseif mode == "picture" then
+    drawPictures()
   elseif mode == "sentence" then
     drawSentence()
   elseif mode == "message" then

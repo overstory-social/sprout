@@ -169,14 +169,26 @@ test("a Playdate with no network support says to update it, and an empty shelf s
   end, { files = {} })
 end)
 
-test("a picture the place's description records is drawn above the transcript, with its caption", function()
+test("the pictures a place shows on arrival fill the screen, the crank steps between them with a clack, and A closes them", function()
   run(function(play)
     play.frame()
     play.frame("A")
     play.frame("A")
-    equal(play.shows("[picture chip-tree.sproutworld.assets/pictures/cabinet]"), true, "the newest picture is drawn")
-    equal(play.shows("an oak cabinet, its doors shut"), true, "with its caption under it")
-    equal(play.shows("There is nothing special about a hall."), true, "and the transcript still reads")
+    equal(play.shows("[picture chip-tree.sproutworld.assets/cellar]"), true, "the first picture asked, on arrival")
+    equal(play.shows("1 of 2  crank: next   A: close"), true)
+    equal(play.shows("There is nothing special about a hall."), false, "the transcript waits behind it")
+    play.crank(36)
+    play.frame()
+    same(play.played(), { 3000 }, "a step of the crank ticks")
+    equal(play.shows("[picture chip-tree.sproutworld.assets/cellar]"), true, "the leaving picture")
+    equal(play.shows("[picture chip-tree.sproutworld.assets/pictures/cabinet]"), true, "and the next, coming in")
+    for _ = 1, 40 do play.frame() end
+    same(play.played(), { 3000, 160 }, "the next lands with a clack")
+    equal(play.shows("an oak cabinet, its doors shut"), true, "with its caption")
+    equal(play.shows("2 of 2  crank: next   A: close"), true)
+    play.frame("A")
+    equal(play.shows("There is nothing special about a hall."), true, "closed: the transcript reads")
+    equal(play.shows("[picture"), false)
   end, {
     view = "media-room.view.json",
     pictures = {
@@ -186,7 +198,7 @@ test("a picture the place's description records is drawn above the transcript, w
   })
 end)
 
-test("a world whose picture is not there reads as text alone", function()
+test("a world whose pictures are not there reads as text alone", function()
   run(function(play)
     play.frame()
     play.frame("A")
