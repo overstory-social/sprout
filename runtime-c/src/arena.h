@@ -36,4 +36,11 @@ char *sprout_arena_copy(sprout_arena *arena, const char *bytes, size_t length);
 /* Releases every page: the arena is empty and may be used again. */
 void sprout_arena_reset(sprout_arena *arena);
 
+/*
+ * Empties the arena but keeps the page being filled, releasing the rest, so a
+ * scratch emptied for every entry or every turn does not ask the host for a
+ * page and zero it each time.
+ */
+void sprout_arena_rewind(sprout_arena *arena);
+
 #endif

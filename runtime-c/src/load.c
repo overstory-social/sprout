@@ -329,7 +329,7 @@ static sprout_status read_run_member(body_reader *b) {
   return SPROUT_OK;
 }
 
-/* One entry of a run into the graph (or past it, when peeking), its text in a scratch reset after. */
+/* One entry of a run into the graph (or past it, when peeking), its text in a scratch rewound after, its page kept for the next. */
 static sprout_status read_entry(body_reader *b) {
   sprout_json *value;
   sprout_status status;
@@ -346,7 +346,7 @@ static sprout_status read_entry(body_reader *b) {
     if (status == SPROUT_BAD_INPUT)
       say(b->refusal, "This cartridge is not shaped as a cartridge is: ", b->error, NULL, NULL, NULL);
   }
-  sprout_arena_reset(&b->entry);
+  sprout_arena_rewind(&b->entry);
   b->filled++;
   return status;
 }

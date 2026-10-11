@@ -56,6 +56,32 @@ static void it_takes_a_new_page_when_one_is_full_and_reset_releases_them_all(voi
   CHECK_INT(heap.pages, 0);
 }
 
+static void a_rewind_keeps_the_page_being_filled_and_releases_the_rest(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  char *first, *again;
+  sprout_arena_init(&arena, &host);
+  first = (char *)sprout_arena_take(&arena, 8);
+  for (int i = 0; i < 50; i++) CHECK(sprout_arena_take(&arena, 40) != NULL);
+  CHECK(sprout_arena_take(&arena, host.page_bytes * 4) != NULL);
+  CHECK(heap.pages > 3);
+  sprout_arena_rewind(&arena);
+  CHECK_INT(heap.pages, 1);
+  CHECK(arena.held < host.page_bytes * 2);
+  again = (char *)sprout_arena_take(&arena, 8);
+  CHECK(again != NULL && again != first); /* the page kept is the one that was being filled, not the first */
+  memset(again, 1, 8);
+  CHECK(sprout_arena_take(&arena, 8) != NULL);
+  sprout_arena_rewind(&arena);
+  CHECK(sprout_arena_take(&arena, 8) == again); /* and a rewind of one page takes from its start again */
+  CHECK(again[0] == 0);                         /* zeroed on the take */
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+  sprout_arena_rewind(&arena); /* an empty arena rewinds to nothing */
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_request_larger_than_a_page_gets_its_own_page(void) {
   test_heap heap;
   sprout_host host = test_host(&heap);
@@ -115,6 +141,7 @@ int main(void) {
   RUN(a_pieces_are_zeroed_aligned_and_distinct);
   RUN(a_piece_at_a_smaller_alignment_costs_only_what_it_holds);
   RUN(it_takes_a_new_page_when_one_is_full_and_reset_releases_them_all);
+  RUN(a_rewind_keeps_the_page_being_filled_and_releases_the_rest);
   RUN(a_request_larger_than_a_page_gets_its_own_page);
   RUN(it_copies_bytes_with_a_terminator);
   RUN(a_host_that_refuses_is_met_with_null_not_a_crash);
