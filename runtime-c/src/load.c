@@ -153,6 +153,18 @@ static sprout_status read_member(body_reader *b, sprout_json *parent, const char
   return parent->count == 0 ? SPROUT_NO_MEMORY : SPROUT_OK;
 }
 
+/*
+ * Takes the opening bracket `open` of the value at `where`: a value of another shape is said
+ * to be not what a cartridge holds there, and a text that ends or breaks is unreadable.
+ */
+static sprout_status read_opening_of(body_reader *b, int open, const char *where) {
+  int c;
+  if (sprout_stream_take(&b->stream, open)) return SPROUT_OK;
+  c = sprout_stream_peek(&b->stream);
+  if (c < 0) return unreadable(b);
+  return shaped(b, where);
+}
+
 /* The counts the header gives of the three runs, which the graph needs before its first entry. */
 static sprout_status read_counts(body_reader *b) {
   const sprout_json *header = sprout_json_get(b->root, "header");
@@ -161,7 +173,10 @@ static sprout_status read_counts(body_reader *b) {
   if (counts == NULL || counts->kind != SPROUT_JSON_OBJECT) return shaped(b, "header.counts");
   for (i = 0; i < 3; i++) {
     const sprout_json *count = sprout_json_get(counts, RUNS[i]);
-    if (count == NULL || count->kind != SPROUT_JSON_NUMBER || count->number < 0) return shaped(b, "header.counts");
+    /* A count is a whole number the graph can hold; the reader has refused a fraction already. */
+    if (count == NULL || count->kind != SPROUT_JSON_NUMBER || count->number < 0 ||
+        count->number >= (double)SPROUT_NOT_AN_ENTRY)
+      return shaped(b, "header.counts");
     b->counts[i] = (size_t)count->number;
   }
   b->counted = true;
@@ -190,7 +205,8 @@ static sprout_status read_entries(body_reader *b, size_t run) {
     if (status != SPROUT_OK) goto graph_said;
     b->begun = true;
   }
-  if (!sprout_stream_take(&b->stream, '[')) return unreadable(b);
+  status = read_opening_of(b, '[', run == 0 ? "prose.entries" : run == 1 ? "bodies.entries" : "table.entries");
+  if (status != SPROUT_OK) return status;
   status = sprout_arena_init(&entry, &b->world->host);
   if (status != SPROUT_OK) return status;
   for (;;) {
@@ -227,7 +243,8 @@ static sprout_status read_run_section(body_reader *b, size_t run) {
   if (section == NULL) return SPROUT_NO_MEMORY;
   sprout_json_adopt(b->root, RUNS[run], section);
   if (b->root->count == 0) return SPROUT_NO_MEMORY;
-  if (!sprout_stream_take(&b->stream, '{')) return unreadable(b);
+  status = read_opening_of(b, '{', RUNS[run]);
+  if (status != SPROUT_OK) return status;
   for (;;) {
     if (sprout_stream_take(&b->stream, '}')) return SPROUT_OK;
     status = read_key(b, first, key, sizeof key);

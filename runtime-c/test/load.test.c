@@ -134,6 +134,15 @@ static void a_body_missing_a_section_is_refused_where_it_goes_wrong(void) {
   bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}", &length);
   refuses(bytes, length, "This cartridge cannot be read: its body is not JSON.");
   free(bytes);
+  bytes = cartridge_of("{\"header\":{\"counts\":{\"prose\":4294967295,\"bodies\":0,\"table\":0}},\"prose\":{\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `header.counts`: it is not what a cartridge holds there.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":[]}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `prose`: it is not what a cartridge holds there.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":{}}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `prose.entries`: it is not what a cartridge holds there.");
+  free(bytes);
 }
 
 static void a_load_that_runs_out_of_memory_says_so_and_holds_nothing(void) {
