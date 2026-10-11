@@ -191,7 +191,7 @@ static const sprout_node *resolve(reader *r, const sprout_json *cell, sprout_sta
         return NULL;
       }
       if (file < -1 || line < 0 || line > INT32_MAX || column < 0 || column > UINT16_MAX) {
-        *status = refuse(r, "the cartridge names a place past what a node holds.");
+        *status = refuse(r, "a line of the source is longer than 65,535 characters, which a cartridge cannot place.");
         return NULL;
       }
       probe.kind = SPROUT_NODE_PLACE;
@@ -305,8 +305,9 @@ sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, cons
     if (runs[run]->kind != SPROUT_JSON_ARRAY) return refuse(&r, "the cartridge's table of entries is not a list.");
     total += runs[run]->count;
   }
-  if (total >= SPROUT_NOT_AN_ENTRY || files->count > INT16_MAX)
-    return refuse(&r, "the cartridge holds more entries or files than a graph does.");
+  if (total >= SPROUT_NOT_AN_ENTRY) return refuse(&r, "the cartridge holds more entries than a graph does.");
+  if (files->count > INT16_MAX)
+    return refuse(&r, "the world has more than 32,767 files, which a cartridge cannot place.");
   graph->file_count = files->count;
   if (files->count > 0) {
     graph->files = (const char **)sprout_arena_take(arena, files->count * sizeof(char *));
