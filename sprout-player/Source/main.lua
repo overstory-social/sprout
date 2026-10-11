@@ -20,6 +20,8 @@ local Config <const> = import "config"
 local Downloads <const> = import "downloads"
 local PublicKey <const> = import "publickey"
 local Markup <const> = import "markup"
+local Wheel <const> = import "wheel"
+local Sound <const> = import "sound"
 
 local pd <const> = playdate
 -- The screen is the SDK's graphics with one difference: text is drawn plain, since nothing drawn
@@ -34,18 +36,26 @@ local font <const> = gfx.getSystemFont()
 gfx.setFont(font)
 local lineHeight <const> = font:getHeight()
 local function measure(text) return font:getTextWidth(text) end
+-- The wheel's slats: the word in the window large, the ones curving away small, the ones
+-- beside it in the system font.
+local bigFont <const> = gfx.font.new("fonts/Asheville-Sans-24-Light")
+local smallFont <const> = gfx.font.new("fonts/Roobert-10-Bold")
+-- Half the height of the window at the drum's front.
+local WINDOW <const> = 18
 
 local MARGIN <const> = 4
 local HEADER <const> = lineHeight + 4
 local PANEL <const> = lineHeight * 3 + 8
 local ROWS <const> = math.floor((240 - HEADER - PANEL) / lineHeight)
 local DEGREES_PER_STEP <const> = 24
+local sound = Sound.new(pd.sound)
 
 local engine = Engine.new(sprout, json)
 local shelf = Shelf.new(pd.file, engine)
 local clock = Clock.new(0)
 local reader = nil
 local builder = nil
+local wheel = nil -- the drum the builder's choices are drawn on
 local picker = nil
 local opened = nil -- the entry of the cartridge being read
 local images = nil -- its pictures
@@ -215,15 +225,23 @@ local function buildSentence()
     return
   end
   builder = Sentence.new(view)
+  wheel = Wheel.new()
   mode = "sentence"
+end
+
+local function closeBuilder()
+  builder, wheel = nil, nil
+  mode = "reader"
 end
 
 local function confirm()
   local done, reading = builder:pick()
   if done == "refused" then
+    sound:play("refused")
     showMessage(reading or "That cannot be done.", "sentence")
     return
   end
+  sound:play("pick")
   if done ~= "done" then return end
   reader:push("typed", builder:phrase())
   local result = engine:turn(reading)
@@ -236,8 +254,7 @@ local function confirm()
   told(result.lines)
   refreshStatus(result.lines)
   reader:toNewest()
-  builder = nil
-  mode = "reader"
+  closeBuilder()
 end
 
 -- ---- input ----
@@ -317,21 +334,23 @@ local function updateReader()
 end
 
 local function updateSentence()
-  builder:turn(crankChange())
+  local change = crankChange()
+  if builder:turn(change) ~= 0 then sound:play("tick") end
+  if wheel:update(builder, change ~= 0) == "settled" then sound:play("clack") end
   local state = builder.state
   local numbered = state.stage == "option" and state.leaf.options[state.role].takes == "integer"
   -- Down moves to the next entry; on a number it takes the number down, as up takes it up.
   local down = numbered and -1 or 1
-  if pd.buttonJustPressed(pd.kButtonDown) then builder:nudge(down) end
-  if pd.buttonJustPressed(pd.kButtonUp) then builder:nudge(-down) end
-  if numbered and pd.buttonJustPressed(pd.kButtonRight) then builder:addNumber(1, true) end
-  if numbered and pd.buttonJustPressed(pd.kButtonLeft) then builder:addNumber(-1, true) end
+  local stepped = false
+  if pd.buttonJustPressed(pd.kButtonDown) then builder:nudge(down); stepped = true end
+  if pd.buttonJustPressed(pd.kButtonUp) then builder:nudge(-down); stepped = true end
+  if numbered and pd.buttonJustPressed(pd.kButtonRight) then builder:addNumber(1, true); stepped = true end
+  if numbered and pd.buttonJustPressed(pd.kButtonLeft) then builder:addNumber(-1, true); stepped = true end
+  if stepped then sound:play("tick") end
   if pd.buttonJustPressed(pd.kButtonA) then confirm() end
   if pd.buttonJustPressed(pd.kButtonB) then
-    if not builder:back() then
-      builder = nil
-      mode = "reader"
-    end
+    sound:play("back")
+    if not builder:back() then closeBuilder() end
   end
 end
 
@@ -348,20 +367,6 @@ local function drawLines(lines, x, y)
   for _, line in ipairs(lines) do
     gfx.drawText(line, x, y)
     y = y + lineHeight
-  end
-end
-
-local function drawWheel(entries, selected, y)
-  local entry = entries[selected]
-  if entry == nil then return end
-  local label = entry.label
-  if entry.greyed then
-    gfx.setDitherPattern(0.5)
-  end
-  gfx.drawText("< " .. label .. " >", MARGIN, y)
-  gfx.setDitherPattern(0)
-  if entry.reason ~= nil then
-    drawLines(Wrap.lines(entry.reason, 400 - 2 * MARGIN, measure), MARGIN, y + lineHeight)
   end
 end
 
@@ -426,12 +431,36 @@ end
 
 local function drawReaderPanel()
   gfx.drawLine(0, 240 - PANEL, 400, 240 - PANEL)
-  if mode == "sentence" then
-    gfx.drawText(builder:phrase(), MARGIN, 240 - PANEL + 2)
-    drawWheel(builder:entries(), builder.selected, 240 - PANEL + 2 + lineHeight)
-  else
-    gfx.drawText("A: build a sentence   crank: scroll back", MARGIN, 240 - PANEL + 2)
+  gfx.drawText("A: build a sentence   crank: scroll back", MARGIN, 240 - PANEL + 2)
+end
+
+-- The builder: the sentence so far at the top, the drum of choices in the middle with the
+-- selected one in its window, and the selected choice's refusal or the keys at the bottom.
+local function drawSentence()
+  gfx.drawText(builder:phrase(), MARGIN, 0)
+  gfx.drawLine(0, HEADER - 1, 400, HEADER - 1)
+  local top, bottom = HEADER, 240 - PANEL
+  local centre = (top + bottom) // 2
+  gfx.drawLine(0, centre - WINDOW, 400, centre - WINDOW)
+  gfx.drawLine(0, centre + WINDOW, 400, centre + WINDOW)
+  gfx.fillTriangle(MARGIN, centre - 6, MARGIN, centre + 6, MARGIN + 8, centre)
+  gfx.fillTriangle(400 - MARGIN, centre - 6, 400 - MARGIN, centre + 6, 400 - MARGIN - 8, centre)
+  for _, row in ipairs(Wheel.rows(builder:entries(), builder.selected, builder:fraction())) do
+    local slat = row.tier == "front" and bigFont or row.tier == "near" and font or smallFont
+    local width, height = slat:getTextWidth(row.entry.label), slat:getHeight()
+    local y = centre + row.y - height // 2
+    if y >= top and y + height <= bottom then
+      if row.entry.greyed then gfx.setDitherPattern(0.5) end
+      gfx.setFont(slat)
+      gfx.drawText(row.entry.label, 200 - width // 2, y)
+      gfx.setFont(font)
+      gfx.setDitherPattern(0)
+    end
   end
+  gfx.drawLine(0, bottom, 400, bottom)
+  local entry = builder:entries()[builder.selected]
+  local words = entry ~= nil and entry.reason or "A picks   B steps back   the crank turns the wheel"
+  drawLines(Wrap.lines(words, 400 - 2 * MARGIN, measure), MARGIN, bottom + 2)
 end
 
 local function drawMessage()
@@ -462,9 +491,11 @@ function pd.update()
     drawDownloads()
   elseif mode == "nickname" then
     drawNickname()
-  elseif mode == "reader" or mode == "sentence" then
+  elseif mode == "reader" then
     reader:draw(gfx, lineHeight)
     drawReaderPanel()
+  elseif mode == "sentence" then
+    drawSentence()
   elseif mode == "message" then
     drawMessage()
   end
