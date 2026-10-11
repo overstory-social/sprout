@@ -224,59 +224,42 @@ static void a_condition_that_does_not_hold_runs_no_branch(void) {
 }
 
 /* `1 + 1 + ... + 1`, `terms` ones, as the nodes a cartridge would hold: a spine as long as that to its left. */
-static const sprout_node *sum_of_ones(size_t terms) {
-  static const char *binary_keys[] = {"kind", "operator", "left", "right"};
-  static const char *integer_keys[] = {"kind", "value"};
-  sprout_node *kind_binary = (sprout_node *)calloc(1, sizeof *kind_binary), *plus = (sprout_node *)calloc(1, sizeof *plus);
-  sprout_node *kind_integer = (sprout_node *)calloc(1, sizeof *kind_integer), *one = (sprout_node *)calloc(1, sizeof *one);
-  sprout_node *leaf = (sprout_node *)calloc(1, sizeof *leaf), *sum = NULL;
+static const sprout_node *sum_of_ones(sprout_builder *b, size_t terms) {
+  static const char *const binary_keys[] = {"kind", "operator", "left", "right"};
+  static const char *const integer_keys[] = {"kind", "value"};
+  const sprout_node *kind_binary = sprout_build_string(b, "binary", 6), *plus = sprout_build_string(b, "+", 1);
+  const sprout_node *leaf_values[2], *sum;
   size_t i;
-  kind_binary->kind = SPROUT_NODE_STRING, kind_binary->text = "binary", kind_binary->length = 6;
-  plus->kind = SPROUT_NODE_STRING, plus->text = "+", plus->length = 1;
-  kind_integer->kind = SPROUT_NODE_STRING, kind_integer->text = "integer", kind_integer->length = 7;
-  one->kind = SPROUT_NODE_NUMBER, one->number = 1;
-  leaf->kind = SPROUT_NODE_OBJECT, leaf->count = 2, leaf->keys = integer_keys;
-  leaf->items = (const sprout_node **)calloc(2, sizeof(sprout_node *));
-  leaf->items[0] = kind_integer, leaf->items[1] = one;
-  sum = leaf;
+  leaf_values[0] = sprout_build_string(b, "integer", 7);
+  leaf_values[1] = sprout_build_number(b, 1);
+  sum = sprout_build_object(b, integer_keys, leaf_values, 2);
   for (i = 1; i < terms; i++) {
-    sprout_node *next = (sprout_node *)calloc(1, sizeof *next);
-    next->kind = SPROUT_NODE_OBJECT, next->count = 4, next->keys = binary_keys;
-    next->items = (const sprout_node **)calloc(4, sizeof(sprout_node *));
-    next->items[0] = kind_binary, next->items[1] = plus, next->items[2] = sum, next->items[3] = leaf;
-    sum = next;
+    const sprout_node *values[4];
+    values[0] = kind_binary;
+    values[1] = plus;
+    values[2] = sum;
+    values[3] = sprout_build_object(b, integer_keys, leaf_values, 2);
+    sum = sprout_build_object(b, binary_keys, values, 4);
   }
   return sum;
-}
-
-/* Frees what sum_of_ones built: each `+` node and its items, the shared leaf, and the four leaf nodes under them. */
-static void free_sum(const sprout_node *top) {
-  const sprout_node *leaf = top;
-  sprout_node *sum = (sprout_node *)top;
-  while (leaf->count == 4) leaf = leaf->items[3];
-  if (top != leaf) {
-    free((void *)top->items[0]);
-    free((void *)top->items[1]);
-  }
-  free((void *)leaf->items[0]);
-  free((void *)leaf->items[1]);
-  while (sum != leaf) {
-    sprout_node *inner = (sprout_node *)sum->items[2];
-    free((void *)sum->items);
-    free(sum);
-    sum = inner;
-  }
-  free((void *)leaf->items);
-  free((void *)leaf);
 }
 
 static void a_spine_is_walked_by_loop_however_long_it_is(void) {
   bench b;
   bench_turn t;
   sprout_evaluated result;
+  test_heap spine_heap;
+  sprout_host spine_host = test_host(&spine_heap);
+  sprout_arena spine_arena;
+  sprout_builder builder;
+  const sprout_node *spine;
   bench_open(&b);
   bench_turn_for(&b, &t, "get reads the property");
-  const sprout_node *spine = sum_of_ones(300000);
+  sprout_arena_init(&spine_arena, &spine_host);
+  sprout_build_begin(&builder, &spine_arena);
+  spine = sum_of_ones(&builder, 300000);
+  CHECK(spine != NULL && !sprout_build_failed(&builder));
+  t.frame.graph = sprout_build_graph(&builder);
   CHECK_INT(sprout_eval(&t.frame, spine, &result), SPROUT_EVAL_OK);
   CHECK(result.value.kind == SPROUT_NUMBER && result.value.as.number == 300000);
   /* The first `1`, then for each `+` the `+` itself and the `1` on its right. */
@@ -284,7 +267,8 @@ static void a_spine_is_walked_by_loop_however_long_it_is(void) {
   bench_turn_close(&t);
   bench_close(&b);
   CHECK_INT(b.heap.pages, 0);
-  free_sum(spine);
+  sprout_arena_reset(&spine_arena);
+  CHECK_INT(spine_heap.pages, 0);
 }
 
 int main(void) {

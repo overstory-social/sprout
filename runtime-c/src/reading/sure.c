@@ -13,24 +13,24 @@
 #include "reading.h"
 
 /* The first `move` written directly in a play's `do`; NULL where there is none. */
-static const sprout_node *sure_move(const sprout_play *play) {
-  const sprout_node *body = sprout_node_get(sprout_node_get(play->node, "declaration"), "do");
-  const sprout_node *statements = sprout_node_get(body, "statements");
+static const sprout_node *sure_move(const sprout_graph *graph, const sprout_play *play) {
+  const sprout_node *body = sprout_node_get(graph, sprout_node_get(graph, play->node, "declaration"), "do");
+  const sprout_node *statements = sprout_node_get(graph, body, "statements");
   size_t i;
   for (i = 0; statements != NULL && i < statements->count; i++)
-    if (sprout_node_is(sprout_node_get(statements->items[i], "kind"), "move")) return statements->items[i];
+    if (sprout_node_is(graph, sprout_node_get(graph, sprout_item(graph, statements, i), "kind"), "move")) return sprout_item(graph, statements, i);
   return NULL;
 }
 
 /* The one name a path is, or NULL where it is dotted. */
-static const char *lone_name(const sprout_node *path) {
-  const sprout_node *parts = sprout_node_get(path, "parts");
-  return parts != NULL && parts->count == 1 ? sprout_node_text(parts->items[0], "text") : NULL;
+static const char *lone_name(const sprout_graph *graph, const sprout_node *path) {
+  const sprout_node *parts = sprout_node_get(graph, path, "parts");
+  return parts != NULL && parts->count == 1 ? sprout_node_text(graph, sprout_item(graph, parts, 0), "text") : NULL;
 }
 
 /* The object a one-word path names in `frame`: `self` or a name it binds to an object. */
 static bool named(const sprout_frame *frame, const sprout_node *path, sprout_str *out) {
-  const char *name = lone_name(path);
+  const char *name = lone_name(frame->graph, path);
   const sprout_binding *held;
   if (name == NULL) return false;
   if (strcmp(name, "self") == 0) {
@@ -95,11 +95,11 @@ sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *fram
         sprout_str item, to;
         bool in;
         EXPR_NEED(expr_spend(frame));
-        move = sure_move(play);
+        move = sure_move(frame->graph, play);
         if (move == NULL) continue;
         EXPR_NEED(sprout_play_frame(x, reading, &participants[i], play, false, &inside));
-        if (!named(&inside, sprout_node_get(move, "thing"), &item) ||
-            !named(&inside, sprout_node_get(move, "destination"), &to) ||
+        if (!named(&inside, sprout_node_get(frame->graph, move, "thing"), &item) ||
+            !named(&inside, sprout_node_get(frame->graph, move, "destination"), &to) ||
             sprout_str_same(item, frame->draft->base->world))
           return SPROUT_EVAL_OK;
         EXPR_NEED(within(frame, to, item, &in));
@@ -121,9 +121,9 @@ sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const spro
   for (i = 0; own != NULL && i < own->count && !*moves; i++) {
     const sprout_node *move;
     EXPR_NEED(expr_spend(frame));
-    move = sure_move(&own->plays[i]);
-    *moves = move != NULL && lone_name(sprout_node_get(move, "thing")) != NULL &&
-             strcmp(lone_name(sprout_node_get(move, "thing")), role->name) == 0;
+    move = sure_move(frame->graph, &own->plays[i]);
+    *moves = move != NULL && lone_name(frame->graph, sprout_node_get(frame->graph, move, "thing")) != NULL &&
+             strcmp(lone_name(frame->graph, sprout_node_get(frame->graph, move, "thing")), role->name) == 0;
   }
   return SPROUT_EVAL_OK;
 }

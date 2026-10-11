@@ -75,6 +75,8 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
   sprout_draws copy, *draws;
   prose_pieces rendered;
   const sprout_node *prose = NULL;
+  const sprout_graph *graph = NULL;
+  prose_reading engine; /* an engine line's nodes are read through the graph that line built */
   const char *library = NULL;
   sprout_frame frame;
   sprout_eval_status status;
@@ -95,17 +97,20 @@ static sprout_eval_status rendered_for(const prose_reading *reading, sprout_draw
       out->count = 1;
       return SPROUT_EVAL_OK;
     case SPROUT_SPEECH_PASSAGE:
-      prose = sprout_node_get(sprout_node_get(said->node, "body"), "prose");
+      prose = sprout_node_get(reading->graph, sprout_node_get(reading->graph, said->node, "body"), "prose");
       library = said->origin == NULL ? NULL : prose_library_of(reading->turn, said->origin);
       if (library == NULL) return expr_engine(&frame, "a passage was written by what is not a qualified kind.");
       break;
     case SPROUT_SPEECH_TEXT:
-      prose = sprout_node_get(said->node, "prose");
+      prose = sprout_node_get(reading->graph, said->node, "prose");
       library = said->library;
       break;
     case SPROUT_SPEECH_ENGINE:
-      EXPR_NEED(prose_engine_prose(reading->turn, reading->fault, said->name, &prose, &known));
+      EXPR_NEED(prose_engine_prose(reading->turn, reading->fault, said->name, &prose, &graph, &known));
       if (!known) return expr_engine(&frame, "an engine line was said that the engine has no words for.");
+      engine = *reading;
+      engine.graph = graph;
+      reading = &engine;
       library = "sprout";
       break;
   }
@@ -315,6 +320,7 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
   output.has_actor = actor != NULL;
   if (actor != NULL) output.actor = *actor;
   reading.world = x->world;
+  reading.graph = &x->world->graph;
   reading.draft = x->draft;
   reading.turn = x->turn;
   reading.meter = x->meter;

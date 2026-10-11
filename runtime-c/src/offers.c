@@ -103,7 +103,7 @@ static sprout_eval_status ways_for(scene *s, fillings *out) {
     const char *typed = way->direction;
     filling *slot = grow(s->frame, out);
     if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
-    if (typed == NULL) typed = sprout_node_text(sprout_node_get(sprout_node_get(way->exit, "line"), "label"), "typed");
+    if (typed == NULL) typed = sprout_node_text(s->frame->graph, sprout_node_get(s->frame->graph, sprout_node_get(s->frame->graph, way->exit, "line"), "label"), "typed");
     if (typed == NULL) return expr_engine(s->frame, "a link's label reached the runtime without the words a visitor types for it.");
     slot->bound = true;
     slot->filled.filled = true;

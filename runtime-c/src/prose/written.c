@@ -18,10 +18,13 @@ static const char *location_of(const prose_reading *reading, const sprout_node *
   char *text;
   long numbers[2];
   size_t i;
-  if (at == NULL || at->kind != SPROUT_NODE_PLACE || at->file < 0 || (size_t)at->file >= graph->file_count) return "?";
-  file = graph->files[at->file];
-  numbers[0] = at->line;
-  numbers[1] = at->column;
+  int placed;
+  if (at == NULL || at->kind != SPROUT_NODE_PLACE) return "?";
+  placed = sprout_place_file(reading->graph, at);
+  if (placed < 0 || (size_t)placed >= graph->file_count) return "?";
+  file = graph->files[placed];
+  numbers[0] = sprout_place_line(reading->graph, at);
+  numbers[1] = sprout_place_column(reading->graph, at);
   n = strlen(file);
   text = (char *)sprout_arena_take(reading->notes->arena, n + 2 * 21 + 1);
   if (text == NULL) return NULL;
@@ -67,9 +70,9 @@ void prose_note_passage(const prose_reading *reading, const sprout_node *passage
   sprout_noted wanted;
   if (reading->notes == NULL) return;
   wanted.passage = true;
-  wanted.name = sprout_node_text(passage, "name");
-  wanted.origin = sprout_node_text(passage, "origin");
-  wanted.at = location_of(reading, sprout_node_get(passage, "at"));
+  wanted.name = sprout_node_text(reading->graph, passage, "name");
+  wanted.origin = sprout_node_text(reading->graph, passage, "origin");
+  wanted.at = location_of(reading, sprout_node_get(reading->graph, passage, "at"));
   if (wanted.name == NULL || wanted.origin == NULL) return;
   note(reading, &wanted);
 }
@@ -78,7 +81,7 @@ void prose_note_line(const prose_reading *reading, const sprout_node *prose) {
   sprout_noted wanted;
   if (reading->notes == NULL) return;
   memset(&wanted, 0, sizeof wanted);
-  wanted.at = location_of(reading, sprout_node_get(prose, "at"));
+  wanted.at = location_of(reading, sprout_node_get(reading->graph, prose, "at"));
   note(reading, &wanted);
 }
 

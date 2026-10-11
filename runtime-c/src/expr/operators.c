@@ -68,7 +68,7 @@ static sprout_eval_status in_range(const sprout_frame *frame, double result, spr
 
 sprout_eval_status expr_unary(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *operand,
                               sprout_evaluated *out) {
-  if (sprout_node_is(sprout_node_get(expr, "operator"), "!")) {
+  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, expr, "operator"), "!")) {
     bool value = false;
     EXPR_NEED(expr_as_boolean(frame, operand, &value));
     *out = sprout_evaluated_value(sprout_bool(!value));
@@ -98,8 +98,8 @@ static sprout_eval_status same(const sprout_frame *frame, const sprout_evaluated
 
 sprout_eval_status expr_binary(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *left,
                                sprout_evaluated *out) {
-  const sprout_node *operator_node = sprout_node_get(expr, "operator"), *right = sprout_node_get(expr, "right");
-  const char *op = operator_node != NULL && operator_node->kind == SPROUT_NODE_STRING ? operator_node->text : "";
+  const sprout_node *operator_node = sprout_node_get(frame->graph, expr, "operator"), *right = sprout_node_get(frame->graph, expr, "right");
+  const char *op = operator_node != NULL && operator_node->kind == SPROUT_NODE_STRING ? sprout_text(frame->graph, operator_node) : "";
   sprout_evaluated other;
   double a = 0, b = 0;
   bool equal = false, decided = false;

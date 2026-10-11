@@ -173,18 +173,18 @@ static const sprout_passage *passage_named(const sprout_kind_def *kind, const ch
   return NULL;
 }
 
-void sprout_passage_speech(const sprout_passage *passage, sprout_speech *out) {
+void sprout_passage_speech(const sprout_graph *graph, const sprout_passage *passage, sprout_speech *out) {
   memset(out, 0, sizeof *out);
   out->kind = SPROUT_SPEECH_PASSAGE;
   out->name = passage->name;
-  out->origin = sprout_node_text(passage->node, "origin");
+  out->origin = sprout_node_text(graph, passage->node, "origin");
   out->node = passage->node;
 }
 
-bool sprout_passage_on(const sprout_kind_def *kind, const char *name, sprout_speech *out) {
+bool sprout_passage_on(const sprout_graph *graph, const sprout_kind_def *kind, const char *name, sprout_speech *out) {
   const sprout_passage *passage = passage_named(kind, name);
   if (passage == NULL) return false;
-  sprout_passage_speech(passage, out);
+  sprout_passage_speech(graph, passage, out);
   return true;
 }
 
@@ -206,10 +206,10 @@ void sprout_engine_said(const sprout_frame *frame, const char *name, const sprou
     instance = expr_instance(frame, *candidates[i]);
     passage = instance == NULL ? NULL : passage_named(instance->kind, name);
     if (passage == NULL) continue;
-    yielding_node = sprout_node_get(passage->node, "yields");
-    if (yielding_node == NULL || !yielding_node->boolean) {
+    yielding_node = sprout_node_get(frame->graph, passage->node, "yields");
+    if (yielding_node == NULL || !sprout_truth(yielding_node)) {
       *by = *candidates[i];
-      sprout_passage_speech(passage, said);
+      sprout_passage_speech(frame->graph, passage, said);
       return;
     }
     if (yielding == NULL) {
@@ -219,7 +219,7 @@ void sprout_engine_said(const sprout_frame *frame, const char *name, const sprou
   }
   if (yielding != NULL) {
     *by = yielding_by;
-    sprout_passage_speech(yielding, said);
+    sprout_passage_speech(frame->graph, yielding, said);
     return;
   }
   memset(said, 0, sizeof *said);

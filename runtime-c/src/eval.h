@@ -57,6 +57,7 @@ typedef struct sprout_eval_fault {
 /* What a body is evaluated inside. */
 typedef struct sprout_frame {
   const sprout_world *world;
+  const sprout_graph *graph; /* the graph the nodes evaluated belong to: the world's, or an engine line's own */
   sprout_draft *draft;  /* the turn's state: a draft in a write turn, the committed state read through one in a poll */
   sprout_arena *turn;   /* scratch for the turn */
   sprout_meter *meter;

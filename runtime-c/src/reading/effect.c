@@ -69,7 +69,7 @@ static sprout_eval_status run_does(sprout_exec *x, const sprout_resolved *readin
   for (g = 0; g < plays.count; g++) {
     for (p = 0; p < plays.groups[g]->count; p++) {
       const sprout_play *play = &plays.groups[g]->plays[p];
-      const sprout_node *body = sprout_node_get(sprout_node_get(play->node, "declaration"), "do");
+      const sprout_node *body = sprout_node_get(&x->world->graph, sprout_node_get(&x->world->graph, play->node, "declaration"), "do");
       sprout_frame inside;
       sprout_ended ended;
       if (body == NULL || body->kind == SPROUT_NODE_NULL) continue;

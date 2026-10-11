@@ -62,14 +62,14 @@ typedef enum expr_kind {
   EXPR_OTHER
 } expr_kind;
 
-expr_kind expr_kind_of(const sprout_node *node);
+expr_kind expr_kind_of(const sprout_graph *graph, const sprout_node *node);
 /* The text of the identifier a node holds in `field`, or NULL. */
-const char *expr_ident(const sprout_node *node, const char *field);
+const char *expr_ident(const sprout_graph *graph, const sprout_node *node, const char *field);
 /* Whether `node` is `a && b`. */
-bool expr_is_and(const sprout_node *node);
+bool expr_is_and(const sprout_graph *graph, const sprout_node *node);
 /* A call's arguments. */
-size_t expr_argument_count(const sprout_node *call);
-const sprout_node *expr_argument(const sprout_node *call, size_t index);
+size_t expr_argument_count(const sprout_graph *graph, const sprout_node *call);
+const sprout_node *expr_argument(const sprout_graph *graph, const sprout_node *call, size_t index);
 /* A member chain written on a name as the author wrote it, `kiln.shelf`, or NULL where it is not on a name. */
 sprout_eval_status expr_written_members(const sprout_frame *frame, const sprout_node *member, const char **out);
 /* The kind a kind expression names from the library that wrote the body, or NULL. */

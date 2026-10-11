@@ -79,7 +79,7 @@ static void recall_reads_what_self_remembers_about_the_actor(void) {
   sprout_evaluated out, actor = object("eval_bench#1");
   bench_open(&b);
   bench_turn_for(&b, &t, "recall reads what was written");
-  CHECK_INT(expr_reading(&t.frame, sprout_node_get(bench_expr(&b, "recall reads what was written"), "left"), &actor, &out), SPROUT_EVAL_OK);
+  CHECK_INT(expr_reading(&t.frame, sprout_node_get(&b.world->graph, bench_expr(&b, "recall reads what was written"), "left"), &actor, &out), SPROUT_EVAL_OK);
   CHECK(number_of(&out) == 5);
   bench_turn_close(&t);
   bench_close(&b);

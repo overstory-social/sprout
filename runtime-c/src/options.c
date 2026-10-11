@@ -40,20 +40,20 @@ static sprout_eval_status add_range(const sprout_frame *frame, growing *g, doubl
 }
 
 /* The range an integer role's `from` hears: its integer property's, or the one written out; none for a list. */
-static void range_of(const sprout_node *narrowing, bool *has, double *min, double *max) {
+static void range_of(const sprout_graph *graph, const sprout_node *narrowing, bool *has, double *min, double *max) {
   const sprout_node *type;
   *has = false;
-  if (sprout_node_is(sprout_node_get(narrowing, "narrows"), "range")) {
+  if (sprout_node_is(graph, sprout_node_get(graph, narrowing, "narrows"), "range")) {
     *has = true;
-    *min = sprout_node_get(narrowing, "min")->number;
-    *max = sprout_node_get(narrowing, "max")->number;
+    *min = sprout_node_number(graph, sprout_node_get(graph, narrowing, "min"));
+    *max = sprout_node_number(graph, sprout_node_get(graph, narrowing, "max"));
     return;
   }
-  type = sprout_node_get(sprout_node_get(narrowing, "property"), "type");
-  if (!sprout_node_is(sprout_node_get(type, "type"), "integer")) return;
+  type = sprout_node_get(graph, sprout_node_get(graph, narrowing, "property"), "type");
+  if (!sprout_node_is(graph, sprout_node_get(graph, type, "type"), "integer")) return;
   *has = true;
-  *min = sprout_node_get(type, "min")->number;
-  *max = sprout_node_get(type, "max")->number;
+  *min = sprout_node_number(graph, sprout_node_get(graph, type, "min"));
+  *max = sprout_node_number(graph, sprout_node_get(graph, type, "max"));
 }
 
 /* The options a symbol role's `from` hears: what its list property holds now, in order. */
@@ -61,8 +61,8 @@ static sprout_eval_status held_options(const sprout_frame *frame, growing *g, co
                                        const sprout_stored_instance *self) {
   sprout_value held;
   size_t i;
-  if (!sprout_node_is(sprout_node_get(narrowing, "narrows"), "property")) return SPROUT_EVAL_OK;
-  EXPR_NEED(expr_get(frame, self, sprout_node_text(sprout_node_get(narrowing, "property"), "name"), &held));
+  if (!sprout_node_is(frame->graph, sprout_node_get(frame->graph, narrowing, "narrows"), "property")) return SPROUT_EVAL_OK;
+  EXPR_NEED(expr_get(frame, self, sprout_node_text(frame->graph, sprout_node_get(frame->graph, narrowing, "property"), "name"), &held));
   if (held.kind != SPROUT_LIST) return SPROUT_EVAL_OK;
   for (i = 0; i < held.as.list->count; i++) {
     const sprout_value *element = &held.as.list->items[i];
@@ -83,13 +83,13 @@ static sprout_eval_status options_of(const sprout_frame *frame, const sprout_ver
     if (self == NULL) continue;
     own = sprout_own_plays(verb, participants[j].role == NULL ? "actor" : participants[j].role->name, self->kind);
     for (p = 0; own != NULL && p < own->count; p++) {
-      const sprout_node *narrowing = sprout_node_map_find(sprout_node_get(own->plays[p].node, "narrows"), role->name);
+      const sprout_node *narrowing = sprout_node_map_find(frame->graph, sprout_node_get(frame->graph, own->plays[p].node, "narrows"), role->name);
       if (narrowing == NULL) continue;
       EXPR_NEED(expr_spend(frame));
       if (integer) {
         bool has;
         double min = 0, max = 0;
-        range_of(narrowing, &has, &min, &max);
+        range_of(frame->graph, narrowing, &has, &min, &max);
         if (has) EXPR_NEED(add_range(frame, g, min, max));
       } else {
         EXPR_NEED(held_options(frame, g, narrowing, self));
