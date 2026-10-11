@@ -235,13 +235,13 @@ static const sprout_node *sum_of_ones(size_t terms) {
   plus->kind = SPROUT_NODE_STRING, plus->text = "+", plus->length = 1;
   kind_integer->kind = SPROUT_NODE_STRING, kind_integer->text = "integer", kind_integer->length = 7;
   one->kind = SPROUT_NODE_NUMBER, one->number = 1;
-  leaf->kind = SPROUT_NODE_OBJECT, leaf->count = 2, leaf->keys = integer_keys, leaf->index = SPROUT_NOT_AN_ENTRY;
+  leaf->kind = SPROUT_NODE_OBJECT, leaf->count = 2, leaf->keys = integer_keys;
   leaf->items = (const sprout_node **)calloc(2, sizeof(sprout_node *));
   leaf->items[0] = kind_integer, leaf->items[1] = one;
   sum = leaf;
   for (i = 1; i < terms; i++) {
     sprout_node *next = (sprout_node *)calloc(1, sizeof *next);
-    next->kind = SPROUT_NODE_OBJECT, next->count = 4, next->keys = binary_keys, next->index = SPROUT_NOT_AN_ENTRY;
+    next->kind = SPROUT_NODE_OBJECT, next->count = 4, next->keys = binary_keys;
     next->items = (const sprout_node **)calloc(4, sizeof(sprout_node *));
     next->items[0] = kind_binary, next->items[1] = plus, next->items[2] = sum, next->items[3] = leaf;
     sum = next;

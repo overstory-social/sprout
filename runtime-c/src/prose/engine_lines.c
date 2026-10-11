@@ -65,7 +65,6 @@ static sprout_node *node_of(reader *r, sprout_node_kind kind) {
     return NULL;
   }
   node->kind = kind;
-  node->index = SPROUT_NOT_AN_ENTRY;
   return node;
 }
 

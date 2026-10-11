@@ -3,14 +3,16 @@
  * produces): a flat table of objects, arrays, maps and sets that refer to one
  * another by index, so a thing two parts of the world share is one node. The
  * table is three runs under one numbering (prose nodes, statements and
- * expressions, everything else). Reading it gives each entry a node whose
- * `index` is its place in the table, which is how a body's names are bound:
- * the name table maps the node written to the node it reached.
+ * expressions, everything else). Reading it gives each entry a node at its
+ * place in the table (`sprout_graph_index`), which is how a body's names are
+ * bound: the name table maps the node written to the node it reached.
  *
  * A node is small, because a world holds hundreds of thousands: its payload
- * is a union, and a scalar cell (a string, a number, a place, true or false)
- * is one node per distinct value, shared by every entry that holds it. Nothing
- * a node holds points at the JSON it was read from.
+ * is a union and nothing else but its kind and count, so it is 16 bytes on a
+ * 32-bit console; a scalar cell (a string, a number, a place, true or false)
+ * is one node per distinct value, shared by every entry that holds it, and
+ * lies outside the entries array, which is how it is told from an entry.
+ * Nothing a node holds points at the JSON it was read from.
  */
 #ifndef SPROUT_GRAPH_H
 #define SPROUT_GRAPH_H
@@ -54,10 +56,13 @@ struct sprout_node {
       };
     };
   };
-  uint32_t index; /* the entry's place in the table, or SPROUT_NOT_AN_ENTRY for a scalar cell */
 };
 
-#define SPROUT_NOT_AN_ENTRY UINT32_MAX
+/* The double aligns the union to 8, so the node is two words of header and one union on a 32-bit host. */
+_Static_assert(sizeof(void *) != 4 || sizeof(sprout_node) == 16, "a node is 16 bytes on a 32-bit host");
+
+/* A graph holds fewer entries than this, so it is also the index a node outside the entries has. */
+#define SPROUT_NOT_AN_ENTRY ((size_t)UINT32_MAX)
 
 typedef struct sprout_graph {
   size_t count; /* entries */
@@ -115,6 +120,9 @@ sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, cons
                                 const sprout_json *prose, const sprout_json *bodies,
                                 const sprout_json *rest, sprout_graph *graph, char *error,
                                 size_t error_capacity);
+
+/* An entry's place in the table; SPROUT_NOT_AN_ENTRY for a scalar cell or a node made at run time. */
+size_t sprout_graph_index(const sprout_graph *graph, const sprout_node *node);
 
 /* The node a cell stands for, or NULL when the cell refers to no entry. */
 const sprout_node *sprout_graph_cell(const sprout_graph *graph, const sprout_json *cell);
