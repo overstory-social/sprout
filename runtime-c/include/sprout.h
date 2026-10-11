@@ -118,6 +118,47 @@ sprout_status sprout_load(const sprout_host *host, const char *cartridge, size_t
 sprout_status sprout_load_explained(const sprout_host *host, const char *cartridge, size_t length,
                                     sprout_world **world, sprout_refusal *refusal);
 
+/*
+ * A load in progress, so a host may read a big cartridge a little at a time
+ * across its frames rather than in one call. The cartridge's bytes must stay
+ * where they are until the load is finished or abandoned.
+ */
+typedef struct sprout_loading sprout_loading;
+
+/* Begins a load: the header checked as sprout_load checks it, nothing of the body read yet. */
+sprout_status sprout_load_begin(const sprout_host *host, const char *cartridge, size_t length,
+                                sprout_loading **loading, sprout_refusal *refusal);
+
+/*
+ * Reads on, at most `budget` units of work (an entry of the table or one of the
+ * small sections is a unit): `*done` once the world is ready. Any status but
+ * SPROUT_OK has ended the load, freed it, and written `refusal` as
+ * sprout_load_explained writes it.
+ */
+sprout_status sprout_load_step(sprout_loading *loading, size_t budget, bool *done, sprout_refusal *refusal);
+
+/* How far a load is: entries of the table read, of those its header counts (0 of 0 before the header). */
+void sprout_load_progress(const sprout_loading *loading, size_t *read, size_t *counted);
+
+/* The world a done load made, and the load freed; NULL (and nothing freed) before it is done. */
+sprout_world *sprout_load_finish(sprout_loading *loading);
+
+/* Frees a load part way; nothing of it remains. */
+void sprout_load_abandon(sprout_loading *loading);
+
+/*
+ * Reads only what a shelf needs of a cartridge: its header and the caps it
+ * was checked against, into a world with no graph or catalogue, cheap
+ * however large the cartridge. Such a world is read through
+ * sprout_world_header and sprout_world_caps and freed as any; it opens
+ * nothing.
+ */
+sprout_status sprout_peek(const sprout_host *host, const char *cartridge, size_t length, sprout_world **world,
+                          sprout_refusal *refusal);
+
+/* Whether a world was peeked rather than loaded. */
+bool sprout_world_peeked(const sprout_world *world);
+
 /* Releases a world and everything it holds. */
 void sprout_world_free(sprout_world *world);
 

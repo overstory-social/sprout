@@ -17,8 +17,11 @@ end
 -- Whether the cartridge at `path` can be shelved: { ok, name, hash, reason }.
 function Engine:inspect(path) return self:decode(self.api.inspect(path)) end
 
--- Loads the cartridge: { ok, name, hash, words, reason }.
+-- Begins opening the cartridge, its header read and checked: { ok, name, hash, reason }.
 function Engine:open(path) return self:decode(self.api.open(path)) end
+
+-- Reads on a little of the world being opened: { ok, done, read, counted, words, reason }; `words` once done.
+function Engine:step() return self:decode(self.api.step()) end
 
 -- Reads the save for the open world: { ok, fresh, nickname, present, last, lines }.
 function Engine:load() return self:decode(self.api.load()) end

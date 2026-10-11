@@ -47,6 +47,8 @@ struct sprout_world {
   const sprout_node **bound;
   bool *option_slot;
 
+  bool peeked; /* only the header and caps were read: no graph, no catalogue */
+
   sprout_caps caps;
   size_t extension_count;
   sprout_extension_pin *extensions;

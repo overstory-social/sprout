@@ -20,6 +20,10 @@ player_session *player_session_new(PlaydateAPI *pd) {
 
 /* Releases the world, its state and the log tail; the session is ready to open another. */
 static void release_world(player_session *session) {
+  if (session->loading != NULL) sprout_load_abandon(session->loading);
+  player_free(session->pd, session->loading_bytes);
+  session->loading = NULL;
+  session->loading_bytes = NULL;
   if (session->state != NULL) sprout_state_free(session->state);
   if (session->world != NULL) sprout_world_free(session->world);
   session->state = NULL;
@@ -67,13 +71,13 @@ static const char *refuse(player_session *session, const char *flag, const char 
 
 /* ---- shelving ---- */
 
-/* The title, the hash and the save's paths of the world just loaded. */
-static void name_files(player_session *session) {
+/* The title, the hash and the save's paths of the world being opened, from its header. */
+static void name_files(player_session *session, const sprout_cartridge_header *header) {
   text_buffer out;
   text_begin(&out, session->title, sizeof session->title);
-  text_add(&out, session->world->header.name);
+  text_add(&out, header->name);
   text_begin(&out, session->hash, sizeof session->hash);
-  text_add(&out, session->world->header.hash);
+  text_add(&out, header->hash);
   text_begin(&out, session->state_path, sizeof session->state_path);
   text_add(&out, SAVES "/");
   text_add(&out, session->hash);
@@ -84,36 +88,39 @@ static void name_files(player_session *session) {
   text_add(&out, ".log");
 }
 
+/* The words of a load that failed, for the person holding the device. */
+static void load_failed(sprout_status status, const sprout_refusal *refusal, text_buffer *out) {
+  if (status == SPROUT_NO_MEMORY) text_add(out, "This world is too large for this device's memory.");
+  else text_add(out, status == SPROUT_BAD_INPUT ? refusal->text : sprout_status_text(status));
+}
+
 /*
- * Reads and loads the cartridge at `path` and checks it against the app's static caps. On
- * refusal `reason` says why, in words for the person holding the device.
+ * Reads the cartridge at `path` and peeks at its header and caps, checked against the app's
+ * static caps: cheap however large the world. On refusal `reason` says why. The bytes are the
+ * caller's to free, and `peeked` (when given back) likewise.
  */
-static bool shelve(player_session *session, const char *path, sprout_world **world, char *reason, size_t size) {
-  size_t length = 0;
-  char *bytes = player_read_file(session->pd, path, &length);
+static bool peek(player_session *session, const char *path, char **bytes, size_t *length, sprout_world **peeked,
+                 char *reason, size_t size) {
   sprout_refusal refusal;
   sprout_status status;
   text_buffer out;
   text_begin(&out, reason, size);
-  if (bytes == NULL) {
+  *peeked = NULL;
+  *bytes = player_read_file(session->pd, path, length);
+  if (*bytes == NULL) {
     text_add(&out, "The file ");
     text_add(&out, path);
     text_add(&out, " cannot be read.");
     return false;
   }
-  status = sprout_load_explained(&session->host.record, bytes, length, world, &refusal);
-  player_free(session->pd, bytes);
-  if (status == SPROUT_NO_MEMORY) {
-    text_add(&out, "This world is too large for this device's memory.");
-    return false;
-  }
+  status = sprout_peek(&session->host.record, *bytes, *length, peeked, &refusal);
   if (status != SPROUT_OK) {
-    text_add(&out, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
+    load_failed(status, &refusal, &out);
     return false;
   }
-  if (!player_caps_fit(*world, reason, size)) {
-    sprout_world_free(*world);
-    *world = NULL;
+  if (!player_caps_fit(*peeked, reason, size)) {
+    sprout_world_free(*peeked);
+    *peeked = NULL;
     return false;
   }
   return true;
@@ -124,11 +131,13 @@ const char *player_inspect(player_session *session, const char *path) {
   jb builder;
   sprout_json *root;
   sprout_world *world = NULL;
+  char *bytes = NULL;
+  size_t length = 0;
   char reason[512];
   const char *reply;
   bool fits;
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  fits = shelve(session, path, &world, reason, sizeof reason);
+  fits = peek(session, path, &bytes, &length, &world, reason, sizeof reason);
   root = jb_object(&builder, 4);
   jb_set(&builder, root, "ok", jb_bool(&builder, fits));
   jb_set(&builder, root, "name", fits ? jb_string(&builder, world->header.name) : jb_null(&builder));
@@ -136,28 +145,93 @@ const char *player_inspect(player_session *session, const char *path) {
   jb_set(&builder, root, "reason", fits ? jb_null(&builder) : jb_string(&builder, reason));
   reply = session_reply_end(session, &arena, &builder, root);
   if (world != NULL) sprout_world_free(world);
+  player_free(session->pd, bytes);
   return reply;
 }
 
 const char *player_open(player_session *session, const char *path) {
   sprout_arena arena;
   jb builder;
-  sprout_json *root, *words;
-  sprout_world *world = NULL;
+  sprout_json *root;
+  sprout_world *peeked = NULL;
+  sprout_refusal refusal;
+  sprout_status status;
+  char *bytes = NULL;
+  size_t length = 0;
   char reason[512];
-  size_t i;
   release_world(session);
-  if (!shelve(session, path, &world, reason, sizeof reason)) return refuse(session, "ok", "reason", reason);
-  session->world = world;
-  name_files(session);
+  if (!peek(session, path, &bytes, &length, &peeked, reason, sizeof reason)) {
+    player_free(session->pd, bytes);
+    return refuse(session, "ok", "reason", reason);
+  }
+  name_files(session, &peeked->header);
+  sprout_world_free(peeked);
+  status = sprout_load_begin(&session->host.record, bytes, length, &session->loading, &refusal);
+  if (status != SPROUT_OK) {
+    text_buffer out;
+    text_begin(&out, reason, sizeof reason);
+    load_failed(status, &refusal, &out);
+    player_free(session->pd, bytes);
+    return refuse(session, "ok", "reason", reason);
+  }
+  session->loading_bytes = bytes;
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 5);
-  words = jb_array(&builder, world->word_count);
-  for (i = 0; i < world->word_count; i++) jb_set(&builder, words, NULL, jb_string(&builder, world->words[i]));
+  root = jb_object(&builder, 4);
   jb_set(&builder, root, "ok", jb_bool(&builder, true));
   jb_set(&builder, root, "name", jb_string(&builder, session->title));
   jb_set(&builder, root, "hash", jb_string(&builder, session->hash));
-  jb_set(&builder, root, "words", words);
+  jb_set(&builder, root, "reason", jb_null(&builder));
+  return session_reply_end(session, &arena, &builder, root);
+}
+
+/*
+ * How much of a world one step reads: entries of its table. The caverns' 144,519 entries take
+ * about 70 steps, which the app spreads one a frame behind its loading line, each well inside
+ * what the system allows a frame on the console.
+ */
+#define STEP_ENTRIES 2000
+
+const char *player_step(player_session *session) {
+  sprout_arena arena;
+  jb builder;
+  sprout_json *root, *words;
+  sprout_refusal refusal;
+  sprout_status status;
+  size_t read = 0, counted = 0, i;
+  bool done = false;
+  if (session->loading == NULL) return refuse(session, "ok", "reason", "No world is being opened.");
+  status = sprout_load_step(session->loading, STEP_ENTRIES, &done, &refusal);
+  if (status != SPROUT_OK) {
+    char reason[512];
+    text_buffer out;
+    text_begin(&out, reason, sizeof reason);
+    load_failed(status, &refusal, &out);
+    session->loading = NULL;
+    player_free(session->pd, session->loading_bytes);
+    session->loading_bytes = NULL;
+    return refuse(session, "ok", "reason", reason);
+  }
+  sprout_load_progress(session->loading, &read, &counted);
+  if (done) {
+    session->world = sprout_load_finish(session->loading);
+    session->loading = NULL;
+    player_free(session->pd, session->loading_bytes);
+    session->loading_bytes = NULL;
+  }
+  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
+  root = jb_object(&builder, 7);
+  jb_set(&builder, root, "ok", jb_bool(&builder, true));
+  jb_set(&builder, root, "done", jb_bool(&builder, done));
+  jb_set(&builder, root, "read", jb_number(&builder, (double)read));
+  jb_set(&builder, root, "counted", jb_number(&builder, (double)counted));
+  if (done) {
+    jb_set(&builder, root, "name", jb_string(&builder, session->title));
+    jb_set(&builder, root, "hash", jb_string(&builder, session->hash));
+    words = jb_array(&builder, session->world->word_count);
+    for (i = 0; i < session->world->word_count; i++)
+      jb_set(&builder, words, NULL, jb_string(&builder, session->world->words[i]));
+    jb_set(&builder, root, "words", words);
+  }
   return session_reply_end(session, &arena, &builder, root);
 }
 

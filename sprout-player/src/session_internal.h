@@ -22,6 +22,8 @@ struct player_session {
   player_host host;
   sprout_world *world;
   sprout_state *state;
+  sprout_loading *loading; /* a world being opened across frames, with the cartridge's bytes below */
+  char *loading_bytes;
   char hash[72];
   char title[96];
   char state_path[PATH_BYTES];

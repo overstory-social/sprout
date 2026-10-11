@@ -13,7 +13,7 @@ static void a_word_of_the_world_is_not_a_name_and_nobody_arrives(void) {
   char *refused;
   begin("name");
   s = session_new();
-  player_open(s, "chip-tree.sproutworld");
+  player_open_whole(s, "chip-tree.sproutworld");
   player_load(s);
   refused = keep(player_admit(s, "guard"));
   CHECK(HAS(refused, "\"admitted\":false") && HAS(refused, "guard") && HAS(refused, "\"lines\":[]"), "%s", refused);
@@ -30,7 +30,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
   begin("transcript");
   json_begin();
   s = session_new();
-  opened = keep(player_open(s, "chip-tree.sproutworld"));
+  opened = keep(player_open_whole(s, "chip-tree.sproutworld"));
   save_paths(opened, state_path, log_path, sizeof state_path);
   player_load(s);
   admitted = keep(player_admit(s, "Marta"));
@@ -91,7 +91,7 @@ static void a_reading_the_world_cannot_take_is_told_in_words_and_writes_nothing(
   begin("refused");
   json_begin();
   s = session_new();
-  opened = keep(player_open(s, "chip-tree.sproutworld"));
+  opened = keep(player_open_whole(s, "chip-tree.sproutworld"));
   save_paths(opened, state_path, log_path, sizeof state_path);
   player_load(s);
   player_admit(s, "Marta");
@@ -118,7 +118,7 @@ static void a_turn_whose_save_cannot_be_written_says_so(void) {
   char *told;
   begin("full");
   s = session_new();
-  player_open(s, "chip-tree.sproutworld");
+  player_open_whole(s, "chip-tree.sproutworld");
   player_load(s);
   CHECK(HAS(keep(player_admit(s, "Marta")), "\"saved\":true"), "arriving saves");
   fake->fail_writes = 1;
@@ -140,7 +140,7 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   begin("catch-up");
   json_begin();
   s = session_new();
-  opened = keep(player_open(s, "wakes.sproutworld"));
+  opened = keep(player_open_whole(s, "wakes.sproutworld"));
   save_paths(opened, state_path, log_path, sizeof state_path);
   player_load(s);
   player_admit(s, "Marta");
@@ -153,7 +153,7 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   CHECK(before != NULL && HAS(before, "firing"), "the kiln is firing");
 
   fake->seconds += 4 * 3600;
-  player_open(s, "wakes.sproutworld");
+  player_open_whole(s, "wakes.sproutworld");
   player_load(s);
   admitted = keep(player_admit(s, "Marta"));
   reply = parse(admitted);
@@ -177,7 +177,7 @@ static void a_tick_tells_what_the_place_says(void) {
   char *ticked;
   begin("tick");
   s = session_new();
-  player_open(s, "ticks.sproutworld");
+  player_open_whole(s, "ticks.sproutworld");
   player_load(s);
   CHECK(HAS(keep(player_tick(s)), "You are not in a world."), "before arriving");
   player_admit(s, "Marta");

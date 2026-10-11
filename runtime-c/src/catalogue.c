@@ -199,6 +199,19 @@ static const sprout_json *section(const sprout_json *root, const char *name) {
   return sprout_json_get(root, name);
 }
 
+sprout_status sprout_catalogue_peek(sprout_world *world, const sprout_json *root, char *error, size_t capacity) {
+  loader load, *l = &load;
+  memset(&load, 0, sizeof load);
+  load.world = world;
+  load.arena = &world->arena;
+  load.error = error;
+  load.capacity = capacity;
+  NEED(read_header(l, section(root, "header")));
+  NEED(read_caps(l, section(root, "caps")));
+  world->peeked = true;
+  return SPROUT_OK;
+}
+
 /* Zeroed room in the load's scratch for one pointer an entry: a cache the load alone reads. */
 static void *cache_of(sprout_arena *scratch, size_t entries) {
   size_t bytes = (entries == 0 ? 1 : entries) * sizeof(void *);

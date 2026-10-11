@@ -93,6 +93,8 @@ describe('the sections of a cartridge', () => {
   it('are all present for a bench world, each holding something', () => {
     expect(Object.keys(cartridge)).toEqual([
       'header',
+      'caps',
+      'extensions',
       'kinds',
       'tree',
       'verbs',
@@ -101,8 +103,6 @@ describe('the sections of a cartridge', () => {
       'prose',
       'bodies',
       'table',
-      'caps',
-      'extensions',
     ]);
     expect(cartridge.header).toMatchObject({
       name: BENCH.manifest.name,
