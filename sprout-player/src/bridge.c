@@ -18,59 +18,68 @@ static int reply(const char *json) {
   return 1;
 }
 
+/*
+ * What every call answers once the session is gone: the system has told the app to stop and
+ * the Lua side may still run a frame, so a call then is refused rather than run against nothing.
+ */
+#define SHUT_DOWN "{\"ok\":false,\"reason\":\"The engine has shut down.\",\"words\":\"The engine has shut down.\"}"
+
+/* Refuses the call when there is no session; otherwise the call's own reply. */
+#define ANSWER(call) return reply(session == NULL ? SHUT_DOWN : (call))
+
 static int lua_inspect(lua_State *L) {
   (void)L;
-  return reply(player_inspect(session, argument(1)));
+  ANSWER(player_inspect(session, argument(1)));
 }
 
 static int lua_open(lua_State *L) {
   (void)L;
-  return reply(player_open(session, argument(1)));
+  ANSWER(player_open(session, argument(1)));
 }
 
 static int lua_load(lua_State *L) {
   (void)L;
-  return reply(player_load(session));
+  ANSWER(player_load(session));
 }
 
 static int lua_admit(lua_State *L) {
   (void)L;
-  return reply(player_admit(session, argument(1)));
+  ANSWER(player_admit(session, argument(1)));
 }
 
 static int lua_view(lua_State *L) {
   (void)L;
-  return reply(player_view(session));
+  ANSWER(player_view(session));
 }
 
 static int lua_turn(lua_State *L) {
   (void)L;
-  return reply(player_turn(session, argument(1)));
+  ANSWER(player_turn(session, argument(1)));
 }
 
 static int lua_tick(lua_State *L) {
   (void)L;
-  return reply(player_tick(session));
+  ANSWER(player_tick(session));
 }
 
 static int lua_save(lua_State *L) {
   (void)L;
-  return reply(player_save(session));
+  ANSWER(player_save(session));
 }
 
 static int lua_close(lua_State *L) {
   (void)L;
-  return reply(player_close(session));
+  ANSWER(player_close(session));
 }
 
 static int lua_verify(lua_State *L) {
   (void)L;
-  return reply(player_verify(session, argument(1), argument(2), argument(3)));
+  ANSWER(player_verify(session, argument(1), argument(2), argument(3)));
 }
 
 static int lua_digest(lua_State *L) {
   (void)L;
-  return reply(player_digest(session, argument(1)));
+  ANSWER(player_digest(session, argument(1)));
 }
 
 typedef struct registered {

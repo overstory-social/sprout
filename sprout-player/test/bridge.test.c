@@ -42,7 +42,7 @@ static void a_missing_argument_is_an_empty_one_and_never_a_crash(void) {
   end();
 }
 
-static void the_player_shutting_down_puts_a_visitor_away_and_saves(void) {
+static void the_player_shutting_down_puts_a_visitor_away_and_saves_and_refuses_what_comes_after(void) {
   char state_path[200], log_path[200];
   char *opened;
   begin_bridge("shutdown");
@@ -57,6 +57,10 @@ static void the_player_shutting_down_puts_a_visitor_away_and_saves(void) {
     CHECK(text != NULL && HAS(text, "Marta"), "with the visitor in it");
     free(text);
   }
+  /* The Lua side may still run a frame after the system's terminate: a call then is refused, not run. */
+  CHECK(HAS(call("sprout.tick", NULL), "\"ok\":false,\"reason\":\"The engine has shut down.\""), "a tick after shutdown is refused");
+  CHECK(HAS(call("sprout.view", NULL), "The engine has shut down."), "a view after shutdown is refused");
+  CHECK(HAS(call("sprout.open", "chip-tree.sproutworld"), "The engine has shut down."), "an open after shutdown is refused");
   fake->function_count = 0;
   CHECK(player_register(&fake->api), "and the player can start again");
   end();
@@ -67,6 +71,6 @@ int main(void) {
   every_function_is_registered_under_sprout();
   each_function_hands_lua_one_json_string_and_reads_its_argument();
   a_missing_argument_is_an_empty_one_and_never_a_crash();
-  the_player_shutting_down_puts_a_visitor_away_and_saves();
+  the_player_shutting_down_puts_a_visitor_away_and_saves_and_refuses_what_comes_after();
   return finish();
 }
