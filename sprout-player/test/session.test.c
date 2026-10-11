@@ -40,6 +40,7 @@ static void opening_says_the_hash_and_the_words_a_nickname_may_not_be(void) {
   CHECK(HAS(opened, "\"guard\"") && HAS(opened, "\"north\"") && HAS(opened, "\"the\""), "the word set comes with the last step: %.300s", opened);
   opened = keep(player_open_whole(s, "absent.sproutworld"));
   CHECK(HAS(opened, "\"ok\":false") && HAS(opened, "cannot be read"), "%s", opened);
+  CHECK(HAS(keep(player_step(s)), "No world is being opened."), "a step after a refused open has nothing to read");
   end();
 }
 

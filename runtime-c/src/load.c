@@ -482,12 +482,14 @@ static sprout_status begin_load(const sprout_host *host, const char *cartridge, 
   if (refusal != NULL) refusal->text[0] = '\0';
   if (host == NULL || out == NULL) return SPROUT_BAD_HOST;
   status = begin_world(host, cartridge, length, &world, refusal);
+  if (status == SPROUT_NO_MEMORY) say(refusal, sprout_status_text(status), NULL, NULL, NULL, NULL);
   if (status != SPROUT_OK) return status;
   sprout_arena_init(&scratch, &world->host);
   loading = (sprout_loading *)sprout_arena_take(&scratch, sizeof *loading);
   if (loading == NULL) {
     sprout_arena_reset(&scratch);
     sprout_world_free(world);
+    say(refusal, sprout_status_text(SPROUT_NO_MEMORY), NULL, NULL, NULL, NULL);
     return SPROUT_NO_MEMORY;
   }
   memset(loading, 0, sizeof *loading);

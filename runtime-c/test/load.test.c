@@ -281,8 +281,60 @@ static void a_peek_reads_the_header_and_caps_and_nothing_else(void) {
   free(bytes);
 }
 
+#define ALL_CAPS "\"caps\":{\"optionsPerEnum\":1,\"rolesPerVerb\":1,\"phrasesPerVerb\":1,\"stepsPerIntent\":1,\"phraseCharacters\":1,\"nounsPerObject\":1,\"nounCharacters\":1,\"exitsPerPlace\":1,\"listElements\":1,\"literalCharacters\":1,\"places\":null,\"objects\":null,\"kinds\":null,\"files\":null,\"sourceBytes\":null}"
+
+static void a_peek_walks_past_the_entries_when_the_caps_come_after_them(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  size_t length;
+  char *bytes = cartridge_of(
+      "{\"header\":{\"name\":\"late\",\"namespace\":\"late\",\"version\":\"1.0.0\",\"author\":\"a\",\"license\":\"MIT\",\"level\":1,\"hash\":\"h\",\"files\":[],\"libraries\":[],\"counts\":{\"prose\":0,\"bodies\":0,\"table\":1}},"
+      "\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[{\"a\":[1,2,3]}]}," ALL_CAPS "}",
+      &length);
+  sprout_world *world = NULL;
+  sprout_refusal why;
+  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
+  CHECK(world != NULL && sprout_world_peeked(world));
+  CHECK_STR(world->header.name, "late");
+  CHECK(world->caps.options_per_enum == 1);
+  CHECK_INT(world->graph.count, 0);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+}
+
+static void a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing(void) {
+  size_t length;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  long pages;
+  for (pages = 0; pages < 60; pages += 2) {
+    test_heap heap;
+    sprout_host host = test_host(&heap);
+    sprout_loading *loading = NULL;
+    sprout_refusal why;
+    sprout_status status;
+    bool done = false;
+    host.page_bytes = 8192;
+    heap.refuse_after = pages;
+    status = sprout_load_begin(&host, bytes, length, &loading, &why);
+    while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 5, &done, &why);
+    if (status == SPROUT_OK) {
+      sprout_world *world = sprout_load_finish(loading);
+      CHECK(world != NULL);
+      sprout_world_free(world);
+    } else {
+      CHECK_INT(status, SPROUT_NO_MEMORY);
+      CHECK_STR(why.text, sprout_status_text(SPROUT_NO_MEMORY));
+    }
+    CHECK_INT(heap.pages, 0);
+  }
+  free(bytes);
+}
+
 int main(void) {
   RUN(a_load_steps_across_calls_and_tells_its_progress);
+  RUN(a_peek_walks_past_the_entries_when_the_caps_come_after_them);
+  RUN(a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing);
   RUN(a_load_abandoned_part_way_leaves_nothing);
   RUN(a_peek_reads_the_header_and_caps_and_nothing_else);
   RUN(a_newer_format_or_level_is_refused_naming_the_number);
