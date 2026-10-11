@@ -15,7 +15,7 @@ static char *cartridge_of(const char *body, size_t *length) {
   uint32_t crc = sprout_crc32(0, (const unsigned char *)body, n);
   memset(out, 0, 16);
   memcpy(out, "SPRT", 4);
-  out[4] = 1;
+  out[4] = 2;
   out[6] = 1;
   at = 16;
   {
@@ -56,16 +56,19 @@ static void refuses(const char *bytes, size_t length, const char *words) {
 static void a_newer_format_or_level_is_refused_naming_the_number(void) {
   size_t length;
   char *bytes = corpus_cartridge("printers_shop", &length);
-  bytes[4] = 2;
+  bytes[4] = 3;
   refuses(bytes, length,
-          "This cartridge is format version 2, and this runtime reads up to version 1. Update the runtime, or pack the world again with this one.");
-  bytes[4] = 1;
+          "This cartridge is format version 3, and this runtime reads up to version 2. Update the runtime, or pack the world again with this one.");
+  bytes[4] = 2;
   bytes[6] = 7;
   refuses(bytes, length,
           "This cartridge was made for language level 7, and this runtime reads up to level 1. Update the runtime, or pack the world again with this one.");
   bytes[6] = 1;
   bytes[4] = 0;
   refuses(bytes, length, "This cartridge says it is format version 0, and versions begin at 1. It is damaged.");
+  bytes[4] = 1;
+  refuses(bytes, length,
+          "This cartridge is format version 1, and this runtime reads version 2. Pack the world again with `sprout pack`.");
   free(bytes);
 }
 
@@ -103,10 +106,33 @@ static void a_damaged_body_is_refused_in_words(void) {
   free(good);
 }
 
+#define COUNTED_HEADER "\"header\":{\"counts\":{\"prose\":0,\"bodies\":0,\"table\":0}}"
+
 static void a_body_missing_a_section_is_refused_where_it_goes_wrong(void) {
   size_t length;
   char *bytes = cartridge_of("{\"table\":{\"files\":[],\"entries\":[]},\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: its header does not come first.");
+  free(bytes);
+  bytes = cartridge_of("{\"header\":{},\"prose\":{\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `header.counts`: it is not what a cartridge holds there.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"table\":{\"files\":[],\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: its entries are not in order.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `table`: it is missing the entries it refers to.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[{\"a\":[]}]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: the cartridge holds more entries than its header counts.");
+  free(bytes);
+  bytes = cartridge_of("{\"header\":{\"counts\":{\"prose\":1,\"bodies\":0,\"table\":0}},\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}}", &length);
+  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: the cartridge holds fewer entries than its header counts.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}}", &length);
   refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `header`: it is not what a cartridge holds there.");
+  free(bytes);
+  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}", &length);
+  refuses(bytes, length, "This cartridge cannot be read: its body is not JSON.");
   free(bytes);
 }
 

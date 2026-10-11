@@ -147,6 +147,49 @@ static void a_place_past_what_a_node_holds_is_refused(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+static void the_graph_is_read_an_entry_at_a_time_and_its_files_checked_at_the_end(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena, scratch;
+  sprout_graph graph;
+  sprout_graph_reader reader;
+  sprout_json *one, *two, *files;
+  sprout_json_error e;
+  char error[200];
+  sprout_arena_init(&arena, &host);
+  sprout_arena_init(&scratch, &host);
+  const char *one_text = "{\"a\":[[1],{\"p\":[1,2,3]}]}", *two_text = "{\"s\":[[0]]}";
+  const char *files_text = "[\"a.sprout\",\"b.sprout\"]";
+  CHECK_INT(sprout_json_read(&scratch, one_text, strlen(one_text), &one, &e), SPROUT_OK);
+  CHECK_INT(sprout_json_read(&scratch, two_text, strlen(two_text), &two, &e), SPROUT_OK);
+  CHECK_INT(sprout_json_read(&scratch, files_text, strlen(files_text), &files, &e), SPROUT_OK);
+  CHECK_INT(sprout_graph_begin(&reader, &graph, &arena, &scratch, 1, 0, 1, error, 200), SPROUT_OK);
+  CHECK_INT(graph.count, 2);
+  CHECK_INT(sprout_graph_fill(&reader, one), SPROUT_OK);
+  CHECK(graph.entries[0].items[0] == &graph.entries[1]);
+  CHECK_INT(sprout_graph_fill(&reader, two), SPROUT_OK);
+  CHECK_INT(sprout_graph_fill(&reader, two), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge holds more entries than its header counts.");
+  CHECK_INT(sprout_graph_end(&reader, files), SPROUT_OK);
+  CHECK_STR(graph.files[1], "b.sprout");
+  CHECK_INT(graph.entries[0].items[1]->file, 1);
+  /* A place's file is checked once the files are known. */
+  CHECK_INT(sprout_json_read(&scratch, "[\"a.sprout\"]", 12, &files, &e), SPROUT_OK);
+  CHECK_INT(sprout_graph_begin(&reader, &graph, &arena, &scratch, 1, 0, 1, error, 200), SPROUT_OK);
+  CHECK_INT(sprout_graph_fill(&reader, one), SPROUT_OK);
+  CHECK_INT(sprout_graph_fill(&reader, two), SPROUT_OK);
+  CHECK_INT(sprout_graph_end(&reader, files), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge names a file it does not list.");
+  /* Fewer entries than counted. */
+  CHECK_INT(sprout_graph_begin(&reader, &graph, &arena, &scratch, 1, 0, 1, error, 200), SPROUT_OK);
+  CHECK_INT(sprout_graph_fill(&reader, one), SPROUT_OK);
+  CHECK_INT(sprout_graph_end(&reader, files), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge holds fewer entries than its header counts.");
+  sprout_arena_reset(&scratch);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_host_that_runs_out_of_memory_is_told_so(void) {
   long pages;
   for (pages = 0; pages < 8; pages++) {
@@ -172,6 +215,7 @@ int main(void) {
   RUN(a_forward_reference_and_a_place_without_a_listed_file_are_handled_in_words);
   RUN(equal_scalars_are_one_node_and_nothing_points_at_the_json);
   RUN(a_place_past_what_a_node_holds_is_refused);
+  RUN(the_graph_is_read_an_entry_at_a_time_and_its_files_checked_at_the_end);
   RUN(a_host_that_runs_out_of_memory_is_told_so);
   return REPORT();
 }

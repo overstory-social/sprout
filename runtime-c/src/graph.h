@@ -68,10 +68,48 @@ typedef struct sprout_graph {
   sprout_node true_node, false_node;
 } sprout_graph;
 
+/* The interning table: open addressing over node pointers, grown by doubling in scratch. */
+typedef struct sprout_intern {
+  const sprout_node **slots;
+  size_t capacity, used;
+} sprout_intern;
+
 /*
- * Reads the three runs of entries and the files spans name, interning scalars
- * through a table in `scratch`, which the caller resets afterwards. SPROUT_BAD_INPUT
- * with `error` set to a sentence when an entry is malformed or refers past the table.
+ * A graph being read: begun with the entries' counts, so a reference may
+ * point forward; filled one entry at a time, in the table's order; ended with
+ * the files spans name, which a cartridge gives after its entries.
+ */
+typedef struct sprout_graph_reader {
+  sprout_arena *arena;
+  sprout_arena *scratch;
+  sprout_graph *graph;
+  sprout_intern table;
+  size_t filled;
+  long max_file; /* the highest file a place named, checked against the files at the end */
+  char *error;
+  size_t capacity;
+} sprout_graph_reader;
+
+/*
+ * Begins `graph` in `arena` with room for the three runs' entries, interning
+ * scalars through a table in `scratch`, which the caller resets once the graph
+ * is read. SPROUT_BAD_INPUT with `error` set to a sentence for counts past what
+ * a graph holds.
+ */
+sprout_status sprout_graph_begin(sprout_graph_reader *r, sprout_graph *graph, sprout_arena *arena,
+                                 sprout_arena *scratch, size_t prose, size_t bodies, size_t rest,
+                                 char *error, size_t error_capacity);
+
+/* Fills the next entry from its JSON. SPROUT_BAD_INPUT with `error` set when it is malformed, refers past the table, or is one more than the counts said. */
+sprout_status sprout_graph_fill(sprout_graph_reader *r, const sprout_json *entry);
+
+/* Ends the graph with the files spans name. SPROUT_BAD_INPUT with `error` set when fewer entries came than counted, or a place named a file not listed. */
+sprout_status sprout_graph_end(sprout_graph_reader *r, const sprout_json *files);
+
+/*
+ * Reads the three runs of entries and the files spans name, whole: begin, fill and end over
+ * JSON already read. SPROUT_BAD_INPUT with `error` set to a sentence when an entry is malformed
+ * or refers past the table.
  */
 sprout_status sprout_graph_read(sprout_arena *arena, sprout_arena *scratch, const sprout_json *files,
                                 const sprout_json *prose, const sprout_json *bodies,

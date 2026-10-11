@@ -193,7 +193,49 @@ static void a_dynamic_block_gzip_of_the_stored_golden_reads_back_byte_for_byte(v
   free(json);
 }
 
+static void the_member_reads_the_same_a_few_bytes_at_a_time(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  size_t gz_length, json_length, at = 0, got = 0, cap;
+  unsigned char *gz = (unsigned char *)test_golden("stored-canon.json.gz", &gz_length);
+  char *json = test_golden("stored-canon.json", &json_length);
+  const char *why = NULL;
+  sprout_inflater *s;
+  unsigned char piece[7];
+  sprout_arena_init(&arena, &host);
+  s = (sprout_inflater *)sprout_arena_take(&arena, sizeof *s);
+  CHECK_INT(sprout_inflate_begin(s, gz, gz_length, &why), SPROUT_OK);
+  for (cap = 1;; cap = cap % 7 + 1) {
+    CHECK_INT(sprout_inflate_next(s, piece, cap, &got, &why), SPROUT_OK);
+    if (got == 0) break;
+    CHECK(at + got <= json_length && memcmp(piece, json + at, got) == 0);
+    at += got;
+  }
+  CHECK_INT(at, json_length);
+  CHECK(sprout_inflate_done(s));
+  CHECK_INT(sprout_inflate_next(s, piece, 7, &got, &why), SPROUT_OK);
+  CHECK_INT(got, 0);
+  /* The stored vector too, whose blocks begin and end between the pieces. */
+  at = 0;
+  CHECK_INT(sprout_inflate_begin(s, GZ_STORED, sizeof GZ_STORED, &why), SPROUT_OK);
+  for (;;) {
+    CHECK_INT(sprout_inflate_next(s, piece, 3, &got, &why), SPROUT_OK);
+    if (got == 0) break;
+    at += got;
+  }
+  {
+    char expected[1024];
+    CHECK_INT(at, sample(expected));
+  }
+  sprout_arena_reset(&arena);
+  free(gz);
+  free(json);
+  CHECK_INT(heap.pages, 0);
+}
+
 int main(void) {
+  RUN(the_member_reads_the_same_a_few_bytes_at_a_time);
   RUN(a_dynamic_block_inflates);
   RUN(a_fixed_block_inflates);
   RUN(a_stored_block_inflates);

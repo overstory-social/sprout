@@ -4,6 +4,7 @@
  * TypeScript catalogue spec dumped for it; lookups find what the tree holds.
  */
 #include "corpus.h"
+#include "load.h"
 
 static void check_text_or_null(const char *actual, const sprout_json *expected) {
   if (expected->kind == SPROUT_JSON_NULL) CHECK(actual == NULL);
@@ -27,7 +28,7 @@ static void every_corpus_cartridge_loads_with_the_header_and_tree_the_dump_holds
     const sprout_json *declared = corpus_get(entry, "declared");
     long held = heap.pages;
     sprout_world *world = corpus_load(entry->key, &host);
-    CHECK_INT(world->format, 1);
+    CHECK_INT(world->format, SPROUT_CARTRIDGE_FORMAT);
     CHECK_INT(world->level, corpus_get(entry, "level")->number);
     CHECK_STR(world->header.name, corpus_get(entry, "world")->bytes);
     check_text_or_null(world->arrival, corpus_get(entry, "arrival"));
