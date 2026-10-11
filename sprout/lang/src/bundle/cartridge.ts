@@ -2,9 +2,12 @@
 // loads in place of the source (the spec's The compiler › What compiling
 // produces; Language levels; Kinds › Libraries and namespaces).
 //
-// Sixteen bytes, then gzip-compressed JSON: the magic `SPRT`, the format
-// version and the language level as little-endian 16-bit numbers, and eight
-// reserved zeros. Libraries are statically linked, so the cartridge is
+// Sixteen bytes, then a gzip-compressed body: the magic `SPRT`, the format
+// version and the language level as little-endian 16-bit numbers, the
+// body's inflated size and the offset of its table, as 32-bit numbers. The
+// body is a small JSON preamble (what a shelf and the catalogue read) and
+// then, eight-aligned, the table of `cartridge-table.ts`, which a runtime
+// reads in place. Libraries are statically linked, so the cartridge is
 // closed: it holds the world's declarations resolved, its bodies and prose
 // as trees with every name bound, and the caps it was checked against, and
 // neither source text nor diagnostics. A runtime refuses a format or a
@@ -15,16 +18,17 @@ import { synonymPhrases } from '../declare/synonyms.js';
 import type { ResolvedVerb } from '../declare/verbs.js';
 import { gunzip, gzip } from '../source/gzip.js';
 import { LANGUAGE_LEVEL, type Bundle } from './bundle.js';
-import { CartridgeSchema, type Cartridge } from './cartridge-schema.js';
-import { writeGraph, type Entry, type Rewrite } from './cartridge-graph.js';
+import { PreambleSchema, type Cartridge, type Preamble } from './cartridge-schema.js';
+import { writeGraph, type Entry, type GraphTables, type Rewrite } from './cartridge-graph.js';
+import { readTable, TableUnreadable, writeTable } from './cartridge-table.js';
 
 /** The four bytes every cartridge begins with. */
 export const CARTRIDGE_MAGIC = 'SPRT';
 
 /** The layout of the file this code writes and reads; raised only when the layout changes, and only the current one is read. */
-export const CARTRIDGE_FORMAT = 2;
+export const CARTRIDGE_FORMAT = 3;
 
-/** The bytes before the compressed JSON. */
+/** The bytes before the compressed body. */
 export const CARTRIDGE_HEADER_BYTES = 16;
 
 /** The file extension a cartridge is kept under. */
@@ -34,6 +38,9 @@ export const CARTRIDGE_EXTENSION = '.sproutworld';
 export interface CartridgeHeader {
   readonly format: number;
   readonly level: number;
+  /** The body's size once inflated, and where its table begins in it. */
+  readonly bodyBytes: number;
+  readonly tableAt: number;
 }
 
 /** A file that cannot be read as a cartridge, said in words for whoever ran it. */
@@ -41,13 +48,15 @@ export class CartridgeUnreadable extends Error {
   override readonly name = 'CartridgeUnreadable';
 }
 
-/** The sixteen bytes that begin a cartridge of this `level`. */
-function headerBytes(level: number): Uint8Array {
+/** The sixteen bytes that begin a cartridge of this `level`, whose body inflates to `bodyBytes` with its table at `tableAt`. */
+function headerBytes(level: number, bodyBytes: number, tableAt: number): Uint8Array {
   const bytes = new Uint8Array(CARTRIDGE_HEADER_BYTES);
   bytes.set(new TextEncoder().encode(CARTRIDGE_MAGIC));
   const view = new DataView(bytes.buffer);
   view.setUint16(4, CARTRIDGE_FORMAT, true);
   view.setUint16(6, level, true);
+  view.setUint32(8, bodyBytes, true);
+  view.setUint32(12, tableAt, true);
   return bytes;
 }
 
@@ -88,7 +97,7 @@ export function readCartridgeHeader(bytes: Uint8Array): CartridgeHeader {
       `This cartridge was made for language level ${level}, and this runtime reads up to level ${LANGUAGE_LEVEL}. Update the runtime, or pack the world again with this one.`,
     );
   }
-  return { format, level };
+  return { format, level, bodyBytes: view.getUint32(8, true), tableAt: view.getUint32(12, true) };
 }
 
 /**
@@ -96,24 +105,37 @@ export function readCartridgeHeader(bytes: Uint8Array): CartridgeHeader {
  * to the schema. Refuses, in words, whatever is wrong with the file.
  */
 export function readCartridge(bytes: Uint8Array): Cartridge {
-  readCartridgeHeader(bytes);
-  let text: string;
+  const header = readCartridgeHeader(bytes);
+  let body: Uint8Array;
   try {
-    text = new TextDecoder('utf-8', { fatal: true }).decode(
-      gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES)),
-    );
+    body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES));
   } catch (thrown) {
     throw new CartridgeUnreadable(
       `This cartridge cannot be read: ${thrown instanceof Error ? thrown.message : String(thrown)}.`,
     );
   }
+  if (
+    body.length !== header.bodyBytes ||
+    header.tableAt > body.length ||
+    header.tableAt % 8 !== 0
+  ) {
+    throw new CartridgeUnreadable(
+      'This cartridge cannot be read: its body is not the size its header says.',
+    );
+  }
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(body.subarray(0, header.tableAt));
+  } catch {
+    throw new CartridgeUnreadable('This cartridge cannot be read: its preamble is not UTF-8.');
+  }
   let json: unknown;
   try {
-    json = JSON.parse(text);
+    json = JSON.parse(text.replace(/\0+$/, ''));
   } catch {
-    throw new CartridgeUnreadable('This cartridge cannot be read: its body is not JSON.');
+    throw new CartridgeUnreadable('This cartridge cannot be read: its preamble is not JSON.');
   }
-  const parsed = CartridgeSchema.safeParse(json);
+  const parsed = PreambleSchema.safeParse(json);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
     const where = first === undefined ? '' : ` at \`${first.path.join('.')}\``;
@@ -121,7 +143,34 @@ export function readCartridge(bytes: Uint8Array): Cartridge {
       `This cartridge is not shaped as a cartridge is${where}: ${first?.message ?? 'it is damaged'}.`,
     );
   }
-  return parsed.data;
+  let tables: GraphTables;
+  try {
+    tables = readTable(body.subarray(header.tableAt));
+  } catch (thrown) {
+    if (!(thrown instanceof TableUnreadable)) throw thrown;
+    throw new CartridgeUnreadable(
+      `This cartridge is not shaped as a cartridge is at \`table\`: ${thrown.message}.`,
+    );
+  }
+  return withEntries(parsed.data, tables);
+}
+
+/** The cartridge a preamble and its table make together. */
+function withEntries(preamble: Preamble, tables: GraphTables): Cartridge {
+  return {
+    ...preamble,
+    prose: { entries: tables.prose as Entry[] },
+    bodies: { ...preamble.bodies, entries: tables.bodies as Entry[] },
+    table: { ...preamble.table, entries: tables.rest as Entry[] },
+  };
+}
+
+/** The preamble of a cartridge: everything but the entries, which the table holds. */
+export function preambleOf(cartridge: Cartridge): Preamble {
+  const { prose: _prose, bodies, table, ...rest } = cartridge;
+  const { entries: _bodyEntries, ...bodyRest } = bodies;
+  const { entries: _tableEntries, ...tableRest } = table;
+  return { ...rest, bodies: bodyRest, table: tableRest };
 }
 
 /** Whether `value` is a resolved verb or the declaration it was resolved from: the two things that carry a verb's own synonyms. */
@@ -227,11 +276,6 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
       hash: bundle.hash,
       files: [...manifest.files],
       libraries: manifest.libraries.map(({ name, version, sha }) => ({ name, version, sha })),
-      counts: {
-        prose: tables.prose.length,
-        bodies: tables.bodies.length,
-        table: tables.rest.length,
-      },
     },
     // The caps and the extensions come before the big sections, so a reader that wants only
     // what a shelf shows can stop once it has them.
@@ -270,11 +314,23 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
   } as Cartridge;
 }
 
-/** `bundle` as the bytes of a cartridge: the header, then its JSON, gzip-compressed. */
+/** `bundle` as the bytes of a cartridge: the header, then the preamble and the table, gzip-compressed together. */
 export function emitCartridge(bundle: Bundle): Uint8Array {
-  const body = gzip(new TextEncoder().encode(JSON.stringify(cartridgeOf(bundle))));
-  const out = new Uint8Array(CARTRIDGE_HEADER_BYTES + body.length);
-  out.set(headerBytes(bundle.level));
-  out.set(body, CARTRIDGE_HEADER_BYTES);
+  const cartridge = cartridgeOf(bundle);
+  const preamble = new TextEncoder().encode(JSON.stringify(preambleOf(cartridge)));
+  const tableAt = (preamble.length + 7) & ~7;
+  const table = writeTable({
+    files: cartridge.table.files,
+    prose: cartridge.prose.entries,
+    bodies: cartridge.bodies.entries,
+    rest: cartridge.table.entries,
+  });
+  const body = new Uint8Array(tableAt + table.length);
+  body.set(preamble);
+  body.set(table, tableAt);
+  const compressed = gzip(body);
+  const out = new Uint8Array(CARTRIDGE_HEADER_BYTES + compressed.length);
+  out.set(headerBytes(bundle.level, body.length, tableAt));
+  out.set(compressed, CARTRIDGE_HEADER_BYTES);
   return out;
 }
