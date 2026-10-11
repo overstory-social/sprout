@@ -86,6 +86,20 @@ char *sprout_arena_copy(sprout_arena *arena, const char *bytes, size_t length) {
   return copy;
 }
 
+void sprout_arena_rewind(sprout_arena *arena) {
+  sprout_page *keep = arena->pages, *page;
+  if (keep == NULL) return;
+  page = keep->next;
+  while (page != NULL) {
+    sprout_page *next = page->next;
+    arena->host->release(arena->host->ctx, page, page->bytes);
+    page = next;
+  }
+  keep->next = NULL;
+  keep->used = HEADER;
+  arena->held = keep->bytes;
+}
+
 void sprout_arena_reset(sprout_arena *arena) {
   sprout_page *page = arena->pages;
   while (page != NULL) {
