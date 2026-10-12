@@ -2,7 +2,8 @@
 // What compiling produces): a graph of plain objects, arrays, maps and
 // sets, written as a flat table of entries that refer to one another by
 // index, so that a thing two parts of the world share is one entry and
-// reads back as one object. Every name a body writes is bound to what it
+// reads back as one object. Every empty array, map and set is one entry
+// of its shape: what a world is compiled to is never written after. Every name a body writes is bound to what it
 // names this way: the name table is a map from the node written to the
 // thing it reached, both entries in the table.
 //
@@ -107,6 +108,13 @@ function runOf(value: object): Run {
   return 'rest';
 }
 
+/** Whether a container holds nothing. */
+function isEmpty(value: object, shape: Shape): boolean {
+  if (shape === 'array') return (value as unknown[]).length === 0;
+  if (shape === 'map' || shape === 'set') return (value as Map<unknown, unknown>).size === 0;
+  return false;
+}
+
 function isSpan(value: unknown): value is Span {
   return (
     value !== null &&
@@ -177,17 +185,28 @@ export function writeGraph(
 } {
   const runs: Record<Run, object[]> = { prose: [], bodies: [], rest: [] };
   const local = new Map<object, number>();
+  const alias = new Map<object, object>();
   const shapes = new Map<object, Shape>();
   const files: string[] = [];
   const fileIndex = new Map<string, number>();
+  const empties = new Map<Shape, object>();
 
   // Walk the graph once, giving each object its place in its run. The walk
   // keeps its own stack, so how deep a body nests is not how deep it recurses.
   const pending: [unknown, string][] = Object.entries(roots).map(([name, value]) => [value, name]);
   while (pending.length > 0) {
     const [value, where] = pending.pop()!;
-    if (value === null || typeof value !== 'object' || isSpan(value) || local.has(value)) continue;
+    if (value === null || typeof value !== 'object' || isSpan(value)) continue;
+    if (local.has(value) || alias.has(value)) continue;
     const shape = shapeOf(value, `at ${where}`);
+    if (isEmpty(value, shape)) {
+      const first = empties.get(shape);
+      if (first !== undefined) {
+        alias.set(value, first);
+        continue;
+      }
+      empties.set(shape, value);
+    }
     const run = runOf(value);
     local.set(value, runs[run].length);
     runs[run].push(value);
@@ -202,7 +221,10 @@ export function writeGraph(
     bodies: runs.prose.length,
     rest: runs.prose.length + runs.bodies.length,
   };
-  const refOf = (value: object): Ref => [base[runOf(value)] + local.get(value)!];
+  const refOf = (written: object): Ref => {
+    const value = alias.get(written) ?? written;
+    return [base[runOf(value)] + local.get(value)!];
+  };
 
   const place = (span: Span, kept: boolean): Place => {
     if (!kept) return { p: [-1, 0, 0] };
@@ -276,16 +298,17 @@ export function writeGraph(
  * it reports where it was written and holds no text.
  */
 export class PlacedFile extends SourceFile {
+  /** `places` holds each place's line then its column, the place at offset `n` at `2n`. */
   constructor(
     name: string,
-    private readonly places: readonly (readonly [number, number])[],
+    private readonly places: Uint32Array,
   ) {
-    super(name, ' '.repeat(places.length));
+    super(name, ' '.repeat(places.length / 2));
   }
 
   override positionAt(offset: number): { line: number; column: number } {
-    const [line, column] = this.places[offset] ?? [1, 1];
-    return { line, column };
+    if (offset * 2 >= this.places.length) return { line: 1, column: 1 };
+    return { line: this.places[offset * 2]!, column: this.places[offset * 2 + 1]! };
   }
 }
 
@@ -312,7 +335,7 @@ export function readGraph(
 
   // Each file's places are gathered first, so a file knows how many it holds.
   const wanted: Map<string, number>[] = tables.files.map(() => new Map());
-  const lists: [number, number][][] = tables.files.map(() => []);
+  const lists: number[][] = tables.files.map(() => []);
   const note = (cell: Cell): void => {
     if (!isPlace(cell)) return;
     const [file, line, column] = cell.p;
@@ -320,8 +343,8 @@ export function readGraph(
     if (file >= tables.files.length) throw new Error('the cartridge names a file it does not list');
     const key = `${line}:${column}`;
     if (!wanted[file]!.has(key)) {
-      wanted[file]!.set(key, lists[file]!.length);
-      lists[file]!.push([line, column]);
+      wanted[file]!.set(key, lists[file]!.length / 2);
+      lists[file]!.push(line, column);
     }
   };
   for (const entry of entries) {
@@ -330,12 +353,17 @@ export function readGraph(
     else if ('s' in entry) entry.s.forEach(note);
     else entry.m.forEach(([key, value]) => (note(key), note(value)));
   }
-  const files = tables.files.map((name, i) => new PlacedFile(name, lists[i]!));
-  const nowhere = new PlacedFile('', [[1, 1]]);
+  const files = tables.files.map((name, i) => new PlacedFile(name, Uint32Array.from(lists[i]!)));
+  // One span stands for each place, however many nodes stand there.
+  const spans: (Span | undefined)[][] = lists.map(
+    (list) => new Array<Span | undefined>(list.length / 2),
+  );
+  const nowhere: Span = { source: new PlacedFile('', Uint32Array.of(1, 1)), start: 0, end: 0 };
 
   const shells: object[] = entries.map((entry) => {
     if ('o' in entry) return {};
-    if ('a' in entry) return [];
+    // An array is made at its length, so it holds no room it will never fill.
+    if ('a' in entry) return new Array<unknown>(entry.a.length);
     if ('m' in entry) return new Map();
     return new Set();
   });
@@ -348,9 +376,9 @@ export function readGraph(
     }
     if (isPlace(cell)) {
       const [file, line, column] = cell.p;
-      if (file < 0) return { source: nowhere, start: 0, end: 0 } satisfies Span;
+      if (file < 0) return nowhere;
       const at = wanted[file]!.get(`${line}:${column}`)!;
-      return { source: files[file]!, start: at, end: at } satisfies Span;
+      return (spans[file]![at] ??= { source: files[file]!, start: at, end: at });
     }
     return cell;
   };
@@ -361,7 +389,7 @@ export function readGraph(
       const target = shell as Record<string, unknown>;
       for (const [key, cell] of Object.entries(entry.o)) target[key] = read(cell);
       onObject?.(target);
-    } else if ('a' in entry) (shell as unknown[]).push(...entry.a.map(read));
+    } else if ('a' in entry) entry.a.forEach((cell, at) => ((shell as unknown[])[at] = read(cell)));
     else if ('s' in entry) for (const cell of entry.s) (shell as Set<unknown>).add(read(cell));
     else
       for (const [key, cell] of entry.m)

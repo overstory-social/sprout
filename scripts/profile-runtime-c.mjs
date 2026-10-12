@@ -7,7 +7,8 @@
 //   node scripts/profile-runtime-c.mjs <world folder> [--steps 2000] [--seed 1] [--script play.json]
 //        [--sproutc path] [--keep folder]
 //
-// Prints the loaded world's bytes, the state's, and the held and peak figures over the play.
+// Prints the loaded world's bytes and the most loading it held, the state's, and the held and peak figures
+// over the play.
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -140,7 +141,7 @@ function main() {
     const over = steps.map((row) => row.peak - row.held).sort((a, b) => a - b);
     const tenth = Math.max(1, Math.floor(steps.length / 10));
     console.log(
-      `profile-runtime-c: world ${megabytes(loaded.world)} MB, state ${megabytes(loaded.state)} MB as opened, ` +
+      `profile-runtime-c: world ${megabytes(loaded.world)} MB (loading it held at most ${megabytes(loaded.loadPeak)} MB), state ${megabytes(loaded.state)} MB as opened, ` +
         `${megabytes(loaded.state - (loaded.loaded - settled))} MB settled after the first step; ${steps.length} steps.`,
     );
     console.log(

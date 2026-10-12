@@ -33,6 +33,7 @@ typedef struct sproutc_host {
   size_t bytes_held;  /* bytes out now */
   size_t bytes_peak;  /* the most bytes out since it was last reset to `bytes_held` */
   size_t world_bytes; /* bytes out once the world had loaded, before anything else was read */
+  size_t load_peak;   /* the most bytes out while the world loaded */
 } sproutc_host;
 
 /* Fills a host: default budgets, a frozen clock, seed 0, and `out` for emitted lines. */

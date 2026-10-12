@@ -1,8 +1,8 @@
 /*
  * Tests for src/catalogue_kinds.c: the kinds a cartridge declares, with their
  * properties' types and defaults, passages and plays, match the dump the
- * TypeScript catalogue spec wrote for every corpus world; the contents a
- * kind's body gives are found by path.
+ * TypeScript catalogue spec wrote for every corpus world, and plays two kinds
+ * hold alike are one array; the contents a kind's body gives are found by path.
  */
 #include "corpus.h"
 
@@ -90,6 +90,34 @@ static void every_kind_of_every_corpus_world_matches_the_dump(void) {
   sprout_arena_reset(&arena);
 }
 
+/* Whether two groups run the same plays, by the nodes the cartridge holds them as. */
+static bool same_plays(const sprout_play_group *a, const sprout_play_group *b) {
+  size_t i;
+  if (strcmp(a->key, b->key) != 0 || a->count != b->count) return false;
+  for (i = 0; i < a->count; i++)
+    if (a->plays[i].node != b->plays[i].node) return false;
+  return true;
+}
+
+static void plays_two_kinds_hold_alike_are_one_array(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("standard-library", &host);
+  size_t i, j, g, h, shared = 0;
+  for (i = 0; i < world->kind_count; i++)
+    for (j = i + 1; j < world->kind_count; j++)
+      for (g = 0; g < world->kinds[i]->play_group_count; g++)
+        for (h = 0; h < world->kinds[j]->play_group_count; h++) {
+          const sprout_play_group *a = &world->kinds[i]->plays[g], *b = &world->kinds[j]->plays[h];
+          if (!same_plays(a, b)) continue;
+          CHECK(a->plays == b->plays);
+          shared++;
+        }
+  /* A kind that composes another and adds no play of a role holds what it composed. */
+  CHECK(shared > 0);
+  sprout_world_free(world);
+}
+
 static void a_property_is_found_by_name_with_its_type_range_and_options(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
@@ -164,6 +192,7 @@ static void the_contents_a_kind_gives_are_found_by_the_path_in_its_body(void) {
 
 int main(void) {
   RUN(every_kind_of_every_corpus_world_matches_the_dump);
+  RUN(plays_two_kinds_hold_alike_are_one_array);
   RUN(a_property_is_found_by_name_with_its_type_range_and_options);
   RUN(the_world_and_visitor_kinds_are_never_spawnable);
   RUN(the_contents_a_kind_gives_are_found_by_the_path_in_its_body);

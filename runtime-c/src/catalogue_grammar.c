@@ -55,13 +55,13 @@ sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **ou
   at = sprout_graph_index(l->graph, node);
   if (node == NULL || node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY)
     return cat_shaped(l, "a verb");
-  if (l->verb_cache[at] != NULL) {
-    *out = l->verb_cache[at];
+  if (l->read[at] != NULL) {
+    *out = (sprout_verb *)l->read[at];
     return SPROUT_OK;
   }
   verb = (sprout_verb *)cat_array(l, 1, sizeof *verb);
   MEMORY(verb);
-  l->verb_cache[at] = verb;
+  l->read[at] = verb;
   verb->library = cat_text(l->graph, node, "library");
   verb->name = cat_text(l->graph, node, "name");
   if (verb->library == NULL || verb->name == NULL) return cat_shaped(l, "a verb");

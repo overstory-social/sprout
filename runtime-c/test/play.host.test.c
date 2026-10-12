@@ -127,16 +127,19 @@ static void a_profile_names_the_world_and_state_bytes_then_each_steps_held_and_p
       "{\"index\":0,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
       "{\"index\":1,\"line\":\"@leave Ines\",\"atSeconds\":5,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
   static char output[1 << 12];
-  unsigned long world, state, loaded, held, peak;
+  unsigned long world, load_peak, state, loaded, held, peak;
   const char *line;
   put_world();
   put(SCRIPT, "{\"steps\":[]}", 12);
   put(READINGS, readings, strlen(readings));
   CHECK_INT(run(6, argv), 0);
   strcpy(output, slurp(profile));
-  CHECK(sscanf(output, "{\"world\":%lu,\"state\":%lu,\"loaded\":%lu}", &world, &state, &loaded) == 3);
+  CHECK(sscanf(output, "{\"world\":%lu,\"loadPeak\":%lu,\"state\":%lu,\"loaded\":%lu}", &world, &load_peak,
+               &state, &loaded) == 4);
   /* The world and its state are part of what is held once both are open, and neither is nothing. */
   CHECK(world > 0 && state > 0 && loaded >= world + state);
+  /* Loading reads the cartridge and keeps scratch beside the world, so it held more than it kept. */
+  CHECK(load_peak > world);
   line = strstr(output, "\n{\"step\":0,");
   CHECK(line != NULL && sscanf(line + 1, "{\"step\":0,\"held\":%lu,\"peak\":%lu}", &held, &peak) == 2);
   /* A step's peak is at least what it ends holding, and the arrival held more than nothing over the world. */

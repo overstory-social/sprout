@@ -68,7 +68,7 @@ export function composeGuards(
   suppressed: readonly Suppression[],
   own: ReadonlyMap<GuardName, ResolvedGuard>,
 ): Guards {
-  const runs = (name: GuardName): ResolvedGuard[] =>
+  const runs = (name: GuardName): readonly ResolvedGuard[] =>
     composeContributions(
       composed.map((guards) => guards[name]),
       order,

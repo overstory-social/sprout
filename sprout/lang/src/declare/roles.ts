@@ -27,7 +27,7 @@ import { readable } from '../source/words.js';
 import { lookingFrom, nearestOption, qualifiedName, SPROUT } from './enums.js';
 import type { Suppression } from './kinds.js';
 import type { ResolvedProperty } from './properties.js';
-import { composeContributions } from './contributions.js';
+import { composeContributions, composedWhereSame } from './contributions.js';
 import { ENGINE_VERBS } from './verbs.js';
 
 /** The role every verb has besides the ones it declares: whoever is acting (The actor's own part). */
@@ -310,7 +310,7 @@ export function composePlays(
     );
     if (runs.length > 0) plays.set(key, runs);
   }
-  return plays;
+  return composedWhereSame(plays, composed);
 }
 
 /** Whether a kind's plays include one of `role` for a verb that `origin` wrote itself. */

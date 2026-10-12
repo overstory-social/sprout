@@ -233,12 +233,8 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   load.arena = &world->arena;
   load.error = error;
   load.capacity = capacity;
-  load.kind_cache = (sprout_kind_def **)cache_of(scratch, world->graph.count);
-  load.verb_cache = (sprout_verb **)cache_of(scratch, world->graph.count);
-  load.type_cache = (sprout_decl_type **)cache_of(scratch, world->graph.count);
-  MEMORY(load.kind_cache);
-  MEMORY(load.verb_cache);
-  MEMORY(load.type_cache);
+  load.read = (void **)cache_of(scratch, world->graph.count);
+  MEMORY(load.read);
 
   NEED(read_header(l, section(root, "header")));
   NEED(read_caps(l, section(root, "caps")));

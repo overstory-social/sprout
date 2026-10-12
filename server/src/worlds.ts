@@ -1,6 +1,7 @@
 import {
-  catalogueOf,
   compileBundle,
+  emitCartridge,
+  loadCartridge,
   parseCommand,
   renderDiagnostics,
   renderEffects,
@@ -23,13 +24,19 @@ import type { ServerConfig } from './config.js';
 // under the host's limits and blessings, then published into the store,
 // which logs the publish with the bundle's hash. A world that is refused
 // is not served, and the words of its refusal are the host's to log.
+// What it serves is the catalogue its cartridge reads back, as any host
+// that loads a published world does; of the bundle it keeps only what the
+// published record and the log name.
+
+/** What the server keeps of a world's bundle once it has made its cartridge. */
+export type BundleStamp = Pick<Bundle, 'hash' | 'level' | 'extensions' | 'assets'>;
 
 /** A world compiled and published, with the host its turns run under. */
 export interface ServedWorld {
   /** Its name, which clients admit themselves to it by and the store keys it by. */
   readonly id: string;
   readonly dir: string;
-  readonly bundle: Bundle;
+  readonly bundle: BundleStamp;
   readonly host: CommandHost;
   /** The files it was compiled from, which its published record keeps. */
   readonly files: readonly { readonly name: string; readonly source: string }[];
@@ -55,12 +62,16 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
     extensions: INSTALLED_EXTENSIONS,
   });
   if (bundle === null) return { refused: renderDiagnostics([...read.diagnostics, ...diagnostics]) };
-  const catalogue = catalogueOf(bundle, config.limits.caps);
+  const catalogue = loadCartridge(emitCartridge(bundle), {
+    caps: config.limits.caps,
+    installed: INSTALLED_EXTENSIONS,
+  });
+  const { hash, level, extensions, assets } = bundle;
   return {
     world: {
       id: catalogue.world,
       dir,
-      bundle,
+      bundle: { hash, level, extensions, assets },
       host: {
         catalogue,
         budgets: config.limits.budgets,

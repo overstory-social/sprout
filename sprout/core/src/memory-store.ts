@@ -17,62 +17,97 @@ import { applyForgetting, forgetting, visitorIn } from './visitors.js';
 // reads a snapshot and BUFFERS its writes until `fn` returns, so `fn`
 // running twice (the port's re-run rule) commits once — the conformance
 // suite's re-entrancy wrapper relies on exactly that.
+//
+// What it keeps is frozen as it is written, so a snapshot shares it rather
+// than copying it, and a read hands back the stored value itself: taking a
+// snapshot costs nothing however long the world has run. A write copies
+// only what it is handed. The log is append-only: a snapshot sees the
+// entries there were when it was taken, and a transaction's own appended
+// after them, which join the log when it commits.
 
 interface World {
   microworld: MicroworldRecord | null;
   state: StoredState;
+  /** Every entry, in order; entry `i` is numbered `i + 1`. Only ever appended to. */
   log: Logged[];
   misses: MissRecord[];
 }
 
-const clone = <T>(v: T): T => structuredClone(v);
-
-function emptyWorld(): World {
-  return { microworld: null, state: emptyState(), log: [], misses: [] };
+/** `value`, copied away from whoever handed it over and frozen all the way down. */
+function kept<T>(value: T): T {
+  return deepFreeze(structuredClone(value));
 }
 
-function snapshotOf(live: World): World {
+/** `value` frozen all the way down, stopping at what is frozen already, so freezing a state costs only its new records. */
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const inner of Object.values(value)) deepFreeze(inner);
+  }
+  return value;
+}
+
+function emptyWorld(): World {
+  return { microworld: null, state: deepFreeze(emptyState()), log: [], misses: [] };
+}
+
+/** What a snapshot reads: the world as it was, and the log's length then. */
+interface Snapshot {
+  microworld: MicroworldRecord | null;
+  state: StoredState;
+  readonly log: readonly Logged[];
+  readonly logged: number;
+  /** This transaction's own appends, after the snapshot's. */
+  readonly appended: Logged[];
+  misses: readonly MissRecord[];
+  readonly missed: MissRecord[];
+}
+
+function snapshotOf(live: World): Snapshot {
   return {
-    microworld: live.microworld ? clone(live.microworld) : null,
-    state: clone(live.state),
-    log: live.log.map(clone),
-    misses: live.misses.map(clone),
+    microworld: live.microworld,
+    state: live.state,
+    log: live.log,
+    logged: live.log.length,
+    appended: [],
+    misses: live.misses,
+    missed: [],
   };
 }
 
-/** The reads over `w`. */
-function reader(w: World): ReadTx {
+/** The reads over `snap`: what it saw, and what its own transaction wrote since. */
+function reader(snap: Snapshot): ReadTx {
   return {
-    microworld: async () => (w.microworld ? clone(w.microworld) : null),
-    state: async () => clone(w.state),
-    log: async ({ after = 0, limit }) =>
-      w.log
-        .filter((logged) => logged.seq > after)
-        .slice(0, limit)
-        .map(clone),
-    misses: async ({ limit }) => w.misses.slice(-limit).reverse().map(clone),
+    microworld: async () => snap.microworld,
+    state: async () => snap.state,
+    log: async ({ after = 0, limit }) => {
+      const seen = snap.log.slice(Math.min(after, snap.logged), snap.logged);
+      return [...seen, ...snap.appended.filter((logged) => logged.seq > after)].slice(0, limit);
+    },
+    misses: async ({ limit }) => [...snap.misses, ...snap.missed].slice(-limit).reverse(),
   };
 }
 
 /** A transaction over a snapshot: reads see the snapshot plus this tx's own writes; writes land on commit. */
 function writer(live: World): { tx: StoreTx; commit: () => void } {
   const snap = snapshotOf(live);
+  const lastSeq = (): number => snap.appended.at(-1)?.seq ?? snap.log[snap.logged - 1]?.seq ?? 0;
   const tx: StoreTx = {
     ...reader(snap),
     putMicroworld: async (m) => {
-      snap.microworld = clone(m);
+      snap.microworld = kept(m);
     },
     putState: async (changes) => {
-      snap.state = applyChanges(snap.state, clone(changes));
+      snap.state = deepFreeze(applyChanges(snap.state, kept(changes)));
     },
     resetState: async () => {
-      snap.state = emptyState();
+      snap.state = deepFreeze(emptyState());
     },
     appendLog: async (entry) => {
-      snap.log.push({ seq: (snap.log.at(-1)?.seq ?? 0) + 1, entry: clone(entry) });
+      snap.appended.push(Object.freeze({ seq: lastSeq() + 1, entry: kept(entry) }));
     },
     appendMiss: async (m) => {
-      snap.misses.push(clone(m));
+      snap.missed.push(kept(m));
     },
   };
   return {
@@ -80,8 +115,8 @@ function writer(live: World): { tx: StoreTx; commit: () => void } {
     commit: () => {
       live.microworld = snap.microworld;
       live.state = snap.state;
-      live.log = snap.log;
-      live.misses = snap.misses;
+      live.log.push(...snap.appended);
+      if (snap.missed.length > 0) live.misses = [...live.misses, ...snap.missed];
     },
   };
 }
@@ -136,7 +171,7 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
         await queued(id, async () => {
           const w = worlds.get(id);
           const change = w ? forgetting(w.state, visit) : null;
-          if (w && change) w.state = applyForgetting(w.state, change);
+          if (w && change) w.state = deepFreeze(applyForgetting(w.state, change));
         });
       }
     },
@@ -144,7 +179,7 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
       const out: VisitorExport = { visit, worlds: [] };
       for (const id of [...worlds.keys()].sort(codeUnitOrder)) {
         const found = visitorIn(id, worlds.get(id)!.state, visit);
-        if (found) out.worlds.push(clone(found));
+        if (found) out.worlds.push(structuredClone(found));
       }
       return out;
     },

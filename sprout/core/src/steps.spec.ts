@@ -26,6 +26,16 @@ describe('one write turn as a step', () => {
     expect(fresh.visitors.size).toBe(0);
   });
 
+  it('reads one stored value once, and again for another catalogue', () => {
+    const stored = emptyState();
+    const first = loaded(stored, host);
+    expect(loaded(stored, host)).toBe(first);
+    // An equal state that is another value is read afresh, and so is the same one under another bundle's catalogue.
+    expect(loaded(emptyState(), host)).not.toBe(first);
+    const other = tally().host;
+    expect(loaded(stored, other)).not.toBe(first);
+  });
+
   it('gives a committed command’s changes and its entry, and a faulted one’s entry alone', async () => {
     const bumped = commandStep(await state(), host, command('bump counter'));
     expect(bumped.changes).not.toBeNull();

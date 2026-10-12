@@ -14,9 +14,12 @@ typedef struct loader {
   sprout_arena *arena;
   char *error;
   size_t capacity;
-  sprout_kind_def **kind_cache; /* by graph entry index */
-  sprout_verb **verb_cache;
-  sprout_decl_type **type_cache;
+  /*
+   * What each graph entry was read as, by its index: a kind, a verb, a type, or the array a kind's
+   * properties, passages, plays or one group of plays became. An entry is only ever one of these, and
+   * the compiler shares what kinds inherit, so each is read once.
+   */
+  void **read;
 } loader;
 
 #define NEED(expr)                        \

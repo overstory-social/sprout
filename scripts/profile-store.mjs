@@ -2,7 +2,7 @@
 // admitted, and each command a write turn under the world's lock with every stale view polled again
 // afterwards, as a client is sent its view. Prints, every so many turns, the heap after a forced collection,
 // the time a turn and its views took, and the length of the world's log, so the cost of each visitor and of a
-// long-running world shows.
+// long-running world shows, beside what the world itself holds as the server serves it.
 //
 //   node --expose-gc scripts/profile-store.mjs <world folder> [--turns 1000] [--visitors 8] [--seed 1]
 //        [--sample 100] [--views 1] [--json out.json]
@@ -19,7 +19,13 @@ import {
   runCommandLine,
   runView,
 } from '@overstory/sprout/core';
-import { DEFAULT_LIMITS, catalogueOf, parseCommand, renderEffects } from '@overstory/sprout/lang';
+import {
+  DEFAULT_LIMITS,
+  emitCartridge,
+  loadCartridge,
+  parseCommand,
+  renderEffects,
+} from '@overstory/sprout/lang';
 
 import { playableWorld } from './resolve-script.mjs';
 
@@ -50,6 +56,15 @@ function generator(seed) {
   };
 }
 
+/** What the server keeps of a compiled world: the catalogue its cartridge reads back, and its bundle's stamp. */
+function served(bundle) {
+  const { hash, level, extensions } = bundle;
+  return {
+    catalogue: loadCartridge(emitCartridge(bundle), { caps: DEFAULT_LIMITS.caps }),
+    stamp: { hash, level, extensions },
+  };
+}
+
 const megabytes = (bytes) => (bytes / 1048576).toFixed(2);
 
 function heapNow() {
@@ -66,8 +81,9 @@ async function main() {
     );
     return 2;
   }
-  const bundle = playableWorld(world);
-  const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
+  const before = heapNow();
+  // The server runs a world from the catalogue its cartridge reads back, and keeps the bundle's stamp alone.
+  const { catalogue, stamp } = served(playableWorld(world));
   const host = {
     catalogue,
     budgets: DEFAULT_LIMITS.budgets,
@@ -76,19 +92,20 @@ async function main() {
   };
   const id = catalogue.world;
   const base = heapNow();
+  console.log(`profile-store: the world as served holds ${megabytes(base - before)} MB`);
   const store = memoryStore();
   const record = {
     id,
     archive: { files: [], manifest: null },
-    stamp: bundle.hash,
-    level: bundle.level,
-    extensions: bundle.extensions.map((one) => one.name),
+    stamp: stamp.hash,
+    level: stamp.level,
+    extensions: stamp.extensions.map((one) => one.name),
     caps: DEFAULT_LIMITS.caps,
     excepted: false,
     loadedAt: new Date(0),
   };
   let now = 0;
-  await publishWorld(store, record, bundle, now);
+  await publishWorld(store, record, stamp, now);
   const random = generator(Number(flags.seed));
   const inputs = () => ({ seed: random.below(4294967296), mayHold: null, now });
   const visits = [];

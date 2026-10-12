@@ -41,6 +41,21 @@ describe('the graph a cartridge holds', () => {
     expect(tables.rest.filter((entry) => 'o' in entry)).toHaveLength(1);
   });
 
+  it('writes every empty array, map and set as one entry of its shape', () => {
+    const { tables, read } = roundTrip({
+      a: { list: [], map: new Map(), set: new Set(), full: [1] },
+      b: { list: [], map: new Map(), set: new Set(), full: [1] },
+    });
+    const empty = tables.rest.filter(
+      (entry) => !('o' in entry) && Object.values(entry)[0]!.length === 0,
+    );
+    expect(empty.map((entry) => Object.keys(entry)[0])).toEqual(['a', 'm', 's']);
+    expect(tables.rest.filter((entry) => 'a' in entry && entry.a.length === 1)).toHaveLength(2);
+    const [a, b] = [read('a'), read('b')] as { list: unknown; full: unknown }[];
+    expect(a!.list).toBe(b!.list);
+    expect(a!.full).not.toBe(b!.full);
+  });
+
   it('sorts nodes into runs by the kind they carry: prose, then bodies, then the rest', () => {
     const { tables } = roundTrip({
       all: [
@@ -69,6 +84,25 @@ describe('the graph a cartridge holds', () => {
     const expression = read('expression') as { at: { source: SourceFile } };
     expect(expression.at.source.name).toBe('');
     expect(expression.at.source.text).toBe(' ');
+  });
+
+  it('reads every node at one place back with the one span, and places apart with their own', () => {
+    const file = new SourceFile('hut.sprout', 'one\ntwo three\n');
+    const here = { source: file, start: 8, end: 13 };
+    const there = { source: file, start: 0, end: 3 };
+    const { read } = roundTrip({
+      a: { kind: 'say', at: here },
+      b: { kind: 'say', at: { ...here } },
+      c: { kind: 'say', at: there },
+      d: { kind: 'integer', at: here, value: 1 },
+      e: { kind: 'integer', at: there, value: 2 },
+    });
+    const at = (name: string) => (read(name) as { at: { source: SourceFile; start: number } }).at;
+    expect(at('a')).toBe(at('b'));
+    expect(at('c')).not.toBe(at('a'));
+    expect(at('c').source.positionAt(at('c').start)).toEqual({ line: 1, column: 1 });
+    expect(at('a').source.positionAt(at('a').start)).toEqual({ line: 2, column: 5 });
+    expect(at('d')).toBe(at('e'));
   });
 
   it('leaves out the host’s code in an extension’s value type, for the host to give back', () => {

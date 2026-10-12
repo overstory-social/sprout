@@ -13,7 +13,7 @@ import type { Ident, KindMember } from '../syntax/ast.js';
 import type { HandlerDeclaration, HookDeclaration } from '../syntax/ast-events.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Suppression } from './kinds.js';
-import { composeContributions } from './contributions.js';
+import { composeContributions, composedWhereSame } from './contributions.js';
 import {
   messageKey,
   reachMessage,
@@ -197,5 +197,5 @@ function composeKeyed<C extends { readonly origin: string }>(
     );
     if (each.length > 0) runs.set(key, each);
   }
-  return runs;
+  return composedWhereSame(runs, composed);
 }
