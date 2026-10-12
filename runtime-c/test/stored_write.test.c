@@ -19,9 +19,11 @@ static void an_empty_world_is_written_with_every_key_in_order(void) {
   sprout_state *state = NULL;
   const char *out;
   size_t length;
+  sprout_arena scratch;
   CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
-  CHECK_INT(sprout_state_write(state, &out, &length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_OK);
   CHECK_BYTES(out, length, "{\"world\":\"shop\",\"serial\":0,\"instances\":[],\"visitors\":[],\"tombstones\":[]}");
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
   CHECK_INT(heap.pages, 0);
 }
@@ -32,6 +34,7 @@ static void a_record_built_by_hand_is_written_as_the_schema_orders_it(void) {
   sprout_state *state = NULL;
   const char *out;
   size_t length;
+  sprout_arena scratch;
   sprout_stored_instance *in;
   host.page_bytes = 4096;
   CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
@@ -50,12 +53,13 @@ static void a_record_built_by_hand_is_written_as_the_schema_orders_it(void) {
   in->arrival = 12;
   in->has_last_tick = true;
   in->last_tick = 1790000000;
-  CHECK_INT(sprout_state_write(state, &out, &length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_OK);
   CHECK_BYTES(out, length,
               "{\"world\":\"shop\",\"serial\":12,\"instances\":[{\"id\":\"shop#12\",\"made\":{\"from\":\"given\","
               "\"kind\":\"shop.Lantern\",\"path\":[\"wick\",\"flame\"]},\"container\":null,\"arrival\":12,"
               "\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":1790000000}],"
               "\"visitors\":[],\"tombstones\":[]}");
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
 }
 
@@ -67,6 +71,7 @@ static void a_number_the_stored_form_does_not_write_is_refused(void) {
   sprout_stored_property *p;
   const char *out;
   size_t length;
+  sprout_arena scratch;
   host.page_bytes = 4096;
   CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
   state->instances = (sprout_stored_instance *)sprout_arena_take(&state->arena, sizeof *in);
@@ -80,7 +85,8 @@ static void a_number_the_stored_form_does_not_write_is_refused(void) {
   p->value.number = 0.5;
   in->properties = p;
   in->property_count = 1;
-  CHECK_INT(sprout_state_write(state, &out, &length), SPROUT_BAD_INPUT);
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_BAD_INPUT);
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
 }
 
@@ -90,11 +96,13 @@ static void a_host_that_runs_out_of_memory_while_writing_is_told_so(void) {
   sprout_state *state = NULL;
   const char *out;
   size_t length;
+  sprout_arena scratch;
   host.page_bytes = 64;
   CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
   heap.refuse_after = heap.pages;
-  CHECK_INT(sprout_state_write(state, &out, &length), SPROUT_NO_MEMORY);
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_NO_MEMORY);
   heap.refuse_after = -1;
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
   CHECK_INT(heap.pages, 0);
 }

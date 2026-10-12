@@ -125,14 +125,15 @@ typedef struct sprout_stored_visitor {
 struct sprout_state {
   sprout_host host;
   sprout_arena anchor; /* holds this struct and nothing else, so `arena` can be rebuilt without moving it */
-  sprout_arena arena;  /* everything the state holds; a commit copies the live records into a new one and releases this */
+  sprout_arena arena;  /* everything the state holds, and what commits have replaced until it is compacted */
+  size_t settled;      /* `arena.held` right after the last rebuild: past it by a quarter, the state is crowded */
   sprout_str world;
   uint64_t serial; /* the last serial issued, 0 before the first */
-  size_t instance_count;
+  size_t instance_count, instance_capacity; /* a capacity past the count is slack a commit inserts into in place */
   sprout_stored_instance *instances;
-  size_t visitor_count;
+  size_t visitor_count, visitor_capacity;
   sprout_stored_visitor *visitors;
-  size_t tombstone_count;
+  size_t tombstone_count, tombstone_capacity;
   sprout_str *tombstones;
   bool instances_sorted, visitors_sorted, tombstones_sorted; /* by id, visit and id: lookups then bisect */
 };
@@ -166,8 +167,17 @@ sprout_stored_instance *sprout_state_find(const sprout_state *state, sprout_str 
 sprout_stored_visitor *sprout_state_find_visitor(const sprout_state *state, sprout_str visit);
 bool sprout_state_tombstoned(const sprout_state *state, sprout_str id);
 
-/* Orders instances by id, visitors by visit and tombstones by code unit, as a save writes them; lookups then bisect. */
-sprout_status sprout_state_sort(sprout_state *state);
+/* Orders instances by id, visitors by visit and tombstones by code unit, as a save writes them, through `scratch`; lookups then bisect. */
+sprout_status sprout_state_sort(sprout_state *state, sprout_arena *scratch);
+
+/* Whether a commit adding this many records of each kind can write into the state's arrays in place. */
+bool sprout_state_has_room(const sprout_state *state, size_t instances, size_t visitors, size_t tombstones);
+/*
+ * Copies the live records into a fresh arena, sorted, with room for this many
+ * more of each kind, and releases the old one: the state then holds what is
+ * live and nothing a commit replaced. A refused page leaves the state as it was.
+ */
+sprout_status sprout_state_rebuild(sprout_state *state, size_t instances, size_t visitors, size_t tombstones);
 
 /*
  * Reads the stored form's shape without its cross-checks: the first half of

@@ -66,17 +66,77 @@ static sprout_status sort_records(sprout_arena *arena, void *records, size_t cou
   return SPROUT_OK;
 }
 
-sprout_status sprout_state_sort(sprout_state *state) {
+sprout_status sprout_state_sort(sprout_state *state, sprout_arena *scratch) {
   sprout_status status;
-  status = sort_records(&state->arena, state->instances, state->instance_count, sizeof *state->instances, by_instance_id);
+  status = sort_records(scratch, state->instances, state->instance_count, sizeof *state->instances, by_instance_id);
   if (status != SPROUT_OK) return status;
-  status = sort_records(&state->arena, state->visitors, state->visitor_count, sizeof *state->visitors, by_visit);
+  status = sort_records(scratch, state->visitors, state->visitor_count, sizeof *state->visitors, by_visit);
   if (status != SPROUT_OK) return status;
-  status = sort_records(&state->arena, state->tombstones, state->tombstone_count, sizeof *state->tombstones, by_string);
+  status = sort_records(scratch, state->tombstones, state->tombstone_count, sizeof *state->tombstones, by_string);
   if (status != SPROUT_OK) return status;
   state->instances_sorted = state->visitors_sorted = state->tombstones_sorted = true;
   return SPROUT_OK;
 }
+
+/* The slack an array is rebuilt with, so the commits after it insert in place: an eighth, and eight at least. */
+static size_t with_slack(size_t count) { return count + count / 8 + 8; }
+
+bool sprout_state_has_room(const sprout_state *state, size_t instances, size_t visitors, size_t tombstones) {
+  return state->instances_sorted && state->visitors_sorted && state->tombstones_sorted &&
+         state->instance_count + instances <= state->instance_capacity &&
+         state->visitor_count + visitors <= state->visitor_capacity &&
+         state->tombstone_count + tombstones <= state->tombstone_capacity;
+}
+
+sprout_status sprout_state_rebuild(sprout_state *state, size_t instances, size_t visitors, size_t tombstones) {
+  sprout_arena fresh, stale;
+  sprout_stored_instance *all;
+  sprout_stored_visitor *visits;
+  sprout_str *stones, world;
+  size_t i, instance_capacity = with_slack(state->instance_count + instances),
+            visitor_capacity = with_slack(state->visitor_count + visitors),
+            tombstone_capacity = with_slack(state->tombstone_count + tombstones);
+  sprout_status status = sprout_arena_init(&fresh, &state->host);
+  if (status != SPROUT_OK) return status;
+  all = (sprout_stored_instance *)sprout_arena_take(&fresh, instance_capacity * sizeof *all);
+  visits = (sprout_stored_visitor *)sprout_arena_take(&fresh, visitor_capacity * sizeof *visits);
+  stones = (sprout_str *)sprout_arena_take(&fresh, tombstone_capacity * sizeof *stones);
+  status = all == NULL || visits == NULL || stones == NULL || !sprout_state_copy_str(&fresh, state->world, &world)
+               ? SPROUT_NO_MEMORY
+               : SPROUT_OK;
+  for (i = 0; status == SPROUT_OK && i < state->instance_count; i++)
+    status = sprout_stored_instance_copy(&fresh, &state->instances[i], &all[i]);
+  for (i = 0; status == SPROUT_OK && i < state->visitor_count; i++)
+    status = sprout_stored_visitor_copy(&fresh, &state->visitors[i], &visits[i]);
+  for (i = 0; status == SPROUT_OK && i < state->tombstone_count; i++)
+    if (!sprout_state_copy_str(&fresh, state->tombstones[i], &stones[i])) status = SPROUT_NO_MEMORY;
+  if (status != SPROUT_OK) {
+    sprout_arena_reset(&fresh);
+    return status;
+  }
+  stale = state->arena;
+  state->arena = fresh;
+  state->world = world;
+  state->instances = all;
+  state->instance_capacity = instance_capacity;
+  state->visitors = visits;
+  state->visitor_capacity = visitor_capacity;
+  state->tombstones = stones;
+  state->tombstone_capacity = tombstone_capacity;
+  /* The old arena is the sort's scratch, so the rebuilt one holds the records and nothing else. */
+  status = state->instances_sorted && state->visitors_sorted && state->tombstones_sorted
+               ? SPROUT_OK
+               : sprout_state_sort(state, &stale);
+  sprout_arena_reset(&stale);
+  state->settled = state->arena.held;
+  return status;
+}
+
+bool sprout_state_crowded(const sprout_state *state) {
+  return state->arena.held > state->settled + state->settled / 4 + state->host.page_bytes;
+}
+
+sprout_status sprout_state_compact(sprout_state *state) { return sprout_state_rebuild(state, 0, 0, 0); }
 
 sprout_stored_instance *sprout_state_find(const sprout_state *state, sprout_str id) {
   size_t lo = 0, hi = state->instance_count;
@@ -627,7 +687,7 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
   o.world = world;
   if (report != NULL) memset(report, 0, sizeof *report);
   if (!sprout_str_is(state->world, world->header.name)) return refuse_world(state, world, refusal);
-  PASS(sprout_state_sort(state));
+  PASS(sprout_state_sort(state, arena));
 
   for (i = 0; i < state->instance_count; i++) {
     sprout_stored_instance *in = &state->instances[i];
@@ -690,7 +750,7 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
     memcpy(all + state->instance_count, made_instances, extra * sizeof *all);
     state->instances = all;
     state->instance_count += extra;
-    PASS(sprout_state_sort(state));
+    PASS(sprout_state_sort(state, arena));
   }
 
   for (i = 0; i < state->visitor_count; i++) {

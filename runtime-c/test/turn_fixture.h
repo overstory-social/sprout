@@ -76,11 +76,13 @@ static inline char *tw_bytes(turn_world *w) {
   const char *bytes;
   size_t length;
   char *copy;
-  if (sprout_state_write(w->state, &bytes, &length) != SPROUT_OK) exit(2);
+  sprout_arena scratch;
+  if (test_state_write(w->state, &scratch, &bytes, &length) != SPROUT_OK) exit(2);
   copy = (char *)malloc(length + 1);
   if (copy == NULL) exit(2);
   memcpy(copy, bytes, length);
   copy[length] = '\0';
+  sprout_arena_reset(&scratch);
   return copy;
 }
 

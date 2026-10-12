@@ -152,8 +152,9 @@ static void a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_
   const char *before, *after;
   size_t before_length, after_length;
   sprout_stored_instance changed;
+  sprout_arena scratch; /* holds `before` across the turn's reset */
   begin(&f);
-  CHECK_INT(sprout_state_write(f.state, &before, &before_length), SPROUT_OK);
+  CHECK_INT(test_state_write(f.state, &scratch, &before, &before_length), SPROUT_OK);
   sprout_draft_open(&draft, &f.turn, f.world, f.state);
   changed = *sprout_draft_instance(&draft, S(ROOM));
   changed.has_last_tick = true;
@@ -162,8 +163,9 @@ static void a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_
   CHECK(sprout_draft_instance(&draft, S(ROOM))->last_tick == 1790099999);
   CHECK(sprout_state_find(f.state, S(ROOM))->last_tick == 1790000000);
   sprout_arena_reset(&f.turn);
-  CHECK_INT(sprout_state_write(f.state, &after, &after_length), SPROUT_OK);
+  CHECK_INT(sprout_state_write(f.state, &f.turn, &after, &after_length), SPROUT_OK);
   CHECK_BYTES(after, after_length, before);
+  sprout_arena_reset(&scratch);
   finish(&f);
 }
 
@@ -417,12 +419,12 @@ static void a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_dr
     size_t length;
     sprout_refusal read_why;
     sprout_state *again = NULL;
-    CHECK_INT(sprout_state_write(f.state, &bytes, &length), SPROUT_OK);
+    CHECK_INT(sprout_state_write(f.state, &f.turn, &bytes, &length), SPROUT_OK);
     CHECK_INT(sprout_state_read(&f.host, bytes, length, &again, &read_why), SPROUT_OK);
     if (again != NULL) {
       const char *second;
       size_t second_length;
-      CHECK_INT(sprout_state_write(again, &second, &second_length), SPROUT_OK);
+      CHECK_INT(sprout_state_write(again, &f.turn, &second, &second_length), SPROUT_OK);
       CHECK_BYTES(second, second_length, bytes);
       sprout_state_free(again);
     } else {
@@ -430,6 +432,49 @@ static void a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_dr
       CHECK(false);
     }
   }
+  finish(&f);
+}
+
+static void a_crowded_state_is_compacted_to_what_is_live_and_is_crowded_once_the_replaced_pass_a_quarter(void) {
+  fixture f;
+  size_t turn, rebuilt = 0, page, n = 400, i;
+  begin(&f);
+  page = f.host.page_bytes;
+  for (turn = 1; turn <= 40; turn++) {
+    sprout_draft draft;
+    sprout_changes changes;
+    sprout_stored_instance changed;
+    sprout_stored_link *links;
+    size_t held = f.state->arena.held;
+    sprout_draft_open(&draft, &f.turn, f.world, f.state);
+    changed = *sprout_draft_instance(&draft, S(ROOM));
+    /* A record a few pages' worth of turns can fill: four hundred links, named apart. */
+    links = (sprout_stored_link *)sprout_arena_take(&f.turn, n * sizeof *links);
+    CHECK(links != NULL);
+    for (i = 0; i < n; i++) {
+      char *name = (char *)sprout_arena_take(&f.turn, 16);
+      CHECK(name != NULL);
+      snprintf(name, 16, "l%zu-%zu", i, turn);
+      links[i].name.bytes = name;
+      links[i].name.length = strlen(name);
+      links[i].to = S(YARD);
+    }
+    changed.links = links;
+    changed.link_count = n;
+    CHECK_INT(sprout_draft_write(&draft, &changed), SPROUT_DRAFT_OK);
+    CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
+    sprout_arena_reset(&f.turn);
+    if (sprout_state_crowded(f.state)) CHECK_INT(sprout_state_compact(f.state), SPROUT_OK);
+    if (f.state->arena.held < held) {
+      rebuilt++;
+      /* A rebuilt state holds its records and nothing a past turn left behind. */
+      CHECK(f.state->arena.held == f.state->settled);
+    }
+    CHECK(f.state->arena.held <= f.state->settled + f.state->settled / 4 + 2 * page);
+    CHECK_INT(sprout_state_find(f.state, S(ROOM))->link_count, n);
+  }
+  /* Each turn replaces a record of a few pages' size: the state is rebuilt every few turns, not every turn. */
+  CHECK(rebuilt >= 3 && rebuilt <= 20);
   finish(&f);
 }
 
@@ -442,43 +487,82 @@ static void every_result_has_words(void) {
   CHECK(strstr(sprout_draft_text(SPROUT_DRAFT_TAKEN), "never reused") != NULL);
 }
 
-static void a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone(void) {
-  long pages;
-  for (pages = 0; pages < 6; pages++) {
-    fixture f;
-    sprout_draft draft;
-    sprout_str yard = S(YARD);
-    const char *before, *after;
-    size_t before_length, after_length;
-    begin(&f);
-    CHECK_INT(sprout_state_write(f.state, &before, &before_length), SPROUT_OK);
-    f.host.page_bytes = 256;
-    f.turn.host = &f.host;
-    f.heap.refuse_after = f.heap.pages + pages;
+/*
+ * One turn under a host that refuses pages after `pages` more: a place, a removal that buries, and the commit.
+ * Where the commit was refused, the state reads exactly as before; where it went through, it holds the turn.
+ * With `settle`, a turn is committed first so the state's arrays have slack and the commit writes in place.
+ */
+static void a_short_turn(long pages, bool settle) {
+  fixture f;
+  sprout_draft draft;
+  sprout_changes changes;
+  sprout_stored_instance changed;
+  const char *before, *after;
+  const sprout_str *removed;
+  size_t before_length, after_length, count;
+  sprout_arena scratch; /* holds `before` across the turn's reset */
+  sprout_draft_result placed, removed_result, committed;
+  begin(&f);
+  if (settle) {
     sprout_draft_open(&draft, &f.turn, f.world, f.state);
-    {
-      sprout_draft_result r = sprout_draft_place(&draft, S(ROOM ".cat"), &yard);
-      CHECK(r == SPROUT_DRAFT_OK || r == SPROUT_DRAFT_NO_MEMORY);
-    }
+    changed = *sprout_draft_instance(&draft, S(ROOM));
+    changed.has_last_tick = true;
+    changed.last_tick = 1790000001;
+    CHECK_INT(sprout_draft_write(&draft, &changed), SPROUT_DRAFT_OK);
+    CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
     sprout_arena_reset(&f.turn);
-    f.heap.refuse_after = -1;
-    CHECK_INT(sprout_state_write(f.state, &after, &after_length), SPROUT_OK);
+    CHECK(sprout_state_has_room(f.state, 1, 0, 4));
+  }
+  CHECK_INT(test_state_write(f.state, &scratch, &before, &before_length), SPROUT_OK);
+  f.host.page_bytes = 256;
+  f.turn.host = &f.host;
+  f.state->host.page_bytes = 256;
+  f.heap.refuse_after = f.heap.pages + pages;
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  placed = sprout_draft_place(&draft, S(ROOM ".cat"), &(sprout_str){WORLD, strlen(WORLD)});
+  CHECK(placed == SPROUT_DRAFT_OK || placed == SPROUT_DRAFT_NO_MEMORY);
+  removed_result = placed == SPROUT_DRAFT_OK ? sprout_draft_remove(&draft, S(YARD), &removed, &count) : placed;
+  CHECK(removed_result == SPROUT_DRAFT_OK || removed_result == SPROUT_DRAFT_NO_MEMORY);
+  committed = removed_result == SPROUT_DRAFT_OK ? sprout_draft_commit(&draft, &changes) : removed_result;
+  CHECK(committed == SPROUT_DRAFT_OK || committed == SPROUT_DRAFT_NO_MEMORY);
+  sprout_arena_reset(&f.turn);
+  f.heap.refuse_after = -1;
+  CHECK_INT(sprout_state_write(f.state, &f.turn, &after, &after_length), SPROUT_OK);
+  if (committed == SPROUT_DRAFT_OK) {
+    const sprout_stored_instance *cat = sprout_state_find(f.state, S(ROOM ".cat"));
+    CHECK(cat != NULL && cat->has_container && sprout_str_same(cat->container, S(WORLD)));
+    CHECK(sprout_state_find(f.state, S(YARD)) == NULL);
+    CHECK(sprout_state_tombstoned(f.state, S(YARD ".press")));
+    CHECK(before_length != after_length || memcmp(before, after, after_length) != 0);
+  } else {
     CHECK_BYTES(after, after_length, before);
-    finish(&f);
+  }
+  sprout_arena_reset(&scratch);
+  finish(&f);
+}
+
+static void a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone(void) {
+  static const long sweep[] = {0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
+  size_t i;
+  for (i = 0; i < sizeof sweep / sizeof *sweep; i++) {
+    a_short_turn(sweep[i], false);
+    a_short_turn(sweep[i], true);
   }
 }
 
 static void a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_few(void) {
   fixture f;
-  size_t turn, held_early = 0;
+  size_t turn, held_early = 0, settled_early = 0, rebuilt = 0, page;
   long pages_early = 0;
   begin(&f);
+  page = f.host.page_bytes;
   for (turn = 1; turn <= 300; turn++) {
     sprout_draft draft;
     sprout_changes changes;
     sprout_stored_instance changed;
     sprout_stored_visitor visitor;
     sprout_str id;
+    size_t held = f.state->arena.held;
     sprout_draft_open(&draft, &f.turn, f.world, f.state);
     changed = *sprout_draft_instance(&draft, S(ROOM));
     changed.has_last_tick = true;
@@ -490,14 +574,22 @@ static void a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_
     CHECK_INT(sprout_draft_mint(&draft, &id), SPROUT_DRAFT_OK);
     CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
     sprout_arena_reset(&f.turn);
+    /* As a turn does once its scratch is gone: a crowded state is compacted. Only that gives pages back. */
+    if (sprout_state_crowded(f.state)) CHECK_INT(sprout_state_compact(f.state), SPROUT_OK);
+    if (f.state->arena.held < held) rebuilt++;
+    CHECK(f.state->arena.held <= f.state->settled + f.state->settled / 4 + 2 * page);
     if (turn == 20) {
       held_early = f.state->arena.held;
+      settled_early = f.state->settled;
       pages_early = f.heap.pages;
     }
   }
   CHECK(held_early > 0);
-  CHECK(f.state->arena.held <= held_early + 4096);
-  CHECK(f.heap.pages <= pages_early);
+  /* Every turn writes one small record: the commits write into the state, and the rebuilds are few. */
+  CHECK(rebuilt < 300 / 4);
+  CHECK(f.state->settled <= settled_early + 4096);
+  CHECK(f.state->arena.held <= held_early + held_early / 4 + 2 * page);
+  CHECK(f.heap.pages <= pages_early + (long)(held_early / 4 / page) + 2);
   CHECK(sprout_state_find(f.state, S(ROOM))->last_tick == 1790000300);
   CHECK_INT(f.state->serial, 5 + 300);
   finish(&f);
@@ -519,6 +611,7 @@ int main(void) {
   RUN(what_a_removal_took_stays_readable_for_the_rest_of_the_turn_and_is_not_an_instance);
   RUN(a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_draft);
   RUN(a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_few);
+  RUN(a_crowded_state_is_compacted_to_what_is_live_and_is_crowded_once_the_replaced_pass_a_quarter);
   RUN(every_result_has_words);
   RUN(a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone);
   return REPORT();

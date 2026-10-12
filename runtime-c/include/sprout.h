@@ -226,8 +226,19 @@ typedef struct sprout_opened {
 sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, sprout_opened *report,
                                 sprout_refusal *refusal);
 
-/* The canonical JSON of a state, in an arena the state owns and valid until the state is freed. */
-sprout_status sprout_state_write(sprout_state *state, const char **bytes, size_t *length);
+/* The canonical JSON of a state, built in `scratch` and valid until that arena is reset. */
+sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratch, const char **bytes,
+                                 size_t *length);
+
+/*
+ * A committed turn writes into the state and leaves what it replaced behind,
+ * counted; the state is crowded once that passes a quarter of it. Compacting
+ * copies the live records into a fresh arena and releases the old, so the two
+ * are held together while it runs: a turn compacts a crowded state once its
+ * own scratch is released, and a host may compact sooner, at a quiet moment.
+ */
+bool sprout_state_crowded(const sprout_state *state);
+sprout_status sprout_state_compact(sprout_state *state);
 
 /* Releases a state and everything it holds. */
 void sprout_state_free(sprout_state *state);

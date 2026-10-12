@@ -136,15 +136,20 @@ static const char *open_state(sproutc_host *host, const sprout_world *world, spr
 static const char *save_state(sproutc_host *host, sprout_state *state) {
   const char *written;
   size_t length;
-  sprout_status status = sprout_state_write(state, &written, &length);
+  sprout_arena scratch;
+  sprout_status status = sprout_arena_init(&scratch, &host->record);
+  if (status == SPROUT_OK) status = sprout_state_write(state, &scratch, &written, &length);
   if (status != SPROUT_OK) {
+    sprout_arena_reset(&scratch);
     snprintf(problem, sizeof problem, "%s: %s", host->state, sprout_status_text(status));
     return problem;
   }
   if (!host->record.write(host->record.ctx, "world", written, length)) {
+    sprout_arena_reset(&scratch);
     snprintf(problem, sizeof problem, "cannot write the stored world to %s.", host->state);
     return problem;
   }
+  sprout_arena_reset(&scratch);
   return NULL;
 }
 

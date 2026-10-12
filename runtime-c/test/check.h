@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "sprout.h"
+#include "state.h"
 
 static int check_failures = 0;
 static int check_count = 0;
@@ -123,6 +124,13 @@ static inline char *test_golden(const char *name, size_t *length) {
   fclose(file);
   *length = (size_t)size;
   return bytes;
+}
+
+/* The state's canonical text, built in `scratch`, which this opens over the state's own host; reset it when done with the text. */
+static inline sprout_status test_state_write(const sprout_state *state, sprout_arena *scratch, const char **out,
+                                             size_t *length) {
+  sprout_status status = sprout_arena_init(scratch, &state->host);
+  return status == SPROUT_OK ? sprout_state_write(state, scratch, out, length) : status;
 }
 
 #endif

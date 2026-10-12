@@ -341,7 +341,7 @@ static inline void exec_check_after(exec_bench *b, exec_case *c, const sprout_js
   sprout_changes changes;
   const char *want = after->kind == SPROUT_JSON_STRING ? after->bytes : exec_text(sprout_json_get(b->golden, "states"), exec_text(c->golden, "state"));
   CHECK_INT(sprout_draft_commit(&c->draft, &changes), SPROUT_DRAFT_OK);
-  CHECK_INT(sprout_state_write(c->state, &written, &length), SPROUT_OK);
+  CHECK_INT(sprout_state_write(c->state, &c->turn, &written, &length), SPROUT_OK);
   CHECK_BYTES(written, length, want);
 }
 

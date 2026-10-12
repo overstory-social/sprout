@@ -300,6 +300,7 @@ uint64_t turn_seed_under(const sprout_world *world, uint64_t seed, sprout_str id
 
 sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_host *host,
                               const sprout_turn_input *input, sprout_outcome *outcome) {
+  sprout_status status = SPROUT_BAD_INPUT; /* every kind below sets it; the poll returns before it is read */
   if (outcome == NULL) return SPROUT_BAD_HOST;
   memset(outcome, 0, sizeof *outcome);
   if (world == NULL || state == NULL || input == NULL) return SPROUT_BAD_INPUT;
@@ -309,19 +310,31 @@ sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sp
   world->host.budgets = host->budgets;
   switch (input->kind) {
     case SPROUT_TURN_COMMAND:
-      return turn_command(world, state, host, input, outcome);
-    case SPROUT_TURN_ARRIVAL:
-      return turn_arrival(world, state, host, input, outcome);
-    case SPROUT_TURN_DEPARTURE:
-      return turn_departure(world, state, host, input, outcome);
-    case SPROUT_TURN_TICK:
-      return turn_tick(world, state, host, input, outcome);
-    case SPROUT_TURN_WAKE:
-      return turn_wake(world, state, host, input, outcome);
-    case SPROUT_TURN_MAINTENANCE:
-      return turn_maintenance(world, state, host, input, outcome);
-    case SPROUT_TURN_POLL:
+      status = turn_command(world, state, host, input, outcome);
       break;
+    case SPROUT_TURN_ARRIVAL:
+      status = turn_arrival(world, state, host, input, outcome);
+      break;
+    case SPROUT_TURN_DEPARTURE:
+      status = turn_departure(world, state, host, input, outcome);
+      break;
+    case SPROUT_TURN_TICK:
+      status = turn_tick(world, state, host, input, outcome);
+      break;
+    case SPROUT_TURN_WAKE:
+      status = turn_wake(world, state, host, input, outcome);
+      break;
+    case SPROUT_TURN_MAINTENANCE:
+      status = turn_maintenance(world, state, host, input, outcome);
+      break;
+    case SPROUT_TURN_POLL:
+      return turn_refuse(outcome, "a poll writes nothing and is not a turn: ask for the view with sprout_view.", "", "");
   }
-  return turn_refuse(outcome, "a poll writes nothing and is not a turn: ask for the view with sprout_view.", "", "");
+  /*
+   * The turn's scratch is released by now, so the state and the outcome are all that is held while it compacts.
+   * Compacting is housekeeping: a refused page leaves the state as it was, still crowded for the next turn or
+   * the host to try, and the turn's own status stands, since the turn did commit.
+   */
+  if (status == SPROUT_OK && sprout_state_crowded(state)) (void)sprout_state_compact(state);
+  return status;
 }
