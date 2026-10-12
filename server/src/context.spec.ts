@@ -84,7 +84,7 @@ describe('a connection’s status line', () => {
     const visit = marta.visit!;
     const { id, host } = { id: world.served.id, host: world.served.host };
     const scene = await world.views.scene(context.store, id, host, visit, 0);
-    // The scene is the one the status was sent from, kept; no view was polled.
+    // The scene is the one the status was sent from, kept.
     expect(await world.views.scene(context.store, id, host, visit, 0)).toBe(scene);
     expect(marta.sent.some((one) => (one as { t: string }).t === 'readings')).toBe(false);
   });

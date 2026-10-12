@@ -32,7 +32,11 @@ import {
   CRATE as BENCH_CRATE,
   POUCH as BENCH_POUCH,
   bench,
+  benchFiles,
+  SHOP as BENCH_SHOP,
 } from '../fixtures/bench.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import { turn } from '../fixtures/reading.js';
 import { commandContext } from '../fixtures/parser.js';
 
 const typedBy = (state: ReturnType<typeof study>) =>
@@ -258,6 +262,26 @@ describe('the verbs a scene lists', () => {
     );
     expect(listed).toContain('go');
     expect(listed).not.toContain('take');
+  });
+
+  it('holds a verb whose every role something fills though no reading can be built', () => {
+    // Only the rope fills either of `tie`'s roles, and one thing fills no two.
+    const knotted = compiledWorld(
+      'bench',
+      benchFiles({
+        objects: ['object rope is Rope'],
+        declarations: [
+          'verb tie { role first: Rope  role second: Rope  "tie [first] to [second]" }',
+          'kind Rope { }',
+        ],
+      }),
+    );
+    const one = turn(knotted, [BENCH_SHOP]);
+    const marta = one.people[0]!;
+    const context = commandContext({ ...one, nicknames: new Map([[marta, 'Marta']]) }, []);
+    const tie = verbsOffered(marta, context).find((verb) => verb.name === 'tie');
+    expect(tie).toBeDefined();
+    expect(offersTo(marta, context, { verb: tie! }).map((o) => o.typed)).toEqual([]);
   });
 
   it('builds no reading, so it costs less than the offers it stands for', () => {

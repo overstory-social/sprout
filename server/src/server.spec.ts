@@ -169,6 +169,16 @@ describe('the server, over a real socket', () => {
     await client.take('welcome');
     client.send({ t: 'command', seq: 1, line: 'look' });
     expect(await client.take('refused')).toMatchObject({ stage: 'frame', reason: 'not-admitted' });
+    client.send({ t: 'readings', seq: 2, verb: 'sprout.take' });
+    expect(await client.take('refused')).toMatchObject({ stage: 'frame', reason: 'not-admitted' });
+    // Readings asked for are answered, with none, so a client waiting on them is not left waiting.
+    expect(await client.take('readings')).toEqual({
+      t: 'readings',
+      seq: 2,
+      verb: 'sprout.take',
+      readings: [],
+      faulted: false,
+    });
     client.send({ t: 'admit', world: 'nowhere', nickname: 'Marta' });
     expect(await client.take('refused')).toMatchObject({ stage: 'admit', reason: 'no-world' });
   });

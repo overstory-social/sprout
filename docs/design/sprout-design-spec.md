@@ -2060,6 +2060,7 @@ The host draws a seed for each write turn and records it beside the turn. The lo
 | a wake | consumed and logged; the object is not woken again unless it asks |
 | a part of a maintenance turn | that part is abandoned and its wake consumed; the rest of the catch-up is still delivered, and the visitor is admitted |
 | a poll | the view's description is the world's `unseen` passage, and the rest of it is whatever the poll derived without faulting |
+| a verb's poll, of a view polled in parts | none of that verb's readings; the fault is logged as a poll's |
 
 Anything a turn's body throws is a fault, told as the table says, a defect of the engine's own that no rule of the language explains included; the host is told which faults are the engine's, to report loudly.
 

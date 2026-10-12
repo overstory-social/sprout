@@ -125,6 +125,11 @@ async function answer(context: ServerContext, connection: Connection, text: stri
       reason: 'not-admitted',
       text: 'Come into a world first, with `admit`.',
     });
+    // A client waiting on readings it asked for is answered with none.
+    if (message.t === 'readings') {
+      const { seq, verb } = message;
+      connection.send({ t: 'readings', seq, verb, readings: [], faulted: false });
+    }
     return;
   }
   switch (message.t) {

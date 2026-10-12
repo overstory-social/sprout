@@ -157,7 +157,7 @@ message is validated with a zod schema in `core`'s `protocol.ts`, beside
 | `effects` | `seq`, `last`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it; a line of several commands, an intent's steps or `all` runs several turns, and `last` marks the effects of the last of them |
 | `view` | `seq`, `view` | the visitor's view, as `core`'s `sendView` makes it; `seq` is the `poll`'s, or none for a view sent unasked |
 | `status` | `place`, `here`, `exits` | where the visitor stands, the things the place directly holds other than the visitor, people among them, in contents order and named for the visitor, and the ways out; sent when any of them changes |
-| `verbs` | `verbs` | each verb the visitor could use now, by its qualified name, with the phrases that type it, each slot written `…`, from their scene; sent when they change |
+| `verbs` | `verbs` | each verb the visitor could use now, by its qualified name, with the phrases that type it, each slot written `…` and an object's own synonyms left out, from their scene; sent when they change |
 | `readings` | `seq`, `verb`, `readings`, `faulted` | the readings of the verb asked for with `seq`, as the view gives them; none for a verb the scene does not list, or where the poll ran out of budget, which `faulted` says |
 | `record` | `level`, `text`, `at` | a log record at a level the client asked for; `at` is the host's time and never reaches a turn |
 | `chat` | `from`, `line` | someone said something |
