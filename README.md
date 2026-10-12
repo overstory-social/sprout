@@ -114,11 +114,15 @@ sprout pack corpus/good/chip-tree -o chip-tree.sproutworld   # compile strictly,
 sprout play chip-tree.sproutworld                            # play, test and view take a cartridge where they take a folder
 npm run build && node scripts/check-runtime-c.mjs            # build runtime-c/, run ctest, replay every transcript and compare every view
 node scripts/fuzz-runtime.mjs --corpus --readings 2000       # the C runtime against the TypeScript one over generated plays
+node --expose-gc scripts/profile-runtime.mjs <world>         # the TypeScript runtime's heap over a long play
+node --expose-gc scripts/profile-store.mjs <world>           # a world served as the server serves it: turns, views, the log
+node scripts/profile-runtime-c.mjs <world>                   # the C runtime's bytes held and peak per step over a long play
 ```
 
 `sproutc` is the C runtime's desktop host, built under `${TMPDIR}/sprout-runtime-c-<hash>/`:
-`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n]` (with `--offered` the view is
-polled before each command and must offer the reading, as the Playdate's sentence builder needs),
+`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n] [--profile f]` (with `--offered` the view is
+polled before each command and must offer the reading, as the Playdate's sentence builder needs; `--profile`
+writes each step's bytes held and peak),
 `sproutc view <cartridge> --state f [--json]`
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each

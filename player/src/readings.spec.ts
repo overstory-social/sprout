@@ -69,6 +69,16 @@ describe('resolveScript', () => {
     expect(turns.map((turn) => turn.seed)).toEqual([4294967295, 0]);
   });
 
+  it('leaves out the stored world after each step where asked, keeping what was said and logged', () => {
+    const lines = scriptOf('@arrive Marta\nMarta> fire kiln\n');
+    const whole = resolveScript(bundle, lines, 'yard.json');
+    const lean = resolveScript(bundle, lines, 'yard.json', {}, { worlds: false });
+    expect(whole.steps[1]?.after?.world).toBeDefined();
+    expect(lean.steps[1]?.after?.world).toBeUndefined();
+    expect(lean.steps[1]?.after?.says).toEqual(whole.steps[1]?.after?.says);
+    expect(lean.steps[1]?.after?.turns).toEqual(whole.steps[1]?.after?.turns);
+  });
+
   it('writes one step to a line, and the file reads back as the same readings', () => {
     const readings = resolve('@arrive Marta\nMarta> fire kiln\n');
     const text = writeReadings(readings);

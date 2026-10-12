@@ -15,14 +15,15 @@
 
 #define USAGE                                                                                          \
   "sproutc: write `sproutc play <world.sproutworld> [--state save.json] [--script script.json]\n"     \
-  "         [--readings file] [--trace file] [--clock N] [--offered] [--poll-steps N]`. --clock N\n" \
-  "         moves the fake clock on N milliseconds at each read; --readings names the file\n"         \
+  "         [--readings file] [--trace file] [--profile file] [--clock N] [--offered] [--poll-steps N]`.\n" \
+  "         --clock N moves the fake clock on N milliseconds at each read; --readings names the file\n" \
   "         `node scripts/resolve-script.mjs` wrote for the script; --trace names the file one line\n" \
   "         of the stored world and the log is written to after each step; --offered polls the view\n" \
-  "         before each command and fails where it does not offer the reading, under --poll-steps.\n"
+  "         before each command and fails where it does not offer the reading, under --poll-steps.\n"     \
+  "         --profile names the file each step's bytes held after it and its peak are written to.\n"
 
 typedef struct options {
-  const char *world, *state, *script, *readings, *trace;
+  const char *world, *state, *script, *readings, *trace, *profile;
   uint64_t clock;
   sproutc_play_options play;
 } options;
@@ -46,6 +47,7 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
                         : strcmp(flag, "--script") == 0   ? &o->script
                         : strcmp(flag, "--readings") == 0 ? &o->readings
                         : strcmp(flag, "--trace") == 0    ? &o->trace
+                        : strcmp(flag, "--profile") == 0  ? &o->profile
                                                           : NULL;
     if (strcmp(flag, "--clock") == 0) {
       if (i + 1 >= argc || !whole_number(argv[i + 1], &o->clock)) {
@@ -172,6 +174,8 @@ static int play(sproutc_host *host, sprout_world *world, const options *o, sprou
   sprout_state *state;
   sprout_opened report;
   FILE *trace = NULL;
+  sproutc_play_options played;
+  size_t before_state = host->bytes_held;
   const char *why = open_state(host, world, &state, &report);
   int code;
   if (why != NULL) {
@@ -186,8 +190,21 @@ static int play(sproutc_host *host, sprout_world *world, const options *o, sprou
       return 1;
     }
   }
-  code = sproutc_play_script(host, world, state, readings, &o->play, out, err, trace);
+  played = o->play;
+  if (o->profile != NULL) {
+    played.profile = fopen(o->profile, "wb");
+    if (played.profile == NULL) {
+      fprintf(err, "sproutc: cannot write %s.\n", o->profile);
+      if (trace != NULL) fclose(trace);
+      sprout_state_free(state);
+      return 1;
+    }
+    fprintf(played.profile, "{\"world\":%zu,\"state\":%zu,\"loaded\":%zu}\n", host->world_bytes,
+            host->bytes_held - before_state, host->bytes_held);
+  }
+  code = sproutc_play_script(host, world, state, readings, &played, out, err, trace);
   if (trace != NULL) fclose(trace);
+  if (played.profile != NULL) fclose(played.profile);
   if (code == 0 && host->state != NULL) {
     why = save_state(host, state);
     if (why != NULL) {
@@ -241,6 +258,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
     sproutc_host_close(&host);
     return 1;
   }
+  host.world_bytes = host.bytes_held;
   if (o.state != NULL && o.script == NULL) {
     why = rewrite_state(&host, world, out);
     if (why != NULL) {

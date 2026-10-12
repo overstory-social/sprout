@@ -119,6 +119,35 @@ static void a_script_plays_its_steps_through_the_turn_call_and_traces_each(void)
   remove(trace);
 }
 
+static void a_profile_names_the_world_and_state_bytes_then_each_steps_held_and_peak(void) {
+  const char *profile = "sproutc-play-test.profile";
+  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--profile", (char *)profile};
+  const char *readings =
+      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
+      "{\"index\":0,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
+      "{\"index\":1,\"line\":\"@leave Ines\",\"atSeconds\":5,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
+  static char output[1 << 12];
+  unsigned long world, state, loaded, held, peak;
+  const char *line;
+  put_world();
+  put(SCRIPT, "{\"steps\":[]}", 12);
+  put(READINGS, readings, strlen(readings));
+  CHECK_INT(run(6, argv), 0);
+  strcpy(output, slurp(profile));
+  CHECK(sscanf(output, "{\"world\":%lu,\"state\":%lu,\"loaded\":%lu}", &world, &state, &loaded) == 3);
+  /* The world and its state are part of what is held once both are open, and neither is nothing. */
+  CHECK(world > 0 && state > 0 && loaded >= world + state);
+  line = strstr(output, "\n{\"step\":0,");
+  CHECK(line != NULL && sscanf(line + 1, "{\"step\":0,\"held\":%lu,\"peak\":%lu}", &held, &peak) == 2);
+  /* A step's peak is at least what it ends holding, and the arrival held more than nothing over the world. */
+  CHECK(peak >= held && peak > loaded);
+  CHECK(strstr(output, "\n{\"step\":1,") != NULL);
+  remove(WORLD);
+  remove(SCRIPT);
+  remove(READINGS);
+  remove(profile);
+}
+
 static void a_call_the_runtime_refuses_ends_the_play_with_its_words(void) {
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
   const char *readings =
@@ -214,6 +243,7 @@ int main(void) {
   RUN(the_header_and_manifest_are_printed_and_the_world_loads);
   RUN(a_script_plays_its_steps_through_the_turn_call_and_traces_each);
   RUN(a_picture_shown_reads_as_its_transcript_line_and_is_traced_with_its_payload);
+  RUN(a_profile_names_the_world_and_state_bytes_then_each_steps_held_and_peak);
   RUN(a_call_the_runtime_refuses_ends_the_play_with_its_words);
   RUN(a_stored_world_is_read_opened_and_written_back_and_a_second_pass_changes_nothing);
   RUN(a_store_that_is_not_readable_or_is_another_worlds_is_refused_in_words);

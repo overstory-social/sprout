@@ -30,6 +30,9 @@ typedef struct sproutc_host {
   uint64_t script_seconds; /* the script's time, in seconds from the start of the play */
   char *held;         /* the bytes last read, valid until the next read */
   long pages;         /* pages out, so a leak shows */
+  size_t bytes_held;  /* bytes out now */
+  size_t bytes_peak;  /* the most bytes out since it was last reset to `bytes_held` */
+  size_t world_bytes; /* bytes out once the world had loaded, before anything else was read */
 } sproutc_host;
 
 /* Fills a host: default budgets, a frozen clock, seed 0, and `out` for emitted lines. */
