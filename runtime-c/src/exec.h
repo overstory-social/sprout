@@ -184,14 +184,11 @@ typedef struct sprout_exec {
   sprout_reading_fn reading; /* the reading pass an `act` runs on the spot */
   size_t events; /* deliveries that ran a handler or a hook */
 
-  /* What bodies have queued since the queue last drained. */
-  sprout_send *queued;
-  size_t queued_count, queued_capacity;
   sprout_str *destroyed; /* removed by a body that has ended, not yet dropped from the queue */
   size_t destroyed_count, destroyed_capacity;
   sprout_str *gone; /* everything destroyed this turn, in the order destroyed */
   size_t gone_count, gone_capacity;
-  sprout_send *queue; /* the deliveries waiting, read from `head` */
+  sprout_send *queue; /* every send this turn that was not dropped, the waiting ones from `queue_head` */
   size_t queue_count, queue_capacity, queue_head;
   sprout_str *marked;
   size_t marked_count, marked_capacity;

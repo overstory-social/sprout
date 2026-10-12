@@ -20,15 +20,6 @@
 
 #include "stmt/stmt.h"
 
-sprout_eval_status sprout_exec_queue(sprout_exec *x, const sprout_send *send) {
-  sprout_send *slot = (sprout_send *)sprout_exec_grow(x->turn, (void **)&x->queued, &x->queued_count,
-                                                      &x->queued_capacity, sizeof *x->queued);
-  if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
-  *slot = *send;
-  slot->depth = x->depth;
-  return SPROUT_EVAL_OK;
-}
-
 static bool is_gone(const sprout_exec *x, sprout_str id) {
   size_t i;
   for (i = 0; i < x->gone_count; i++)
@@ -41,18 +32,26 @@ static bool touches_gone(const sprout_exec *x, const sprout_send *send) {
   return is_gone(x, send->recipient) || (send->has_from && is_gone(x, send->from));
 }
 
-/* Moves what bodies queued into the queue, behind everything waiting, leaving out what a destroyed object touches. */
-static sprout_eval_status enqueue(sprout_exec *x) {
-  size_t i;
-  for (i = 0; i < x->queued_count; i++) {
-    sprout_send *slot;
-    if (touches_gone(x, &x->queued[i])) continue;
-    slot = (sprout_send *)sprout_exec_grow(x->turn, (void **)&x->queue, &x->queue_count, &x->queue_capacity,
-                                           sizeof *x->queue);
-    if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
-    *slot = x->queued[i];
+/*
+ * Queues one send behind everything waiting, unless it touches something
+ * already gone. The queue is one array read from `queue_head`: when it is
+ * full and more than half of it is delivered, the waiting tail is moved to
+ * its start rather than the array grown, so it holds at most a few times the
+ * largest backlog rather than everything the turn ever queued.
+ */
+sprout_eval_status sprout_exec_queue(sprout_exec *x, const sprout_send *send) {
+  sprout_send *slot;
+  if (touches_gone(x, send)) return SPROUT_EVAL_OK;
+  if (x->queue_count == x->queue_capacity && x->queue_head > x->queue_capacity / 2) {
+    memmove(x->queue, x->queue + x->queue_head, (x->queue_count - x->queue_head) * sizeof *x->queue);
+    x->queue_count -= x->queue_head;
+    x->queue_head = 0;
   }
-  x->queued_count = 0;
+  slot = (sprout_send *)sprout_exec_grow(x->turn, (void **)&x->queue, &x->queue_count, &x->queue_capacity,
+                                         sizeof *x->queue);
+  if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+  *slot = *send;
+  slot->depth = x->depth;
   return SPROUT_EVAL_OK;
 }
 
@@ -211,7 +210,6 @@ static sprout_eval_status deliver(sprout_exec *x, const sprout_send *send) {
     x->depth = send->depth + 1;
     EXPR_NEED(sprout_exec_body(x, sprout_node_get(&x->world->graph, declaration, "body"), &frame, SPROUT_BODY_ACT, &ended));
     EXPR_NEED(drop(x));
-    EXPR_NEED(enqueue(x));
   }
   return SPROUT_EVAL_OK;
 }
@@ -219,7 +217,6 @@ static sprout_eval_status deliver(sprout_exec *x, const sprout_send *send) {
 sprout_eval_status sprout_exec_drain(sprout_exec *x) {
   size_t i;
   EXPR_NEED(drop(x));
-  EXPR_NEED(enqueue(x));
   while (x->queue_head < x->queue_count) {
     sprout_send send = x->queue[x->queue_head++];
     EXPR_NEED(deliver(x, &send));

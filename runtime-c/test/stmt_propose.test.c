@@ -18,7 +18,7 @@ static void a_move_every_party_allows_does_not_stop_the_body(void) {
   CHECK_INT(stmt_move(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
   CHECK_INT(run.stopped, SPROUT_RUNNING);
   CHECK_INT(c.x.effect_count, 0);
-  CHECK_INT(c.x.queued_count, 3);
+  CHECK_INT(c.x.queue_count, 3);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -37,7 +37,7 @@ static void a_refused_move_is_said_to_whoever_the_body_speaks_to_and_stops_it(vo
   CHECK_INT(c.x.effects[0].to_count, 1);
   CHECK(sprout_str_same(c.x.effects[0].by, exec_str("exec_bench.hall.shelf")));
   CHECK_STR(c.x.effects[0].said.name, "full");
-  CHECK_INT(c.x.queued_count, 0);
+  CHECK_INT(c.x.queue_count, 0);
   exec_case_close(&c);
   exec_bench_close(&b);
 }

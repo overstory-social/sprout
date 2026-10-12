@@ -99,7 +99,7 @@ static void planning_reads_the_world_and_writes_nothing(void) {
   CHECK_INT(count, 2);
   CHECK_INT(c.draft.written_count, 0);
   CHECK_INT(c.x.effect_count, 0);
-  CHECK_INT(c.x.queued_count, 0);
+  CHECK_INT(c.x.queue_count, 0);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
