@@ -93,8 +93,10 @@ static void free_reading(sprout_reading *reading, sprout_filling *fillings) {
 static void check_written(submitted *s, const char *want) {
   const char *written;
   size_t length;
-  CHECK_INT(sprout_state_write(s->state, &written, &length), SPROUT_OK);
+  sprout_arena scratch;
+  CHECK_INT(test_state_write(s->state, &scratch, &written, &length), SPROUT_OK);
   CHECK_BYTES(written, length, want);
+  sprout_arena_reset(&scratch);
 }
 
 static void every_golden_reading_submitted_comes_back_as_the_oracle_ended_it(void) {

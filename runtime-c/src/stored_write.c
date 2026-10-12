@@ -2,7 +2,8 @@
  * Writing the stored world in its canonical form (the spec's The host
  * contract > Storage): keys in the stored schema's order, members in the order
  * held, no white space, whole numbers as digits, and the escapes
- * JSON.stringify makes. The text is built in the state's arena.
+ * JSON.stringify makes. The text is built in the arena the caller gives, so
+ * the state's own holds nothing a save left behind.
  */
 #include <string.h>
 
@@ -283,11 +284,12 @@ static void put_visitor(text *t, const sprout_stored_visitor *v) {
   put_char(t, '}');
 }
 
-sprout_status sprout_state_write(sprout_state *state, const char **bytes, size_t *length) {
+sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratch, const char **bytes,
+                                 size_t *length) {
   text t;
   size_t i;
   memset(&t, 0, sizeof t);
-  t.arena = &state->arena;
+  t.arena = scratch;
   put_text(&t, "{\"world\":");
   put_string(&t, state->world);
   put_text(&t, ",\"serial\":");

@@ -675,7 +675,7 @@ static void trace_step(play *p, const sproutc_step *step, FILE *trace) {
   const char *world;
   size_t length, i;
   if (trace == NULL) return;
-  if (sprout_state_write(p->state, &world, &length) != SPROUT_OK) return;
+  if (sprout_state_write(p->state, &p->arena, &world, &length) != SPROUT_OK) return;
   fprintf(trace, "{\"step\":%zu,\"says\":[", step->index);
   for (i = 0; i < p->says.count; i++) fprintf(trace, "%s%s", i > 0 ? "," : "", p->says.items[i]);
   fprintf(trace, "],\"turns\":[");

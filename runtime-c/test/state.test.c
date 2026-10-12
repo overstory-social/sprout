@@ -66,7 +66,7 @@ static void a_new_worlds_store_reconciled_is_the_initial_state_the_typescript_lo
     CHECK_INT(report.stranded_count, 0);
     CHECK(report.created_count >= 1);
     corpus_value_text(&arena, initial->items[i], &want, &want_length);
-    CHECK_INT(sprout_state_write(state, &got, &got_length), SPROUT_OK);
+    CHECK_INT(sprout_state_write(state, &arena, &got, &got_length), SPROUT_OK);
     CHECK_BYTES(got, got_length, want);
     sprout_state_free(state);
     sprout_world_free(world);
@@ -101,7 +101,7 @@ static void a_saved_world_reopened_is_unchanged_and_reports_nothing(void) {
     CHECK_INT(report.dropped_count, 0);
     CHECK_INT(report.dormant_count, 0);
     CHECK_INT(report.stranded_count, 0);
-    CHECK_INT(sprout_state_write(state, &got, &got_length), SPROUT_OK);
+    CHECK_INT(sprout_state_write(state, &arena, &got, &got_length), SPROUT_OK);
     CHECK_BYTES(got, got_length, want);
     sprout_state_free(state);
     sprout_world_free(world);
@@ -149,7 +149,7 @@ static void a_stored_world_edited_against_the_world_comes_out_as_the_typescript_
       }
       CHECK_STR(why_name(report.dropped[j].why), row->items[3]->bytes);
     }
-    CHECK_INT(sprout_state_write(state, &got, &got_length), SPROUT_OK);
+    CHECK_INT(sprout_state_write(state, &arena, &got, &got_length), SPROUT_OK);
     CHECK_BYTES(got, got_length, want);
     sprout_state_free(state);
     sprout_world_free(world);
@@ -211,7 +211,7 @@ static void lookups_bisect_once_sorted_and_scan_before(void) {
   CHECK(!state->instances_sorted);
   CHECK(sprout_state_find(state, (sprout_str){"shop.b", 6}) == &state->instances[0]);
   CHECK(sprout_state_find(state, (sprout_str){"shop.c", 6}) == NULL);
-  CHECK_INT(sprout_state_sort(state), SPROUT_OK);
+  CHECK_INT(sprout_state_sort(state, &state->arena), SPROUT_OK);
   CHECK(state->instances_sorted);
   CHECK_BYTES(state->instances[0].id.bytes, state->instances[0].id.length, "shop");
   CHECK_BYTES(state->instances[1].id.bytes, state->instances[1].id.length, "shop#2");
@@ -253,6 +253,7 @@ static void a_spawn_of_a_kind_that_is_now_the_worlds_or_the_visitors_stays_dorma
   char text[4096];
   const char *out;
   size_t out_length;
+  sprout_arena scratch;
   const char *odd = "{\"odd\":{\"type\":\"integer\",\"value\":7}}";
   snprintf(text, sizeof text,
            "{\"world\":\"printers_shop\",\"serial\":2,\"instances\":["
@@ -266,9 +267,10 @@ static void a_spawn_of_a_kind_that_is_now_the_worlds_or_the_visitors_stays_dorma
   CHECK(listed(report.dormant, report.dormant_count, "printers_shop#2"));
   CHECK_INT(report.dormant_count, 2);
   CHECK_INT(report.dropped_count, 0);
-  CHECK_INT(sprout_state_write(state, &out, &out_length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &out_length), SPROUT_OK);
   CHECK(strstr(out, "{\"id\":\"printers_shop#1\",\"made\":{\"from\":\"spawned\",\"kind\":\"printers_shop.printers_shop\"},\"container\":\"printers_shop\",\"arrival\":2,\"properties\":{\"odd\":{\"type\":\"integer\",\"value\":7}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}") != NULL);
   CHECK(sprout_state_find(state, S("printers_shop#2"))->dormant);
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
   sprout_world_free(world);
   CHECK_INT(heap.pages, 0);
@@ -306,13 +308,15 @@ static void a_world_without_its_kind_keeps_an_empty_dormant_world_record_and_mak
   sprout_refusal why;
   const char *out;
   size_t out_length;
+  sprout_arena scratch;
   world->world_kind = NULL;
   CHECK_INT(sprout_state_empty(&host, "printers_shop", &state), SPROUT_OK);
   CHECK_INT(sprout_state_open(state, world, &report, &why), SPROUT_OK);
   CHECK(listed(report.dormant, report.dormant_count, "printers_shop"));
   CHECK(!listed(report.created, report.created_count, "printers_shop"));
-  CHECK_INT(sprout_state_write(state, &out, &out_length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &out_length), SPROUT_OK);
   CHECK(strstr(out, "{\"id\":\"printers_shop\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}") != NULL);
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
   sprout_world_free(world);
 }
@@ -325,6 +329,7 @@ static void a_plain_value_stored_for_a_remembered_property_is_retyped_and_report
   sprout_opened report;
   const char *out;
   size_t out_length;
+  sprout_arena scratch;
   const char *text =
       "{\"world\":\"brief\",\"serial\":0,\"instances\":["
       "{\"id\":\"brief.west_of_house\",\"made\":{\"from\":\"declared\"},\"container\":\"brief\",\"arrival\":null,"
@@ -340,8 +345,9 @@ static void a_plain_value_stored_for_a_remembered_property_is_retyped_and_report
   CHECK_BYTES(report.dropped[1].property.bytes, report.dropped[1].property.length, "gone");
   CHECK(report.dropped[1].has_actor);
   CHECK_INT(report.dropped[1].why, SPROUT_DROP_UNDECLARED);
-  CHECK_INT(sprout_state_write(state, &out, &out_length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &out_length), SPROUT_OK);
   CHECK(strstr(out, "\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{\"brief\":{\"visits\":{\"type\":\"integer\",\"value\":2}}}") != NULL);
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
   sprout_world_free(world);
 }

@@ -38,14 +38,16 @@ static void round_trips(const char *text) {
   sprout_refusal why;
   const char *out;
   size_t length;
+  sprout_arena scratch;
   sprout_status status = read_text(text, &state, &why);
   CHECK_INT(status, SPROUT_OK);
   if (status != SPROUT_OK) {
     fprintf(stderr, "  refused: %s\n", why.text);
     return;
   }
-  CHECK_INT(sprout_state_write(state, &out, &length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_OK);
   CHECK_BYTES(out, length, text);
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
 }
 
@@ -103,14 +105,16 @@ static void a_repeated_name_keeps_its_first_place_and_its_last_value(void) {
   sprout_refusal why;
   const char *out;
   size_t length;
+  sprout_arena scratch;
   CHECK_INT(read_text(WORLD_HEAD "\"instances\":[{\"id\":\"shop\",\"made\":{\"from\":\"world\"},"
                       "\"container\":null,\"arrival\":null,\"properties\":{\"a\":{\"type\":\"integer\",\"value\":1},"
                       "\"b\":{\"type\":\"integer\",\"value\":2},\"a\":{\"type\":\"integer\",\"value\":3}},"
                       "\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}]," NO_VISITORS,
                       &state, &why), SPROUT_OK);
   CHECK_INT(state->instances[0].property_count, 2);
-  CHECK_INT(sprout_state_write(state, &out, &length), SPROUT_OK);
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_OK);
   CHECK(strstr(out, "\"properties\":{\"a\":{\"type\":\"integer\",\"value\":3},\"b\":{\"type\":\"integer\",\"value\":2}}") != NULL);
+  sprout_arena_reset(&scratch);
   sprout_state_free(state);
 }
 

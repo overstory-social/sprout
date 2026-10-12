@@ -251,10 +251,15 @@ bool session_visitor_present(const player_session *session, const sprout_stored_
 bool session_save_if_dirty(player_session *session) {
   const char *bytes;
   size_t length;
+  sprout_arena scratch;
+  bool written;
   if (session->state == NULL || !session->dirty) return true;
   session->pd->file->mkdir(SAVES);
-  if (sprout_state_write(session->state, &bytes, &length) != SPROUT_OK) return false;
-  if (!player_write_file(session->pd, session->state_path, bytes, length)) return false;
+  if (sprout_arena_init(&scratch, &session->host.record) != SPROUT_OK) return false;
+  written = sprout_state_write(session->state, &scratch, &bytes, &length) == SPROUT_OK &&
+            player_write_file(session->pd, session->state_path, bytes, length);
+  sprout_arena_reset(&scratch);
+  if (!written) return false;
   if (!savelog_write(session)) return false;
   session->dirty = false;
   return true;
