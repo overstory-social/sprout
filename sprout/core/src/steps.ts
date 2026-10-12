@@ -49,9 +49,23 @@ export interface Step<T> {
   readonly entry: TurnEntry | null;
 }
 
+/**
+ * Each stored state already read, by the state a store handed back and the catalogue it was read against: a
+ * store that hands back the same stored value until it changes (as the memory store does) has it read once,
+ * however many turns and polls read it. A stored state is never written in place, so the reading stays true.
+ */
+const decoded = new WeakMap<
+  StoredState,
+  { readonly catalogue: object; readonly state: WorldState }
+>();
+
 /** `stored`, read against the bundle `host` runs. */
 export function loaded(stored: StoredState, host: TurnHost): WorldState {
-  return loadWorld({ world: host.catalogue.world, ...stored }, host.catalogue).state;
+  const known = decoded.get(stored);
+  if (known !== undefined && known.catalogue === host.catalogue) return known.state;
+  const state = loadWorld({ world: host.catalogue.world, ...stored }, host.catalogue).state;
+  decoded.set(stored, { catalogue: host.catalogue, state });
+  return state;
 }
 
 /** `command` as one command turn over `state`: a fault writes nothing of the world, and is logged. */
