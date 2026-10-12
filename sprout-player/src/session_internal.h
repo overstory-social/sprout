@@ -35,7 +35,8 @@ struct player_session {
   char *reply;         /* the text last handed to Lua */
   sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the next, the close or the end */
   sprout_chip_tree chips; /* one verb each of the scene's, its subtree NULL until its readings are asked for */
-  bool *fetched;          /* one for each verb: whether its readings were asked for */
+  bool *fetched;          /* one for each verb: whether its readings were asked for and came whole */
+  const char **why_empty; /* one for each verb: the words for a verb nothing fits, or whose poll ran out (asked again on the next reach) */
   sprout_arena chip_arena; /* the verbs' readings and subtrees, released with the scene */
   bool seen_live;
 };

@@ -63,6 +63,7 @@ void session_drop_view(player_session *session) {
   memset(&session->seen, 0, sizeof session->seen);
   memset(&session->chips, 0, sizeof session->chips);
   session->fetched = NULL;
+  session->why_empty = NULL;
   session->seen_live = false;
 }
 
@@ -74,7 +75,8 @@ static bool begin_tree(player_session *session) {
   session->chips.verb_count = view->verb_count;
   session->chips.verbs = (sprout_chip_verb *)sprout_arena_take(arena, (view->verb_count + 1) * sizeof *session->chips.verbs);
   session->fetched = (bool *)sprout_arena_take(arena, (view->verb_count + 1) * sizeof *session->fetched);
-  if (session->chips.verbs == NULL || session->fetched == NULL) return false;
+  session->why_empty = (const char **)sprout_arena_take(arena, (view->verb_count + 1) * sizeof *session->why_empty);
+  if (session->chips.verbs == NULL || session->fetched == NULL || session->why_empty == NULL) return false;
   for (i = 0; i < view->verb_count; i++) session->chips.verbs[i].verb = view->verbs[i];
   return true;
 }
@@ -178,14 +180,39 @@ static bool fetch_verb(player_session *session, size_t v, const char **why) {
     *why = sprout_status_text(SPROUT_NO_MEMORY);
     return false;
   }
-  if (tree.verb_count > 0) {
-    verb->next = tree.verbs[0].next;
-  } else {
+  if (readings.faulted) {
+    /* The poll ran out: the verb is greyed with the fault's words, and asked for again when reached next. */
+    const char *words = readings.fault.text[0] != '\0' ? readings.fault.text : "This world has too much to read here.";
     verb->next = (sprout_chip_node *)sprout_arena_take(arena, sizeof *verb->next);
-    if (verb->next == NULL) {
+    session->why_empty[v] = verb->next == NULL ? NULL : sprout_arena_copy(arena, words, strlen(words));
+    if (verb->next == NULL || session->why_empty[v] == NULL) {
       *why = sprout_status_text(SPROUT_NO_MEMORY);
       return false;
     }
+    session->fetched[v] = false;
+    return true;
+  }
+  if (tree.verb_count > 0) {
+    verb->next = tree.verbs[0].next;
+    session->why_empty[v] = NULL;
+  } else {
+    /* Its roles could be filled from what is here, but no reading fits: the verb says so when reached. */
+    const char *name = strrchr(verb->verb, '.');
+    size_t head = strlen("Nothing here fits "), tail;
+    char *words;
+    name = name == NULL ? verb->verb : name + 1;
+    tail = strlen(name);
+    verb->next = (sprout_chip_node *)sprout_arena_take(arena, sizeof *verb->next);
+    words = (char *)sprout_arena_take(arena, head + tail + 2);
+    if (verb->next == NULL || words == NULL) {
+      *why = sprout_status_text(SPROUT_NO_MEMORY);
+      return false;
+    }
+    memcpy(words, "Nothing here fits ", head);
+    memcpy(words + head, name, tail);
+    words[head + tail] = '.';
+    words[head + tail + 1] = '\0';
+    session->why_empty[v] = words;
   }
   session->fetched[v] = true;
   return true;
@@ -237,6 +264,12 @@ static const char *no_level(player_session *session, sprout_arena *arena, jb *bu
 /* Whether and why nothing under a verb can be done, once its readings are known; null and null before. */
 static void grey_verb(player_session *session, jb *builder, sprout_arena *arena, size_t v, sprout_json *into) {
   const sprout_chip_verb *verb = &session->chips.verbs[v];
+  if (session->why_empty[v] != NULL) {
+    /* Nothing fits it, or its poll ran out: greyed, with the words that say which. */
+    jb_set(builder, into, "greyed", jb_bool(builder, true));
+    jb_set(builder, into, "reason", jb_string(builder, session->why_empty[v]));
+    return;
+  }
   if (!session->fetched[v]) {
     jb_set(builder, into, "greyed", jb_null(builder));
     jb_set(builder, into, "reason", jb_null(builder));

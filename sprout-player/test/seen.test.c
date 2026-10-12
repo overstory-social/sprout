@@ -86,6 +86,8 @@ static void a_verb_is_asked_for_when_reached_and_its_levels_match_the_whole_tree
       /* A verb whose roles can be filled from what is here, but which no reading fits: reached, it is empty and greyed. */
       CHECK(sprout_json_get(level, "choices")->count == 0 && sprout_json_get(level, "leaf")->kind == SPROUT_JSON_NULL, "nothing under %s", string_at(verbs->items[v], "verb"));
       CHECK(sprout_json_get(level, "greyed")->boolean, "and greyed");
+      CHECK(sprout_json_get(level, "reason")->kind == SPROUT_JSON_STRING && strncmp(string_at(level, "reason"), "Nothing here fits ", 18) == 0,
+            "and says why: %s", string_at(level, "reason"));
       greyed++;
       continue;
     }
@@ -133,6 +135,36 @@ static void a_verb_is_asked_for_when_reached_and_its_levels_match_the_whole_tree
   CHECK(greyed > 0 && greyed < verbs->count, "some verb is greyed and not every verb");
   sprout_view_free(&whole_view);
   sprout_arena_reset(&scratch);
+  json_end();
+  end();
+}
+
+/* A verb whose poll runs out of its budget is greyed with the fault's words, and asked for again when reached next. */
+static void a_verb_whose_poll_runs_out_says_so_and_is_asked_again(void) {
+  player_session *s;
+  const sprout_json *level;
+  sprout_limit was;
+  begin("chip-fault");
+  json_begin();
+  s = session_new();
+  player_open_whole(s, "chip-tree.sproutworld");
+  player_load(s);
+  player_admit(s, "Marta");
+  keep(player_view(s));
+  was = s->host.record.budgets.poll_steps;
+  s->host.record.budgets.poll_steps = (sprout_limit){true, 1};
+  level = parse(keep(player_chips(s, "[1]")));
+  CHECK(sprout_json_get(level, "greyed")->kind == SPROUT_JSON_BOOL && sprout_json_get(level, "greyed")->boolean, "greyed while its poll ran out");
+  CHECK(sprout_json_get(level, "reason")->kind == SPROUT_JSON_STRING && strlen(string_at(level, "reason")) > 0, "with the fault's words: %s", string_at(level, "reason"));
+  CHECK(sprout_json_get(level, "choices")->count == 0, "and nothing under it");
+  CHECK(!s->fetched[0], "not kept as fetched");
+  level = parse(keep(player_chips(s, "[]")));
+  CHECK(sprout_json_get(sprout_json_get(level, "choices")->items[0], "greyed")->boolean, "the root says so too");
+  s->host.record.budgets.poll_steps = was;
+  level = parse(keep(player_chips(s, "[1]")));
+  CHECK(s->fetched[0], "reached again with the budget back, it is asked for and kept");
+  CHECK(sprout_json_get(level, "choices")->count > 0, "and has its fillers");
+  CHECK(sprout_json_get(level, "greyed")->kind == SPROUT_JSON_BOOL && !sprout_json_get(level, "greyed")->boolean, "and is not greyed: %s", keep(player_chips(s, "[1]")));
   json_end();
   end();
 }
@@ -246,6 +278,7 @@ int main(void) {
   test_program("seen");
   the_view_holds_the_scene_and_neither_readings_nor_a_tree();
   a_verb_is_asked_for_when_reached_and_its_levels_match_the_whole_tree();
+  a_verb_whose_poll_runs_out_says_so_and_is_asked_again();
   a_leaf_carries_its_line_refusal_and_options_and_a_bad_path_is_refused_in_words();
   a_picture_the_description_shows_is_sent_as_an_effect_with_its_payload();
   a_visitor_who_is_not_in_the_world_sees_words_and_nothing_to_do();
