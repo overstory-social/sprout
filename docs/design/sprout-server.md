@@ -38,12 +38,14 @@ left out takes the spec's default. An error names the line and the key.
 ```toml
 listen = "127.0.0.1:4700"
 log_level = "info"            # error | warning | info | debug
+log_depth = "play"            # play | debug
 tick_seconds = 5
 wakes_while_empty = false
 
 [store]
 kind = "sqlite"               # memory | sqlite | postgres
 path = "./sprout.db"          # sqlite; postgres takes url_env instead
+keep_log = 2000               # memory: the newest log entries kept per world
 
 [[worlds]]
 path = "./worlds/printers_shop"
@@ -62,9 +64,10 @@ blessed_libraries = ["sha256:…"]
 | --- | --- | --- |
 | `listen` | the address and port | `127.0.0.1:4700` |
 | `log_level` | the lowest level the server writes to its own log, on stdout; each client chooses its own with `levels` | `info` |
+| `log_depth` | what of each turn a world's log keeps: `play`, its effects as their count and digest, or `debug`, every effect whole (the spec's The log › Depth) | `play` |
 | `tick_seconds` | how often each occupied place is ticked | 5 |
 | `wakes_while_empty` | whether wakes run while nobody is in a world, which the spec leaves to the host | `false` |
-| `[store]` | where state and the log are kept | `memory` |
+| `[store]` | where state and the log are kept; a `memory` store keeps the newest `keep_log` entries of each world's log | `memory`, keeping 2,000 |
 | `[[worlds]]` | each world served, by folder | none; at least one is required |
 | `[limits]` | each static cap and runtime budget | the spec's figure |
 | `[extensions]` | each extension installed, by name, major and module | none |

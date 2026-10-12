@@ -51,7 +51,7 @@ export interface RunningServer {
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const { config, log } = options;
   const clock = options.clock ?? REAL_CLOCK;
-  const store = options.store ?? memoryStore();
+  const store = options.store ?? memoryStore({ keepLog: config.keepLog });
   const worlds = new Map<string, WorldRun>();
   for (const dir of config.worlds) {
     const compiled = compileWorld(dir, config);

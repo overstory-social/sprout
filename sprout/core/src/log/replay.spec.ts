@@ -18,6 +18,7 @@ import {
   type NicknameHost,
 } from '../turns.js';
 import { runView } from '../views.js';
+import type { LogDepth } from './depth.js';
 import { wholeLog, type Logged } from './entry.js';
 import { publishWorld } from './publish.js';
 import { replayLog, type ReplayHosts } from './replay.js';
@@ -50,11 +51,13 @@ const TALK = { rules: { characters: null, pace: null }, moderate: () => true };
  * A world played from its first publish: Marta arrives, types, says
  * something, is ticked and woken, faults twice, leaves, comes back to a
  * catch-up that faults, and plays on after a republish redeploys it, one line running
- * an intent's two steps; one poll faults.
+ * an intent's two steps; one poll faults. Its log is kept at `depth`, debug
+ * unless a test says otherwise, so what each turn said can be read back.
  */
-async function played(): Promise<SproutStore> {
+async function played(depth: LogDepth = 'debug'): Promise<SproutStore> {
   const store = memoryStore();
-  const { host } = first;
+  const host = { ...first.host, logDepth: depth };
+  const again = { ...second.host, logDepth: depth };
   await publishWorld(store, record, first.bundle, 0);
   await runArrival(store, 'w', host, at(1), { visit: MARTA, nickname: 'Marta', ...at(1) }, OPEN);
   await runCommand(store, 'w', host, command('bump counter', 2));
@@ -85,17 +88,17 @@ async function played(): Promise<SproutStore> {
   await runArrival(
     store,
     'w',
-    second.host,
+    again,
     at(400),
     { visit: MARTA, nickname: 'Marta', ...at(400) },
     OPEN,
   );
-  await runCommand(store, 'w', second.host, command('bump counter', 401));
-  const blind = { ...second.host, budgets: { ...second.host.budgets, pollSteps: 1 } };
+  await runCommand(store, 'w', again, command('bump counter', 401));
+  const blind = { ...again, budgets: { ...again.budgets, pollSteps: 1 } };
   await runView(store, 'w', blind, MARTA, 402);
-  await runCommand(store, 'w', second.host, command('bump gauge', 403));
+  await runCommand(store, 'w', again, command('bump gauge', 403));
   let seed = 20;
-  await runCommandLine(store, 'w', second.host, command('twice gauge', 404), () => (seed += 1));
+  await runCommandLine(store, 'w', again, command('twice gauge', 404), () => (seed += 1));
   return store;
 }
 
@@ -176,5 +179,32 @@ describe('replaying the log', () => {
       expect(without).toEqual(replayLog(log, hosts));
       expect(without.state.instances.find((i) => i.id === GAUGE)).toBeDefined();
     }
+  });
+  it('at play depth, keeps each turn’s effects as their count and digest, and still reproduces the world', async () => {
+    const store = await played('play');
+    const log = await wholeLog(store, 'w', 100);
+    const said = log.filter(({ entry }) => 'effects' in entry);
+    const maintenance = log.filter(({ entry }) => entry.kind === 'maintenance').length;
+    expect(said.length).toBe(turnsIn(log) - maintenance);
+    for (const { entry } of said) {
+      if (!('effects' in entry)) continue;
+      expect(entry.effects).toEqual([]);
+      expect(entry.digest).toMatchObject({ sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    }
+    expect(said.some(({ entry }) => 'digest' in entry && entry.digest!.count > 0)).toBe(true);
+    const replayed = replayLog(log, hosts);
+    expect(replayed.diverged).toEqual([]);
+    expect(replayed.state).toEqual(await store.read('w', (tx) => tx.state()));
+  });
+
+  it('at play depth, diverges where a turn’s digest says it said otherwise', async () => {
+    const log = await wholeLog(await played('play'), 'w', 100);
+    const target = log.find(({ entry }) => entry.kind === 'command' && entry.fault === null)!;
+    if (target.entry.kind !== 'command') throw new Error('not a command');
+    const digest = { ...target.entry.digest!, count: target.entry.digest!.count + 1 };
+    const altered: Logged[] = log.map((one) =>
+      one.seq === target.seq ? { seq: one.seq, entry: { ...target.entry, digest } } : one,
+    );
+    expect(replayLog(altered, hosts).diverged.map((d) => d.seq)).toEqual([target.seq]);
   });
 });

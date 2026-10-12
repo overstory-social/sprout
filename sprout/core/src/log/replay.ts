@@ -15,6 +15,7 @@ import {
 import { arrivalOf } from './arrival.js';
 import { commandOf } from './command.js';
 import { departureOf } from './departure.js';
+import { atDepth, canonical } from './depth.js';
 import { LogEntry, type Logged, type TurnEntry } from './entry.js';
 import { maintenanceOf } from './maintenance.js';
 import type { PublishEntry } from './publish.js';
@@ -30,7 +31,8 @@ import type { WithholdingEntry } from './withholding.js';
 // and under the budgets it logged, with no clock, so the wall-clock
 // backstop cannot fire where it did not. A turn reproduces when running
 // it again gives exactly the entry logged, its effects and fault among
-// it; any other outcome is a divergence, which is what a moderator is
+// it, a play-depth entry's effects compared by their digest (The log ›
+// Depth); any other outcome is a divergence, which is what a moderator is
 // looking for. A line a visitor said and a poll's fault are not run
 // again, since neither changed the world: a replay reproduces it exactly
 // with or without them.
@@ -87,7 +89,7 @@ export function replayLog(
     const step = rerun(state, { ...host, budgets: entry.budgets }, entry);
     if (step?.changes) state = applyChanges(state, step.changes);
     const replayed = step?.entry ?? null;
-    if (replayed === null || !sameEntry(replayed, entry)) {
+    if (replayed === null || !sameEntry(atDepthOf(entry, replayed), entry)) {
       diverged.push({ seq, logged: entry, replayed });
     }
   }
@@ -118,22 +120,14 @@ function rerun(stored: StoredState, as: CommandHost, entry: TurnEntry): Step<unk
   }
 }
 
+/** `replayed` at the depth `logged` was kept at: a play-depth entry is compared by its effects' digest. */
+function atDepthOf(logged: TurnEntry, replayed: TurnEntry): LogEntry {
+  return 'digest' in logged && logged.digest !== undefined ? atDepth(replayed, 'play') : replayed;
+}
+
 /** Whether two entries say the same, whatever order a store handed their fields back in. */
 function sameEntry(a: LogEntry, b: LogEntry): boolean {
   return (
     JSON.stringify(canonical(LogEntry.parse(a))) === JSON.stringify(canonical(LogEntry.parse(b)))
   );
-}
-
-/** `v` with every object's keys in code-unit order. */
-function canonical(v: unknown): unknown {
-  if (Array.isArray(v)) return v.map(canonical);
-  if (v !== null && typeof v === 'object') {
-    return Object.fromEntries(
-      Object.keys(v)
-        .sort()
-        .map((k) => [k, canonical((v as Record<string, unknown>)[k])]),
-    );
-  }
-  return v;
 }

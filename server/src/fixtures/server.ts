@@ -24,6 +24,8 @@ export const configFor = (...worlds: string[]): ServerConfig => ({
   host: '127.0.0.1',
   port: 0,
   logLevel: 'debug',
+  logDepth: 'play',
+  keepLog: 2_000,
   tickSeconds: 5,
   wakesWhileEmpty: false,
   worlds,

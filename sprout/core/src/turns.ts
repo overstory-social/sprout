@@ -37,6 +37,7 @@ import {
   wakeStep,
   type Step,
 } from './steps.js';
+import { atDepth, type LogDepth } from './log/depth.js';
 import type { SproutStore, StoreTx } from './store.js';
 
 // A world's turns run against its store (the spec's The runtime › Turns;
@@ -53,10 +54,15 @@ import type { SproutStore, StoreTx } from './store.js';
 // tick is `ticks.ts`'s, and when to deliver a wake, live or as catch-up,
 // is the host's (Time › Absence).
 
-/** Land `step` in `tx`: its changes where it writes, and its entry where it ran. */
-async function landed<T>(tx: StoreTx, step: Step<T>): Promise<T> {
+/** What a host adds to the language's to run a world's turns on a store: the depth it keeps the log at, play where it names none. */
+export interface LogHost {
+  readonly logDepth?: LogDepth;
+}
+
+/** Land `step` in `tx`: its changes where it writes, and its entry, at `host`'s depth, where it ran. */
+async function landed<T>(tx: StoreTx, step: Step<T>, host: LogHost): Promise<T> {
   if (step.changes !== null) await tx.putState(step.changes);
-  if (step.entry !== null) await tx.appendLog(step.entry);
+  if (step.entry !== null) await tx.appendLog(atDepth(step.entry, host.logDepth ?? 'play'));
   return step.turn;
 }
 
@@ -64,11 +70,11 @@ async function landed<T>(tx: StoreTx, step: Step<T>): Promise<T> {
 export function runCommand(
   store: SproutStore,
   microworldId: string,
-  host: CommandHost,
+  host: CommandHost & LogHost,
   command: Command,
 ): Promise<CommandTurn> {
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, commandStep(loaded(await tx.state(), host), host, command)),
+    landed(tx, commandStep(loaded(await tx.state(), host), host, command), host),
   );
 }
 
@@ -83,7 +89,7 @@ export function runCommand(
 export async function runCommandLine(
   store: SproutStore,
   microworldId: string,
-  host: CommandHost,
+  host: CommandHost & LogHost,
   command: Command,
   seed: () => number,
 ): Promise<CommandTurn[]> {
@@ -105,11 +111,11 @@ export async function runCommandLine(
 export function runTick(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & LogHost,
   tick: Tick,
 ): Promise<TickTurn> {
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, tickStep(loaded(await tx.state(), host), host, tick)),
+    landed(tx, tickStep(loaded(await tx.state(), host), host, tick), host),
   );
 }
 
@@ -121,11 +127,11 @@ export function runTick(
 export function runWake(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & LogHost,
   wake: Wake,
 ): Promise<WakeTurn> {
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, wakeStep(loaded(await tx.state(), host), host, wake)),
+    landed(tx, wakeStep(loaded(await tx.state(), host), host, wake), host),
   );
 }
 
@@ -137,11 +143,11 @@ export function runWake(
 export function runMaintenance(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & LogHost,
   inputs: WriteInputs,
 ): Promise<Committed<CaughtUp>> {
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, maintenanceStep(loaded(await tx.state(), host), host, inputs)),
+    landed(tx, maintenanceStep(loaded(await tx.state(), host), host, inputs), host),
   );
 }
 
@@ -174,7 +180,7 @@ export interface Admission {
 export async function runArrival(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & LogHost,
   catchUp: WriteInputs,
   arrival: Arrival,
   nicknames: NicknameHost,
@@ -213,7 +219,7 @@ export async function runArrival(
 export function runArrivalTurn(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & LogHost,
   arrival: Arrival,
 ): Promise<ArrivalTurn | NicknameRefusedTurn> {
   return store.transaction(microworldId, async (tx): Promise<ArrivalTurn | NicknameRefusedTurn> => {
@@ -226,7 +232,7 @@ export function runArrivalTurn(
       arrival.nickname,
     );
     if (taken !== null) return { committed: false, nicknameRefused: taken };
-    return landed(tx, arrivalStep(state, host, arrival));
+    return landed(tx, arrivalStep(state, host, arrival), host);
   });
 }
 
@@ -237,11 +243,11 @@ export function runArrivalTurn(
 export function runDeparture(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & LogHost,
   departure: Departure,
 ): Promise<DepartureTurn> {
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, departureStep(loaded(await tx.state(), host), host, departure)),
+    landed(tx, departureStep(loaded(await tx.state(), host), host, departure), host),
   );
 }
 

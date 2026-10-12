@@ -23,13 +23,18 @@ import { applyForgetting, forgetting, visitorIn } from './visitors.js';
 // snapshot costs nothing however long the world has run. A write copies
 // only what it is handed. The log is append-only: a snapshot sees the
 // entries there were when it was taken, and a transaction's own appended
-// after them, which join the log when it commits.
+// after them, which join the log when it commits. A store made with
+// `keepLog` keeps only the newest part of each world's log (the spec's
+// The log › Depth, for a host that keeps a world only in memory): at
+// least that many entries, numbered as they always were.
 
 interface World {
   microworld: MicroworldRecord | null;
   state: StoredState;
-  /** Every entry, in order; entry `i` is numbered `i + 1`. Only ever appended to. */
+  /** Every entry kept, in order; entry `i` is numbered `dropped + i + 1`. Appended to, and cut from the front. */
   log: Logged[];
+  /** How many of the oldest entries are no longer kept. */
+  dropped: number;
   misses: MissRecord[];
 }
 
@@ -48,7 +53,7 @@ function deepFreeze<T>(value: T): T {
 }
 
 function emptyWorld(): World {
-  return { microworld: null, state: deepFreeze(emptyState()), log: [], misses: [] };
+  return { microworld: null, state: deepFreeze(emptyState()), log: [], dropped: 0, misses: [] };
 }
 
 /** What a snapshot reads: the world as it was, and the log's length then. */
@@ -57,6 +62,7 @@ interface Snapshot {
   state: StoredState;
   readonly log: readonly Logged[];
   readonly logged: number;
+  readonly dropped: number;
   /** This transaction's own appends, after the snapshot's. */
   readonly appended: Logged[];
   misses: readonly MissRecord[];
@@ -69,6 +75,7 @@ function snapshotOf(live: World): Snapshot {
     state: live.state,
     log: live.log,
     logged: live.log.length,
+    dropped: live.dropped,
     appended: [],
     misses: live.misses,
     missed: [],
@@ -81,7 +88,8 @@ function reader(snap: Snapshot): ReadTx {
     microworld: async () => snap.microworld,
     state: async () => snap.state,
     log: async ({ after = 0, limit }) => {
-      const seen = snap.log.slice(Math.min(after, snap.logged), snap.logged);
+      const from = Math.min(Math.max(after - snap.dropped, 0), snap.logged);
+      const seen = snap.log.slice(from, snap.logged);
       return [...seen, ...snap.appended.filter((logged) => logged.seq > after)].slice(0, limit);
     },
     misses: async ({ limit }) => [...snap.misses, ...snap.missed].slice(-limit).reverse(),
@@ -89,9 +97,9 @@ function reader(snap: Snapshot): ReadTx {
 }
 
 /** A transaction over a snapshot: reads see the snapshot plus this tx's own writes; writes land on commit. */
-function writer(live: World): { tx: StoreTx; commit: () => void } {
+function writer(live: World, keepLog: number): { tx: StoreTx; commit: () => void } {
   const snap = snapshotOf(live);
-  const lastSeq = (): number => snap.appended.at(-1)?.seq ?? snap.log[snap.logged - 1]?.seq ?? 0;
+  const lastSeq = (): number => snap.appended.at(-1)?.seq ?? snap.dropped + snap.logged;
   const tx: StoreTx = {
     ...reader(snap),
     putMicroworld: async (m) => {
@@ -116,12 +124,37 @@ function writer(live: World): { tx: StoreTx; commit: () => void } {
       live.microworld = snap.microworld;
       live.state = snap.state;
       live.log.push(...snap.appended);
+      cut(live, keepLog);
       if (snap.missed.length > 0) live.misses = [...live.misses, ...snap.missed];
     },
   };
 }
 
-export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<string, unknown> } {
+/**
+ * Drop the oldest of `w`'s entries past the newest `keepLog`, once there are an eighth more than
+ * that, so a cut is rare; a new array, since a snapshot taken before still reads the old one.
+ */
+function cut(w: World, keepLog: number): void {
+  if (w.log.length <= keepLog + Math.ceil(keepLog / 8)) return;
+  const excess = w.log.length - keepLog;
+  w.log = w.log.slice(excess);
+  w.dropped += excess;
+}
+
+/** What a memory store is made with: how many of each world's newest log entries it keeps at least, all where unsaid. */
+export interface MemoryStoreOptions {
+  readonly keepLog?: number;
+}
+
+export function memoryStore(
+  options: MemoryStoreOptions = {},
+): SproutStore & { readonly worlds: ReadonlyMap<string, unknown> } {
+  const keepLog = options.keepLog ?? Infinity;
+  if (keepLog !== Infinity && !(Number.isSafeInteger(keepLog) && keepLog >= 1)) {
+    throw new Error(
+      `A memory store keeps a whole number of log entries, at least 1, not ${keepLog}.`,
+    );
+  }
   const worlds = new Map<string, World>();
   const chains = new Map<string, Promise<unknown>>();
   const world = (id: string): World => {
@@ -147,7 +180,7 @@ export function memoryStore(): SproutStore & { readonly worlds: ReadonlyMap<stri
     worlds,
     transaction: (microworldId, fn) =>
       queued(microworldId, async () => {
-        const { tx, commit } = writer(world(microworldId));
+        const { tx, commit } = writer(world(microworldId), keepLog);
         const result = await fn(tx);
         commit();
         return result;

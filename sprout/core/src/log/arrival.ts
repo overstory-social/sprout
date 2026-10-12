@@ -13,6 +13,7 @@ import {
   TurnInputs,
   writeInputsOf,
 } from './parts.js';
+import { LoggedDigest } from './depth.js';
 
 // A visitor's entry in the log (the spec's The runtime › The log; The
 // host contract › Admission and identity): the visit, the nickname they
@@ -30,7 +31,10 @@ export const ArrivalEntry = TurnInputs.extend({
   outcome: z.enum(['admitted', 'refused', 'faulted']),
   /** Null unless it faulted. */
   fault: LoggedFault.nullable(),
+  /** Every effect at debug depth; none at play depth, where `digest` stands for them. */
   effects: z.array(LoggedEffect),
+  /** At play depth, how many effects there were and their digest; absent at debug depth. */
+  digest: LoggedDigest.optional(),
   /** Who a line would have taken past their output, each a warning. */
   cutShort: z.array(LoggedCut),
 });
@@ -66,7 +70,13 @@ export function arrivalEntry(arrival: Arrival, host: TurnHost, turn: RanArrival)
       cutShort: [],
     };
   }
-  return { ...base, outcome: 'faulted', fault: loggedFault(turn.fault), effects: [], cutShort: [] };
+  return {
+    ...base,
+    outcome: 'faulted',
+    fault: loggedFault(turn.fault),
+    effects: [],
+    cutShort: [],
+  };
 }
 
 /** The arrival `entry` records, as the host handed it over. */

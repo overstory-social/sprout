@@ -93,3 +93,47 @@ describe('memoryStore keeps what it holds frozen, and shares it', () => {
     ).toEqual([2]);
   });
 });
+
+describe('memoryStore made with keepLog keeps only the newest part of each world’s log', () => {
+  const entry = (n: number) => ({ kind: 'redeploy', level: 'info', seconds: n }) as never;
+  const seqs = async (store: ReturnType<typeof memoryStore>, after = 0) =>
+    (await store.read('w', (tx) => tx.log({ after, limit: 1000 }))).map((logged) => logged.seq);
+
+  it('keeps at least the newest entries it was asked to, numbered as they always were', async () => {
+    const store = memoryStore({ keepLog: 8 });
+    for (let n = 1; n <= 100; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
+    const kept = await seqs(store);
+    expect(kept.length).toBeGreaterThanOrEqual(8);
+    expect(kept.length).toBeLessThanOrEqual(9);
+    expect(kept.at(-1)).toBe(100);
+    expect(kept).toEqual(kept.map((_, i) => 100 - kept.length + 1 + i));
+    expect(await seqs(store, 95)).toEqual([96, 97, 98, 99, 100]);
+    await store.transaction('w', (tx) => tx.appendLog(entry(101)));
+    expect((await seqs(store)).at(-1)).toBe(101);
+  });
+
+  it('keeps a world’s whole log where it was given no bound, and refuses a bound that is not a count', async () => {
+    const store = memoryStore();
+    for (let n = 1; n <= 50; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
+    expect(await seqs(store)).toHaveLength(50);
+    expect(() => memoryStore({ keepLog: 0 })).toThrow(/at least 1, not 0/);
+    expect(() => memoryStore({ keepLog: 2.5 })).toThrow(/whole number/);
+  });
+
+  it('lets a read begun before a cut see the log as it was', async () => {
+    const store = memoryStore({ keepLog: 2 });
+    for (let n = 1; n <= 3; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const reading = store.read('w', async (tx) => {
+      const before = (await tx.log({ limit: 10 })).map((logged) => logged.seq);
+      await held;
+      return [before, (await tx.log({ limit: 10 })).map((logged) => logged.seq)];
+    });
+    for (let n = 4; n <= 10; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
+    release();
+    const [before, after] = await reading;
+    expect(after).toEqual(before);
+    expect((await seqs(store)).at(-1)).toBe(10);
+  });
+});
