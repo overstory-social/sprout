@@ -49,6 +49,10 @@ typedef struct sprout_draft {
   sprout_str *buried;
   size_t visitor_count, visitor_capacity;
   sprout_stored_visitor *visitors;
+  /* Every record as the turn stands, listed once per change of the overlay: a contents lookup reads it, never rebuilds it. */
+  const sprout_stored_instance **all;
+  size_t all_count;
+  uint64_t generation, all_generation; /* the overlay's changes so far, and the ones `all` was listed at */
   bool committed;
 } sprout_draft;
 
