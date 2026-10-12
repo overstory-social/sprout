@@ -78,6 +78,34 @@ static void the_same_seed_draws_the_same_turn_and_the_log_names_the_seed_it_drew
   tw_close(&b);
 }
 
+static void a_turn_compacts_a_crowded_state_once_its_scratch_is_gone(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_turn_input tick;
+  size_t settled;
+  tw_open(&w, "turn-faults");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  tick = tw_input(SPROUT_TURN_TICK, 1010);
+  tick.place = "turn_faults.porch";
+  CHECK_INT(tw_run(&w, tick, 7, &out), SPROUT_OK);
+  sprout_outcome_free(&out);
+  CHECK(!sprout_state_crowded(w.state));
+  /* As if hundreds of commits had replaced records: a quarter of the state and two pages, held but not live. */
+  settled = w.state->settled;
+  CHECK(sprout_arena_take(&w.state->arena, settled / 4 + 2 * w.host.page_bytes) != NULL);
+  CHECK(sprout_state_crowded(w.state));
+  tick.instant = 1020;
+  CHECK_INT(tw_run(&w, tick, 7, &out), SPROUT_OK);
+  sprout_outcome_free(&out);
+  /* The turn compacted it after its own work: the state holds its live records and nothing else, and reads as before. */
+  CHECK(!sprout_state_crowded(w.state));
+  CHECK(w.state->arena.held == w.state->settled);
+  CHECK(w.state->arena.held <= settled + w.host.page_bytes);
+  CHECK_STR(tw_person(&w, "v-marta"), "turn_faults#1");
+  tw_close(&w);
+}
+
 static void a_seed_outside_the_range_is_the_hosts_defect(void) {
   turn_world w;
   sprout_outcome out;
@@ -95,5 +123,6 @@ int main(void) {
   RUN(a_host_that_cannot_give_memory_is_told_so_and_the_world_is_as_it_was);
   RUN(the_same_seed_draws_the_same_turn_and_the_log_names_the_seed_it_drew_from);
   RUN(a_seed_outside_the_range_is_the_hosts_defect);
+  RUN(a_turn_compacts_a_crowded_state_once_its_scratch_is_gone);
   return REPORT();
 }
