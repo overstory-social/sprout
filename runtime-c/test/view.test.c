@@ -270,7 +270,113 @@ static void a_host_that_cannot_give_a_page_is_told_so_and_leaks_nothing(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+/* A view's readings of `verb` as the whole poll gave them: how many, and their typed lines in order. */
+static size_t readings_of(const sprout_seen_view *whole, const char *verb, const sprout_seen_reading **first) {
+  size_t i, n = 0;
+  *first = NULL;
+  for (i = 0; i < whole->reading_count; i++)
+    if (strcmp(whole->readings[i].verb, verb) == 0) {
+      if (*first == NULL) *first = &whole->readings[i];
+      n++;
+    }
+  return n;
+}
+
+static void a_scene_lists_the_verbs_and_a_verbs_readings_come_alone_as_the_whole_poll_gives_them(void) {
+  view_bench b;
+  view_case c;
+  sprout_seen_view whole, scene, one;
+  sprout_arena keep;
+  size_t v, i, r, total = 0;
+  view_bench_open(&b);
+  polled(&b, "offered the verbs once for each way", &c, &whole);
+  CHECK(!whole.faulted && whole.reading_count > 0 && whole.verb_count > 1);
+  CHECK_INT(sprout_scene(c.world, c.state, &c.host, "v-marta", &scene), SPROUT_OK);
+  CHECK(!scene.faulted);
+  CHECK_INT(scene.reading_count, 0);
+  CHECK(scene.readings == NULL);
+  CHECK(scene.verb_count >= whole.verb_count); /* the scene lists by what can fill the roles, before any consent pass */
+  CHECK_BYTES(scene.place.id.bytes, scene.place.id.length, "viewbench.yard");
+  CHECK_INT(scene.exit_count, whole.exit_count);
+  CHECK_INT(scene.occupant_count, whole.occupant_count);
+  CHECK_INT(scene.description_count, whole.description_count);
+  /* The whole poll's verbs are those with a reading, in the order the readings come, and the scene lists each of them in that order. */
+  for (v = 0, r = 0; v < whole.verb_count; v++) {
+    const sprout_seen_reading *first;
+    size_t at;
+    CHECK(readings_of(&whole, whole.verbs[v], &first) > 0);
+    for (i = r; i < whole.reading_count; i++)
+      if (strcmp(whole.readings[i].verb, whole.verbs[v]) == 0) break;
+    CHECK(i < whole.reading_count);
+    r = i;
+    for (at = v == 0 ? 0 : 0; at < scene.verb_count; at++)
+      if (strcmp(scene.verbs[at], whole.verbs[v]) == 0) break;
+    CHECK(at < scene.verb_count);
+  }
+  for (i = 0; i < whole.reading_count; i++) {
+    for (v = 0; v < whole.verb_count; v++)
+      if (strcmp(whole.readings[i].verb, whole.verbs[v]) == 0) break;
+    CHECK(v < whole.verb_count);
+  }
+  sprout_arena_init(&keep, &c.host);
+  for (v = 0; v < whole.verb_count; v++) {
+    const sprout_seen_reading *first;
+    size_t n = readings_of(&whole, whole.verbs[v], &first);
+    CHECK_INT(sprout_readings_for(c.world, c.state, &c.host, "v-marta", whole.verbs[v], &keep, &one), SPROUT_OK);
+    CHECK(one.held == NULL && !one.faulted);
+    CHECK_INT(one.reading_count, n);
+    for (i = 0; i < one.reading_count && first != NULL; i++) {
+      CHECK_STR(one.readings[i].verb, first[i].verb);
+      CHECK_BYTES(one.readings[i].typed.bytes, one.readings[i].typed.length, first[i].typed.bytes);
+      CHECK(one.readings[i].refused == first[i].refused);
+      CHECK_INT(one.readings[i].filler_count, first[i].filler_count);
+      CHECK_INT(one.readings[i].options_count, first[i].options_count);
+    }
+    total += one.reading_count;
+    sprout_view_free(&one); /* nothing of its own to free */
+  }
+  CHECK_INT(total, whole.reading_count);
+  CHECK_INT(sprout_readings_for(c.world, c.state, &c.host, "v-marta", "viewbench.no_such_verb", &keep, &one), SPROUT_BAD_INPUT);
+  CHECK_STR(one.fault.text, "`viewbench.no_such_verb` is not a verb of this world.");
+  CHECK_INT(sprout_readings_for(c.world, c.state, &c.host, "nobody", whole.verbs[0], &keep, &one), SPROUT_BAD_INPUT);
+  CHECK_INT(sprout_readings_for(c.world, c.state, &c.host, "v-marta", whole.verbs[0], NULL, &one), SPROUT_BAD_HOST);
+  sprout_arena_reset(&keep);
+  sprout_view_free(&scene);
+  sprout_view_free(&whole);
+  view_case_close(&c);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
+static void a_verbs_readings_that_spend_their_budget_are_no_readings(void) {
+  view_bench b;
+  view_case c;
+  sprout_seen_view scene, one;
+  sprout_arena keep;
+  view_bench_open(&b);
+  polled(&b, "shows unseen and keeps the parts", &c, &scene);
+  sprout_view_free(&scene);
+  sprout_arena_init(&keep, &c.host);
+  CHECK_INT(sprout_scene(c.world, c.state, &c.host, "v-marta", &scene), SPROUT_OK);
+  CHECK(scene.verb_count > 0);
+  /* The budget that cannot afford the whole poll affords the scene, and some one verb's readings, but not every verb's at once. */
+  CHECK(!scene.faulted);
+  CHECK_INT(sprout_readings_for(c.world, c.state, &c.host, "v-marta", scene.verbs[0], &keep, &one), SPROUT_OK);
+  CHECK(one.held == NULL);
+  if (one.faulted) {
+    CHECK_INT(one.reading_count, 0);
+    CHECK_STR(one.fault_name, "BudgetExhausted");
+  }
+  sprout_arena_reset(&keep);
+  sprout_view_free(&scene);
+  view_case_close(&c);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
 int main(void) {
+  RUN(a_scene_lists_the_verbs_and_a_verbs_readings_come_alone_as_the_whole_poll_gives_them);
+  RUN(a_verbs_readings_that_spend_their_budget_are_no_readings);
   RUN(every_bench_case_is_polled_as_the_oracle_polled_it);
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles);
   RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);

@@ -1,9 +1,11 @@
 /*
  * A visitor's view, polled and rendered (see view.h). A poll is three attempts at most, each under a
- * fresh budget of its own as a poll is: deriving and rendering the whole view; where that spends its
+ * fresh budget of its own as a poll is: deriving and rendering what is wanted; where that spends its
  * budget, rendering the engine's `unseen`; and rendering whatever parts the first derived before it
  * ran out. Deriving writes each part down as it completes, so a fault partway through leaves the
- * parts before it in hand.
+ * parts before it in hand. What is wanted is the scene alone, one verb's readings alone (a host
+ * that shows the verbs and asks for each as the visitor reaches it never runs the offers for every
+ * verb at once), or the scene and every verb's readings; the three are one path.
  */
 #include <string.h>
 
@@ -36,6 +38,9 @@ typedef struct derived {
   const sprout_role_options *const *options; /* one list for each offer */
   const size_t *option_counts;
   size_t reading_count;
+  const sprout_verb **verbs; /* the verbs that could be offered, in the parser's order */
+  size_t verb_count;
+  bool has_verbs;
 } derived;
 
 /* One attempt at a poll: its own budget, over the same committed state. */
@@ -69,7 +74,11 @@ static void poll_begin(poll *p) {
 
 /* ---- deriving ---- */
 
-static sprout_eval_status derive(poll *p, derived *d) {
+/* What a poll is for: the scene (the place and what is seen there), one verb's readings, or both the scene and every verb's. */
+typedef enum wanted { WANT_SCENE, WANT_READINGS_OF_ONE, WANT_SCENE_AND_READINGS } wanted;
+
+/* The scene's parts: the description, the ways out, who is there and what is carried; `d->ways` and `reached` serve the readings too. */
+static sprout_eval_status derive(poll *p, derived *d, wanted want, const sprout_verb *only) {
   const sprout_frame *frame = &p->frame;
   const sprout_reached *reached;
   const sprout_str *held_ids;
@@ -78,27 +87,38 @@ static sprout_eval_status derive(poll *p, derived *d) {
   size_t reached_count, i, n, kept = 0;
   sprout_str *occupants;
   bool dark;
-  EXPR_NEED(sprout_describe(frame, p->place, p->actor, "poll", &d->description));
+  if (want != WANT_READINGS_OF_ONE) EXPR_NEED(sprout_describe(frame, p->place, p->actor, "poll", &d->description));
   EXPR_NEED(sprout_exits_from(frame, p->place, &d->ways, &d->way_count));
-  d->has_exits = true;
+  d->has_exits = want != WANT_READINGS_OF_ONE;
   EXPR_NEED(sprout_range_of(frame, p->actor, NULL, &reached, &reached_count));
-  /* In the dark nobody else is seen (the spec's Range > Sight). */
-  EXPR_NEED(sprout_in_the_dark(frame, p->actor, &dark));
-  occupants = (sprout_str *)sprout_arena_take(p->turn, (reached_count + 1) * sizeof *occupants);
-  if (occupants == NULL) return SPROUT_EVAL_NO_MEMORY;
-  for (i = 0; i < reached_count && !dark; i++) {
-    const sprout_stored_instance *instance = expr_instance(frame, reached[i].node);
-    if (reached[i].via != SPROUT_VIA_SELF && instance != NULL && instance->kind->composes_actor)
-      occupants[kept++] = reached[i].node;
+  if (want != WANT_READINGS_OF_ONE) {
+    /* In the dark nobody else is seen (the spec's Range > Sight). */
+    EXPR_NEED(sprout_in_the_dark(frame, p->actor, &dark));
+    occupants = (sprout_str *)sprout_arena_take(p->turn, (reached_count + 1) * sizeof *occupants);
+    if (occupants == NULL) return SPROUT_EVAL_NO_MEMORY;
+    for (i = 0; i < reached_count && !dark; i++) {
+      const sprout_stored_instance *instance = expr_instance(frame, reached[i].node);
+      if (reached[i].via != SPROUT_VIA_SELF && instance != NULL && instance->kind->composes_actor)
+        occupants[kept++] = reached[i].node;
+    }
+    d->occupants = occupants;
+    d->occupant_count = kept;
+    d->has_occupants = true;
+    if (sprout_draft_children(&p->draft, p->actor, &held_ids, &n) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
+    d->carried = held_ids;
+    d->carried_count = n;
+    d->has_carried = true;
   }
-  d->occupants = occupants;
-  d->occupant_count = kept;
-  d->has_occupants = true;
-  if (sprout_draft_children(&p->draft, p->actor, &held_ids, &n) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
-  d->carried = held_ids;
-  d->carried_count = n;
-  d->has_carried = true;
-  EXPR_NEED(sprout_offers_to(&p->x, frame, p->actor, d->ways, d->way_count, reached, reached_count, &d->offers, &n));
+  if (want == WANT_SCENE) {
+    /* The scene lists the verbs that could be offered without running the offers: whose roles what is here can fill. */
+    EXPR_NEED(sprout_offers_verbs(&p->x, frame, p->actor, d->ways, d->way_count, reached, reached_count, &d->verbs, &d->verb_count));
+    d->has_verbs = true;
+    return SPROUT_EVAL_OK;
+  }
+  if (only != NULL)
+    EXPR_NEED(sprout_offers_for(&p->x, frame, p->actor, d->ways, d->way_count, reached, reached_count, only, &d->offers, &n));
+  else
+    EXPR_NEED(sprout_offers_to(&p->x, frame, p->actor, d->ways, d->way_count, reached, reached_count, &d->offers, &n));
   options = (const sprout_role_options **)sprout_arena_take(p->turn, (n + 1) * sizeof *options);
   option_counts = (size_t *)sprout_arena_take(p->turn, (n + 1) * sizeof *option_counts);
   if (options == NULL || option_counts == NULL) return SPROUT_EVAL_NO_MEMORY;
@@ -108,6 +128,20 @@ static sprout_eval_status derive(poll *p, derived *d) {
   d->option_counts = option_counts;
   d->reading_count = n;
   d->has_readings = true;
+  if (want == WANT_SCENE_AND_READINGS) {
+    /* The whole poll lists the verbs its readings are of, each once, in the order they come. */
+    const sprout_verb **verbs = (const sprout_verb **)sprout_arena_take(p->turn, (n + 1) * sizeof *verbs);
+    size_t v = 0, j;
+    if (verbs == NULL) return SPROUT_EVAL_NO_MEMORY;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < v; j++)
+        if (verbs[j] == d->offers[i].reading.verb) break;
+      if (j == v) verbs[v++] = d->offers[i].reading.verb;
+    }
+    d->verbs = verbs;
+    d->verb_count = v;
+    d->has_verbs = true;
+  }
   return SPROUT_EVAL_OK;
 }
 
@@ -348,6 +382,26 @@ static sprout_eval_status seen_reading(poll *p, sprout_arena *keep, const sprout
   return SPROUT_EVAL_OK;
 }
 
+/* The verbs that could be offered, by their qualified names, in the order the parser tries them, which is the order the readings come. */
+static sprout_eval_status list_verbs(const derived *d, sprout_arena *keep, sprout_seen_view *out) {
+  const char **verbs = (const char **)sprout_arena_take(keep, (d->verb_count + 1) * sizeof *verbs);
+  size_t i;
+  if (verbs == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < d->verb_count; i++) {
+    const sprout_verb *verb = d->verbs[i];
+    size_t library = strlen(verb->library), name = strlen(verb->name);
+    char *qualified = (char *)sprout_arena_take(keep, library + name + 2);
+    if (qualified == NULL) return SPROUT_EVAL_NO_MEMORY;
+    memcpy(qualified, verb->library, library);
+    qualified[library] = '.';
+    memcpy(qualified + library + 1, verb->name, name + 1);
+    verbs[i] = qualified;
+  }
+  out->verbs = verbs;
+  out->verb_count = d->verb_count;
+  return SPROUT_EVAL_OK;
+}
+
 /* The parts a poll derived as its visitor reads them; the description too where `whole`. */
 static sprout_eval_status render_parts(poll *p, const derived *d, bool whole, sprout_arena *keep, sprout_seen_view *out) {
   size_t i;
@@ -369,6 +423,7 @@ static sprout_eval_status render_parts(poll *p, const derived *d, bool whole, sp
     EXPR_NEED(seen_things(p, keep, d->carried, d->carried_count, &out->carried));
     out->carried_count = d->carried_count;
   }
+  if (d->has_verbs) EXPR_NEED(list_verbs(d, keep, out));
   if (d->has_readings) {
     sprout_seen_reading *readings =
         (sprout_seen_reading *)sprout_arena_take(keep, (d->reading_count + 1) * sizeof *readings);
@@ -411,12 +466,13 @@ static bool stands_in_place(const poll *p) {
          place->kind->contains_actors;
 }
 
-/* The first attempt: the whole view, or, for a visitor whose place is gone, `displaced` alone. */
-static sprout_eval_status whole_poll(poll *p, derived *d, sprout_arena *keep, sprout_seen_view *out) {
+/* The first attempt: what is wanted of the view, or, for a visitor whose place is gone, `displaced` alone and no readings. */
+static sprout_eval_status whole_poll(poll *p, derived *d, wanted want, const sprout_verb *only, sprout_arena *keep,
+                                     sprout_seen_view *out) {
   if (!put(keep, p->place, &out->place.id)) return SPROUT_EVAL_NO_MEMORY;
-  if (!stands_in_place(p)) return engine_words(p, "displaced", true, keep, out);
-  EXPR_NEED(derive(p, d));
-  return render_parts(p, d, true, keep, out);
+  if (!stands_in_place(p)) return want == WANT_READINGS_OF_ONE ? SPROUT_EVAL_OK : engine_words(p, "displaced", true, keep, out);
+  EXPR_NEED(derive(p, d, want, only));
+  return render_parts(p, d, want != WANT_READINGS_OF_ONE, keep, out);
 }
 
 static void note_fault(const poll *p, sprout_eval_status status, sprout_seen_view *view) {
@@ -486,51 +542,79 @@ static void refuse(sprout_seen_view *view, const char *before, const char *name,
   view->fault.text[used] = '\0';
 }
 
-/* The three attempts over one draft. */
-static sprout_status polled(poll *p, held *keep, sprout_seen_view *view) {
+/* The attempts over one draft: what is wanted, then, for a scene that ran out, `unseen` and what was derived before. */
+static sprout_status polled(poll *p, wanted want, const sprout_verb *only, sprout_arena *keep, sprout_seen_view *view) {
   derived d;
   sprout_eval_status status;
   memset(&d, 0, sizeof d);
   poll_begin(p);
-  status = whole_poll(p, &d, &keep->arena, view);
+  status = whole_poll(p, &d, want, only, keep, view);
   if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
   if (status == SPROUT_EVAL_OK) {
     view->steps = p->meter.steps;
     return SPROUT_OK;
   }
-  /* The description is the engine's `unseen`, and what was derived before the poll ran out is kept. */
   note_fault(p, status, view);
   view->description = NULL;
   view->description_count = 0;
-  view->exit_count = view->occupant_count = view->carried_count = view->reading_count = 0;
+  view->exit_count = view->occupant_count = view->carried_count = view->reading_count = view->verb_count = 0;
+  /* One verb's readings that ran out are no readings: the host asked for nothing else. */
+  if (want == WANT_READINGS_OF_ONE) return SPROUT_OK;
+  /* The description is the engine's `unseen`, and what was derived before the poll ran out is kept. */
   poll_begin(p);
-  status = engine_words(p, "unseen", true, &keep->arena, view);
+  status = engine_words(p, "unseen", true, keep, view);
   if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
   if (status != SPROUT_EVAL_OK) {
     const char *stock = prose_stock_words("unseen");
-    sprout_str *one = (sprout_str *)sprout_arena_take(&keep->arena, sizeof *one);
-    if (one == NULL || !put(&keep->arena, (sprout_str){stock, strlen(stock)}, one)) return SPROUT_NO_MEMORY;
+    sprout_str *one = (sprout_str *)sprout_arena_take(keep, sizeof *one);
+    if (one == NULL || !put(keep, (sprout_str){stock, strlen(stock)}, one)) return SPROUT_NO_MEMORY;
     view->description = one;
     view->description_count = 1;
   }
   poll_begin(p);
-  status = render_parts(p, &d, false, &keep->arena, view);
+  status = render_parts(p, &d, false, keep, view);
   if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
-  if (status != SPROUT_EVAL_OK) view->exit_count = view->occupant_count = view->carried_count = view->reading_count = 0;
+  if (status != SPROUT_EVAL_OK)
+    view->exit_count = view->occupant_count = view->carried_count = view->reading_count = view->verb_count = 0;
   return SPROUT_OK;
 }
 
-sprout_status sprout_view(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
-                          sprout_seen_view *view) {
+/* The verb with this qualified name, or NULL. */
+static const sprout_verb *verb_named(const sprout_world *world, const char *qualified) {
+  size_t i;
+  for (i = 0; i < world->verb_count; i++) {
+    const sprout_verb *verb = world->verbs[i];
+    size_t library = strlen(verb->library);
+    if (strncmp(qualified, verb->library, library) == 0 && qualified[library] == '.' &&
+        strcmp(qualified + library + 1, verb->name) == 0)
+      return verb;
+  }
+  return NULL;
+}
+
+/*
+ * One poll, of what is wanted: the view's memory is `keep` where the host gave one (then `held` stays NULL and the
+ * host frees the arena), or an arena of the view's own that sprout_view_free releases.
+ */
+static sprout_status poll_for(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                              wanted want, const char *verb, sprout_arena *keep, sprout_seen_view *view) {
   sprout_arena turn;
   poll p;
   const sprout_stored_visitor *visitor;
   const sprout_stored_instance *instance;
-  held *keep;
+  const sprout_verb *only = NULL;
+  held *own = NULL;
   sprout_status status;
   if (view == NULL) return SPROUT_BAD_HOST;
   memset(view, 0, sizeof *view);
   if (world == NULL || state == NULL || host == NULL || visit == NULL) return SPROUT_BAD_INPUT;
+  if (want == WANT_READINGS_OF_ONE) {
+    only = verb == NULL ? NULL : verb_named(world, verb);
+    if (only == NULL) {
+      refuse(view, "`", verb == NULL ? "" : verb, "` is not a verb of this world.");
+      return SPROUT_BAD_INPUT;
+    }
+  }
   status = sprout_arena_init(&turn, host);
   if (status != SPROUT_OK) return status;
   memset(&p, 0, sizeof p);
@@ -555,18 +639,40 @@ sprout_status sprout_view(sprout_world *world, sprout_state *state, const sprout
     return SPROUT_BAD_INPUT;
   }
   p.place = instance->container;
-  keep = keep_for(host);
   if (keep == NULL) {
-    sprout_arena_reset(&turn);
-    return SPROUT_NO_MEMORY;
+    own = keep_for(host);
+    if (own == NULL) {
+      sprout_arena_reset(&turn);
+      return SPROUT_NO_MEMORY;
+    }
+    view->held = own;
+    keep = &own->arena;
   }
-  view->held = keep;
-  status = polled(&p, keep, view);
+  status = polled(&p, want, only, keep, view);
   if (status == SPROUT_OK) {
     view->fault_object = (sprout_str){NULL, 0};
-    if (view->faulted && !put(&keep->arena, p.place, &view->fault_object)) status = SPROUT_NO_MEMORY;
+    if (view->faulted && !put(keep, p.place, &view->fault_object)) status = SPROUT_NO_MEMORY;
   }
   sprout_arena_reset(&turn);
-  if (status != SPROUT_OK) sprout_view_free(view);
+  if (status != SPROUT_OK) {
+    if (own != NULL) sprout_view_free(view);
+    else memset(view, 0, sizeof *view);
+  }
   return status;
+}
+
+sprout_status sprout_view(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                          sprout_seen_view *view) {
+  return poll_for(world, state, host, visit, WANT_SCENE_AND_READINGS, NULL, NULL, view);
+}
+
+sprout_status sprout_scene(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                           sprout_seen_view *view) {
+  return poll_for(world, state, host, visit, WANT_SCENE, NULL, NULL, view);
+}
+
+sprout_status sprout_readings_for(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                                  const char *verb, sprout_arena *keep, sprout_seen_view *view) {
+  if (keep == NULL) return SPROUT_BAD_HOST;
+  return poll_for(world, state, host, visit, WANT_READINGS_OF_ONE, verb, keep, view);
 }

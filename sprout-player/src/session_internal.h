@@ -33,8 +33,10 @@ struct player_session {
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
   char *reply;         /* the text last handed to Lua */
-  sprout_seen_view seen;  /* the last view polled, kept with its chip tree until the next, the close or the end */
-  sprout_chip_tree chips; /* the tree over `seen`, which `sprout.chips` walks a level at a time */
+  sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the next, the close or the end */
+  sprout_chip_tree chips; /* one verb each of the scene's, its subtree NULL until its readings are asked for */
+  bool *fetched;          /* one for each verb: whether its readings were asked for */
+  sprout_arena chip_arena; /* the verbs' readings and subtrees, released with the scene */
   bool seen_live;
 };
 

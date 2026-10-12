@@ -86,6 +86,9 @@ typedef enum sprout_turn_kind {
 
 /* A loaded world: its declarations, held in the load arena. */
 typedef struct sprout_world sprout_world;
+
+/* A page arena of the runtime's (arena.h), which a host hands back to it to take a poll's readings from. */
+typedef struct sprout_arena sprout_arena;
 /* A world's stored state: its instances and visitors. */
 typedef struct sprout_state sprout_state;
 
@@ -406,6 +409,8 @@ typedef struct sprout_seen_view {
   const sprout_seen_thing *carried;
   size_t reading_count;
   const sprout_seen_reading *readings;
+  size_t verb_count;
+  const char *const *verbs; /* the verbs that could be offered here, by qualified name, in the order the readings come */
   uint64_t steps;          /* what the poll spent of its budget */
   bool faulted;            /* the poll ran out: the description is `unseen`, the rest is what it derived before */
   sprout_fault fault;
@@ -425,6 +430,25 @@ sprout_status sprout_view(sprout_world *world, sprout_state *state, const sprout
 
 /* Releases what a view holds. */
 void sprout_view_free(sprout_seen_view *view);
+
+/*
+ * The scene alone: the same poll without the readings, so a host that shows the place and asks for a
+ * verb's readings as the visitor reaches it (sprout_readings_for) never runs the offers for every verb at
+ * once. `readings` is empty and `verbs` lists what sprout_readings_for may be asked for. Freed as a view.
+ */
+sprout_status sprout_scene(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                           sprout_seen_view *view);
+
+/*
+ * The readings of one verb, by its qualified name (`sprout.take`), over the committed `state`, under the
+ * poll's own budget: the offers and consent passes for that verb alone, over what is in range. Everything
+ * the view holds is taken from `keep`, which the host owns, so there is nothing to free: `held` is NULL and
+ * sprout_view_free does nothing. A poll that spends its budget is SPROUT_OK with `faulted` set and no
+ * readings. A verb the world does not have, a visit the state does not hold, or one that is away, is
+ * SPROUT_BAD_INPUT with `fault.text` saying which.
+ */
+sprout_status sprout_readings_for(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                                  const char *verb, sprout_arena *keep, sprout_seen_view *view);
 
 /*
  * Turns (the spec's The runtime > Turns, Effects, The log, Faults; Time; The host contract > Admission and

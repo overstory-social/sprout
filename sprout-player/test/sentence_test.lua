@@ -29,6 +29,33 @@ test("the verbs come first, as the view offers them, with their library left off
   equal(builder:atStart(), true)
 end)
 
+test("a verb's readings are asked for as the wheel reaches it, and it is greyed from then on", function()
+  local fetch, fetched = levels(json.decode(fixture("chip-tree.view.json")).chips)
+  local builder = Sentence.new(fetch)
+  equal(fetched(1), true, "the verb the wheel opens on is asked for at once")
+  equal(fetched(10), false, "drop has not been reached")
+  local entries = builder:entries()
+  equal(entries[10].label, "drop")
+  equal(entries[10].greyed, false, "not greyed before it is reached")
+  equal(entries[10].reason, nil)
+  builder.selected = 10
+  equal(builder:prepare(), true, "reaching it asks for it")
+  equal(fetched(10), true)
+  entries = builder:entries()
+  equal(entries[10].greyed, true, "drop is greyed: nothing held to drop")
+  equal(entries[10].reason, "You are not holding a guard.")
+  equal(builder:prepare(), false, "asked for once")
+  builder.selected = 3
+  builder:prepare()
+  equal(builder:entries()[3].greyed, false, "go can be done")
+  equal(fetched(11), false, "give has not been reached")
+  choose(builder, "give")
+  equal(fetched(11), true, "picking a verb asks for it too")
+  equal(builder:back(), true)
+  equal(builder:entries()[11].greyed, true, "and the verb stays greyed after stepping back")
+  equal(builder:prepare(), false, "a level is kept once fetched")
+end)
+
 test("ask, the guard, the weather builds the reading the engine takes", function()
   local builder = Sentence.new(view())
   choose(builder, "ask")
@@ -89,9 +116,13 @@ test("a refused leaf is greyed with its reason and cannot be confirmed", functio
   equal(builder:back(), true, "B steps back")
 end)
 
-test("a verb nothing under which can be done is greyed on the wheel", function()
+test("a verb nothing under which can be done is greyed on the wheel once the wheel has reached it", function()
   local builder = Sentence.new(view())
   local greyed = {}
+  for i = 1, builder:count() do
+    builder.selected = i
+    builder:prepare()
+  end
   for _, entry in ipairs(builder:entries()) do
     if entry.greyed then greyed[#greyed + 1] = entry.label end
   end

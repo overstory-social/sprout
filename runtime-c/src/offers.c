@@ -324,9 +324,10 @@ static sprout_eval_status offers_of(scene *s, const sprout_verb *verb) {
   }
 }
 
-sprout_eval_status sprout_offers_to(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
-                                    size_t way_count, const sprout_reached *reached, size_t reached_count,
-                                    const sprout_offer **out, size_t *count) {
+/* The scene over what is in range; `only` limits the offers to one verb, NULL to every verb in the order the parser tries them. */
+static sprout_eval_status offers(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
+                                 size_t way_count, const sprout_reached *reached, size_t reached_count,
+                                 const sprout_verb *only, const sprout_offer **out, size_t *count) {
   const sprout_world *world = frame->world;
   const sprout_stored_instance *self = expr_instance(frame, actor);
   scene s;
@@ -343,15 +344,70 @@ sprout_eval_status sprout_offers_to(sprout_exec *x, const sprout_frame *frame, s
   s.ways = ways;
   s.way_count = way_count;
   EXPR_NEED(gather(&s, reached, reached_count));
-  done = (bool *)sprout_arena_take(frame->turn, (world->phrase_count + 1) * sizeof *done);
-  if (done == NULL) return SPROUT_EVAL_NO_MEMORY;
-  for (i = 0; i < world->phrase_count; i++) {
-    if (done[i]) continue;
-    for (j = i; j < world->phrase_count; j++)
-      if (world->phrases[j].verb == world->phrases[i].verb) done[j] = true;
-    EXPR_NEED(offers_of(&s, world->phrases[i].verb));
+  if (only != NULL) {
+    EXPR_NEED(offers_of(&s, only));
+  } else {
+    done = (bool *)sprout_arena_take(frame->turn, (world->phrase_count + 1) * sizeof *done);
+    if (done == NULL) return SPROUT_EVAL_NO_MEMORY;
+    for (i = 0; i < world->phrase_count; i++) {
+      if (done[i]) continue;
+      for (j = i; j < world->phrase_count; j++)
+        if (world->phrases[j].verb == world->phrases[i].verb) done[j] = true;
+      EXPR_NEED(offers_of(&s, world->phrases[i].verb));
+    }
   }
   *out = s.offers;
   *count = s.offer_count;
   return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_offers_to(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
+                                    size_t way_count, const sprout_reached *reached, size_t reached_count,
+                                    const sprout_offer **out, size_t *count) {
+  return offers(x, frame, actor, ways, way_count, reached, reached_count, NULL, out, count);
+}
+
+sprout_eval_status sprout_offers_verbs(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
+                                       size_t way_count, const sprout_reached *reached, size_t reached_count,
+                                       const sprout_verb ***out, size_t *count) {
+  const sprout_world *world = frame->world;
+  const sprout_stored_instance *self = expr_instance(frame, actor);
+  const sprout_verb **verbs;
+  scene s;
+  size_t i, j, r, n = 0;
+  *out = NULL;
+  *count = 0;
+  if (self == NULL || !self->has_container) return expr_engine(frame, "an away visitor can do nothing.");
+  memset(&s, 0, sizeof s);
+  s.x = x;
+  s.frame = frame;
+  s.actor = actor;
+  s.here = self->container;
+  s.ways = ways;
+  s.way_count = way_count;
+  EXPR_NEED(gather(&s, reached, reached_count));
+  verbs = (const sprout_verb **)sprout_arena_take(frame->turn, (world->phrase_count + 1) * sizeof *verbs);
+  if (verbs == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < world->phrase_count; i++) {
+    const sprout_verb *verb = world->phrases[i].verb;
+    fillings *lists;
+    for (j = 0; j < i; j++)
+      if (world->phrases[j].verb == verb) break;
+    if (j < i) continue;
+    lists = (fillings *)sprout_arena_take(frame->turn, (verb->role_count + 1) * sizeof *lists);
+    if (lists == NULL) return SPROUT_EVAL_NO_MEMORY;
+    EXPR_NEED(lists_for(&s, verb, lists));
+    for (r = 0; r < verb->role_count; r++)
+      if (lists[r].count == 0) break;
+    if (r == verb->role_count) verbs[n++] = verb;
+  }
+  *out = verbs;
+  *count = n;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_offers_for(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
+                                     size_t way_count, const sprout_reached *reached, size_t reached_count,
+                                     const sprout_verb *verb, const sprout_offer **out, size_t *count) {
+  return offers(x, frame, actor, ways, way_count, reached, reached_count, verb, out, count);
 }
