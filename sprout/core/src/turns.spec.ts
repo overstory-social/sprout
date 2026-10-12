@@ -11,6 +11,7 @@ import {
 } from '@overstory/sprout/lang';
 
 import { reentrant } from './conformance.js';
+import { digestOf } from './log/depth.js';
 import { readLog } from './log/entry.js';
 import {
   COUNTER,
@@ -557,8 +558,25 @@ describe('what each write turn logs', () => {
     expect(smashed!.entry).toMatchObject({
       kind: 'command',
       fault: { name: 'IntegerOverflow', engine: false },
-      effects: [{ kind: 'notice', visit: MARTA }],
+      effects: [],
+      digest: { count: 1 },
     });
+  });
+
+  it('keeps a turn’s effects whole at debug depth, and as their count and digest at play depth, the default', async () => {
+    const play = await seeded();
+    await runCommand(play, 'w', host, command('smash counter'));
+    const debug = await seeded();
+    await runCommand(debug, 'w', { ...host, logDepth: 'debug' }, command('smash counter'));
+    const kept = (await readLog(debug, 'w', { limit: 100 })).at(-1);
+    const digested = (await readLog(play, 'w', { limit: 100 })).at(-1);
+    if (kept?.entry.kind !== 'command' || digested?.entry.kind !== 'command') {
+      throw new Error('not a command');
+    }
+    expect(kept.entry.effects).toMatchObject([{ kind: 'notice', visit: MARTA }]);
+    expect(kept.entry.digest).toBeUndefined();
+    expect(digested.entry.digest).toEqual(digestOf(kept.entry.effects));
+    expect({ ...digested.entry, digest: undefined }).toEqual({ ...kept.entry, effects: [] });
   });
 
   it('logs nothing for a turn that ran nothing, or an arrival that never opened', async () => {

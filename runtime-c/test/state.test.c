@@ -1,7 +1,8 @@
 /*
  * Tests for src/state.c: opening a stored world against the catalogue the way
  * load does. A new world's store reconciled with its catalogue is the initial
- * state; a saved world reopened is unchanged; and stored worlds edited against
+ * state, its records keeping only properties that hold other than their
+ * default; a saved world reopened is unchanged; and stored worlds edited against
  * the world (an object gone, a property retyped, a kind removed, an object
  * destroyed) come out as the TypeScript load makes them, byte for byte, with
  * the same report of what was created, kept dormant and dropped.
@@ -73,6 +74,47 @@ static void a_new_worlds_store_reconciled_is_the_initial_state_the_typescript_lo
   }
   sprout_arena_reset(&arena);
   free(text);
+}
+
+/* Whether a stored value is a scalar default, which the record would not keep; a list is not compared here. */
+static bool at_scalar_default(const sprout_property *declared, const sprout_stored_value *value) {
+  const sprout_literal *literal = &declared->default_value;
+  if (literal->kind == SPROUT_LITERAL_BOOLEAN) return value->kind == SPROUT_BOOL && value->boolean == literal->boolean;
+  if (literal->kind == SPROUT_LITERAL_NUMBER) return value->kind == SPROUT_NUMBER && value->number == literal->number;
+  if (literal->kind == SPROUT_LITERAL_LIST) return false;
+  return value->kind == SPROUT_STRING && sprout_str_is(value->string, literal->text);
+}
+
+static void an_opened_record_keeps_only_what_holds_other_than_its_default(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  sprout_refusal why;
+  size_t i, j, kept = 0, declared = 0;
+  CHECK_INT(sprout_state_empty(&host, world->header.name, &state), SPROUT_OK);
+  CHECK_INT(sprout_state_open(state, world, &report, &why), SPROUT_OK);
+  for (i = 0; i < state->instance_count; i++) {
+    const sprout_stored_instance *in = &state->instances[i];
+    if (in->kind == NULL) continue;
+    for (j = 0; j < in->kind->property_count; j++)
+      if (!in->kind->properties[j].remembered) declared++;
+    for (j = 0; j < in->property_count; j++) {
+      char name[64];
+      const sprout_property *one;
+      snprintf(name, sizeof name, "%.*s", (int)in->properties[j].name.length, in->properties[j].name.bytes);
+      one = sprout_kind_property(in->kind, name);
+      CHECK(one != NULL && !one->remembered);
+      if (one != NULL) CHECK(!at_scalar_default(one, &in->properties[j].value));
+      kept++;
+    }
+  }
+  /* A new world holds its declared defaults, save what a declaration writes otherwise. */
+  CHECK(declared > 0);
+  CHECK(kept < declared);
+  sprout_state_free(state);
+  sprout_world_free(world);
 }
 
 static void a_saved_world_reopened_is_unchanged_and_reports_nothing(void) {
@@ -425,6 +467,7 @@ static void a_destroyed_container_takes_every_declared_child_with_it_by_exact_id
 
 int main(void) {
   RUN(a_new_worlds_store_reconciled_is_the_initial_state_the_typescript_load_makes);
+  RUN(an_opened_record_keeps_only_what_holds_other_than_its_default);
   RUN(a_saved_world_reopened_is_unchanged_and_reports_nothing);
   RUN(a_stored_world_edited_against_the_world_comes_out_as_the_typescript_load_makes_it);
   RUN(the_store_of_another_world_is_refused_in_words);

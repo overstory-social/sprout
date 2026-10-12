@@ -135,6 +135,115 @@ static void put_properties(text *t, size_t count, const sprout_stored_property *
   put_char(t, '}');
 }
 
+/* Whether two items of a list default are one value, as reading the default keeps it: an option is its text. */
+static bool same_literal(const sprout_literal *a, const sprout_literal *b) {
+  bool a_text = a->kind == SPROUT_LITERAL_STRING || a->kind == SPROUT_LITERAL_OPTION;
+  bool b_text = b->kind == SPROUT_LITERAL_STRING || b->kind == SPROUT_LITERAL_OPTION;
+  size_t i;
+  if (a_text || b_text) return a_text && b_text && strcmp(a->text, b->text) == 0;
+  if (a->kind != b->kind) return false;
+  switch (a->kind) {
+    case SPROUT_LITERAL_BOOLEAN:
+      return a->boolean == b->boolean;
+    case SPROUT_LITERAL_NUMBER:
+      return a->number == b->number;
+    case SPROUT_LITERAL_LIST:
+      if (a->count != b->count) return false;
+      for (i = 0; i < a->count; i++)
+        if (!same_literal(&a->items[i], &b->items[i])) return false;
+      return true;
+    default:
+      return false;
+  }
+}
+
+/* A declared default as its stored value is written: a list without its repeats, as reading it drops them. */
+static void put_literal(text *t, const sprout_literal *literal) {
+  size_t i, j;
+  bool first = true;
+  switch (literal->kind) {
+    case SPROUT_LITERAL_BOOLEAN:
+      put_text(t, literal->boolean ? "true" : "false");
+      return;
+    case SPROUT_LITERAL_NUMBER:
+      put_number(t, literal->number);
+      return;
+    case SPROUT_LITERAL_STRING:
+    case SPROUT_LITERAL_OPTION:
+      put_cstring(t, literal->text);
+      return;
+    case SPROUT_LITERAL_LIST:
+      put_char(t, '[');
+      for (i = 0; i < literal->count; i++) {
+        bool repeats = false;
+        for (j = 0; j < i && !repeats; j++) repeats = same_literal(&literal->items[j], &literal->items[i]);
+        if (repeats) continue;
+        if (!first) put_char(t, ',');
+        first = false;
+        put_literal(t, &literal->items[i]);
+      }
+      put_char(t, ']');
+      return;
+  }
+}
+
+/* Two names in the order a save writes keys: code-unit order. */
+static int name_order(const char *a, const char *b) {
+  sprout_str left, right;
+  left.bytes = a;
+  left.length = strlen(a);
+  right.bytes = b;
+  right.length = strlen(b);
+  return sprout_str_compare(left, right);
+}
+
+/* The plain property of `kind` that comes first in name order after `after`, or NULL; NULL `after` is before all. */
+static const sprout_property *next_declared(const sprout_kind_def *kind, const char *after) {
+  const sprout_property *best = NULL;
+  size_t i;
+  for (i = 0; i < kind->property_count; i++) {
+    const sprout_property *one = &kind->properties[i];
+    if (one->remembered || (after != NULL && name_order(one->name, after) <= 0)) continue;
+    if (best == NULL || name_order(one->name, best->name) < 0) best = one;
+  }
+  return best;
+}
+
+/*
+ * An opened record's properties: every plain property its kind declares, in name order, each as the record keeps
+ * it or, where it keeps none, at its default (state.h). A record not opened against a kind is written as held.
+ */
+static void put_record_properties(text *t, const sprout_stored_instance *in) {
+  const sprout_property *declared;
+  bool first = true;
+  if (in->kind == NULL || in->dormant) {
+    put_properties(t, in->property_count, in->properties);
+    return;
+  }
+  put_char(t, '{');
+  for (declared = next_declared(in->kind, NULL); declared != NULL;
+       declared = next_declared(in->kind, declared->name)) {
+    const sprout_stored_property *held = NULL;
+    size_t i;
+    for (i = 0; i < in->property_count && held == NULL; i++)
+      if (sprout_str_is(in->properties[i].name, declared->name)) held = &in->properties[i];
+    if (!first) put_char(t, ',');
+    first = false;
+    put_cstring(t, declared->name);
+    put_char(t, ':');
+    if (held != NULL) {
+      put_property(t, held);
+    } else {
+      put_text(t, "{\"type\":");
+      put_cstring(t, declared->type->key);
+      put_text(t, ",\"value\":");
+      put_literal(t, &declared->default_value);
+      put_char(t, '}');
+    }
+  }
+  put_char(t, '}');
+}
+
 static void put_ids(text *t, size_t count, const sprout_str *ids) {
   size_t i;
   put_char(t, '[');
@@ -184,7 +293,7 @@ static void put_instance(text *t, const sprout_stored_instance *in) {
   if (in->has_arrival) put_whole(t, in->arrival);
   else put_text(t, "null");
   put_text(t, ",\"properties\":");
-  put_properties(t, in->property_count, in->properties);
+  put_record_properties(t, in);
   put_text(t, ",\"links\":{");
   for (i = 0; i < in->link_count; i++) {
     if (i > 0) put_char(t, ',');

@@ -23,6 +23,8 @@ export function serving(name = 'sequences'): Promise<RunningServer> {
       host: '127.0.0.1',
       port: 0,
       logLevel: 'error',
+      logDepth: 'play',
+      keepLog: 2_000,
       tickSeconds: 3600,
       wakesWhileEmpty: false,
       worlds: [corpusWorld(name)],

@@ -5,9 +5,11 @@
 // long-running world shows, beside what the world itself holds as the server serves it.
 //
 //   node --expose-gc scripts/profile-store.mjs <world folder> [--turns 1000] [--visitors 8] [--seed 1]
-//        [--sample 100] [--views 1] [--json out.json]
+//        [--sample 100] [--views 1] [--depth play|debug] [--keep-log N] [--json out.json]
 //
-// --views 0 skips polling the stale views, to tell a turn's cost from its views'.
+// --views 0 skips polling the stale views, to tell a turn's cost from its views'. --depth is the log's
+// depth (play unless said); --keep-log bounds each world's log as the server's memory store does, and
+// keeps it whole unless said.
 
 import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
@@ -32,7 +34,7 @@ import { playableWorld } from './resolve-script.mjs';
 const UNPARSED = ['xyzzy', 'dance wildly', 'take', 'go sideways'];
 
 function argsOf(argv) {
-  const flags = { turns: 1000, visitors: 8, seed: 1, sample: 100, views: 1 };
+  const flags = { turns: 1000, visitors: 8, seed: 1, sample: 100, views: 1, depth: 'play' };
   const positional = [];
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith('--')) flags[argv[i].slice(2)] = argv[++i];
@@ -89,11 +91,14 @@ async function main() {
     budgets: DEFAULT_LIMITS.budgets,
     render: renderEffects,
     parse: parseCommand,
+    logDepth: flags.depth,
   };
   const id = catalogue.world;
   const base = heapNow();
   console.log(`profile-store: the world as served holds ${megabytes(base - before)} MB`);
-  const store = memoryStore();
+  const store = memoryStore(
+    flags['keep-log'] === undefined ? {} : { keepLog: Number(flags['keep-log']) },
+  );
   const record = {
     id,
     archive: { files: [], manifest: null },
@@ -135,14 +140,15 @@ async function main() {
     const row = {
       turn,
       heap: heap - base,
-      log: live.log.length,
+      log: live.dropped + live.log.length,
+      kept: live.log.length,
       msPerTurn: spentTurns / Number(flags.sample),
       msPerView: polled === 0 ? 0 : spentViews / polled,
       viewsPerTurn: polled / Number(flags.sample),
     };
     samples.push(row);
     console.log(
-      `turn ${turn}: heap ${megabytes(row.heap)} MB, log ${row.log} entries, ${row.msPerTurn.toFixed(2)} ms/turn, ` +
+      `turn ${turn}: heap ${megabytes(row.heap)} MB, log ${row.log} entries (${row.kept} kept), ${row.msPerTurn.toFixed(2)} ms/turn, ` +
         `${row.viewsPerTurn.toFixed(1)} views/turn at ${row.msPerView.toFixed(2)} ms each`,
     );
     spentTurns = 0;

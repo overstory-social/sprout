@@ -13,6 +13,7 @@ import {
   type RuntimeBudgets,
   type StaticCaps,
 } from '@overstory/sprout/lang';
+import type { LogDepth } from '@overstory/sprout/core';
 
 // The server's config (docs/design/sprout-server.md, Config): TOML, read
 // with smol-toml and checked by a zod schema whose defaults are the spec's
@@ -21,12 +22,16 @@ import {
 // its key where the schema does. A world's folder is resolved from the
 // config's own folder. No secret is ever written here.
 
-/** Where the server keeps state and the log. Only memory is in this build; see the working notes. */
+/**
+ * Where the server keeps state and the log. Only memory is in this build; see the working notes. A
+ * memory store keeps the newest `keep_log` entries of each world's log (the spec's The log › Depth).
+ */
 const Store = z
   .object({
     kind: z.literal('memory', {
       error: 'is `memory` in this build: a store kept on disk is not in it yet',
     }),
+    keep_log: z.number().int().positive().default(2_000),
   })
   .strict();
 
@@ -37,9 +42,10 @@ const Schema = z
       .regex(/^[^\s:]+:\d{1,5}$/, 'is an address and a port, as `127.0.0.1:4700`')
       .default('127.0.0.1:4700'),
     log_level: z.enum(['error', 'warning', 'info', 'debug']).default('info'),
+    log_depth: z.enum(['play', 'debug']).default('play'),
     tick_seconds: z.number().int().positive().default(5),
     wakes_while_empty: z.boolean().default(false),
-    store: Store.default({ kind: 'memory' }),
+    store: Store.default({ kind: 'memory', keep_log: 2_000 }),
     worlds: z
       .array(z.object({ path: z.string().min(1) }).strict())
       .min(1, 'names at least one world to serve'),
@@ -60,6 +66,10 @@ export interface ServerConfig {
   readonly port: number;
   /** The lowest level the server writes to its own log. */
   readonly logLevel: Exclude<Level, 'prose'>;
+  /** What of each turn the world's log keeps (the spec's The log › Depth). */
+  readonly logDepth: LogDepth;
+  /** How many of each world's newest log entries the memory store keeps. */
+  readonly keepLog: number;
   readonly tickSeconds: number;
   readonly wakesWhileEmpty: boolean;
   /** Each world's folder, resolved. */
@@ -119,6 +129,8 @@ export function readConfig(text: string, path: string): ReadConfig {
       host,
       port: Number(port),
       logLevel: read.log_level,
+      logDepth: read.log_depth,
+      keepLog: read.store.keep_log,
       tickSeconds: read.tick_seconds,
       wakesWhileEmpty: read.wakes_while_empty,
       worlds: read.worlds.map((world) =>

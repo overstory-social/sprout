@@ -157,7 +157,9 @@ sprout_eval_status expr_get(const sprout_frame *frame, const sprout_stored_insta
                             sprout_value *out) {
   const sprout_stored_property *held = stored_named(instance->properties, instance->property_count, name);
   const sprout_property *declared = sprout_kind_property(instance->kind, name);
-  if (held == NULL || declared == NULL) return not_held(frame, name, "its object does not hold");
+  if (declared == NULL || declared->remembered) return not_held(frame, name, "its object does not hold");
+  /* A record keeps only what holds other than its default, so one it does not keep holds the default. */
+  if (held == NULL) return literal_value(frame, declared->type, &declared->default_value, out);
   return expr_decode(frame, declared->type, &held->value, out);
 }
 

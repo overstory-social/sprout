@@ -12,6 +12,7 @@ import {
 import {
   deployWorld,
   publishWorld,
+  type LogHost,
   type MicroworldRecord,
   type SproutStore,
 } from '@overstory/sprout/core';
@@ -37,7 +38,7 @@ export interface ServedWorld {
   readonly id: string;
   readonly dir: string;
   readonly bundle: BundleStamp;
-  readonly host: CommandHost;
+  readonly host: CommandHost & LogHost;
   /** The files it was compiled from, which its published record keeps. */
   readonly files: readonly { readonly name: string; readonly source: string }[];
 }
@@ -75,6 +76,7 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
       host: {
         catalogue,
         budgets: config.limits.budgets,
+        logDepth: config.logDepth,
         render: renderEffects,
         parse: parseCommand,
       },

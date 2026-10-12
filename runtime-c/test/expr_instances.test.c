@@ -1,6 +1,7 @@
 /*
  * Tests for src/expr/instances.c: a stored property is read under the type
- * its kind declares, as the turn stands; what `self` remembers about an actor
+ * its kind declares, as the turn stands, and one the record does not keep
+ * as its declared default; what `self` remembers about an actor
  * is what was written or else the declared default; and an instance that is
  * not there is the engine's defect, in words.
  */
@@ -43,6 +44,28 @@ static void a_property_is_read_as_the_state_stands(void) {
   CHECK_INT(expr_instance_of(&t.frame, bench_id(PROBE), &probe), SPROUT_EVAL_OK);
   CHECK_INT(expr_get(&t.frame, probe, "fill", &value), SPROUT_EVAL_OK);
   CHECK(value.as.number == 7);
+  bench_turn_close(&t);
+  bench_close(&b);
+}
+
+static void a_property_the_record_does_not_keep_reads_as_its_declared_default(void) {
+  bench b;
+  bench_turn t;
+  const sprout_stored_instance *probe;
+  const sprout_property *fill;
+  sprout_value value;
+  size_t i;
+  bench_open(&b);
+  bench_turn_for(&b, &t, "get reads the property");
+  CHECK_INT(expr_instance_of(&t.frame, bench_id(PROBE), &probe), SPROUT_EVAL_OK);
+  fill = sprout_kind_property(probe->kind, "fill");
+  CHECK(fill != NULL && fill->default_value.kind == SPROUT_LITERAL_NUMBER);
+  /* The probe holds `:fill` at its default here, so its opened record keeps none of it. */
+  for (i = 0; i < probe->property_count; i++) CHECK(!sprout_str_is(probe->properties[i].name, "fill"));
+  CHECK_INT(expr_get(&t.frame, probe, "fill", &value), SPROUT_EVAL_OK);
+  CHECK(value.kind == SPROUT_NUMBER && value.as.number == fill->default_value.number);
+  /* A remembered property is never read this way. */
+  CHECK_INT(expr_get(&t.frame, probe, "visits", &value), SPROUT_EVAL_ENGINE);
   bench_turn_close(&t);
   bench_close(&b);
 }
@@ -129,6 +152,7 @@ static void a_property_self_does_not_remember_is_the_engines_defect(void) {
 int main(void) {
   RUN(a_property_is_read_under_its_declared_type);
   RUN(a_property_is_read_as_the_state_stands);
+  RUN(a_property_the_record_does_not_keep_reads_as_its_declared_default);
   RUN(a_property_the_object_does_not_hold_is_the_engines_defect);
   RUN(an_instance_that_is_not_there_is_the_engines_defect);
   RUN(matching_is_nominal_and_by_composition);

@@ -13,10 +13,6 @@
 #include "../lists.h"
 #include "stmt.h"
 
-static sprout_eval_status refused_write(const sprout_frame *frame, const char *words) {
-  return expr_engine(frame, words);
-}
-
 /* A value as a message names it: numbers, `true`, a string as it is, a list as `[a, b]`. */
 static void put_value(expr_text *text, const sprout_value *value) {
   size_t i;
@@ -185,7 +181,24 @@ static sprout_eval_status put_property(const sprout_frame *frame, const sprout_s
   if (!stored_of(frame, value, &stored)) return SPROUT_EVAL_NO_MEMORY;
   if (actor == NULL) {
     property = find_property(next.properties, next.property_count, name);
-    if (property == NULL) return refused_write(frame, "a held property is not stored; the checker refuses that write.");
+    if (property == NULL) {
+      /* A record keeps only what holds other than its default: one it did not keep joins it, in name order. */
+      sprout_stored_property *bigger = (sprout_stored_property *)sprout_arena_take(
+          frame->turn, (next.property_count + 1) * sizeof *bigger);
+      size_t at = 0, length = strlen(name);
+      if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
+      while (at < next.property_count && sprout_str_compare(next.properties[at].name, (sprout_str){name, length}) < 0)
+        at++;
+      if (at > 0) memcpy(bigger, next.properties, at * sizeof *bigger);
+      if (at < next.property_count)
+        memcpy(bigger + at + 1, next.properties + at, (next.property_count - at) * sizeof *bigger);
+      property = &bigger[at];
+      memset(property, 0, sizeof *property);
+      property->name = (sprout_str){name, length};
+      property->type = (sprout_str){declared->type->key, strlen(declared->type->key)};
+      next.properties = bigger;
+      next.property_count++;
+    }
     property->value = stored;
   } else {
     sprout_stored_memory *about = NULL;
@@ -316,16 +329,6 @@ sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const 
     return SPROUT_EVAL_ENGINE;
   }
   EXPR_NEED(declared_as(frame, self, name, false, &property));
-  if (find_property(self->properties, self->property_count, name) == NULL) {
-    expr_text text = expr_text_begin(frame);
-    expr_put(&text, "`");
-    expr_put_str(&text, self->id);
-    expr_put(&text, "` holds no `:");
-    expr_put(&text, name);
-    expr_put(&text, "`.");
-    frame->fault->name = "Error";
-    return SPROUT_EVAL_ENGINE;
-  }
   EXPR_NEED(expr_get(frame, self, name, &held));
   if (strcmp(method, "set") == 0) {
     EXPR_NEED(fitting(frame, self->id, property, &value));

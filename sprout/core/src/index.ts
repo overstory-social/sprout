@@ -27,6 +27,7 @@ export * from './protocol.js';
 export * from './screen-reader.js';
 export * from './steps.js';
 export * from './log/parts.js';
+export * from './log/depth.js';
 export * from './log/command.js';
 export * from './log/tick.js';
 export * from './log/wake.js';

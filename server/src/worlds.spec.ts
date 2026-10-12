@@ -44,6 +44,14 @@ describe('a world the server serves', () => {
     expect(verb.declaration.at.source.text.trim()).toBe('');
   });
 
+  it('runs its turns at the log depth its config says, play where it says none', async () => {
+    const played = compileWorld(corpusWorld('sequences'), configFor());
+    const debugged = compileWorld(corpusWorld('sequences'), { ...configFor(), logDepth: 'debug' });
+    if ('refused' in played || 'refused' in debugged) throw new Error('refused');
+    expect(played.world.host.logDepth).toBe('play');
+    expect(debugged.world.host.logDepth).toBe('debug');
+  });
+
   it('is refused, in the compiler’s words, where the folder does not compile', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sprout-server-'));
     writeFileSync(join(dir, 'sprout.json'), '{ "name": "broken" }');

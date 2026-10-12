@@ -23,6 +23,7 @@ import {
   TurnInputs,
   writeInputsOf,
 } from './parts.js';
+import { LoggedDigest } from './depth.js';
 
 // A command in the log (the spec's The runtime › The log, Faults; Parsing
 // › Choosing a reading): who typed it, the words, the turn's inputs, what
@@ -80,7 +81,10 @@ export const CommandEntry = TurnInputs.extend({
     .default(null),
   /** Null where the turn committed. */
   fault: LoggedFault.nullable(),
+  /** Every effect at debug depth; none at play depth, where `digest` stands for them. */
   effects: z.array(LoggedEffect),
+  /** At play depth, how many effects there were and their digest; absent at debug depth. */
+  digest: LoggedDigest.optional(),
   /** The reading was drawn from this many that tied; null where it stood alone, or none was read. */
   drawn: z.object({ level: z.literal('warning'), among: z.number().int().min(2) }).nullable(),
   /** Who a line would have taken past their output, each a warning. */
