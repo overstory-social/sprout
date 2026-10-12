@@ -5,7 +5,9 @@
  * written under. A state owns an arena; what it holds is exactly what was
  * stored, in the order stored, until it is opened against a world (state.c),
  * which reconciles it with the catalogue the way load does, or a draft's
- * commit replaces records.
+ * commit replaces records. An opened record keeps only the properties that
+ * hold other than their kind's default; one it does not keep reads, and is
+ * saved, as its default.
  */
 #ifndef SPROUT_STATE_H
 #define SPROUT_STATE_H
@@ -155,9 +157,15 @@ sprout_status sprout_stored_instance_copy(sprout_arena *arena, const sprout_stor
                                           sprout_stored_instance *to);
 sprout_status sprout_stored_visitor_copy(sprout_arena *arena, const sprout_stored_visitor *from,
                                          sprout_stored_visitor *to);
-/* A record of `kind` at its declared defaults, in `arena`: no id, container, links, wakes, memory or tick. */
+/*
+ * A record of `kind` at its declared defaults, in `arena`: no id, container, links, wakes, memory or tick, and
+ * no properties, since an opened record keeps only those that hold other than their default.
+ */
 sprout_status sprout_stored_instance_defaults(sprout_arena *arena, const sprout_kind_def *kind,
                                               sprout_stored_instance *out);
+/* The plain property `declared` at its default, in `arena`. */
+sprout_status sprout_stored_default(sprout_arena *arena, const sprout_property *declared,
+                                   sprout_stored_property *out);
 /* Orders a record's properties, links and memory by key, as a save writes them. */
 sprout_status sprout_stored_instance_order(sprout_arena *arena, sprout_stored_instance *in);
 

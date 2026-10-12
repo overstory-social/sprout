@@ -201,6 +201,14 @@ static inline long long tw_property(turn_world *w, const char *id, const char *n
     if (property->value.kind == SPROUT_BOOL) return property->value.boolean ? 1 : 0;
     if (property->value.kind == SPROUT_NUMBER) return (long long)property->value.number;
   }
+  /* A record keeps only what holds other than its default, so one it does not keep is the default. */
+  if (instance != NULL && instance->kind != NULL) {
+    const sprout_property *declared = sprout_kind_property(instance->kind, name);
+    if (declared != NULL && declared->default_value.kind == SPROUT_LITERAL_BOOLEAN)
+      return declared->default_value.boolean ? 1 : 0;
+    if (declared != NULL && declared->default_value.kind == SPROUT_LITERAL_NUMBER)
+      return (long long)declared->default_value.number;
+  }
   return -1;
 }
 

@@ -513,15 +513,47 @@ static const sprout_stored_property *stored_named(const sprout_stored_property *
   return NULL;
 }
 
-/* A new property record at the declared default. */
-static sprout_status default_property(sprout_arena *arena, const sprout_property *declared,
-                                      sprout_stored_property *out) {
+sprout_status sprout_stored_default(sprout_arena *arena, const sprout_property *declared,
+                                   sprout_stored_property *out) {
+  memset(out, 0, sizeof *out);
   PASS(copy_cstr(arena, declared->name, &out->name));
   PASS(copy_cstr(arena, declared->type->key, &out->type));
   return literal_value(arena, &declared->default_value, &out->value);
 }
 
-/* The instance's properties are every plain property its kind declares, kept or defaulted, by name. */
+/* Whether `stored` holds what `declared` defaults to, a list compared as its default is read, repeats dropped. */
+static sprout_status at_default(sprout_arena *arena, const sprout_property *declared,
+                                const sprout_stored_property *stored, bool *same) {
+  const sprout_literal *literal = &declared->default_value;
+  const sprout_stored_value *value = &stored->value;
+  switch (literal->kind) {
+    case SPROUT_LITERAL_BOOLEAN:
+      *same = value->kind == SPROUT_BOOL && value->boolean == literal->boolean;
+      return SPROUT_OK;
+    case SPROUT_LITERAL_NUMBER:
+      *same = value->kind == SPROUT_NUMBER && value->number == literal->number;
+      return SPROUT_OK;
+    case SPROUT_LITERAL_STRING:
+    case SPROUT_LITERAL_OPTION:
+      *same = value->kind == SPROUT_STRING && sprout_str_is(value->string, literal->text);
+      return SPROUT_OK;
+    case SPROUT_LITERAL_LIST: {
+      sprout_stored_value list;
+      memset(&list, 0, sizeof list);
+      PASS(literal_value(arena, literal, &list));
+      *same = same_value(&list, value);
+      return SPROUT_OK;
+    }
+  }
+  *same = false;
+  return SPROUT_OK;
+}
+
+/*
+ * The instance's properties are those of its kind's plain properties that hold other than their default, by
+ * name: one at its default is not kept, and reads as its default (the spec's The runtime > State keeps every
+ * property; a save writes every one).
+ */
 static sprout_status reconcile_properties(opening *o, sprout_stored_instance *in) {
   sprout_arena *arena = &o->state->arena;
   const sprout_kind_def *kind = in->kind;
@@ -545,11 +577,12 @@ static sprout_status reconcile_properties(opening *o, sprout_stored_instance *in
   for (i = 0; i < kind->property_count; i++) {
     const sprout_property *declared = &kind->properties[i];
     const sprout_stored_property *found;
+    bool same = false;
     if (declared->remembered) continue;
     found = stored_named(sorted_stored, in->property_count, declared->name);
-    if (found != NULL && kept[found - sorted_stored]) next[n] = *found;
-    else PASS(default_property(arena, declared, &next[n]));
-    n++;
+    if (found == NULL || !kept[found - sorted_stored]) continue;
+    PASS(at_default(arena, declared, found, &same));
+    if (!same) next[n++] = *found;
   }
   in->properties = next;
   in->property_count = n;
@@ -608,19 +641,10 @@ static const sprout_kind_def *kind_of(const opening *o, const sprout_stored_inst
 
 sprout_status sprout_stored_instance_defaults(sprout_arena *arena, const sprout_kind_def *kind,
                                               sprout_stored_instance *out) {
-  size_t i, n = 0, plain = 0;
+  (void)arena;
   memset(out, 0, sizeof *out);
   out->kind = kind;
-  for (i = 0; i < kind->property_count; i++)
-    if (!kind->properties[i].remembered) plain++;
-  out->properties = (sprout_stored_property *)sprout_arena_take(arena, (plain + 1) * sizeof *out->properties);
-  if (out->properties == NULL) return SPROUT_NO_MEMORY;
-  for (i = 0; i < kind->property_count; i++) {
-    if (kind->properties[i].remembered) continue;
-    PASS(default_property(arena, &kind->properties[i], &out->properties[n++]));
-  }
-  out->property_count = n;
-  return sort_records(arena, out->properties, out->property_count, sizeof *out->properties, by_property_name);
+  return SPROUT_OK;
 }
 
 /* A new instance at its kind's defaults, with no links, wakes, memory or tick. */

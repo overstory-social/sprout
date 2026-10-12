@@ -46,9 +46,25 @@ static void a_thing_behind_a_shut_container_is_not_carried(void) {
   CHECK(held != NULL);
   CHECK_INT(sprout_stored_instance_copy(&c.turn, held, &next), SPROUT_OK);
   {
+    /* The pouch is shut: its `:open` is written false, joining the record where it held its default. */
     size_t i;
+    bool found = false;
     for (i = 0; i < next.property_count; i++)
-      if (sprout_str_is(next.properties[i].name, "open")) next.properties[i].value.boolean = false;
+      if (sprout_str_is(next.properties[i].name, "open")) {
+        next.properties[i].value.boolean = false;
+        found = true;
+      }
+    if (!found) {
+      sprout_stored_property *bigger =
+          (sprout_stored_property *)sprout_arena_take(&c.turn, (next.property_count + 1) * sizeof *bigger);
+      CHECK(bigger != NULL);
+      if (next.property_count > 0) memcpy(bigger, next.properties, next.property_count * sizeof *bigger);
+      CHECK_INT(sprout_stored_default(&c.turn, sprout_kind_property(next.kind, "open"), &bigger[next.property_count]),
+                SPROUT_OK);
+      bigger[next.property_count].value.boolean = false;
+      next.properties = bigger;
+      next.property_count++;
+    }
   }
   CHECK_INT(sprout_draft_write(&c.draft, &next), SPROUT_DRAFT_OK);
   CHECK_INT(sprout_carries(&c.frame, exec_str("bench#1"), exec_str("bench.shop.brass_key"), &carried), SPROUT_EVAL_OK);
