@@ -4,8 +4,9 @@ import { LEVELS, type Level } from '@overstory/sprout/lang';
 // world, or one of the client's own commands, each written after a `/`:
 // `/say` to speak to the others here, `/log` to show a level of the host's
 // records or hide it, `/reconnect`, `/help` and `/quit`. Up and down walk
-// the lines typed before; tab completes from what the world offers now,
-// and a `/` from the client's commands.
+// the lines typed before; tab completes from the readings of the verbs
+// whose phrases could begin what is typed, which the server is asked for
+// then, and a `/` from the client's commands.
 
 /** A client command: its name, and what it is for, as its popup shows it. */
 export interface ClientCommand {
@@ -71,7 +72,34 @@ export function typedOf(line: string): Typed {
   }
 }
 
-/** What `typed` could be completed to: the client's commands after a `/`, else the lines the world offers that begin with it. */
+/** A verb the world lists, and the phrases that type it, each slot written `…`. */
+export interface ListedVerb {
+  readonly verb: string;
+  readonly phrases: readonly string[];
+}
+
+/**
+ * The verbs, by qualified name, one of whose phrases could begin `typed`:
+ * its words before its first slot begin with what is typed, or what is
+ * typed goes on past them; a phrase that begins with a slot could begin
+ * anything. None for nothing typed, or a client command.
+ */
+export function verbsTyping(typed: string, verbs: readonly ListedVerb[]): string[] {
+  const lower = typed.trimStart().toLowerCase();
+  if (lower.trim() === '' || lower.startsWith('/')) return [];
+  return verbs
+    .filter(({ phrases }) =>
+      phrases.some((phrase) => {
+        const lead = phrase.split('…')[0]!.trim().toLowerCase();
+        return (
+          lead === '' || lead.startsWith(lower) || lower.startsWith(`${lead} `) || lower === lead
+        );
+      }),
+    )
+    .map(({ verb }) => verb);
+}
+
+/** What `typed` could be completed to: the client's commands after a `/`, else the lines among `offered` that begin with it. */
 export function completions(typed: string, offered: readonly string[]): string[] {
   if (typed.startsWith('/')) {
     return CLIENT_COMMANDS.map((one) => `/${one.name}`).filter((one) => one.startsWith(typed));

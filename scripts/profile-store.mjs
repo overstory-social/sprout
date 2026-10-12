@@ -1,13 +1,15 @@
 // Profiles a world served as the server serves it: published into core's memory store, many visitors
-// admitted, and each command a write turn under the world's lock with every stale view polled again
-// afterwards, as a client is sent its view. Prints, every so many turns, the heap after a forced collection,
-// the time a turn and its views took, and the length of the world's log, so the cost of each visitor and of a
-// long-running world shows, beside what the world itself holds as the server serves it.
+// admitted, and each command a write turn under the world's lock with every stale scene polled again
+// afterwards, as a client is sent its status and verbs. Each command is chosen as a client completing a line
+// would: one verb of the visitor's scene, and that verb's readings polled. Prints, every so many turns, the
+// heap after a forced collection, the time a turn, its scenes and its readings took, how many polls ran out of
+// budget, and the length of the world's log, so the cost of each visitor and of a long-running world shows,
+// beside what the world itself holds as the server serves it.
 //
 //   node --expose-gc scripts/profile-store.mjs <world folder> [--turns 1000] [--visitors 8] [--seed 1]
 //        [--sample 100] [--views 1] [--depth play|debug] [--keep-log N] [--json out.json]
 //
-// --views 0 skips polling the stale views, to tell a turn's cost from its views'. --depth is the log's
+// --views 0 skips polling the stale scenes, to tell a turn's cost from its scenes'. --depth is the log's
 // depth (play unless said); --keep-log bounds each world's log as the server's memory store does, and
 // keeps it whole unless said.
 
@@ -19,7 +21,8 @@ import {
   publishWorld,
   runArrival,
   runCommandLine,
-  runView,
+  runReadings,
+  runScene,
 } from '@overstory/sprout/core';
 import {
   DEFAULT_LIMITS,
@@ -133,40 +136,55 @@ async function main() {
     );
     visits.push(visit);
   }
-  const views = new Map();
-  for (const visit of visits) views.set(visit, (await runView(store, id, host, visit, now)).view);
+  const scenes = new Map();
+  for (const visit of visits)
+    scenes.set(visit, (await runScene(store, id, host, visit, now)).scene);
   const samples = [];
   let spentTurns = 0;
-  let spentViews = 0;
+  let spentScenes = 0;
+  let spentReadings = 0;
   let polled = 0;
+  let faulted = 0;
   const sample = (turn) => {
     const heap = heapNow();
     const live = store.worlds.get(id);
+    const per = Number(flags.sample);
     const row = {
       turn,
       heap: heap - base,
       log: live.dropped + live.log.length,
       kept: live.log.length,
-      msPerTurn: spentTurns / Number(flags.sample),
-      msPerView: polled === 0 ? 0 : spentViews / polled,
-      viewsPerTurn: polled / Number(flags.sample),
+      msPerTurn: spentTurns / per,
+      msPerScene: polled === 0 ? 0 : spentScenes / polled,
+      scenesPerTurn: polled / per,
+      msPerReadings: spentReadings / per,
+      faulted,
     };
     samples.push(row);
     console.log(
       `turn ${turn}: heap ${megabytes(row.heap)} MB, log ${row.log} entries (${row.kept} kept), ${row.msPerTurn.toFixed(2)} ms/turn, ` +
-        `${row.viewsPerTurn.toFixed(1)} views/turn at ${row.msPerView.toFixed(2)} ms each`,
+        `${row.scenesPerTurn.toFixed(1)} scenes/turn at ${row.msPerScene.toFixed(2)} ms each, ` +
+        `${row.msPerReadings.toFixed(2)} ms a verb's readings, ${faulted} polls ran out`,
     );
     spentTurns = 0;
-    spentViews = 0;
+    spentScenes = 0;
+    spentReadings = 0;
     polled = 0;
+    faulted = 0;
   };
   sample(0);
   for (let turn = 1; turn <= Number(flags.turns); turn++) {
     now += 5;
     const visit = random.pick(visits);
-    const view = views.get(visit);
-    const typable =
-      view === null ? [] : view.readings.filter((reading) => !reading.typed.includes('…'));
+    const { verbs } = scenes.get(visit);
+    let typable = [];
+    if (verbs.length > 0) {
+      const started = performance.now();
+      const asked = await runReadings(store, id, host, visit, random.pick(verbs).verb, now);
+      spentReadings += performance.now() - started;
+      if (asked.fault !== null) faulted++;
+      typable = asked.readings.filter((reading) => !reading.typed.includes('…'));
+    }
     const text =
       typable.length === 0 || random.below(10) === 0
         ? random.pick(UNPARSED)
@@ -178,16 +196,20 @@ async function main() {
     spentTurns += performance.now() - started;
     const stale = new Set();
     for (const one of ran) if (one.committed) for (const v of one.stale) stale.add(v);
+    const rescene = async (v) => {
+      const polledScene = await runScene(store, id, host, v, now);
+      if (polledScene.fault !== null) faulted++;
+      scenes.set(v, polledScene.scene);
+    };
     if (Number(flags.views) !== 0) {
       started = performance.now();
       for (const v of stale) {
         if (!visits.includes(v)) continue;
-        views.set(v, (await runView(store, id, host, v, now)).view);
+        await rescene(v);
         polled++;
       }
-      spentViews += performance.now() - started;
-    } else if (stale.has(visit))
-      views.set(visit, (await runView(store, id, host, visit, now)).view);
+      spentScenes += performance.now() - started;
+    } else if (stale.has(visit)) await rescene(visit);
     if (turn % Number(flags.sample) === 0) sample(turn);
   }
   if (flags.json !== undefined) writeFileSync(flags.json, JSON.stringify(samples, null, 1));

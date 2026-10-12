@@ -19,9 +19,9 @@ import {
 import { visitKey } from './ids.js';
 import { BudgetExhausted } from './budget.js';
 import { describeFor } from './describe.js';
-import { offersTo } from './offers.js';
+import { offersTo, verbsOffered } from './offers.js';
 import { valueOptions } from './options.js';
-import { emptyViewParts, viewOf } from './view.js';
+import { emptyViewParts, readingsOf, sceneOf, viewOf } from './view.js';
 import * as D from '../fixtures/darkness.js';
 
 const OPEN = [[YARD, 'gate_open', true]] as const;
@@ -191,5 +191,54 @@ describe('a view in the dark', () => {
     expect(viewOf(D.personOf(lit, D.MARTA), D.darkContext(lit)).occupants).toEqual([
       D.personOf(lit, D.INES),
     ]);
+  });
+});
+
+describe('a visitor’s scene', () => {
+  it('is the view but its readings, with the verbs those readings come from', () => {
+    const state = gatehouse(undefined, [], OPEN);
+    const marta = actorOf(state, MARTA);
+    const { readings, ...placed } = viewOf(marta, pollingIn(state));
+    const { verbs, ...scene } = sceneOf(marta, pollingIn(state));
+    expect(scene).toEqual(placed);
+    expect(verbs).toEqual(verbsOffered(marta, pollingIn(state)));
+    const reached = [...new Set(readings.map((one) => one.reading.verb))];
+    expect(verbs.filter((verb) => reached.includes(verb))).toEqual(reached);
+  });
+
+  it('costs less than the view, since it builds no reading', () => {
+    const state = gatehouse();
+    const marta = actorOf(state, MARTA);
+    const [viewed, scened] = [pollingIn(state), pollingIn(state)];
+    viewOf(marta, viewed);
+    sceneOf(marta, scened);
+    expect(scened.budget.spentSteps).toBeLessThan(viewed.budget.spentSteps);
+  });
+
+  it('fills `parts` as the view does, the verbs last', () => {
+    const state = gatehouse();
+    const marta = actorOf(state, MARTA);
+    const parts = emptyViewParts();
+    expect(() => sceneOf(marta, pollingIn(state, 15), parts)).toThrow(BudgetExhausted);
+    expect(parts.exits).toEqual([{ direction: 'up', label: 'up the ladder', to: TOWER }]);
+    expect(parts.verbs).toEqual([]);
+  });
+});
+
+describe('one verb’s readings', () => {
+  it('are the view’s readings of that verb, with their options, and together all of them', () => {
+    const state = gatehouse();
+    const marta = actorOf(state, MARTA);
+    const { readings } = viewOf(marta, pollingIn(state));
+    const { verbs } = sceneOf(marta, pollingIn(state));
+    const apart = verbs.flatMap((verb) => readingsOf(marta, verb, pollingIn(state)));
+    expect(apart).toEqual(readings);
+  });
+
+  it('runs out as any work does when the poll cannot afford them', () => {
+    const state = gatehouse();
+    const marta = actorOf(state, MARTA);
+    const [verb] = sceneOf(marta, pollingIn(state)).verbs;
+    expect(() => readingsOf(marta, verb!, pollingIn(state, 3))).toThrow(BudgetExhausted);
   });
 });

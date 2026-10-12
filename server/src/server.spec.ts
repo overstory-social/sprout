@@ -113,7 +113,11 @@ describe('the server, over a real socket', () => {
     const status = await marta.take('status');
     expect(status).toMatchObject({ place: 'the cellar', exits: [] });
     expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin']);
-    expect((await marta.take('offered')).lines).toContain('take key');
+    const verbs = (await marta.take('verbs')).verbs.map((one) => one.verb);
+    expect(verbs).toContain('sprout.take');
+    marta.send({ t: 'readings', seq: 7, verb: 'sprout.take' });
+    const asked = await marta.take('readings', (one) => one.seq === 7);
+    expect(asked.readings.map((one) => one.typed)).toContain('take key');
     marta.send({ t: 'command', seq: 1, line: 'take key then take coin' });
     const [first, second] = [
       await marta.take('effects', (one) => one.seq === 1),

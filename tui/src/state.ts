@@ -1,13 +1,15 @@
 import type { Level } from '@overstory/sprout/lang';
 import type { ServerMessage } from '@overstory/sprout/core';
 
+import type { ListedVerb } from './input.js';
+
 // What the client shows (docs/design/sprout-server.md, The protocol):
 // every message the server sends folded into one state,
 // with no terminal in it. The transcript is the world's prose by its kind,
 // what visitors said to each other styled apart, and the host's records at
 // the levels this client shows; the status is the place, what else it
-// holds and its exits; what can be typed now is completed from the lines
-// the server offers. Normal play shows prose and errors, and `/log` shows
+// holds and its exits; what can be typed now is completed from the verbs
+// the server lists, each one's readings asked for when tab is pressed. Normal play shows prose and errors, and `/log` shows
 // more. The connection's health is open, lost, or troubled for a minute
 // after an error reaches the client: an error record, or a frame refused
 // before a world was asked for or as a frame. A world's own refusals are
@@ -46,8 +48,8 @@ export interface Status {
 export interface ClientState {
   readonly lines: readonly Line[];
   readonly status: Status | null;
-  /** The lines the visitor could type now, for completion. */
-  readonly offered: readonly string[];
+  /** The verbs the visitor could use now, whose readings completion asks for. */
+  readonly verbs: readonly ListedVerb[];
   /** The world admitted to, and under what nickname; null before admission and after leaving. */
   readonly world: string | null;
   readonly nickname: string | null;
@@ -65,7 +67,7 @@ export type Health = 'connecting' | 'open' | 'troubled' | 'lost';
 export const EMPTY: ClientState = {
   lines: [],
   status: null,
-  offered: [],
+  verbs: [],
   world: null,
   nickname: null,
   worlds: [],
@@ -107,8 +109,10 @@ export function received(state: ClientState, message: ServerMessage, now: number
           exits: message.exits.map((exit) => exit.direction ?? exit.label),
         },
       };
-    case 'offered':
-      return { ...state, offered: message.lines };
+    case 'verbs':
+      return { ...state, verbs: message.verbs };
+    case 'readings':
+      return state;
     case 'record': {
       const recorded: ClientState = {
         ...state,

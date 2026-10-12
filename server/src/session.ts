@@ -16,6 +16,7 @@ import {
   fanOut,
   inputsNow,
   record,
+  sendReadings,
   sendStatus,
   type Connection,
   type ServerContext,
@@ -24,7 +25,7 @@ import {
 
 // One connection's side of the protocol (docs/design/sprout-server.md, The
 // protocol, Who a visitor is): each frame read and answered, `hello` first,
-// then `admit`, then commands, polls and chat, until `leave` or the
+// then `admit`, then commands, polls, readings asked for and chat, until `leave` or the
 // connection closes, which is a departure. A frame the protocol does not
 // read is answered with `refused`, never dropped; every turn's effects go
 // to every connection in the world that reads them.
@@ -41,7 +42,7 @@ export function opened(send: Connection['send'], close: Connection['close']): Co
     levels: new Set<Level>(['prose', 'error']),
     world: null,
     lastStatus: null,
-    lastOffered: null,
+    lastVerbs: null,
   };
 }
 
@@ -77,6 +78,10 @@ export async function frame(
     const read = clientMessageOf(text);
     if ('message' in read && (read.message.t === 'command' || read.message.t === 'poll')) {
       connection.send({ t: 'effects', seq: read.message.seq, last: true, effects: [] });
+    }
+    if ('message' in read && read.message.t === 'readings') {
+      const { seq, verb } = read.message;
+      connection.send({ t: 'readings', seq, verb, readings: [], faulted: false });
     }
   }
 }
@@ -127,6 +132,8 @@ async function answer(context: ServerContext, connection: Connection, text: stri
       return command(context, connection, world, message.seq, message.line);
     case 'poll':
       return sendStatus(context, world, connection, message.seq);
+    case 'readings':
+      return sendReadings(context, world, connection, message.seq, message.verb);
     case 'chat':
       return chat(context, connection, world, message.line);
     case 'leave':

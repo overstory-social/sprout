@@ -75,13 +75,13 @@ describe('what the client shows', () => {
           { direction: null, label: 'the back door', to: 'y' },
         ],
       },
-      { t: 'offered', lines: ['take key'] },
+      { t: 'verbs', verbs: [{ verb: 'sprout.take', phrases: ['take …'] }] },
       { t: 'bye', reason: 'stopping', text: 'The server is stopping.' },
     );
     expect(statusWords(state.status)).toBe('the cellar — exits: up, the back door');
     expect(statusWords(null)).toBe('');
     expect(state.status?.here).toEqual(['a key', 'Ines']);
-    expect(state.offered).toEqual(['take key']);
+    expect(state.verbs).toEqual([{ verb: 'sprout.take', phrases: ['take …'] }]);
     expect(state.closed).toBe('stopping');
   });
 

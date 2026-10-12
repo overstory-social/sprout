@@ -35,6 +35,8 @@ export const ClientMessage = z.discriminatedUnion('t', [
   z.object({ t: z.literal('admit'), world: named, nickname: text }).strict(),
   z.object({ t: z.literal('command'), seq, line: text }).strict(),
   z.object({ t: z.literal('poll'), seq }).strict(),
+  /** Ask for the readings of one verb the visitor's `verbs` listed, by its qualified name. */
+  z.object({ t: z.literal('readings'), seq, verb: named }).strict(),
   z.object({ t: z.literal('chat'), line: text }).strict(),
   z.object({ t: z.literal('levels'), show: z.array(z.enum(LEVELS)) }).strict(),
   z.object({ t: z.literal('leave') }).strict(),
@@ -115,6 +117,34 @@ const SentFiller = z.discriminatedUnion('binds', [
   z.object({ role: named, binds: z.literal('unbound') }).strict(),
 ]);
 
+/** One reading a visitor could make, as a client is sent it (`lang`'s `SeenReading`). */
+const SentReading = z
+  .object({
+    verb: named,
+    typed: text,
+    refused: z.array(text).nullable(),
+    fillers: z.array(SentFiller),
+    options: z.array(
+      z.discriminatedUnion('takes', [
+        z
+          .object({
+            role: named,
+            takes: z.literal('symbol'),
+            options: z.array(z.object({ value: text, words: text }).strict()),
+          })
+          .strict(),
+        z
+          .object({
+            role: named,
+            takes: z.literal('integer'),
+            ranges: z.array(z.object({ min: z.number().int(), max: z.number().int() }).strict()),
+          })
+          .strict(),
+      ]),
+    ),
+  })
+  .strict();
+
 /** A view as a client is sent it (`core`'s `sendView`). */
 const SentView = z
   .object({
@@ -132,36 +162,7 @@ const SentView = z
     exits: z.array(Exit),
     occupants: z.array(Thing),
     carried: z.array(Thing),
-    readings: z.array(
-      z
-        .object({
-          verb: named,
-          typed: text,
-          refused: z.array(text).nullable(),
-          fillers: z.array(SentFiller),
-          options: z.array(
-            z.discriminatedUnion('takes', [
-              z
-                .object({
-                  role: named,
-                  takes: z.literal('symbol'),
-                  options: z.array(z.object({ value: text, words: text }).strict()),
-                })
-                .strict(),
-              z
-                .object({
-                  role: named,
-                  takes: z.literal('integer'),
-                  ranges: z.array(
-                    z.object({ min: z.number().int(), max: z.number().int() }).strict(),
-                  ),
-                })
-                .strict(),
-            ]),
-          ),
-        })
-        .strict(),
-    ),
+    readings: z.array(SentReading),
   })
   .strict();
 
@@ -217,7 +218,23 @@ export const ServerMessage = z.discriminatedUnion('t', [
   z
     .object({ t: z.literal('status'), place: text, here: z.array(Thing), exits: z.array(Exit) })
     .strict(),
-  z.object({ t: z.literal('offered'), lines: z.array(text) }).strict(),
+  z
+    .object({
+      t: z.literal('verbs'),
+      /** Each verb the visitor could use now, with the phrases that type it, each slot `…`. */
+      verbs: z.array(z.object({ verb: named, phrases: z.array(text) }).strict()),
+    })
+    .strict(),
+  z
+    .object({
+      t: z.literal('readings'),
+      seq,
+      verb: named,
+      readings: z.array(SentReading),
+      /** Whether the poll ran out of budget, so gave no readings. */
+      faulted: z.boolean(),
+    })
+    .strict(),
   z
     .object({
       t: z.literal('record'),

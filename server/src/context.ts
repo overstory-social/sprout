@@ -67,9 +67,9 @@ export interface Connection {
   levels: ReadonlySet<Level>;
   /** The world it is admitted to; null before `admit` and after `leave`. */
   world: WorldRun | null;
-  /** The status line it was last sent, to send it again only when it changes. */
+  /** The status line and the verbs it was last sent, to send each again only when it changes. */
   lastStatus: string | null;
-  lastOffered: string | null;
+  lastVerbs: string | null;
 }
 
 /** A world while the server runs it: what it is, and what the host keeps of it between turns. */
@@ -113,8 +113,8 @@ export function worldRun(served: ServedWorld): WorldRun {
  * Send what a turn in `world` gave each connection that reads some of it,
  * `seq` to the one whose line it was, with whether it is that line's last
  * turn; name the stale visitors' views
- * stale; and send each of them their status and what they could type, where
- * either changed.
+ * stale; and send each of them their status and the verbs they could use,
+ * where either changed.
  */
 export async function fanOut(
   context: ServerContext,
@@ -147,8 +147,11 @@ export async function fanOut(
 
 /**
  * Send `connection` its status, where it stands, what else the place holds
- * and the ways out, and the lines it could type now, each only where it
- * changed; and, where `seq` is given, the whole view it polled for.
+ * and the ways out, and the verbs it could use now, each only where it
+ * changed, from its scene; and, where `seq` is given, the whole view it
+ * polled for. A verb's readings are sent only when asked for, by
+ * `sendReadings`, so a turn never derives every reading of every visitor
+ * it names stale.
  */
 export async function sendStatus(
   context: ServerContext,
@@ -163,16 +166,13 @@ export async function sendStatus(
   const place =
     visitor === undefined ? null : (state.instances.get(visitor.instance)?.container ?? null);
   if (visitor === undefined || place === null) return;
-  const polled = await world.views.view(
-    context.store,
-    served.id,
-    served.host,
-    visit,
-    context.clock.now(),
-  );
-  const capabilities = connection.capabilities.get(served.id)!;
-  if (seq !== undefined)
+  const now = context.clock.now();
+  if (seq !== undefined) {
+    const polled = await world.views.view(context.store, served.id, served.host, visit, now);
+    const capabilities = connection.capabilities.get(served.id)!;
     connection.send({ t: 'view', seq, view: sendView(polled.view, capabilities) });
+  }
+  const { scene } = await world.views.scene(context.store, served.id, served.host, visit, now);
   const reader = readerOf(state);
   const naming = { state: reader, nicknames: nicknamesIn(state) };
   const status = {
@@ -182,19 +182,51 @@ export async function sendStatus(
       .children(place)
       .filter((id) => id !== visitor.instance)
       .map((id) => ({ id, name: objectWords(id, visitor.instance, naming) })),
-    exits: polled.view.exits,
+    exits: scene.exits,
   } as const;
   const shown = JSON.stringify(status);
   if (shown !== connection.lastStatus) {
     connection.lastStatus = shown;
     connection.send(status);
   }
-  const lines = polled.view.readings.filter((one) => one.refused === null).map((one) => one.typed);
-  const offered = JSON.stringify(lines);
-  if (offered !== connection.lastOffered) {
-    connection.lastOffered = offered;
-    connection.send({ t: 'offered', lines });
+  const verbs = JSON.stringify(scene.verbs);
+  if (verbs !== connection.lastVerbs) {
+    connection.lastVerbs = verbs;
+    connection.send({ t: 'verbs', verbs: scene.verbs });
   }
+}
+
+/** Send `connection` the readings of `verb` it asked for with `seq`: none where its scene lists no such verb. */
+export async function sendReadings(
+  context: ServerContext,
+  world: WorldRun,
+  connection: Connection,
+  seq: number,
+  verb: string,
+): Promise<void> {
+  const visit = connection.visit!;
+  const { served } = world;
+  const state = await committedState(context.store, served.id, served.host);
+  const visitor = state.visitors.get(visit);
+  const away =
+    visitor === undefined || (state.instances.get(visitor.instance)?.container ?? null) === null;
+  const polled = away
+    ? null
+    : await world.views.readings(
+        context.store,
+        served.id,
+        served.host,
+        visit,
+        verb,
+        context.clock.now(),
+      );
+  connection.send({
+    t: 'readings',
+    seq,
+    verb,
+    readings: polled?.readings ?? [],
+    faulted: polled !== null && polled.fault !== null,
+  });
 }
 
 /** Send `connection` a host record at `level`, where it asked for records at that level. */

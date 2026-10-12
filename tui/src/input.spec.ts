@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completions, History, typedOf } from './input.js';
+import { completions, History, typedOf, verbsTyping } from './input.js';
 
 describe('a typed line', () => {
   it('is a line for the world, or a client command after `/`', () => {
@@ -33,6 +33,29 @@ describe('completion', () => {
       'Take lamp',
     ]);
     expect(completions('', ['look'])).toEqual([]);
+  });
+});
+
+describe('the verbs whose readings completion asks for', () => {
+  const VERBS = [
+    { verb: 'sprout.take', phrases: ['take …', 'pick up …'] },
+    { verb: 'sprout.put', phrases: ['put … in …'] },
+    { verb: 'sprout.look', phrases: ['look'] },
+    { verb: 'sprout.go', phrases: ['go …', '…'] },
+  ];
+
+  it('are each verb a phrase of which could begin what is typed, by its words before its first slot', () => {
+    expect(verbsTyping('ta', VERBS)).toEqual(['sprout.take', 'sprout.go']);
+    expect(verbsTyping('Pick u', VERBS)).toEqual(['sprout.take', 'sprout.go']);
+    expect(verbsTyping('put key in b', VERBS)).toEqual(['sprout.put', 'sprout.go']);
+    expect(verbsTyping('look', VERBS)).toEqual(['sprout.look', 'sprout.go']);
+  });
+
+  it('are none for a word no phrase begins with, nothing typed, or a client command', () => {
+    expect(verbsTyping('lookout', VERBS.slice(0, 3))).toEqual([]);
+    expect(verbsTyping('takes', VERBS.slice(0, 3))).toEqual([]);
+    expect(verbsTyping('  ', VERBS)).toEqual([]);
+    expect(verbsTyping('/log', VERBS)).toEqual([]);
   });
 });
 

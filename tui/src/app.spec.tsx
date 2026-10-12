@@ -118,7 +118,7 @@ describe('the client on a terminal', () => {
   it('walks back through the lines typed on up, and completes from the world’s lines on tab', async () => {
     server = await serving();
     const session = await connected(server, 'Marta');
-    await until(session, () => session.state.offered.length > 0);
+    await until(session, () => session.state.verbs.length > 0);
     const app = render(<App session={session} />);
     await settle();
     app.stdin.write('look');

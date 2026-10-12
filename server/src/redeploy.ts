@@ -35,7 +35,7 @@ export async function redeploy(
     const nickname = connection.nickname!;
     connection.world = null;
     connection.lastStatus = null;
-    connection.lastOffered = null;
+    connection.lastVerbs = null;
     negotiateIn(connection, run);
     await admit(context, connection, { t: 'admit', world: world.id, nickname });
   }

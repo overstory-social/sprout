@@ -141,6 +141,7 @@ message is validated with a zod schema in `core`'s `protocol.ts`, beside
 | `admit` | `world`, `nickname` | come into a world under a nickname |
 | `command` | `seq`, `line` | one typed line, a command turn |
 | `poll` | `seq` | ask for the visitor's view |
+| `readings` | `seq`, `verb` | ask for the readings of one verb, by its qualified name, that the visitor could make now |
 | `chat` | `line` | say something to the others, beside the world |
 | `levels` | `show` | the levels this client wants records at, from prose, error, warning, info and debug |
 | `leave` | — | leave the world, a departure turn |
@@ -156,13 +157,14 @@ message is validated with a zod schema in `core`'s `protocol.ts`, beside
 | `effects` | `seq`, `last`, `effects` | what a turn gave this visitor, as `core`'s `deliver` makes it: each a kind and its words, or its payload where the client renders it; a line of several commands, an intent's steps or `all` runs several turns, and `last` marks the effects of the last of them |
 | `view` | `seq`, `view` | the visitor's view, as `core`'s `sendView` makes it; `seq` is the `poll`'s, or none for a view sent unasked |
 | `status` | `place`, `here`, `exits` | where the visitor stands, the things the place directly holds other than the visitor, people among them, in contents order and named for the visitor, and the ways out; sent when any of them changes |
-| `offered` | `lines` | the lines the visitor could type now, for completion, from the view's readings |
+| `verbs` | `verbs` | each verb the visitor could use now, by its qualified name, with the phrases that type it, each slot written `…`, from their scene; sent when they change |
+| `readings` | `seq`, `verb`, `readings`, `faulted` | the readings of the verb asked for with `seq`, as the view gives them; none for a verb the scene does not list, or where the poll ran out of budget, which `faulted` says |
 | `record` | `level`, `text`, `at` | a log record at a level the client asked for; `at` is the host's time and never reaches a turn |
 | `chat` | `from`, `line` | someone said something |
 | `bye` | `reason`, `text` | the connection is closing: the visitor left, the world was taken down, or the server is stopping |
 
 `seq` pairs a turn's `effects` with the `command` or `poll` that caused
-it; effects of turns the visitor did not cause (a tick, someone else's
+it, and a verb's `readings` with the `readings` that asked for them; effects of turns the visitor did not cause (a tick, someone else's
 command) carry none. A client that asks for no levels is sent prose and
 errors, as a person playing is under the output-levels decision, which the spec's _Levels_ records once its spec PR is approved.
 

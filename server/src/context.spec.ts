@@ -3,7 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { SEED_MAX } from '@overstory/sprout/lang';
 import { PROTOCOL } from '@overstory/sprout/core';
 
-import { fanOut, inputsNow, randomSeed, REAL_CLOCK, record, sendStatus } from './context.js';
+import {
+  fanOut,
+  inputsNow,
+  randomSeed,
+  REAL_CLOCK,
+  record,
+  sendReadings,
+  sendStatus,
+} from './context.js';
 import { contextFor, corpusWorld, keptConnection, manualClock } from './fixtures/server.js';
 import { frame } from './session.js';
 import { publish } from './worlds.js';
@@ -57,19 +65,28 @@ describe('what a turn gave, fanned out', () => {
 });
 
 describe('a connection’s status line', () => {
-  it('is sent where it stands and what it could type, then again only when either changes', async () => {
+  it('is sent where it stands and the verbs it could use, then again only when either changes', async () => {
     const { context, world, marta } = await withTwo();
     await sendStatus(context, world, marta);
     await sendStatus(context, world, marta);
     expect(marta.sent).toEqual([]);
     marta.lastStatus = null;
-    marta.lastOffered = null;
+    marta.lastVerbs = null;
     await sendStatus(context, world, marta, 3);
-    expect(marta.sent.map((one) => (one as { t: string }).t)).toEqual([
-      'view',
-      'status',
-      'offered',
-    ]);
+    expect(marta.sent.map((one) => (one as { t: string }).t)).toEqual(['view', 'status', 'verbs']);
+    const { verbs } = marta.sent[2] as { verbs: { verb: string; phrases: string[] }[] };
+    expect(verbs.find((one) => one.verb === 'sprout.take')?.phrases).toContain('take …');
+  });
+
+  it('derives no reading after a turn: only the scene, so a verb’s readings wait to be asked for', async () => {
+    const { context, world, marta } = await withTwo();
+    await frame(context, marta, JSON.stringify({ t: 'command', seq: 1, line: 'take key' }));
+    const visit = marta.visit!;
+    const { id, host } = { id: world.served.id, host: world.served.host };
+    const scene = await world.views.scene(context.store, id, host, visit, 0);
+    // The scene is the one the status was sent from, kept; no view was polled.
+    expect(await world.views.scene(context.store, id, host, visit, 0)).toBe(scene);
+    expect(marta.sent.some((one) => (one as { t: string }).t === 'readings')).toBe(false);
   });
 
   it('names what else the place holds, the other visitor among it, and never the one it is sent to', async () => {
@@ -80,6 +97,32 @@ describe('a connection’s status line', () => {
       here: { name: string }[];
     };
     expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin', 'Ines']);
+  });
+});
+
+describe('a verb’s readings, asked for', () => {
+  it('are sent with the `seq` they were asked with, as the view would offer them', async () => {
+    const { context, world, marta } = await withTwo();
+    await sendReadings(context, world, marta, 4, 'sprout.take');
+    expect(marta.sent).toHaveLength(1);
+    expect(marta.sent[0]).toMatchObject({
+      t: 'readings',
+      seq: 4,
+      verb: 'sprout.take',
+      faulted: false,
+    });
+    const { readings } = marta.sent[0] as { readings: { typed: string }[] };
+    expect(readings.map((one) => one.typed)).toEqual(
+      expect.arrayContaining(['take key', 'take coin']),
+    );
+  });
+
+  it('are none for a verb the scene does not list, the frame read off the wire', async () => {
+    const { context, marta } = await withTwo();
+    await frame(context, marta, JSON.stringify({ t: 'readings', seq: 2, verb: 'nowhere.juggle' }));
+    expect(marta.sent).toEqual([
+      { t: 'readings', seq: 2, verb: 'nowhere.juggle', readings: [], faulted: false },
+    ]);
   });
 });
 

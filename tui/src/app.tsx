@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput, useWindowSize } from 'ink';
 
-import { CLIENT_COMMANDS, completions, History } from './input.js';
+import { CLIENT_COMMANDS, History } from './input.js';
 import { furthestBack, rowsOf, shown } from './screen.js';
 import type { Session } from './session.js';
 import { healthOf, TROUBLED_FOR, visible, type Health, type Line } from './state.js';
@@ -105,8 +105,10 @@ export function App({ session }: { readonly session: Session }) {
     if (key.upArrow) return setDraft(history.up(now));
     if (key.downArrow) return setDraft(history.down());
     if (key.tab) {
-      const options = completions(now, state.offered);
-      if (options.length > 0) setDraft(commonStart(options));
+      // Completed once the server answers, unless the line has changed meanwhile.
+      void session.complete(now).then((options) => {
+        if (typing.current === now && options.length > 0) setDraft(commonStart(options));
+      });
       return;
     }
     if (key.backspace || key.delete) return setDraft(now.slice(0, -1));

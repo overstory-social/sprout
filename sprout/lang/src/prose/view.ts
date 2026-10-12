@@ -10,8 +10,11 @@
 // faulted can afford nothing more; its fault is laid against the place
 // whose description the poll was deriving where the fault names no
 // object of its own, and given back beside the view for the host to log,
-// the one thing of a poll the log holds. A view is valid until a
-// committed write turn names its visitor stale.
+// the one thing of a poll the log holds. A host may poll the view in
+// parts (the spec's The view): the scene, every part but the readings,
+// with the verbs, which faults as the view does; and one verb's readings,
+// which give none where they fault. A view is valid until a committed
+// write turn names its visitor stale.
 
 import type { Direction } from '../declare/directions.js';
 import { humanisedOption, qualifiedName } from '../declare/enums.js';
@@ -26,9 +29,14 @@ import type { OptionRange, RoleOptions } from '../runtime/options.js';
 import type { CommandExit } from '../runtime/parser/exits.js';
 import { nicknamesIn, readerOf, type WorldState } from '../runtime/state.js';
 import { pollTurn, type PollTurn, type TurnHost } from '../runtime/turn.js';
+import type { ResolvedVerb } from '../declare/verbs.js';
 import {
   emptyViewParts,
+  readingsOf,
+  sceneOf,
   viewOf,
+  type Placed,
+  type Scene,
   type View,
   type ViewParts,
   type ViewReading,
@@ -109,8 +117,15 @@ export interface SeenEffect {
   readonly transcript: string;
 }
 
-/** A view as its visitor reads it. */
-export interface SeenView {
+/** A verb a scene lists, and the phrases that type it, each slot written `…`: `put … in …`. */
+export interface SeenVerb {
+  /** By its qualified name: `sprout.take`. */
+  readonly verb: string;
+  readonly phrases: readonly string[];
+}
+
+/** What a view and a scene both hold, as their visitor reads them. */
+export interface SeenPlace {
   /** The place's description, as paragraphs. */
   readonly description: readonly string[];
   /** What the description's extension statements recorded, in order. */
@@ -118,7 +133,16 @@ export interface SeenView {
   readonly exits: readonly CommandExit[];
   readonly occupants: readonly SeenThing[];
   readonly carried: readonly SeenThing[];
+}
+
+/** A view as its visitor reads it. */
+export interface SeenView extends SeenPlace {
   readonly readings: readonly SeenReading[];
+}
+
+/** A scene as its visitor reads it: the view but its readings, and the verbs whose readings may be asked for. */
+export interface SeenScene extends SeenPlace {
+  readonly verbs: readonly SeenVerb[];
 }
 
 /** What a poll gives: the view, and the fault it raised, if it faulted. */
@@ -129,12 +153,125 @@ export interface PolledView {
   readonly fault: Fault | null;
 }
 
+/** What a scene's poll gives: the scene, and the fault it raised, if it faulted. */
+export interface PolledScene {
+  readonly visit: VisitKey;
+  readonly scene: SeenScene;
+  readonly fault: Fault | null;
+}
+
+/** What one verb's poll gives: its readings, none where it faulted, and the fault. */
+export interface PolledReadings {
+  readonly visit: VisitKey;
+  /** By its qualified name. */
+  readonly verb: string;
+  readonly readings: readonly SeenReading[];
+  readonly fault: Fault | null;
+}
+
+/** Who a poll is for, and how it renders for them. */
+interface Looking {
+  readonly visit: VisitKey;
+  readonly actor: InstanceId;
+  readonly place: InstanceId;
+  readonly rendering: (turn: PollTurn) => RenderContext;
+}
+
 /**
  * Poll `visit`'s view over the committed `state`. The visitor must be in
  * the world; asking the view of one who is away, or who never came, is
  * the host's defect, thrown before the poll opens.
  */
 export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): PolledView {
+  const looking = lookingOf(state, visit);
+  const parts = emptyViewParts();
+  const polled = pollTurn(state, host, (turn) => {
+    const context = looking.rendering(turn);
+    const displaced = displacedWords(looking.actor, context);
+    if (displaced !== null) return { ...onlySaying(displaced), readings: [] };
+    return renderView(viewOf(looking.actor, context, parts), context);
+  });
+  if (!polled.faulted) return { visit, view: polled.view, fault: null };
+  const kept = pollTurn(state, host, (turn) => {
+    const context = looking.rendering(turn);
+    return {
+      ...renderKept(parts, looking.actor, context),
+      readings: parts.readings.map((reading) => seenReading(reading, looking.actor, context)),
+    };
+  });
+  return {
+    visit,
+    view: {
+      ...unseen(state, host, looking),
+      ...(kept.faulted ? { ...emptyKept(), readings: [] } : kept.view),
+    },
+    fault: laid(polled.fault, looking),
+  };
+}
+
+/**
+ * Poll `visit`'s scene over the committed `state`: the view but its
+ * readings, and the verbs whose readings `pollReadings` may be asked for.
+ * It faults as the view does, and is asked of a visitor in the world.
+ */
+export function pollScene(state: WorldState, host: TurnHost, visit: VisitKey): PolledScene {
+  const looking = lookingOf(state, visit);
+  const parts = emptyViewParts();
+  const polled = pollTurn(state, host, (turn) => {
+    const context = looking.rendering(turn);
+    const displaced = displacedWords(looking.actor, context);
+    if (displaced !== null) return { ...onlySaying(displaced), verbs: [] };
+    return renderScene(sceneOf(looking.actor, context, parts), context);
+  });
+  if (!polled.faulted) return { visit, scene: polled.view, fault: null };
+  const kept = pollTurn(state, host, (turn) => {
+    const context = looking.rendering(turn);
+    return {
+      ...renderKept(parts, looking.actor, context),
+      verbs: parts.verbs.map((verb) => seenVerb(verb, context)),
+    };
+  });
+  return {
+    visit,
+    scene: {
+      ...unseen(state, host, looking),
+      ...(kept.faulted ? { ...emptyKept(), verbs: [] } : kept.view),
+    },
+    fault: laid(polled.fault, looking),
+  };
+}
+
+/**
+ * Poll the readings of the verb named `verb`, by its qualified name, that
+ * `visit` could make now, under a poll budget of their own; none where
+ * the poll faults, or where the visitor's place is gone. A verb the world
+ * does not type, like a visitor not in it, is the host's defect.
+ */
+export function pollReadings(
+  state: WorldState,
+  host: TurnHost,
+  visit: VisitKey,
+  verb: string,
+): PolledReadings {
+  const looking = lookingOf(state, visit);
+  const resolved = host.catalogue.phrases.find(
+    (phrase) => qualifiedName(phrase.verb.library, phrase.verb.name) === verb,
+  )?.verb;
+  if (resolved === undefined) throw new Error(`This world types no verb \`${verb}\`.`);
+  const polled = pollTurn(state, host, (turn) => {
+    const context = looking.rendering(turn);
+    if (!standsInPlace(turn.state, looking.actor)) return [];
+    return readingsOf(looking.actor, resolved, context).map((reading) =>
+      seenReading(reading, looking.actor, context),
+    );
+  });
+  return polled.faulted
+    ? { visit, verb, readings: [], fault: laid(polled.fault, looking) }
+    : { visit, verb, readings: polled.view, fault: null };
+}
+
+/** Who `visit` is and where they stand, which must be somewhere: the host's defect otherwise. */
+function lookingOf(state: WorldState, visit: VisitKey): Looking {
   const committed = readerOf(state);
   const visitor = committed.visitor(visit);
   if (visitor === undefined) throw new Error(`\`${visit}\` has never visited this world.`);
@@ -142,49 +279,53 @@ export function pollView(state: WorldState, host: TurnHost, visit: VisitKey): Po
   const place = committed.instance(actor)?.container ?? null;
   if (place === null) throw new Error(`\`${visit}\` is not in this world, so has no view.`);
   const nicknames = nicknamesIn(state);
-  const rendering = (turn: PollTurn): RenderContext => ({
-    ...turn,
-    nicknames,
-    draws: null,
+  return {
+    visit,
     actor,
-  });
+    place,
+    rendering: (turn) => ({ ...turn, nicknames, draws: null, actor }),
+  };
+}
 
-  const parts = emptyViewParts();
-  const polled = pollTurn(state, host, (turn) => {
-    const context = rendering(turn);
-    // A visitor whose place is gone reads what their next command will
-    // tell them, and is offered nothing until it has moved them.
-    if (!standsInPlace(turn.state, actor)) {
-      const displaced = renderFor(displacedLine(turn.state, actor), actor, context);
-      return onlySaying(displaced.length > 0 ? displaced : [STOCK_LINES.displaced]);
-    }
-    return renderView(viewOf(actor, context, parts), context);
-  });
-  if (!polled.faulted) return { visit, view: polled.view, fault: null };
+/**
+ * What a visitor whose place is gone reads instead of a view: what their
+ * next command will tell them, offered nothing until it has moved them;
+ * null for one who stands in a place.
+ */
+function displacedWords(actor: InstanceId, context: RenderContext): readonly string[] | null {
+  if (standsInPlace(context.state, actor)) return null;
+  const displaced = renderFor(displacedLine(context.state, actor), actor, context);
+  return displaced.length > 0 ? displaced : [STOCK_LINES.displaced];
+}
 
-  // The description is the engine's `unseen`, found for the one looking
-  // as every engine line is (`engine-lines.ts`), and every other part
-  // is whatever `parts` holds of what the poll derived before it faulted
-  // (the spec's Faults); both render under a fresh budget of the poll's
-  // own, since the one that faulted can afford nothing more.
-  const unseen = pollTurn(state, host, (turn) =>
+/**
+ * A faulted poll's description, the engine's `unseen`, found for the one
+ * looking as every engine line is (`engine-lines.ts`), rendered under a
+ * fresh budget of the poll's own, since the one that faulted can afford
+ * nothing more (the spec's Faults).
+ */
+function unseen(
+  state: WorldState,
+  host: TurnHost,
+  looking: Looking,
+): Pick<SeenPlace, 'description' | 'effects'> {
+  const { actor, place } = looking;
+  const words = pollTurn(state, host, (turn) =>
     renderFor(
       { ...engineSaid(turn.state, 'unseen', actor, place), bindings: new Map() },
       actor,
-      rendering(turn),
+      looking.rendering(turn),
     ),
   );
-  const kept = pollTurn(state, host, (turn) => renderKept(parts, actor, rendering(turn)));
-  const { fault } = polled;
   return {
-    visit,
-    view: {
-      description: !unseen.faulted && unseen.view.length > 0 ? unseen.view : [STOCK_LINES.unseen],
-      effects: [],
-      ...(kept.faulted ? emptyKept() : kept.view),
-    },
-    fault: fault.engine || fault.object !== null ? fault : { ...fault, object: place },
+    description: !words.faulted && words.view.length > 0 ? words.view : [STOCK_LINES.unseen],
+    effects: [],
   };
+}
+
+/** `fault`, laid against the visitor's place where it names no object of its own. */
+function laid(fault: Fault, looking: Looking): Fault {
+  return fault.engine || fault.object !== null ? fault : { ...fault, object: looking.place };
 }
 
 /** `id` as `actor` reads it: its article and name, or a visitor's nickname. */
@@ -196,17 +337,32 @@ function seenThing(id: InstanceId, actor: InstanceId, context: RenderContext): S
 export function renderView(view: View, context: RenderContext): SeenView {
   const { actor } = view;
   return {
-    description: renderDescription(view.description, context).paragraphs,
-    effects: view.description.recorded.flatMap((line) => seenEffect(line, actor, context)),
-    exits: view.exits,
-    occupants: view.occupants.map((id) => seenThing(id, actor, context)),
-    carried: view.carried.map((id) => seenThing(id, actor, context)),
+    ...renderPlaced(view, context),
     readings: view.readings.map((reading) => seenReading(reading, actor, context)),
   };
 }
 
-/** What a faulted poll's `parts` render into, its description left to the caller (the spec's Faults). */
-type Kept = Pick<SeenView, 'exits' | 'occupants' | 'carried' | 'readings'>;
+/** `scene` as its visitor reads it, rendered with no draws. */
+export function renderScene(scene: Scene, context: RenderContext): SeenScene {
+  return {
+    ...renderPlaced(scene, context),
+    verbs: scene.verbs.map((verb) => seenVerb(verb, context)),
+  };
+}
+
+function renderPlaced(placed: Placed, context: RenderContext): SeenPlace {
+  const { actor } = placed;
+  return {
+    description: renderDescription(placed.description, context).paragraphs,
+    effects: placed.description.recorded.flatMap((line) => seenEffect(line, actor, context)),
+    exits: placed.exits,
+    occupants: placed.occupants.map((id) => seenThing(id, actor, context)),
+    carried: placed.carried.map((id) => seenThing(id, actor, context)),
+  };
+}
+
+/** What a faulted poll's `parts` render into but its readings or verbs, its description left to the caller (the spec's Faults). */
+type Kept = Pick<SeenPlace, 'exits' | 'occupants' | 'carried'>;
 
 /** `parts`, whatever a faulted poll derived before it faulted, as its visitor reads them. */
 function renderKept(parts: ViewParts, actor: InstanceId, context: RenderContext): Kept {
@@ -214,13 +370,22 @@ function renderKept(parts: ViewParts, actor: InstanceId, context: RenderContext)
     exits: parts.exits,
     occupants: parts.occupants.map((id) => seenThing(id, actor, context)),
     carried: parts.carried.map((id) => seenThing(id, actor, context)),
-    readings: parts.readings.map((reading) => seenReading(reading, actor, context)),
   };
 }
 
 /** Nothing kept: `parts` rendered under a fresh budget faulted too. */
 function emptyKept(): Kept {
-  return { exits: [], occupants: [], carried: [], readings: [] };
+  return { exits: [], occupants: [], carried: [] };
+}
+
+/** `verb` with the phrases a visitor types it by, each once, in the order the parser tries them. */
+function seenVerb(verb: ResolvedVerb, context: RenderContext): SeenVerb {
+  const phrases = context.catalogue.phrases
+    .filter((phrase) => phrase.verb === verb && phrase.only === null)
+    .map((phrase) =>
+      phrase.parts.map((part) => ('slot' in part ? '…' : part.words.join(' '))).join(' '),
+    );
+  return { verb: qualifiedName(verb.library, verb.name), phrases: [...new Set(phrases)] };
 }
 
 function seenReading(reading: ViewReading, actor: InstanceId, context: RenderContext): SeenReading {
@@ -277,7 +442,7 @@ function seenOptions(options: RoleOptions): SeenOptions {
   };
 }
 
-/** A view that says `description` and offers nothing else. */
-function onlySaying(description: readonly string[]): SeenView {
-  return { description, effects: [], exits: [], occupants: [], carried: [], readings: [] };
+/** A place that says `description` and holds nothing else. */
+function onlySaying(description: readonly string[]): SeenPlace {
+  return { description, effects: [], exits: [], occupants: [], carried: [] };
 }

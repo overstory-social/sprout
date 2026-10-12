@@ -5,7 +5,7 @@ import { TEXT_ONLY } from './capabilities.js';
 import { command, MARTA, seeded, tally } from './fixtures/tally.js';
 import { clientMessageOf, ClientMessage, PROTOCOL, ServerMessage } from './protocol.js';
 import { runCommand } from './turns.js';
-import { runView } from './views.js';
+import { runReadings, runScene, runView } from './views.js';
 import type { Effect, InstanceId, SeenView } from '@overstory/sprout/lang';
 
 const TOKEN = 'a-token-of-sixteen-or-more';
@@ -17,6 +17,7 @@ describe('what a client may send', () => {
       { t: 'admit', world: 'printers_shop', nickname: 'Marta' },
       { t: 'command', seq: 3, line: 'take key' },
       { t: 'poll', seq: 4 },
+      { t: 'readings', seq: 5, verb: 'sprout.take' },
       { t: 'chat', line: 'hello all' },
       { t: 'levels', show: ['prose', 'error', 'info'] },
       { t: 'leave' },
@@ -34,6 +35,7 @@ describe('what a client may send', () => {
       { t: 'levels', show: ['verbose'] },
       { t: 'command', seq: -1, line: 'look' },
       { t: 'shout', line: 'hey' },
+      { t: 'readings', seq: 6, verb: '' },
     ]) {
       expect(ClientMessage.safeParse(message).success, JSON.stringify(message)).toBe(false);
     }
@@ -65,6 +67,27 @@ describe('what a host sends', () => {
     const sent = JSON.parse(JSON.stringify({ t: 'view', seq: 2, view: sendView(view, TEXT_ONLY) }));
     const parsed = ServerMessage.safeParse(sent);
     expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
+  });
+
+  it('holds a scene’s verbs, and a verb’s readings as core polls them', async () => {
+    const { host } = tally();
+    const store = await seeded(host);
+    const { scene } = await runScene(store, 'w', host, MARTA, 0);
+    const [first] = scene.verbs;
+    expect(first).toBeDefined();
+    for (const message of [
+      { t: 'verbs', verbs: scene.verbs },
+      {
+        t: 'readings',
+        seq: 3,
+        verb: first!.verb,
+        readings: (await runReadings(store, 'w', host, MARTA, first!.verb, 0)).readings,
+        faulted: false,
+      },
+    ]) {
+      const parsed = ServerMessage.safeParse(JSON.parse(JSON.stringify(message)));
+      expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
+    }
   });
 
   it('refuses a `refused` with no words a person can read, and a `bye` for no reason there is', () => {

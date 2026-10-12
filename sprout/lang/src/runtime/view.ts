@@ -11,7 +11,11 @@
 // is derived in the order the spec lists it and charged to the poll's
 // steps; `viewOf` fills `parts` as it goes, so a caller whose poll then
 // runs out of budget still holds every part derived before the fault,
-// per the spec's Faults row for a poll. Nothing here is rendered, which is `prose/view.ts`'s.
+// per the spec's Faults row for a poll. A host may poll the view in
+// parts (the spec's The view): the scene, which is every part but the
+// readings, with the verbs a reading could be built for, and then one
+// verb's readings at a time. Nothing here is rendered, which is
+// `prose/view.ts`'s.
 
 import { isActor } from '../declare/actors.js';
 import { inTheDark } from './darkness.js';
@@ -19,10 +23,11 @@ import { describeFor, type Description } from './describe.js';
 import { exitsFrom } from './exits.js';
 import type { InstanceId } from './ids.js';
 import { liveTree } from './live.js';
-import { offersTo, type Offer, type OfferContext } from './offers.js';
+import type { ResolvedVerb } from '../declare/verbs.js';
+import { offersTo, verbsOffered, type Offer, type OfferContext } from './offers.js';
 import { valueOptions, type RoleOptions } from './options.js';
 import type { CommandExit } from './parser/exits.js';
-import { rangeOf } from './range.js';
+import { rangeOf, type RangeWalk } from './range.js';
 import type { StateReader } from './state.js';
 
 /** One reading a visitor could make now, with the options each of its value roles offers. */
@@ -32,7 +37,18 @@ export interface ViewReading extends Offer {
 }
 
 /** What a poll derives for one visitor standing in a place, unrendered. */
-export interface View {
+export interface View extends Placed {
+  readonly readings: readonly ViewReading[];
+}
+
+/** The view but its readings, with the verbs whose readings a host may ask for one at a time. */
+export interface Scene extends Placed {
+  /** Each verb whose every role something fills, in the order the parser tries them. */
+  readonly verbs: readonly ResolvedVerb[];
+}
+
+/** What the view and the scene both hold. */
+export interface Placed {
   readonly actor: InstanceId;
   readonly place: InstanceId;
   readonly description: Description;
@@ -46,7 +62,6 @@ export interface View {
   readonly occupants: readonly InstanceId[];
   /** What the visitor holds, in contents order. */
   readonly carried: readonly InstanceId[];
-  readonly readings: readonly ViewReading[];
 }
 
 /**
@@ -60,11 +75,12 @@ export interface ViewParts {
   occupants: readonly InstanceId[];
   carried: readonly InstanceId[];
   readings: readonly ViewReading[];
+  verbs: readonly ResolvedVerb[];
 }
 
 /** A `ViewParts` with nothing derived yet. */
 export function emptyViewParts(): ViewParts {
-  return { exits: [], occupants: [], carried: [], readings: [] };
+  return { exits: [], occupants: [], carried: [], readings: [], verbs: [] };
 }
 
 /**
@@ -78,6 +94,37 @@ export function viewOf(
   context: OfferContext,
   parts: ViewParts = emptyViewParts(),
 ): View {
+  const { placed, range } = placedOf(actor, context, parts);
+  parts.readings = withOptions(offersTo(actor, context, { exits: parts.exits, range }), context);
+  return { ...placed, readings: parts.readings };
+}
+
+/** The scene `actor` has where they stand: the view but its readings, and the verbs, filling `parts` as `viewOf` does. */
+export function sceneOf(
+  actor: InstanceId,
+  context: OfferContext,
+  parts: ViewParts = emptyViewParts(),
+): Scene {
+  const { placed, range } = placedOf(actor, context, parts);
+  parts.verbs = verbsOffered(actor, context, { exits: parts.exits, range });
+  return { ...placed, verbs: parts.verbs };
+}
+
+/** The readings of `verb` alone that `actor` could make where they stand, as the view offers them. */
+export function readingsOf(
+  actor: InstanceId,
+  verb: ResolvedVerb,
+  context: OfferContext,
+): ViewReading[] {
+  return withOptions(offersTo(actor, context, { verb }), context);
+}
+
+/** Every part of the view but its readings, filling `parts`, and the range walked for them. */
+function placedOf(
+  actor: InstanceId,
+  context: OfferContext,
+  parts: ViewParts,
+): { readonly placed: Placed; readonly range: RangeWalk<InstanceId> } {
   const { state, budget, passes } = context;
   const place = state.instance(actor)?.container ?? null;
   if (place === null) throw new Error(`\`${actor}\` is away, and an away visitor has no view.`);
@@ -91,19 +138,20 @@ export function viewOf(
         .filter(({ via, node }) => via !== 'self' && actorIn(state, node))
         .map(({ node }) => node);
   parts.carried = state.children(actor);
-  parts.readings = offersTo(actor, context, parts.exits, range).map((offer): ViewReading => ({
-    ...offer,
-    options: valueOptions(offer.reading, context),
-  }));
-  return {
+  const placed = {
     actor,
     place,
     description,
     exits: parts.exits,
     occupants: parts.occupants,
     carried: parts.carried,
-    readings: parts.readings,
   };
+  return { placed, range };
+}
+
+/** Each offer with the options of its value roles. */
+function withOptions(offers: readonly Offer[], context: OfferContext): ViewReading[] {
+  return offers.map((offer) => ({ ...offer, options: valueOptions(offer.reading, context) }));
 }
 
 function actorIn(state: StateReader, id: InstanceId): boolean {
