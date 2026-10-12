@@ -2,35 +2,31 @@
  * Writing the stored world in its canonical form (the spec's The host
  * contract > Storage): keys in the stored schema's order, members in the order
  * held, no white space, whole numbers as digits, and the escapes
- * JSON.stringify makes. The text is built in the arena the caller gives, so
- * the state's own holds nothing a save left behind.
+ * JSON.stringify makes. The text is measured first and then taken once, at
+ * its size, from the arena the caller gives, so a save of any size costs
+ * that arena its own length and the state's arena nothing.
  */
 #include <string.h>
 
 #include "state.h"
 
 typedef struct text {
-  sprout_arena *arena;
-  char *bytes;
+  char *bytes; /* NULL while measuring */
   size_t length, capacity;
   bool failed;
   bool unwritable; /* a number the stored form does not write */
 } text;
 
+/* Appends `count` bytes; the measuring pass only counts them into `length`, so the text is taken once, at its size. */
 static void put(text *t, const char *bytes, size_t count) {
   if (t->failed) return;
+  if (t->bytes == NULL) {
+    t->length += count;
+    return;
+  }
   if (t->length + count + 1 > t->capacity) {
-    size_t wanted = t->capacity == 0 ? 4096 : t->capacity;
-    char *bigger;
-    while (wanted < t->length + count + 1) wanted *= 2;
-    bigger = (char *)sprout_arena_take(t->arena, wanted);
-    if (bigger == NULL) {
-      t->failed = true;
-      return;
-    }
-    if (t->length > 0) memcpy(bigger, t->bytes, t->length);
-    t->bytes = bigger;
-    t->capacity = wanted;
+    t->failed = true;
+    return;
   }
   memcpy(t->bytes + t->length, bytes, count);
   t->length += count;
@@ -284,31 +280,39 @@ static void put_visitor(text *t, const sprout_stored_visitor *v) {
   put_char(t, '}');
 }
 
+static void put_state(text *t, const sprout_state *state) {
+  size_t i;
+  put_text(t, "{\"world\":");
+  put_string(t, state->world);
+  put_text(t, ",\"serial\":");
+  put_whole(t, state->serial);
+  put_text(t, ",\"instances\":[");
+  for (i = 0; i < state->instance_count; i++) {
+    if (i > 0) put_char(t, ',');
+    put_instance(t, &state->instances[i]);
+  }
+  put_text(t, "],\"visitors\":[");
+  for (i = 0; i < state->visitor_count; i++) {
+    if (i > 0) put_char(t, ',');
+    put_visitor(t, &state->visitors[i]);
+  }
+  put_text(t, "],\"tombstones\":");
+  put_ids(t, state->tombstone_count, state->tombstones);
+  put_char(t, '}');
+}
+
 sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratch, const char **bytes,
                                  size_t *length) {
   text t;
-  size_t i;
   memset(&t, 0, sizeof t);
-  t.arena = scratch;
-  put_text(&t, "{\"world\":");
-  put_string(&t, state->world);
-  put_text(&t, ",\"serial\":");
-  put_whole(&t, state->serial);
-  put_text(&t, ",\"instances\":[");
-  for (i = 0; i < state->instance_count; i++) {
-    if (i > 0) put_char(&t, ',');
-    put_instance(&t, &state->instances[i]);
-  }
-  put_text(&t, "],\"visitors\":[");
-  for (i = 0; i < state->visitor_count; i++) {
-    if (i > 0) put_char(&t, ',');
-    put_visitor(&t, &state->visitors[i]);
-  }
-  put_text(&t, "],\"tombstones\":");
-  put_ids(&t, state->tombstone_count, state->tombstones);
-  put_char(&t, '}');
-  if (t.failed) return SPROUT_NO_MEMORY;
+  put_state(&t, state);
   if (t.unwritable) return SPROUT_BAD_INPUT;
+  t.capacity = t.length + 1;
+  t.bytes = (char *)sprout_arena_take(scratch, t.capacity);
+  if (t.bytes == NULL) return SPROUT_NO_MEMORY;
+  t.length = 0;
+  put_state(&t, state);
+  if (t.failed) return SPROUT_NO_MEMORY;
   t.bytes[t.length] = '\0';
   *bytes = t.bytes;
   *length = t.length;
