@@ -3,8 +3,10 @@
 // has no way down, and the world refuses, so the path is out of range
 // until the world opens: a climber who jumps asks the world to open, the
 // world answers, and the climber's answer moves itself down and asks the
-// world to shut again, all in the one turn. `transcripts/jump.json`
-// plays it.
+// world to shut again, all in the one turn. While it is open the world
+// also lets a move's arrival through, which it never does unless it
+// says so, so whoever is left in the tree hears the climber land.
+// `transcripts/jump.json` plays it.
 import * as sprout from 'sprout'
 
 message :open_gate
@@ -17,6 +19,7 @@ world carried_across is sprout.World {
 
   :gate false
   pass any (self.get(:gate))
+  pass :arrived (self.get(:gate))
 
   on :open_gate (from) {
     self.set(:gate, true)

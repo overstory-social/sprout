@@ -39,10 +39,11 @@ static const sprout_node *answering(const sprout_exec *x, const sprout_send *sen
 
 /*
  * Queues one send behind everything waiting, unless it touches something
- * already gone or its recipient has no handler or hook for it. The queue is one array read from `queue_head`: when it is
- * full and more than half of it is delivered, the waiting tail is moved to
- * its start rather than the array grown, so it holds at most a few times the
- * largest backlog rather than everything the turn ever queued.
+ * already gone or its recipient has no handler or hook for it. The queue is
+ * one array read from `queue_head`: when it is full and more than half of it
+ * is delivered, the waiting tail is moved to its start rather than the array
+ * grown, so it holds at most a few times the largest backlog rather than
+ * everything the turn ever queued.
  */
 sprout_eval_status sprout_exec_queue(sprout_exec *x, const sprout_send *send) {
   sprout_send *slot;
@@ -161,7 +162,7 @@ static const char *engine_key(sprout_message_kind kind) {
   }
 }
 
-/* The handlers or hooks a recipient of `kind` has for `send`, or NULL; `key` is the message's, for an authored one. */
+/* The handlers or hooks a recipient of `kind` has for `send`, or NULL; `key` is the message's, for any but `changed`. */
 static const sprout_node *answering(const sprout_exec *x, const sprout_send *send, const sprout_kind_def *kind,
                                     const char *key) {
   if (send->message == SPROUT_MSG_CHANGED)

@@ -6,10 +6,12 @@
  * holds no actors, or a person into a place the host says is full; is asked
  * of the thing's `depart`, then the source's `release`, then the
  * destination's `accept`, the first refusal deciding; and otherwise makes the
- * one write and queues what the engine tells the world where something answers it, the move's notices
- * walked as `:arrived` and `:departed` are routed.
+ * one write and queues what the engine tells the world where something
+ * answers it, the move's notices walked as `:arrived` and `:departed` are
+ * routed.
  */
 #include "exec_fixture.h"
+#include "expr/expr.h"
 #include "stmt/stmt.h"
 
 static sprout_eval_status move(exec_case *c, const char *mover, const char *item, const char *to, sprout_move_end *end,
@@ -190,13 +192,6 @@ static char *before_the_leap(char **file) {
   return stored;
 }
 
-static bool sends_to(const sprout_exec *x, size_t from, const char *id) {
-  size_t i;
-  for (i = from; i < x->queue_count; i++)
-    if (sprout_str_same(x->queue[i].recipient, exec_str(id))) return true;
-  return false;
-}
-
 static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(void) {
   static const char *const hall = "notices_through_gate.hall", *const garden = "notices_through_gate.garden",
                            *const tower = "notices_through_gate.tower";
@@ -218,7 +213,7 @@ static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(vo
   sprout_exec x;
   sprout_frame frame;
   const sprout_reached *walked;
-  bool garden_in_range = false;
+  bool garden_in_range = false, garden_hears = false, open = false;
   CHECK(sprout_load(&host, cartridge, length, &world) == SPROUT_OK);
   CHECK(sprout_state_read(&host, stored, strlen(stored), &state, &refusal) == SPROUT_OK);
   CHECK(sprout_state_open(state, world, NULL, &refusal) == SPROUT_OK);
@@ -233,15 +228,24 @@ static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(vo
   for (i = 0; i < count; i++)
     if (sprout_str_same(walked[i].node, exec_str(garden))) garden_in_range = true;
   CHECK(garden_in_range);
+  /* The world answers a move's notices only with a rule written for them, so its open `pass any` does not. */
+  CHECK_INT(expr_passes(&frame, exec_str("notices_through_gate"), NULL, &open), SPROUT_EVAL_OK);
+  CHECK(open);
+  CHECK_INT(expr_passes(&frame, exec_str("notices_through_gate"), "departed", &open), SPROUT_EVAL_OK);
+  CHECK(!open);
+  CHECK_INT(expr_passes(&frame, exec_str("notices_through_gate"), "arrived", &open), SPROUT_EVAL_OK);
+  CHECK(!open);
+  CHECK_INT(sprout_range_of(&frame, exec_str(hall), "departed", &walked, &count), SPROUT_EVAL_OK);
+  for (i = 0; i < count; i++)
+    if (sprout_str_same(walked[i].node, exec_str(garden))) garden_hears = true;
+  CHECK(!garden_hears);
   /* Marta leaves the hall: the world's `pass any` does not answer for `:departed`, so only Ines beside her reads it. */
   CHECK_INT(sprout_move_spoken(&x, &frame, true, exec_str(hall), exec_str(marta), exec_str(tower), NULL), SPROUT_EVAL_OK);
   CHECK_INT(x.effect_count, 1);
   CHECK_INT(x.effects[0].to_count, 1);
   CHECK(sprout_str_same(x.effects[0].to[0], exec_str(ines)));
-  /* Nothing in reach has a handler for it, so nothing is queued: the places are told, and run nothing. */
+  /* Nothing in reach has a handler for it, so nothing is queued: the hall is told, and runs nothing. */
   CHECK_INT(x.queue_count, 0);
-  CHECK(!sends_to(&x, 0, garden));
-  CHECK(!sends_to(&x, 0, tower));
   /* She arrives in the tower: likewise, only Ottilie there reads it, and nothing is queued. */
   before = x.queue_count;
   CHECK_INT(sprout_move_spoken(&x, &frame, false, exec_str(tower), exec_str(marta), exec_str(hall), NULL), SPROUT_EVAL_OK);

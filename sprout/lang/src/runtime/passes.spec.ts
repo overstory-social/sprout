@@ -5,11 +5,10 @@ import type { DeclaredMessage } from '../declare/messages.js';
 import { ARRIVED, DEPARTED, engineMessage } from '../declare/engine-messages.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { compiledWorld } from '../fixtures/bundle.js';
-import { Budget } from './budget.js';
+import { Budget, BudgetExhausted } from './budget.js';
 import { catalogueOf } from './catalogue.js';
 import { initialState } from './load.js';
 import { readerOf } from './state.js';
-import { BudgetExhausted } from './budget.js';
 import { passRules } from './passes.js';
 
 const message = (name: string): DeclaredMessage => BUS.messages.qualified('bus', name)!;

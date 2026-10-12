@@ -5,9 +5,10 @@
 // asked about no message, as `get`, `each` and a command's nouns ask, with
 // its `pass any`. Where it writes neither it relays, except the world,
 // whose unwritten rule is `pass any (false)`, and whose `pass any` never
-// answers for a move's notices, `:arrived` and `:departed` (Places). A rule is a condition read
-// with `self` the container, charged to the turn's steps as any
-// expression is; it only reads, so asking it changes nothing.
+// answers for a move's notices, `:arrived` and `:departed` (Places). A
+// rule is a condition read with `self` the container, charged to the
+// turn's steps as any expression is; it only reads, so asking it changes
+// nothing.
 
 import type { StaticCaps } from '../bundle/limits.js';
 import { ARRIVED, DEPARTED } from '../declare/engine-messages.js';

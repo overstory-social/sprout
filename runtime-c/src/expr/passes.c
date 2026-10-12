@@ -2,9 +2,9 @@
  * Whether a container lets a question through to what it holds (the spec's
  * Range > Passing): the rule its kind writes for the message asked, else its
  * `pass any`, else true, except the world's, which refuses, and whose `pass
- * any` never answers for a move's notices, `:arrived` and `:departed` (Places). A rule is an
- * expression evaluated with the container as `self`, and its steps are the
- * turn's.
+ * any` never answers for a move's notices, `:arrived` and `:departed`
+ * (Places). A rule is an expression evaluated with the container as `self`,
+ * and its steps are the turn's.
  */
 #include "expr.h"
 
