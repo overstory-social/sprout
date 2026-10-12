@@ -1,0 +1,95 @@
+// The runtime's WebAssembly engine (engine.c), driven from JavaScript: one world and its live state per
+// instance. Each call writes its input into the instance's buffer, runs one export, and reads back the
+// answer as JSON. A status other than 0 throws, with the words the engine gave where it gave any.
+
+import { readFileSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+export class WasmEngine {
+  /** An instance of the engine at `wasmFile`, with `cartridge` (bytes) loaded and a new state opened for `worldId`. */
+  static async open(wasmFile, cartridge, worldId) {
+    const module = await WebAssembly.compile(readFileSync(wasmFile));
+    const instance = await WebAssembly.instantiate(module, {
+      env: { now_ms: () => performance.now() },
+    });
+    const engine = new WasmEngine(instance.exports);
+    engine.call('sw_load', engine.put([cartridge]));
+    const [length] = engine.put([encoder.encode(worldId)]);
+    engine.call('sw_open', 0, length);
+    return engine;
+  }
+
+  constructor(exports) {
+    this.x = exports;
+  }
+
+  /** Writes `parts` one after another into the input buffer; their lengths. */
+  put(parts) {
+    const total = parts.reduce((n, part) => n + part.length, 0);
+    const at = this.x.sw_input(total);
+    const bytes = new Uint8Array(this.x.memory.buffer, at, total + 1);
+    let offset = 0;
+    for (const part of parts) {
+      bytes.set(part, offset);
+      offset += part.length;
+    }
+    bytes[total] = 0;
+    return parts.map((part) => part.length);
+  }
+
+  call(name, ...args) {
+    const status = this.x[name](...args);
+    if (status !== 0) throw new Error(`${name}: status ${status}: ${this.text()}`);
+    return this.text();
+  }
+
+  text() {
+    const at = this.x.sw_output();
+    if (at === 0) return '';
+    return decoder.decode(new Uint8Array(this.x.memory.buffer, at, this.x.sw_output_length()));
+  }
+
+  arrive(visit, nickname, seed, instant) {
+    const lengths = this.put([encoder.encode(visit), encoder.encode(nickname)]);
+    return JSON.parse(this.call('sw_arrive', ...lengths, BigInt(seed), BigInt(instant)));
+  }
+
+  /** A command of a reading a view offered: `{ verb, fillers, typed }`. */
+  command(visit, reading, seed, instant) {
+    const json = JSON.stringify({
+      visit,
+      verb: reading.verb,
+      fillers: reading.fillers,
+      typed: reading.typed,
+    });
+    const [length] = this.put([encoder.encode(json)]);
+    return JSON.parse(this.call('sw_command', length, BigInt(seed), BigInt(instant)));
+  }
+
+  scene(visit) {
+    const [length] = this.put([encoder.encode(visit)]);
+    return JSON.parse(this.call('sw_scene', length));
+  }
+
+  readings(visit, verb) {
+    const lengths = this.put([encoder.encode(visit), encoder.encode(verb)]);
+    return JSON.parse(this.call('sw_readings', ...lengths));
+  }
+
+  /** The stored state, as the store keeps it. */
+  save() {
+    return this.call('sw_save');
+  }
+
+  /** What the page pool holds now and at most, and what the instance's memory has grown to. */
+  memory() {
+    return {
+      held: this.x.sw_held_bytes(),
+      peak: this.x.sw_peak_held_bytes(),
+      grown: this.x.sw_memory_bytes(),
+    };
+  }
+}
