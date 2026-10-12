@@ -86,6 +86,25 @@ describe('the graph a cartridge holds', () => {
     expect(expression.at.source.text).toBe(' ');
   });
 
+  it('reads every node at one place back with the one span, and places apart with their own', () => {
+    const file = new SourceFile('hut.sprout', 'one\ntwo three\n');
+    const here = { source: file, start: 8, end: 13 };
+    const there = { source: file, start: 0, end: 3 };
+    const { read } = roundTrip({
+      a: { kind: 'say', at: here },
+      b: { kind: 'say', at: { ...here } },
+      c: { kind: 'say', at: there },
+      d: { kind: 'integer', at: here, value: 1 },
+      e: { kind: 'integer', at: there, value: 2 },
+    });
+    const at = (name: string) => (read(name) as { at: { source: SourceFile; start: number } }).at;
+    expect(at('a')).toBe(at('b'));
+    expect(at('c')).not.toBe(at('a'));
+    expect(at('c').source.positionAt(at('c').start)).toEqual({ line: 1, column: 1 });
+    expect(at('a').source.positionAt(at('a').start)).toEqual({ line: 2, column: 5 });
+    expect(at('d')).toBe(at('e'));
+  });
+
   it('leaves out the host’s code in an extension’s value type, for the host to give back', () => {
     const { read } = roundTrip({ type: { type: 'extension', name: 'dice', definition: () => 1 } });
     expect(read('type')).toEqual({ type: 'extension', name: 'dice' });

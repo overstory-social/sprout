@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { memoryStore, readLog } from '@overstory/sprout/core';
+import { compileBundle, emitCartridge, loadCartridge } from '@overstory/sprout/lang';
+import { readWorld } from '@overstory/sprout-player';
 
 import { configFor, corpusWorld } from './fixtures/server.js';
 import { compileWorld, publish } from './worlds.js';
@@ -20,6 +22,26 @@ describe('a world the server serves', () => {
       'sequences.sprout',
     ]);
     expect(compiled.world.host.budgets).toBe(configFor().limits.budgets);
+  });
+
+  it('runs from the catalogue its cartridge reads back, keeping only the stamp of its bundle', () => {
+    const compiled = compileWorld(corpusWorld('sequences'), configFor());
+    if ('refused' in compiled) throw new Error(compiled.refused);
+    const read = readWorld(corpusWorld('sequences'));
+    const { bundle } = compileBundle(read.source!, { mode: 'publish' });
+    const fromCartridge = loadCartridge(emitCartridge(bundle!), { caps: configFor().limits.caps });
+    expect(Object.keys(compiled.world.bundle).sort()).toEqual([
+      'assets',
+      'extensions',
+      'hash',
+      'level',
+    ]);
+    const { catalogue } = compiled.world.host;
+    expect(catalogue.world).toBe(fromCartridge.world);
+    expect([...catalogue.kinds.keys()]).toEqual([...fromCartridge.kinds.keys()]);
+    // A cartridge keeps no source text: a place reads back as a line and column in a blank file.
+    const verb = catalogue.verbs.all()[0]!;
+    expect(verb.declaration.at.source.text.trim()).toBe('');
   });
 
   it('is refused, in the compiler’s words, where the folder does not compile', () => {

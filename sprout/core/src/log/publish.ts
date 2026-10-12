@@ -23,7 +23,7 @@ export const PublishEntry = z.object({
 export type PublishEntry = z.infer<typeof PublishEntry>;
 
 /** What the log keeps of publishing `bundle` at `now`. */
-export function publishEntry(bundle: Bundle, now: HostSeconds): PublishEntry {
+export function publishEntry(bundle: Pick<Bundle, 'hash'>, now: HostSeconds): PublishEntry {
   return {
     kind: 'publish',
     level: 'info',
@@ -41,7 +41,7 @@ export function publishEntry(bundle: Bundle, now: HostSeconds): PublishEntry {
 export function publishWorld(
   store: SproutStore,
   record: MicroworldRecord,
-  bundle: Bundle,
+  bundle: Pick<Bundle, 'hash'>,
   now: HostSeconds,
 ): Promise<PublishEntry> {
   const entry = publishEntry(bundle, now);
@@ -63,7 +63,7 @@ export function publishWorld(
 export async function deployWorld(
   store: SproutStore,
   record: MicroworldRecord,
-  bundle: Bundle,
+  bundle: Pick<Bundle, 'hash'>,
   now: HostSeconds,
 ): Promise<'kept' | 'redeployed'> {
   const running = await store.read(record.id, (tx) => tx.microworld());
