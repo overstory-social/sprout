@@ -63,26 +63,32 @@ where Node does.
 the layout is hole 462.
 
 - **Header, 16 bytes.** `SPRT`, the format version and the language level as
-  little-endian 16-bit numbers, eight reserved zeros. The format is the
-  layout of the file and moves only when the layout does (it is 2: the body's
-  `header` gained the entry counts); the level is the spec's _Language
-  levels_. A reader refuses a format other than the one it reads, or a level
-  newer than it reads, naming the number and `sprout pack`.
-- **Body.** Gzip-compressed JSON held to one schema
-  (`bundle/cartridge-schema.ts`) shared by the writer and the reader. Its
-  sections: `header` (name, namespace, version, author, license, the highest
-  language level, the bundle hash, the files and libraries, and `counts`, how
-  many entries each run of the table holds, so a reader can place them all
-  before it reads one), `kinds`, `tree`
-  (what the world declares to be where, and where visitors arrive), `verbs`,
-  `grammar` (scoped phrases, intents and the word set a nickname is admitted
-  against; every phrase's and every exit's and link's label carries its typed
-  words), `messages`, `prose` and `bodies` (passages, statements and
-  expressions as trees with every name bound), `table`, `caps` (the static
-  caps the world was checked against) and `extensions` (the ones it pins, by
-  name and major, with their assets). The bundle's object graph is a flat
-  table of entries that refer to one another by index, so shared objects stay
-  shared.
+  little-endian 16-bit numbers, then the body's inflated size and the offset
+  of its table in it as 32-bit numbers. The format is the layout of the file
+  and moves only when the layout does (it is 3: the entries moved from JSON
+  into a table the runtime reads in place); the level is the spec's
+  _Language levels_. A reader refuses a format other than the one it reads,
+  or a level newer than it reads, naming the number and `sprout pack`.
+- **Body.** Gzip-compressed, two parts. First a JSON preamble held to one
+  schema (`bundle/cartridge-schema.ts`) shared by the writer and the reader,
+  everything but the entries: `header` (name, namespace, version, author,
+  license, the highest language level, the bundle hash, the files and
+  libraries), `caps` (the static caps the world was checked against),
+  `extensions` (the ones it pins, by name and major, with their assets),
+  `kinds`, `tree` (what the world declares to be where, and where visitors
+  arrive), `verbs`, `grammar` (scoped phrases, intents and the word set a
+  nickname is admitted against; every phrase's and every exit's and link's
+  label carries its typed words), `messages`, `bodies` (what every name a
+  body writes names, and which slots render an option) and `table` (the
+  files places name). Then, eight-aligned, the table
+  (`bundle/cartridge-table.ts`, `runtime-c/src/table.h`): the three runs of
+  entries (passages; statements and expressions; everything else) as
+  twelve-byte nodes, one pool of child indexes, one run of strings, the
+  doubles, the places and the shapes objects share, with one node per
+  distinct scalar after the entries. The runtime inflates the body into one
+  block and reads the table where it lies, so a shared object is one node
+  and nothing is built from it. The preamble's cells refer to entries by
+  index.
 - **Closed.** Libraries are statically linked. The cartridge holds no
   source text and no diagnostics; synonym words do not travel as words (a
   verb's own are appended to its phrases).
@@ -363,10 +369,11 @@ under its name without `.png`.
 ### Opening a world
 
 Opening a world is `sprout.open`, which reads and checks the cartridge's
-header and caps, and then `sprout.step` once a frame, each reading 2,000
-entries of the table, behind `Loading Underground Caverns... 37%` with a
-bar, until the step that is done brings the world's words and the nickname
-picker follows. The caverns take about seventy steps. A step that fails
+header and caps, and then `sprout.step` once a frame, each inflating 32 KB
+of the body into the block the world is read from, behind
+`Loading Underground Caverns... 37%` with a bar, until the step that is
+done maps the table, builds the catalogue and brings the world's words, and
+the nickname picker follows. The caverns take about 150 steps. A step that fails
 says why on the shelf, as a refused open does.
 
 ### The shelf

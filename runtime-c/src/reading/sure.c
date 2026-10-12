@@ -95,10 +95,10 @@ sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *fram
         sprout_str item, to;
         bool in;
         EXPR_NEED(expr_spend(frame));
-        move = sure_move(frame->graph, play);
+        move = sure_move(&frame->world->graph, play);
         if (move == NULL) continue;
         EXPR_NEED(sprout_play_frame(x, reading, &participants[i], play, false, &inside));
-        if (!named(&inside, sprout_node_get(frame->graph, move, "thing"), &item) ||
+        if (!named(&inside, sprout_node_get(&frame->world->graph, move, "thing"), &item) ||
             !named(&inside, sprout_node_get(frame->graph, move, "destination"), &to) ||
             sprout_str_same(item, frame->draft->base->world))
           return SPROUT_EVAL_OK;
@@ -121,9 +121,9 @@ sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const spro
   for (i = 0; own != NULL && i < own->count && !*moves; i++) {
     const sprout_node *move;
     EXPR_NEED(expr_spend(frame));
-    move = sure_move(frame->graph, &own->plays[i]);
-    *moves = move != NULL && lone_name(frame->graph, sprout_node_get(frame->graph, move, "thing")) != NULL &&
-             strcmp(lone_name(frame->graph, sprout_node_get(frame->graph, move, "thing")), role->name) == 0;
+    move = sure_move(&frame->world->graph, &own->plays[i]);
+    *moves = move != NULL && lone_name(&frame->world->graph, sprout_node_get(&frame->world->graph, move, "thing")) != NULL &&
+             strcmp(lone_name(&frame->world->graph, sprout_node_get(&frame->world->graph, move, "thing")), role->name) == 0;
   }
   return SPROUT_EVAL_OK;
 }

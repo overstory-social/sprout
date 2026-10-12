@@ -88,9 +88,9 @@ sprout_eval_status sprout_name_of(const sprout_frame *frame, const sprout_stored
     *name = visitor->nickname;
     return SPROUT_EVAL_OK;
   }
-  written = sprout_grammar_text(frame->graph, instance->kind, "name");
+  written = sprout_grammar_text(&frame->world->graph, instance->kind, "name");
   if (written != NULL) {
-    *name = (sprout_str){sprout_text(frame->graph, written), sprout_text_length(frame->graph, written)};
+    *name = (sprout_str){sprout_text(&frame->world->graph, written), sprout_text_length(&frame->world->graph, written)};
     return SPROUT_EVAL_OK;
   }
   if (identifier_of(instance, &identifier)) return sprout_humanised(frame->turn, identifier, name) ? SPROUT_EVAL_OK : SPROUT_EVAL_NO_MEMORY;

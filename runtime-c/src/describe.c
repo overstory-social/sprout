@@ -158,9 +158,9 @@ sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, 
       return SPROUT_EVAL_OK;
     }
   }
-  describe = sprout_node_get(frame->graph, instance->kind->node, "describe");
+  describe = sprout_node_get(&frame->world->graph, instance->kind->node, "describe");
   if (describe == NULL || describe->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(frame->graph, describe, "origin"), &inside.library));
+  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(&frame->world->graph, describe, "origin"), &inside.library));
   inside.self = thing;
   inside.bindings = NULL;
   if (!sprout_string(frame->turn, seen, strlen(seen), &seen_value)) return SPROUT_EVAL_NO_MEMORY;

@@ -129,7 +129,7 @@ static inline const char *prose_effect_name(sprout_effect_kind kind) {
 static inline const sprout_node *prose_literal(const sprout_world *world, const char *text, size_t length) {
   size_t i;
   for (i = 0; i < world->graph.count; i++) {
-    const sprout_node *node = &world->graph.entries[i], *value;
+    const sprout_node *node = &world->graph.table.nodes[i], *value;
     if (!sprout_node_is(&world->graph, sprout_node_get(&world->graph, node, "kind"), "prose-literal")) continue;
     value = sprout_node_get(&world->graph, node, "value");
     if (value != NULL && sprout_text_length(&world->graph, value) == length && memcmp(sprout_text(&world->graph, value), text, length) == 0) return node;
@@ -276,6 +276,7 @@ static inline void prose_case_close(prose_case *c) {
 static inline prose_reading prose_reading_of(prose_case *c, const char *reader) {
   prose_reading reading;
   reading.world = c->world;
+  reading.graph = &c->world->graph;
   reading.draft = &c->draft;
   reading.turn = &c->turn;
   reading.meter = &c->meter;

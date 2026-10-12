@@ -97,7 +97,7 @@ static inline const sprout_json *bench_case(bench *b, const char *name) {
 
 /* The expression the golden case with this name evaluates. */
 static inline const sprout_node *bench_expr(bench *b, const char *name) {
-  return &b->world->graph.entries[(size_t)bench_number(bench_case(b, name), "node")];
+  return &b->world->graph.table.nodes[(size_t)bench_number(bench_case(b, name), "node")];
 }
 
 /* The stored world named in the golden, opened against the world once. */
@@ -137,6 +137,7 @@ static inline void bench_turn_open(bench *b, bench_turn *t, const char *state, c
   sprout_draft_open(&t->draft, &t->turn, b->world, bench_state(b, state));
   sprout_meter_begin(&t->meter, &t->host, SPROUT_TURN_COMMAND);
   t->frame.world = b->world;
+  t->frame.graph = &b->world->graph;
   t->frame.draft = &t->draft;
   t->frame.turn = &t->turn;
   t->frame.meter = &t->meter;

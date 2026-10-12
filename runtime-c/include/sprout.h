@@ -137,7 +137,7 @@ sprout_status sprout_load_begin(const sprout_host *host, const char *cartridge, 
  */
 sprout_status sprout_load_step(sprout_loading *loading, size_t budget, bool *done, sprout_refusal *refusal);
 
-/* How far a load is: entries of the table read, of those its header counts (0 of 0 before the header). */
+/* How far a load is: bytes of the body inflated, of those it has (the preamble's alone for a peek). */
 void sprout_load_progress(const sprout_loading *loading, size_t *read, size_t *counted);
 
 /* The world a done load made, and the load freed; NULL (and nothing freed) before it is done. */

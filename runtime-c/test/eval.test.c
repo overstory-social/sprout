@@ -31,7 +31,7 @@ static void replay_case(bench *b, const sprout_json *golden) {
                   bench_has_number(golden, "seed") ? (long)bench_number(golden, "seed") : -1);
   for (i = 0; bind != NULL && i < bind->count; i++)
     bench_turn_bind(&t, bind->items[i]->key, bind->items[i]->bytes);
-  status = sprout_eval(&t.frame, &b->world->graph.entries[(size_t)bench_number(golden, "node")], &result);
+  status = sprout_eval(&t.frame, &b->world->graph.table.nodes[(size_t)bench_number(golden, "node")], &result);
   if (fault == NULL) {
     const char *shown, *wanted;
     size_t shown_length, wanted_length;
@@ -149,14 +149,14 @@ static void a_deep_expression_faults_at_the_hosts_step_count_in_the_hosts_words(
     if (strcmp(bench_text(one, "name"), "a deep expression within the step budget") != 0) continue;
     /* The expression takes 79 steps: the host's figure of 78 stops it on the 79th. */
     bench_turn_open(&b, &t, "fresh", bench_text(one, "self"), bench_text(one, "library"), 78, -1, -1);
-    CHECK_INT(sprout_eval(&t.frame, &b.world->graph.entries[(size_t)bench_number(one, "node")], &result),
+    CHECK_INT(sprout_eval(&t.frame, &b.world->graph.table.nodes[(size_t)bench_number(one, "node")], &result),
               SPROUT_EVAL_FAULT);
     CHECK_STR(t.fault.name, "BudgetExhausted");
     CHECK_STR(t.fault.text, "steps: a command turn may take 78 steps.");
     CHECK_INT(t.meter.steps, 79);
     bench_turn_close(&t);
     bench_turn_open(&b, &t, "fresh", bench_text(one, "self"), bench_text(one, "library"), 79, -1, -1);
-    CHECK_INT(sprout_eval(&t.frame, &b.world->graph.entries[(size_t)bench_number(one, "node")], &result),
+    CHECK_INT(sprout_eval(&t.frame, &b.world->graph.table.nodes[(size_t)bench_number(one, "node")], &result),
               SPROUT_EVAL_OK);
     CHECK_INT(t.meter.steps, 79);
     bench_turn_close(&t);
@@ -176,7 +176,7 @@ static void with_no_figure_from_the_host_nothing_runs_out(void) {
     const sprout_json *one = cases->items[i];
     if (strcmp(bench_text(one, "name"), "a deep expression within the step budget") != 0) continue;
     bench_turn_open(&b, &t, "fresh", bench_text(one, "self"), bench_text(one, "library"), -1, -1, -1);
-    CHECK_INT(sprout_eval(&t.frame, &b.world->graph.entries[(size_t)bench_number(one, "node")], &result),
+    CHECK_INT(sprout_eval(&t.frame, &b.world->graph.table.nodes[(size_t)bench_number(one, "node")], &result),
               SPROUT_EVAL_OK);
     bench_turn_close(&t);
   }
@@ -256,7 +256,10 @@ static void a_spine_is_walked_by_loop_however_long_it_is(void) {
   bench_open(&b);
   bench_turn_for(&b, &t, "get reads the property");
   sprout_arena_init(&spine_arena, &spine_host);
-  sprout_build_begin(&builder, &spine_arena);
+  {
+    sprout_build_room room = {2 * 300000 + 8, 6 * 300000 + 8, 64, 16, 4, 16};
+    sprout_build_begin(&builder, &spine_arena, room);
+  }
   spine = sum_of_ones(&builder, 300000);
   CHECK(spine != NULL && !sprout_build_failed(&builder));
   t.frame.graph = sprout_build_graph(&builder);

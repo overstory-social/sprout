@@ -11,7 +11,7 @@
 sprout_eval_status sprout_is_lit(const sprout_frame *frame, sprout_str place, bool *lit) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
   const sprout_node *line =
-      instance == NULL ? NULL : sprout_node_get(frame->graph, sprout_node_get(frame->graph, instance->kind->node, "grammar"), "lit");
+      instance == NULL ? NULL : sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, instance->kind->node, "grammar"), "lit");
   sprout_frame at = *frame;
   sprout_eval_status status;
   *lit = true;

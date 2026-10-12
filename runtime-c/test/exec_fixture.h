@@ -177,7 +177,7 @@ static inline void exec_case_close(exec_case *c) {
 }
 
 static inline const sprout_node *exec_body_of(const exec_case *c) {
-  return &c->world->graph.entries[(size_t)exec_number(c->golden, "node")];
+  return &c->world->graph.table.nodes[(size_t)exec_number(c->golden, "node")];
 }
 
 /* The statement a case's body starts with, which a module's test hands to the module that runs it. */
@@ -360,7 +360,7 @@ static inline sprout_eval_status exec_replay(exec_bench *b, const sprout_json *g
   if (prior->kind == SPROUT_JSON_OBJECT) {
     /* A body run first in the same turn, as its own object and with no names bound. */
     sprout_frame first = sprout_exec_frame(&c.x, exec_str(exec_text(prior, "self")), exec_text(golden, "library"), NULL);
-    status = sprout_exec_body(&c.x, &c.world->graph.entries[(size_t)exec_number(prior, "node")], &first, SPROUT_BODY_ACT, &ended);
+    status = sprout_exec_body(&c.x, &c.world->graph.table.nodes[(size_t)exec_number(prior, "node")], &first, SPROUT_BODY_ACT, &ended);
   }
   if (status == SPROUT_EVAL_OK) status = sprout_exec_body(&c.x, exec_body_of(&c), &c.frame, SPROUT_BODY_ACT, &ended);
   if (status == SPROUT_EVAL_OK) status = sprout_exec_drain(&c.x);

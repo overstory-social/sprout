@@ -3,6 +3,7 @@
 #include "graph.h"
 
 static void an_object_an_array_and_scalars_are_built_whole_and_read_back(void) {
+  sprout_build_room room = SPROUT_BUILD_LINE_ROOM;
   test_heap heap;
   sprout_host host = test_host(&heap);
   sprout_arena arena;
@@ -11,7 +12,7 @@ static void an_object_an_array_and_scalars_are_built_whole_and_read_back(void) {
   const sprout_node *values[4], *object, *array, *elements[2];
   const sprout_graph *g;
   sprout_arena_init(&arena, &host);
-  sprout_build_begin(&b, &arena);
+  sprout_build_begin(&b, &arena, room);
   values[0] = sprout_build_string(&b, "integer", 7);
   values[1] = sprout_build_number(&b, 8);
   values[2] = sprout_build_bool(&b, true);
@@ -46,6 +47,7 @@ static void an_object_an_array_and_scalars_are_built_whole_and_read_back(void) {
 }
 
 static void a_missing_child_or_a_host_without_memory_fails_the_builder(void) {
+  sprout_build_room room = SPROUT_BUILD_LINE_ROOM;
   test_heap heap;
   sprout_host host = test_host(&heap);
   sprout_arena arena;
@@ -53,14 +55,32 @@ static void a_missing_child_or_a_host_without_memory_fails_the_builder(void) {
   static const char *const keys[] = {"kind"};
   const sprout_node *values[1], *missing[1] = {NULL};
   sprout_arena_init(&arena, &host);
-  sprout_build_begin(&b, &arena);
+  sprout_build_begin(&b, &arena, room);
   CHECK(sprout_build_object(&b, keys, missing, 1) == NULL);
   CHECK(sprout_build_failed(&b));
-  sprout_build_begin(&b, &arena);
+  sprout_build_begin(&b, &arena, room);
   CHECK(sprout_build_array(&b, missing, 1) == NULL);
   CHECK(sprout_build_failed(&b));
-  sprout_build_begin(&b, &arena);
+  {
+    /* The room is taken up front, so a build past it fails as one the host refuses does. */
+    sprout_build_room small = {4, 2, 8, 2, 1, 2};
+    const sprout_node *one, *pair[2];
+    sprout_build_begin(&b, &arena, small);
+    CHECK(!sprout_build_failed(&b));
+    one = sprout_build_string(&b, "x", 1);
+    CHECK(one != NULL && !sprout_build_failed(&b));
+    CHECK(sprout_build_string(&b, "a longer text", 13) == NULL); /* past the string bytes */
+    CHECK(sprout_build_failed(&b));
+    sprout_build_begin(&b, &arena, small);
+    one = sprout_build_string(&b, "x", 1);
+    pair[0] = one, pair[1] = one;
+    CHECK(sprout_build_array(&b, pair, 2) == NULL); /* past the nodes: null, true, false and one string fill four */
+    CHECK(sprout_build_failed(&b));
+  }
+  sprout_arena_reset(&arena);
   heap.refuse_after = 0;
+  sprout_build_begin(&b, &arena, room);
+  CHECK(sprout_build_failed(&b));
   values[0] = sprout_build_string(&b, "x", 1);
   CHECK(values[0] == NULL && sprout_build_failed(&b));
   CHECK(sprout_build_number(&b, 1) == NULL);

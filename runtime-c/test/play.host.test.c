@@ -202,7 +202,7 @@ static void a_cartridge_the_runtime_refuses_is_refused_with_its_words(void) {
   unsigned char *bytes;
   size_t length;
   char *argv[] = {"play", (char *)WORLD};
-  bytes = build_cartridge(EMPTY_BODIED_JSON, 2, 1, &length);
+  bytes = build_cartridge(EMPTY_BODIED_JSON, 3, 1, &length);
   put(WORLD, bytes, length);
   free(bytes);
   CHECK_INT(run(2, argv), 1);

@@ -83,7 +83,7 @@ static sprout_eval_status options_of(const sprout_frame *frame, const sprout_ver
     if (self == NULL) continue;
     own = sprout_own_plays(verb, participants[j].role == NULL ? "actor" : participants[j].role->name, self->kind);
     for (p = 0; own != NULL && p < own->count; p++) {
-      const sprout_node *narrowing = sprout_node_map_find(frame->graph, sprout_node_get(frame->graph, own->plays[p].node, "narrows"), role->name);
+      const sprout_node *narrowing = sprout_node_map_find(&frame->world->graph, sprout_node_get(&frame->world->graph, own->plays[p].node, "narrows"), role->name);
       if (narrowing == NULL) continue;
       EXPR_NEED(expr_spend(frame));
       if (integer) {

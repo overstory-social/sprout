@@ -57,13 +57,13 @@ static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, con
 static sprout_eval_status spoken_by(const sprout_frame *frame, const sprout_node *said, const char *origin,
                                     const sprout_stored_instance *place, sprout_speech *out) {
   memset(out, 0, sizeof *out);
-  if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, said, "kind"), "prose-literal")) {
+  if (sprout_node_is(&frame->world->graph, sprout_node_get(&frame->world->graph, said, "kind"), "prose-literal")) {
     out->kind = SPROUT_SPEECH_TEXT;
     out->node = said;
     return sprout_origin_library(frame, origin, &out->library);
   }
-  out->name = sprout_node_text(frame->graph, said, "text");
-  if (place != NULL && sprout_passage_on(frame->graph, place->kind, out->name, out)) return SPROUT_EVAL_OK;
+  out->name = sprout_node_text(&frame->world->graph, said, "text");
+  if (place != NULL && sprout_passage_on(&frame->world->graph, place->kind, out->name, out)) return SPROUT_EVAL_OK;
   out->kind = SPROUT_SPEECH_ABSENT;
   return SPROUT_EVAL_OK;
 }
@@ -160,7 +160,7 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
       if (decided(seen, seen_count, direction)) continue;
     }
     EXPR_NEED(expr_spend(frame));
-    if (direction != NULL && sprout_node_is(frame->graph, sprout_node_get(frame->graph, leads, "kind"), "grammar-refusal")) {
+    if (direction != NULL && sprout_node_is(&frame->world->graph, sprout_node_get(&frame->world->graph, leads, "kind"), "grammar-refusal")) {
       EXPR_NEED(holds(frame, place->id, exit, line, &applies));
       if (!applies) continue;
       seen[seen_count++] = direction;
@@ -183,7 +183,7 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
 
 sprout_eval_status sprout_ways_from(const sprout_frame *frame, sprout_str place, const sprout_way **found, size_t *count) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
-  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(frame->graph, instance->kind->node, "exits");
+  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(&frame->world->graph, instance->kind->node, "exits");
   ways out = {NULL, 0, 0};
   const sprout_node **all;
   size_t i;
@@ -216,7 +216,7 @@ sprout_eval_status sprout_exits_from(const sprout_frame *frame, sprout_str place
 sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str place, const sprout_way *taken,
                                       sprout_saying *out) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
-  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(frame->graph, instance->kind->node, "exits");
+  const sprout_node *exits = instance == NULL ? NULL : sprout_node_get(&frame->world->graph, instance->kind->node, "exits");
   const sprout_node **run;
   size_t run_count = 0, i;
   bool any_says = false;
