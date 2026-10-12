@@ -20,8 +20,10 @@ A world's turns run against a store through `runCommand`, `runTick`,
 (`turns.ts`): a write turn runs in the store's transaction, under the
 world's lock, and writes its change set only where it committed, so a
 fault writes nothing of the world; a poll reads a snapshot and takes no
-lock. `runView` polls a visitor's view, and a `ViewCache` keeps each one
-until a committed turn's `stale` names its visitor (`views.ts`).
+lock. `runView` polls a visitor's view, `runScene` its scene and
+`runReadings` one verb's readings (the spec's _The view_), and a
+`ViewCache` keeps each until a committed turn's `stale` names its visitor
+(`views.ts`).
 
 Conversation between visitors is the host's, beside the world and never
 in it (the spec's _The host contract › Conversation_): `runConversation`

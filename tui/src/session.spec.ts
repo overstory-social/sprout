@@ -37,6 +37,20 @@ describe('a session with a server', () => {
     );
   });
 
+  it('completes a line from the readings of the verbs that could begin it, asked for then', async () => {
+    server = await serving();
+    const session = await connected(server, 'Marta');
+    await until(session, () => session.state.verbs.length > 0);
+    expect(await session.complete('take c')).toEqual(['take coin']);
+    expect(await session.complete('ta')).toEqual(expect.arrayContaining(['take key', 'take coin']));
+    expect(await session.complete('juggle')).toEqual([]);
+    expect(await session.complete('/re')).toEqual(['/reconnect']);
+    await session.type('take coin');
+    await until(session, () => shows(session, 'You take a coin.'));
+    // The coin is carried now, so the readings asked for afresh no longer offer taking it.
+    expect(await session.complete('take c')).toEqual([]);
+  });
+
   it('carries `/say` to the others standing there, and asks again for a nickname taken', async () => {
     server = await serving();
     const marta = await connected(server, 'Marta');

@@ -13,7 +13,9 @@
 // typed by its verb's
 // first phrase that fits, with the consent pass's answer beside it, or
 // the `inside_itself` its move would meet, and costs a step, so a world
-// too large to list faults as any work does.
+// too large to list faults as any work does. A scene lists the verbs
+// whose every role something fills without building a reading, so a host
+// can ask for one verb's readings at a time.
 
 import { typedWords } from '../declare/addressing.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
@@ -58,66 +60,44 @@ export interface Offer {
 type Filling = { readonly bound: Bound; readonly words: string } | null;
 
 /**
+ * What offering reads of where an actor stands: the ways out, and the
+ * range, each asked here where the caller has not asked it already, since
+ * the view's `exits` and `occupants` need them too; and the one verb to
+ * offer, where only its readings are asked for.
+ */
+export interface OfferScope {
+  readonly exits?: readonly CommandExit[];
+  readonly range?: RangeWalk<InstanceId>;
+  readonly verb?: ResolvedVerb;
+}
+
+/** Where an actor stands, as offering fills roles from it. */
+interface Standing {
+  readonly self: Instance;
+  readonly here: InstanceId;
+  /** What in range a role could be filled by: everything but the world and the actor, and in the dark only what they carry. */
+  readonly things: readonly Instance[];
+  readonly carried: ReadonlySet<InstanceId>;
+  readonly ways: readonly CommandExit[];
+  readonly addressing: AddressContext;
+}
+
+/**
  * Every reading `actor` could type where they stand, in the order the
- * parser tries the verbs; `go` by each of `exits`, the exits and links
- * that apply on their place, asked here where the caller has not asked
- * them already. `range` is `actor`'s own, asked here where the caller has
- * not walked it already, since it is the one walk the view's `occupants`
- * needs too.
+ * parser tries the verbs; `go` by each of the ways out that apply on
+ * their place. Only `scope.verb`'s, where it names one.
  */
 export function offersTo(
   actor: InstanceId,
   context: OfferContext,
-  exits?: readonly CommandExit[],
-  range?: RangeWalk<InstanceId>,
+  scope: OfferScope = {},
 ): Offer[] {
-  const { state, budget, passes } = context;
-  const self = state.instance(actor);
-  const here = self?.container ?? null;
-  if (self === undefined || here === null) {
-    throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
-  }
-  const addressing: AddressContext = { world: state.world, nicknames: context.nicknames };
-  const tree = liveTree(state);
-  const walked = range ?? rangeOf({ tree, passes, budget }, actor, 'any');
-  const carried = carriedIn(tree, actor, walked.reached);
-  // In the dark only what the actor carries is offered (the spec's Range › Sight).
-  const dark = inTheDark(actor, context);
-  const things = walked.reached.flatMap(({ node }) => {
-    const instance = node === state.world || node === actor ? undefined : state.instance(node);
-    return instance === undefined || (dark && !carried.has(node)) ? [] : [instance];
-  });
-  const ways = exits ?? exitsFrom(here, context);
-
+  const { budget } = context;
+  const standing = standingOf(actor, context, scope);
   const offers: Offer[] = [];
   for (const [verb, phrases] of byVerb(context.catalogue.phrases)) {
-    const each = verb.roles.map((role): Filling[] => {
-      if (role.filler?.fills === 'exit') {
-        // A link has no direction, and is typed by its label.
-        return ways.map((exit) => ({
-          bound: { exit },
-          words: exit.direction ?? typedWords(exit.label).join(' '),
-        }));
-      }
-      if (role.filler?.fills === 'symbol' || role.filler?.fills === 'integer') return [null];
-      const fitting = things.filter(
-        (thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)),
-      );
-      // The actor's own place fills no role only the actor plays that their
-      // own part moves, which would carry it into their hands or somewhere else.
-      const ownPlace =
-        fitting.some((thing) => thing.id === here) &&
-        movesItsFiller(verb, role, self, budget) &&
-        onlyTheActorPlays(verb, role, context.catalogue.kinds.values(), budget);
-      const bound = fitting
-        .filter((thing) => !ownPlace || thing.id !== here)
-        .map((thing) => ({
-          bound: role.many ? { set: [thing.id] } : { object: thing.id },
-          words: wordsFor(thing, addressing),
-        }));
-      return role.optional ? [null, ...bound] : bound;
-    });
-    for (const filled of product(each)) {
+    if (scope.verb !== undefined && verb !== scope.verb) continue;
+    for (const filled of product(fillingsOf(verb, standing, context))) {
       budget.spend();
       if (fillsTwice(filled)) continue;
       const phrase = phrases.find((one) => typesAll(one, verb.roles, filled));
@@ -136,6 +116,82 @@ export function offersTo(
     }
   }
   return offers;
+}
+
+/**
+ * The verbs `actor` could be offered where they stand, in the order the
+ * parser tries them: each whose every role something fills, without
+ * building a reading. One may still offer nothing, where only one thing
+ * fills two of its roles or no phrase types what fills them.
+ */
+export function verbsOffered(
+  actor: InstanceId,
+  context: OfferContext,
+  scope: OfferScope = {},
+): ResolvedVerb[] {
+  const standing = standingOf(actor, context, scope);
+  return [...byVerb(context.catalogue.phrases).keys()].filter((verb) =>
+    fillingsOf(verb, standing, context).every((fillings) => fillings.length > 0),
+  );
+}
+
+/** Where `actor` stands, which must be somewhere: an away actor can do nothing. */
+function standingOf(actor: InstanceId, context: OfferContext, scope: OfferScope): Standing {
+  const { state, budget, passes } = context;
+  const self = state.instance(actor);
+  const here = self?.container ?? null;
+  if (self === undefined || here === null) {
+    throw new Error(`\`${actor}\` is away, and an away visitor can do nothing.`);
+  }
+  const tree = liveTree(state);
+  const walked = scope.range ?? rangeOf({ tree, passes, budget }, actor, 'any');
+  const carried = carriedIn(tree, actor, walked.reached);
+  // In the dark only what the actor carries is offered (the spec's Range › Sight).
+  const dark = inTheDark(actor, context);
+  const things = walked.reached.flatMap(({ node }) => {
+    const instance = node === state.world || node === actor ? undefined : state.instance(node);
+    return instance === undefined || (dark && !carried.has(node)) ? [] : [instance];
+  });
+  return {
+    self,
+    here,
+    things,
+    carried,
+    ways: scope.exits ?? exitsFrom(here, context),
+    addressing: { world: state.world, nicknames: context.nicknames },
+  };
+}
+
+/** Each way to fill each of `verb`'s roles, in the order it declares them. */
+function fillingsOf(verb: ResolvedVerb, standing: Standing, context: OfferContext): Filling[][] {
+  const { self, here, things, carried, ways, addressing } = standing;
+  const { budget } = context;
+  return verb.roles.map((role): Filling[] => {
+    if (role.filler?.fills === 'exit') {
+      // A link has no direction, and is typed by its label.
+      return ways.map((exit) => ({
+        bound: { exit },
+        words: exit.direction ?? typedWords(exit.label).join(' '),
+      }));
+    }
+    if (role.filler?.fills === 'symbol' || role.filler?.fills === 'integer') return [null];
+    const fitting = things.filter(
+      (thing) => fits(role, thing) && (!role.carried || carried.has(thing.id)),
+    );
+    // The actor's own place fills no role only the actor plays that their
+    // own part moves, which would carry it into their hands or somewhere else.
+    const ownPlace =
+      fitting.some((thing) => thing.id === here) &&
+      movesItsFiller(verb, role, self, budget) &&
+      onlyTheActorPlays(verb, role, context.catalogue.kinds.values(), budget);
+    const bound = fitting
+      .filter((thing) => !ownPlace || thing.id !== here)
+      .map((thing) => ({
+        bound: role.many ? { set: [thing.id] } : { object: thing.id },
+        words: wordsFor(thing, addressing),
+      }));
+    return role.optional ? [null, ...bound] : bound;
+  });
 }
 
 /** The phrases of each verb, in the order the parser tries them, each verb at its first. */

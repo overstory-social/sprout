@@ -23,7 +23,7 @@ import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
 import { runCommand } from './turns.js';
 import { readLog } from './log/entry.js';
-import { runView, ViewCache } from './views.js';
+import { runReadings, runScene, runView, ViewCache } from './views.js';
 import { withImports } from './fixtures/imports.js';
 
 // A hall with a lamp in it, one kind per file: the hall says whether the
@@ -211,5 +211,82 @@ describe('a cache of views', () => {
     const raced = await pending;
     expect(raced).not.toBe(kept);
     expect(await cache.view(store, 'w', host, MARTA, 0)).not.toBe(raced);
+  });
+});
+
+describe('a scene and a verb’s readings polled against a store', () => {
+  it('are the view in parts, rendered from the last committed state', async () => {
+    const store = await seeded();
+    const { view } = await runView(store, 'w', host, MARTA, 0);
+    const { scene, fault } = await runScene(store, 'w', host, MARTA, 0);
+    expect(fault).toBeNull();
+    expect(scene.description).toEqual(view.description);
+    const apart = [];
+    for (const { verb } of scene.verbs) {
+      apart.push(...(await runReadings(store, 'w', host, MARTA, verb, 0)).readings);
+    }
+    expect(apart).toEqual(view.readings);
+    expect(scene.verbs.find((one) => one.verb === 'lamplight.light')?.phrases).toEqual(['light …']);
+  });
+
+  it('log the fault of a poll that runs out, against the place', async () => {
+    const store = await seeded();
+    const tight = { ...host, budgets: { ...host.budgets, pollSteps: 1 } };
+    const scened = await runScene(store, 'w', tight, MARTA, 3);
+    expect(scened.scene.description).toEqual(['Something here is too much to take in.']);
+    const read = await runReadings(store, 'w', tight, MARTA, 'lamplight.light', 4);
+    expect(read).toMatchObject({ readings: [], fault: { name: 'BudgetExhausted', object: HALL } });
+    const logged = await readLog(store, 'w', { limit: 10 });
+    expect(
+      logged.map((one) => [one.entry.kind, 'now' in one.entry ? one.entry.now : null]),
+    ).toEqual([
+      ['poll-fault', 3],
+      ['poll-fault', 4],
+    ]);
+  });
+});
+
+describe('a cache of scenes and readings', () => {
+  it('keeps each until a committed write turn names its visitor stale, as it keeps a view', async () => {
+    const store = await seeded();
+    const cache = new ViewCache();
+    const scene = await cache.scene(store, 'w', host, MARTA, 0);
+    const readings = await cache.readings(store, 'w', host, MARTA, 'lamplight.light', 0);
+    expect(readings.readings.map((one) => one.typed)).toEqual(['light hall', 'light lamp']);
+    expect(await cache.scene(store, 'w', host, MARTA, 0)).toBe(scene);
+    expect(await cache.readings(store, 'w', host, MARTA, 'lamplight.light', 0)).toBe(readings);
+    cache.stale('w', await lit(store));
+    const next = await cache.scene(store, 'w', host, MARTA, 0);
+    expect(next).not.toBe(scene);
+    expect(next.scene.description).toEqual(['The hall is bright.']);
+    expect(await cache.readings(store, 'w', host, MARTA, 'lamplight.light', 0)).not.toBe(readings);
+  });
+
+  it('answers a verb the scene does not list with no readings, and polls nothing for it', async () => {
+    const store = await seeded();
+    const cache = new ViewCache();
+    const tight = { ...host, budgets: { ...host.budgets, pollSteps: 1 } };
+    // The scene faults, so lists no verb, and the one fault logged is the scene's.
+    expect(await cache.readings(store, 'w', tight, MARTA, 'lamplight.light', 0)).toEqual({
+      visit: MARTA,
+      verb: 'lamplight.light',
+      readings: [],
+      fault: null,
+    });
+    expect(await cache.readings(store, 'w', host, MARTA, 'nowhere.juggle', 0)).toMatchObject({
+      readings: [],
+      fault: null,
+    });
+    expect(await readLog(store, 'w', { limit: 10 })).toHaveLength(1);
+  });
+
+  it('does not keep readings whose poll began before their visitor was named stale', async () => {
+    const store = await seeded();
+    const cache = new ViewCache();
+    await cache.scene(store, 'w', host, MARTA, 0);
+    const pending = cache.readings(store, 'w', host, MARTA, 'lamplight.light', 0);
+    cache.stale('w', [MARTA]);
+    const raced = await pending;
+    expect(await cache.readings(store, 'w', host, MARTA, 'lamplight.light', 0)).not.toBe(raced);
   });
 });

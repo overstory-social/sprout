@@ -24,7 +24,7 @@ import { words } from '../fixtures/reading.js';
 import { Draft } from './draft.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { Budget, BudgetExhausted } from './budget.js';
-import { offersTo } from './offers.js';
+import { offersTo, verbsOffered } from './offers.js';
 import * as D from '../fixtures/darkness.js';
 import {
   BOOK as BENCH_BOOK,
@@ -32,7 +32,11 @@ import {
   CRATE as BENCH_CRATE,
   POUCH as BENCH_POUCH,
   bench,
+  benchFiles,
+  SHOP as BENCH_SHOP,
 } from '../fixtures/bench.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import { turn } from '../fixtures/reading.js';
 import { commandContext } from '../fixtures/parser.js';
 
 const typedBy = (state: ReturnType<typeof study>) =>
@@ -168,8 +172,8 @@ describe('what an actor is offered', () => {
       offers.filter((offer) => offer.typed.startsWith('go ')).map((offer) => offer.typed);
     expect(ways(offersTo(marta, lookingAt(state)))).toEqual(['go north']);
     const handed = [{ direction: 'down' as const, label: 'down the well', to: LOFT }];
-    expect(ways(offersTo(marta, lookingAt(state), handed))).toEqual(['go down']);
-    expect(ways(offersTo(marta, lookingAt(state), []))).toEqual([]);
+    expect(ways(offersTo(marta, lookingAt(state), { exits: handed }))).toEqual(['go down']);
+    expect(ways(offersTo(marta, lookingAt(state), { exits: [] }))).toEqual([]);
   });
 
   it('is asked of one who stands somewhere', () => {
@@ -226,5 +230,84 @@ describe('what an actor is offered in the dark', () => {
     const lit = D.dark(undefined, [[D.LAMP, 'lit', true]], [[D.MARTA, D.LAMP]]);
     const seen = offersTo(D.personOf(lit, D.MARTA), D.darkContext(lit)).map((offer) => offer.typed);
     expect(seen.some((line) => line.includes('coal'))).toBe(true);
+  });
+});
+
+describe('the verbs a scene lists', () => {
+  const verbsOf = (offers: ReturnType<typeof offersTo>) => [
+    ...new Set(offers.map((offer) => offer.reading.verb)),
+  ];
+
+  it('holds every verb with an offer, in the order the parser tries them', () => {
+    for (const state of [study(), study(undefined, [[LAMP, 'lit', true]])]) {
+      const marta = actorOf(state, MARTA);
+      const listed = verbsOffered(marta, lookingAt(state));
+      const offering = verbsOf(offersTo(marta, lookingAt(state)));
+      expect(listed.filter((verb) => offering.includes(verb))).toEqual(offering);
+    }
+  });
+
+  it('leaves out a verb a role of which nothing in range fills', () => {
+    const named = (one: ReturnType<typeof bench>) =>
+      verbsOffered(one.people[0]!, commandContext(one, [])).map((verb) => verb.name);
+    // `unlock`'s tool is carried, and Marta carries nothing.
+    expect(named(bench())).not.toContain('unlock');
+    expect(named(bench([[BENCH_KEY, null]]))).toContain('unlock');
+  });
+
+  it('lists in the dark only what what she carries can fill, beside `go`', () => {
+    const state = D.dark();
+    const listed = verbsOffered(D.personOf(state, D.MARTA), D.darkContext(state)).map(
+      (verb) => verb.name,
+    );
+    expect(listed).toContain('go');
+    expect(listed).not.toContain('take');
+  });
+
+  it('holds a verb whose every role something fills though no reading can be built', () => {
+    // Only the rope fills either of `tie`'s roles, and one thing fills no two.
+    const knotted = compiledWorld(
+      'bench',
+      benchFiles({
+        objects: ['object rope is Rope'],
+        declarations: [
+          'verb tie { role first: Rope  role second: Rope  "tie [first] to [second]" }',
+          'kind Rope { }',
+        ],
+      }),
+    );
+    const one = turn(knotted, [BENCH_SHOP]);
+    const marta = one.people[0]!;
+    const context = commandContext({ ...one, nicknames: new Map([[marta, 'Marta']]) }, []);
+    const tie = verbsOffered(marta, context).find((verb) => verb.name === 'tie');
+    expect(tie).toBeDefined();
+    expect(offersTo(marta, context, { verb: tie! }).map((o) => o.typed)).toEqual([]);
+  });
+
+  it('builds no reading, so it costs less than the offers it stands for', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    const spent = (run: (context: ReturnType<typeof lookingAt>) => unknown) => {
+      const context = lookingAt(state);
+      run(context);
+      return context.budget.spentSteps;
+    };
+    expect(spent((context) => verbsOffered(marta, context))).toBeLessThan(
+      spent((context) => offersTo(marta, context)),
+    );
+  });
+});
+
+describe('one verb’s offers', () => {
+  it('are exactly that verb’s of every offer, in the same order', () => {
+    const state = study();
+    const marta = actorOf(state, MARTA);
+    const every = offersTo(marta, lookingAt(state));
+    for (const verb of verbsOffered(marta, lookingAt(state))) {
+      const typed = offersTo(marta, lookingAt(state), { verb }).map((offer) => offer.typed);
+      expect(typed).toEqual(
+        every.filter((offer) => offer.reading.verb === verb).map((offer) => offer.typed),
+      );
+    }
   });
 });

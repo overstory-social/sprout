@@ -2002,7 +2002,9 @@ Within a command turn, the order is fixed: parse; the consent pass; the effect p
 
 A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. A role only the actor plays and the actor's own part moves, as `take`'s target, is not offered filled with the visitor's own place, so `take` is not offered it and `examine` is; and a reading its consent pass allows whose `do` would move a thing into something it holds, itself or a container it is inside, is greyed with the world's `inside_itself`, as the move would be refused. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault; the view of one whose place is not lit is as Range › Sight says. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
 
-A poll that exhausts its budget yields a view whose description is the world's `unseen` passage and which keeps every other part the poll derived without faulting. The fault is logged against the object it names, or against the actor's place where the budget ran out with none named, with the time of the poll and not who was looking.
+A host may poll a view in parts: the **scene**, which is the view without its readings and with each verb a reading could be built for, one whose every role something in range, a way out or a value can fill, in the order the parser tries them; and then the readings of any one verb, as the whole view would give them. Each part is a poll of its own, under its own budget, so a place too full to offer whole still offers each verb.
+
+A poll that exhausts its budget yields a view whose description is the world's `unseen` passage and which keeps every other part the poll derived without faulting; a scene's poll does the same. A verb's poll that exhausts its budget gives none of that verb's readings. The fault is logged against the object it names, or against the actor's place where the budget ran out with none named, with the time of the poll and not who was looking.
 
 ### Effects
 
@@ -2058,6 +2060,7 @@ The host draws a seed for each write turn and records it beside the turn. The lo
 | a wake | consumed and logged; the object is not woken again unless it asks |
 | a part of a maintenance turn | that part is abandoned and its wake consumed; the rest of the catch-up is still delivered, and the visitor is admitted |
 | a poll | the view's description is the world's `unseen` passage, and the rest of it is whatever the poll derived without faulting |
+| a verb's poll, of a view polled in parts | none of that verb's readings; the fault is logged as a poll's |
 
 Anything a turn's body throws is a fault, told as the table says, a defect of the engine's own that no rule of the language explains included; the host is told which faults are the engine's, to report loudly.
 

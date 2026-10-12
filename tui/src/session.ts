@@ -2,7 +2,7 @@ import type { Level } from '@overstory/sprout/lang';
 import { PROTOCOL, type ServerMessage } from '@overstory/sprout/core';
 
 import { link, tokenFor, type Link } from './connection.js';
-import { CLIENT_COMMANDS, typedOf } from './input.js';
+import { CLIENT_COMMANDS, completions, typedOf, verbsTyping } from './input.js';
 import { add, EMPTY, received, troubled, type ClientState } from './state.js';
 
 // One visitor connected to one server: `hello` with the person's token,
@@ -10,8 +10,9 @@ import { add, EMPTY, received, troubled, type ClientState } from './state.js';
 // as a command, each with its own `seq`, and every client command answered
 // here. A line typed before admission is the nickname asked for; a
 // nickname refused asks for another. `/reconnect` connects again with the
-// same token, so the server finds the visit again. Every change is told to
-// whoever shows the client.
+// same token, so the server finds the visit again. Completing a line asks
+// the server for the readings of each verb that could begin it. Every
+// change is told to whoever shows the client.
 
 /** What a session is started with. */
 export interface SessionOptions {
@@ -43,6 +44,8 @@ export class Session {
   private waiting: string[] = [];
   /** The `seq` of each line sent whose effects have not come back. */
   private readonly answering = new Set<number>();
+  /** What waits on each verb's readings asked for, by `seq`: the lines they allow. */
+  private readonly asked = new Map<number, (lines: string[]) => void>();
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly options: SessionOptions) {
@@ -80,6 +83,8 @@ export class Session {
       closed: () => {
         if (opened === null || this.connection !== opened) return;
         this.connection = null;
+        for (const resolve of this.asked.values()) resolve([]);
+        this.asked.clear();
         if (this.state.closed === null) {
           const lost = add(
             this.state,
@@ -176,6 +181,27 @@ export class Session {
   }
 
   /**
+   * What `typed` could be completed to: the client's commands after a `/`,
+   * else the lines the visitor could type now that begin with it, from the
+   * readings of each verb that could begin it, asked for now; none where
+   * the server cannot be asked.
+   */
+  async complete(typed: string): Promise<string[]> {
+    if (typed.startsWith('/')) return completions(typed, []);
+    const connection = this.connection;
+    if (connection === null || this.state.world === null) return [];
+    const asked = verbsTyping(typed, this.state.verbs).map(
+      (verb) =>
+        new Promise<string[]>((resolve) => {
+          this.seq += 1;
+          this.asked.set(this.seq, resolve);
+          connection.send({ t: 'readings', seq: this.seq, verb });
+        }),
+    );
+    return completions(typed, (await Promise.all(asked)).flat());
+  }
+
+  /**
    * Resolves once nothing is waiting on the server: coming in answered,
    * every line typed meanwhile sent, and every line sent answered; or once
    * the connection is gone.
@@ -198,6 +224,12 @@ export class Session {
   private receive(message: ServerMessage): void {
     if (message.t === 'effects' && message.seq !== null && message.last)
       this.answering.delete(message.seq);
+    if (message.t === 'readings') {
+      this.asked.get(message.seq)?.(
+        message.readings.filter((one) => one.refused === null).map((one) => one.typed),
+      );
+      this.asked.delete(message.seq);
+    }
     this.change(received(this.state, message, this.now()));
     if (message.t === 'welcome') {
       if (this.nickname === null)

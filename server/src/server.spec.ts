@@ -113,7 +113,11 @@ describe('the server, over a real socket', () => {
     const status = await marta.take('status');
     expect(status).toMatchObject({ place: 'the cellar', exits: [] });
     expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin']);
-    expect((await marta.take('offered')).lines).toContain('take key');
+    const verbs = (await marta.take('verbs')).verbs.map((one) => one.verb);
+    expect(verbs).toContain('sprout.take');
+    marta.send({ t: 'readings', seq: 7, verb: 'sprout.take' });
+    const asked = await marta.take('readings', (one) => one.seq === 7);
+    expect(asked.readings.map((one) => one.typed)).toContain('take key');
     marta.send({ t: 'command', seq: 1, line: 'take key then take coin' });
     const [first, second] = [
       await marta.take('effects', (one) => one.seq === 1),
@@ -165,6 +169,16 @@ describe('the server, over a real socket', () => {
     await client.take('welcome');
     client.send({ t: 'command', seq: 1, line: 'look' });
     expect(await client.take('refused')).toMatchObject({ stage: 'frame', reason: 'not-admitted' });
+    client.send({ t: 'readings', seq: 2, verb: 'sprout.take' });
+    expect(await client.take('refused')).toMatchObject({ stage: 'frame', reason: 'not-admitted' });
+    // Readings asked for are answered, with none, so a client waiting on them is not left waiting.
+    expect(await client.take('readings')).toEqual({
+      t: 'readings',
+      seq: 2,
+      verb: 'sprout.take',
+      readings: [],
+      faulted: false,
+    });
     client.send({ t: 'admit', world: 'nowhere', nickname: 'Marta' });
     expect(await client.take('refused')).toMatchObject({ stage: 'admit', reason: 'no-world' });
   });

@@ -22,7 +22,7 @@ import { SproutList } from '../runtime/lists.js';
 import { saveWorld } from '../runtime/load.js';
 import { STOCK_LINES } from '../runtime/engine-lines.js';
 import { viewOf } from '../runtime/view.js';
-import { pollView, renderView } from './view.js';
+import { pollReadings, pollScene, pollView, renderView } from './view.js';
 import type { Catalogue } from '../runtime/catalogue.js';
 import {
   gallery,
@@ -255,5 +255,88 @@ describe('what a description’s extension statements record into the view', () 
     const { view } = polled(galleryCatalogue([]));
     expect(view.description).toEqual(['A bright hall.']);
     expect(view.effects).toEqual([]);
+  });
+});
+
+describe('polling a visitor’s scene', () => {
+  it('is the view but its readings, with each verb that could be offered and the phrases that type it', () => {
+    const state = gatehouse(undefined, [PEBBLE], OPEN);
+    const { readings, ...placed } = pollView(state, gateHost(), MARTA).view;
+    const polled = pollScene(state, gateHost(), MARTA);
+    expect(polled.fault).toBeNull();
+    const { verbs, ...scene } = polled.scene;
+    expect(scene).toEqual(placed);
+    const offering = [...new Set(readings.map((one) => one.verb))];
+    expect(verbs.map((one) => one.verb).filter((verb) => offering.includes(verb))).toEqual(
+      offering,
+    );
+    expect(verbs.find((one) => one.verb === 'sprout.take')?.phrases).toContain('take …');
+  });
+
+  it('is the world’s `unseen` where it runs out, keeping what it derived, laid against the place', () => {
+    const polled = pollScene(gatehouse(), gateHost(20), MARTA);
+    expect(polled.scene).toEqual({
+      description: ['Too much happens here to take in.'],
+      effects: [],
+      exits: [{ direction: 'up', label: 'up the ladder', to: TOWER }],
+      occupants: [],
+      carried: [],
+      verbs: [],
+    });
+    expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', object: YARD, engine: false });
+  });
+
+  it('lists no verb to a visitor whose place is gone', () => {
+    const base = gatehouse();
+    const draft = new Draft(base);
+    draft.place(actorOf(base, MARTA), PURSE);
+    const polled = pollScene(draft.commit().state, gateHost(), MARTA);
+    expect(polled.scene.description).toEqual([STOCK_LINES.displaced]);
+    expect(polled.scene.verbs).toEqual([]);
+  });
+});
+
+describe('polling one verb’s readings', () => {
+  it('gives the view’s readings of that verb, rendered as the view renders them', () => {
+    const state = gatehouse(undefined, [PEBBLE], OPEN);
+    const { readings } = pollView(state, gateHost(), MARTA).view;
+    const { verbs } = pollScene(state, gateHost(), MARTA).scene;
+    const apart = verbs.flatMap(
+      ({ verb }) => pollReadings(state, gateHost(), MARTA, verb).readings,
+    );
+    expect(apart).toEqual(readings);
+  });
+
+  it('gives none where the poll runs out, its fault laid against the place', () => {
+    const polled = pollReadings(gatehouse(), gateHost(3), MARTA, 'sprout.take');
+    expect(polled).toMatchObject({ verb: 'sprout.take', readings: [] });
+    expect(polled.fault).toMatchObject({ name: 'BudgetExhausted', object: YARD, engine: false });
+  });
+
+  it('runs under a budget of its own, so a scene too large to offer whole still offers each verb', () => {
+    const state = gatehouse(undefined, [PEBBLE], OPEN);
+    const whole = pollView(state, gateHost(), MARTA).view.readings.length;
+    let steps = 1;
+    while (pollView(state, gateHost(steps), MARTA).view.readings.length < whole) steps += 1;
+    const tight = gateHost(steps - 1);
+    expect(pollView(state, tight, MARTA).fault).not.toBeNull();
+    const { verbs } = pollScene(state, tight, MARTA).scene;
+    const apart = verbs.map(({ verb }) => pollReadings(state, tight, MARTA, verb));
+    expect(apart.every((one) => one.fault === null)).toBe(true);
+    expect(apart.flatMap((one) => one.readings)).toHaveLength(whole);
+  });
+
+  it('offers nothing to a visitor whose place is gone, and is the host’s defect for a verb the world lacks', () => {
+    const base = gatehouse();
+    const draft = new Draft(base);
+    draft.place(actorOf(base, MARTA), PURSE);
+    const displaced = draft.commit().state;
+    expect(pollReadings(displaced, gateHost(), MARTA, 'sprout.take')).toMatchObject({
+      readings: [],
+      fault: null,
+    });
+    expect(() => pollReadings(base, gateHost(), MARTA, 'sprout.juggle')).toThrow(
+      /types no verb `sprout.juggle`/,
+    );
   });
 });
