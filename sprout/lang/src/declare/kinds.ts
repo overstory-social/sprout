@@ -124,6 +124,8 @@ export interface KindRef {
    * `KindRef` keeps that true.
    */
   readonly containsActors: boolean;
+  /** Whether an NPC of it moves itself to any place (the spec's Actors and visitors › roams). */
+  readonly roams: boolean;
   /**
    * The contributions this kind's own `without` lines leave out, each a
    * member and the kind in its closure that declares it (the spec's

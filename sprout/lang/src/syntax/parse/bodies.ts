@@ -11,6 +11,7 @@
 import {
   GUARD_NAMES,
   type ContainsDeclaration,
+  type RoamsDeclaration,
   type GuardDeclaration,
   type KindMember,
   type ObjectDeclaration,
@@ -66,6 +67,7 @@ export function kindMembers(
   const readers = new Map<string, () => KindMember | ObjectDeclaration | null>();
   addRemembers(p, readers);
   readers.set('contains', () => contains(p));
+  readers.set('roams', () => roams(p));
   readers.set('passage', () => passage(p, readers));
   readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
@@ -520,6 +522,11 @@ function memberReader<M>(
     return token.text === 'remembers' ? () => rememberedAsList(p, startsMember) : () => property(p);
   }
   return token.kind === 'name' ? (readers.get(token.text) ?? null) : null;
+}
+
+/** `roams`, alone on its line: an NPC of this kind moves itself to any place. */
+export function roams(p: Parser): RoamsDeclaration {
+  return { kind: 'roams', at: p.next().at };
 }
 
 /**

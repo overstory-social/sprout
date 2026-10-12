@@ -101,7 +101,7 @@ sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_n
   named = sprout_world_bound(frame->world, key_of(frame->graph, path));
   if (named == NULL) return unresolved(frame, written);
   EXPR_NEED(expr_named_object(frame, named, out, &found));
-  if (found && expr_live(frame, *out)) EXPR_NEED(sprout_move_reaches(frame, frame->self, *out, &reached));
+  if (found && expr_live(frame, *out)) EXPR_NEED(sprout_move_reaches(frame, frame->self, (sprout_str){NULL, 0}, *out, &reached));
   if (!found || !reached) return expr_name_out_of_range(frame, written, found, *out);
   return SPROUT_EVAL_OK;
 }

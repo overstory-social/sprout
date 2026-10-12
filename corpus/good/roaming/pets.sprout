@@ -1,0 +1,39 @@
+// The cat roams; the dog does not. Each, once asked, sets off for the
+// attic a minute later, and the cat comes back down a minute after that.
+import * as sprout from 'sprout'
+import {pet, whistle} from 'roaming'
+import {kitchen, attic} from 'places'
+
+kind Cat is sprout.Actor {
+  roams
+  :up false
+
+  as target for pet {
+    do {
+      wake in 1 minutes
+      say "The cat purrs, and eyes the ceiling."
+    }
+  }
+
+  on :woke (elapsed) {
+    if (self.get(:up)) {
+      self.set(:up, false)
+      move self to kitchen
+    } else {
+      self.set(:up, true)
+      move self to attic
+      wake in 1 minutes
+    }
+  }
+}
+
+kind Dog is sprout.Actor {
+  as target for whistle {
+    do {
+      wake in 1 minutes
+      say "The dog pricks up its ears."
+    }
+  }
+
+  on :woke (elapsed) { move self to attic }
+}

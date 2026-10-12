@@ -226,6 +226,60 @@ describe('the move’s own range rule: a place in the mover’s range, or where 
   });
 });
 
+describe('an NPC that roams moves itself to any place', () => {
+  const roaming = (roams: boolean) => {
+    const own = catalogueOf(
+      compiledWorld('loft', {
+        'loft.sprout': [
+          'world loft is sprout.World { visitors are Pup visitors arrive at barn',
+          '  object barn is sprout.Place { object owl is Owl  object hay is Hay }',
+          '  object attic is sprout.Place',
+          '}',
+          'kind Pup is sprout.Visitor { }',
+          `kind Owl is sprout.Actor { ${roams ? 'roams' : ''} }`,
+          'kind Hay { }',
+          '',
+        ].join('\n'),
+      }),
+      CAPS,
+    );
+    const [OWL, HAY, ATTIC] = [['barn', 'owl'], ['barn', 'hay'], ['attic']].map((path) =>
+      declaredId('loft', path),
+    ) as [InstanceId, InstanceId, InstanceId];
+    const draft = new Draft(initialState(own));
+    // The world refuses, as its unwritten rule does, and nothing leads from the barn to the attic.
+    const passes: PassRule<InstanceId> = (container) => container !== draft.world;
+    const at = context(draft, { catalogue: own, passes });
+    const range = { tree: liveTree(draft), passes: at.passes, budget: at.budget };
+    return { draft, at, range, OWL, HAY, ATTIC };
+  };
+
+  it('reaches a place nothing else puts in its range, and is moved there', () => {
+    const { draft, at, range, OWL, ATTIC } = roaming(true);
+    expect(draft.instance(OWL)!.kind.roams).toBe(true);
+    expect(reachedForMove(at, range, OWL, ATTIC, OWL)).toBe(true);
+    moved(moveInstance(at, OWL, OWL, ATTIC));
+    expect(draft.instance(OWL)!.container).toBe(ATTIC);
+  });
+
+  it('carries nothing else there: a move of another thing reaches only its range, and faults', () => {
+    const { at, range, OWL, HAY, ATTIC } = roaming(true);
+    expect(reachedForMove(at, range, OWL, ATTIC, HAY)).toBe(false);
+    expect(() => moveInstance(at, OWL, HAY, ATTIC)).toThrow(
+      expect.objectContaining({ reason: 'out-of-range' }),
+    );
+  });
+
+  it('is not given to an NPC whose kind does not say `roams`: the place is out of range, and the move faults', () => {
+    const { draft, at, range, OWL, ATTIC } = roaming(false);
+    expect(draft.instance(OWL)!.kind.roams).toBe(false);
+    expect(reachedForMove(at, range, OWL, ATTIC, OWL)).toBe(false);
+    expect(() => moveInstance(at, OWL, OWL, ATTIC)).toThrow(
+      expect.objectContaining({ reason: 'out-of-range' }),
+    );
+  });
+});
+
 describe('a `move` statement’s destination, where the mover composes `sprout.Actor`', () => {
   it('binds a bare identifier reached only through the mover’s place’s exit, as `moveInstance` itself would reach it', () => {
     // Marta's own `do { move self to porch }`: `porch` is out of her

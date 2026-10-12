@@ -562,6 +562,11 @@ export interface ContainsDeclaration extends Node {
   readonly actors: boolean;
 }
 
+/** `roams` — an NPC that moves itself to any place (the spec's Actors and visitors). */
+export interface RoamsDeclaration extends Node {
+  readonly kind: 'roams';
+}
+
 /** `on :stir` — a handler, named by the message it answers. */
 export interface HandlerRef extends Node {
   readonly kind: 'handler-ref';
@@ -728,6 +733,7 @@ export type KindMember =
   | PropertyDeclaration
   | RemembersDeclaration
   | ContainsDeclaration
+  | RoamsDeclaration
   | WithoutDeclaration
   | PassageDeclaration
   | ProseFileDeclaration

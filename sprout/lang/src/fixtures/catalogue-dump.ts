@@ -25,6 +25,7 @@ export interface DumpedKind {
   readonly order: readonly string[];
   readonly contains: boolean;
   readonly containsActors: boolean;
+  readonly roams: boolean;
   readonly properties: readonly {
     readonly name: string;
     readonly type: string;
@@ -79,6 +80,7 @@ function kindOf(kind: KindRef, spawnable: boolean): DumpedKind {
     order: [...kind.order],
     contains: kind.contains,
     containsActors: kind.containsActors,
+    roams: kind.roams,
     properties: [...kind.properties.values()].map((property) => ({
       name: property.name,
       type: typeKey(property.type),

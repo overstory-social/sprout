@@ -1,0 +1,13 @@
+// `roams` is for an NPC: a kettle is no actor, and a person goes where
+// they type, so both are refused.
+import * as sprout from 'sprout'
+import {Person, Kettle} from 'kinds'
+
+world roams_not_an_actor is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    object kettle is Kettle
+  }
+}

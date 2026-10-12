@@ -37,6 +37,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     describe: null,
     contains: false,
     containsActors: false,
+    roams: false,
     suppressed: [],
   };
 }

@@ -165,12 +165,18 @@ sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame,
   return SPROUT_EVAL_OK;
 }
 
-sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mover, sprout_str to, bool *reached) {
+sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mover, sprout_str item, sprout_str to,
+                                       bool *reached) {
   const sprout_stored_instance *moving = sprout_draft_instance(frame->draft, mover);
+  const sprout_stored_instance *destination = sprout_draft_instance(frame->draft, to);
   const sprout_way *leading;
   sprout_str place;
   size_t count, i;
-  *reached = false;
+  bool itself = item.bytes == NULL || sprout_str_same(item, mover);
+  /* An NPC that roams moves itself to any place, with no walk (the spec's Actors and visitors). */
+  *reached = moving != NULL && moving->kind != NULL && moving->kind->roams && moving->kind->composes_actor && itself &&
+             destination != NULL && destination->kind != NULL && destination->kind->contains_actors;
+  if (*reached) return SPROUT_EVAL_OK;
   EXPR_NEED(expr_reaches(frame, mover, to, NULL, reached));
   if (*reached || moving == NULL || !moving->kind->composes_actor) return SPROUT_EVAL_OK;
   if (!sprout_surround_of(frame, mover, &place)) return SPROUT_EVAL_OK;
@@ -214,7 +220,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
   }
   reached = false;
   if (sprout_draft_instance(x->draft, to) != NULL && expr_live(frame, to)) {
-    if (reach == SPROUT_REACH_RANGE) EXPR_NEED(sprout_move_reaches(frame, mover, to, &reached));
+    if (reach == SPROUT_REACH_RANGE) EXPR_NEED(sprout_move_reaches(frame, mover, item, to, &reached));
     else reached = true;
   }
   if (!reached) {

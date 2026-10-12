@@ -398,6 +398,47 @@ describe('a restatement keeps the composed type', () => {
   });
 });
 
+describe('`roams` is an NPC’s, and composes as `contains` does', () => {
+  const sprout = `${SPROUT_TEXT}kind Actor { }\nkind Visitor is Actor { }\n`;
+  const WANDERER = 'kind Wanderer is sprout.Actor { roams }\n';
+
+  it('makes an actor’s kind roam, and every kind that composes it', () => {
+    const own = compose('kind Owl is sprout.Actor { roams }', { sprout });
+    expect([own.kind!.roams, own.said]).toEqual([true, []]);
+    const composed = compose(`${WANDERER}kind Owl is Wanderer { }`, { sprout });
+    expect([composed.kind!.roams, composed.said]).toEqual([true, []]);
+    expect(compose('kind Owl is sprout.Actor { }', { sprout }).kind!.roams).toBe(false);
+  });
+
+  it('is refused where it is written on a kind that is no actor, or is a person', () => {
+    expect(compose('kind Kettle {\n  roams\n}', { sprout }).said).toEqual([
+      [
+        'shop.sprout:2:3',
+        '`Kettle` roams, and only an actor moves itself: it does not compose `sprout.Actor`.',
+        'Compose `sprout.Actor` in `Kettle`, or take `roams` out.',
+      ],
+    ]);
+    expect(compose('kind Person is sprout.Visitor {\n  roams\n}', { sprout }).said).toEqual([
+      [
+        'shop.sprout:2:3',
+        '`Person` roams, and composes `sprout.Visitor`: a visitor goes where they type.',
+        'Take `roams` out of `Person`, and write it on a kind for the NPCs that wander.',
+      ],
+    ]);
+  });
+
+  it('is refused at what composes it where a kind brings `sprout.Visitor` to one that roams', () => {
+    const { said } = compose(`${WANDERER}kind Person is sprout.Visitor, Wanderer { }`, { sprout });
+    expect(said).toEqual([
+      [
+        'shop.sprout:2:16',
+        '`Person` roams, and composes `sprout.Visitor`: a visitor goes where they type.',
+        'Take `roams` out of `Person`, and write it on a kind for the NPCs that wander.',
+      ],
+    ]);
+  });
+});
+
 describe('`contains` and `contains actors` are idempotent, so they hold across the closure', () => {
   const HOLDERS = 'kind Box { contains }\nkind Room { contains actors }\n';
 

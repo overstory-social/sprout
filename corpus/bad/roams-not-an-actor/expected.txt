@@ -1,0 +1,7 @@
+kinds.sprout:4:3  `Person` roams, and composes `sprout.Visitor`: a visitor goes where they type.
+                  Take `roams` out of `Person`, and write it on a kind for the NPCs that wander.
+
+kinds.sprout:8:3  `Kettle` roams, and only an actor moves itself: it does not compose `sprout.Actor`.
+                  Compose `sprout.Actor` in `Kettle`, or take `roams` out.
+
+refused: 2 problems

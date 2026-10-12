@@ -81,6 +81,7 @@ const EXPECTED_PASSING = [
   'refusal-hands',
   'relatives',
   'requires-held',
+  'roaming',
   'rounds',
   'runs',
   'sequences',

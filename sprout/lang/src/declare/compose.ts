@@ -27,6 +27,7 @@
 import {
   writtenMember,
   type ContainsDeclaration,
+  type RoamsDeclaration,
   type KindExpr,
   type KindMember,
   type MemberRef,
@@ -34,6 +35,7 @@ import {
   type WithoutDeclaration,
 } from '../syntax/ast.js';
 import type { Diagnostics } from '../source/diagnostics.js';
+import type { Span } from '../source/source.js';
 import {
   lookingFrom,
   nearestOption,
@@ -53,6 +55,7 @@ import {
 import { identicalType, showType } from './types.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
 import { composedWhereSame } from './contributions.js';
+import { ACTOR, VISITOR } from './actors.js';
 import { composeGuards, ownGuards, writesGuard } from './guards.js';
 import {
   composeHandlers,
@@ -304,6 +307,8 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   let contains = composed.some(({ kind }) => kind.contains);
   let containsActors = composed.some(({ kind }) => kind.containsActors);
   let writtenContains: ContainsDeclaration | null = null;
+  let roams = composed.some(({ kind }) => kind.roams);
+  let writtenRoams: RoamsDeclaration | null = null;
   const withouts: WithoutDeclaration[] = [];
   for (const member of composer.members) {
     switch (member.kind) {
@@ -313,6 +318,10 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
         if (writtenContains !== null)
           warnContainsTwice(composer.name, writtenContains, member, diagnostics);
         writtenContains = member;
+        break;
+      case 'roams':
+        roams = true;
+        writtenRoams ??= member;
         break;
       case 'remembers':
         for (const entry of member.properties) hold(entry, true);
@@ -446,6 +455,18 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     diagnostics,
   );
   order.push(own);
+  // Written here, it is judged here. Come from a composed kind, which was
+  // judged where it was written, it is refused here only for what this kind
+  // adds: `sprout.Visitor`, which no kind that roams composed.
+  if (writtenRoams !== null) refuseRoaming(composer.name, order, writtenRoams.at, diagnostics);
+  else if (
+    roams &&
+    order.includes(VISITOR) &&
+    composed.every(({ kind }) => !kind.roams || !kind.order.includes(VISITOR)) &&
+    composer.composes[0] !== undefined
+  ) {
+    refuseRoaming(composer.name, order, composer.composes[0].at, diagnostics);
+  }
 
   return {
     library: composer.library,
@@ -470,8 +491,34 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     describe,
     contains: contains || containsActors,
     containsActors,
+    roams,
     suppressed,
   };
+}
+
+/**
+ * `roams` on a kind that is no NPC: one that does not compose `sprout.Actor`, or composes
+ * `sprout.Visitor`, a visitor being a person who goes where they type (the spec's Actors and visitors).
+ */
+function refuseRoaming(
+  name: string,
+  order: readonly string[],
+  at: Span,
+  diagnostics: Diagnostics,
+): void {
+  if (!order.includes(ACTOR)) {
+    diagnostics.refuse(
+      at,
+      `\`${name}\` roams, and only an actor moves itself: it does not compose \`sprout.Actor\`.`,
+      `Compose \`sprout.Actor\` in \`${name}\`, or take \`roams\` out.`,
+    );
+  } else if (order.includes(VISITOR)) {
+    diagnostics.refuse(
+      at,
+      `\`${name}\` roams, and composes \`sprout.Visitor\`: a visitor goes where they type.`,
+      `Take \`roams\` out of \`${name}\`, and write it on a kind for the NPCs that wander.`,
+    );
+  }
 }
 
 /**
