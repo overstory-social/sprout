@@ -7,14 +7,19 @@
 static sproutc_host *self(void *ctx) { return (sproutc_host *)ctx; }
 
 static void *host_alloc(void *ctx, size_t bytes) {
+  sproutc_host *host = self(ctx);
   void *block = malloc(bytes);
-  if (block != NULL) self(ctx)->pages++;
+  if (block != NULL) {
+    host->pages++;
+    host->bytes_held += bytes;
+    if (host->bytes_held > host->bytes_peak) host->bytes_peak = host->bytes_held;
+  }
   return block;
 }
 
 static void host_release(void *ctx, void *block, size_t bytes) {
-  (void)bytes;
   self(ctx)->pages--;
+  self(ctx)->bytes_held -= bytes;
   free(block);
 }
 

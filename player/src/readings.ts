@@ -105,8 +105,8 @@ export interface After {
   readonly says: readonly Said[];
   /** Every turn that ran and has an entry in the log, in order. */
   readonly turns: readonly TurnEntry[];
-  /** The stored world once the step is over. */
-  readonly world: StoredWorld;
+  /** The stored world once the step is over; absent where the readings were resolved without it, as a profile's are. */
+  readonly world?: StoredWorld;
 }
 
 /** One command turn of a typed line: what the parser made of the text. */
@@ -294,6 +294,7 @@ export function resolveScript(
   script: Script,
   name: string,
   budgets: Partial<RuntimeBudgets> = {},
+  { worlds = true }: { readonly worlds?: boolean } = {},
 ): Readings {
   const stage = freshStage(world, budgets);
   const steps = script.steps.map((step, i): ReadStep => {
@@ -309,7 +310,7 @@ export function resolveScript(
       says: ran.flatMap((traced) => saysOf(stage, traced)),
       // A world that admits no one runs no turn, and so has no entry.
       turns: ran.filter((traced) => traced.logged.outcome !== 'closed').map(entryOf),
-      world: saveWorld(stage.state),
+      ...(worlds ? { world: saveWorld(stage.state) } : {}),
     };
     return { ...begins, ...factsOf(step, turns), after };
   });

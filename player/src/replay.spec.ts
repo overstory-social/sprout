@@ -93,6 +93,20 @@ describe('firstDifference', () => {
     );
   });
 
+  it('compares no stored world where the readings were resolved without one', () => {
+    const lean = resolveScript(
+      bundleOf('kiln_yard', KILN_YARD),
+      scriptOf('@arrive Marta\nMarta> fire kiln\nMarta> sing loudly\n'),
+      'yard.json',
+      {},
+      { worlds: false },
+    );
+    const trace = faithful();
+    const step = trace.get(1)!;
+    trace.set(1, { ...step, world: { ...(step.world as object), serial: 99 } });
+    expect(firstDifference(lean, trace)).toBeNull();
+  });
+
   it('names a stored world that differs', () => {
     const trace = faithful();
     const step = trace.get(1)!;

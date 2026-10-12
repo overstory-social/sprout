@@ -29,6 +29,7 @@ typedef struct sproutc_play_options {
   bool offered;
   bool has_poll_steps;
   uint64_t poll_steps;
+  FILE *profile; /* where each step's bytes are written, one JSON line a step, or NULL */
 } sproutc_play_options;
 
 /*

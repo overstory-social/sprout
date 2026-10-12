@@ -713,6 +713,7 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
     fprintf(out, "## step %zu: %s\n", step.index, step.line);
     p.now = step.at_seconds;
     sproutc_host_set_time(host, step.at_seconds);
+    host->bytes_peak = host->bytes_held;
     if (sprout_arena_init(&p.arena, &host->record) != SPROUT_OK) return 1;
     memset(&p.says, 0, sizeof p.says);
     memset(&p.turns, 0, sizeof p.turns);
@@ -738,6 +739,8 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
     }
     if (ok) trace_step(&p, &step, trace);
     sprout_arena_reset(&p.arena);
+    if (options->profile != NULL)
+      fprintf(options->profile, "{\"step\":%zu,\"held\":%zu,\"peak\":%zu}\n", step.index, host->bytes_held, host->bytes_peak);
     if (!ok) return p.failure == 0 ? 1 : p.failure;
   }
   if (p.offered) {

@@ -106,6 +106,7 @@ export function firstDifference(
       if (found !== null)
         return `step ${step.index}, the log's entry for turn ${at + 1} (${want.kind}): ${found}`;
     }
+    if (after.world === undefined) continue;
     const world = whereDifferent(after.world, got.world);
     if (world !== null) return `step ${step.index}, the stored world: ${world}`;
   }
