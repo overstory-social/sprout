@@ -35,6 +35,13 @@ const char *player_step(player_session *session);
 const char *player_load(player_session *session);
 const char *player_admit(player_session *session, const char *nickname);
 const char *player_view(player_session *session);
+
+/*
+ * One level of the chip tree the last view built: `path` is a JSON array of the picks so far, 1-based
+ * (none for the verbs, then the verb's index, then each choice's). Answers { choices: [...], leaf } with
+ * each choice's `greyed` and `reason`, or { ok: false, reason } for a path that names nothing or no view yet.
+ */
+const char *player_chips(player_session *session, const char *path);
 const char *player_turn(player_session *session, const char *reading);
 const char *player_tick(player_session *session);
 const char *player_save(player_session *session);

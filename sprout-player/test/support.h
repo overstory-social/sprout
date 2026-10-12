@@ -75,7 +75,7 @@ const char *line_kind(const sprout_json *reply, size_t index);
 size_t line_count(const sprout_json *reply);
 
 /* A reading from a view's chips: the verb ending in `verb` and the choice named `thing`. */
-void reading_from(const char *view_text, const char *verb, const char *thing, char *out, size_t size);
+void reading_from(player_session *session, const char *verb, const char *thing, char *out, size_t size);
 
 /* Prints the count and returns the exit code. */
 int finish(void);

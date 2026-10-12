@@ -3,7 +3,8 @@ local Sentence = module("sentence")
 local test, equal, same = harness.test, harness.equal, harness.same
 
 -- The view the engine gave a visitor in the chip_tree world's hall, for a builder with words on it.
-local function view() return json.decode(fixture("chip-tree.view.json")) end
+local levels = helper("levels")
+local function view() return levels(json.decode(fixture("chip-tree.view.json")).chips) end
 
 local function words(n)
   local out = {}
@@ -65,7 +66,7 @@ test("a lone word slides with the crank, as any slat does, and keeps the window"
 end)
 
 test("the drum settles on the slat once the crank has rested, and says so once", function()
-  local builder = Sentence.new({ chips = {} })
+  local builder = Sentence.new(function() return { choices = {} } end)
   builder.crank = 8
   local wheel = Wheel.new()
   equal(wheel:update(builder, true), nil, "turning: nothing settles")

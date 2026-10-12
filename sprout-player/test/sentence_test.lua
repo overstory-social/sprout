@@ -1,8 +1,10 @@
 local Sentence = module("sentence")
 local test, equal, same = harness.test, harness.equal, harness.same
 
--- The view the engine gave a visitor standing in the chip_tree world's hall: the tree the builder walks.
-local function view() return json.decode(fixture("chip-tree.view.json")) end
+local levels = helper("levels")
+
+-- The tree the engine holds for a visitor standing in the chip_tree world's hall, served a level at a time.
+local function view() return levels(json.decode(fixture("chip-tree.view.json")).chips) end
 
 local function labels(builder)
   local out = {}
@@ -151,7 +153,7 @@ test("a number role of several ranges skips what it does not take", function()
     chips = { { verb = "x.count", next = { choices = {}, leaf = { typed = "count", options = {
       { role = "n", takes = "integer", ranges = { { min = 0, max = 2 }, { min = 10, max = 12 } } } } } } } },
   }
-  local builder = Sentence.new(tree)
+  local builder = Sentence.new(levels(tree.chips))
   choose(builder, "count")
   builder:nudge(3)
   equal(builder:entries()[1].label, "10")
@@ -254,11 +256,11 @@ test("a member of a set whose own reading is refused is greyed, with its reason,
       next = node("juggle " .. name, refused),
     }
   end
-  local builder = Sentence.new({
+  local builder = Sentence.new(levels({
     chips = { { verb = "x.juggle", next = { choices = {
       single("a", "a pebble"), single("b", "a stove", { "It is too hot to touch." }), single("c", "a shell") },
       leaf = nil } } },
-  })
+  }))
   choose(builder, "juggle")
   choose(builder, "a pebble")
   local greyed
@@ -295,7 +297,7 @@ test("an optional tool is a step of its own: the things that fit beside \"that's
       },
     } }, leaf = nil } } },
   }
-  local builder = Sentence.new(tree)
+  local builder = Sentence.new(levels(tree.chips))
   choose(builder, "attack")
   choose(builder, "the troll")
   same(labels(builder), { "the sword", "that's all" })
@@ -304,7 +306,7 @@ test("an optional tool is a step of its own: the things that fit beside \"that's
   equal(done, "done")
   equal(reading.verb, "x.attack")
   equal(reading.fillers[2].id, "x.sword")
-  builder = Sentence.new(tree)
+  builder = Sentence.new(levels(tree))
   choose(builder, "attack")
   choose(builder, "the troll")
   choose(builder, "that's all")
@@ -331,7 +333,7 @@ test("a reading binds the roles a thing fills first and its value roles after, a
         { role = "notch", takes = "integer", ranges = { { min = 0, max = 9 } } } } } },
     } } } } },
   }
-  local builder = Sentence.new(tree)
+  local builder = Sentence.new(levels(tree.chips))
   choose(builder, "tune")
   choose(builder, "a dial")
   builder:nudge(4)

@@ -85,7 +85,7 @@ sprout_status sprout_chip_tree_of(sprout_arena *arena, const sprout_seen_view *v
   return SPROUT_OK;
 }
 
-static sprout_json *leaf_json(sprout_arena *arena, const sprout_seen_reading *reading) {
+sprout_json *sprout_chip_leaf_json(sprout_arena *arena, const sprout_seen_reading *reading) {
   sprout_json *leaf = sprout_json_make(arena, SPROUT_JSON_OBJECT, 3);
   sprout_json *typed = sprout_json_text(arena, reading->typed.bytes, reading->typed.length);
   sprout_json *refused = sprout_seen_refusal_json(arena, reading);
@@ -113,7 +113,7 @@ static sprout_json *node_json(sprout_arena *arena, const sprout_chip_node *node)
   }
   sprout_json_adopt(object, "choices", choices);
   sprout_json_adopt(object, "leaf",
-                    node->leaf == NULL ? sprout_json_make(arena, SPROUT_JSON_NULL, 0) : leaf_json(arena, node->leaf));
+                    node->leaf == NULL ? sprout_json_make(arena, SPROUT_JSON_NULL, 0) : sprout_chip_leaf_json(arena, node->leaf));
   return object->count == 2 ? object : NULL;
 }
 

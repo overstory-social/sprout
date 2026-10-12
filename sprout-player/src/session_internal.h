@@ -6,6 +6,7 @@
 #ifndef PLAYER_SESSION_INTERNAL_H
 #define PLAYER_SESSION_INTERNAL_H
 
+#include "chips.h"
 #include "pd_host.h"
 #include "reply.h"
 #include "session.h"
@@ -32,6 +33,9 @@ struct player_session {
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
   char *reply;         /* the text last handed to Lua */
+  sprout_seen_view seen;  /* the last view polled, kept with its chip tree until the next, the close or the end */
+  sprout_chip_tree chips; /* the tree over `seen`, which `sprout.chips` walks a level at a time */
+  bool seen_live;
 };
 
 /* Begins a reply in a fresh arena over the session's host; false when the host gives no page. */
@@ -39,6 +43,9 @@ bool session_reply_begin(player_session *session, sprout_arena *arena, jb *build
 
 /* Ends a reply: the text written into `session->reply`, which is returned. A reply that could not be built says so. */
 const char *session_reply_end(player_session *session, sprout_arena *arena, jb *builder, const sprout_json *root);
+
+/* Releases the view kept for the chips, if one is. */
+void session_drop_view(player_session *session);
 
 /* The visitor's record in the stored state, or NULL. */
 const sprout_stored_visitor *session_visitor(const player_session *session);

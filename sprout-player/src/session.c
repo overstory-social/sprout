@@ -20,6 +20,7 @@ player_session *player_session_new(PlaydateAPI *pd) {
 
 /* Releases the world, its state and the log tail; the session is ready to open another. */
 static void release_world(player_session *session) {
+  session_drop_view(session);
   if (session->loading != NULL) sprout_load_abandon(session->loading);
   player_free(session->pd, session->loading_bytes);
   session->loading = NULL;
@@ -346,6 +347,7 @@ const char *player_load(player_session *session) {
   char words[640];
   size_t i, others = 0;
   if (session->world == NULL) return refuse(session, "ok", "words", "No world is open.");
+  session_drop_view(session);
   if (session->state != NULL) {
     sprout_state_free(session->state);
     session->state = NULL;

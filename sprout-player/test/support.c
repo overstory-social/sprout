@@ -191,15 +191,19 @@ size_t line_count(const sprout_json *reply) {
   return lines == NULL ? 0 : lines->count;
 }
 
-void reading_from(const char *view_text, const char *verb, const char *thing, char *out, size_t size) {
-  const sprout_json *view = parse(view_text), *chips = sprout_json_get(view, "chips");
+void reading_from(player_session *session, const char *verb, const char *thing, char *out, size_t size) {
+  const sprout_json *root = parse(keep(player_chips(session, "[]"))), *verbs = sprout_json_get(root, "choices");
   size_t v, c;
   out[0] = '\0';
-  for (v = 0; chips != NULL && v < chips->count; v++) {
-    const char *name = string_at(chips->items[v], "verb");
-    const sprout_json *choices = sprout_json_get(sprout_json_get(chips->items[v], "next"), "choices");
+  for (v = 0; verbs != NULL && v < verbs->count; v++) {
+    const char *name = string_at(verbs->items[v], "verb");
     size_t length = strlen(name), tail = strlen(verb);
+    char path[32];
+    const sprout_json *level, *choices;
     if (length < tail || strcmp(name + length - tail, verb) != 0) continue;
+    snprintf(path, sizeof path, "[%zu]", v + 1);
+    level = parse(keep(player_chips(session, path)));
+    choices = sprout_json_get(level, "choices");
     for (c = 0; choices != NULL && c < choices->count; c++) {
       const sprout_json *filler = sprout_json_get(choices->items[c], "filler");
       const char *bytes;

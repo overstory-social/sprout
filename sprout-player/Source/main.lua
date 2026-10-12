@@ -259,13 +259,14 @@ end
 
 local function buildSentence()
   local view = refreshStatus()
-  if view.faulted or #view.chips == 0 then
+  local made = Sentence.new(function(path) return engine:chips(path) end)
+  if view.faulted or made:count() == 0 then
     -- A poll that faulted offers nothing, and its description is the fault told; a blank wheel
     -- would say nothing.
     showMessage(table.concat(view.description, " "), "reader")
     return
   end
-  builder = Sentence.new(view)
+  builder = made
   wheel = Wheel.new()
   mode = "sentence"
 end

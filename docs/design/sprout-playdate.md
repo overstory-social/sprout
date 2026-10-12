@@ -277,7 +277,16 @@ the consent pass refuses it, and the options. A reading carries its fillers
 by id, which is what lets a viewer hand the runtime a reading without a
 parser.
 
-`sentence.lua` turns the crank over that tree. A is pick, B is step back,
+The tree stays on the C side. `sprout.view` answers the place, the
+description, the ways out, who is there and what is carried, and keeps the
+view and its tree (`seen.c`) until the next view, load or close;
+`sprout.chips(path)`, with the picks so far as 1-based indexes (`[]` for
+the verbs), answers one level: each choice with `greyed`, whether nothing
+under it can be done, and `reason`, the first refusal under it, and the
+level's `leaf`. The caverns' tree is 223 KB of JSON and 2,194 nodes; a
+level is a few hundred bytes, and Lua never holds the tree.
+
+`sentence.lua` turns the crank over those levels. A is pick, B is step back,
 the crank or the d-pad moves a wheel of the choices at this step (24
 degrees of crank for a step). It lists the verbs in the view's order, then
 what fills each role, then a word or a number for each value role (a number
@@ -465,7 +474,7 @@ beside each module of `sprout-player/src` through a fake `PlaydateAPI` that
 implements only what the glue calls; `glue.test.c`, which plays `chip-tree`
 through the registered functions against its transcript; a round trip of
 the save through `sproutc` (the save must read and write back byte for byte,
-and the turns built from the view's chips must leave the stored world the
+and the turns built from the chips must leave the stored world the
 same lines typed leave); the download screen over a fake network, files and
 engine; the signature check against RFC 8032; every packed world shelved;
 the Node specs for the index and the build; and each graduated world's
@@ -494,13 +503,12 @@ Not yet checked:
   has been on the bus;
 - the crank's feel (24 degrees a step and 12 degrees a scrolled line are
   guesses);
-- how long `json.decode` takes on the view of a big world on the device;
 - the budgets, tuned on hardware (the Simulator is far faster);
 - the memory and the time of a big world on a console's 16 MB and 168 MHz:
-  `underground_caverns` packs to 1.5 MB, its stored world is 480 KB, and
-  its fullest room polls 344,254 steps into a 2.7 MB chip tree that
-  `json.decode` must read every turn; it plays whole through `sproutc` and
-  the Simulator;
+  `underground_caverns` packs to 1.8 MB, its stored world is 480 KB, and
+  its fullest room polls 344,254 steps into a chip tree of 12,153 readings
+  that stays on the C side and is read a level at a time; it plays whole
+  through `sproutc` and the Simulator;
 - a real network fetch, and the system's permission dialog: what the system
   returns when the person refuses is not documented, so a refusal is read
   as `http.new` returning nothing or the request failing, both told in
