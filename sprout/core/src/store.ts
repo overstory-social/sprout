@@ -32,7 +32,10 @@ export interface ReadTx {
   microworld(): Promise<MicroworldRecord | null>;
   /** The world's stored state, each list in code-unit order of its key; `emptyState()` where nothing is stored. */
   state(): Promise<StoredState>;
-  /** The log's entries numbered after `after` (0, or none, for the first), oldest first, at most `limit`. */
+  /**
+   * The log's entries numbered after `after` (0, or none, for the first the store still keeps), oldest
+   * first, at most `limit`.
+   */
   log(opts: { after?: number; limit: number }): Promise<Logged[]>;
   misses(opts: { limit: number }): Promise<MissRecord[]>;
 }

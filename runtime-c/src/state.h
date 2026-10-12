@@ -163,9 +163,6 @@ sprout_status sprout_stored_visitor_copy(sprout_arena *arena, const sprout_store
  */
 sprout_status sprout_stored_instance_defaults(sprout_arena *arena, const sprout_kind_def *kind,
                                               sprout_stored_instance *out);
-/* The plain property `declared` at its default, in `arena`. */
-sprout_status sprout_stored_default(sprout_arena *arena, const sprout_property *declared,
-                                   sprout_stored_property *out);
 /* Orders a record's properties, links and memory by key, as a save writes them. */
 sprout_status sprout_stored_instance_order(sprout_arena *arena, sprout_stored_instance *in);
 

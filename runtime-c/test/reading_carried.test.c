@@ -59,8 +59,10 @@ static void a_thing_behind_a_shut_container_is_not_carried(void) {
           (sprout_stored_property *)sprout_arena_take(&c.turn, (next.property_count + 1) * sizeof *bigger);
       CHECK(bigger != NULL);
       if (next.property_count > 0) memcpy(bigger, next.properties, next.property_count * sizeof *bigger);
-      CHECK_INT(sprout_stored_default(&c.turn, sprout_kind_property(next.kind, "open"), &bigger[next.property_count]),
-                SPROUT_OK);
+      memset(&bigger[next.property_count], 0, sizeof *bigger);
+      bigger[next.property_count].name = exec_str("open");
+      bigger[next.property_count].type = exec_str("boolean");
+      bigger[next.property_count].value.kind = SPROUT_BOOL;
       bigger[next.property_count].value.boolean = false;
       next.properties = bigger;
       next.property_count++;

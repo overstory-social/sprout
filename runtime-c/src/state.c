@@ -513,14 +513,6 @@ static const sprout_stored_property *stored_named(const sprout_stored_property *
   return NULL;
 }
 
-sprout_status sprout_stored_default(sprout_arena *arena, const sprout_property *declared,
-                                   sprout_stored_property *out) {
-  memset(out, 0, sizeof *out);
-  PASS(copy_cstr(arena, declared->name, &out->name));
-  PASS(copy_cstr(arena, declared->type->key, &out->type));
-  return literal_value(arena, &declared->default_value, &out->value);
-}
-
 /* Whether `stored` holds what `declared` defaults to, a list compared as its default is read, repeats dropped. */
 static sprout_status at_default(sprout_arena *arena, const sprout_property *declared,
                                 const sprout_stored_property *stored, bool *same) {

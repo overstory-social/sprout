@@ -201,10 +201,16 @@ describe('replaying the log', () => {
     const log = await wholeLog(await played('play'), 'w', 100);
     const target = log.find(({ entry }) => entry.kind === 'command' && entry.fault === null)!;
     if (target.entry.kind !== 'command') throw new Error('not a command');
-    const digest = { ...target.entry.digest!, count: target.entry.digest!.count + 1 };
-    const altered: Logged[] = log.map((one) =>
-      one.seq === target.seq ? { seq: one.seq, entry: { ...target.entry, digest } } : one,
-    );
-    expect(replayLog(altered, hosts).diverged.map((d) => d.seq)).toEqual([target.seq]);
+    const { count, sha256 } = target.entry.digest!;
+    const flipped = `${sha256[0] === '0' ? '1' : '0'}${sha256.slice(1)}`;
+    for (const digest of [
+      { count: count + 1, sha256 },
+      { count, sha256: flipped },
+    ]) {
+      const altered: Logged[] = log.map((one) =>
+        one.seq === target.seq ? { seq: one.seq, entry: { ...target.entry, digest } } : one,
+      );
+      expect(replayLog(altered, hosts).diverged.map((d) => d.seq)).toEqual([target.seq]);
+    }
   });
 });

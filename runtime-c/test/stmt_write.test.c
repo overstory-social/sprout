@@ -5,7 +5,8 @@
  * `adjust` on what `self` remembers about an actor. A value the property
  * cannot hold faults, `adjust` clamps, adding a new element to a full list
  * faults, and a write that changes a watched property queues its hook with
- * the value it replaced. A write through another object is the engine's
+ * the value it replaced. A write to a property the record does not keep
+ * adds it in name order. A write through another object is the engine's
  * defect.
  */
 #include "exec_fixture.h"
@@ -53,6 +54,43 @@ static void adjust_clamps_to_the_range_the_property_declares(void) {
   CHECK_INT(exec_property(&bottom, "exec_bench.hall.runner", "count"), 0);
   exec_case_close(&bottom);
   exec_case_close(&top);
+  exec_bench_close(&b);
+}
+
+/* `id`'s record in `c`'s draft without the property `name`, as an opened record that holds its default. */
+static void let_go(exec_case *c, const char *id, const char *name) {
+  const sprout_stored_instance *held = sprout_draft_instance(&c->draft, exec_str(id));
+  sprout_stored_instance next;
+  size_t i, kept = 0;
+  CHECK_INT(sprout_stored_instance_copy(&c->turn, held, &next), SPROUT_OK);
+  for (i = 0; i < next.property_count; i++)
+    if (!sprout_str_is(next.properties[i].name, name)) next.properties[kept++] = next.properties[i];
+  CHECK_INT(kept, next.property_count - 1);
+  next.property_count = kept;
+  CHECK_INT(sprout_draft_write(&c->draft, &next), SPROUT_DRAFT_OK);
+}
+
+static void a_write_to_a_property_the_record_does_not_keep_adds_it_in_name_order(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_run run;
+  const sprout_stored_instance *runner;
+  size_t i;
+  bool found = false;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "adjust clamps at the top"));
+  let_go(&c, "exec_bench.hall.runner", "count");
+  run = exec_run(&c);
+  CHECK_INT(stmt_write(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
+  /* `adjust` reads the default it was let go at, and clamps from there. */
+  CHECK_INT(exec_property(&c, "exec_bench.hall.runner", "count"), 9);
+  runner = sprout_draft_instance(&c.draft, exec_str("exec_bench.hall.runner"));
+  for (i = 0; i < runner->property_count; i++) {
+    if (sprout_str_is(runner->properties[i].name, "count")) found = true;
+    if (i > 0) CHECK(sprout_str_compare(runner->properties[i - 1].name, runner->properties[i].name) < 0);
+  }
+  CHECK(found);
+  exec_case_close(&c);
   exec_bench_close(&b);
 }
 
@@ -162,6 +200,7 @@ static void the_golden_write_and_if_cases_end_as_the_typescript_runtime_did(void
 int main(void) {
   RUN(set_writes_a_value_the_property_holds);
   RUN(adjust_clamps_to_the_range_the_property_declares);
+  RUN(a_write_to_a_property_the_record_does_not_keep_adds_it_in_name_order);
   RUN(a_value_the_property_cannot_hold_faults_in_the_words_of_the_rule);
   RUN(add_and_remove_change_a_list_and_a_full_list_faults);
   RUN(a_change_to_a_watched_property_queues_its_hook_with_the_value_it_replaced);
