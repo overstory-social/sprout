@@ -52,6 +52,7 @@ import {
 } from './properties.js';
 import { identicalType, showType } from './types.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
+import { composedWhereSame } from './contributions.js';
 import { composeGuards, ownGuards, writesGuard } from './guards.js';
 import {
   composeHandlers,
@@ -451,8 +452,14 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     name: composer.name,
     order,
     composes: new Set(order),
-    properties: merged,
-    passages,
+    properties: composedWhereSame(
+      merged,
+      composed.map(({ kind }) => kind.properties),
+    ),
+    passages: composedWhereSame(
+      passages,
+      composed.map(({ kind }) => kind.passages),
+    ),
     guards,
     plays,
     handlers,

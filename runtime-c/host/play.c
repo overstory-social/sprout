@@ -20,7 +20,8 @@
   "         `node scripts/resolve-script.mjs` wrote for the script; --trace names the file one line\n" \
   "         of the stored world and the log is written to after each step; --offered polls the view\n" \
   "         before each command and fails where it does not offer the reading, under --poll-steps.\n"     \
-  "         --profile names the file each step's bytes held after it and its peak are written to.\n"
+  "         --profile names the file the world's bytes, the most loading it held and the state's are\n" \
+  "         written to, then each step's bytes held after it and its peak.\n"
 
 typedef struct options {
   const char *world, *state, *script, *readings, *trace, *profile;
@@ -199,8 +200,8 @@ static int play(sproutc_host *host, sprout_world *world, const options *o, sprou
       sprout_state_free(state);
       return 1;
     }
-    fprintf(played.profile, "{\"world\":%zu,\"state\":%zu,\"loaded\":%zu}\n", host->world_bytes,
-            host->bytes_held - before_state, host->bytes_held);
+    fprintf(played.profile, "{\"world\":%zu,\"loadPeak\":%zu,\"state\":%zu,\"loaded\":%zu}\n",
+            host->world_bytes, host->load_peak, host->bytes_held - before_state, host->bytes_held);
   }
   code = sproutc_play_script(host, world, state, readings, &played, out, err, trace);
   if (trace != NULL) fclose(trace);
@@ -251,6 +252,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
     sproutc_host_close(&host);
     return 1;
   }
+  host.bytes_peak = host.bytes_held;
   loaded = sprout_load_explained(&host.record, (const char *)bytes, length, &world, &refusal);
   if (loaded != SPROUT_OK) {
     fprintf(err, "sproutc: %s: %s\n", o.world, loaded == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(loaded));
@@ -259,6 +261,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
     return 1;
   }
   host.world_bytes = host.bytes_held;
+  host.load_peak = host.bytes_peak;
   if (o.state != NULL && o.script == NULL) {
     why = rewrite_state(&host, world, out);
     if (why != NULL) {

@@ -41,6 +41,21 @@ describe('the graph a cartridge holds', () => {
     expect(tables.rest.filter((entry) => 'o' in entry)).toHaveLength(1);
   });
 
+  it('writes every empty array, map and set as one entry of its shape', () => {
+    const { tables, read } = roundTrip({
+      a: { list: [], map: new Map(), set: new Set(), full: [1] },
+      b: { list: [], map: new Map(), set: new Set(), full: [1] },
+    });
+    const empty = tables.rest.filter(
+      (entry) => !('o' in entry) && Object.values(entry)[0]!.length === 0,
+    );
+    expect(empty.map((entry) => Object.keys(entry)[0])).toEqual(['a', 'm', 's']);
+    expect(tables.rest.filter((entry) => 'a' in entry && entry.a.length === 1)).toHaveLength(2);
+    const [a, b] = [read('a'), read('b')] as { list: unknown; full: unknown }[];
+    expect(a!.list).toBe(b!.list);
+    expect(a!.full).not.toBe(b!.full);
+  });
+
   it('sorts nodes into runs by the kind they carry: prose, then bodies, then the rest', () => {
     const { tables } = roundTrip({
       all: [

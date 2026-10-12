@@ -1,8 +1,9 @@
 /*
  * Reads types, defaults, kinds and the contents a kind's body gives (the
- * spec's The runtime > State; Properties). A kind, or a type, that two parts
- * of the graph share is read once and found again by the index of its entry,
- * so identity is pointer identity.
+ * spec's The runtime > State; Properties). A kind, a type, or a kind's
+ * properties, passages or plays that two parts of the graph share is read
+ * once and found again by the index of its entry, so identity is pointer
+ * identity.
  */
 #include <string.h>
 
@@ -18,15 +19,15 @@ sprout_status cat_read_type(loader *l, const sprout_node *node, const sprout_dec
   if (node == NULL || node->kind == SPROUT_NODE_NULL) return SPROUT_OK;
   if (node->kind != SPROUT_NODE_OBJECT) return cat_shaped(l, "a type");
   at = sprout_graph_index(l->graph, node);
-  if (at != SPROUT_NOT_AN_ENTRY && l->type_cache[at] != NULL) {
-    *out = l->type_cache[at];
+  if (at != SPROUT_NOT_AN_ENTRY && l->read[at] != NULL) {
+    *out = (const sprout_decl_type *)l->read[at];
     return SPROUT_OK;
   }
   tag = cat_text(l->graph, node, "type");
   if (tag == NULL) return cat_shaped(l, "a type");
   type = (sprout_decl_type *)cat_array(l, 1, sizeof *type);
   MEMORY(type);
-  if (at != SPROUT_NOT_AN_ENTRY) l->type_cache[at] = type;
+  if (at != SPROUT_NOT_AN_ENTRY) l->read[at] = type;
   if (strcmp(tag, "boolean") == 0) {
     type->kind = SPROUT_DECL_BOOLEAN;
     type->key = "boolean";
@@ -123,21 +124,109 @@ static sprout_status read_property(loader *l, const sprout_node *name_node,
   return read_literal(l, sprout_node_get(l->graph, declaration, "default"), &out->default_value);
 }
 
+/* What a non-empty entry was already read as, or NULL; an empty one is never read, so never kept. */
+static void *already(loader *l, const sprout_node *node) {
+  size_t at = sprout_graph_index(l->graph, node);
+  return node->count == 0 || at == SPROUT_NOT_AN_ENTRY ? NULL : l->read[at];
+}
+
+static void keep(loader *l, const sprout_node *node, void *read) {
+  size_t at = sprout_graph_index(l->graph, node);
+  if (node->count != 0 && at != SPROUT_NOT_AN_ENTRY) l->read[at] = read;
+}
+
+/* A kind's properties, in declared order; a map two kinds share is read once. */
+static sprout_status read_properties(loader *l, const sprout_node *map, sprout_property **out) {
+  sprout_property *properties = (sprout_property *)already(l, map);
+  size_t i;
+  if (properties == NULL) {
+    properties = (sprout_property *)cat_array(l, map->count, sizeof(sprout_property));
+    MEMORY(properties);
+    for (i = 0; i < map->count; i++)
+      NEED(read_property(l, sprout_map_key(l->graph, map, i), sprout_item(l->graph, map, i), &properties[i]));
+    keep(l, map, properties);
+  }
+  *out = properties;
+  return SPROUT_OK;
+}
+
+static sprout_status read_passages(loader *l, const sprout_node *map, sprout_passage **out) {
+  sprout_passage *passages = (sprout_passage *)already(l, map);
+  size_t i;
+  if (passages == NULL) {
+    passages = (sprout_passage *)cat_array(l, map->count, sizeof(sprout_passage));
+    MEMORY(passages);
+    for (i = 0; i < map->count; i++) {
+      if (sprout_map_key(l->graph, map, i)->kind != SPROUT_NODE_STRING) return cat_shaped(l, "a passage");
+      passages[i].name = sprout_text(l->graph, sprout_map_key(l->graph, map, i));
+      passages[i].node = sprout_item(l->graph, map, i);
+    }
+    keep(l, map, passages);
+  }
+  *out = passages;
+  return SPROUT_OK;
+}
+
+/* One key's plays, in the order they run. */
+static sprout_status read_plays(loader *l, const sprout_node *group, sprout_play **out) {
+  sprout_play *plays = (sprout_play *)already(l, group);
+  size_t j;
+  if (plays == NULL) {
+    plays = (sprout_play *)cat_array(l, group->count, sizeof(sprout_play));
+    MEMORY(plays);
+    for (j = 0; j < group->count; j++) {
+      const sprout_node *one = sprout_item(l->graph, group, j);
+      sprout_play *play = &plays[j];
+      play->origin = cat_text(l->graph, one, "origin");
+      play->library = cat_text(l->graph, one, "library");
+      play->verb = cat_text(l->graph, one, "verb");
+      play->role = cat_text(l->graph, one, "role");
+      play->any = cat_bool(l->graph, one, "any");
+      play->node = one;
+      if (play->origin == NULL || play->library == NULL || play->verb == NULL || play->role == NULL)
+        return cat_shaped(l, "a play");
+    }
+    keep(l, group, plays);
+  }
+  *out = plays;
+  return SPROUT_OK;
+}
+
+static sprout_status read_play_groups(loader *l, const sprout_node *map, sprout_play_group **out) {
+  sprout_play_group *groups = (sprout_play_group *)already(l, map);
+  size_t i;
+  if (groups == NULL) {
+    groups = (sprout_play_group *)cat_array(l, map->count, sizeof(sprout_play_group));
+    MEMORY(groups);
+    for (i = 0; i < map->count; i++) {
+      const sprout_node *group = sprout_item(l->graph, map, i);
+      if (sprout_map_key(l->graph, map, i)->kind != SPROUT_NODE_STRING || !cat_is_array(group))
+        return cat_shaped(l, "a kind's plays");
+      groups[i].key = sprout_text(l->graph, sprout_map_key(l->graph, map, i));
+      groups[i].count = group->count;
+      NEED(read_plays(l, group, &groups[i].plays));
+    }
+    keep(l, map, groups);
+  }
+  *out = groups;
+  return SPROUT_OK;
+}
+
 sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def **out) {
   sprout_kind_def *kind;
   const sprout_node *properties, *passages, *plays;
-  size_t i, j, at;
+  size_t i, at;
   *out = NULL;
   if (node == NULL || node->kind == SPROUT_NODE_NULL) return SPROUT_OK;
   at = sprout_graph_index(l->graph, node);
   if (node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY) return cat_shaped(l, "a kind");
-  if (l->kind_cache[at] != NULL) {
-    *out = l->kind_cache[at];
+  if (l->read[at] != NULL) {
+    *out = (sprout_kind_def *)l->read[at];
     return SPROUT_OK;
   }
   kind = (sprout_kind_def *)cat_array(l, 1, sizeof *kind);
   MEMORY(kind);
-  l->kind_cache[at] = kind;
+  l->read[at] = kind;
   kind->library = cat_text(l->graph, node, "library");
   kind->name = cat_text(l->graph, node, "name");
   if (kind->library == NULL || kind->name == NULL) return cat_shaped(l, "a kind");
@@ -158,48 +247,18 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
   if (properties == NULL || properties->kind != SPROUT_NODE_MAP)
     return cat_shaped(l, "a kind's properties");
   kind->property_count = properties->count;
-  kind->properties = (sprout_property *)cat_array(l, properties->count, sizeof(sprout_property));
-  MEMORY(kind->properties);
-  for (i = 0; i < properties->count; i++)
-    NEED(read_property(l, sprout_map_key(l->graph, properties, i), sprout_item(l->graph, properties, i), &kind->properties[i]));
+  NEED(read_properties(l, properties, &kind->properties));
 
   passages = sprout_node_get(l->graph, node, "passages");
   if (passages == NULL || passages->kind != SPROUT_NODE_MAP)
     return cat_shaped(l, "a kind's passages");
   kind->passage_count = passages->count;
-  kind->passages = (sprout_passage *)cat_array(l, passages->count, sizeof(sprout_passage));
-  MEMORY(kind->passages);
-  for (i = 0; i < passages->count; i++) {
-    if (sprout_map_key(l->graph, passages, i)->kind != SPROUT_NODE_STRING) return cat_shaped(l, "a passage");
-    kind->passages[i].name = sprout_text(l->graph, sprout_map_key(l->graph, passages, i));
-    kind->passages[i].node = sprout_item(l->graph, passages, i);
-  }
+  NEED(read_passages(l, passages, &kind->passages));
 
   plays = sprout_node_get(l->graph, node, "plays");
   if (plays == NULL || plays->kind != SPROUT_NODE_MAP) return cat_shaped(l, "a kind's plays");
   kind->play_group_count = plays->count;
-  kind->plays = (sprout_play_group *)cat_array(l, plays->count, sizeof(sprout_play_group));
-  MEMORY(kind->plays);
-  for (i = 0; i < plays->count; i++) {
-    const sprout_node *group = sprout_item(l->graph, plays, i);
-    if (sprout_map_key(l->graph, plays, i)->kind != SPROUT_NODE_STRING || !cat_is_array(group))
-      return cat_shaped(l, "a kind's plays");
-    kind->plays[i].key = sprout_text(l->graph, sprout_map_key(l->graph, plays, i));
-    kind->plays[i].count = group->count;
-    kind->plays[i].plays = (sprout_play *)cat_array(l, group->count, sizeof(sprout_play));
-    MEMORY(kind->plays[i].plays);
-    for (j = 0; j < group->count; j++) {
-      sprout_play *play = &kind->plays[i].plays[j];
-      play->origin = cat_text(l->graph, sprout_item(l->graph, group, j), "origin");
-      play->library = cat_text(l->graph, sprout_item(l->graph, group, j), "library");
-      play->verb = cat_text(l->graph, sprout_item(l->graph, group, j), "verb");
-      play->role = cat_text(l->graph, sprout_item(l->graph, group, j), "role");
-      play->any = cat_bool(l->graph, sprout_item(l->graph, group, j), "any");
-      play->node = sprout_item(l->graph, group, j);
-      if (play->origin == NULL || play->library == NULL || play->verb == NULL || play->role == NULL)
-        return cat_shaped(l, "a play");
-    }
-  }
+  NEED(read_play_groups(l, plays, &kind->plays));
   *out = kind;
   return SPROUT_OK;
 }
