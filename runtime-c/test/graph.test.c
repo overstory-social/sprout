@@ -1,263 +1,223 @@
 /*
- * Tests for src/graph.c: the table of entries a cartridge holds is read into
- * nodes that share what the table shares, with forward references, places and
- * the three runs under one numbering; equal scalars are one node, and the
- * JSON read from can be released; a malformed table is refused in words.
+ * Tests for src/graph.c: a cartridge's table maps into a graph whose entries
+ * are its first nodes and whose scalar cells lie past them, read in place
+ * through the accessors; a cell names an entry; the lookups find fields and
+ * map values; a block that is not a table, or a place naming a file not
+ * listed, is refused in words.
  */
 #include "check.h"
+#include "corpus.h"
 #include "graph.h"
+#include "inflate.h"
 
-static sprout_status read_graph(sprout_arena *arena, const char *files, const char *prose,
-                                const char *bodies, const char *rest, sprout_graph *graph, char *error) {
-  sprout_json *f, *p, *b, *r;
-  sprout_json_error e;
-  if (sprout_json_read(arena, files, strlen(files), &f, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
-  if (sprout_json_read(arena, prose, strlen(prose), &p, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
-  if (sprout_json_read(arena, bodies, strlen(bodies), &b, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
-  if (sprout_json_read(arena, rest, strlen(rest), &r, &e) != SPROUT_OK) return SPROUT_BAD_INPUT;
-  return sprout_graph_read(arena, arena, f, p, b, r, graph, error, 200);
+/* The inflated body of a corpus cartridge in `arena`, and where its table begins. */
+static unsigned char *body_of(sprout_arena *arena, const char *name, size_t *length, size_t *table_at) {
+  size_t packed_length, body_length;
+  char *packed = corpus_cartridge(name, &packed_length);
+  char *body;
+  const char *why;
+  const unsigned char *header = (const unsigned char *)packed;
+  *length = (size_t)header[8] | ((size_t)header[9] << 8) | ((size_t)header[10] << 16) | ((size_t)header[11] << 24);
+  *table_at = (size_t)header[12] | ((size_t)header[13] << 8) | ((size_t)header[14] << 16) | ((size_t)header[15] << 24);
+  CHECK_INT(sprout_gunzip(arena, header + 16, packed_length - 16, &body, &body_length, &why), SPROUT_OK);
+  free(packed);
+  return (unsigned char *)body;
 }
 
-static void a_shared_entry_is_one_node_and_references_run_across_the_three_runs(void) {
+/* The files the preamble names, as the JSON array the loader hands the graph. */
+static const sprout_json *files_of(sprout_arena *arena, const unsigned char *body, size_t table_at) {
+  sprout_json *root;
+  sprout_json_error e;
+  size_t length = table_at;
+  while (length > 0 && body[length - 1] == '\0') length--;
+  CHECK_INT(sprout_json_read(arena, (const char *)body, length, &root, &e), SPROUT_OK);
+  return sprout_json_get(sprout_json_get(root, "table"), "files");
+}
+
+static void a_packed_world_maps_with_its_entries_first_and_its_cells_after(void) {
   test_heap heap;
-  sprout_host host = test_host(&heap);
+  sprout_host host = corpus_host(&heap);
   sprout_arena arena;
   sprout_graph graph;
   char error[200];
-  const sprout_node *a, *b, *list;
+  size_t length, at, i, places = 0, strings = 0;
+  unsigned char *body;
   sprout_arena_init(&arena, &host);
-  CHECK_INT(read_graph(&arena, "[\"a.sprout\"]", "[{\"o\":{\"kind\":\"prose\",\"next\":[1]}}]",
-                       "[{\"o\":{\"kind\":\"integer\",\"value\":8,\"at\":{\"p\":[0,3,4]}}}]",
-                       "[{\"a\":[[0],[1],[0]]},{\"m\":[[\"k\",[0]],[[1],true]]},{\"s\":[null,1]}]", &graph, error),
-            SPROUT_OK);
-  CHECK_INT(graph.count, 5);
-  a = &graph.entries[0];
-  b = &graph.entries[1];
-  CHECK_INT(a->kind, SPROUT_NODE_OBJECT);
-  CHECK(sprout_node_get(&graph, a, "next") == b);
-  CHECK_INT(sprout_graph_index(&graph, b), 1);
-  CHECK_INT(sprout_graph_index(&graph, &graph.entries[4]), 4);
-  CHECK(sprout_graph_index(&graph, sprout_node_get(&graph, b, "value")) == SPROUT_NOT_AN_ENTRY);
-  CHECK(sprout_graph_index(&graph, sprout_node_get(&graph, b, "at")) == SPROUT_NOT_AN_ENTRY);
-  CHECK(sprout_graph_index(&graph, &graph.null_node) == SPROUT_NOT_AN_ENTRY);
+  body = body_of(&arena, "printers_shop", &length, &at);
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files_of(&arena, body, at), error, sizeof error), SPROUT_OK);
+  CHECK(graph.count > 0 && graph.count < graph.table.node_count);
+  CHECK(graph.file_count > 3);
   {
-    sprout_node outside;
-    memset(&outside, 0, sizeof outside);
-    CHECK(sprout_graph_index(&graph, &outside) == SPROUT_NOT_AN_ENTRY);
-    CHECK(sprout_graph_index(&graph, NULL) == SPROUT_NOT_AN_ENTRY);
-    CHECK(sprout_graph_index(NULL, b) == SPROUT_NOT_AN_ENTRY);
+    bool named = false;
+    for (i = 0; i < graph.file_count; i++) named = named || strcmp(graph.files[i], "printers_shop.sprout") == 0;
+    CHECK(named);
   }
-  CHECK(sprout_node_number(&graph, sprout_node_get(&graph, b, "value")) == 8);
-  CHECK_INT(sprout_node_get(&graph, b, "at")->kind, SPROUT_NODE_PLACE);
-  CHECK_INT(sprout_place_line(&graph, sprout_node_get(&graph, b, "at")), 3);
-  CHECK_INT(sprout_place_column(&graph, sprout_node_get(&graph, b, "at")), 4);
-  CHECK_STR(graph.files[0], "a.sprout");
-  list = &graph.entries[2];
-  CHECK_INT(list->kind, SPROUT_NODE_ARRAY);
-  CHECK_INT(list->count, 3);
-  CHECK(sprout_item(&graph, list, 0) == a && sprout_item(&graph, list, 2) == a && sprout_item(&graph, list, 1) == b);
-  CHECK(sprout_node_map_find(&graph, &graph.entries[3], "k") == a);
-  CHECK(sprout_truth(sprout_node_map_get(&graph, &graph.entries[3], b)));
-  CHECK_INT(graph.entries[4].kind, SPROUT_NODE_SET);
-  CHECK_INT(sprout_item(&graph, &graph.entries[4], 0)->kind, SPROUT_NODE_NULL);
-  CHECK(sprout_node_get(&graph, a, "missing") == NULL);
-  CHECK(sprout_node_text(&graph, a, "kind") != NULL);
-  CHECK(sprout_node_is(&graph, sprout_node_get(&graph, a, "kind"), "prose"));
-  CHECK(!sprout_node_is(&graph, sprout_node_get(&graph, a, "kind"), "other"));
+  for (i = 0; i < graph.count; i++) {
+    const sprout_node *n = &graph.table.nodes[i];
+    CHECK_INT(sprout_graph_index(&graph, n), i);
+    CHECK(n->kind >= SPROUT_NODE_OBJECT);
+    if (n->kind == SPROUT_NODE_OBJECT) {
+      /* An object's `kind` is a string cell where it is a node's kind, and a kind entry where it is an object's. */
+      const sprout_node *kind = sprout_node_get(&graph, n, "kind");
+      if (kind != NULL && kind->kind == SPROUT_NODE_STRING) {
+        CHECK(sprout_graph_index(&graph, kind) == SPROUT_NOT_AN_ENTRY);
+        CHECK_INT(kind->kind, SPROUT_NODE_STRING);
+        CHECK(strlen(sprout_text(&graph, kind)) == sprout_text_length(&graph, kind));
+        CHECK(sprout_node_is(&graph, kind, sprout_text(&graph, kind)));
+        CHECK_STR(sprout_node_text(&graph, n, "kind"), sprout_text(&graph, kind));
+      }
+    }
+  }
+  for (i = graph.count; i < graph.table.node_count; i++) {
+    const sprout_node *n = &graph.table.nodes[i];
+    CHECK(sprout_graph_index(&graph, n) == SPROUT_NOT_AN_ENTRY);
+    if (n->kind == SPROUT_NODE_PLACE) {
+      places++;
+      CHECK(sprout_place_file(&graph, n) >= -1 && sprout_place_file(&graph, n) < (int)graph.file_count);
+      CHECK(sprout_place_line(&graph, n) >= 0);
+    }
+    if (n->kind == SPROUT_NODE_STRING) strings++;
+  }
+  CHECK(places > 0 && strings > 0);
+  CHECK(sprout_graph_index(&graph, NULL) == SPROUT_NOT_AN_ENTRY);
+  CHECK(sprout_graph_index(NULL, &graph.table.nodes[0]) == SPROUT_NOT_AN_ENTRY);
   CHECK(sprout_graph_cell(&graph, NULL) == NULL);
-  sprout_arena_reset(&arena);
-  CHECK_INT(heap.pages, 0);
-}
-
-static void a_forward_reference_and_a_place_without_a_listed_file_are_handled_in_words(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_arena arena;
-  sprout_graph graph;
-  char error[200];
-  sprout_arena_init(&arena, &host);
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"a\":[[1]]},{\"a\":[]}]", &graph, error), SPROUT_OK);
-  CHECK(sprout_item(&graph, &graph.entries[0], 0) == &graph.entries[1]);
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"a\":[[2]]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge refers to an entry it does not hold.");
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"a\":[{\"p\":[0,1,1]}]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge names a file it does not list.");
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"a\":[{\"p\":[-1,0,0]}]}]", &graph, error), SPROUT_OK);
-  CHECK_INT(sprout_place_file(&graph, sprout_item(&graph, &graph.entries[0], 0)), -1);
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[5]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "an entry of the table is not an object, an array, a map or a set.");
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"m\":[[1]]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "a map in the cartridge holds something that is not a pair.");
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"a\":[[0,1]]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "an entry holds an array where a reference to an entry should be.");
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", "[{\"a\":[{\"q\":1}]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "an entry holds an object where a place or a reference should be.");
-  CHECK_INT(read_graph(&arena, "[1]", "[]", "[]", "[]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge's list of files holds something that is not a name.");
-  sprout_arena_reset(&arena);
-}
-
-static void equal_scalars_are_one_node_and_nothing_points_at_the_json(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_arena arena, scratch;
-  sprout_graph graph;
-  sprout_json *f, *p, *b, *r;
-  sprout_json_error e;
-  char error[200];
-  const sprout_node *first, *second;
-  sprout_arena_init(&arena, &host);
-  sprout_arena_init(&scratch, &host);
-  const char *table =
-      "[{\"o\":{\"kind\":\"word\",\"at\":{\"p\":[0,2,5]},\"n\":7,\"yes\":true}},"
-                             "{\"o\":{\"kind\":\"word\",\"at\":{\"p\":[0,2,5]},\"n\":7,\"yes\":true,\"no\":false}},"
-                             "{\"a\":[\"kind\",\"other\",{\"p\":[0,2,6]},8]}]";
-  CHECK_INT(sprout_json_read(&scratch, "[\"a.sprout\"]", 12, &f, &e), SPROUT_OK);
-  CHECK_INT(sprout_json_read(&scratch, "[]", 2, &p, &e), SPROUT_OK);
-  CHECK_INT(sprout_json_read(&scratch, "[]", 2, &b, &e), SPROUT_OK);
-  CHECK_INT(sprout_json_read(&scratch, table, strlen(table), &r, &e), SPROUT_OK);
-  CHECK_INT(sprout_graph_read(&arena, &scratch, f, p, b, r, &graph, error, 200), SPROUT_OK);
-  /* The JSON is released: everything the graph reads from here is its own. */
-  sprout_arena_reset(&scratch);
-  first = &graph.entries[0];
-  second = &graph.entries[1];
-  CHECK(sprout_node_get(&graph, first, "kind") == sprout_node_get(&graph, second, "kind"));
-  /* A string equal to a field name shares its text. */
-  CHECK(sprout_text(&graph, sprout_item(&graph, &graph.entries[2], 0)) == sprout_key(&graph, first, 0));
-  CHECK(sprout_node_get(&graph, first, "kind") != sprout_item(&graph, &graph.entries[2], 1));
-  CHECK(sprout_node_get(&graph, first, "at") == sprout_node_get(&graph, second, "at"));
-  CHECK(sprout_node_get(&graph, first, "at") != sprout_item(&graph, &graph.entries[2], 2));
-  CHECK(sprout_node_get(&graph, first, "n") == sprout_node_get(&graph, second, "n"));
-  CHECK(sprout_node_get(&graph, first, "n") != sprout_item(&graph, &graph.entries[2], 3));
-  CHECK(sprout_node_get(&graph, first, "yes") == &graph.true_node);
-  CHECK(sprout_node_get(&graph, second, "no") == &graph.false_node);
-  CHECK(sprout_key(&graph, first, 0) == sprout_key(&graph, second, 0));
-  CHECK_STR(sprout_key(&graph, first, 0), "kind");
-  CHECK_STR(graph.files[0], "a.sprout");
-  CHECK_INT(sprout_place_line(&graph, sprout_node_get(&graph, first, "at")), 2);
-  CHECK_INT(sprout_place_column(&graph, sprout_node_get(&graph, first, "at")), 5);
-  CHECK(sprout_node_number(&graph, sprout_node_get(&graph, first, "n")) == 7);
-  CHECK(sprout_node_number(&graph, sprout_item(&graph, &graph.entries[2], 3)) == 8);
-  CHECK(sizeof(sprout_node) <= 32);
-  sprout_arena_reset(&arena);
-  CHECK_INT(heap.pages, 0);
-}
-
-static void a_place_past_what_a_node_holds_is_refused(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_arena arena;
-  sprout_graph graph;
-  char error[200];
-  sprout_arena_init(&arena, &host);
-  CHECK_INT(read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[{\"p\":[0,1,70000]}]}]", &graph, error), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "a line of the source is longer than 65,535 characters, which a cartridge cannot place.");
-  CHECK_INT(read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[{\"p\":[0,65535,65535]}]}]", &graph, error), SPROUT_OK);
-  CHECK_INT(sprout_place_column(&graph, sprout_item(&graph, &graph.entries[0], 0)), 65535);
-  sprout_arena_reset(&arena);
-  CHECK_INT(heap.pages, 0);
-}
-
-static void the_graph_is_read_an_entry_at_a_time_and_its_files_checked_at_the_end(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_arena arena, scratch;
-  sprout_graph graph;
-  sprout_graph_reader reader;
-  sprout_json *one, *two, *files;
-  sprout_json_error e;
-  char error[200];
-  sprout_arena_init(&arena, &host);
-  sprout_arena_init(&scratch, &host);
-  const char *one_text = "{\"a\":[[1],{\"p\":[1,2,3]}]}", *two_text = "{\"s\":[[0]]}";
-  const char *files_text = "[\"a.sprout\",\"b.sprout\"]";
-  CHECK_INT(sprout_json_read(&scratch, one_text, strlen(one_text), &one, &e), SPROUT_OK);
-  CHECK_INT(sprout_json_read(&scratch, two_text, strlen(two_text), &two, &e), SPROUT_OK);
-  CHECK_INT(sprout_json_read(&scratch, files_text, strlen(files_text), &files, &e), SPROUT_OK);
-  CHECK_INT(sprout_graph_begin(&reader, &graph, &arena, &scratch, 1, 0, 1, error, 200), SPROUT_OK);
-  CHECK_INT(graph.count, 2);
-  CHECK_INT(sprout_graph_fill(&reader, one), SPROUT_OK);
-  CHECK(sprout_item(&graph, &graph.entries[0], 0) == &graph.entries[1]);
-  CHECK_INT(sprout_graph_fill(&reader, two), SPROUT_OK);
-  CHECK_INT(sprout_graph_fill(&reader, two), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge holds more entries than its header counts.");
-  CHECK_INT(sprout_graph_end(&reader, files), SPROUT_OK);
-  CHECK_STR(graph.files[1], "b.sprout");
-  CHECK_INT(sprout_place_file(&graph, sprout_item(&graph, &graph.entries[0], 1)), 1);
-  /* A place's file is checked once the files are known. */
-  CHECK_INT(sprout_json_read(&scratch, "[\"a.sprout\"]", 12, &files, &e), SPROUT_OK);
-  CHECK_INT(sprout_graph_begin(&reader, &graph, &arena, &scratch, 1, 0, 1, error, 200), SPROUT_OK);
-  CHECK_INT(sprout_graph_fill(&reader, one), SPROUT_OK);
-  CHECK_INT(sprout_graph_fill(&reader, two), SPROUT_OK);
-  CHECK_INT(sprout_graph_end(&reader, files), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge names a file it does not list.");
-  /* Fewer entries than counted. */
-  CHECK_INT(sprout_graph_begin(&reader, &graph, &arena, &scratch, 1, 0, 1, error, 200), SPROUT_OK);
-  CHECK_INT(sprout_graph_fill(&reader, one), SPROUT_OK);
-  CHECK_INT(sprout_graph_end(&reader, files), SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge holds fewer entries than its header counts.");
-  sprout_arena_reset(&scratch);
-  sprout_arena_reset(&arena);
-  CHECK_INT(heap.pages, 0);
-}
-
-static void objects_with_the_same_fields_in_the_same_order_share_one_key_array(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_arena arena;
-  sprout_graph graph;
-  char error[200], rest[4096];
-  size_t at = 0, i;
-  sprout_arena_init(&arena, &host);
-  /* 40 shapes, each twice, so the shape table grows past its first 64 slots while it reads. */
-  at += (size_t)sprintf(rest + at, "[{\"o\":{\"kind\":\"a\",\"x\":1}},{\"o\":{\"kind\":\"b\",\"x\":2}},{\"o\":{\"x\":3,\"kind\":\"c\"}},{\"o\":{\"kind\":\"d\"}}");
-  for (i = 0; i < 80; i++) at += (size_t)sprintf(rest + at, ",{\"o\":{\"k%u\":%u}}", (unsigned)(i % 40), (unsigned)i);
-  at += (size_t)sprintf(rest + at, "]");
-  CHECK_INT(read_graph(&arena, "[]", "[]", "[]", rest, &graph, error), SPROUT_OK);
-  CHECK(graph.entries[0].keys == graph.entries[1].keys);
-  CHECK(graph.entries[2].keys != graph.entries[0].keys);
-  CHECK(graph.entries[3].keys != graph.entries[0].keys);
-  CHECK_STR(sprout_node_text(&graph, &graph.entries[2], "kind"), "c");
-  CHECK(sprout_node_number(&graph, sprout_node_get(&graph, &graph.entries[1], "x")) == 2);
-  CHECK(sprout_node_get(&graph, &graph.entries[3], "x") == NULL);
-  for (i = 0; i < 40; i++) {
-    char key[8];
-    sprintf(key, "k%u", (unsigned)i);
-    CHECK(graph.entries[4 + i].keys == graph.entries[44 + i].keys);
-    CHECK(sprout_node_number(&graph, sprout_node_get(&graph, &graph.entries[44 + i], key)) == (double)(i + 40));
+  {
+    sprout_json *cell;
+    sprout_json_error e;
+    CHECK_INT(sprout_json_read(&arena, "[1]", 3, &cell, &e), SPROUT_OK);
+    CHECK(sprout_graph_cell(&graph, cell) == &graph.table.nodes[1]);
+    CHECK_INT(sprout_json_read(&arena, "[99999999]", 10, &cell, &e), SPROUT_OK);
+    CHECK(sprout_graph_cell(&graph, cell) == NULL);
+    CHECK_INT(sprout_json_read(&arena, "\"x\"", 3, &cell, &e), SPROUT_OK);
+    CHECK(sprout_graph_cell(&graph, cell) == NULL);
   }
-  CHECK(graph.entries[4].keys != graph.entries[5].keys);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
+static void the_lookups_find_fields_elements_and_map_values_in_built_nodes(void) {
+  sprout_build_room room = SPROUT_BUILD_LINE_ROOM;
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  sprout_builder b;
+  const sprout_graph *g;
+  static const char *const keys[] = {"kind", "value", "at", "big", "negative"};
+  const sprout_node *values[5], *object, *list, *elements[3];
+  sprout_arena_init(&arena, &host);
+  sprout_build_begin(&b, &arena, room);
+  values[0] = sprout_build_string(&b, "integer", 7);
+  values[1] = sprout_build_number(&b, 8);
+  values[2] = sprout_build_null(&b);
+  values[3] = sprout_build_number(&b, 1099511627776.0);
+  values[4] = sprout_build_number(&b, -7);
+  object = sprout_build_object(&b, keys, values, 5);
+  elements[0] = object;
+  elements[1] = sprout_build_bool(&b, true);
+  elements[2] = sprout_build_string(&b, "integer", 7);
+  list = sprout_build_array(&b, elements, 3);
+  g = sprout_build_graph(&b);
+  CHECK(!sprout_build_failed(&b));
+  CHECK_STR(sprout_key(g, object, 1), "value");
+  CHECK(sprout_node_get(g, object, "value") == values[1]);
+  CHECK(sprout_node_number(g, values[1]) == 8);
+  CHECK(sprout_node_number(g, values[3]) == 1099511627776.0);
+  CHECK(sprout_node_number(g, values[4]) == -7);
+  CHECK_INT(sprout_node_get(g, object, "at")->kind, SPROUT_NODE_NULL);
+  CHECK(sprout_node_get(g, object, "missing") == NULL);
+  CHECK(sprout_node_get(g, list, "kind") == NULL);
+  CHECK(sprout_item(g, list, 0) == object && sprout_truth(sprout_item(g, list, 1)));
+  CHECK(sprout_item(g, list, 2) != values[0] && sprout_node_is(g, sprout_item(g, list, 2), "integer")); /* built twice: two nodes, one text */
+  CHECK(sprout_node_is(g, values[0], "integer") && !sprout_node_is(g, values[0], "other") && !sprout_node_is(g, NULL, "x"));
+  CHECK(sprout_node_text(g, object, "value") == NULL);
+  CHECK(sprout_node_map_get(g, object, values[0]) == NULL);
+  CHECK(sprout_node_map_find(g, list, "x") == NULL);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
+static void a_map_is_read_by_its_key_node_or_its_text(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_arena arena;
+  sprout_graph graph;
+  char error[200];
+  size_t length, at, i;
+  unsigned char *body;
+  const sprout_node *map = NULL;
+  sprout_arena_init(&arena, &host);
+  body = body_of(&arena, "printers_shop", &length, &at);
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files_of(&arena, body, at), error, sizeof error), SPROUT_OK);
+  for (i = 0; i < graph.count && map == NULL; i++) {
+    const sprout_node *n = &graph.table.nodes[i];
+    if (n->kind == SPROUT_NODE_MAP && n->count > 1 && sprout_map_key(&graph, n, 0)->kind == SPROUT_NODE_STRING) map = n;
+  }
+  CHECK(map != NULL);
+  if (map != NULL) {
+    const sprout_node *key = sprout_map_key(&graph, map, 1);
+    CHECK(sprout_node_map_get(&graph, map, key) == sprout_item(&graph, map, 1));
+    CHECK(sprout_node_map_find(&graph, map, sprout_text(&graph, key)) == sprout_item(&graph, map, 1));
+    CHECK(sprout_node_map_find(&graph, map, "no such key at all") == NULL);
+    CHECK(sprout_node_map_get(&graph, map, map) == NULL);
+  }
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
+static void a_block_that_is_not_a_table_or_names_a_file_not_listed_is_refused(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_arena arena;
+  sprout_graph graph;
+  char error[200];
+  size_t length, at;
+  unsigned char *body;
+  sprout_json *few;
+  sprout_json_error e;
+  sprout_arena_init(&arena, &host);
+  body = body_of(&arena, "printers_shop", &length, &at);
+  CHECK_INT(sprout_graph_map(&graph, body + at + 8, length - at - 8, &arena, files_of(&arena, body, at), error, sizeof error),
+            SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge's table is not one this runtime reads: it does not begin with `TBL3`");
+  CHECK_INT(sprout_json_read(&arena, "[\"only.sprout\"]", 15, &few, &e), SPROUT_OK);
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, few, error, sizeof error), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge names a file it does not list.");
+  CHECK_INT(sprout_json_read(&arena, "[7]", 3, &few, &e), SPROUT_OK);
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, few, error, sizeof error), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge's list of files holds something that is not a name.");
+  CHECK_INT(sprout_json_read(&arena, "{}", 2, &few, &e), SPROUT_OK);
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, few, error, sizeof error), SPROUT_BAD_INPUT);
+  CHECK_STR(error, "the cartridge's list of files is not a list.");
   sprout_arena_reset(&arena);
   CHECK_INT(heap.pages, 0);
 }
 
 static void a_host_that_runs_out_of_memory_is_told_so(void) {
-  long pages;
-  for (pages = 0; pages < 8; pages++) {
-    test_heap heap;
-    sprout_host host = test_host(&heap);
-    sprout_arena arena, scratch;
-    sprout_graph graph;
-    char error[200];
-    sprout_status status;
-    sprout_arena_init(&scratch, &host);
-    sprout_arena_init(&arena, &host);
-    heap.refuse_after = pages;
-    status = read_graph(&arena, "[\"f\"]", "[]", "[]", "[{\"a\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]}]", &graph, error);
-    CHECK(status == SPROUT_OK || status == SPROUT_BAD_INPUT || status == SPROUT_NO_MEMORY);
-    sprout_arena_reset(&arena);
-    sprout_arena_reset(&scratch);
-    CHECK_INT(heap.pages, 0);
-  }
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_arena arena, scratch;
+  sprout_graph graph;
+  char error[200];
+  size_t length, at;
+  unsigned char *body;
+  const sprout_json *files;
+  sprout_arena_init(&scratch, &host);
+  sprout_arena_init(&arena, &host);
+  body = body_of(&scratch, "printers_shop", &length, &at);
+  files = files_of(&scratch, body, at);
+  heap.refuse_after = heap.pages;
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files, error, sizeof error), SPROUT_NO_MEMORY);
+  sprout_arena_reset(&arena);
+  sprout_arena_reset(&scratch);
+  CHECK_INT(heap.pages, 0);
 }
 
 int main(void) {
-  RUN(a_shared_entry_is_one_node_and_references_run_across_the_three_runs);
-  RUN(a_forward_reference_and_a_place_without_a_listed_file_are_handled_in_words);
-  RUN(equal_scalars_are_one_node_and_nothing_points_at_the_json);
-  RUN(a_place_past_what_a_node_holds_is_refused);
-  RUN(the_graph_is_read_an_entry_at_a_time_and_its_files_checked_at_the_end);
-  RUN(objects_with_the_same_fields_in_the_same_order_share_one_key_array);
+  RUN(a_packed_world_maps_with_its_entries_first_and_its_cells_after);
+  RUN(the_lookups_find_fields_elements_and_map_values_in_built_nodes);
+  RUN(a_map_is_read_by_its_key_node_or_its_text);
+  RUN(a_block_that_is_not_a_table_or_names_a_file_not_listed_is_refused);
   RUN(a_host_that_runs_out_of_memory_is_told_so);
   return REPORT();
 }

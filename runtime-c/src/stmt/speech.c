@@ -19,7 +19,7 @@ void stmt_speech_of(const sprout_frame *frame, const sprout_node *statement, spr
   }
   out->name = sprout_node_text(frame->graph, said, "text");
   self = expr_instance(frame, frame->self);
-  if (self != NULL && sprout_passage_on(frame->graph, self->kind, out->name, out)) return;
+  if (self != NULL && sprout_passage_on(&frame->world->graph, self->kind, out->name, out)) return;
   out->kind = SPROUT_SPEECH_ABSENT;
 }
 

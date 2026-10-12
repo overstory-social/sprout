@@ -11,15 +11,15 @@
 sprout_eval_status sprout_is_lit(const sprout_frame *frame, sprout_str place, bool *lit) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
   const sprout_node *line =
-      instance == NULL ? NULL : sprout_node_get(frame->graph, sprout_node_get(frame->graph, instance->kind->node, "grammar"), "lit");
+      instance == NULL ? NULL : sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, instance->kind->node, "grammar"), "lit");
   sprout_frame at = *frame;
   sprout_eval_status status;
   *lit = true;
   if (line == NULL || line->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(frame->graph, line, "origin"), &at.library));
+  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(&frame->world->graph, line, "origin"), &at.library));
   at.self = place;
   at.bindings = NULL;
-  status = sprout_eval_condition(&at, sprout_node_get(frame->graph, sprout_node_get(frame->graph, line, "value"), "condition"), lit);
+  status = sprout_eval_condition(&at, sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, line, "value"), "condition"), lit);
   if (sprout_reads_nothing(frame, status)) {
     *lit = false;
     return SPROUT_EVAL_OK;

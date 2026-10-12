@@ -2,22 +2,32 @@
  * Tests for src/load.c: a cartridge is refused in the words the
  * TypeScript loader uses when it is not one, was made for another format or
  * a newer language level, or is damaged; a host that runs out of memory part
- * way is told so and left holding nothing; a load steps across calls, can be
- * abandoned, and a peek reads only the header and caps.
+ * way is told so and left holding nothing; a load steps across calls by
+ * bytes, can be abandoned, and a peek inflates only as far as the preamble.
  */
 #include "load.h"
 #include "corpus.h"
 #include "inflate.h"
 
-/* 16 header bytes, then `body` as one stored gzip member. */
-static char *cartridge_of(const char *body, size_t *length) {
-  size_t n = strlen(body), at;
+/* A table of no nodes: its counts, then the one string offset and the one shape offset, each padded. */
+static const unsigned char EMPTY_TABLE[64] = {'T', 'B', 'L', '3'};
+
+/* 16 header bytes, then `preamble`, padded to eight, and `table` as one stored gzip member. */
+static char *cartridge_with(const char *preamble, const unsigned char *table, size_t table_length, size_t *length) {
+  size_t text = strlen(preamble), table_at = (text + 7) & ~(size_t)7, n = table_at + table_length, at;
+  unsigned char *body = (unsigned char *)calloc(n, 1);
   unsigned char *out = (unsigned char *)malloc(16 + 10 + 5 + n + 8);
-  uint32_t crc = sprout_crc32(0, (const unsigned char *)body, n);
+  uint32_t crc;
+  memcpy(body, preamble, text);
+  if (table_length > 0) memcpy(body + table_at, table, table_length);
+  crc = sprout_crc32(0, body, n);
   memset(out, 0, 16);
   memcpy(out, "SPRT", 4);
-  out[4] = 2;
+  out[4] = 3;
   out[6] = 1;
+  out[8] = (unsigned char)n, out[9] = (unsigned char)(n >> 8), out[10] = (unsigned char)(n >> 16), out[11] = (unsigned char)(n >> 24);
+  out[12] = (unsigned char)table_at, out[13] = (unsigned char)(table_at >> 8), out[14] = (unsigned char)(table_at >> 16),
+  out[15] = (unsigned char)(table_at >> 24);
   at = 16;
   {
     static const unsigned char gz[10] = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3};
@@ -40,7 +50,12 @@ static char *cartridge_of(const char *body, size_t *length) {
   out[at++] = 0;
   out[at++] = 0;
   *length = at;
+  free(body);
   return (char *)out;
+}
+
+static char *cartridge_of(const char *preamble, size_t *length) {
+  return cartridge_with(preamble, EMPTY_TABLE, sizeof EMPTY_TABLE, length);
 }
 
 static void refuses(const char *bytes, size_t length, const char *words) {
@@ -57,19 +72,19 @@ static void refuses(const char *bytes, size_t length, const char *words) {
 static void a_newer_format_or_level_is_refused_naming_the_number(void) {
   size_t length;
   char *bytes = corpus_cartridge("printers_shop", &length);
-  bytes[4] = 3;
+  bytes[4] = 4;
   refuses(bytes, length,
-          "This cartridge is format version 3, and this runtime reads up to version 2. Update the runtime, or pack the world again with this one.");
-  bytes[4] = 2;
+          "This cartridge is format version 4, and this runtime reads up to version 3. Update the runtime, or pack the world again with this one.");
+  bytes[4] = 3;
   bytes[6] = 7;
   refuses(bytes, length,
           "This cartridge was made for language level 7, and this runtime reads up to level 1. Update the runtime, or pack the world again with this one.");
   bytes[6] = 1;
   bytes[4] = 0;
   refuses(bytes, length, "This cartridge says it is format version 0, and versions begin at 1. It is damaged.");
-  bytes[4] = 1;
+  bytes[4] = 2;
   refuses(bytes, length,
-          "This cartridge is format version 1, and this runtime reads version 2. Pack the world again with `sprout pack`.");
+          "This cartridge is format version 2, and this runtime reads version 3. Pack the world again with `sprout pack`.");
   free(bytes);
 }
 
@@ -79,6 +94,9 @@ static void a_file_that_is_not_a_cartridge_is_refused(void) {
   refuses("NOPE0123456789abcdef", 20, words);
   refuses(NULL, 0, words);
 }
+
+#define ALL_CAPS "\"caps\":{\"optionsPerEnum\":1,\"rolesPerVerb\":1,\"phrasesPerVerb\":1,\"stepsPerIntent\":1,\"phraseCharacters\":1,\"nounsPerObject\":1,\"nounCharacters\":1,\"exitsPerPlace\":1,\"literalCharacters\":1,\"listElements\":1,\"places\":null,\"objects\":null,\"kinds\":null,\"files\":null,\"sourceBytes\":null}"
+#define A_HEADER "\"header\":{\"name\":\"late\",\"namespace\":\"late\",\"version\":\"1.0.0\",\"author\":\"a\",\"license\":\"MIT\",\"level\":1,\"hash\":\"h\",\"files\":[],\"libraries\":[]}"
 
 static void a_damaged_body_is_refused_in_words(void) {
   size_t length;
@@ -94,63 +112,37 @@ static void a_damaged_body_is_refused_in_words(void) {
     CHECK(strncmp(why.text, "This cartridge cannot be read: ", 31) == 0);
     CHECK_INT(heap.pages, 0);
   }
+  /* The header's sizes and the body disagree. */
+  bytes[length / 2] ^= 0x55;
+  bytes[8] ^= 1;
+  refuses(bytes, length, "This cartridge cannot be read: its body is not the size its header says.");
+  bytes[8] ^= 1;
+  bytes[12] = 4;
+  refuses(bytes, length, "This cartridge cannot be read: its body is not the size its header says.");
   free(bytes);
   good = cartridge_of("not json at all", &length);
-  refuses(good, length, "This cartridge cannot be read: its body is not JSON.");
+  refuses(good, length, "This cartridge cannot be read: its preamble is not JSON.");
   free(good);
   good = cartridge_of("[]", &length);
-  refuses(good, length, "This cartridge is not shaped as a cartridge is: its body is not an object.");
+  refuses(good, length, "This cartridge is not shaped as a cartridge is: its preamble is not an object.");
   free(good);
   good = cartridge_of("{}", &length);
-  refuses(good, length,
-          "This cartridge is not shaped as a cartridge is at `table`: it is missing the entries it refers to.");
+  refuses(good, length, "This cartridge is not shaped as a cartridge is at `table.files`: it is not what a cartridge holds there.");
   free(good);
-}
-
-#define COUNTED_HEADER "\"header\":{\"counts\":{\"prose\":0,\"bodies\":0,\"table\":0}}"
-
-static void a_body_missing_a_section_is_refused_where_it_goes_wrong(void) {
-  size_t length;
-  char *bytes = cartridge_of("{\"table\":{\"files\":[],\"entries\":[]},\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: its header does not come first.");
-  free(bytes);
-  bytes = cartridge_of("{\"header\":{},\"prose\":{\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `header.counts`: it is not what a cartridge holds there.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"table\":{\"files\":[],\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: its entries are not in order.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `table`: it is missing the entries it refers to.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[{\"a\":[]}]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: the cartridge holds more entries than its header counts.");
-  free(bytes);
-  bytes = cartridge_of("{\"header\":{\"counts\":{\"prose\":1,\"bodies\":0,\"table\":0}},\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is: the cartridge holds fewer entries than its header counts.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `header`: it is not what a cartridge holds there.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[]}", &length);
-  refuses(bytes, length, "This cartridge cannot be read: its body is not JSON.");
-  free(bytes);
-  bytes = cartridge_of("{\"header\":{\"counts\":{\"prose\":4294967295,\"bodies\":0,\"table\":0}},\"prose\":{\"entries\":[]}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `header.counts`: it is not what a cartridge holds there.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":[]}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `prose`: it is not what a cartridge holds there.");
-  free(bytes);
-  bytes = cartridge_of("{" COUNTED_HEADER ",\"prose\":{\"entries\":{}}}", &length);
-  refuses(bytes, length, "This cartridge is not shaped as a cartridge is at `prose.entries`: it is not what a cartridge holds there.");
-  free(bytes);
+  good = cartridge_of("{\"table\":{\"files\":[]}}", &length);
+  refuses(good, length, "This cartridge is not shaped as a cartridge is at `header`: it is not what a cartridge holds there.");
+  free(good);
+  good = cartridge_with("{\"table\":{\"files\":[]}}", (const unsigned char *)"not a table at all", 18, &length);
+  refuses(good, length,
+          "This cartridge is not shaped as a cartridge is: the cartridge's table is not one this runtime reads: it does not begin with `TBL3`");
+  free(good);
 }
 
 static void a_load_that_runs_out_of_memory_says_so_and_holds_nothing(void) {
   size_t length;
   char *bytes = corpus_cartridge("printers_shop", &length);
-  long pages;
-  for (pages = 0; pages < 40; pages += 3) {
+  long pages, refused = 0;
+  for (pages = 0; pages < 400; pages += 1) {
     test_heap heap;
     sprout_host host = test_host(&heap);
     sprout_world *world = NULL;
@@ -158,10 +150,18 @@ static void a_load_that_runs_out_of_memory_says_so_and_holds_nothing(void) {
     host.page_bytes = 8192;
     heap.refuse_after = pages;
     status = sprout_load(&host, bytes, length, &world);
+    if (status == SPROUT_OK) {
+      CHECK(world != NULL);
+      sprout_world_free(world);
+      CHECK_INT(heap.pages, 0);
+      break;
+    }
     CHECK_INT(status, SPROUT_NO_MEMORY);
     CHECK(world == NULL);
     CHECK_INT(heap.pages, 0);
+    refused++;
   }
+  CHECK(refused > 3 && pages < 400);
   free(bytes);
 }
 
@@ -189,11 +189,12 @@ static void a_loaded_world_keeps_the_header_the_cartridge_recorded(void) {
   CHECK(world->header.library_count >= 1);
   CHECK_STR(world->header.libraries[0].name, "sprout");
   CHECK_INT(strlen(world->header.hash), 64);
+  CHECK(world->graph.count > 1000);
   sprout_world_free(world);
   CHECK_INT(heap.pages, 0);
 }
 
-static void a_load_steps_across_calls_and_tells_its_progress(void) {
+static void a_load_steps_across_calls_by_bytes_and_tells_its_progress(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
   size_t length, read = 0, counted = 0, steps = 0, last = 0;
@@ -205,23 +206,22 @@ static void a_load_steps_across_calls_and_tells_its_progress(void) {
   CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
   sprout_load_progress(loading, &read, &counted);
   CHECK_INT(read, 0);
-  CHECK_INT(counted, 0);
+  CHECK(counted > 10000);
   CHECK(sprout_load_finish(loading) == NULL);
   while (!done) {
-    CHECK_INT(sprout_load_step(loading, 7, &done, &why), SPROUT_OK);
+    CHECK_INT(sprout_load_step(loading, 4096, &done, &why), SPROUT_OK);
     sprout_load_progress(loading, &read, &counted);
-    CHECK(read >= last);
+    CHECK(read >= last && read - last <= 4096);
     last = read;
     steps++;
   }
-  CHECK(steps > 100);
-  CHECK(counted > 1000 && read == counted);
+  CHECK(steps > 10);
+  CHECK(read == counted);
   CHECK_INT(sprout_load_step(loading, 7, &done, &why), SPROUT_OK);
   CHECK(done);
   world = sprout_load_finish(loading);
   CHECK(world != NULL && !sprout_world_peeked(world));
   CHECK_STR(world->header.name, "printers_shop");
-  CHECK_INT(world->graph.count, counted);
   CHECK_INT(sprout_load_explained(&host, bytes, length, &whole, &why), SPROUT_OK);
   CHECK_INT(whole->graph.count, world->graph.count);
   CHECK_INT(whole->word_count, world->word_count);
@@ -253,12 +253,13 @@ static void a_load_abandoned_part_way_leaves_nothing(void) {
   free(bytes);
 }
 
-static void a_peek_reads_the_header_and_caps_and_nothing_else(void) {
+static void a_peek_reads_the_preamble_and_nothing_else(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
-  size_t length;
+  size_t length, read = 0, counted = 0;
   char *bytes = corpus_cartridge("printers_shop", &length);
   sprout_world *world = NULL;
+  sprout_loading *loading = NULL;
   sprout_refusal why;
   long before;
   CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
@@ -272,33 +273,23 @@ static void a_peek_reads_the_header_and_caps_and_nothing_else(void) {
   CHECK(before < 8);
   sprout_world_free(world);
   CHECK_INT(heap.pages, 0);
+  /* The table is never reached: a cartridge whose table is damaged still peeks. */
+  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  sprout_load_progress(loading, &read, &counted);
+  CHECK(counted > 20000);
+  sprout_load_abandon(loading);
   free(bytes);
-  /* A body with no caps is said so. */
-  bytes = cartridge_of("{\"header\":{\"counts\":{\"prose\":0,\"bodies\":0,\"table\":0}}}", &length);
-  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_BAD_INPUT);
-  CHECK_STR(why.text, "This cartridge is not shaped as a cartridge is at `caps`: it is not what a cartridge holds there.");
-  CHECK_INT(heap.pages, 0);
-  free(bytes);
-}
-
-#define ALL_CAPS "\"caps\":{\"optionsPerEnum\":1,\"rolesPerVerb\":1,\"phrasesPerVerb\":1,\"stepsPerIntent\":1,\"phraseCharacters\":1,\"nounsPerObject\":1,\"nounCharacters\":1,\"exitsPerPlace\":1,\"listElements\":1,\"literalCharacters\":1,\"places\":null,\"objects\":null,\"kinds\":null,\"files\":null,\"sourceBytes\":null}"
-
-static void a_peek_walks_past_the_entries_when_the_caps_come_after_them(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  size_t length;
-  char *bytes = cartridge_of(
-      "{\"header\":{\"name\":\"late\",\"namespace\":\"late\",\"version\":\"1.0.0\",\"author\":\"a\",\"license\":\"MIT\",\"level\":1,\"hash\":\"h\",\"files\":[],\"libraries\":[],\"counts\":{\"prose\":0,\"bodies\":0,\"table\":1}},"
-      "\"prose\":{\"entries\":[]},\"bodies\":{\"entries\":[]},\"table\":{\"files\":[],\"entries\":[{\"a\":[1,2,3]}]}," ALL_CAPS "}",
-      &length);
-  sprout_world *world = NULL;
-  sprout_refusal why;
+  bytes = cartridge_with("{" A_HEADER "," ALL_CAPS ",\"extensions\":[]}", (const unsigned char *)"garbage!", 8, &length);
   CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
   CHECK(world != NULL && sprout_world_peeked(world));
   CHECK_STR(world->header.name, "late");
-  CHECK(world->caps.options_per_enum == 1);
-  CHECK_INT(world->graph.count, 0);
   sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+  /* A body with no caps is said so. */
+  bytes = cartridge_of("{" A_HEADER "}", &length);
+  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_BAD_INPUT);
+  CHECK_STR(why.text, "This cartridge is not shaped as a cartridge is at `caps`: it is not what a cartridge holds there.");
   CHECK_INT(heap.pages, 0);
   free(bytes);
 }
@@ -317,7 +308,7 @@ static void a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing(v
     host.page_bytes = 8192;
     heap.refuse_after = pages;
     status = sprout_load_begin(&host, bytes, length, &loading, &why);
-    while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 5, &done, &why);
+    while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 5000, &done, &why);
     if (status == SPROUT_OK) {
       sprout_world *world = sprout_load_finish(loading);
       CHECK(world != NULL);
@@ -332,15 +323,13 @@ static void a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing(v
 }
 
 int main(void) {
-  RUN(a_load_steps_across_calls_and_tells_its_progress);
-  RUN(a_peek_walks_past_the_entries_when_the_caps_come_after_them);
+  RUN(a_load_steps_across_calls_by_bytes_and_tells_its_progress);
   RUN(a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing);
   RUN(a_load_abandoned_part_way_leaves_nothing);
-  RUN(a_peek_reads_the_header_and_caps_and_nothing_else);
+  RUN(a_peek_reads_the_preamble_and_nothing_else);
   RUN(a_newer_format_or_level_is_refused_naming_the_number);
   RUN(a_file_that_is_not_a_cartridge_is_refused);
   RUN(a_damaged_body_is_refused_in_words);
-  RUN(a_body_missing_a_section_is_refused_where_it_goes_wrong);
   RUN(a_load_that_runs_out_of_memory_says_so_and_holds_nothing);
   RUN(a_host_without_memory_is_a_bad_host);
   RUN(a_loaded_world_keeps_the_header_the_cartridge_recorded);

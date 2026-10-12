@@ -17,8 +17,35 @@ import {
 /** A single quote, as an import's specifier is written between them. */
 const Q = "'";
 
-const bodyText = (bytes: Uint8Array): string =>
-  new TextDecoder().decode(gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES)));
+/** The inflated body: the preamble's text, and the table's bytes. */
+const bodyOf = (bytes: Uint8Array): { preamble: string; table: Uint8Array; whole: string } => {
+  const header = readCartridgeHeader(bytes);
+  const body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES));
+  return {
+    preamble: new TextDecoder().decode(body.subarray(0, header.tableAt)).replace(/\0+$/, ''),
+    table: body.subarray(header.tableAt),
+    whole: new TextDecoder('latin1').decode(body),
+  };
+};
+
+/** A cartridge whose body is `preamble` then `table`, with the header saying so. */
+const cartridgeWith = (level: number, preamble: string, table: Uint8Array): Uint8Array => {
+  const text = new TextEncoder().encode(preamble);
+  const tableAt = (text.length + 7) & ~7;
+  const body = new Uint8Array(tableAt + table.length);
+  body.set(text);
+  body.set(table, tableAt);
+  const compressed = gzip(body);
+  const out = new Uint8Array(CARTRIDGE_HEADER_BYTES + compressed.length);
+  out.set(new TextEncoder().encode('SPRT'));
+  const view = new DataView(out.buffer);
+  view.setUint16(4, CARTRIDGE_FORMAT, true);
+  view.setUint16(6, level, true);
+  view.setUint32(8, body.length, true);
+  view.setUint32(12, tableAt, true);
+  out.set(compressed, CARTRIDGE_HEADER_BYTES);
+  return out;
+};
 
 /** `bytes` with the format and level the header says replaced. */
 function withHeader(bytes: Uint8Array, format: number, level: number): Uint8Array {
@@ -42,13 +69,20 @@ const refusal = (run: () => unknown): string => {
 describe('the header of a cartridge', () => {
   const bytes = emitCartridge(BENCH);
 
-  it('is sixteen bytes: SPRT, the format, the language level, and eight zeros', () => {
+  it('is sixteen bytes: SPRT, the format, the language level, the body size and where the table begins', () => {
     expect(new TextDecoder().decode(bytes.subarray(0, 4))).toBe('SPRT');
     const view = new DataView(bytes.buffer, bytes.byteOffset);
     expect(view.getUint16(4, true)).toBe(CARTRIDGE_FORMAT);
     expect(view.getUint16(6, true)).toBe(BENCH.level);
-    expect([...bytes.subarray(8, 16)]).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
-    expect(readCartridgeHeader(bytes)).toEqual({ format: CARTRIDGE_FORMAT, level: BENCH.level });
+    const header = readCartridgeHeader(bytes);
+    expect(header).toMatchObject({ format: CARTRIDGE_FORMAT, level: BENCH.level });
+    const body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES));
+    expect(header.bodyBytes).toBe(body.length);
+    expect(header.tableAt % 8).toBe(0);
+    expect(header.tableAt).toBeLessThan(body.length);
+    expect(new TextDecoder().decode(body.subarray(header.tableAt, header.tableAt + 4))).toBe(
+      'TBL3',
+    );
     // Gzip's own magic follows.
     expect([...bytes.subarray(16, 18)]).toEqual([0x1f, 0x8b]);
   });
@@ -118,11 +152,6 @@ describe('the sections of a cartridge', () => {
     expect(cartridge.prose.entries.length).toBeGreaterThan(0);
     expect(cartridge.bodies.entries.length).toBeGreaterThan(0);
     expect(cartridge.table.entries.length).toBeGreaterThan(0);
-    expect(cartridge.header.counts).toEqual({
-      prose: cartridge.prose.entries.length,
-      bodies: cartridge.bodies.entries.length,
-      table: cartridge.table.entries.length,
-    });
     expect(cartridge.caps).toEqual(BENCH.caps);
   });
 
@@ -135,16 +164,26 @@ describe('the sections of a cartridge', () => {
   });
 
   it('hold no source text, and no diagnostics', () => {
-    const text = bodyText(emitCartridge(BENCH));
-    expect(text).not.toContain('world bench is sprout.World');
-    expect(text).not.toContain('import * as sprout');
-    expect(text).not.toContain('diagnostics');
+    const { whole } = bodyOf(emitCartridge(BENCH));
+    expect(whole).not.toContain('world bench is sprout.World');
+    expect(whole).not.toContain('import * as sprout');
+    expect(whole).not.toContain('diagnostics');
   });
 
   it('keep a span only as a file, a line and a column, on nodes that can fault', () => {
-    const text = bodyText(emitCartridge(BENCH));
-    expect(text).toContain('{"p":[0,');
+    const read = readCartridge(emitCartridge(BENCH));
+    expect(JSON.stringify(read.bodies.entries)).toContain('{"p":[0,');
+    expect(JSON.stringify(read.bodies.entries)).toContain('{"p":[-1,0,0]}');
     expect(cartridge.table.files).toContain('bench.sprout');
+  });
+
+  it('hold the entries in the table and everything else in the preamble', () => {
+    const { preamble } = bodyOf(emitCartridge(BENCH));
+    const json = JSON.parse(preamble);
+    expect(Object.keys(json)).not.toContain('prose');
+    expect(json.bodies.entries).toBeUndefined();
+    expect(json.table.entries).toBeUndefined();
+    expect(json.table.files).toContain('bench.sprout');
   });
 });
 
@@ -170,12 +209,12 @@ describe('a cartridge’s grammar', () => {
 
   it('holds phrase templates, with every synonym already given as the phrases it makes, and no synonym words', () => {
     const hut = compiledWorld('hut', files);
-    const text = bodyText(emitCartridge(hut));
-    expect(text).toContain('toll');
-    expect(text).toContain('jimmy');
-    expect(text).toContain('force');
-    expect(text).not.toContain('"synonyms":');
-    expect(text).not.toContain('"words":"jimmy"');
+    const entries = JSON.stringify(readCartridge(emitCartridge(hut)).table.entries);
+    expect(entries).toContain('toll');
+    expect(entries).toContain('jimmy');
+    expect(entries).toContain('force');
+    expect(entries).not.toContain('"synonyms":');
+    expect(entries).not.toContain('"words":"jimmy"');
   });
 });
 
@@ -187,8 +226,10 @@ describe('a cartridge of a bundle with gaps', () => {
 });
 
 describe('a cartridge damaged after the header', () => {
-  const header = emitCartridge(BENCH).subarray(0, CARTRIDGE_HEADER_BYTES);
+  const whole = emitCartridge(BENCH);
+  const header = whole.subarray(0, CARTRIDGE_HEADER_BYTES);
   const withBody = (body: Uint8Array): Uint8Array => Uint8Array.from([...header, ...body]);
+  const { preamble, table } = bodyOf(whole);
 
   it('is refused when its body is not gzip', () => {
     expect(refusal(() => readCartridge(withBody(new TextEncoder().encode('plain'))))).toContain(
@@ -196,18 +237,33 @@ describe('a cartridge damaged after the header', () => {
     );
   });
 
-  it('is refused when its body is not JSON', () => {
-    expect(
-      refusal(() => readCartridge(withBody(gzip(new TextEncoder().encode('{nope'))))),
-    ).toContain('not JSON');
+  it('is refused when its body is not the size its header says', () => {
+    expect(refusal(() => readCartridge(withBody(gzip(new TextEncoder().encode('{}')))))).toContain(
+      'not the size its header says',
+    );
   });
 
-  it('is refused, naming where, when its JSON is not shaped as a cartridge is', () => {
-    const json = JSON.parse(bodyText(emitCartridge(BENCH)));
+  it('is refused when its preamble is not JSON', () => {
+    expect(refusal(() => readCartridge(cartridgeWith(BENCH.level, '{nope', table)))).toContain(
+      'preamble is not JSON',
+    );
+  });
+
+  it('is refused, naming where, when its preamble is not shaped as a cartridge is', () => {
+    const json = JSON.parse(preamble);
     json.header.name = 7;
     const message = refusal(() =>
-      readCartridge(withBody(gzip(new TextEncoder().encode(JSON.stringify(json))))),
+      readCartridge(cartridgeWith(BENCH.level, JSON.stringify(json), table)),
     );
     expect(message).toContain('`header.name`');
+  });
+
+  it('is refused, in words, when its table is not one', () => {
+    const message = refusal(() =>
+      readCartridge(cartridgeWith(BENCH.level, preamble, new Uint8Array(16))),
+    );
+    expect(message).toBe(
+      'This cartridge is not shaped as a cartridge is at `table`: it does not begin with `TBL3`.',
+    );
   });
 });

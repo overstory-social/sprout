@@ -1,11 +1,14 @@
-// The JSON a cartridge holds, as one schema the emitter's output is held to
-// and the reader's input is checked against (the spec's The compiler ›
-// What compiling produces). A cartridge that fails it is damaged or from
-// something that is not this compiler, and is refused rather than guessed
-// at. The graph's cells and entries are `cartridge-graph.ts`'s.
+// The JSON preamble a cartridge holds, as one schema the emitter's output
+// is held to and the reader's input is checked against (the spec's The
+// compiler › What compiling produces): everything but the entries, which
+// the table of `cartridge-table.ts` holds and checks for itself. A preamble
+// that fails it is damaged or from something that is not this compiler, and
+// is refused rather than guessed at. The graph's cells are
+// `cartridge-graph.ts`'s.
 
 import { z } from 'zod';
 
+import type { Entry } from './cartridge-graph.js';
 import type { StaticCaps } from './limits.js';
 
 const Count = z.number().int().nonnegative();
@@ -17,13 +20,6 @@ const CellSchema = z.union([
   z.string(),
   z.tuple([Count]),
   z.strictObject({ p: z.tuple([z.number().int(), z.number().int(), z.number().int()]) }),
-]);
-
-const EntrySchema = z.union([
-  z.strictObject({ o: z.record(z.string(), CellSchema) }),
-  z.strictObject({ a: z.array(CellSchema) }),
-  z.strictObject({ m: z.array(z.tuple([CellSchema, CellSchema])) }),
-  z.strictObject({ s: z.array(CellSchema) }),
 ]);
 
 const CapSchema = z.number().nullable();
@@ -62,12 +58,10 @@ const HeaderSchema = z.strictObject({
   files: z.array(z.string()),
   /** The libraries it was linked with, by name, version and the hash of the source linked; the source itself does not travel. */
   libraries: z.array(z.strictObject({ name: z.string(), version: z.string(), sha: z.string() })),
-  /** How many entries each run of the table holds, so a reader can place them all before it reads one. */
-  counts: z.strictObject({ prose: Count, bodies: Count, table: Count }),
 });
 
-/** The sections of a cartridge's JSON. */
-export const CartridgeSchema = z.strictObject({
+/** The sections of a cartridge's preamble. */
+export const PreambleSchema = z.strictObject({
   header: HeaderSchema,
   /** Every kind composed, which the world and a visitor are made of, and what each kind's body gives its instances. */
   kinds: z.strictObject({
@@ -91,20 +85,13 @@ export const CartridgeSchema = z.strictObject({
     words: z.array(z.string()),
   }),
   messages: CellSchema,
-  /** Passages as trees of the prose nodes; the first run of the entries. */
-  prose: z.strictObject({ entries: z.array(EntrySchema) }),
-  /**
-   * Statements and expressions as trees, the second run of the entries;
-   * and what every name a body writes names, and which slots render an
-   * enum's option, by the nodes written.
-   */
+  /** What every name a body writes names, and which slots render an enum's option, by the nodes written. */
   bodies: z.strictObject({
-    entries: z.array(EntrySchema),
     names: CellSchema,
     optionSlots: CellSchema,
   }),
-  /** Everything else the sections above refer to, the last run of the entries, and the files spans name. */
-  table: z.strictObject({ files: z.array(z.string()), entries: z.array(EntrySchema) }),
+  /** The files spans name. */
+  table: z.strictObject({ files: z.array(z.string()) }),
   /** The static caps the world was checked against. */
   caps: StaticCapsSchema,
   /**
@@ -123,5 +110,16 @@ export const CartridgeSchema = z.strictObject({
   ),
 });
 
-/** A cartridge's JSON, read. */
-export type Cartridge = z.infer<typeof CartridgeSchema>;
+/** A cartridge's preamble, read. */
+export type Preamble = z.infer<typeof PreambleSchema>;
+
+/**
+ * A cartridge, read: the preamble with the table's three runs of entries
+ * beside what each run's section says (passages as trees of the prose
+ * nodes; statements and expressions; everything else the sections refer to).
+ */
+export type Cartridge = Preamble & {
+  readonly prose: { readonly entries: Entry[] };
+  readonly bodies: Preamble['bodies'] & { readonly entries: Entry[] };
+  readonly table: Preamble['table'] & { readonly entries: Entry[] };
+};

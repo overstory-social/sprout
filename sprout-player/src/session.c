@@ -189,7 +189,7 @@ const char *player_open(player_session *session, const char *path) {
  * about 70 steps, which the app spreads one a frame behind its loading line, each well inside
  * what the system allows a frame on the console.
  */
-#define STEP_ENTRIES 2000
+#define STEP_BYTES (32u * 1024u)
 
 const char *player_step(player_session *session) {
   sprout_arena arena;
@@ -200,7 +200,7 @@ const char *player_step(player_session *session) {
   size_t read = 0, counted = 0, i;
   bool done = false;
   if (session->loading == NULL) return refuse(session, "ok", "reason", "No world is being opened.");
-  status = sprout_load_step(session->loading, STEP_ENTRIES, &done, &refusal);
+  status = sprout_load_step(session->loading, STEP_BYTES, &done, &refusal);
   if (status != SPROUT_OK) {
     char reason[512];
     text_buffer out;

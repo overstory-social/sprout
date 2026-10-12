@@ -43,8 +43,14 @@ const char *sproutc_cartridge_describe(FILE *out, const sprout_host *host, const
     sprout_arena_reset(&arena);
     return unpack != NULL ? unpack : "the host record cannot give the reader memory.";
   }
+  /* The preamble is the JSON before the table, whose offset the header gives; its padding is NULs. */
+  {
+    size_t table_at = (size_t)bytes[12] | ((size_t)bytes[13] << 8) | ((size_t)bytes[14] << 16) | ((size_t)bytes[15] << 24);
+    if (table_at < json_length) json_length = table_at;
+    while (json_length > 0 && json[json_length - 1] == '\0') json_length--;
+  }
   if (sprout_json_read(&arena, json, json_length, &root, &error) != SPROUT_OK) {
-    snprintf(problem, sizeof problem, "the cartridge's JSON would not read, at line %zu, column %zu: %s",
+    snprintf(problem, sizeof problem, "the cartridge's preamble would not read, at line %zu, column %zu: %s",
              error.line, error.column, error.text);
     sprout_arena_reset(&arena);
     return problem;

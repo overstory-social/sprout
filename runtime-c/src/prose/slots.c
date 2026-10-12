@@ -75,7 +75,7 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
   EXPR_NEED(sprout_eval(frame, receiver, &owner));
   if (owner.binds != SPROUT_BINDS_OBJECT) return expr_engine(frame, "a passage was rendered of what is not an object.");
   instance = expr_instance(frame, owner.id);
-  if (instance == NULL || !sprout_passage_on(frame->graph, instance->kind, name, &speech)) return SPROUT_EVAL_OK;
+  if (instance == NULL || !sprout_passage_on(&frame->world->graph, instance->kind, name, &speech)) return SPROUT_EVAL_OK;
   for (i = 0; i < sizeof CARRIED / sizeof CARRIED[0]; i++) {
     const sprout_binding *carried = expr_binding(frame, CARRIED[i]);
     sprout_frame scope = *frame;

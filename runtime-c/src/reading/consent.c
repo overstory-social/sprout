@@ -145,7 +145,7 @@ static sprout_eval_status role_in(const sprout_frame *frame, const sprout_resolv
     return SPROUT_EVAL_OK;
   }
   if (held->bound.kind == SPROUT_BOUND_VALUE) {
-    const sprout_node *narrowing = sprout_node_map_find(frame->graph, sprout_node_get(frame->graph, play->node, "narrows"), role->name);
+    const sprout_node *narrowing = sprout_node_map_find(&frame->world->graph, sprout_node_get(&frame->world->graph, play->node, "narrows"), role->name);
     sprout_value value;
     bool heard;
     if (narrowing == NULL) return SPROUT_EVAL_OK;
@@ -208,7 +208,7 @@ sprout_eval_status sprout_consent_pass(sprout_exec *x, const sprout_frame *frame
     for (g = 0; g < plays.count; g++) {
       for (p = 0; p < plays.groups[g]->count; p++) {
         const sprout_play *play = &plays.groups[g]->plays[p];
-        const sprout_node *permit = sprout_node_get(frame->graph, sprout_node_get(frame->graph, play->node, "declaration"), "permit");
+        const sprout_node *permit = sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, play->node, "declaration"), "permit");
         sprout_frame inside;
         sprout_ended ended;
         if (permit == NULL || permit->kind == SPROUT_NODE_NULL) continue;

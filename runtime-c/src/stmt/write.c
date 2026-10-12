@@ -252,7 +252,7 @@ static bool remembers_through(const sprout_graph *graph, const sprout_node *call
 static sprout_eval_status queue_hook(sprout_run *run, const sprout_frame *frame, const sprout_stored_instance *self,
                                      const char *name, const sprout_value *was) {
   sprout_send send;
-  if (sprout_node_map_find(frame->graph, sprout_node_get(frame->graph, self->kind->node, "hooks"), name) == NULL) return SPROUT_EVAL_OK;
+  if (sprout_node_map_find(&frame->world->graph, sprout_node_get(&frame->world->graph, self->kind->node, "hooks"), name) == NULL) return SPROUT_EVAL_OK;
   memset(&send, 0, sizeof send);
   send.message = SPROUT_MSG_CHANGED;
   send.recipient = self->id;

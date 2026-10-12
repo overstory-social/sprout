@@ -183,6 +183,7 @@ int sproutc_evaluate(int argc, char **argv, FILE *out, FILE *err) {
   memset(&frame, 0, sizeof frame);
   memset(&fault, 0, sizeof fault);
   frame.world = world;
+  frame.graph = &world->graph;
   frame.draft = &draft;
   frame.turn = &turn;
   frame.meter = &meter;
@@ -206,7 +207,7 @@ int sproutc_evaluate(int argc, char **argv, FILE *out, FILE *err) {
     }
     frame.bindings = bound;
   }
-  code = report(&frame, sprout_eval(&frame, &world->graph.entries[o.node], &result), &result, out, err);
+  code = report(&frame, sprout_eval(&frame, &world->graph.table.nodes[o.node], &result), &result, out, err);
   sprout_arena_reset(&turn);
 done:
   if (state != NULL) sprout_state_free(state);

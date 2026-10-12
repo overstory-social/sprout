@@ -227,7 +227,10 @@ sprout_eval_status prose_engine_prose(sprout_arena *turn, sprout_eval_fault *fau
   /* The reader, and the builder's graph with it, live in the turn arena beside the nodes, as the prose refers to them. */
   r = (reader *)sprout_arena_take(turn, sizeof *r);
   if (r == NULL) return SPROUT_EVAL_NO_MEMORY;
-  sprout_build_begin(&r->builder, turn);
+  {
+    sprout_build_room room = SPROUT_BUILD_LINE_ROOM;
+    sprout_build_begin(&r->builder, turn, room);
+  }
   r->fault = fault;
   r->at = words;
   r->end = words + strlen(words);

@@ -206,10 +206,10 @@ void sprout_engine_said(const sprout_frame *frame, const char *name, const sprou
     instance = expr_instance(frame, *candidates[i]);
     passage = instance == NULL ? NULL : passage_named(instance->kind, name);
     if (passage == NULL) continue;
-    yielding_node = sprout_node_get(frame->graph, passage->node, "yields");
+    yielding_node = sprout_node_get(&frame->world->graph, passage->node, "yields");
     if (yielding_node == NULL || !sprout_truth(yielding_node)) {
       *by = *candidates[i];
-      sprout_passage_speech(frame->graph, passage, said);
+      sprout_passage_speech(&frame->world->graph, passage, said);
       return;
     }
     if (yielding == NULL) {
@@ -219,7 +219,7 @@ void sprout_engine_said(const sprout_frame *frame, const char *name, const sprou
   }
   if (yielding != NULL) {
     *by = yielding_by;
-    sprout_passage_speech(frame->graph, yielding, said);
+    sprout_passage_speech(&frame->world->graph, yielding, said);
     return;
   }
   memset(said, 0, sizeof *said);
