@@ -1,7 +1,7 @@
 // The cat roams; the dog does not. Each, once asked, sets off for the
 // attic a minute later, and the cat comes back down a minute after that.
 import * as sprout from 'sprout'
-import {pet, whistle} from 'roaming'
+import {pet, whistle, nudge} from 'roaming'
 import {kitchen, attic} from 'places'
 
 kind Cat is sprout.Actor {
@@ -12,6 +12,15 @@ kind Cat is sprout.Actor {
     do {
       wake in 1 minutes
       say "The cat purrs, and eyes the ceiling."
+    }
+  }
+
+  // Nudged, it tries to carry the hay up with it: roaming reaches the attic
+  // for the cat itself, not for what it carries, so the move faults.
+  as target for nudge {
+    do {
+      say "The cat sinks its claws into the hay."
+      move kitchen.hay to attic
     }
   }
 
@@ -37,3 +46,5 @@ kind Dog is sprout.Actor {
 
   on :woke (elapsed) { move self to attic }
 }
+
+kind Hay { }

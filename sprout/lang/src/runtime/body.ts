@@ -415,11 +415,11 @@ function objectAt(path: ObjectPath, frame: Frame): InstanceId {
 /**
  * `move`'s destination: a binding read as any object is, or an
  * identifier or path read under the move's own range rule rather than
- * the general name gate — in range of the mover, or, where the mover
- * composes `sprout.Actor`, the destination of an exit or a link of its
- * place that applies (the spec's Verbs › Acting) — so `move self to
- * yard` binds a bare identifier without faulting before `moveInstance`
- * is asked.
+ * the general name gate — any place where the mover roams, in range of
+ * the mover, or, where the mover composes `sprout.Actor`, the
+ * destination of an exit or a link of its place that applies (the spec's
+ * Verbs › Acting) — so `move self to yard` binds a bare identifier
+ * without faulting before `moveInstance` is asked.
  */
 function moveDestinationAt(path: ObjectPath, frame: Frame, sink: ActSink): InstanceId {
   const [only, ...rest] = path.parts;

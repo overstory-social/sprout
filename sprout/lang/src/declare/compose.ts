@@ -457,15 +457,19 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   order.push(own);
   // Written here, it is judged here. Come from a composed kind, which was
   // judged where it was written, it is refused here only for what this kind
-  // adds: `sprout.Visitor`, which no kind that roams composed.
+  // adds, `sprout.Visitor`, at the kind that brings the roaming; an object
+  // composing `sprout.Visitor` is refused for that alone.
   if (writtenRoams !== null) refuseRoaming(composer.name, order, writtenRoams.at, diagnostics);
-  else if (
-    roams &&
-    order.includes(VISITOR) &&
-    composed.every(({ kind }) => !kind.roams || !kind.order.includes(VISITOR)) &&
-    composer.composes[0] !== undefined
-  ) {
-    refuseRoaming(composer.name, order, composer.composes[0].at, diagnostics);
+  else if (roams && composer.object !== true && order.includes(VISITOR)) {
+    const roamer = composed.find(({ kind }) => kind.roams);
+    if (roamer !== undefined && !roamer.kind.order.includes(VISITOR)) {
+      const { name } = roamer.kind;
+      diagnostics.refuse(
+        roamer.written.at,
+        `\`${composer.name}\` composes \`sprout.Visitor\` and \`${name}\`, which roams: a visitor goes where they type.`,
+        `Compose \`${name}\` only in a kind for the NPCs that wander, or take \`roams\` out of \`${name}\`.`,
+      );
+    }
   }
 
   return {

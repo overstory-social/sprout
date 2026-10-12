@@ -427,13 +427,16 @@ describe('`roams` is an NPC’s, and composes as `contains` does', () => {
     ]);
   });
 
-  it('is refused at what composes it where a kind brings `sprout.Visitor` to one that roams', () => {
-    const { said } = compose(`${WANDERER}kind Person is sprout.Visitor, Wanderer { }`, { sprout });
+  it('is refused at the kind that roams where a kind brings `sprout.Visitor` to it', () => {
+    const { said } = compose(
+      `${WANDERER}kind Base { }\nkind Person is Base, sprout.Visitor, Wanderer { }`,
+      { sprout },
+    );
     expect(said).toEqual([
       [
-        'shop.sprout:2:16',
-        '`Person` roams, and composes `sprout.Visitor`: a visitor goes where they type.',
-        'Take `roams` out of `Person`, and write it on a kind for the NPCs that wander.',
+        'shop.sprout:3:38',
+        '`Person` composes `sprout.Visitor` and `Wanderer`, which roams: a visitor goes where they type.',
+        'Compose `Wanderer` only in a kind for the NPCs that wander, or take `roams` out of `Wanderer`.',
       ],
     ]);
   });

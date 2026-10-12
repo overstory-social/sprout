@@ -1,5 +1,5 @@
 {
-  "about": "The cat roams: on its own wakes it goes up to the attic no exit reaches and comes back down, and the kitchen hears it go and come. The dog does not roam: its move to the attic faults out of range, its wake is spent, and the kitchen hears nothing.",
+  "about": "The cat roams: on its own wakes it goes up to the attic no exit reaches and comes back down, and the kitchen hears it go and come. The dog does not roam: its move to the attic faults out of range, its wake is spent, and the kitchen hears nothing. Nor may the cat carry the hay up: roaming takes the cat anywhere, and nothing it moves, so that move faults.",
   "steps": [
     { "arrive": "Marta", "expect": [{ "words": "A warm kitchen." }] },
     { "as": "Marta", "type": "pet cat", "expect": [{ "words": "The cat purrs, and eyes the ceiling." }] },
@@ -9,6 +9,10 @@
     { "advance": "1 minute", "expect": [
       { "level": "error", "text": "the wake of kitchen.dog faulted, against attic, NameOutOfRange: `roaming.attic` is out of range of `roaming.kitchen.dog`, so it could not be read through `attic`." }
     ] },
-    { "advance": "1 minute", "expect": [] }
+    { "advance": "1 minute", "expect": [] },
+    { "as": "Marta", "type": "nudge cat", "expect": [
+      { "words": "Something in this world has gone wrong, and nothing has changed." },
+      { "level": "error", "text": "the command faulted, against attic, MoveFault: `roaming.attic` is out of range of `roaming.kitchen.cat`, so nothing could be moved into it." }
+    ] }
   ]
 }

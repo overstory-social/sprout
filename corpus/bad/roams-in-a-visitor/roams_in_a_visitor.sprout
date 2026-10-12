@@ -1,0 +1,11 @@
+// A kind that roams composed into the visitor kind: a person goes where
+// they type, so the visitor kind is refused at the kind that brings it.
+import * as sprout from 'sprout'
+import {Person} from 'kinds'
+
+world roams_in_a_visitor is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place
+}
