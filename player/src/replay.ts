@@ -78,7 +78,7 @@ function lineOf(said: Said): string {
 /**
  * The first way the trace differs from what the TypeScript runtime left behind each step of `readings`, in
  * words naming the step and what differs; null where they agree. A step the play never reached is a
- * difference.
+ * difference. The stored world is compared only where the readings hold it.
  */
 export function firstDifference(
   readings: Readings,

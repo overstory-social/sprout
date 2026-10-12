@@ -16,8 +16,7 @@
 #define USAGE                                                                                          \
   "sproutc: write `sproutc play <world.sproutworld> [--state save.json] [--script script.json]\n"     \
   "         [--readings file] [--trace file] [--profile file] [--clock N] [--offered] [--poll-steps N]`.\n" \
-  "         --clock N\n" \
-  "         moves the fake clock on N milliseconds at each read; --readings names the file\n"         \
+  "         --clock N moves the fake clock on N milliseconds at each read; --readings names the file\n" \
   "         `node scripts/resolve-script.mjs` wrote for the script; --trace names the file one line\n" \
   "         of the stored world and the log is written to after each step; --offered polls the view\n" \
   "         before each command and fails where it does not offer the reading, under --poll-steps.\n"     \

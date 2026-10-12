@@ -134,14 +134,17 @@ function main() {
       .split('\n')
       .map((line) => JSON.parse(line));
     const [loaded, ...steps] = rows;
-    const held = steps.map((row) => row.held - loaded.loaded);
+    // The first turn lets go of pages the state opened with, so growth is measured from what it settles at.
+    const settled = steps[0].held;
+    const held = steps.map((row) => row.held - settled);
     const over = steps.map((row) => row.peak - row.held).sort((a, b) => a - b);
     const tenth = Math.max(1, Math.floor(steps.length / 10));
     console.log(
-      `profile-runtime-c: world ${megabytes(loaded.world)} MB, state ${megabytes(loaded.state)} MB; ${steps.length} steps.`,
+      `profile-runtime-c: world ${megabytes(loaded.world)} MB, state ${megabytes(loaded.state)} MB as opened, ` +
+        `${megabytes(loaded.state - (loaded.loaded - settled))} MB settled after the first step; ${steps.length} steps.`,
     );
     console.log(
-      `  held beyond the opened state: first tenth ${megabytes(held.slice(0, tenth).reduce((a, b) => Math.max(a, b), -Infinity))} MB, ` +
+      `  held beyond the first step's: first tenth ${megabytes(held.slice(0, tenth).reduce((a, b) => Math.max(a, b), -Infinity))} MB, ` +
         `last tenth ${megabytes(held.slice(-tenth).reduce((a, b) => Math.max(a, b), -Infinity))} MB, end ${megabytes(held.at(-1))} MB`,
     );
     console.log(

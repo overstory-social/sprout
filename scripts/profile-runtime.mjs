@@ -5,9 +5,12 @@
 // Nothing the play makes is kept beyond the sample, so what grows is the runtime's.
 //
 //   node --expose-gc scripts/profile-runtime.mjs <world folder> [--steps 2000] [--visitors 2] [--seed 1]
-//        [--sample 100] [--script play.json] [--json out.json]
+//        [--sample 100] [--script play.json] [--json out.json] [--snapshot 1000,6000 --snapshot-dir dir]
 //
-// Prints one line per sample and a summary; --json writes every sample.
+// --visitors is how many arrive at the start; a random play may bring others of the fuzzer's four in and
+// out after. Prints one line per sample and a summary, with how many steps of a script could not be played
+// and the first one's words; --json writes every sample; --snapshot writes a V8 heap snapshot after each
+// step it names, into --snapshot-dir, to diff.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
@@ -68,7 +71,7 @@ function main() {
     console.error('profile-runtime: run node with --expose-gc for heap figures.');
   const playable = playableWorld(world);
   const base = heapNow();
-  const stage = freshStage(playable);
+  let stage = freshStage(playable);
   const random = generator(Number(flags.seed));
   const script =
     flags.script === undefined
@@ -80,6 +83,8 @@ function main() {
   let handlers = 0;
   let slowest = 0;
   let spent = 0;
+  let unplayed = 0;
+  let firstUnplayed = null;
   const play = (step) => {
     const started = performance.now();
     playStep(stage, step, `profile step ${at + 1}`);
@@ -124,13 +129,14 @@ function main() {
     if (script !== null) {
       const step = script.steps[i % script.steps.length];
       if (i > 0 && i % script.steps.length === 0) {
-        // Each pass of a script starts the world afresh, as a new play would: what grows across passes leaked.
-        stage.state = freshStage(playable).state;
-        stage.visits.clear();
+        // Each pass of a script starts afresh, world, clock and seed, as a new play would: what grows across passes leaked.
+        stage = freshStage(playable);
       }
       try {
         play(step);
-      } catch {
+      } catch (error) {
+        unplayed++;
+        firstUnplayed ??= error instanceof Error ? error.message : String(error);
         at++;
       }
     } else play(nextStep(stage, random));
@@ -148,6 +154,10 @@ function main() {
     `profile-runtime: ${at} steps, ${turns} turns; heap ${megabytes(first.heap)} → ${megabytes(last.heap)} MB, ` +
       `peak ${megabytes(Math.max(...samples.map((s) => s.heap)))} MB.`,
   );
+  if (unplayed > 0)
+    console.log(
+      `profile-runtime: ${unplayed} steps could not be played; the first: ${firstUnplayed}`,
+    );
   if (flags.json !== undefined) writeFileSync(flags.json, JSON.stringify(samples, null, 1));
   return 0;
 }
