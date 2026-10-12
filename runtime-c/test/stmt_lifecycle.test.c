@@ -23,11 +23,11 @@ static void a_spawn_makes_an_instance_in_the_container_and_tells_the_world(void)
   CHECK(made != NULL);
   CHECK_STR(made->kind->qualified, "exec_bench.Jar");
   CHECK_BYTES(made->container.bytes, made->container.length, "exec_bench.hall");
-  CHECK_INT(c.x.queued_count, 2);
-  CHECK_INT(c.x.queued[0].message, SPROUT_MSG_ENTERED);
-  CHECK_BYTES(c.x.queued[0].recipient.bytes, c.x.queued[0].recipient.length, "exec_bench.hall");
-  CHECK_INT(c.x.queued[1].message, SPROUT_MSG_SPAWNED);
-  CHECK(sprout_str_same(c.x.queued[1].recipient, id));
+  CHECK_INT(c.x.queue_count, 2);
+  CHECK_INT(c.x.queue[0].message, SPROUT_MSG_ENTERED);
+  CHECK_BYTES(c.x.queue[0].recipient.bytes, c.x.queue[0].recipient.length, "exec_bench.hall");
+  CHECK_INT(c.x.queue[1].message, SPROUT_MSG_SPAWNED);
+  CHECK(sprout_str_same(c.x.queue[1].recipient, id));
   CHECK_INT(c.meter.spawns, 1);
   exec_case_close(&c);
   exec_bench_close(&b);

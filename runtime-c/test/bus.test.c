@@ -3,7 +3,8 @@
  * Runtime budgets): a message is queued, never called; the queue drains
  * breadth-first, in insertion order; each delivery that runs a handler or a
  * hook is one event, one deeper than what sent it against the cascade depth;
- * a delivery to something with no handler costs nothing; a destroyed object's
+ * a delivery to something with no handler costs nothing; a queue drained and
+ * filled again takes no more room; a destroyed object's
  * sends and what is queued to it are dropped; and what `finally destroy self`
  * marked goes once the queue is empty.
  */
@@ -38,9 +39,9 @@ static void a_queued_message_carries_the_depth_of_the_body_that_queued_it(void) 
   CHECK_INT(sprout_exec_queue(&c.x, &send), SPROUT_EVAL_OK);
   c.x.depth = 3;
   CHECK_INT(sprout_exec_queue(&c.x, &send), SPROUT_EVAL_OK);
-  CHECK_INT(c.x.queued_count, 2);
-  CHECK_INT(c.x.queued[0].depth, 1);
-  CHECK_INT(c.x.queued[1].depth, 3);
+  CHECK_INT(c.x.queue_count, 2);
+  CHECK_INT(c.x.queue[0].depth, 1);
+  CHECK_INT(c.x.queue[1].depth, 3);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -79,6 +80,28 @@ static void a_delivery_to_something_with_no_handler_costs_nothing(void) {
   CHECK_INT(sprout_exec_drain(&c.x), SPROUT_EVAL_OK);
   CHECK_INT(c.x.events, 0);
   CHECK_INT(c.meter.events, 0);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
+static void a_queue_drained_and_filled_again_takes_no_more_room(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_send send;
+  size_t round, i, n = 64, held_after_one;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a send is delivered once the body has ended, and answered"));
+  send = authored(&c, "ping", "exec_bench.hall.runner", "exec_bench.hall.shelf");
+  for (round = 0; round < 12; round++) {
+    for (i = 0; i < n; i++) CHECK_INT(sprout_exec_queue(&c.x, &send), SPROUT_EVAL_OK);
+    CHECK_INT(sprout_exec_drain(&c.x), SPROUT_EVAL_OK);
+    CHECK_INT(c.x.queue_head, c.x.queue_count);
+    /* The delivered sends make room for the next: the queue never holds more than a few backlogs. */
+    CHECK(c.x.queue_capacity <= 4 * n);
+    if (round == 0) held_after_one = c.turn.held;
+  }
+  /* Twelve backlogs of sixty-four would be eight hundred sends by doubling; the turn holds what one round took. */
+  CHECK_INT(c.turn.held, held_after_one);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -157,6 +180,7 @@ int main(void) {
   RUN(a_queued_message_carries_the_depth_of_the_body_that_queued_it);
   RUN(the_queue_drains_breadth_first_and_a_handlers_sends_wait_behind_it);
   RUN(a_delivery_to_something_with_no_handler_costs_nothing);
+  RUN(a_queue_drained_and_filled_again_takes_no_more_room);
   RUN(a_destroyed_objects_sends_and_deliveries_are_dropped);
   RUN(a_cascade_past_the_depth_budget_faults_at_the_hosts_figure);
   RUN(events_past_the_budget_fault_at_the_hosts_figure);

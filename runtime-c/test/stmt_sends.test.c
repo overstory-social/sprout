@@ -10,8 +10,8 @@
 
 static bool queued_to(const exec_case *c, const char *id) {
   size_t i;
-  for (i = 0; i < c->x.queued_count; i++)
-    if (sprout_str_same(c->x.queued[i].recipient, exec_str(id))) return true;
+  for (i = 0; i < c->x.queue_count; i++)
+    if (sprout_str_same(c->x.queue[i].recipient, exec_str(id))) return true;
   return false;
 }
 
@@ -23,12 +23,12 @@ static void a_send_queues_one_message_to_a_target_in_range(void) {
   exec_case_open(&b, &c, exec_named(&b, "a send is delivered once the body has ended, and answered"));
   run = exec_run(&c);
   CHECK_INT(stmt_send(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
-  CHECK_INT(c.x.queued_count, 1);
-  CHECK_INT(c.x.queued[0].message, SPROUT_MSG_AUTHORED);
-  CHECK_STR(c.x.queued[0].declared->name, "ping");
+  CHECK_INT(c.x.queue_count, 1);
+  CHECK_INT(c.x.queue[0].message, SPROUT_MSG_AUTHORED);
+  CHECK_STR(c.x.queue[0].declared->name, "ping");
   CHECK(queued_to(&c, "exec_bench.hall.bell"));
-  CHECK(c.x.queued[0].has_from && sprout_str_same(c.x.queued[0].from, exec_str("exec_bench.hall.runner")));
-  CHECK(!c.x.queued[0].has_value);
+  CHECK(c.x.queue[0].has_from && sprout_str_same(c.x.queue[0].from, exec_str("exec_bench.hall.runner")));
+  CHECK(!c.x.queue[0].has_value);
   /* Nothing is delivered: the bell has not run. */
   CHECK_INT(c.x.events, 0);
   exec_case_close(&c);
@@ -43,11 +43,11 @@ static void a_send_to_what_is_out_of_range_goes_nowhere_and_nothing_else_happens
   exec_case_open(&b, &shut, exec_named(&b, "a send to what is out of range goes nowhere"));
   run = exec_run(&shut);
   CHECK_INT(stmt_send(&run, &shut.frame, exec_first_statement(&shut)), SPROUT_EVAL_OK);
-  CHECK_INT(shut.x.queued_count, 0);
+  CHECK_INT(shut.x.queue_count, 0);
   exec_case_open(&b, &open, exec_named(&b, "a send to what is in range of an open chest is delivered"));
   run = exec_run(&open);
   CHECK_INT(stmt_send(&run, &open.frame, exec_first_statement(&open)), SPROUT_EVAL_OK);
-  CHECK_INT(open.x.queued_count, 1);
+  CHECK_INT(open.x.queue_count, 1);
   exec_case_close(&open);
   exec_case_close(&shut);
   exec_bench_close(&b);
@@ -61,9 +61,9 @@ static void a_send_carries_the_value_it_is_given(void) {
   exec_case_open(&b, &c, exec_named(&b, "a cascade within a smaller depth budget faults at it"));
   run = exec_run(&c);
   CHECK_INT(stmt_send(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
-  CHECK_INT(c.x.queued_count, 1);
-  CHECK(c.x.queued[0].has_value);
-  CHECK(c.x.queued[0].value.kind == SPROUT_NUMBER && c.x.queued[0].value.as.number == 2);
+  CHECK_INT(c.x.queue_count, 1);
+  CHECK(c.x.queue[0].has_value);
+  CHECK(c.x.queue[0].value.kind == SPROUT_NUMBER && c.x.queue[0].value.as.number == 2);
   exec_case_close(&c);
   exec_bench_close(&b);
 }

@@ -35,13 +35,13 @@ static void a_move_every_party_allows_makes_the_one_write_and_queues_what_the_en
   CHECK_INT(end, SPROUT_MOVE_DONE);
   CHECK_STR(container_of(&c, "exec_bench.hall.shelf.jar"), "exec_bench.hall.basket");
   /* `:left` to the old container, `:entered` to the new one, `:moved` to the thing. */
-  CHECK_INT(c.x.queued_count, 3);
-  CHECK_INT(c.x.queued[0].message, SPROUT_MSG_LEFT);
-  CHECK_BYTES(c.x.queued[0].recipient.bytes, c.x.queued[0].recipient.length, "exec_bench.hall.shelf");
-  CHECK_INT(c.x.queued[1].message, SPROUT_MSG_ENTERED);
-  CHECK_BYTES(c.x.queued[1].recipient.bytes, c.x.queued[1].recipient.length, "exec_bench.hall.basket");
-  CHECK_INT(c.x.queued[2].message, SPROUT_MSG_MOVED);
-  CHECK_BYTES(c.x.queued[2].recipient.bytes, c.x.queued[2].recipient.length, "exec_bench.hall.shelf.jar");
+  CHECK_INT(c.x.queue_count, 3);
+  CHECK_INT(c.x.queue[0].message, SPROUT_MSG_LEFT);
+  CHECK_BYTES(c.x.queue[0].recipient.bytes, c.x.queue[0].recipient.length, "exec_bench.hall.shelf");
+  CHECK_INT(c.x.queue[1].message, SPROUT_MSG_ENTERED);
+  CHECK_BYTES(c.x.queue[1].recipient.bytes, c.x.queue[1].recipient.length, "exec_bench.hall.basket");
+  CHECK_INT(c.x.queue[2].message, SPROUT_MSG_MOVED);
+  CHECK_BYTES(c.x.queue[2].recipient.bytes, c.x.queue[2].recipient.length, "exec_bench.hall.shelf.jar");
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -68,7 +68,7 @@ static void the_first_refusal_decides_and_nothing_is_written(void) {
             SPROUT_EVAL_OK);
   CHECK_STR(refusal.guard, "accept");
   CHECK_STR(container_of(&c, "exec_bench.hall.lamp"), "exec_bench.hall");
-  CHECK_INT(c.x.queued_count, 0);
+  CHECK_INT(c.x.queue_count, 0);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
