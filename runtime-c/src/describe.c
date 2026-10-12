@@ -169,7 +169,7 @@ sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, 
   EXPR_NEED(bound_with(&inside, "seen", sprout_evaluated_value(seen_value)));
   memset(&d, 0, sizeof d);
   d.thing = thing;
-  EXPR_NEED(run_block(&d, &inside, sprout_node_get(frame->graph, sprout_node_get(frame->graph, describe, "declaration"), "body")));
+  EXPR_NEED(run_block(&d, &inside, sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, describe, "declaration"), "body")));
   out->line_count = d.count;
   out->lines = d.lines;
   out->recorded_count = d.recorded_count;
