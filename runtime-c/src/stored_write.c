@@ -11,14 +11,13 @@
 #include "state.h"
 
 typedef struct text {
-  sprout_arena *arena;
-  char *bytes;
+  char *bytes; /* NULL while measuring */
   size_t length, capacity;
   bool failed;
   bool unwritable; /* a number the stored form does not write */
 } text;
 
-/* Appends `count` bytes; a measuring pass counts them into `length` and writes nothing, so the text can be taken once at its size. */
+/* Appends `count` bytes; the measuring pass only counts them into `length`, so the text is taken once, at its size. */
 static void put(text *t, const char *bytes, size_t count) {
   if (t->failed) return;
   if (t->bytes == NULL) {
@@ -306,7 +305,6 @@ sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratc
                                  size_t *length) {
   text t;
   memset(&t, 0, sizeof t);
-  t.arena = scratch;
   put_state(&t, state);
   if (t.unwritable) return SPROUT_BAD_INPUT;
   t.capacity = t.length + 1;
