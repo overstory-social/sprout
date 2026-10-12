@@ -1,0 +1,38 @@
+// A world that opens its `pass any` for a leap across the map, and keeps
+// the move's notices in the places it joins (the spec's Places, and
+// Containers route): the world passes `any` while the gate is open, so the
+// tower is in range of the leaper's move, and refuses `:arrived` and
+// `:departed`, so the hall reads the leaver go, the tower reads the arrival,
+// and the garden, open to both through the world, reads neither.
+import * as sprout from 'sprout'
+import {Person, :open_gate, :gate_open, :close_gate} from 'person'
+
+world notices_through_gate is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  :gate false
+  pass any (self.get(:gate))
+  pass :arrived (false)
+  pass :departed (false)
+
+  on :open_gate (from) {
+    self.set(:gate, true)
+    send from :gate_open
+  }
+  on :close_gate { self.set(:gate, false) }
+
+  object hall is sprout.Place {
+    grammar { exit north "north to the garden" -> garden }
+    describe { text "A bare hall. A garden lies to the north, and a tower stands far off with no way to it." }
+  }
+
+  object garden is sprout.Place {
+    grammar { exit south "back to the hall" -> hall }
+    describe { text "A walled garden." }
+  }
+
+  object tower is sprout.Place {
+    describe { text "The top of a tower, reached by no stair." }
+  }
+}

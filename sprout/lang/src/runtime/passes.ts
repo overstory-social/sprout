@@ -60,7 +60,8 @@ function ruleFor(
   asking: Asking,
 ): ResolvedPass | null {
   if (asking !== 'any') {
-    const own = passes.messages.get(qualifiedName(asking.library, asking.name));
+    const key = 'library' in asking ? qualifiedName(asking.library, asking.name) : asking.name;
+    const own = passes.messages.get(key);
     if (own !== undefined) return own;
   }
   return passes.any;

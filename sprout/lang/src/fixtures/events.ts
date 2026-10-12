@@ -94,10 +94,11 @@ kind Chest {
   pass any (self.get(:open))
 }
 
-// Light gets into the case; nothing else does.
+// Light gets into the case, and word of who arrives; nothing else does.
 kind GlassCase {
   contains
   pass :lit (true)
+  pass :arrived (true)
   pass any (false)
 }
 

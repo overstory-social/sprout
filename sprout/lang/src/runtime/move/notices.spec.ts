@@ -1,5 +1,6 @@
 // What an actor's move tells: each place's `leaves` and `arrives` read by
-// the visitors in its range, `:departed` and `:arrived` sent to the rest,
+// the visitors in its range, walked as `:departed` and `:arrived` are
+// routed, `:departed` and `:arrived` sent to the rest,
 // the description to the one who moved, and what one place says alone
 // through `placeEntered` and `placeLeft`. The keep is `fixtures/move.ts`.
 
@@ -19,6 +20,7 @@ import {
   moved,
   NOOK,
   passing,
+  PORCH,
   PURSE,
   SAM,
   STONE,
@@ -26,12 +28,14 @@ import {
   turn,
   visitorIn,
   WORLD_ID,
+  YARD,
 } from '../../fixtures/move.js';
 import { Budget } from '../budget.js';
 import type { Draft } from '../draft.js';
 import { liveTree } from '../live.js';
 import { moveInstance, placeEntered, placeLeft } from '../move.js';
-import { rangeOf, reaches } from '../range.js';
+import { rangeOf, reaches, type PassRule } from '../range.js';
+import type { InstanceId } from '../ids.js';
 
 describe('an actor moved between places', () => {
   /** The closet and the chest refuse; everything else but the world relays. */
@@ -286,5 +290,63 @@ describe('what one place says of an actor, alone', () => {
       actor: visitor,
       to: WORLD_ID,
     });
+  });
+});
+
+describe('an actor moved across a world opened for the move', () => {
+  /** The world passes for `any`, as a gate does; `refused` it does not pass. */
+  const gate =
+    (...refused: string[]): PassRule<InstanceId> =>
+    (container, asking) =>
+      container !== WORLD_ID || asking === 'any' || !refused.includes(asking.name);
+
+  /** A visitor walks from the hall to the yard, the world open, while another stands on the porch. */
+  const cross = (passes: PassRule<InstanceId>) => {
+    const { draft, visitor } = turn();
+    const porch = visitorIn(draft, PORCH);
+    const outcome = moved(moveInstance(context(draft, { passes }), visitor, visitor, YARD));
+    const sent = (message: string) =>
+      outcome.sends.filter((send) => send.message === message).map((send) => send.recipient);
+    const read = (notice: string) => outcome.notices.find((one) => one.notice === notice)!.audience;
+    return { visitor, porch, sent, read };
+  };
+
+  it('tells every place in the world, where the world passes the notices as it passes `any`', () => {
+    const { porch, sent, read } = cross(gate());
+    expect(sent('departed')).toContain(PORCH);
+    expect(sent('arrived')).toContain(HALL);
+    expect(read('leaves')).toContain(porch);
+    expect(read('arrives')).toContain(porch);
+  });
+
+  it('keeps each notice in its own place where the world refuses `:arrived` and `:departed`', () => {
+    const { visitor, porch, sent, read } = cross(gate('arrived', 'departed'));
+    expect(sent('departed')).toContain(HALL);
+    expect(sent('departed')).toContain(MARTA);
+    // The world is told too, as the yard's own container, a surface Range always reaches.
+    expect(sent('arrived')).toEqual([YARD, WORLD_ID]);
+    for (const one of [YARD, PORCH]) expect(sent('departed'), one).not.toContain(one);
+    for (const one of [HALL, MARTA, PORCH]) expect(sent('arrived'), one).not.toContain(one);
+    expect(read('leaves')).not.toContain(porch);
+    expect(read('arrives')).not.toContain(porch);
+    expect(read('arrives')).not.toContain(visitor);
+  });
+
+  it('asks each notice under its own name: refusing `:departed` leaves the arrival heard everywhere', () => {
+    const { sent } = cross(gate('departed'));
+    expect(sent('departed')).not.toContain(PORCH);
+    expect(sent('arrived')).toContain(HALL);
+    expect(sent('arrived')).toContain(PORCH);
+  });
+
+  it('asks the walk about the engine’s own message, so a rule written for it answers', () => {
+    const asked: string[] = [];
+    const watching: PassRule<InstanceId> = (container, asking) => {
+      if (container === WORLD_ID) asked.push(asking === 'any' ? 'any' : asking.name);
+      return true;
+    };
+    cross(watching);
+    expect(asked).toContain('arrived');
+    expect(asked).toContain('departed');
   });
 });
