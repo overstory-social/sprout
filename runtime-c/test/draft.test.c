@@ -152,8 +152,9 @@ static void a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_
   const char *before, *after;
   size_t before_length, after_length;
   sprout_stored_instance changed;
+  sprout_arena scratch; /* holds `before` across the turn's reset */
   begin(&f);
-  CHECK_INT(sprout_state_write(f.state, &f.turn, &before, &before_length), SPROUT_OK);
+  CHECK_INT(test_state_write(f.state, &scratch, &before, &before_length), SPROUT_OK);
   sprout_draft_open(&draft, &f.turn, f.world, f.state);
   changed = *sprout_draft_instance(&draft, S(ROOM));
   changed.has_last_tick = true;
@@ -164,6 +165,7 @@ static void a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_
   sprout_arena_reset(&f.turn);
   CHECK_INT(sprout_state_write(f.state, &f.turn, &after, &after_length), SPROUT_OK);
   CHECK_BYTES(after, after_length, before);
+  sprout_arena_reset(&scratch);
   finish(&f);
 }
 
