@@ -6,7 +6,7 @@
  * holds no actors, or a person into a place the host says is full; is asked
  * of the thing's `depart`, then the source's `release`, then the
  * destination's `accept`, the first refusal deciding; and otherwise makes the
- * one write and queues what the engine tells the world, the move's notices
+ * one write and queues what the engine tells the world where something answers it, the move's notices
  * walked as `:arrived` and `:departed` are routed.
  */
 #include "exec_fixture.h"
@@ -35,14 +35,16 @@ static void a_move_every_party_allows_makes_the_one_write_and_queues_what_the_en
             SPROUT_EVAL_OK);
   CHECK_INT(end, SPROUT_MOVE_DONE);
   CHECK_STR(container_of(&c, "exec_bench.hall.shelf.jar"), "exec_bench.hall.basket");
-  /* `:left` to the old container, `:entered` to the new one, `:moved` to the thing. */
-  CHECK_INT(c.x.queue_count, 3);
+  /*
+   * The engine tells `:left` to the old container, `:entered` to the new one and `:moved` to the thing, and
+   * only what has a handler for it is queued: the shelf answers `:left` and the jar `:moved`; the basket answers
+   * nothing, so its `:entered` is never queued.
+   */
+  CHECK_INT(c.x.queue_count, 2);
   CHECK_INT(c.x.queue[0].message, SPROUT_MSG_LEFT);
   CHECK_BYTES(c.x.queue[0].recipient.bytes, c.x.queue[0].recipient.length, "exec_bench.hall.shelf");
-  CHECK_INT(c.x.queue[1].message, SPROUT_MSG_ENTERED);
-  CHECK_BYTES(c.x.queue[1].recipient.bytes, c.x.queue[1].recipient.length, "exec_bench.hall.basket");
-  CHECK_INT(c.x.queue[2].message, SPROUT_MSG_MOVED);
-  CHECK_BYTES(c.x.queue[2].recipient.bytes, c.x.queue[2].recipient.length, "exec_bench.hall.shelf.jar");
+  CHECK_INT(c.x.queue[1].message, SPROUT_MSG_MOVED);
+  CHECK_BYTES(c.x.queue[1].recipient.bytes, c.x.queue[1].recipient.length, "exec_bench.hall.shelf.jar");
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -231,23 +233,22 @@ static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(vo
   for (i = 0; i < count; i++)
     if (sprout_str_same(walked[i].node, exec_str(garden))) garden_in_range = true;
   CHECK(garden_in_range);
-  /* Marta leaves the hall: the world refuses `:departed`, so only Ines beside her reads it. */
+  /* Marta leaves the hall: the world's `pass any` does not answer for `:departed`, so only Ines beside her reads it. */
   CHECK_INT(sprout_move_spoken(&x, &frame, true, exec_str(hall), exec_str(marta), exec_str(tower), NULL), SPROUT_EVAL_OK);
   CHECK_INT(x.effect_count, 1);
   CHECK_INT(x.effects[0].to_count, 1);
   CHECK(sprout_str_same(x.effects[0].to[0], exec_str(ines)));
-  CHECK(sends_to(&x, 0, hall));
+  /* Nothing in reach has a handler for it, so nothing is queued: the places are told, and run nothing. */
+  CHECK_INT(x.queue_count, 0);
   CHECK(!sends_to(&x, 0, garden));
   CHECK(!sends_to(&x, 0, tower));
-  /* She arrives in the tower: the world refuses `:arrived`, so only Ottilie there reads it. */
+  /* She arrives in the tower: likewise, only Ottilie there reads it, and nothing is queued. */
   before = x.queue_count;
   CHECK_INT(sprout_move_spoken(&x, &frame, false, exec_str(tower), exec_str(marta), exec_str(hall), NULL), SPROUT_EVAL_OK);
   CHECK_INT(x.effect_count, 2);
   CHECK_INT(x.effects[1].to_count, 1);
   CHECK(sprout_str_same(x.effects[1].to[0], exec_str(ottilie)));
-  CHECK(sends_to(&x, before, tower));
-  CHECK(!sends_to(&x, before, garden));
-  CHECK(!sends_to(&x, before, hall));
+  CHECK_INT(x.queue_count, before);
   sprout_arena_reset(&turn);
   sprout_state_free(state);
   sprout_world_free(world);

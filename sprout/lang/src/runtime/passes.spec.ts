@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { BUS, CASE, CHEST, eventTurn, HALL, LANTERN, setOn, WORLD } from '../fixtures/events.js';
 import type { DeclaredMessage } from '../declare/messages.js';
-import { engineMessage } from '../declare/engine-messages.js';
+import { ARRIVED, DEPARTED, engineMessage } from '../declare/engine-messages.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
+import { compiledWorld } from '../fixtures/bundle.js';
+import { Budget } from './budget.js';
+import { catalogueOf } from './catalogue.js';
+import { initialState } from './load.js';
+import { readerOf } from './state.js';
 import { BudgetExhausted } from './budget.js';
 import { passRules } from './passes.js';
 
@@ -59,5 +64,37 @@ describe('a container answers with the rule its kind writes', () => {
     expect(() => {
       for (let i = 0; i < 3; i++) rules(CHEST, 'any');
     }).toThrow(BudgetExhausted);
+  });
+});
+
+describe('the world and a move’s notices', () => {
+  /** The rules a world that writes `extra` answers with, the world's id beside them. */
+  const worldWriting = (extra: string) => {
+    const bundle = compiledWorld('gate', {
+      'gate.sprout': `world gate is sprout.World {\n  visitors are Person\n  visitors arrive at hall\n  pass any (true)\n${extra}\n  object hall is sprout.Place { }\n}\nkind Person is sprout.Visitor { }\n`,
+    });
+    const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
+    const state = initialState(catalogue);
+    const rules = passRules({
+      state: readerOf(state),
+      kinds: catalogue.lookup,
+      caps: catalogue.caps,
+      budget: new Budget(DEFAULT_LIMITS.budgets),
+      names: catalogue.names,
+    });
+    return { rules, world: state.world };
+  };
+
+  it('refuses `:arrived` and `:departed` though it passes everything else, where it writes no rule of theirs', () => {
+    const { rules, world } = worldWriting('');
+    expect(rules(world, 'any')).toBe(true);
+    expect(rules(world, ARRIVED)).toBe(false);
+    expect(rules(world, DEPARTED)).toBe(false);
+  });
+
+  it('lets them through where it writes their own rule, each answering for itself', () => {
+    const { rules, world } = worldWriting('  pass :arrived (true)');
+    expect(rules(world, ARRIVED)).toBe(true);
+    expect(rules(world, DEPARTED)).toBe(false);
   });
 });

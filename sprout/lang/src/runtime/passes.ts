@@ -4,11 +4,13 @@
 // `pass :m` for that message where one is written, else its `pass any`;
 // asked about no message, as `get`, `each` and a command's nouns ask, with
 // its `pass any`. Where it writes neither it relays, except the world,
-// whose unwritten rule is `pass any (false)`. A rule is a condition read
+// whose unwritten rule is `pass any (false)`, and whose `pass any` never
+// answers for a move's notices, `:arrived` and `:departed` (Places). A rule is a condition read
 // with `self` the container, charged to the turn's steps as any
 // expression is; it only reads, so asking it changes nothing.
 
 import type { StaticCaps } from '../bundle/limits.js';
+import { ARRIVED, DEPARTED } from '../declare/engine-messages.js';
 import { libraryOf } from '../declare/enums.js';
 import { messageKey } from '../declare/messages.js';
 import type { KindLookup } from '../declare/kinds.js';
@@ -35,7 +37,9 @@ export interface PassContext {
 export function passRules(context: PassContext): PassRule<InstanceId> {
   const rules: PassRule<InstanceId> = (container, asking) => {
     const instance = context.state.instance(container);
-    const written = instance === undefined ? null : ruleFor(instance.kind.passes, asking);
+    // The world's `pass any` does not answer for a move's notices: they cross it only where it writes their own rule.
+    const own = container === context.state.world && (asking === ARRIVED || asking === DEPARTED);
+    const written = instance === undefined ? null : ruleFor(instance.kind.passes, asking, !own);
     if (written === null) return container === context.state.world ? WORLD_PASSES_ANYTHING : true;
     return evaluateCondition(written.declaration.rule, {
       state: context.state,
@@ -59,6 +63,7 @@ function ruleFor(
     readonly messages: ReadonlyMap<string, ResolvedPass>;
   },
   asking: Asking,
+  orAny = true,
 ): ResolvedPass | null {
   if (asking !== 'any') {
     const own = passes.messages.get(
@@ -66,5 +71,5 @@ function ruleFor(
     );
     if (own !== undefined) return own;
   }
-  return passes.any;
+  return orAny ? passes.any : null;
 }

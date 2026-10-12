@@ -18,7 +18,8 @@ static void a_move_every_party_allows_does_not_stop_the_body(void) {
   CHECK_INT(stmt_move(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
   CHECK_INT(run.stopped, SPROUT_RUNNING);
   CHECK_INT(c.x.effect_count, 0);
-  CHECK_INT(c.x.queue_count, 3);
+  /* Of the engine's three messages, the basket's `:entered` has no handler, so two are queued. */
+  CHECK_INT(c.x.queue_count, 2);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
