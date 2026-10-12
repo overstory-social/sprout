@@ -12,14 +12,16 @@
 // is a loop over a queue, never recursion, since nesting has no cap.
 
 import type { Budget } from './budget.js';
+import type { EngineMessage } from '../declare/engine-messages.js';
 import type { DeclaredMessage } from '../declare/messages.js';
 
 /**
  * What is asked of a container: one message, which `pass :m` answers
  * where written and `pass any` otherwise, or `any`, for `get`, `each` and
- * a command's nouns.
+ * a command's nouns. An engine message is asked by the notices of a move,
+ * which walk as `:arrived` and `:departed` (the spec's Places).
  */
-export type Asking = 'any' | DeclaredMessage;
+export type Asking = 'any' | DeclaredMessage | EngineMessage;
 
 /** The containment tree as it stands this turn: `liveTree` reads one from a world's state. */
 export interface LiveTree<Id> {

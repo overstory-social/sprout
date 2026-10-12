@@ -72,6 +72,7 @@ const EXPECTED_PASSING = [
   'narrowing-and',
   'nested-offers',
   'no-way',
+  'notices-through-gate',
   'out-of-reach-exit',
   'out-of-reach-synonym',
   'own-place',

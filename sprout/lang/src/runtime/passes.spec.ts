@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUS, CASE, CHEST, eventTurn, HALL, LANTERN, setOn, WORLD } from '../fixtures/events.js';
 import type { DeclaredMessage } from '../declare/messages.js';
+import { engineMessage } from '../declare/engine-messages.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { BudgetExhausted } from './budget.js';
 import { passRules } from './passes.js';
@@ -14,6 +15,15 @@ describe('a container answers with the rule its kind writes', () => {
     expect(one.passes(CASE, message('lit'))).toBe(true);
     expect(one.passes(CASE, message('rang'))).toBe(false);
     expect(one.passes(CASE, 'any')).toBe(false);
+  });
+
+  it('`pass :m` for an engine message too, asked by its name alone, and `pass any` where none is written', () => {
+    const one = eventTurn();
+    expect(one.passes(CASE, engineMessage('arrived')!)).toBe(true);
+    expect(one.passes(CASE, engineMessage('departed')!)).toBe(false);
+    expect(one.passes(CHEST, engineMessage('arrived')!)).toBe(false);
+    setOn(one, CHEST, { open: true });
+    expect(one.passes(CHEST, engineMessage('arrived')!)).toBe(true);
   });
 
   it('reads the container’s own state, as the rule is written', () => {

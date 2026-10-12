@@ -81,17 +81,22 @@ static sprout_eval_status ask(sprout_exec *x, const sprout_frame *frame, sprout_
   return SPROUT_EVAL_OK;
 }
 
-/* Who is told that `actor` left or entered `place`: the visitors, who read the notice, and everything else, who is sent a message. */
+/*
+ * Who is told that `actor` left or entered `place`, walking its range as `message` is routed, so a `pass :arrived`
+ * or `pass :departed` bounds it (the spec's Places): the visitors, who read the notice, and everything else, who is
+ * sent the message.
+ */
 typedef struct told {
   sprout_str *read, *sent;
   size_t read_count, sent_count;
 } told;
 
-static sprout_eval_status told_of(const sprout_frame *frame, sprout_str place, sprout_str actor, told *out) {
+static sprout_eval_status told_of(const sprout_frame *frame, sprout_str place, sprout_str actor, const char *message,
+                                  told *out) {
   const sprout_reached *walked;
   size_t count, i;
   memset(out, 0, sizeof *out);
-  EXPR_NEED(sprout_range_of(frame, place, NULL, &walked, &count));
+  EXPR_NEED(sprout_range_of(frame, place, message, &walked, &count));
   out->read = (sprout_str *)sprout_arena_take(frame->turn, (count + 1) * sizeof *out->read);
   out->sent = (sprout_str *)sprout_arena_take(frame->turn, (count + 1) * sizeof *out->sent);
   if (out->read == NULL || out->sent == NULL) return SPROUT_EVAL_NO_MEMORY;
@@ -119,7 +124,7 @@ sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame,
   sprout_str by;
   size_t i, n = 0;
   bool world = sprout_str_same(other, x->draft->base->world);
-  EXPR_NEED(told_of(frame, place, actor, &heard));
+  EXPR_NEED(told_of(frame, place, actor, leaving ? "departed" : "arrived", &heard));
   for (i = 0; i < heard.sent_count; i++) {
     memset(&send, 0, sizeof send);
     send.message = leaving ? SPROUT_MSG_DEPARTED : SPROUT_MSG_ARRIVED;

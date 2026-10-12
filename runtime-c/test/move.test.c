@@ -6,7 +6,8 @@
  * holds no actors, or a person into a place the host says is full; is asked
  * of the thing's `depart`, then the source's `release`, then the
  * destination's `accept`, the first refusal deciding; and otherwise makes the
- * one write and queues what the engine tells the world.
+ * one write and queues what the engine tells the world, the move's notices
+ * walked as `:arrived` and `:departed` are routed.
  */
 #include "exec_fixture.h"
 #include "stmt/stmt.h"
@@ -166,6 +167,94 @@ static void an_actor_moved_between_places_is_spoken_of_and_a_description_is_owed
   exec_bench_close(&b);
 }
 
+/* The state of `notices-through-gate` as its transcript left it before Marta leaps, with the world's gate open. */
+static char *before_the_leap(char **file) {
+  static const char key[] = "{\"world\":\"notices-through-gate\",\"transcript\":\"gate.json\",\"step\":6,\"stored\":";
+  static const char shut[] = "\"gate\":{\"type\":\"boolean\",\"value\":false}";
+  size_t length;
+  char *stored, *end, *gate;
+  *file = test_golden("stored-worlds.json", &length);
+  stored = strstr(*file, key);
+  CHECK(stored != NULL);
+  stored += sizeof key - 1;
+  end = strchr(stored, '\n');
+  CHECK(end != NULL);
+  /* The line ends with the entry's own `}` and a comma: the stored world is what is inside. */
+  while (end > stored && end[-1] != '}') end--;
+  end[-1] = '\0';
+  gate = strstr(stored, shut);
+  CHECK(gate != NULL);
+  memcpy(gate + sizeof shut - 7, "true ", 5);
+  return stored;
+}
+
+static bool sends_to(const sprout_exec *x, size_t from, const char *id) {
+  size_t i;
+  for (i = from; i < x->queue_count; i++)
+    if (sprout_str_same(x->queue[i].recipient, exec_str(id))) return true;
+  return false;
+}
+
+static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(void) {
+  static const char *const hall = "notices_through_gate.hall", *const garden = "notices_through_gate.garden",
+                           *const tower = "notices_through_gate.tower";
+  static const char *const ottilie = "notices_through_gate#1", *const ines = "notices_through_gate#7",
+                           *const marta = "notices_through_gate#9";
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length, count, i, before;
+  char *cartridge = corpus_cartridge("notices-through-gate", &length), *file;
+  const char *stored = before_the_leap(&file);
+  sprout_world *world;
+  sprout_state *state;
+  sprout_refusal refusal;
+  sprout_arena turn;
+  sprout_draft draft;
+  sprout_meter meter;
+  sprout_draws draws;
+  sprout_eval_fault fault;
+  sprout_exec x;
+  sprout_frame frame;
+  const sprout_reached *walked;
+  bool garden_in_range = false;
+  CHECK(sprout_load(&host, cartridge, length, &world) == SPROUT_OK);
+  CHECK(sprout_state_read(&host, stored, strlen(stored), &state, &refusal) == SPROUT_OK);
+  CHECK(sprout_state_open(state, world, NULL, &refusal) == SPROUT_OK);
+  sprout_arena_init(&turn, &host);
+  sprout_draft_open(&draft, &turn, world, state);
+  sprout_meter_begin(&meter, &host, SPROUT_TURN_COMMAND);
+  sprout_draws_begin(&draws, 1);
+  sprout_exec_begin(&x, world, &draft, &turn, &meter, &draws, &fault, 0);
+  frame = sprout_exec_frame(&x, exec_str("notices_through_gate"), "notices_through_gate", NULL);
+  /* The gate is open: under `any`, the hall reaches the garden across the world. */
+  CHECK_INT(sprout_range_of(&frame, exec_str(hall), NULL, &walked, &count), SPROUT_EVAL_OK);
+  for (i = 0; i < count; i++)
+    if (sprout_str_same(walked[i].node, exec_str(garden))) garden_in_range = true;
+  CHECK(garden_in_range);
+  /* Marta leaves the hall: the world refuses `:departed`, so only Ines beside her reads it. */
+  CHECK_INT(sprout_move_spoken(&x, &frame, true, exec_str(hall), exec_str(marta), exec_str(tower), NULL), SPROUT_EVAL_OK);
+  CHECK_INT(x.effect_count, 1);
+  CHECK_INT(x.effects[0].to_count, 1);
+  CHECK(sprout_str_same(x.effects[0].to[0], exec_str(ines)));
+  CHECK(sends_to(&x, 0, hall));
+  CHECK(!sends_to(&x, 0, garden));
+  CHECK(!sends_to(&x, 0, tower));
+  /* She arrives in the tower: the world refuses `:arrived`, so only Ottilie there reads it. */
+  before = x.queue_count;
+  CHECK_INT(sprout_move_spoken(&x, &frame, false, exec_str(tower), exec_str(marta), exec_str(hall), NULL), SPROUT_EVAL_OK);
+  CHECK_INT(x.effect_count, 2);
+  CHECK_INT(x.effects[1].to_count, 1);
+  CHECK(sprout_str_same(x.effects[1].to[0], exec_str(ottilie)));
+  CHECK(sends_to(&x, before, tower));
+  CHECK(!sends_to(&x, before, garden));
+  CHECK(!sends_to(&x, before, hall));
+  sprout_arena_reset(&turn);
+  sprout_state_free(state);
+  sprout_world_free(world);
+  free(cartridge);
+  free(file);
+}
+
 static void the_golden_move_cases_end_as_the_typescript_runtime_did(void) {
   exec_bench b;
   exec_bench_open(&b);
@@ -182,6 +271,7 @@ int main(void) {
   RUN(a_person_into_a_full_place_meets_crowded_before_any_guard);
   RUN(a_move_out_of_range_or_into_what_holds_nothing_faults);
   RUN(an_actor_moved_between_places_is_spoken_of_and_a_description_is_owed);
+  RUN(a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed);
   RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
   return REPORT();
 }

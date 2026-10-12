@@ -12,12 +12,23 @@ export interface EngineMessage {
   readonly parameters: readonly { readonly name: string; readonly binds: 'object' | 'integer' }[];
 }
 
+/** What a place in range is sent as an actor comes in, and a move's notice walks as (the spec's Places). */
+export const ARRIVED: EngineMessage = {
+  name: 'arrived',
+  parameters: [object_('actor'), object_('from')],
+};
+/** What a place in range is sent as an actor goes, and a move's notice walks as. */
+export const DEPARTED: EngineMessage = {
+  name: 'departed',
+  parameters: [object_('actor'), object_('to')],
+};
+
 export const ENGINE_MESSAGES: readonly EngineMessage[] = [
   { name: 'entered', parameters: [object_('item'), object_('from')] },
   { name: 'left', parameters: [object_('item'), object_('to')] },
   { name: 'moved', parameters: [object_('from'), object_('to')] },
-  { name: 'arrived', parameters: [object_('actor'), object_('from')] },
-  { name: 'departed', parameters: [object_('actor'), object_('to')] },
+  ARRIVED,
+  DEPARTED,
   { name: 'spawned', parameters: [object_('from')] },
   { name: 'tick', parameters: [{ name: 'elapsed', binds: 'integer' }] },
   { name: 'woke', parameters: [{ name: 'elapsed', binds: 'integer' }] },

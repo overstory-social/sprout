@@ -9,7 +9,8 @@
 // expression is; it only reads, so asking it changes nothing.
 
 import type { StaticCaps } from '../bundle/limits.js';
-import { libraryOf, qualifiedName } from '../declare/enums.js';
+import { libraryOf } from '../declare/enums.js';
+import { messageKey } from '../declare/messages.js';
 import type { KindLookup } from '../declare/kinds.js';
 import type { ResolvedPass } from '../declare/passes.js';
 import { WORLD_PASSES_ANYTHING } from '../declare/world.js';
@@ -60,7 +61,9 @@ function ruleFor(
   asking: Asking,
 ): ResolvedPass | null {
   if (asking !== 'any') {
-    const own = passes.messages.get(qualifiedName(asking.library, asking.name));
+    const own = passes.messages.get(
+      messageKey('library' in asking ? { declared: asking } : { engine: asking }),
+    );
     if (own !== undefined) return own;
   }
   return passes.any;

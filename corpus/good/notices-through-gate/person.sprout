@@ -1,0 +1,25 @@
+// A leaper asks the world to open its gate, and once it is open moves
+// itself to the tower, since only a person may move themselves, then asks
+// the gate shut again.
+import * as sprout from 'sprout'
+
+message :open_gate
+message :gate_open
+message :close_gate
+
+verb leap { "leap" }
+
+kind Leaper is sprout.Actor {
+  as actor for leap {
+    do {
+      say "You leap."
+      send notices_through_gate :open_gate
+    }
+  }
+  on :gate_open {
+    move self to notices_through_gate.tower
+    send notices_through_gate :close_gate
+  }
+}
+
+kind Person is Leaper, sprout.Visitor { }

@@ -22,6 +22,7 @@
 // visitor does; a place reached no such way is out of range and faults.
 
 import { isActor } from '../declare/actors.js';
+import { ARRIVED, DEPARTED, type EngineMessage } from '../declare/engine-messages.js';
 import type { GuardName } from '../syntax/ast.js';
 import { surroundOf } from './audience.js';
 import type { Speech } from './body.js';
@@ -352,7 +353,7 @@ export function placeLeft(
   to: InstanceId,
   way: string | null = null,
 ): PlaceSpoke {
-  const heard = told(draft, range, place, actor);
+  const heard = told(draft, range, place, actor, DEPARTED);
   return {
     sends: heard.sent.map((recipient) => ({ message: 'departed', recipient, actor, to })),
     notices: [
@@ -387,7 +388,7 @@ export function placeEntered(
   from: InstanceId,
   way: string | null = null,
 ): PlaceSpoke {
-  const heard = told(draft, range, place, actor);
+  const heard = told(draft, range, place, actor, ARRIVED);
   const notices: Notice[] = [
     {
       notice: 'arrives',
@@ -410,19 +411,22 @@ export function placeEntered(
 
 /**
  * Who is told that `actor` left or entered `place`, walking the place's
- * range as it stands after the move, nearest first, the actor left out:
- * the visitors, who read the notice, and everything else, the place
- * itself, NPCs and a surface included, which is sent the message.
+ * range as it stands after the move, nearest first, the actor left out,
+ * as `message` is routed, so a `pass :arrived` or `pass :departed` bounds
+ * it (the spec's Places): the visitors, who read the notice, and
+ * everything else, the place itself, NPCs and a surface included, which
+ * is sent the message.
  */
 function told(
   draft: Draft,
   range: RangeContext<InstanceId>,
   place: InstanceId,
   actor: InstanceId,
+  message: EngineMessage,
 ): { readonly read: InstanceId[]; readonly sent: InstanceId[] } {
   const read: InstanceId[] = [];
   const sent: InstanceId[] = [];
-  for (const { node } of rangeOf(range, place, 'any').reached) {
+  for (const { node } of rangeOf(range, place, message).reached) {
     if (node === actor) continue;
     if (draft.instance(node)?.made.from === 'visitor') read.push(node);
     else sent.push(node);

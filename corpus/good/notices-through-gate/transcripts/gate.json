@@ -1,0 +1,31 @@
+{
+  "about": "Marta leaps from the hall to the tower through the world's open gate. The world refuses `:arrived` and `:departed`, so Ines in the hall reads her leave, Ottilie in the tower reads her arrive, and Sam in the garden, reached from both only through the open world, reads nothing of it.",
+  "steps": [
+    { "arrive": "Ottilie", "expect": [
+      { "reader": "Ottilie", "kind": "described", "words": "A bare hall. A garden lies to the north, and a tower stands far off with no way to it." }
+    ] },
+    { "as": "Ottilie", "type": "leap", "expect": [
+      { "reader": "Ottilie", "kind": "said", "words": "You leap." },
+      { "reader": "Ottilie", "kind": "described", "words": "The top of a tower, reached by no stair." }
+    ] },
+    { "arrive": "Sam", "expect": [
+      { "reader": "Sam", "kind": "described", "words": "A bare hall. A garden lies to the north, and a tower stands far off with no way to it." }
+    ] },
+    { "as": "Sam", "type": "north", "expect": [
+      { "reader": "Sam", "kind": "described", "words": "A walled garden." }
+    ] },
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A bare hall. A garden lies to the north, and a tower stands far off with no way to it." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. A garden lies to the north, and a tower stands far off with no way to it." }
+    ] },
+    { "as": "Marta", "type": "leap", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You leap." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for a tower." },
+      { "reader": "Ottilie", "kind": "notice", "words": "Marta arrives from a hall." },
+      { "reader": "Marta", "kind": "described", "words": "The top of a tower, reached by no stair." }
+    ] }
+  ]
+}
