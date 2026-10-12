@@ -29,6 +29,8 @@ import {
   renderEffects,
 } from '@overstory/sprout/lang';
 
+import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
+
 import { playableWorld } from './resolve-script.mjs';
 
 const UNPARSED = ['xyzzy', 'dance wildly', 'take', 'go sideways'];
@@ -62,7 +64,10 @@ function generator(seed) {
 function served(bundle) {
   const { hash, level, extensions } = bundle;
   return {
-    catalogue: loadCartridge(emitCartridge(bundle), { caps: DEFAULT_LIMITS.caps }),
+    catalogue: loadCartridge(emitCartridge(bundle), {
+      caps: DEFAULT_LIMITS.caps,
+      installed: INSTALLED_EXTENSIONS,
+    }),
     stamp: { hash, level, extensions },
   };
 }

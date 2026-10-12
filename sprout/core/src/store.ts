@@ -30,7 +30,11 @@ import type {
 /** The reads. A read writes nothing, as a poll writes nothing (the spec's The runtime › Turns). */
 export interface ReadTx {
   microworld(): Promise<MicroworldRecord | null>;
-  /** The world's stored state, each list in code-unit order of its key; `emptyState()` where nothing is stored. */
+  /**
+   * The world's stored state, each list in code-unit order of its key; `emptyState()` where nothing is stored.
+   * A value handed back is never written after: a changed state is a new value, so a host may keep what it
+   * decoded of one for as long as it holds it.
+   */
   state(): Promise<StoredState>;
   /**
    * The log's entries numbered after `after` (0, or none, for the first the store still keeps), oldest

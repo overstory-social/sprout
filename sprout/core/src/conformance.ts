@@ -609,6 +609,8 @@ export const cases: ConformanceCase[] = [
       });
       await store.read('w', async (tx) => {
         const before = await tx.state();
+        // A copy, so a state written in place after it was handed back is caught.
+        const held = structuredClone(before);
         await store.transaction('w', async (wtx) => {
           await wtx.putState({
             serial: 6,
@@ -618,7 +620,8 @@ export const cases: ConformanceCase[] = [
             visitors: [],
           });
         });
-        equal(await tx.state(), before, 'the read still sees what it began with');
+        equal(await tx.state(), held, 'the read still sees what it began with');
+        equal(before, held, 'what the read was handed is unchanged by the commit');
       });
       await store.read('w', async (tx) =>
         equal((await tx.state()).serial, 6, 'a later read sees the commit'),

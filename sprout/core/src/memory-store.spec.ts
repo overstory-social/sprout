@@ -112,6 +112,14 @@ describe('memoryStore made with keepLog keeps only the newest part of each world
     expect((await seqs(store)).at(-1)).toBe(101);
   });
 
+  it('reads from the first entry kept for any cursor before it, a negative one included', async () => {
+    const store = memoryStore({ keepLog: 8 });
+    for (let n = 1; n <= 3; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
+    expect(await seqs(store, -1)).toEqual([1, 2, 3]);
+    for (let n = 4; n <= 30; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
+    expect((await seqs(store, -1))[0]).toBe((await seqs(store))[0]);
+  });
+
   it('keeps a world’s whole log where it was given no bound, and refuses a bound that is not a count', async () => {
     const store = memoryStore();
     for (let n = 1; n <= 50; n++) await store.transaction('w', (tx) => tx.appendLog(entry(n)));
