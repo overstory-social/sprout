@@ -8,9 +8,11 @@
       { "reader": "Marta", "kind": "said", "words": "The cat purrs, and eyes the ceiling." }
     ] },
     { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "kitchen.cat woke, 60 seconds after it asked" },
       { "reader": "Marta", "kind": "notice", "words": "A cat leaves for an attic." }
     ] },
     { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "kitchen.cat woke, 60 seconds after it asked" },
       { "reader": "Marta", "kind": "notice", "words": "A cat arrives from an attic." }
     ] }
   ]
