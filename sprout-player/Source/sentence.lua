@@ -6,8 +6,11 @@
 --
 -- The tree stays on the engine's side: the builder asks for one level at a time (`fetch(path)`,
 -- the picks so far as 1-based indexes), and a level says of each choice whether anything under
--- it can be done and why not. A leaf the consent pass refuses is drawn greyed with its reason and
--- cannot be confirmed. A set role is joined from the singletons the view offers: after the first
+-- it can be done and why not. A verb's readings are asked for only when the wheel reaches it
+-- (`prepare`, as the drum settles or a button steps), so at the verbs a choice not yet reached is
+-- neither greyed nor not; the level under a verb says of the verb what the root could not. A
+-- level once fetched is kept, so stepping back asks nothing again. A leaf the consent pass
+-- refuses is drawn greyed with its reason and cannot be confirmed. A set role is joined from the singletons the view offers: after the first
 -- member the wheel offers the others and `that's all`; the roles after it are offered under the
 -- first member. The view carries no intents. A finished reading lists the roles a thing fills in
 -- the tree's order and then the value roles, which is the order a parsed line binds them in.
@@ -70,20 +73,44 @@ local function pathWith(path, index)
   return out
 end
 
--- The level at `path`: what the engine answers, or an empty level where it answers nothing.
+-- The level at `path`: what the engine answered before, or answers now, or an empty level where it
+-- answers nothing. The level under a verb carries the verb's own `greyed` and `reason`, which the
+-- verbs' level then shows.
 local function levelAt(self, path)
-  local level = self.fetch(path)
-  if level == nil or level.ok == false or level.choices == nil then return { choices = {}, leaf = nil } end
+  local key = table.concat(path, ",")
+  local level = self.levels[key]
+  if level ~= nil then return level end
+  level = self.fetch(path)
+  if level == nil or level.ok == false or level.choices == nil then level = { choices = {}, leaf = nil } end
+  self.levels[key] = level
+  if #path == 1 and self.root ~= nil and self.root.choices[path[1]] ~= nil then
+    local verb = self.root.choices[path[1]]
+    verb.greyed = level.greyed == true
+    verb.reason = level.reason
+  end
   return level
 end
 
 -- `fetch(path)` answers a level of the chip tree, as sprout.chips does.
 function Sentence.new(fetch)
-  local self = setmetatable({ fetch = fetch, history = {}, crank = 0 }, Sentence)
+  local self = setmetatable({ fetch = fetch, history = {}, crank = 0, levels = {} }, Sentence)
   self.state = { stage = "verb", path = {}, picks = {}, values = {} }
   self.state.node = levelAt(self, self.state.path)
+  self.root = self.state.node
   self.selected = 1
+  self:prepare()
   return self
+end
+
+-- Asks for the readings of the verb the wheel is on, if it is on the verbs and they are not known
+-- yet, so that the verb is greyed or not before it is picked. Returns whether anything was asked.
+function Sentence:prepare()
+  local state = self.state
+  if state.stage ~= "verb" then return false end
+  local choice = state.node.choices[self.selected]
+  if choice == nil or choice.greyed ~= nil then return false end
+  levelAt(self, { self.selected })
+  return true
 end
 
 local function copyState(state)
@@ -114,7 +141,10 @@ function Sentence:entries()
   local out = {}
   if state.stage == "verb" then
     for i, choice in ipairs(state.node.choices) do
-      out[#out + 1] = { kind = "verb", label = verbLabel(choice.verb), greyed = choice.greyed, index = i }
+      out[#out + 1] = {
+        kind = "verb", label = verbLabel(choice.verb), greyed = choice.greyed == true, index = i,
+        reason = choice.greyed == true and choice.reason or nil,
+      }
     end
   elseif state.stage == "filler" then
     for i, choice in ipairs(state.node.choices) do

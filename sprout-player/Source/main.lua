@@ -425,7 +425,10 @@ local function updateSentence()
   if builder:turn(change) ~= 0 then sound:play("tick") end
   local rest, completed = wheel:update(builder, change ~= 0)
   if completed ~= 0 then sound:play("tick") end
-  if rest == "settled" then sound:play("clack") end
+  if rest == "settled" then
+    sound:play("clack")
+    builder:prepare()
+  end
   local state = builder.state
   local numbered = state.stage == "option" and state.leaf.options[state.role].takes == "integer"
   -- Down moves to the next entry; on a number it takes the number down, as up takes it up.
@@ -435,11 +438,14 @@ local function updateSentence()
   if pd.buttonJustPressed(pd.kButtonUp) then builder:nudge(-down); stepped = true end
   if numbered and pd.buttonJustPressed(pd.kButtonRight) then builder:addNumber(1, true); stepped = true end
   if numbered and pd.buttonJustPressed(pd.kButtonLeft) then builder:addNumber(-1, true); stepped = true end
-  if stepped then sound:play("tick") end
+  if stepped then
+    sound:play("tick")
+    builder:prepare()
+  end
   if pd.buttonJustPressed(pd.kButtonA) then confirm() end
   if pd.buttonJustPressed(pd.kButtonB) then
     sound:play("back")
-    if not builder:back() then closeBuilder() end
+    if builder:back() then builder:prepare() else closeBuilder() end
   end
 end
 

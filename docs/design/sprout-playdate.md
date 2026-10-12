@@ -277,14 +277,23 @@ the consent pass refuses it, and the options. A reading carries its fillers
 by id, which is what lets a viewer hand the runtime a reading without a
 parser.
 
-The tree stays on the C side. `sprout.view` answers the place, the
-description, the ways out, who is there and what is carried, and keeps the
-view and its tree (`seen.c`) until the next view, load or close;
-`sprout.chips(path)`, with the picks so far as 1-based indexes (`[]` for
-the verbs), answers one level: each choice with `greyed`, whether nothing
-under it can be done, and `reason`, the first refusal under it, and the
-level's `leaf`. The caverns' tree is 223 KB of JSON and 2,194 nodes; a
-level is a few hundred bytes, and Lua never holds the tree.
+The tree stays on the C side, and is built a verb at a time. `sprout.view`
+polls the scene alone (`sprout_scene`): the place, the description, the
+ways out, who is there and what is carried, and the verbs the world
+offers, with no readings, and keeps it (`seen.c`) until the next view, load
+or close. `sprout.chips(path)`, with the picks so far as 1-based indexes
+(`[]` for the verbs), answers one level: each choice with `greyed`, whether
+nothing under it can be done, and `reason`, the first refusal under it, and
+the level's `leaf`. The first level under a verb asks the runtime for that
+verb's readings alone (`sprout_readings_for`: the offers and consent passes
+for one verb over what is in range, a hundredth of the whole poll), arranges
+them as the verb's subtree and keeps it; at the root a verb not yet reached
+is neither greyed nor not (`null`), and the level under a verb says of the
+verb what the root then shows. `sentence.lua` asks for the verb the drum
+settles on, so it is greyed or not before it is picked. The caverns' whole
+tree was 223 KB of JSON and 2,194 nodes built in one poll that reset the
+console; now a level is a few hundred bytes, a verb's readings cost one
+small poll, and Lua never holds the tree.
 
 `sentence.lua` turns the crank over those levels. A is pick, B is step back,
 the crank or the d-pad moves a wheel of the choices at this step (24

@@ -33,4 +33,17 @@ sprout_eval_status sprout_offers_to(sprout_exec *x, const sprout_frame *frame, s
                                     size_t way_count, const sprout_reached *reached, size_t reached_count,
                                     const sprout_offer **out, size_t *count);
 
+/*
+ * The verbs `actor` could be offered where they stand, in the order the parser tries them: those whose every role
+ * can be filled from what is in range (a `go` by a way out), before any consent pass. Held in the turn arena.
+ */
+sprout_eval_status sprout_offers_verbs(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
+                                       size_t way_count, const sprout_reached *reached, size_t reached_count,
+                                       const sprout_verb ***out, size_t *count);
+
+/* The readings of `verb` alone that `actor` could type where they stand, as sprout_offers_to lists them for it. */
+sprout_eval_status sprout_offers_for(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const sprout_way *ways,
+                                     size_t way_count, const sprout_reached *reached, size_t reached_count,
+                                     const sprout_verb *verb, const sprout_offer **out, size_t *count);
+
 #endif

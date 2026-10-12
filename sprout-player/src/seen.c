@@ -1,11 +1,14 @@
 /*
  * The visitor's view for the UI (the spec's The runtime > The view): the place, by id and as the
  * visitor reads it, its description as paragraphs, what its extension statements recorded (an image
- * to draw), the ways out, who else is there, what is carried. The readings the view also holds are
- * not sent: they are kept here, arranged as the chip tree the sentence builder walks, and handed to
- * Lua one level at a time (`sprout.chips`), each choice with whether anything under it can be done
- * and why not, so the whole tree is never on the Lua side. The view and its tree live until the next
- * view, the next load, the close or the end.
+ * to draw), the ways out, who else is there, what is carried. That is the scene, polled without any
+ * readings; the verbs the scene lists are the root of the chip tree the sentence builder walks, and
+ * a verb's readings are asked of the runtime only when the builder reaches that verb, arranged as
+ * its subtree and kept, so no poll ever runs the offers for every verb at once and the Lua side never
+ * holds a tree. `sprout.chips` hands a level at a time, each choice with whether anything under it
+ * can be done and why not; a verb whose readings have not been asked for is neither greyed nor not,
+ * and the level under it answers that too. The scene and the subtrees live until the next view, the
+ * next load, the close or the end.
  */
 #include <string.h>
 
@@ -55,10 +58,27 @@ static void take(jb *builder, sprout_json *into, const sprout_json *from, const 
 
 void session_drop_view(player_session *session) {
   if (!session->seen_live) return;
+  sprout_arena_reset(&session->chip_arena);
   sprout_view_free(&session->seen);
   memset(&session->seen, 0, sizeof session->seen);
   memset(&session->chips, 0, sizeof session->chips);
+  session->fetched = NULL;
+  session->why_empty = NULL;
   session->seen_live = false;
+}
+
+/* The root of the tree: one verb each of the scene's, its subtree not yet asked for. */
+static bool begin_tree(player_session *session) {
+  const sprout_seen_view *view = &session->seen;
+  sprout_arena *arena = &session->chip_arena;
+  size_t i;
+  session->chips.verb_count = view->verb_count;
+  session->chips.verbs = (sprout_chip_verb *)sprout_arena_take(arena, (view->verb_count + 1) * sizeof *session->chips.verbs);
+  session->fetched = (bool *)sprout_arena_take(arena, (view->verb_count + 1) * sizeof *session->fetched);
+  session->why_empty = (const char **)sprout_arena_take(arena, (view->verb_count + 1) * sizeof *session->why_empty);
+  if (session->chips.verbs == NULL || session->fetched == NULL || session->why_empty == NULL) return false;
+  for (i = 0; i < view->verb_count; i++) session->chips.verbs[i].verb = view->verbs[i];
+  return true;
 }
 
 const char *player_view(player_session *session) {
@@ -72,15 +92,16 @@ const char *player_view(player_session *session) {
   session_drop_view(session);
   if (session->state == NULL || visitor == NULL || !session_visitor_present(session, visitor))
     return nothing_to_see(session, "You are not in a world.");
-  status = sprout_view(session->world, session->state, &session->host.record, PLAYER_VISIT, view);
+  status = sprout_scene(session->world, session->state, &session->host.record, PLAYER_VISIT, view);
   if (status != SPROUT_OK) {
     return nothing_to_see(session, status == SPROUT_BAD_INPUT ? view->fault.text : sprout_status_text(status));
   }
   session->seen_live = true;
+  sprout_arena_init(&session->chip_arena, &session->host.record);
   arena = sprout_view_arena(view);
   jb_begin(&builder, arena);
   whole = sprout_view_tree(arena, view);
-  if (sprout_chip_tree_of(arena, view, &session->chips) != SPROUT_OK) builder.ok = false;
+  if (!begin_tree(session)) builder.ok = false;
   root = jb_object(&builder, 8);
   if (whole == NULL) builder.ok = false;
   if (builder.ok) {
@@ -136,23 +157,98 @@ static sprout_json *reason_json(jb *builder, sprout_arena *arena, const sprout_s
   return jb_text(builder, joined, at);
 }
 
-/* The node `path` names (the verb's, then each choice's), or NULL when the path names nothing; `*root` where it is empty. */
-static const sprout_chip_node *node_at(const player_session *session, const sprout_json *path, bool *root) {
+/*
+ * The subtree of verb `v`, asked of the runtime the first time it is reached: its readings over what is in
+ * range, kept with the scene. A verb with no reading, or whose poll ran out, has an empty subtree. False
+ * when the host refuses a page, with `*why` the words.
+ */
+static bool fetch_verb(player_session *session, size_t v, const char **why) {
+  sprout_chip_verb *verb = &session->chips.verbs[v];
+  sprout_arena *arena = &session->chip_arena;
+  sprout_seen_view readings;
+  sprout_chip_tree tree;
+  sprout_status status;
+  if (session->fetched[v]) return true;
+  status = sprout_readings_for(session->world, session->state, &session->host.record, PLAYER_VISIT, verb->verb, arena,
+                               &readings);
+  if (status == SPROUT_BAD_INPUT) {
+    const char *copy = sprout_arena_copy(arena, readings.fault.text, strlen(readings.fault.text));
+    *why = copy != NULL ? copy : sprout_status_text(SPROUT_NO_MEMORY);
+    return false;
+  }
+  if (status != SPROUT_OK || sprout_chip_tree_of(arena, &readings, &tree) != SPROUT_OK) {
+    *why = sprout_status_text(SPROUT_NO_MEMORY);
+    return false;
+  }
+  if (readings.faulted) {
+    /* The poll ran out: the verb is greyed with the fault's words, and asked for again when reached next. */
+    const char *words = readings.fault.text[0] != '\0' ? readings.fault.text : "This world has too much to read here.";
+    verb->next = (sprout_chip_node *)sprout_arena_take(arena, sizeof *verb->next);
+    session->why_empty[v] = verb->next == NULL ? NULL : sprout_arena_copy(arena, words, strlen(words));
+    if (verb->next == NULL || session->why_empty[v] == NULL) {
+      *why = sprout_status_text(SPROUT_NO_MEMORY);
+      return false;
+    }
+    session->fetched[v] = false;
+    return true;
+  }
+  if (tree.verb_count > 0) {
+    verb->next = tree.verbs[0].next;
+    session->why_empty[v] = NULL;
+  } else {
+    /* Its roles could be filled from what is here, but no reading fits: the verb says so when reached. */
+    const char *name = strrchr(verb->verb, '.');
+    size_t head = strlen("Nothing here fits "), tail;
+    char *words;
+    name = name == NULL ? verb->verb : name + 1;
+    tail = strlen(name);
+    verb->next = (sprout_chip_node *)sprout_arena_take(arena, sizeof *verb->next);
+    words = (char *)sprout_arena_take(arena, head + tail + 2);
+    if (verb->next == NULL || words == NULL) {
+      *why = sprout_status_text(SPROUT_NO_MEMORY);
+      return false;
+    }
+    memcpy(words, "Nothing here fits ", head);
+    memcpy(words + head, name, tail);
+    words[head + tail] = '.';
+    words[head + tail + 1] = '\0';
+    session->why_empty[v] = words;
+  }
+  session->fetched[v] = true;
+  return true;
+}
+
+/* A step of a path: a whole number from 1 to what a level can hold, checked as a double before any cast. */
+static bool step_of(const sprout_json *step, size_t *out) {
+  double at;
+  if (step->kind != SPROUT_JSON_NUMBER) return false;
+  at = step->number;
+  if (!(at >= 1) || at > 65536.0 || at != (double)(long)at) return false;
+  *out = (size_t)at;
+  return true;
+}
+
+/*
+ * The node `path` names (the verb's, then each choice's), its verb's readings asked for on the way; NULL when the
+ * path names nothing (`*why` empty) or the readings could not be asked for (`*why` the words); `*root` where the
+ * path is empty, `*verb` the verb's index where it is not.
+ */
+static const sprout_chip_node *node_at(player_session *session, const sprout_json *path, bool *root, size_t *verb,
+                                       const char **why) {
   const sprout_chip_node *node = NULL;
-  size_t i;
+  size_t i, at;
   *root = path->count == 0;
+  *why = "";
   for (i = 0; i < path->count; i++) {
-    const sprout_json *step = path->items[i];
-    double at;
-    if (step->kind != SPROUT_JSON_NUMBER) return NULL;
-    at = step->number;
-    if (at < 1 || at != (double)(size_t)at) return NULL;
+    if (!step_of(path->items[i], &at)) return NULL;
     if (i == 0) {
-      if ((size_t)at > session->chips.verb_count) return NULL;
-      node = session->chips.verbs[(size_t)at - 1].next;
+      if (at > session->chips.verb_count) return NULL;
+      *verb = at - 1;
+      if (!fetch_verb(session, at - 1, why)) return NULL;
+      node = session->chips.verbs[at - 1].next;
     } else {
-      if ((size_t)at > node->choice_count) return NULL;
-      node = node->choices[(size_t)at - 1].next;
+      if (at > node->choice_count) return NULL;
+      node = node->choices[at - 1].next;
     }
   }
   return node;
@@ -165,29 +261,47 @@ static const char *no_level(player_session *session, sprout_arena *arena, jb *bu
   return session_reply_end(session, arena, builder, root);
 }
 
+/* Whether and why nothing under a verb can be done, once its readings are known; null and null before. */
+static void grey_verb(player_session *session, jb *builder, sprout_arena *arena, size_t v, sprout_json *into) {
+  const sprout_chip_verb *verb = &session->chips.verbs[v];
+  if (session->why_empty[v] != NULL) {
+    /* Nothing fits it, or its poll ran out: greyed, with the words that say which. */
+    jb_set(builder, into, "greyed", jb_bool(builder, true));
+    jb_set(builder, into, "reason", jb_string(builder, session->why_empty[v]));
+    return;
+  }
+  if (!session->fetched[v]) {
+    jb_set(builder, into, "greyed", jb_null(builder));
+    jb_set(builder, into, "reason", jb_null(builder));
+    return;
+  }
+  jb_set(builder, into, "greyed", jb_bool(builder, refused_all(verb->next)));
+  jb_set(builder, into, "reason", reason_json(builder, arena, reason_under(verb->next)));
+}
+
 const char *player_chips(player_session *session, const char *path_text) {
   sprout_arena arena;
   jb builder;
   sprout_json *path, *root, *choices;
   sprout_json_error error;
   const sprout_chip_node *node = NULL;
+  const char *why = "";
   bool at_root = false;
-  size_t i;
+  size_t i, verb = 0;
   if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
   if (!session->seen_live) return no_level(session, &arena, &builder, "No view has been polled.");
   if (path_text == NULL) path_text = "[]";
-  if (sprout_json_read(&arena, path_text, strlen(path_text), &path, &error) != SPROUT_OK ||
-      path->kind != SPROUT_JSON_ARRAY || ((node = node_at(session, path, &at_root)) == NULL && !at_root))
+  if (sprout_json_read(&arena, path_text, strlen(path_text), &path, &error) != SPROUT_OK || path->kind != SPROUT_JSON_ARRAY)
     return no_level(session, &arena, &builder, "The path names no choice of the tree.");
-  root = jb_object(&builder, 2);
+  node = node_at(session, path, &at_root, &verb, &why);
+  if (node == NULL && !at_root) return no_level(session, &arena, &builder, why[0] != '\0' ? why : "The path names no choice of the tree.");
+  root = jb_object(&builder, 4);
   if (at_root) {
     choices = jb_array(&builder, session->chips.verb_count);
     for (i = 0; i < session->chips.verb_count; i++) {
-      const sprout_chip_verb *verb = &session->chips.verbs[i];
       sprout_json *choice = jb_object(&builder, 3);
-      jb_set(&builder, choice, "verb", jb_string(&builder, verb->verb));
-      jb_set(&builder, choice, "greyed", jb_bool(&builder, refused_all(verb->next)));
-      jb_set(&builder, choice, "reason", reason_json(&builder, &arena, reason_under(verb->next)));
+      jb_set(&builder, choice, "verb", jb_string(&builder, session->chips.verbs[i].verb));
+      grey_verb(session, &builder, &arena, i, choice);
       jb_set(&builder, choices, NULL, choice);
     }
     jb_set(&builder, root, "choices", choices);
@@ -211,6 +325,8 @@ const char *player_chips(player_session *session, const char *path_text) {
       if (leaf == NULL) builder.ok = false;
       jb_set(&builder, root, "leaf", leaf);
     }
+    /* The level under a verb says of the verb itself what the root could not before its readings were asked for. */
+    if (path->count == 1) grey_verb(session, &builder, &arena, verb, root);
   }
   return session_reply_end(session, &arena, &builder, root);
 }
