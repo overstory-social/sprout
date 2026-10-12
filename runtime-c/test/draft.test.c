@@ -487,31 +487,66 @@ static void every_result_has_words(void) {
   CHECK(strstr(sprout_draft_text(SPROUT_DRAFT_TAKEN), "never reused") != NULL);
 }
 
-static void a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone(void) {
-  long pages;
-  for (pages = 0; pages < 6; pages++) {
-    fixture f;
-    sprout_draft draft;
-    sprout_str yard = S(YARD);
-    const char *before, *after;
-    size_t before_length, after_length;
-    sprout_arena scratch; /* holds `before` across the turn's reset */
-    begin(&f);
-    CHECK_INT(test_state_write(f.state, &scratch, &before, &before_length), SPROUT_OK);
-    f.host.page_bytes = 256;
-    f.turn.host = &f.host;
-    f.heap.refuse_after = f.heap.pages + pages;
+/*
+ * One turn under a host that refuses pages after `pages` more: a place, a removal that buries, and the commit.
+ * Where the commit was refused, the state reads exactly as before; where it went through, it holds the turn.
+ * With `settle`, a turn is committed first so the state's arrays have slack and the commit writes in place.
+ */
+static void a_short_turn(long pages, bool settle) {
+  fixture f;
+  sprout_draft draft;
+  sprout_changes changes;
+  sprout_stored_instance changed;
+  const char *before, *after;
+  const sprout_str *removed;
+  size_t before_length, after_length, count;
+  sprout_arena scratch; /* holds `before` across the turn's reset */
+  sprout_draft_result placed, removed_result, committed;
+  begin(&f);
+  if (settle) {
     sprout_draft_open(&draft, &f.turn, f.world, f.state);
-    {
-      sprout_draft_result r = sprout_draft_place(&draft, S(ROOM ".cat"), &yard);
-      CHECK(r == SPROUT_DRAFT_OK || r == SPROUT_DRAFT_NO_MEMORY);
-    }
+    changed = *sprout_draft_instance(&draft, S(ROOM));
+    changed.has_last_tick = true;
+    changed.last_tick = 1790000001;
+    CHECK_INT(sprout_draft_write(&draft, &changed), SPROUT_DRAFT_OK);
+    CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
     sprout_arena_reset(&f.turn);
-    f.heap.refuse_after = -1;
-    CHECK_INT(sprout_state_write(f.state, &f.turn, &after, &after_length), SPROUT_OK);
+    CHECK(sprout_state_has_room(f.state, 1, 0, 4));
+  }
+  CHECK_INT(test_state_write(f.state, &scratch, &before, &before_length), SPROUT_OK);
+  f.host.page_bytes = 256;
+  f.turn.host = &f.host;
+  f.state->host.page_bytes = 256;
+  f.heap.refuse_after = f.heap.pages + pages;
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  placed = sprout_draft_place(&draft, S(ROOM ".cat"), &(sprout_str){WORLD, strlen(WORLD)});
+  CHECK(placed == SPROUT_DRAFT_OK || placed == SPROUT_DRAFT_NO_MEMORY);
+  removed_result = placed == SPROUT_DRAFT_OK ? sprout_draft_remove(&draft, S(YARD), &removed, &count) : placed;
+  CHECK(removed_result == SPROUT_DRAFT_OK || removed_result == SPROUT_DRAFT_NO_MEMORY);
+  committed = removed_result == SPROUT_DRAFT_OK ? sprout_draft_commit(&draft, &changes) : removed_result;
+  CHECK(committed == SPROUT_DRAFT_OK || committed == SPROUT_DRAFT_NO_MEMORY);
+  sprout_arena_reset(&f.turn);
+  f.heap.refuse_after = -1;
+  CHECK_INT(sprout_state_write(f.state, &f.turn, &after, &after_length), SPROUT_OK);
+  if (committed == SPROUT_DRAFT_OK) {
+    const sprout_stored_instance *cat = sprout_state_find(f.state, S(ROOM ".cat"));
+    CHECK(cat != NULL && cat->has_container && sprout_str_same(cat->container, S(WORLD)));
+    CHECK(sprout_state_find(f.state, S(YARD)) == NULL);
+    CHECK(sprout_state_tombstoned(f.state, S(YARD ".press")));
+    CHECK(before_length != after_length || memcmp(before, after, after_length) != 0);
+  } else {
     CHECK_BYTES(after, after_length, before);
-    sprout_arena_reset(&scratch);
-    finish(&f);
+  }
+  sprout_arena_reset(&scratch);
+  finish(&f);
+}
+
+static void a_turn_that_runs_out_of_memory_says_so_and_leaves_the_state_alone(void) {
+  static const long sweep[] = {0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
+  size_t i;
+  for (i = 0; i < sizeof sweep / sizeof *sweep; i++) {
+    a_short_turn(sweep[i], false);
+    a_short_turn(sweep[i], true);
   }
 }
 

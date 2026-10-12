@@ -330,8 +330,11 @@ sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sp
     case SPROUT_TURN_POLL:
       return turn_refuse(outcome, "a poll writes nothing and is not a turn: ask for the view with sprout_view.", "", "");
   }
-  /* The turn's scratch is released by now, so the state and the outcome are all that is held while it compacts. */
-  if (status == SPROUT_OK && sprout_state_crowded(state) && sprout_state_compact(state) != SPROUT_OK)
-    return SPROUT_NO_MEMORY;
+  /*
+   * The turn's scratch is released by now, so the state and the outcome are all that is held while it compacts.
+   * Compacting is housekeeping: a refused page leaves the state as it was, still crowded for the next turn or
+   * the host to try, and the turn's own status stands, since the turn did commit.
+   */
+  if (status == SPROUT_OK && sprout_state_crowded(state)) (void)sprout_state_compact(state);
   return status;
 }

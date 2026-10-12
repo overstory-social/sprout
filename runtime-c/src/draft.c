@@ -519,12 +519,12 @@ static bool unplace_instance(sprout_state *state, sprout_str id) {
 
 /*
  * The commit writes into the state rather than copying it: the turn's records
- * are copied into the state's arena first, all of them, so a refused page
- * leaves the state as it was; then each is put in its sorted place and what
- * is gone is taken out, which takes nothing. What a written record replaced
- * stays in the arena, counted, until the state is compacted. The state is
- * rebuilt first only when its arrays have no room for what the turn adds, or
- * its records are not sorted.
+ * are copied into the state's arena and the lists for the store are made
+ * first, all of them, so a refused page leaves the state as it was; then each
+ * record is put in its sorted place and what is gone is taken out, which
+ * takes nothing. What a written record replaced stays in the arena, counted,
+ * until the state is compacted. The state is rebuilt first only when its
+ * arrays have no room for what the turn adds, or its records are not sorted.
  */
 sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *changes) {
   sprout_state *state = draft->base;
@@ -561,20 +561,14 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
       return SPROUT_DRAFT_NO_MEMORY;
   for (i = 0; i < draft->buried_count; i++)
     if (!sprout_state_copy_str(&state->arena, buried_ids[i], &stones[i])) return SPROUT_DRAFT_NO_MEMORY;
-  for (i = 0; i < draft->gone_count; i++)
-    if (unplace_instance(state, gone_ids[i])) removed[removed_count++] = gone_ids[i];
-  for (i = 0; i < draft->written_count; i++) {
-    place_instance(state, &copies[i]);
-    written_ids[i] = copies[i].id;
+  /* Everything the commit tells the store is taken now: after this, nothing can fail, and the state changes whole. */
+  for (i = 0; i < draft->gone_count; i++) {
+    bool found;
+    instance_slot(state, gone_ids[i], &found);
+    if (found) removed[removed_count++] = gone_ids[i];
   }
-  for (i = 0; i < draft->visitor_count; i++) {
-    place_visitor(state, &visits[i]);
-    visit_ids[i] = visits[i].visit;
-  }
-  for (i = 0; i < draft->buried_count; i++) place_tombstone(state, stones[i]);
-  state->serial = draft->serial;
-  draft->committed = true;
-
+  for (i = 0; i < draft->written_count; i++) written_ids[i] = copies[i].id;
+  for (i = 0; i < draft->visitor_count; i++) visit_ids[i] = visits[i].visit;
   memset(changes, 0, sizeof *changes);
   changes->serial = draft->serial;
   changes->written_count = draft->written_count;
@@ -585,5 +579,12 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   NEED(sorted_ids(draft->turn, removed, removed_count, &changes->removed));
   NEED(sorted_ids(draft->turn, buried_ids, draft->buried_count, &changes->tombstoned));
   NEED(sorted_ids(draft->turn, visit_ids, draft->visitor_count, &changes->visitors));
+
+  for (i = 0; i < draft->gone_count; i++) unplace_instance(state, gone_ids[i]);
+  for (i = 0; i < draft->written_count; i++) place_instance(state, &copies[i]);
+  for (i = 0; i < draft->visitor_count; i++) place_visitor(state, &visits[i]);
+  for (i = 0; i < draft->buried_count; i++) place_tombstone(state, stones[i]);
+  state->serial = draft->serial;
+  draft->committed = true;
   return SPROUT_DRAFT_OK;
 }
