@@ -186,8 +186,8 @@ const char *player_open(player_session *session, const char *path) {
 }
 
 /*
- * How much of a world one step reads: entries of its table. The caverns' 144,519 entries take
- * about 70 steps, which the app spreads one a frame behind its loading line, each well inside
+ * How much of a world one step reads: bytes of its body inflated. The caverns' 4.8 MB body takes
+ * about 150 steps, which the app spreads one a frame behind its loading line, each well inside
  * what the system allows a frame on the console.
  */
 #define STEP_BYTES (32u * 1024u)
