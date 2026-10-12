@@ -1,0 +1,23 @@
+{
+  "about": "The cat roams: petted, it goes up to the attic no exit reaches a minute later, the world never opening, and comes back down a minute after that; the kitchen hears it go and come. Nudged, it cannot carry the hay up: roaming takes the cat anywhere, and nothing it moves, so that move faults.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A warm kitchen." }
+    ] },
+    { "as": "Marta", "type": "pet cat", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The cat purrs, and eyes the ceiling." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "kitchen.cat woke, 60 seconds after it asked" },
+      { "reader": "Marta", "kind": "notice", "words": "A cat leaves for an attic." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "kitchen.cat woke, 60 seconds after it asked" },
+      { "reader": "Marta", "kind": "notice", "words": "A cat arrives from an attic." }
+    ] },
+    { "as": "Marta", "type": "nudge cat", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Something in this world has gone wrong, and nothing has changed." },
+      { "level": "error", "text": "the command faulted, against attic, MoveFault: `roaming.attic` is out of range of `roaming.kitchen.cat`, so nothing could be moved into it." }
+    ] }
+  ]
+}

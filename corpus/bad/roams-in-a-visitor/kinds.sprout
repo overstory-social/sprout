@@ -1,0 +1,7 @@
+import * as sprout from 'sprout'
+
+kind Wanderer is sprout.Actor {
+  roams
+}
+
+kind Person is sprout.Visitor, Wanderer { }

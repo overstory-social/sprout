@@ -1,0 +1,4 @@
+kinds.sprout:7:32  `Person` composes `sprout.Visitor` and `Wanderer`, which roams: a visitor goes where they type.
+                   Compose `Wanderer` only in a kind for the NPCs that wander, or take `roams` out of `Wanderer`.
+
+refused: 1 problem

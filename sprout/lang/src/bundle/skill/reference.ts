@@ -100,6 +100,11 @@ export const MEMBER_TABLE: readonly Entry[] = [
     example: 'contains',
     means: 'it holds things; `contains actors` holds people too',
   },
+  {
+    word: 'roams',
+    example: 'roams',
+    means: 'an NPC of it moves itself to any place, with `move self to <place>`',
+  },
   { word: 'passage', example: 'passage hum { {self} hums. }', means: 'named words, said by name' },
   {
     word: 'prose',
@@ -167,8 +172,9 @@ function memberWords(): { kind: Set<string>; world: Set<string> } {
 }
 
 /**
- * Every member example but the world's own, in one kind, with what each
- * needs beside it; `synonyms`, which no kind holds, on the object of it.
+ * Every member example but the world's own, in one kind, an actor so that
+ * it may write `roams`, with what each needs beside it; `synonyms`, which
+ * no kind holds, on the object of it.
  */
 export function membersProbe(): Snippet {
   const own = MEMBER_TABLE.filter(
@@ -179,7 +185,7 @@ export function membersProbe(): Snippet {
     hall: `    object probe is Probe { ${synonyms.example} }`,
     files: {
       'probe.sprout': [
-        'kind Probe is Bell {',
+        'kind Probe is Bell, sprout.Actor {',
         '  :lit false',
         ...own.map((entry) => `  ${entry.example}`),
         '}',

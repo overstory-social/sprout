@@ -1,0 +1,21 @@
+// An NPC that roams moves itself to any place (Actors and visitors): the
+// cat naps in an attic no exit reaches and the world never opens, and
+// comes back down to the kitchen on its own, a minute at a time. A dog
+// that does not roam, asked to do the same, goes nowhere: the attic is
+// out of its range, and its move faults. Nor may the cat carry anything
+// else up: roaming takes the cat anywhere, and nothing it moves.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {kitchen, attic} from 'places'
+
+world roaming is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen
+  object attic
+}
+
+verb pet     { role target  "pet [target]" }
+verb whistle { role target  "whistle for [target]" }
+verb nudge   { role target  "nudge [target]" }

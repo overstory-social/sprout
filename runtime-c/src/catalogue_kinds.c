@@ -242,6 +242,7 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
   }
   kind->contains = cat_bool(l->graph, node, "contains");
   kind->contains_actors = cat_bool(l->graph, node, "containsActors");
+  kind->roams = cat_bool(l->graph, node, "roams");
 
   properties = sprout_node_get(l->graph, node, "properties");
   if (properties == NULL || properties->kind != SPROUT_NODE_MAP)

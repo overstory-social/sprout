@@ -235,7 +235,10 @@ export function moveInstance(
       `\`${item}\` is out of range of \`${mover}\`, so it could not be moved.`,
     );
   }
-  if (!isLive(draft, to) || (reach === 'range' && !reachedForMove(context, range, mover, to))) {
+  if (
+    !isLive(draft, to) ||
+    (reach === 'range' && !reachedForMove(context, range, mover, to, item))
+  ) {
     throw new MoveFault(
       'out-of-range',
       to,
@@ -435,21 +438,25 @@ function told(
 }
 
 /**
- * Whether `to` is in range of a move `mover` proposes: in `mover`'s range,
- * as every place is where the world passes, or, where `mover` is an actor,
- * the destination of an exit or a link of its own place that applies now
- * (the spec's Verbs › Acting). Read both by `moveInstance` and by
- * resolving an identifier or path written as the move's destination.
+ * Whether `to` is in range of a move `mover` proposes of `item`: any place
+ * where `mover` roams and moves itself (the spec's Actors and visitors); in
+ * `mover`'s range, as every place is where the world passes; or, where
+ * `mover` is an actor, the destination of an exit or a link of its own
+ * place that applies now (Verbs › Acting). Read both by `moveInstance` and
+ * by resolving a destination written, before the item is known.
  */
 export function reachedForMove(
   context: MoveContext,
   range: RangeContext<InstanceId>,
   mover: InstanceId,
   to: InstanceId,
+  item: InstanceId | null = null,
 ): boolean {
   const { draft, catalogue, passes, budget } = context;
-  if (reaches(range, mover, to, 'any')) return true;
   const kind = draft.instance(mover)?.kind;
+  const itself = item === null || item === mover;
+  if (kind?.roams === true && isActor(kind) && itself && holdsActors(draft, to)) return true;
+  if (reaches(range, mover, to, 'any')) return true;
   if (kind === undefined || !isActor(kind)) return false;
   const place = surroundOf(draft, mover);
   if (place === null) return false;

@@ -168,7 +168,7 @@ accept act actors allow any are arrive article as at bound broadcast
 carried changed connect contains default depart describe destroy do each else
 enum exit finally for from grammar hours if in kind let link many max
 message min minutes move name nouns of on optional pass passage permit
-prose refuse release remembers role say seconds send spawn tell text to
+prose refuse release remembers roams role say seconds send spawn tell text to
 verb visitors wake when with without world
 ```
 
@@ -303,6 +303,7 @@ world all have one.
 | `:lit false`                             | a property                                                     |      yes       |  yes  |
 | `remembers { :visits 0 min 0 max 99 }`   | properties kept separately for each actor                      |      yes       |  yes  |
 | `contains`, `contains actors`            | it holds things; `contains actors` holds people too            |      yes       |  yes  |
+| `roams`                                  | a character of it moves itself to any place (see [Characters moving](#characters-moving)) | yes |   —   |
 | `grammar { … }`                          | its name, article and nouns, and a place's exits and links     |      yes       |   —   |
 | `describe { … }`                         | what someone looking at it reads                               |      yes       |   —   |
 | `passage name { … }`                     | a named piece of writing                                       |      yes       |  yes  |
@@ -1534,7 +1535,10 @@ exits.
 
 A character changes place with `move self to <place>`. It can only reach a
 place that is the destination of an exit or link, from its own place, that
-currently applies — the same ways a visitor could walk.
+currently applies — the same ways a visitor could walk — unless its kind
+says `roams`. A character that roams, like a thief who turns up anywhere,
+may `move self to` any place in the world. Nothing else about it changes:
+it reaches nothing more than before, and a place may still refuse it.
 
 ```sprout
 kind Watchman is sprout.Actor {

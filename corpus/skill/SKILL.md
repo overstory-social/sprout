@@ -204,6 +204,7 @@ A body is what is between a declaration’s braces. Besides these, every body ho
 | --- | --- | --- | --- |
 | `remembers { :visits 0 min 0 max 99 }` | properties held for each actor | yes | yes |
 | `contains` | it holds things; `contains actors` holds people too | yes | yes |
+| `roams` | an NPC of it moves itself to any place, with `move self to <place>` | yes | — |
 | `passage hum { {self} hums. }` | named words, said by name | yes | yes |
 | `prose "probe.prose"` | passages written in a `.prose` file beside it | yes | yes |
 | `without on :stir from Bell` | leaves out one member it would take from a kind it composes | yes | yes |
@@ -858,7 +859,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 
 None of these may name an enum’s option or a binding:
 
-`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `carried` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `intent` `kind` `let` `link` `lit` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `pronouns` `prose` `refuse` `release` `remembers` `role` `say` `seconds` `send` `spawn` `tell` `text` `then` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
+`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `carried` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `intent` `kind` `let` `link` `lit` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `pronouns` `prose` `refuse` `release` `remembers` `roams` `role` `say` `seconds` `send` `spawn` `tell` `text` `then` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
 
 And no message or verb may be called `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` or `prose`.
 

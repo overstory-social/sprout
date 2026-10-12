@@ -228,6 +228,8 @@ The only actors are visitors and NPCs: an instance of the visitor kind is a visi
 
 An **NPC** is an object composing `sprout.Actor`, and not `sprout.Visitor`, with nobody behind it. It is declared like any object, has a name rather than a nickname, acts on `:tick` or on a message rather than on typing, performs verbs with `act`, and reads nothing: prose addressed to it goes nowhere. Its presence does not keep a place ticking; only a person's does.
 
+An NPC **roams** where its kind says `roams`: it goes where it likes, as a thief through the dark or a messenger across the map. A roaming NPC's `move self to <place>` reaches any place in the world, wherever it stands and however the pass rules lie between; it runs the same guards and sends the same messages as any move, so a place may still refuse it. Nothing else about it changes: what it reaches with `get`, `send`, `each` and `move` of anything else, what its broadcasts reach, and what reaches it are its range, so one wanderer costs its own moves and opens nothing to anyone else. Without `roams` an NPC walks the map as a visitor does, under Verbs › Acting. `roams` is written only in a body whose kind composes `sprout.Actor` and not `sprout.Visitor`, a visitor being a person who goes where they type; it composes as `contains` does, so a kind composing one that roams roams.
+
 ### What a world may know about a visitor
 
 **Visitor state belongs to the world, never to the person.** Everything a world writes about a visitor lives in that world's own store, keyed to the visit, and never reaches the account behind it. `:team` means something in the tag yard and nothing anywhere else. The account supplies exactly one thing, the nickname, and that is per-world too.
@@ -357,7 +359,7 @@ Everything after `is` is composed; a kind may compose any number of kinds, inclu
 
 `is` composes and the colon does not. The colon marks a property, a message or an option in an expression, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
 
-A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
+A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
 
 ### How members combine
 
@@ -373,7 +375,7 @@ Members divide by whether more than one answer makes sense.
 | `as <role> for <verb>` | all `permit` run, any refusal decides; all `do` run |
 | nouns in the grammar block | all apply |
 | `name`, `article` | refuse |
-| `contains`, `contains actors` | idempotent |
+| `contains`, `contains actors`, `roams` | idempotent |
 | `pass :m`, `pass any` | refuse |
 | a passage | refuse, unless all but one are `default` |
 | `describe` | refuse |
@@ -1075,7 +1077,7 @@ object cat is Creature {
 
 Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person, and the one its act is aimed at reads what its own part tells that role, under The actor's own part. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
-An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` as the destination of an exit or a link of the mover's place that applies, or where it is in the mover's own range, which across places means the world passes, so an NPC walks the map as a visitor does unless the world deliberately opens it, as one place hearing another is the world's deliberate act; a place reached neither way is out of range, and the move faults.
+An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` as the destination of an exit or a link of the mover's place that applies, or where it is in the mover's own range, which across places means the world passes, so an NPC walks the map as a visitor does unless the world deliberately opens it, as one place hearing another is the world's deliberate act, or its kind `roams`, under Actors and visitors, when it moves itself; a place reached none of these ways is out of range, and the move faults.
 
 ### Moving something
 
@@ -1877,7 +1879,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -1932,6 +1934,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 - An `object` at a file's top level that is not placed exactly once, by its `in` clause or by one stub; a stub that names no object its file imports; a circle of placement; an object inside something whose kind does not hold things; an actor declared inside something that does not hold actors; an object composing `sprout.Visitor`, and a `spawn` of such a kind; the world's name as a step of a path other than the first, or as an object's name; two objects of one name in one body.
 - `visitors arrive at` naming the world itself; a kind named for the world.
 - `tell inside` or `tell outside` in a body whose kind does not declare `contains actors`.
+- `roams` in a body whose kind does not compose `sprout.Actor`, or composes `sprout.Visitor`; a kind that composes `sprout.Visitor` and a kind that roams.
 - An `extension` line after a declaration, naming an extension the manifest does not pin or at another major, or naming one twice; an extension's type or statement in a file that does not name it; a list of an extension's type.
 - A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
 - Any static cap exceeded.

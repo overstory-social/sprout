@@ -296,8 +296,13 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
 sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
                                       sprout_str actor, sprout_str other, const char *way);
 
-/* Whether `to` is in range of a move `mover` proposes: in its range, or an exit or link of its place leads there. */
-sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mover, sprout_str to, bool *reached);
+/*
+ * Whether `to` is in range of a move `mover` proposes of `item`: any place where `mover` roams and moves itself; in
+ * its range; or an exit or link of its place leads there. `item` with NULL bytes is a destination read before the
+ * item is known.
+ */
+sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mover, sprout_str item, sprout_str to,
+                                       bool *reached);
 
 /* ---- guards.c ---- */
 

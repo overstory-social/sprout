@@ -49,6 +49,7 @@ static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const s
   CHECK(kind->spawnable == corpus_get(row, "spawnable")->boolean);
   CHECK(kind->contains == corpus_get(row, "contains")->boolean);
   CHECK(kind->contains_actors == corpus_get(row, "containsActors")->boolean);
+  CHECK(kind->roams == corpus_get(row, "roams")->boolean);
   CHECK_INT(kind->order_count, order->count);
   for (i = 0; i < kind->order_count && i < order->count; i++)
     CHECK_STR(kind->order[i], order->items[i]->bytes);

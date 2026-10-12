@@ -1,0 +1,13 @@
+import * as sprout from 'sprout'
+import {Cat, Dog, Hay} from 'pets'
+
+object kitchen is sprout.Place {
+  describe { text "A warm kitchen." }
+  object cat is Cat
+  object dog is Dog
+  object hay is Hay
+}
+
+object attic is sprout.Place {
+  describe { text "A dusty attic no stair reaches." }
+}

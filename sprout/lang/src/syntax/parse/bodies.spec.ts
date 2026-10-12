@@ -27,7 +27,7 @@ type Owner = (typeof OWNERS)[number];
 
 /** The members every body holds, with `holds` first where the owner says one more, and `grammar` and `describe` where it is a thing's. */
 const membersOf = (owner: Owner): string =>
-  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, \`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, ${owner.holds === null ? '`roams`, ' : ''}\`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
 
 /** A member by its name where it is a property, and otherwise by what it is. */
 const named = (members: readonly WorldMember[]): string[] =>
@@ -42,6 +42,15 @@ describe('the members of a body, apart from the objects written in it', () => {
     const { members, objects } = apart(read!.members, (m): m is WorldMember => m.kind !== 'object');
     expect(members.map((m) => m.kind)).toEqual(['property', 'contains']);
     expect(objects.map((o) => o.name.text)).toEqual(['a', 'b']);
+  });
+});
+
+describe('`roams`, alone on its line', () => {
+  it('is a member of its own, spanning the word', () => {
+    const { read } = readBody('kind Owl is sprout.Actor {\n  roams\n  :a 1\n}\n');
+    const [roams, property] = read!.members;
+    expect([roams?.kind, property?.kind]).toEqual(['roams', 'property']);
+    expect([roams!.at.start, roams!.at.end]).toEqual([29, 34]);
   });
 });
 
