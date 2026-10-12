@@ -47,15 +47,17 @@ const char *sprout_draft_text(sprout_draft_result result) {
 
 /* ---- the overlay's small vectors ---- */
 
-static void *push(sprout_arena *arena, void **items, size_t *count, size_t *capacity, size_t size) {
+/* One more slot in an overlay vector, which is a change of the overlay: the list of every record is stale after it. */
+static void *push(sprout_draft *draft, void **items, size_t *count, size_t *capacity, size_t size) {
   if (*count == *capacity) {
     size_t wanted = *capacity == 0 ? 8 : *capacity * 2;
-    char *bigger = (char *)sprout_arena_take(arena, wanted * size);
+    char *bigger = (char *)sprout_arena_take(draft->turn, wanted * size);
     if (bigger == NULL) return NULL;
     if (*count > 0) memcpy(bigger, *items, *count * size);
     *items = bigger;
     *capacity = wanted;
   }
+  draft->generation++;
   return (char *)*items + (*count)++ * size;
 }
 
@@ -142,11 +144,21 @@ static bool comes_before(const ranked *a, const ranked *b) {
   return sprout_str_compare(a->record->id, b->record->id) < 0;
 }
 
-/* Every record as the turn stands, in no order: the base's not removed or rewritten, then the turn's writes. */
+/*
+ * Every record as the turn stands, in no order: the base's not removed or rewritten, then the turn's
+ * writes. Listed once per change of the overlay and read from the draft until the next, since a turn
+ * that asks for contents once per object would otherwise take the whole list that many times.
+ */
 static sprout_draft_result everything(const sprout_draft *draft, const sprout_stored_instance ***out,
                                       size_t *count) {
+  sprout_draft *d = (sprout_draft *)draft;
   const sprout_stored_instance **all;
   size_t i, n = 0;
+  if (d->all != NULL && d->all_generation == d->generation) {
+    *out = d->all;
+    *count = d->all_count;
+    return SPROUT_DRAFT_OK;
+  }
   all = (const sprout_stored_instance **)sprout_arena_take(
       draft->turn, (draft->base->instance_count + draft->written_count + 1) * sizeof *all);
   MEMORY(all);
@@ -156,6 +168,9 @@ static sprout_draft_result everything(const sprout_draft *draft, const sprout_st
     all[n++] = one;
   }
   for (i = 0; i < draft->written_count; i++) all[n++] = &draft->written[i];
+  d->all = all;
+  d->all_count = n;
+  d->all_generation = d->generation;
   *out = all;
   *count = n;
   return SPROUT_DRAFT_OK;
@@ -237,7 +252,7 @@ static sprout_draft_result keep(sprout_draft *draft, const sprout_stored_instanc
   sprout_stored_instance copy;
   if (sprout_stored_instance_copy(draft->turn, record, &copy) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
   if (slot == NULL) {
-    slot = (sprout_stored_instance *)push(draft->turn, (void **)&draft->written, &draft->written_count,
+    slot = (sprout_stored_instance *)push(draft, (void **)&draft->written, &draft->written_count,
                                           &draft->written_capacity, sizeof *slot);
     MEMORY(slot);
   }
@@ -318,7 +333,7 @@ sprout_draft_result sprout_draft_put_visitor(sprout_draft *draft, const sprout_s
     }
   {
     sprout_stored_visitor *slot = (sprout_stored_visitor *)push(
-        draft->turn, (void **)&draft->visitors, &draft->visitor_count, &draft->visitor_capacity, sizeof *slot);
+        draft, (void **)&draft->visitors, &draft->visitor_count, &draft->visitor_capacity, sizeof *slot);
     MEMORY(slot);
     *slot = copy;
   }
@@ -384,18 +399,18 @@ sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, cons
     const sprout_stored_instance *one = sprout_draft_record(draft, found[i]);
     sprout_str *slot;
     if (one != NULL && !one->dormant) {
-      sprout_stored_instance *copy = (sprout_stored_instance *)push(draft->turn, (void **)&draft->kept, &draft->kept_count,
+      sprout_stored_instance *copy = (sprout_stored_instance *)push(draft, (void **)&draft->kept, &draft->kept_count,
                                                                     &draft->kept_capacity, sizeof *copy);
       MEMORY(copy);
       if (sprout_stored_instance_copy(draft->turn, one, copy) != SPROUT_OK) return SPROUT_DRAFT_NO_MEMORY;
     }
     if (one != NULL && one->made == SPROUT_MADE_DECLARED) {
-      slot = (sprout_str *)push(draft->turn, (void **)&draft->buried, &draft->buried_count,
+      slot = (sprout_str *)push(draft, (void **)&draft->buried, &draft->buried_count,
                                 &draft->buried_capacity, sizeof *slot);
       MEMORY(slot);
       *slot = found[i];
     }
-    slot = (sprout_str *)push(draft->turn, (void **)&draft->gone, &draft->gone_count, &draft->gone_capacity,
+    slot = (sprout_str *)push(draft, (void **)&draft->gone, &draft->gone_count, &draft->gone_capacity,
                               sizeof *slot);
     MEMORY(slot);
     *slot = found[i];

@@ -111,6 +111,41 @@ static void contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_seri
   finish(&f);
 }
 
+/* A turn that asks for contents once per object must not take the whole list of records that many times. */
+static void contents_asked_for_again_take_no_more_room_until_the_overlay_changes(void) {
+  fixture f;
+  sprout_draft draft;
+  const sprout_str *kids;
+  size_t count, i, before, after, n = 200;
+  long bytes_before, bytes_after;
+  const sprout_stored_instance *moved;
+  begin(&f);
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  CHECK_INT(sprout_draft_children(&draft, S(ROOM), &kids, &count), SPROUT_DRAFT_OK);
+  before = count;
+  bytes_before = f.heap.bytes;
+  for (i = 0; i < n; i++) CHECK_INT(sprout_draft_children(&draft, S(ROOM), &kids, &count), SPROUT_DRAFT_OK);
+  bytes_after = f.heap.bytes;
+  /* Each lookup keeps its small result; the list of every record is taken once, not two hundred times. */
+  CHECK(bytes_after - bytes_before < (long)(n * f.state->instance_count * sizeof(void *) / 2));
+  CHECK_INT(count, before);
+  /* A change of the overlay is seen by the next lookup: a thing placed in the room is among its contents. */
+  moved = sprout_draft_instance(&draft, S(WORLD "#1"));
+  CHECK(moved != NULL);
+  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
+  after = count;
+  {
+    sprout_str yard = S(YARD);
+    CHECK_INT(sprout_draft_place(&draft, S(WORLD "#1"), &yard), SPROUT_DRAFT_OK);
+  }
+  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK_INT(count, after + 1);
+  CHECK_BYTES(kids[count - 1].bytes, kids[count - 1].length, WORLD "#1");
+  CHECK_INT(sprout_draft_children(&draft, S(ROOM), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK_INT(count, before - 1);
+  finish(&f);
+}
+
 static void a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_as_it_was(void) {
   fixture f;
   sprout_draft draft;
@@ -471,6 +506,7 @@ static void a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_
 int main(void) {
   RUN(reads_go_through_to_the_state_and_dormant_records_are_not_instances);
   RUN(contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_serial);
+  RUN(contents_asked_for_again_take_no_more_room_until_the_overlay_changes);
   RUN(a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_as_it_was);
   RUN(a_record_cannot_be_moved_by_writing_it);
   RUN(placing_moves_an_instance_last_under_a_new_arrival_serial);
