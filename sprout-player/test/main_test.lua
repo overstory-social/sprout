@@ -3,6 +3,7 @@
 -- device, with what each frame draws captured. It finds the errors the pieces' own tests cannot:
 -- a name the wiring got wrong, a mode that does not lead to the next.
 
+local levels = helper("levels")
 local test, equal, same = harness.test, harness.equal, harness.same
 
 local function count(calls, prefix)
@@ -75,6 +76,7 @@ local function run(scenario, options)
 
   -- the engine
   local view = fixture(options.view or "chip-tree.view.json")
+  local chips = levels(json.decode(view).chips or {})
   _G.sprout = {
     inspect = function(path) calls[#calls + 1] = "inspect " .. path; return '{"ok":true,"name":"chip_tree","reason":null}' end,
     open = function() calls[#calls + 1] = "open"; return '{"ok":true,"name":"chip_tree","hash":"abc","reason":null}' end,
@@ -91,6 +93,7 @@ local function run(scenario, options)
       return '{"admitted":true,"words":"","visit":"visit:player","lines":[{"reader":"visit:player","kind":"described","text":"There is nothing special about a hall."}]}'
     end,
     view = function() return view end,
+    chips = function(path) calls[#calls + 1] = "chips " .. path; return json.encode(chips(json.decode(path))) end,
     turn = function(reading)
       if options.turnPicture then
         calls[#calls + 1] = "turn " .. reading

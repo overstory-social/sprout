@@ -43,4 +43,7 @@ sprout_status sprout_chip_tree_of(sprout_arena *arena, const sprout_seen_view *v
 /* The tree as a JSON tree in `arena`: NULL when the host refuses a page. */
 sprout_json *sprout_chip_tree_json(sprout_arena *arena, const sprout_chip_tree *tree);
 
+/* A leaf as a JSON object in `arena`: its typed line, its refusal (null where none) and its options; NULL when the host refuses a page. */
+sprout_json *sprout_chip_leaf_json(sprout_arena *arena, const sprout_seen_reading *reading);
+
 #endif

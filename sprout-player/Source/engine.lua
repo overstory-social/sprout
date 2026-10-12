@@ -29,8 +29,14 @@ function Engine:load() return self:decode(self.api.load()) end
 -- Admits the visitor: { admitted, words, lines }. Catch-up runs first and tells nothing.
 function Engine:admit(nickname) return self:decode(self.api.admit(nickname)) end
 
--- The visitor's view: { place = { id, name }, description, exits, occupants, carried, chips }.
+-- The visitor's view: { place = { id, name }, description, exits, occupants, carried, faulted }.
 function Engine:view() return self:decode(self.api.view()) end
+
+-- One level of the last view's chip tree: `path` is the picks so far as 1-based indexes (empty for the
+-- verbs). { choices = { { verb | filler, greyed, reason } }, leaf }, or { ok = false, reason } with none.
+function Engine:chips(path)
+  return self:decode(self.api.chips(#path == 0 and "[]" or self.json.encode(path)))
+end
 
 -- One command turn from a reading the sentence builder made: { committed, lines }.
 function Engine:turn(reading) return self:decode(self.api.turn(self.json.encode(reading))) end

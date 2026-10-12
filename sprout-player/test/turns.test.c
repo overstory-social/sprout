@@ -145,7 +145,8 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   player_load(s);
   player_admit(s, "Marta");
   view = keep(player_view(s));
-  reading_from(view, "fire", "a kiln", reading, sizeof reading);
+  CHECK(HAS(view, "\"place\""), "the view: %.60s", view);
+  reading_from(s, "fire", "a kiln", reading, sizeof reading);
   told = keep(player_turn(s, reading));
   CHECK(HAS(told, "The chamber takes the flame."), "%s", told);
   player_close(s);

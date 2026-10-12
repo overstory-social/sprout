@@ -6,11 +6,11 @@
 
 static void every_function_is_registered_under_sprout(void) {
   static const char *const names[] = {"sprout.inspect", "sprout.open", "sprout.step", "sprout.load", "sprout.admit",
-                                      "sprout.view",    "sprout.turn", "sprout.tick", "sprout.save", "sprout.close",
+                                      "sprout.view",    "sprout.chips", "sprout.turn", "sprout.tick", "sprout.save", "sprout.close",
                                       "sprout.verify",  "sprout.digest"};
   size_t i;
   begin_bridge("register");
-  CHECK(fake->function_count == 12, "registered %d functions", fake->function_count);
+  CHECK(fake->function_count == 13, "registered %d functions", fake->function_count);
   for (i = 0; i < sizeof names / sizeof *names; i++) {
     int j;
     bool found = false;

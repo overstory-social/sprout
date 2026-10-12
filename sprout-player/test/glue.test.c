@@ -77,7 +77,8 @@ static void a_built_turn_leaves_the_stored_world_a_typed_line_does(void) {
   call("sprout.load", NULL);
   CHECK(HAS(call("sprout.admit", "player"), "\"admitted\":true"), "arriving");
   view = call("sprout.view", NULL);
-  CHECK(HAS(view, "\"verb\":\"value_first.tune\""), "the verb is offered: %.100s", view);
+  CHECK(HAS(view, "\"place\":{\"id\":\"value_first.hall\"") && !HAS(view, "\"chips\""), "the view, without the tree: %.100s", view);
+  CHECK(HAS(call("sprout.chips", "[]"), "\"verb\":\"value_first.tune\""), "the verb is offered a level at a time");
   told = call("sprout.turn", "{\"verb\":\"value_first.tune\",\"text\":\"tune 4 on dial\",\"fillers\":["
                              "{\"role\":\"knob\",\"binds\":\"object\",\"id\":\"value_first.hall.dial\"},"
                              "{\"role\":\"notch\",\"binds\":\"value\",\"value\":4}]}");

@@ -11,7 +11,7 @@ local function api(replies)
     end
   end
   local table_ = { seen = seen }
-  for _, name in ipairs({ "inspect", "open", "step", "load", "admit", "view", "turn", "tick", "save", "close", "verify", "digest" }) do
+  for _, name in ipairs({ "inspect", "open", "step", "load", "admit", "view", "chips", "turn", "tick", "save", "close", "verify", "digest" }) do
     table_[name] = call(name)
   end
   return table_
@@ -24,7 +24,8 @@ test("each call is decoded from the JSON the C side returns", function()
     step = '{"ok":true,"done":true,"read":3,"counted":3,"words":["guard"]}',
     load = '{"ok":true,"fresh":true,"nickname":null,"present":[],"last":0,"recovered":false,"words":""}',
     admit = '{"admitted":true,"words":"","visit":"visit:player","lines":[{"reader":"visit:player","kind":"described","text":"A hall."}]}',
-    view = '{"place":{"id":"chip_tree.hall","name":"a hall"},"description":["A hall."],"exits":[],"occupants":[],"carried":[],"chips":[],"faulted":false}',
+    view = '{"place":{"id":"chip_tree.hall","name":"a hall"},"description":["A hall."],"exits":[],"occupants":[],"carried":[],"faulted":false}',
+    chips = '{"choices":[{"verb":"chip_tree.juggle","greyed":false,"reason":null}],"leaf":null}',
     tick = '{"ran":false,"lines":[]}',
     save = '{"ok":true,"words":""}',
     close = '{"lines":[]}',
@@ -36,11 +37,15 @@ test("each call is decoded from the JSON the C side returns", function()
   equal(engine:load().fresh, true)
   equal(engine:admit("Moss").lines[1].text, "A hall.")
   equal(engine:view().place.name, "a hall")
+  equal(engine:chips({}).choices[1].verb, "chip_tree.juggle")
+  equal(engine:chips({ 1, 2 }).choices[1].verb, "chip_tree.juggle")
   equal(engine:tick().ran, false)
   equal(engine:save().ok, true)
   equal(#engine:close().lines, 0)
   equal(fake.seen[1].argument, "a.sproutworld")
   equal(fake.seen[5].argument, "Moss")
+  equal(fake.seen[7].argument, "[]", "the verbs are asked for with an empty path")
+  equal(fake.seen[8].argument, "[1,2]", "a level by the picks so far")
 end)
 
 test("a signature check and a file digest cross as strings and come back decoded", function()
