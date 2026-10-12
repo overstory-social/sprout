@@ -22,7 +22,7 @@
 // visitor does; a place reached no such way is out of range and faults.
 
 import { isActor } from '../declare/actors.js';
-import { engineMessage } from '../declare/engine-messages.js';
+import { ARRIVED, DEPARTED, type EngineMessage } from '../declare/engine-messages.js';
 import type { GuardName } from '../syntax/ast.js';
 import { surroundOf } from './audience.js';
 import type { Speech } from './body.js';
@@ -353,7 +353,7 @@ export function placeLeft(
   to: InstanceId,
   way: string | null = null,
 ): PlaceSpoke {
-  const heard = told(draft, range, place, actor, 'departed');
+  const heard = told(draft, range, place, actor, DEPARTED);
   return {
     sends: heard.sent.map((recipient) => ({ message: 'departed', recipient, actor, to })),
     notices: [
@@ -388,7 +388,7 @@ export function placeEntered(
   from: InstanceId,
   way: string | null = null,
 ): PlaceSpoke {
-  const heard = told(draft, range, place, actor, 'arrived');
+  const heard = told(draft, range, place, actor, ARRIVED);
   const notices: Notice[] = [
     {
       notice: 'arrives',
@@ -422,13 +422,11 @@ function told(
   range: RangeContext<InstanceId>,
   place: InstanceId,
   actor: InstanceId,
-  message: 'arrived' | 'departed',
+  message: EngineMessage,
 ): { readonly read: InstanceId[]; readonly sent: InstanceId[] } {
   const read: InstanceId[] = [];
   const sent: InstanceId[] = [];
-  const asking = engineMessage(message);
-  if (asking === null) throw new Error(`\`${message}\` is not an engine message.`);
-  for (const { node } of rangeOf(range, place, asking).reached) {
+  for (const { node } of rangeOf(range, place, message).reached) {
     if (node === actor) continue;
     if (draft.instance(node)?.made.from === 'visitor') read.push(node);
     else sent.push(node);

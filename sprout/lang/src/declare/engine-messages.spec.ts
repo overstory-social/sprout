@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ENGINE_MESSAGES, engineMessage } from './engine-messages.js';
+import { ARRIVED, DEPARTED, ENGINE_MESSAGES, engineMessage } from './engine-messages.js';
 
 describe('the engine’s own messages', () => {
   it('are the eight the spec lists, and only those', () => {
@@ -30,6 +30,11 @@ describe('the engine’s own messages', () => {
       tick: ['elapsed:integer'],
       woke: ['elapsed:integer'],
     });
+  });
+
+  it('names the two a move’s notices walk as, the very entries the list holds', () => {
+    expect(engineMessage('arrived')).toBe(ARRIVED);
+    expect(engineMessage('departed')).toBe(DEPARTED);
   });
 
   it('knows one of its own from an authored one', () => {
