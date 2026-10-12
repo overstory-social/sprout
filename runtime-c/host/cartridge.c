@@ -38,15 +38,25 @@ const char *sproutc_cartridge_describe(FILE *out, const sprout_host *host, const
 
   if (why != NULL) return why;
   if (sprout_arena_init(&arena, host) != SPROUT_OK) return "the host record cannot give the reader memory.";
-  if (sprout_gunzip(&arena, bytes + SPROUTC_CARTRIDGE_HEADER_BYTES, length - SPROUTC_CARTRIDGE_HEADER_BYTES,
-                    &json, &json_length, &unpack) != SPROUT_OK) {
-    sprout_arena_reset(&arena);
-    return unpack != NULL ? unpack : "the host record cannot give the reader memory.";
-  }
-  /* The preamble is the JSON before the table, whose offset the header gives; its padding is NULs. */
+  /* The preamble is the JSON before the table, whose offset the header gives, so only that much is inflated; its padding is NULs. */
   {
     size_t table_at = (size_t)bytes[12] | ((size_t)bytes[13] << 8) | ((size_t)bytes[14] << 16) | ((size_t)bytes[15] << 24);
-    if (table_at < json_length) json_length = table_at;
+    sprout_inflater inflater;
+    size_t got = 0;
+    json = (char *)sprout_arena_take(&arena, table_at + 1);
+    if (json == NULL || sprout_inflate_begin(&inflater, bytes + SPROUTC_CARTRIDGE_HEADER_BYTES,
+                                             length - SPROUTC_CARTRIDGE_HEADER_BYTES, &unpack) != SPROUT_OK) {
+      sprout_arena_reset(&arena);
+      return unpack != NULL ? unpack : "the host record cannot give the reader memory.";
+    }
+    while (json_length < table_at) {
+      if (sprout_inflate_next(&inflater, (unsigned char *)json + json_length, table_at - json_length, &got, &unpack) != SPROUT_OK) {
+        sprout_arena_reset(&arena);
+        return unpack;
+      }
+      if (got == 0) break;
+      json_length += got;
+    }
     while (json_length > 0 && json[json_length - 1] == '\0') json_length--;
   }
   if (sprout_json_read(&arena, json, json_length, &root, &error) != SPROUT_OK) {
