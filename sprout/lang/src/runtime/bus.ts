@@ -13,7 +13,9 @@
 // as their `from` are dropped, and what its destroying body sent goes with
 // it. And the queue is the one place those rules are kept: nothing else
 // delivers. Once it is empty, what `finally destroy self` marked is
-// destroyed, in the order marked, and that sends nothing.
+// destroyed, in the order marked, and that sends nothing. A send its
+// recipient has nothing to run for is never queued, since delivering it
+// would run nothing and cost nothing.
 
 import { libraryOf } from '../declare/enums.js';
 import type { KindRef } from '../declare/kinds.js';
@@ -54,6 +56,8 @@ export interface Drained {
   readonly destroyed: readonly InstanceId[];
   /** How many deliveries ran a handler or a hook. */
   readonly events: number;
+  /** How many sends were queued: only those whose recipient had a handler or a hook for them. */
+  readonly queued: number;
   /** Every handler and hook that ran, in the order run, for an author's tools that ask what a playthrough reached. */
   readonly ran: readonly Ran[];
 }
@@ -92,6 +96,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
   let queue: Envelope[] = [];
   let head = 0;
   let events = 0;
+  let queuedCount = 0;
 
   const drop = (removed: readonly InstanceId[]): void => {
     if (removed.length === 0) return;
@@ -100,8 +105,16 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
     queue = queue.slice(head).filter(({ sent }) => !touchesGone(sent, gone));
     head = 0;
   };
+  // A send its recipient has no handler or hook for would deliver nothing, so it is never queued: what a
+  // move or a broadcast reaches in range costs the queue only where something there answers it.
   const enqueue = (sends: readonly Sent[], depth: number): void => {
-    for (const sent of sends) if (!touchesGone(sent, gone)) queue.push({ sent, depth });
+    for (const sent of sends) {
+      if (touchesGone(sent, gone)) continue;
+      const recipient = draft.instance(sent.recipient);
+      if (recipient === undefined || !answers(sent, recipient.kind)) continue;
+      queue.push({ sent, depth });
+      queuedCount += 1;
+    }
   };
 
   drop(queued.destroyed);
@@ -141,7 +154,7 @@ export function drain(queued: Queued, context: ReadingContext): Drained {
     if (gone.has(id) || draft.instance(id) === undefined) continue;
     drop(destroyInstance(draft, id).removed);
   }
-  return { said, described, destroyed, events, ran };
+  return { said, described, destroyed, events, queued: queuedCount, ran };
 }
 
 /** One body a delivery runs: its block, what it names what it is passed, the kind that wrote it, what it answers and where. */
@@ -151,6 +164,13 @@ interface Delivered {
   readonly origin: string;
   readonly on: string;
   readonly at: string;
+}
+
+/** Whether a recipient of `kind` has any handler for `sent`'s message, or any hook for its property. */
+function answers(sent: Sent, kind: KindRef): boolean {
+  if (sent.message === 'changed') return (kind.hooks.get(sent.property)?.length ?? 0) > 0;
+  const key = sent.message === 'authored' ? messageKey({ declared: sent.declared }) : sent.message;
+  return (kind.handlers.get(key)?.length ?? 0) > 0;
 }
 
 /** What `sent` runs on a recipient of `kind`: its handlers for the message, or its hooks for the property. */

@@ -14,7 +14,8 @@
  * their `from` are dropped, and what its destroying body sent goes with it.
  * And the queue is the one place those rules are kept: nothing else delivers.
  * Once it is empty, what `finally destroy self` marked is destroyed, in the
- * order marked, and that sends nothing.
+ * order marked, and that sends nothing. A send its recipient has nothing to
+ * run for is never queued, since delivering it would run nothing.
  */
 #include <string.h>
 
@@ -32,16 +33,44 @@ static bool touches_gone(const sprout_exec *x, const sprout_send *send) {
   return is_gone(x, send->recipient) || (send->has_from && is_gone(x, send->from));
 }
 
+static const char *engine_key(sprout_message_kind kind);
+static const sprout_node *answering(const sprout_exec *x, const sprout_send *send, const sprout_kind_def *kind,
+                                    const char *key);
+
 /*
  * Queues one send behind everything waiting, unless it touches something
- * already gone. The queue is one array read from `queue_head`: when it is
- * full and more than half of it is delivered, the waiting tail is moved to
- * its start rather than the array grown, so it holds at most a few times the
- * largest backlog rather than everything the turn ever queued.
+ * already gone or its recipient has no handler or hook for it. The queue is
+ * one array read from `queue_head`: when it is full and more than half of it
+ * is delivered, the waiting tail is moved to its start rather than the array
+ * grown, so it holds at most a few times the largest backlog rather than
+ * everything the turn ever queued.
  */
 sprout_eval_status sprout_exec_queue(sprout_exec *x, const sprout_send *send) {
   sprout_send *slot;
   if (touches_gone(x, send)) return SPROUT_EVAL_OK;
+  {
+    /* A send its recipient has nothing to run for would deliver nothing, so it is never queued. */
+    const sprout_stored_instance *recipient = sprout_draft_instance(x->draft, send->recipient);
+    const char *key = NULL;
+    const sprout_node *bodies;
+    char written[128];
+    if (recipient == NULL || recipient->kind == NULL) return SPROUT_EVAL_OK;
+    if (send->message == SPROUT_MSG_AUTHORED) {
+      /* The key in a buffer of the stack where it fits, so asking takes nothing from the turn. */
+      size_t library = strlen(send->declared->library), name = strlen(send->declared->name);
+      if (library + name + 2 <= sizeof written) {
+        memcpy(written, send->declared->library, library);
+        written[library] = '.';
+        memcpy(written + library + 1, send->declared->name, name + 1);
+        key = written;
+      } else
+        key = stmt_message_key(x, send->declared);
+    } else if (send->message != SPROUT_MSG_CHANGED)
+      key = engine_key(send->message);
+    if (send->message != SPROUT_MSG_CHANGED && key == NULL) return SPROUT_EVAL_NO_MEMORY;
+    bodies = answering(x, send, recipient->kind, key);
+    if (bodies == NULL || bodies->count == 0) return SPROUT_EVAL_OK;
+  }
   if (x->queue_count == x->queue_capacity && x->queue_head > x->queue_capacity / 2) {
     memmove(x->queue, x->queue + x->queue_head, (x->queue_count - x->queue_head) * sizeof *x->queue);
     x->queue_count -= x->queue_head;
@@ -133,27 +162,34 @@ static const char *engine_key(sprout_message_kind kind) {
   }
 }
 
+/* The handlers or hooks a recipient of `kind` has for `send`, or NULL; `key` is the message's, for any but `changed`. */
+static const sprout_node *answering(const sprout_exec *x, const sprout_send *send, const sprout_kind_def *kind,
+                                    const char *key) {
+  if (send->message == SPROUT_MSG_CHANGED)
+    return sprout_node_map_find(&x->world->graph, sprout_node_get(&x->world->graph, kind->node, "hooks"), send->property);
+  return sprout_node_map_find(&x->world->graph, sprout_node_get(&x->world->graph, kind->node, "handlers"), key);
+}
+
 /* The handlers or hooks a delivery runs on a recipient of `kind`, and the key they answer. */
 static sprout_eval_status bodies_for(const sprout_exec *x, const sprout_send *send, const sprout_kind_def *kind,
                                      const sprout_node **bodies, const char **on) {
-  const sprout_node *table;
-  const char *key;
+  const char *key = NULL;
   *bodies = NULL;
+  if (send->message != SPROUT_MSG_CHANGED) {
+    key = send->message == SPROUT_MSG_AUTHORED ? stmt_message_key(x, send->declared) : engine_key(send->message);
+    if (key == NULL) return SPROUT_EVAL_NO_MEMORY;
+  }
+  *bodies = answering(x, send, kind, key);
+  if (*bodies == NULL || (*bodies)->count == 0) return SPROUT_EVAL_OK;
   if (send->message == SPROUT_MSG_CHANGED) {
     size_t length = strlen(send->property);
     char *text = (char *)sprout_arena_take(x->turn, length + 10);
     if (text == NULL) return SPROUT_EVAL_NO_MEMORY;
     memcpy(text, "changed :", 9);
     memcpy(text + 9, send->property, length);
-    *on = text;
-    *bodies = sprout_node_map_find(&x->world->graph, sprout_node_get(&x->world->graph, kind->node, "hooks"), send->property);
-    return SPROUT_EVAL_OK;
+    key = text;
   }
-  key = send->message == SPROUT_MSG_AUTHORED ? stmt_message_key(x, send->declared) : engine_key(send->message);
-  if (key == NULL) return SPROUT_EVAL_NO_MEMORY;
-  table = sprout_node_get(&x->world->graph, kind->node, "handlers");
   *on = key;
-  *bodies = sprout_node_map_find(&x->world->graph, table, key);
   return SPROUT_EVAL_OK;
 }
 

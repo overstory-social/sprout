@@ -61,6 +61,18 @@ describe('the queue drains', () => {
     expect(drained.events).toBe(3);
   });
 
+  it('queues a send only where its recipient has a handler or a hook for it', () => {
+    const one = eventTurn();
+    // The chest answers nothing, so a message to it is never queued, and costs no event.
+    const ignored = drain(queued(sent('lit', CHEST, BELL, true)), context(one));
+    expect(ignored.queued).toBe(0);
+    expect(ignored.events).toBe(0);
+    // The lamp's handler, the hook its write fires and its answer to the bell are each queued and delivered.
+    const answered = drain(queued(sent('lit', LAMP, BELL, true)), context(eventTurn()));
+    expect(answered.queued).toBe(answered.events);
+    expect(answered.queued).toBe(3);
+  });
+
   it('lists every handler and hook it ran, in the order run: the kind that wrote it, what it answers, and where', () => {
     const one = eventTurn();
     const drained = drain(queued(sent('lit', LAMP, BELL, true)), context(one));

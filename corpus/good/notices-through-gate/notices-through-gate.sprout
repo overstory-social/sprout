@@ -1,9 +1,9 @@
-// A world that opens its `pass any` for a leap across the map, and keeps
-// the move's notices in the places it joins (the spec's Places, and
-// Containers route): the world passes `any` while the gate is open, so the
-// tower is in range of the leaper's move, and refuses `:arrived` and
-// `:departed`, so the hall reads the leaver go, the tower reads the arrival,
-// and the garden, open to both through the world, reads neither.
+// A world that opens its `pass any` for a leap across the map, and so puts
+// the tower in range of the leaper's move, while the move's notices stay in
+// the places it joins (the spec's Places, and Containers route): the world's
+// `pass any` never answers for `:arrived` and `:departed`, so the hall reads
+// the leaver go, the tower reads the arrival, and the garden, open to both
+// through the world, reads neither.
 import * as sprout from 'sprout'
 import {Person, :open_gate, :gate_open, :close_gate} from 'person'
 
@@ -13,8 +13,6 @@ world notices_through_gate is sprout.World {
 
   :gate false
   pass any (self.get(:gate))
-  pass :arrived (false)
-  pass :departed (false)
 
   on :open_gate (from) {
     self.set(:gate, true)
