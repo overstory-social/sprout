@@ -28,10 +28,13 @@ player_arrival *player_arrival_new(player_app *app, const char *path, const char
   return arrival;
 }
 
-/* Stops with `words` on the message screen; the world, if any of it is open, is closed. */
+/*
+ * Stops with `words` on the message screen; the world, if any of it is open, is closed. The words
+ * may be the session's, which last only until its next call, so the message copies them first.
+ */
 static void stop(player_app *app, const char *words) {
-  player_close(app->session);
   player_message_show(app, words);
+  player_close(app->session);
 }
 
 /* The world itself refused to open: the shelf keeps the reason. */
