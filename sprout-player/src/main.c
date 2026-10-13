@@ -28,6 +28,12 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
       pd->system->error("sprout-player: %s", why);
     else
       pd->system->setUpdateCallback(player_app_update, app);
+  } else if (app == NULL) {
+    return 0;
+  } else if (event == kEventLock || event == kEventLowPower) {
+    player_app_sleep(app);
+  } else if (event == kEventUnlock) {
+    player_app_wake(app);
   } else if (event == kEventTerminate) {
     player_app_free(app);
     app = NULL;

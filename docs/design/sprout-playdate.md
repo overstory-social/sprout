@@ -290,8 +290,10 @@ context: update with the buttons and the crank, draw, and leave; a screen
 moves the app to another, and the move takes effect when its update is over.
 The app starts on the shelf (`src/ui/shelf.h`), which is `Source/shelf.lua`'s
 as above; the app holds it, so it outlives its screen and a cartridge is
-inspected once for as long as the app runs. Its "more worlds..." row waits
-for the download screen. A on a world shows the arrival
+inspected once for as long as the app runs. Its "more worlds..." row opens
+the download screen (`src/ui/downloads.h`), and when the list of worlds could
+not be had there, the row's panel says why until it is tried again. A on a
+world shows the arrival
 (`src/ui/arrival.h`), which reads the cartridge a step a frame behind a
 loading line, loads the save and shows the nickname screen
 (`src/ui/nickname.h`), `nickname.lua` in C as Nickname below describes it:
@@ -353,10 +355,48 @@ freed when it ends. Every screen sounds a cue through `player_cue` in
 nickname screen's tick, pick, back and refusal, and the pictures' tick and
 clack. With no synth a cue is silent.
 
+The reader's clock (`src/ui/clock.h`) is `Source/clock.lua`'s: while a
+reader is open, a tick is asked of the session (`player_tick`) every ten
+seconds of the device's clock, clamped so a clock set back brings no tick
+sooner; what the tick told is added to the transcript and the status looked
+at again, and the pictures it asked for are shown as a turn's are. A tick is
+asked for only while the reader itself is on show, so one that falls due
+under the builder or the pictures comes when they close. A tick whose save
+could not be written stops play as a turn's does. `kEventLock` and
+`kEventLowPower` stop the count and `kEventUnlock` begins it afresh, so the
+time the device was locked or asleep owes no tick of its own; the next tick's
+`elapsed` carries it, and the session's catch-up and clamp are unchanged.
+The C API has no wake event: the device wakes from low-power sleep locked,
+on the reading that its unlock is what starts the ticks again.
+`kEventTerminate` frees the app, which leaves the screen on show and closes
+the world, the save written: the one path Lua's `gameWillTerminate` takes.
+
+The download screen (`src/ui/downloads.h`) is `Source/downloads.lua`,
+`net.lua` and `config.lua` in C, over the SDK's C network API
+(`src/host/net.h`, each call on the main stack as the file calls are). The C
+API cannot pause the game for the permission dialog, so a fetch asks with
+`requestAccess` and the purpose string and waits for the answer across
+frames, saying so on the screen; the system's answer, the header that carries
+a redirect's `Location`, and the end of an answer all come by callback, and
+the screen polls. The index is read and verified by `src/signed_index.h`
+against the key the build bakes in as the generated `publickey.h`
+(`PLAYER_INDEX_PUBLIC_KEY_FILE`, which `scripts/playdate-player.mjs` sets
+from the same file it writes `publickey.lua` from), and a world is written a
+piece at a time (`player_file_create` and its kin in `src/host/files.h`),
+hashed with `player_digest`, and shelved as Shipped worlds and downloads
+below describes, with the share of the file arrived in the panel. The index
+address is `PLAYER_INDEX_URL` in `downloads.h`, the same placeholder as
+`config.lua`'s, and the Data folder's `downloads.json` points it elsewhere
+for both apps.
+
 The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) loads a
 bitmap from a PNG at the size its header declares, draws it as a black block
 and records each draw, and records each note a synth plays; `gallery`,
-`pictures` and `sound` are the test programs.
+`pictures` and `sound` are the test programs. Its network serves canned
+answers a piece a frame behind the permission a test says the person gives,
+answers an address it does not know with 404, and can fall silent; `clock`,
+`net` and `downloads` are those test programs, and `ui` drives the ticks
+across a lock and a low-power sleep through `main.c`'s event handler.
 
 ### The chip tree and the crank sentence builder
 
@@ -447,7 +487,8 @@ Host seconds are the device's seconds since 2000-01-01
 (`playdate.getSecondsSinceEpoch`), clamped so they never go below the
 greatest seen, which the save records. The reader asks for a tick every ten
 seconds while a world is open, never on the shelf, in the background or
-while the device sleeps. A world opened after an absence is caught up by one
+while the device sleeps or is locked; the time away owes no tick of its own
+and is carried by the next tick's `elapsed`. A world opened after an absence is caught up by one
 maintenance turn: wakes due are delivered at that turn, at most 64, with the
 instant of the turn rather than their due times, and it narrates nothing.
 A step's seed is drawn from the clock at the step's start and mixed by
@@ -540,7 +581,8 @@ first eight digits of the bundle hash, so two builds of one world sit side
 by side; a newer build does not replace or remove an older one, whose save
 would be orphaned. The index is read to at most 256 KB.
 
-The index address is `sprout-player/Source/config.lua`, a placeholder that
+The index address is `sprout-player/Source/config.lua` (and
+`PLAYER_INDEX_URL` in the C app's `src/ui/downloads.h`), a placeholder that
 never resolves until a real one is chosen; `downloads.json` in the Data
 folder points a built app elsewhere. Without Wi-Fi, with permission
 refused, or with a server that cannot be reached, the screen says why, B
@@ -618,7 +660,13 @@ Not yet checked:
 - a real network fetch, and the system's permission dialog: what the system
   returns when the person refuses is not documented, so a refusal is read
   as `http.new` returning nothing or the request failing, both told in
-  words;
+  words; in C, as `requestAccess` answering no or `newConnection` giving
+  NULL. The C app's fetch has run only against the fake network: which
+  callbacks the system calls on a server that closes without a
+  `Content-Length`, and whether the network calls need the main stack as
+  the file calls do, are unchecked (they are put there to be safe);
+- the C app's lock and low-power events on a Simulator or a console, and
+  that a console waking from low-power sleep sends `kEventUnlock`;
 - the picture's look (1-bit scaling) and the time it takes to load one.
 
 ## Verified SDK facts (SDK 3.1.2)
@@ -665,6 +713,16 @@ memory:
   person's permission for a server, with a purpose string, by pausing the
   runtime, so a request starts from `update()` and never from a callback.
   Wi-Fi sleeps 30 seconds after the last request.
+- In C (`pd_api_network.h`, `Inside Playdate with C`), `http->requestAccess`
+  must be called before `newConnection`, since C cannot pause the game for
+  the dialog: it answers `kAccessAllow`, `kAccessDeny`, or `kAccessAsk` with
+  the person's answer to come through its callback. `newConnection` gives
+  NULL where permission was not given; a header, the end of an answer and the
+  server closing each come through a callback on the connection; and `read`
+  waits for more than is available, so the app reads only what
+  `getBytesAvailable` says is there. The events are `kEventLock`,
+  `kEventUnlock`, `kEventLowPower` and `kEventTerminate`; there is no wake
+  event.
 - A compiled image is kept in the pdx under its name without `.png`.
 - The data folder in the Simulator is
   `$PLAYDATE_SDK_PATH/Disk/Data/<bundleID>/`, here

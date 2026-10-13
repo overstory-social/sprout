@@ -20,6 +20,7 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
     return NULL;
   }
   player_sound_init(&app->sound, pd);
+  player_clock_init(&app->clock);
   app->session = player_session_new(pd);
   app->shelf = app->session != NULL ? player_shelf_new(app) : NULL;
   if (app->shelf == NULL) {
@@ -51,6 +52,12 @@ void player_app_free(player_app *app) {
   player_sound_free(&app->sound);
   player_free(app->pd, app);
 }
+
+uint64_t player_app_seconds(const player_app *app) { return app->pd->system->getSecondsSinceEpoch(NULL); }
+
+void player_app_sleep(player_app *app) { player_clock_sleep(&app->clock); }
+
+void player_app_wake(player_app *app) { player_clock_wake(&app->clock, player_app_seconds(app)); }
 
 void player_cue(player_app *app, player_cue_name name) { player_sound_play(&app->sound, name); }
 

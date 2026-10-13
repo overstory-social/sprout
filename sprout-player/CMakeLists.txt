@@ -60,13 +60,33 @@ include(${SDK}/C_API/buildsupport/playdate_game.cmake)
 
 # Everything but the entry point, so the glue's tests link the same code the app runs.
 set(PLAYER_SOURCES
-  src/bridge.c src/budgets.c src/canonical.c src/ed25519.c src/host/files.c src/host/pd_host.c src/host/stack.c
-  src/reading_json.c src/reply.c src/savelog.c src/seen.c src/session.c src/shipping.c src/signed_index.c src/text.c
-  src/told.c src/turns.c src/ui/app.c src/ui/arrival.c src/ui/builder.c src/ui/drum.c src/ui/gallery.c src/ui/images.c
-  src/ui/message.c src/ui/nickname.c src/ui/pen.c src/ui/pictures.c src/ui/reader.c src/ui/sentence.c src/ui/shelf.c src/ui/sound.c
-  src/ui/transcript.c src/ui/wrap.c)
+  src/bridge.c src/budgets.c src/canonical.c src/ed25519.c src/host/files.c src/host/net.c src/host/pd_host.c
+  src/host/stack.c src/reading_json.c src/reply.c src/savelog.c src/seen.c src/session.c src/shipping.c
+  src/signed_index.c src/text.c src/told.c src/turns.c src/ui/app.c src/ui/arrival.c src/ui/builder.c src/ui/clock.c
+  src/ui/downloads.c src/ui/drum.c src/ui/gallery.c src/ui/images.c src/ui/message.c src/ui/nickname.c src/ui/pen.c
+  src/ui/pictures.c src/ui/reader.c src/ui/sentence.c src/ui/shelf.c src/ui/sound.c src/ui/transcript.c src/ui/wrap.c)
+
+# The publisher's public key, whose signature the download screen requires on the index of worlds,
+# baked in as generated/publickey.h. scripts/playdate-player.mjs names the file it reads
+# (SPROUT_INDEX_PUBLIC_KEY, else the test key, whose private half is in the repository).
+set(PLAYER_INDEX_PUBLIC_KEY_FILE "${CMAKE_CURRENT_SOURCE_DIR}/test/index-test.pub" CACHE FILEPATH
+  "The file holding the index's public key as 64 hexadecimal digits")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PLAYER_INDEX_PUBLIC_KEY_FILE}")
+file(READ "${PLAYER_INDEX_PUBLIC_KEY_FILE}" PLAYER_INDEX_PUBLIC_KEY)
+string(STRIP "${PLAYER_INDEX_PUBLIC_KEY}" PLAYER_INDEX_PUBLIC_KEY)
+if(NOT PLAYER_INDEX_PUBLIC_KEY MATCHES "^[0-9a-f]+$")
+  message(FATAL_ERROR "${PLAYER_INDEX_PUBLIC_KEY_FILE} should hold the public key as 64 lowercase hexadecimal digits.")
+endif()
+string(LENGTH "${PLAYER_INDEX_PUBLIC_KEY}" PLAYER_INDEX_PUBLIC_KEY_LENGTH)
+if(NOT PLAYER_INDEX_PUBLIC_KEY_LENGTH EQUAL 64)
+  message(FATAL_ERROR "${PLAYER_INDEX_PUBLIC_KEY_FILE} should hold the public key as 64 lowercase hexadecimal digits.")
+endif()
+file(CONFIGURE OUTPUT "${CMAKE_BINARY_DIR}/generated/publickey.h" CONTENT
+  "/* Generated from @PLAYER_INDEX_PUBLIC_KEY_FILE@ when the build was configured: the Ed25519 public key whose\n * signature the download screen requires on the index of worlds. Not committed. */\n#define PLAYER_INDEX_PUBLIC_KEY \"@PLAYER_INDEX_PUBLIC_KEY@\"\n"
+  @ONLY)
+
 add_library(sprout_player_core STATIC ${PLAYER_SOURCES})
-target_include_directories(sprout_player_core PUBLIC src PRIVATE ../runtime-c/src)
+target_include_directories(sprout_player_core PUBLIC src PRIVATE ../runtime-c/src ${CMAKE_BINARY_DIR}/generated)
 target_compile_definitions(sprout_player_core PUBLIC TARGET_EXTENSION=1)
 if(TOOLCHAIN STREQUAL "armgcc")
   target_compile_definitions(sprout_player_core PUBLIC PLAYER_DEVICE=1)
@@ -91,7 +111,7 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
   target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack reading_json pd_host budgets told reply savelog session turns seen bridge glue
-    wrap transcript ui builder gallery pictures sound canonical signed_index shelf nickname)
+    wrap transcript ui builder gallery pictures sound canonical signed_index shelf nickname clock net downloads)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)

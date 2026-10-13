@@ -9,7 +9,10 @@
  * fonts/; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
  * to the screen as the device's is. Bitmaps load from PNG files, the size their header declares, and
  * are drawn as a black block of that size, each draw recorded; synths keep what they were set to and
- * record each note played. The SDK's headers are the declarations; nothing of the SDK is linked.
+ * record each note played. The network serves canned answers: each address a test gives is answered
+ * with its status, headers and body, a piece a frame, behind the permission the test says the person
+ * gives; an address it does not know is answered 404. The SDK's headers are the declarations;
+ * nothing of the SDK is linked.
  */
 #ifndef FAKE_PLAYDATE_H
 #define FAKE_PLAYDATE_H
@@ -29,6 +32,8 @@
 #define FAKE_NOTES 256
 #define FAKE_BITMAPS 32
 #define FAKE_DRAWS 32
+#define FAKE_ANSWERS 16
+#define FAKE_CONNECTIONS 8
 
 /* The fonts the fake loads; a run says which it was drawn in. */
 typedef enum fake_font { FAKE_FONT_NONE, FAKE_FONT_SYSTEM, FAKE_FONT_BIG, FAKE_FONT_SMALL } fake_font;
@@ -67,6 +72,30 @@ typedef struct fake_draw {
   int x, y;
   float scale;
 } fake_draw;
+
+/* What the fake server answers at one address. */
+typedef struct fake_answer {
+  char url[512];        /* the whole address, as `https://server/path` (a port only where it is not the scheme's) */
+  int status;
+  const char *location; /* a Location header, or NULL */
+  const char *body;     /* held, not copied */
+  size_t length;
+  int silent;           /* never sends a byte nor finishes, as a server that has stopped answering */
+} fake_answer;
+
+/* A connection the game made: its address, what it asked, how much of the answer it has had. */
+typedef struct fake_connection {
+  int live;
+  char server[256], path[512];
+  int port, ssl;
+  void *userdata;
+  HTTPHeaderCallback *on_header;
+  HTTPConnectionCallback *on_complete, *on_closed;
+  const fake_answer *answer; /* NULL until `get` */
+  fake_answer missing;       /* the 404 for an address no answer names */
+  size_t sent, read;         /* bytes made available, and read */
+  int complete;
+} fake_connection;
 
 typedef struct fake_playdate {
   PlaydateAPI api;
@@ -110,6 +139,25 @@ typedef struct fake_playdate {
   int bitmap_count, bitmaps_live;
   fake_draw draws[FAKE_DRAWS];
   int draw_count;
+  /* the network: whether there is one, the Wi-Fi, what the person answers when asked (an access
+     reply, and for kAccessAsk the answer given at the next frame), how many bytes a frame brings,
+     the answers, the connections made, and what was asked */
+  WifiStatus wifi;
+  int wifi_enabled;
+  enum accessReply access;
+  int allow_when_asked;
+  int asked_pending;
+  AccessRequestCallback *ask_callback;
+  void *ask_userdata;
+  char asked_purpose[256];
+  int asks;
+  size_t piece;
+  fake_answer answers[FAKE_ANSWERS];
+  int answer_count;
+  fake_connection connections[FAKE_CONNECTIONS];
+  int connection_count, connections_live;
+  struct playdate_network network;
+  struct playdate_http http;
   /* the input the next frame reads, and the update callback the game set */
   PDButtons buttons_held, buttons_pushed;
   float crank;
@@ -136,6 +184,12 @@ const fake_run *fake_run_at(const fake_playdate *fake, int x, int y);
 /* The width of a character and the height of a line in `font`. */
 int fake_glyph(const fake_playdate *fake, fake_font font);
 int fake_line(fake_font font);
+
+/* The fake server answers `url` with `status` and `body` (held, not copied); the answer, for a test to change further. */
+fake_answer *fake_serve(fake_playdate *fake, const char *url, int status, const char *body, size_t length);
+
+/* Moves the network on as the time between two frames does: the person's answer, and a piece of each answer under way. */
+void fake_network_step(fake_playdate *fake);
 
 /* Runs one frame through the update callback the game set, with `pushed` pressed and the crank turned `crank` degrees. */
 int fake_frame(fake_playdate *fake, PDButtons pushed, float crank);
