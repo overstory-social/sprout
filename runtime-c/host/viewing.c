@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arena.h"
 #include "chips.h"
 #include "host.h"
 #include "state.h"
@@ -12,14 +13,15 @@
 
 #define USAGE                                                                                         \
   "sproutc: write `sproutc view <world.sproutworld> --state save.json [--visit KEY] [--poll-steps N]\n" \
-  "         [--json]`. --visit names the visit to poll (default `inspector`).\n"
+  "         [--json | --scene | --verb NAME]`. --visit names the visit to poll (default `inspector`);\n" \
+  "         --scene polls the scene and --verb one verb's readings, by its qualified name.\n"
 
 #define EXIT_FAULT 1
 #define EXIT_USAGE 2
 
 typedef struct options {
-  const char *world, *state, *visit;
-  bool json, has_steps;
+  const char *world, *state, *visit, *verb;
+  bool json, scene, has_steps;
   uint64_t steps;
 } options;
 
@@ -41,13 +43,17 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
     const char *flag = argv[i];
     if (strcmp(flag, "--json") == 0) {
       o->json = true;
-    } else if (strcmp(flag, "--state") == 0 || strcmp(flag, "--visit") == 0 || strcmp(flag, "--poll-steps") == 0) {
+    } else if (strcmp(flag, "--scene") == 0) {
+      o->scene = true;
+    } else if (strcmp(flag, "--state") == 0 || strcmp(flag, "--visit") == 0 || strcmp(flag, "--poll-steps") == 0 ||
+               strcmp(flag, "--verb") == 0) {
       if (i + 1 >= argc) {
         snprintf(words, size, "%s wants a value after it.", flag);
         return words;
       }
       if (strcmp(flag, "--state") == 0) o->state = argv[++i];
       else if (strcmp(flag, "--visit") == 0) o->visit = argv[++i];
+      else if (strcmp(flag, "--verb") == 0) o->verb = argv[++i];
       else if (!whole_number(argv[i + 1], &o->steps)) {
         snprintf(words, size, "--poll-steps wants a whole number after it, as in `--poll-steps 200`.");
         return words;
@@ -61,6 +67,8 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
     }
   }
   if (o->state == NULL) return "write --state, the stored world the visitor stands in.";
+  if ((o->json ? 1 : 0) + (o->scene ? 1 : 0) + (o->verb != NULL ? 1 : 0) > 1)
+    return "write one of --json, --scene and --verb: each prints a poll of its own.";
   return NULL;
 }
 
@@ -179,12 +187,16 @@ static void put_reading(FILE *out, sprout_str world, const sprout_seen_reading *
   }
 }
 
-/* The page `sprout view` prints: one section after another, a blank line between. */
-static void put_page(FILE *out, sprout_str world, sprout_str place, const sprout_seen_view *view) {
-  size_t i;
+static void put_standing(FILE *out, sprout_str world, sprout_str place) {
   fputs("standing in ", out);
   put_path(out, world, place);
-  fputs("\n\ndescription\n", out);
+  fputc('\n', out);
+}
+
+/* What a view and a scene both show, from the description to what the visitor carries. */
+static void put_place(FILE *out, sprout_str world, const sprout_seen_view *view) {
+  size_t i;
+  fputs("\ndescription\n", out);
   if (view->description_count == 0) fputs("  (it renders nothing)\n", out);
   for (i = 0; i < view->description_count; i++)
     fprintf(out, "  %.*s\n", (int)view->description[i].length, view->description[i].bytes);
@@ -215,9 +227,37 @@ static void put_page(FILE *out, sprout_str world, sprout_str place, const sprout
     put_thing(out, world, &view->carried[i]);
     fputc('\n', out);
   }
-  fputs("\nwhat they could type\n", out);
+}
+
+static void put_readings(FILE *out, sprout_str world, const sprout_seen_view *view) {
+  size_t i;
   if (view->reading_count == 0) fputs("  nothing\n", out);
   for (i = 0; i < view->reading_count; i++) put_reading(out, world, &view->readings[i]);
+}
+
+/* The page `sprout view` prints: one section after another, a blank line between. */
+static void put_page(FILE *out, sprout_str world, sprout_str place, const sprout_seen_view *view) {
+  put_standing(out, world, place);
+  put_place(out, world, view);
+  fputs("\nwhat they could type\n", out);
+  put_readings(out, world, view);
+}
+
+/* The page `sprout view --scene` prints: the place as the view shows it, then the verbs it lists. */
+static void put_scene(FILE *out, sprout_str world, sprout_str place, const sprout_seen_view *view) {
+  size_t i;
+  put_standing(out, world, place);
+  put_place(out, world, view);
+  fputs("\nverbs they could be offered\n", out);
+  if (view->verb_count == 0) fputs("  none\n", out);
+  for (i = 0; i < view->verb_count; i++) fprintf(out, "  %s\n", view->verbs[i]);
+}
+
+/* The page `sprout view --verb` prints: where the visitor stands, then that verb's readings. */
+static void put_verb(FILE *out, sprout_str world, sprout_str place, const char *verb, const sprout_seen_view *view) {
+  put_standing(out, world, place);
+  fprintf(out, "\nwhat they could type with %s\n", verb);
+  put_readings(out, world, view);
 }
 
 /* The view's canonical JSON, then the chip tree over it. */
@@ -249,6 +289,8 @@ int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
   sprout_status status;
   sprout_seen_view view;
   sprout_str world_id, place = {NULL, 0};
+  sprout_arena keep;
+  bool kept = false;
   int code = 0;
 
   why = options_of(argc, argv, &o, words, sizeof words);
@@ -275,7 +317,17 @@ int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
     goto done;
   }
   world_id = state->world;
-  status = sprout_view(world, state, &host.record, o.visit, &view);
+  if (o.verb != NULL) {
+    status = sprout_arena_init(&keep, &host.record);
+    if (status == SPROUT_OK) {
+      kept = true;
+      status = sprout_readings_for(world, state, &host.record, o.visit, o.verb, &keep, &view);
+    }
+  } else if (o.scene) {
+    status = sprout_scene(world, state, &host.record, o.visit, &view);
+  } else {
+    status = sprout_view(world, state, &host.record, o.visit, &view);
+  }
   if (status != SPROUT_OK) {
     fprintf(err, "sproutc: %s\n", status == SPROUT_BAD_INPUT ? view.fault.text : sprout_status_text(status));
     code = EXIT_USAGE;
@@ -287,6 +339,8 @@ int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
     if (person != NULL && person->has_container) place = person->container;
   }
   if (o.json) code = put_json(&view, out, err);
+  else if (o.verb != NULL) put_verb(out, world_id, place, o.verb, &view);
+  else if (o.scene) put_scene(out, world_id, place, &view);
   else put_page(out, world_id, place, &view);
   if (view.faulted && code == 0) {
     fputc('\n', out);
@@ -297,6 +351,7 @@ int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
   }
   sprout_view_free(&view);
 done:
+  if (kept) sprout_arena_reset(&keep);
   if (state != NULL) sprout_state_free(state);
   if (world != NULL) sprout_world_free(world);
   free(cartridge);

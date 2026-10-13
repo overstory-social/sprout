@@ -13,7 +13,9 @@
 //
 // The views are compared apart from the scripts (`replayViews`): for every `corpus/good` world, the stored
 // world a visitor arrives into is written with the TypeScript runtime, `sproutc view` polls the visitor over it,
-// and the page it prints is compared byte for byte with the page `sprout view` prints.
+// and the page it prints is compared byte for byte with the page `sprout view` prints; then the scene's page
+// (`--scene`), and the readings of each verb the TypeScript runtime's scene lists (`--verb`), each with the page
+// `sprout view` prints for it (`comparePolls`).
 //
 // Used by scripts/check-runtime-c.mjs, which owns the list of worlds that are expected to pass.
 
@@ -37,8 +39,14 @@ import {
   tickEntry,
   wakeEntry,
 } from '@overstory/sprout/core';
-import { DEFAULT_LIMITS, emitCartridge, saveWorld } from '@overstory/sprout/lang';
-import { checkWorld, formatCheck, inspectView } from '@overstory/sprout-cli';
+import { DEFAULT_LIMITS, emitCartridge, pollScene, saveWorld } from '@overstory/sprout/lang';
+import {
+  checkWorld,
+  formatCheck,
+  inspectReadings,
+  inspectScene,
+  inspectView,
+} from '@overstory/sprout-cli';
 import { firstDifference, readScript, standIn, traceOf } from '@overstory/sprout-player';
 
 import { readingsPath, resolveFile } from './resolve-script.mjs';
@@ -279,9 +287,64 @@ function firstLineDifference(expected, got) {
 }
 
 /**
+ * Polls `standing`'s visitor through `sproutc view` (with `flags` after it) over the stored world in the file
+ * `stored`, and compares the page and the exit code with `expected`, the page `sprout view` prints; null where
+ * they agree, or a sentence about the first line that does not, which `what` names.
+ */
+function pollDiffers(sproutc, cartridge, stored, standing, flags, expected, what) {
+  const done = spawnSync(
+    sproutc,
+    ['view', cartridge, '--state', stored, '--visit', standing.visit, ...flags],
+    { encoding: 'utf8' },
+  );
+  if (done.status !== (expected.ok ? 0 : 1)) {
+    return `${what}: exit ${done.status}: ${(done.stderr || done.stdout).trim()}`;
+  }
+  const differs = firstLineDifference(expected.page, done.stdout ?? '');
+  return differs === null ? null : `${what}: ${differs}`;
+}
+
+/**
+ * Compares the scene of `standing`'s visitor, over the stored world in the file `stored`, as `sproutc view
+ * --scene` prints it with the page `sprout view --scene` prints; then, for each verb the TypeScript runtime's
+ * scene lists, `sproutc view --verb`'s page with `sprout view --verb`'s. `standing`'s host must hold the host's
+ * default budgets, which `sproutc` polls under. The first difference in words, or null; `verbs` is how many
+ * verbs' readings were compared.
+ */
+export function comparePolls(sproutc, cartridge, stored, standing) {
+  const scene = inspectScene(standing);
+  const sceneDiffers = pollDiffers(
+    sproutc,
+    cartridge,
+    stored,
+    standing,
+    ['--scene'],
+    scene,
+    'the scene',
+  );
+  if (sceneDiffers !== null) return { differs: sceneDiffers, verbs: 0 };
+  const verbs = pollScene(standing.state, standing.host, standing.visit).scene.verbs.map(
+    (one) => one.verb,
+  );
+  for (const verb of verbs) {
+    const differs = pollDiffers(
+      sproutc,
+      cartridge,
+      stored,
+      standing,
+      ['--verb', verb],
+      inspectReadings(standing, verb),
+      `the readings of ${verb}`,
+    );
+    if (differs !== null) return { differs, verbs: verbs.length };
+  }
+  return { differs: null, verbs: verbs.length };
+}
+
+/**
  * Polls the visitor who arrives in every world under `corpus/good` through `sproutc view` and compares
- * the page with `sprout view`'s; one result per world: its name, whether the pages are the same, and
- * a sentence about the first line that is not.
+ * the page with `sprout view`'s, then the scene's page and each of its verbs' readings (`comparePolls`); one
+ * result per world: its name, whether every page is the same, and a sentence about the first line that is not.
  */
 export function replayViews(sproutc, scratch, corpus = 'corpus/good') {
   const results = [];
@@ -295,18 +358,24 @@ export function replayViews(sproutc, scratch, corpus = 'corpus/good') {
       packWorld(world, cartridge);
       const standing = standIn(checkWorld(world).bundle);
       writeFileSync(stored, JSON.stringify(saveWorld(standing.state)));
-      const expected = inspectView(standing);
-      const done = spawnSync(sproutc, ['view', cartridge, '--state', stored], { encoding: 'utf8' });
-      const differs = firstLineDifference(expected.page, done.stdout ?? '');
-      if (done.status !== (expected.ok ? 0 : 1)) {
-        results.push({
-          name,
-          passed: false,
-          words: `exit ${done.status}: ${(done.stderr || done.stdout).trim()}`,
-        });
-      } else {
-        results.push({ name, passed: differs === null, words: differs ?? 'the same page' });
-      }
+      const differs = pollDiffers(
+        sproutc,
+        cartridge,
+        stored,
+        standing,
+        [],
+        inspectView(standing),
+        'the view',
+      );
+      const polls = differs === null ? comparePolls(sproutc, cartridge, stored, standing) : null;
+      const words = differs ?? polls.differs;
+      results.push({
+        name,
+        passed: words === null,
+        words:
+          words ??
+          `the same view, scene and readings of ${polls.verbs} verb${polls.verbs === 1 ? '' : 's'}`,
+      });
     } catch (err) {
       results.push({
         name,
