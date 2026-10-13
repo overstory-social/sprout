@@ -1,8 +1,7 @@
 /*
- * A PlaydateAPI with only the functions the glue and the screens call, so both are exercised
- * without the SDK's runtime: a clock a test sets, a Data folder and an app folder on the
- * desktop's disk, a Lua stack that holds the arguments a test passes and the strings the glue
- * pushes back, and a screen: graphics that draw into a 400 by 240 one-bit frame, as the
+ * A PlaydateAPI with only the functions the app calls, so the session, the host adapter and the
+ * screens are exercised without the SDK's runtime: a clock a test sets, a Data folder and an app folder on the
+ * desktop's disk, and a screen: graphics that draw into a 400 by 240 one-bit frame, as the
  * Simulator's is, with the text drawn kept as runs, and buttons and a crank a test sets. Three
  * fonts load: the system font, `glyph` pixels a character (FAKE_GLYPH unless a test says
  * otherwise) and FAKE_LINE tall, and the sentence builder's big and small fonts from the pdx's
@@ -11,7 +10,7 @@
  * are drawn as a black block of that size, each draw recorded; synths keep what they were set to and
  * record each note played. The network serves canned answers: each address a test gives is answered
  * with its status, headers and body, a piece a frame, behind the permission the test says the person
- * gives; an address it does not know is answered 404. The SDK's headers are the declarations;
+ * gives; an address it does not know is answered 404. The system menu holds one item a test can choose. The SDK's headers are the declarations;
  * nothing of the SDK is linked.
  */
 #ifndef FAKE_PLAYDATE_H
@@ -19,8 +18,6 @@
 
 #include "pd_api.h"
 
-#define FAKE_ARGS 4
-#define FAKE_FUNCTIONS 16
 #define FAKE_RUNS 128
 #define FAKE_GLYPH 7
 #define FAKE_LINE 18
@@ -101,7 +98,6 @@ typedef struct fake_playdate {
   PlaydateAPI api;
   struct playdate_sys sys;
   struct playdate_file file;
-  struct playdate_lua lua;
   struct playdate_graphics gfx;
   struct playdate_sound sound;
   struct playdate_sound_synth synth;
@@ -109,15 +105,6 @@ typedef struct fake_playdate {
   unsigned seconds, milliseconds, counter;
   /* where kFileWrite and kFileReadData go, and where kFileRead looks */
   char data[512], app[512];
-  /* the Lua stack */
-  const char *args[FAKE_ARGS];
-  int arg_count;
-  char pushed[1 << 19];
-  int push_count;
-  /* what addFunction was given */
-  const char *names[FAKE_FUNCTIONS];
-  lua_CFunction functions[FAKE_FUNCTIONS];
-  int function_count;
   int pages;
   size_t largest; /* the largest single block asked of the allocator */
   /* when set, every file opened for writing fails to open, as on a full disk */
@@ -164,16 +151,14 @@ typedef struct fake_playdate {
   int docked;
   PDCallbackFunction *update;
   void *update_ctx;
+  /* the system menu's one item: its title (empty while there is none), callback and userdata */
+  char menu_title[64];
+  PDMenuItemCallbackFunction *menu_callback;
+  void *menu_ctx;
 } fake_playdate;
 
 /* A fake over the two folders. */
 void fake_init(fake_playdate *fake, const char *data, const char *app);
-
-/* Calls the registered function `name` with up to one string argument; the string it pushed, or NULL if none. */
-const char *fake_call(fake_playdate *fake, const char *name, const char *argument);
-
-/* The same with `count` string arguments. */
-const char *fake_call_with(fake_playdate *fake, const char *name, int count, const char *const *arguments);
 
 /* Whether the pixel at (x, y) is black. */
 int fake_pixel(const fake_playdate *fake, int x, int y);
@@ -190,6 +175,9 @@ fake_answer *fake_serve(fake_playdate *fake, const char *url, int status, const 
 
 /* Moves the network on as the time between two frames does: the person's answer, and a piece of each answer under way. */
 void fake_network_step(fake_playdate *fake);
+
+/* Chooses the system menu's item titled `title`, as the person does from the menu; whether there is one. */
+int fake_menu(fake_playdate *fake, const char *title);
 
 /* Runs one frame through the update callback the game set, with `pushed` pressed and the crank turned `crank` degrees. */
 int fake_frame(fake_playdate *fake, PDButtons pushed, float crank);

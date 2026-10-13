@@ -191,7 +191,7 @@ Four rules keep the layer honest.
 `-DSPROUT_SANITIZE=ON` (AddressSanitizer and UndefinedBehaviorSanitizer,
 `-fno-sanitize-recover=all`) and runs ctest there with `halt_on_error=1` and
 leak detection on; any report fails the script. It also builds and runs the
-Playdate app's glue tests under the sanitizers. The gate keeps the plain build
+Playdate app's C tests under the sanitizers. The gate keeps the plain build
 to stay fast; `npm run e2e` runs this one.
 
 On Linux the sanitized ctest, and the sanitized `sproutc` the player step
@@ -297,13 +297,13 @@ draws reads is this. `media.show("cellar.png")` and
   `"effects":[{"extension":"media","statement":"show","payload":{"image":"cellar.png"},"transcript":"[cellar.png]"}]`
   in the view, and the page both runtimes print has an `effects` section after
   the description when there are any.
-- **The Playdate player draws it.** `sprout-player/Source/images.lua` loads the
-  asset from `<cartridge path>.assets/<image>` and the reader draws the newest
-  picture above the transcript, scaled to fit 392 by 80 pixels, with its
-  caption under it. `scripts/playdate-player.mjs` packs the assets of the
-  graduated worlds (`media-room` among them) into the pdx.
-  `test/images_test.lua` and `main_test.lua` pin it over a saved view
-  (`fixtures/media-room.view.json`).
+- **The Playdate player draws it.** `sprout-player/src/ui/images.h` finds the
+  asset at `<cartridge path>.assets/<image>` and the pictures screen
+  (`src/ui/pictures.h`) shows each picture a turn asked for on the whole
+  screen, scaled to fit above its caption. `scripts/playdate-player.mjs` packs
+  the assets of the graduated worlds into the pdx. `test/pictures.test.c` and
+  `gallery.test.c` pin it over corpus cartridges through the fake
+  `PlaydateAPI`.
 
 `corpus/good/media-room` pins it all: its transcript holds the transcript
 lines, its `view.txt` the page, and `corpus/bad/media-missing-file`,
@@ -316,28 +316,21 @@ parts that `scripts/check-runtime-c.mjs` runs when `PLAYDATE_SDK_PATH` is set
 (the gate says on its last line which parts ran, and that it skipped when the
 variable is not set).
 
-- **The Lua modules** (`sprout-player/test/*_test.lua`, run by a desktop Lua
-  5.4: `lua5.4 sprout-player/test/run.lua`) are tested as logic: the sentence
-  builder over a saved chip tree (`ask`, the guard, the weather; a refused leaf
-  greyed with its reason; a set role joined from singletons; a number role on
-  the crank), word wrap in pixels, the reader's scrollback, the clock's clamp,
-  the nickname filter, the shelf, and `main.lua` driven frame by frame over
-  stand-ins for `playdate` and the engine.
-- **The C glue** has a test program beside each module of `sprout-player/src`
+- **A test program beside each module** of `sprout-player/src`
   (`sprout-player/test/<module>.test.c`), through a fake `PlaydateAPI` that
-  implements only what the glue uses, over corpus cartridges: catching up
+  implements only what the app uses, over corpus cartridges: catching up
   `wakes` after four hours tells nothing, `ticks` tells what its place says, a
   clock set back is clamped, a world left open is put away, a damaged save is
-  set aside, and a save that cannot be written is told. `glue.test.c` plays
-  `chip-tree` through the registered functions against its transcript and keeps
+  set aside, and a save that cannot be written is told. `played.test.c` plays
+  `chip-tree` through the session against its transcript and keeps
   the saves of built turns, which `scripts/playdate-player.mjs` then holds to
   `sproutc`: the save must read and write back byte for byte, and the turns
   built from the view's chips must leave the stored world the same lines typed
   leave (`corpus/good/chip-tree`, `corpus/good/value-first`).
-- **The C app's screens** (`sprout-player/src/ui`) are driven a frame at a
+- **The screens** (`sprout-player/src/ui`) are driven a frame at a
   time through the same fake, whose graphics draw into a 400 by 240 one-bit
   frame and keep each run of text with where it was drawn, and whose buttons
-  and crank a test sets. `ui.test.c` builds `main.c` with `PLAYER_C_UI`, so
+  and crank a test sets. `ui.test.c` builds `main.c`, so
   the update callback the system would call is the one driven, arrives in
   `printers_shop` and holds the reader to rules: read top to bottom, the
   transcript is the client's line and then exactly what the arrival told; the
@@ -346,7 +339,13 @@ variable is not set).
   at a time and stop at either end. `wrap.test.c` holds word wrap to its rules
   over generated text (no line wider than the column but a single character, no
   character lost or moved, every break as late as it can be, none inside a
-  character), and `transcript.test.c` the scrollback.
+  character), and `transcript.test.c` the scrollback. `builder.test.c` drives
+  the sentence builder (a greyed chip drawn greyed with its reason, a verb
+  descended into and back, a completed reading run and told, the sentence line
+  fitting the screen, the window always what A picks after any crank turn),
+  `shelf.test.c` and `nickname.test.c` their screens (the filters folding as
+  the host folds, a name the engine refuses told in its words), and
+  `pictures.test.c` the pictures.
 - **The listed plays of the shipped worlds.** Each graduated world may list
   plays in `sprout-player/worlds.json` (the studio's `underground_caverns`
   lists the whole of Zork, `tests/walkthrough.json`); the player step resolves
@@ -360,36 +359,33 @@ variable is not set).
   `ed25519.test.c` holds the signature check to all of RFC 8032 section 7.1's
   vectors (and refuses a key or R of small order or in a non-canonical
   encoding, a changed message, signature or key, an S not below the group
-  order, and a key that is no point); `shipping.test.c` calls `sprout.verify`
-  and `sprout.digest` as Lua does (and digests a 4 MiB file without ever asking
-  the allocator for a block near its size), and verifies the signature Node
+  order, and a key that is no point); `shipping.test.c` verifies a signature
+  and digests a file (a 4 MiB one without ever asking the allocator for a
+  block near its size), and verifies the signature Node
   made over the committed index fixture (`sprout-player/test/fixtures/index.json`,
   signed with the test key in `sprout-player/test/`, whose private half is
   public on purpose and trusted by nothing real); `shipped.test.c` shelves
   every world in the packed `worlds/` folder, so a graduated world the app
-  would grey fails the build. In Lua, `canonical_test.lua` holds the canonical
-  text to the fixture's, `index_test.lua` accepts the signed index and refuses
-  one changed after signing, one unsigned, oversized or not JSON, and each
-  signed entry the app cannot use; `net_test.lua` drives the HTTP adapter over a
-  scripted `playdate.network` (permission refused, a request that cannot be
-  queued, an error, a stalled transfer, a redirect and a redirect loop, no
-  Wi-Fi); `downloads_test.lua` drives the whole screen over a fake network,
-  files and engine (a download with assets placed and reported, a tampered
-  index, no network, permission refused, a checksum mismatch, another build's
-  bundle hash, a file shorter or longer than listed, a world the engine refuses
-  kept and greyed, a connection that breaks part way, a Playdate out of room,
-  leaving mid-download) and asserts what is left on disk each time (nothing, for
-  a world that did not arrive); `main_test.lua` drives the shelf's "more
-  worlds" row with no network. In Node, `scripts/publish-index.spec.mjs` signs
+  would grey fails the build. `canonical.test.c` holds the canonical text to
+  the fixture's and its rules over generated objects; `signed_index.test.c`
+  accepts the signed index and refuses one changed after signing or signed by
+  another key, one unsigned, oversized or not JSON, and each signed entry the
+  app cannot use; `net.test.c` drives the HTTP adapter over the fake network
+  (permission asked and refused, no network, no Wi-Fi, a silent server, a
+  redirect, a sink that refuses); `downloads.test.c` drives the whole screen
+  over the fake network and files (a world that arrives whole and is shelved,
+  a tampered index, bytes that are not the listed ones, leaving mid-download,
+  every way the list cannot be had) and asserts what is left on disk (nothing,
+  for a world that did not arrive). In Node, `scripts/publish-index.spec.mjs` signs
   with the test key (the canonical text, the index built from packed
   cartridges and checked against `index.schema.json`, the command's refusals,
   key generation) and `scripts/playdate-player.spec.mjs` packs a fake
   `worlds.json` (names or paths, a list that cannot be used, assets copied, a
-  world that does not pack, the public key written); `scripts/playdate-player.mjs`
+  world that does not pack, the public key read); `scripts/playdate-player.mjs`
   runs both and the build's check of the graduated list.
-- **The sanitizers** run the glue's tests too (7b).
+- **The sanitizers** run the player's C tests too (7b).
 - **The build itself is a test.** The Simulator target must compile and `pdc`
-  must package the pdx, and the device target is built too where
+  must package the pdx with no compiled script in it, and the device target is built too where
   `arm-none-eabi-gcc` is installed.
 
 What no part can do is run the Simulator or a console, fetch over a real

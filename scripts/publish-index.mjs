@@ -45,17 +45,24 @@ export function main(args, env, say) {
       }
       writeFileSync(`${prefix}.key`, `${seed}\n`, { mode: 0o600 });
       writeFileSync(`${prefix}.pub`, `${publicKey}\n`);
-      say(`wrote ${prefix}.key (keep it secret and out of the repository) and ${prefix}.pub (the app is built with it)`);
+      say(
+        `wrote ${prefix}.key (keep it secret and out of the repository) and ${prefix}.pub (the app is built with it)`,
+      );
       return 0;
     }
     const folder = args.find((arg, i) => !arg.startsWith('--') && !args[i - 1]?.startsWith('--'));
     const baseUrl = option(args, '--base-url');
     const keyPath = option(args, '--key') ?? env.SPROUT_INDEX_KEY;
-    if (folder === undefined || baseUrl === undefined) return fail(say, 'Give a folder of cartridges and --base-url.');
+    if (folder === undefined || baseUrl === undefined)
+      return fail(say, 'Give a folder of cartridges and --base-url.');
     if (keyPath === undefined) {
-      return fail(say, 'Give the private key file with --key, or in the environment variable SPROUT_INDEX_KEY.');
+      return fail(
+        say,
+        'Give the private key file with --key, or in the environment variable SPROUT_INDEX_KEY.',
+      );
     }
-    if (!/^https?:\/\//.test(baseUrl)) return fail(say, `--base-url ${baseUrl} should begin with http:// or https://.`);
+    if (!/^https?:\/\//.test(baseUrl))
+      return fail(say, `--base-url ${baseUrl} should begin with http:// or https://.`);
     const index = buildIndex(resolve(folder), baseUrl, privateKeyOf(readKeyFile(keyPath)));
     const out = resolve(option(args, '--out') ?? folder);
     if (out !== resolve(folder)) {
@@ -67,7 +74,9 @@ export function main(args, env, say) {
       }
     }
     writeFileSync(join(out, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
-    say(`signed ${index.worlds.length} world${index.worlds.length === 1 ? '' : 's'} into ${join(out, 'index.json')}`);
+    say(
+      `signed ${index.worlds.length} world${index.worlds.length === 1 ? '' : 's'} into ${join(out, 'index.json')}`,
+    );
     return 0;
   } catch (err) {
     return fail(say, err.message);

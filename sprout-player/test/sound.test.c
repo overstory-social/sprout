@@ -1,6 +1,6 @@
 /*
  * The app's sounds (ui/sound.c) and the builder's cues through them, over the fake's synths. The
- * rules: each cue is a synth of its own, set to Source/sound.lua's waveform and envelope, and a
+ * rules: each cue is a synth of its own, set to its waveform and envelope (player_cue_notes), and a
  * cue played is one note of its pitch, volume and length, now; with no sound API every cue is
  * silent; a world picked on the shelf picks; and the builder's drum ticks as a slat passes and clacks as it settles, and a pick and a
  * step back each sound their cue, one note each.

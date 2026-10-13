@@ -1,6 +1,6 @@
 /*
- * The sentence builder screen, the Lua app's (Source/main.lua's sentence mode over sentence.lua and
- * wheel.lua): the sentence so far at the top, the drum of choices in the middle with the selected
+ * The sentence builder screen (the design doc's The chip tree and the crank sentence builder): the
+ * sentence so far at the top, the drum of choices in the middle with the selected
  * one in its window, and the selected choice's refusal or the keys at the bottom. The crank turns
  * the drum and up and down step it; A picks, and on the whole sentence runs it; B steps back, and at
  * the verbs closes the builder. A run sentence is told in the reader, led by the sentence as typed,

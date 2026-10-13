@@ -1,5 +1,5 @@
 /*
- * The C app: the session, the system font, the sounds, the reader's clock (clock.h), the shelf
+ * The app: the session, the system font, the sounds, the reader's clock (clock.h), the shelf
  * (shelf.h), and the screen on show (screen.h). The system calls `player_app_update` once a frame; the frame runs on the player's own stack (host/stack.h),
  * since a turn may run in it, and the file calls inside it hop back to the main stack as they
  * always do. A screen moves the app to another with `player_app_show`, which takes effect when
@@ -15,7 +15,7 @@
 #include "session.h"
 #include "sound.h"
 
-/* The screen's geometry, as the Lua app lays it out. */
+/* The screen's geometry: the Playdate's display. */
 #define PLAYER_SCREEN_WIDTH 400
 #define PLAYER_SCREEN_HEIGHT 240
 #define PLAYER_MARGIN 4
@@ -37,17 +37,21 @@ struct player_app {
   void *ctx;
   const player_screen *next; /* the screen `player_app_show` asked for, shown when the update is over */
   void *next_ctx;
+  bool reading;           /* a reader is open: the visitor is in the world */
+  bool leave_asked;       /* the system menu's "leave world" was chosen since the last frame */
+  PDMenuItem *leave_item; /* that item, or NULL where the system could not add it */
 };
 
 /*
- * The app over `pd`, on the shelf; NULL, with the words in `*why`, when it cannot start. Called at
- * kEventInit, on the main stack, since it loads the font; the shelf is listed in the first frame.
+ * The app over `pd`, on the shelf, with "leave world" in the system menu; NULL, with the words in
+ * `*why`, when it cannot start. Called at kEventInit, on the main stack, since it loads the font;
+ * the shelf is listed in the first frame.
  */
 player_app *player_app_new(PlaydateAPI *pd, const char **why);
 
 /*
  * The screen on show is left, the visitor leaves and the save is written (on the own stack), and
- * the app is freed: what the system's terminate event does, as the Lua app's `gameWillTerminate`.
+ * the app is freed: what the system's terminate event does.
  */
 void player_app_free(player_app *app);
 
@@ -69,7 +73,12 @@ void player_app_wake(player_app *app);
 /* The update callback: reads the buttons and the crank and runs one frame on the player's own stack. */
 int player_app_update(void *app);
 
-/* One frame with `input`: the screen's update, a screen change, the frame cleared, the screen drawn. */
+/*
+ * One frame with `input`: the screen's update, a screen change, the frame cleared, the screen drawn.
+ * Where "leave world" was chosen while a reader is open, the visitor leaves in place of the update
+ * and the app goes back to the shelf (or says the save could not be written); chosen elsewhere it
+ * does nothing.
+ */
 void player_app_frame(player_app *app, const player_input *input);
 
 #endif

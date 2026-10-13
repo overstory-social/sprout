@@ -15,7 +15,7 @@ import {
   stageWorlds,
   TEST_PUBLIC_KEY,
   WORLDS_FILE,
-  writePublicKey,
+  readPublicKey,
 } from './playdate-player.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '../..');
@@ -179,23 +179,16 @@ test('a world that does not pack fails the build and names it', async () => {
   );
 });
 
-test('the public key the app trusts is written as a Lua module from the file named', () => {
-  const into = scratch();
+test('the public key the app trusts is read from the file named', () => {
   const keyFile = join(scratch(), 'publisher.pub');
   writeFileSync(keyFile, `${'ab'.repeat(32)}\n`);
-  const made = writePublicKey({ keyFile, into });
-  assert.equal(made.isTest, false);
-  const lua = readFileSync(join(into, 'publickey.lua'), 'utf8');
-  assert.match(lua, new RegExp(`return "${'ab'.repeat(32)}"\\n$`));
-  assert.match(lua, /publisher\.pub/);
+  const read = readPublicKey({ keyFile });
+  assert.equal(read.keyFile, keyFile);
+  assert.equal(read.isTest, false);
 });
 
 test('the test key is the default, and is said to be the test key', () => {
-  const into = scratch();
-  const made = writePublicKey({ keyFile: TEST_PUBLIC_KEY, into });
-  assert.equal(made.isTest, true);
-  const key = readFileSync(TEST_PUBLIC_KEY, 'utf8').trim();
-  assert.match(readFileSync(join(into, 'publickey.lua'), 'utf8'), new RegExp(`return "${key}"`));
+  assert.equal(readPublicKey({ keyFile: TEST_PUBLIC_KEY }).isTest, true);
 });
 
 test('a public key file that is not a key is refused', () => {
@@ -203,7 +196,7 @@ test('a public key file that is not a key is refused', () => {
     const keyFile = join(scratch(), 'bad.pub');
     writeFileSync(keyFile, text);
     assert.throws(
-      () => writePublicKey({ keyFile, into: scratch() }),
+      () => readPublicKey({ keyFile }),
       /should hold the public key as 64 lowercase hexadecimal digits/,
     );
   }

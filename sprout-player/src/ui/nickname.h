@@ -1,6 +1,6 @@
 /*
  * The nickname screen: who the visitor is in the world, picked from a pool of plain words, since
- * the console has no keyboard (the design doc's Nickname, and Source/nickname.lua's). The pool is
+ * the console has no keyboard (the design doc's Nickname). The pool is
  * filtered by the cartridge's words and by who is present, folded as the TypeScript host folds a
  * nickname (lower case, split on white space); a returning visitor is offered their last name
  * first. The crank and up and down move through the names, A asks `player_admit`, and B closes

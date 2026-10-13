@@ -1,5 +1,5 @@
 /*
- * The pictures a turn showed, Source/gallery.lua's: the queue of what `media.show` asked for, each
+ * The pictures a turn showed: the queue of what `media.show` asked for, each
  * image once in the order asked, which one is on screen, and the slat-clack motion the crank gives
  * them (the design doc's Images). A step holds the picture on screen an elastic moment, stretched
  * the way it will go, then whizzes it out while the next whizzes in behind it and lands with a

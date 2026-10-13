@@ -1,6 +1,5 @@
 /*
- * The reader's transcript, as the Lua reader keeps it (Source/reader.lua, after the TUI's
- * tui/src/state.ts): paragraphs wrapped to the column, the newest at the bottom, with a status
+ * The reader's transcript, after the TUI's (tui/src/state.ts): paragraphs wrapped to the column, the newest at the bottom, with a status
  * line of the place and its ways out. A paragraph's kind leads it with a mark, so the screen
  * needs no colour to tell them apart. A reader who has scrolled back keeps their place as more
  * is told; the oldest paragraphs fall off past TRANSCRIPT_KEEP.

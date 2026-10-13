@@ -34,9 +34,10 @@ do something.
 
 ## The crank sentence builder
 
-Pressing **A** starts a sentence. The bottom of the screen shows what you
-have so far, and a choice between `<` and `>`. Turn the crank to change the
-choice, and press **A** to take it. The sentence goes in the same order each
+Pressing **A** starts a sentence. The top of the screen shows what you have
+so far, and the choices turn on a drum below it; the one in the drum's window
+is the one you take. Turn the crank (or press up and down) to turn the drum,
+and press **A** to take the choice. The sentence goes in the same order each
 time:
 
 1. **What to do**: `take`, `ask`, `go`, and the rest of what the world has
@@ -59,9 +60,10 @@ Try it in `Chip Tree`: arrive, press **A**, turn to `ask`, **A**, `a guard`,
 
 ## Pictures
 
-Some worlds show a picture in a room or when something happens. It appears
-above the words, with a caption under it, and stays until a newer picture
-replaces it.
+Some worlds show a picture in a room or when something happens. It fills
+the screen, with its caption under it, before you read on. When a move shows
+more than one, turn the crank to step between them; **A** or **B** closes
+them and the words come back.
 
 ## Saves and time
 

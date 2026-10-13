@@ -1,6 +1,6 @@
 /*
- * The C app's screens (ui/app.c, ui/arrival.c, ui/reader.c, ui/message.c, ui/pen.c) and its entry
- * point (main.c built with PLAYER_C_UI), driven a frame at a time through the fake PlaydateAPI's
+ * The app's screens (ui/app.c, ui/arrival.c, ui/reader.c, ui/message.c, ui/pen.c) and its entry
+ * point (main.c), driven a frame at a time through the fake PlaydateAPI's
  * update callback, buttons and crank, and judged by what was drawn into its 400 by 240 frame. The
  * app starts on the shelf (shelf.test.c), A opens the world selected, and A on the nickname
  * screen (nickname.test.c) enters the name it offers first.
@@ -93,14 +93,14 @@ static void ink(const char *text, char *out) {
 
 /* ---- the scenarios ---- */
 
-static void the_c_main_sets_the_update_callback_and_the_app_saves_at_terminate(void) {
+static void main_sets_the_update_callback_and_the_app_saves_at_terminate(void) {
   static const char *const shipped[] = {"chip-tree.sproutworld"};
   int frames;
   begin("main");
   app_folder("app");
   ship(shipped, 1);
   eventHandler(&fake->api, kEventInitLua, 0);
-  CHECK(fake->function_count == 0, "the C app registers nothing with Lua");
+  CHECK(fake->update == NULL, "the app starts at kEventInit and at no other event");
   eventHandler(&fake->api, kEventInit, 0);
   CHECK(fake->update != NULL, "the update callback is set at kEventInit");
   fake_frame(fake, 0, 0);
@@ -356,12 +356,47 @@ static void the_reader_ticks_while_awake_and_tells_what_a_tick_told(void) {
   end();
 }
 
+/*
+ * "leave world" in the system menu: chosen on the shelf it does nothing; chosen in the reader the
+ * visitor leaves, the departure is logged and saved, and the app goes back to the shelf.
+ */
+static void leave_world_in_the_system_menu_goes_back_to_the_shelf(void) {
+  static const char *const shipped[] = {"chip-tree.sproutworld"};
+  char command[1200];
+  int frames;
+  begin("leave");
+  app_folder("app");
+  ship(shipped, 1);
+  eventHandler(&fake->api, kEventInit, 0);
+  CHECK(strcmp(fake->menu_title, "leave world") == 0, "the system menu offers to leave: \"%s\"", fake->menu_title);
+  fake_frame(fake, 0, 0);
+  CHECK(fake_menu(fake, "leave world"), "it can be chosen on the shelf");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0,
+        "where nothing is open it does nothing");
+  fake_frame(fake, kButtonA, 0);
+  frames = frames_until_reader(10000);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader came up after %d frames", frames);
+  fake->note_count = 0;
+  CHECK(fake_menu(fake, "leave world"), "chosen in the reader");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0,
+        "the next frame is the shelf");
+  CHECK(fake->note_count == 1, "with the back cue: %d notes", fake->note_count);
+  snprintf(command, sizeof command, "grep -l '\"kind\":\"departure\"' '%s'/saves/*.log >/dev/null", fake->data);
+  CHECK(system(command) == 0, "the visitor left, and the departure is in the saved log");
+  eventHandler(&fake->api, kEventTerminate, 0);
+  CHECK(fake->menu_title[0] == '\0', "the item is taken out of the menu when the app ends");
+  end();
+}
+
 int main(void) {
   test_program("ui");
-  the_c_main_sets_the_update_callback_and_the_app_saves_at_terminate();
+  main_sets_the_update_callback_and_the_app_saves_at_terminate();
   the_reader_shows_the_arrival_under_the_status_line();
   with_no_world_shipped_the_shelf_says_so();
   a_cartridge_that_cannot_be_opened_is_told_in_words();
   the_reader_ticks_while_awake_and_tells_what_a_tick_told();
+  leave_world_in_the_system_menu_goes_back_to_the_shelf();
   return finish();
 }

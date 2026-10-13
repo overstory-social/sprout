@@ -1,8 +1,8 @@
 /*
  * Text on the screen in the system font, Asheville Sans 14 Light, which the C API loads from the
- * system's fonts (Lua's `getSystemFont` has no C counterpart). Text is UTF-8 and is drawn as
+ * system's fonts (the C API has no call that hands back the system font). Text is UTF-8 and is drawn as
  * written, on the reading that the C API's drawText, which takes no font family, has no bold or
- * italic to read `*` and `_` as (the design doc's The C app). Widths come from the font, never
+ * italic to read `*` and `_` as (the design doc's The Playdate app). Widths come from the font, never
  * from a character count.
  */
 #ifndef PLAYER_UI_PEN_H

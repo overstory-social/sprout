@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://overstory.social/sprout/index.schema.json",
   "title": "The index of published Sprout worlds",
-  "description": "What the Playdate app's download screen fetches. `signed` is the lower-case hexadecimal Ed25519 signature, made by the publisher's key, over the canonical text of `worlds`: no spaces, object keys in order, strings as JSON.stringify writes them, integers in decimal (scripts/index-signing.mjs `canonicalText`; sprout-player/Source/canonical.lua). The app reads nothing in the index before that signature verifies.",
+  "description": "What the Playdate app's download screen fetches. `signed` is the lower-case hexadecimal Ed25519 signature, made by the publisher's key, over the canonical text of `worlds`: no spaces, object keys in order, strings as JSON.stringify writes them, integers in decimal (scripts/index-signing.mjs `canonicalText`; sprout-player/src/canonical.c). The app reads nothing in the index before that signature verifies.",
   "type": "object",
   "additionalProperties": false,
   "required": ["worlds", "signed"],

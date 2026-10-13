@@ -1,5 +1,5 @@
 /*
- * The reader's clock, Source/clock.lua in C: when the reader asks the session for a tick (the
+ * The reader's clock: when the reader asks the session for a tick (the
  * spec's The host contract › Time: the host chooses the interval and supplies `elapsed`
  * truthfully). A tick is owed only while a world is being read and the device is awake: the
  * reader's opening starts the count and its closing stops it, the device locking or going to
@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Seconds between ticks while a world is being read, as the Lua app asks for them. */
+/* Seconds between ticks while a world is being read. */
 #define PLAYER_TICK_SECONDS 10u
 
 typedef struct player_clock {

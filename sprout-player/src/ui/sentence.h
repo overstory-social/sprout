@@ -1,5 +1,5 @@
 /*
- * The sentence builder's state, as Source/sentence.lua keeps it, over the session's chip tree a
+ * The sentence builder's state, over the session's chip tree a
  * level at a time (player_chips; the design doc's The chip tree and the crank sentence builder).
  * The visitor picks a verb, then what fills each of its roles, then a word or a number for each
  * value role, then confirms. A verb's readings are asked for only when the drum reaches it

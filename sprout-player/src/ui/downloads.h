@@ -1,6 +1,5 @@
 /*
- * The download screen, Source/downloads.lua and its part of Source/main.lua in C (the design
- * doc's Shipped worlds and downloads): the signed index fetched (host/net.h) and read
+ * The download screen (the design doc's Shipped worlds and downloads): the signed index fetched (host/net.h) and read
  * (signed_index.h), its worlds listed, and the one chosen downloaded into the Data folder's
  * `worlds/`, where the shelf finds it.
  *
@@ -28,7 +27,7 @@
 /*
  * Where the list of worlds is, unless the Data folder's `downloads.json` says
  * `{ "indexUrl": "https://..." }`: a placeholder that names no server (`.invalid` never resolves),
- * as Source/config.lua's does, until a real one is chosen.
+ * until a real one is chosen.
  */
 #define PLAYER_INDEX_URL "https://worlds.example.invalid/sprout/index.json"
 #define PLAYER_DOWNLOADS_SETTINGS "downloads.json"
