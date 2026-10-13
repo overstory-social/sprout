@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "budgets.h"
+#include "stack.h"
 #include "files.h"
 #include "session_internal.h"
 #include "text.h"
@@ -248,13 +249,18 @@ bool session_visitor_present(const player_session *session, const sprout_stored_
   return person != NULL && person->has_container;
 }
 
+static void *mkdir_saves(void *pd) {
+  ((PlaydateAPI *)pd)->file->mkdir(SAVES);
+  return NULL;
+}
+
 bool session_save_if_dirty(player_session *session) {
   const char *bytes;
   size_t length;
   sprout_arena scratch;
   bool written;
   if (session->state == NULL || !session->dirty) return true;
-  session->pd->file->mkdir(SAVES);
+  player_on_main_stack(mkdir_saves, session->pd);
   if (sprout_arena_init(&scratch, &session->host.record) != SPROUT_OK) return false;
   written = sprout_state_write(session->state, &scratch, &bytes, &length) == SPROUT_OK &&
             player_write_file(session->pd, session->state_path, bytes, length);
@@ -283,15 +289,27 @@ const char *player_save(player_session *session) {
   }
 }
 
+typedef struct set_aside_call {
+  PlaydateAPI *pd;
+  const char *from, *to;
+} set_aside_call;
+
+static void *set_aside_direct(void *ctx) {
+  set_aside_call *c = (set_aside_call *)ctx;
+  c->pd->file->unlink(c->to, 0);
+  c->pd->file->rename(c->from, c->to);
+  return NULL;
+}
+
 /* A save that cannot be read is set aside, so the next opening starts the world again. */
 static void set_aside(player_session *session) {
   char aside[PATH_BYTES + 16];
   text_buffer out;
+  set_aside_call c = {session->pd, session->state_path, aside};
   text_begin(&out, aside, sizeof aside);
   text_add(&out, session->state_path);
   text_add(&out, ".damaged");
-  session->pd->file->unlink(aside, 0);
-  session->pd->file->rename(session->state_path, aside);
+  player_on_main_stack(set_aside_direct, &c);
 }
 
 /* A new world's state, opened against the world. */
