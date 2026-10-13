@@ -145,7 +145,36 @@ static void fill(int x, int y, int width, int height, LCDColor color) {
     for (i = x; i < x + width; i++) set_pixel(i, j, color == kColorBlack);
 }
 
-static void fake_fill_rect(int x, int y, int width, int height, LCDColor color) { fill(x, y, width, height, color); }
+/* A solid colour, or a pattern: 8 rows of image, a set bit white, then 8 rows of mask, a set bit painted. */
+static void fake_fill_rect(int x, int y, int width, int height, LCDColor color) {
+  const uint8_t *pattern = (const uint8_t *)color;
+  int i, j;
+  if (color <= kColorXOR) {
+    fill(x, y, width, height, color);
+    return;
+  }
+  for (j = y; j < y + height; j++)
+    for (i = x; i < x + width; i++) {
+      int bit = 7 - ((i % 8) + 8) % 8, row = ((j % 8) + 8) % 8;
+      if ((pattern[8 + row] >> bit) & 1) set_pixel(i, j, !((pattern[row] >> bit) & 1));
+    }
+}
+
+/* Twice the signed area of the triangle (a, b, c). */
+static long turn_of(int ax, int ay, int bx, int by, int cx, int cy) {
+  return (long)(bx - ax) * (cy - ay) - (long)(by - ay) * (cx - ax);
+}
+
+static void fake_fill_triangle(int x1, int y1, int x2, int y2, int x3, int y3, LCDColor color) {
+  int lo_x = x1 < x2 ? (x1 < x3 ? x1 : x3) : (x2 < x3 ? x2 : x3), hi_x = x1 > x2 ? (x1 > x3 ? x1 : x3) : (x2 > x3 ? x2 : x3);
+  int lo_y = y1 < y2 ? (y1 < y3 ? y1 : y3) : (y2 < y3 ? y2 : y3), hi_y = y1 > y2 ? (y1 > y3 ? y1 : y3) : (y2 > y3 ? y2 : y3);
+  int x, y;
+  for (y = lo_y; y <= hi_y; y++)
+    for (x = lo_x; x <= hi_x; x++) {
+      long a = turn_of(x1, y1, x2, y2, x, y), b = turn_of(x2, y2, x3, y3, x, y), c = turn_of(x3, y3, x1, y1, x, y);
+      if ((a >= 0 && b >= 0 && c >= 0) || (a <= 0 && b <= 0 && c <= 0)) set_pixel(x, y, color == kColorBlack);
+    }
+}
 
 /* Lines across or down the screen, which is all the screens draw. */
 static void fake_draw_line(int x1, int y1, int x2, int y2, int width, LCDColor color) {
@@ -176,25 +205,43 @@ static size_t utf8_bytes(const char *text, size_t count) {
   return i;
 }
 
+/* The three fonts the fake loads, by path; the font a handle is. */
+static char fake_fonts[3];
+static const char *const FONT_PATHS[3] = {"/System/Fonts/Asheville-Sans-14-Light.pft", "fonts/Asheville-Sans-24-Light.pft",
+                                          "fonts/Roobert-10-Bold.pft"};
+
+static fake_font font_of(LCDFont *font) {
+  int i;
+  for (i = 0; i < 3; i++)
+    if (font == (LCDFont *)&fake_fonts[i]) return (fake_font)(FAKE_FONT_SYSTEM + i);
+  return FAKE_FONT_NONE;
+}
+
+int fake_glyph(const fake_playdate *fake, fake_font font) {
+  return font == FAKE_FONT_BIG ? fake->big_glyph : font == FAKE_FONT_SMALL ? fake->small_glyph : fake->glyph;
+}
+
+int fake_line(fake_font font) { return font == FAKE_FONT_BIG ? FAKE_BIG_LINE : font == FAKE_FONT_SMALL ? FAKE_SMALL_LINE : FAKE_LINE; }
+
 static int fake_text_width(LCDFont *font, const void *text, size_t len, PDStringEncoding encoding, int tracking) {
   const char *bytes = (const char *)text;
   size_t n = utf8_bytes(bytes, len), i;
-  int width = 0;
-  (void)font;
+  int width = 0, glyph = fake_glyph(current, font_of(font));
   (void)encoding;
   (void)tracking;
+  if (font_of(font) == FAKE_FONT_NONE) abort();
   for (i = 0; i < n; i++)
-    if (((unsigned char)bytes[i] & 0xC0u) != 0x80u) width += current->glyph;
+    if (((unsigned char)bytes[i] & 0xC0u) != 0x80u) width += glyph;
   return width;
 }
 
 static int fake_draw_text(const void *text, size_t len, PDStringEncoding encoding, int x, int y) {
   const char *bytes = (const char *)text;
   size_t n = utf8_bytes(bytes, len), i;
-  int at = x;
+  int at = x, glyph = fake_glyph(current, current->font_set), line = fake_line(current->font_set);
   fake_run *run;
   (void)encoding;
-  if (!current->font_set) abort(); /* the screens draw in the font they loaded, never the default */
+  if (current->font_set == FAKE_FONT_NONE) abort(); /* the screens draw in a font they loaded, never the default */
   if (current->run_count == FAKE_RUNS) abort();
   run = &current->runs[current->run_count++];
   if (n >= sizeof run->text) abort();
@@ -202,30 +249,26 @@ static int fake_draw_text(const void *text, size_t len, PDStringEncoding encodin
   run->text[n] = '\0';
   run->x = x;
   run->y = y;
+  run->font = current->font_set;
   for (i = 0; i < n; i++) {
     if (((unsigned char)bytes[i] & 0xC0u) == 0x80u) continue;
-    if (bytes[i] != ' ') fill(at + 1, y + 3, current->glyph - 2, FAKE_LINE - 6, kColorBlack);
-    at += current->glyph;
+    if (bytes[i] != ' ') fill(at + 1, y + 3, glyph - 2, line - 6, kColorBlack);
+    at += glyph;
   }
   return at - x;
 }
 
-static char fake_font_bytes;
-
 static LCDFont *fake_load_font(const char *path, const char **error) {
-  if (strcmp(path, "/System/Fonts/Asheville-Sans-14-Light.pft") != 0) {
-    *error = "no such font";
-    return NULL;
-  }
-  return (LCDFont *)&fake_font_bytes;
+  int i;
+  for (i = 0; i < 3; i++)
+    if (strcmp(path, FONT_PATHS[i]) == 0) return (LCDFont *)&fake_fonts[i];
+  *error = "no such font";
+  return NULL;
 }
 
-static void fake_set_font(LCDFont *font) { current->font_set = font == (LCDFont *)&fake_font_bytes; }
+static void fake_set_font(LCDFont *font) { current->font_set = font_of(font); }
 
-static uint8_t fake_font_height(LCDFont *font) {
-  (void)font;
-  return FAKE_LINE;
-}
+static uint8_t fake_font_height(LCDFont *font) { return (uint8_t)fake_line(font_of(font)); }
 
 const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
   int i;
@@ -290,6 +333,8 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   snprintf(fake->app, sizeof fake->app, "%s", app);
   fake->seconds = 1000000;
   fake->glyph = FAKE_GLYPH;
+  fake->big_glyph = FAKE_BIG_GLYPH;
+  fake->small_glyph = FAKE_SMALL_GLYPH;
   fake->sys.realloc = fake_realloc;
   fake->sys.getSecondsSinceEpoch = fake_seconds;
   fake->sys.getCurrentTimeMilliseconds = fake_counter;
@@ -309,6 +354,7 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->sys.setUpdateCallback = fake_set_update;
   fake->gfx.clear = fake_clear;
   fake->gfx.fillRect = fake_fill_rect;
+  fake->gfx.fillTriangle = fake_fill_triangle;
   fake->gfx.drawLine = fake_draw_line;
   fake->gfx.drawText = fake_draw_text;
   fake->gfx.getTextWidth = fake_text_width;

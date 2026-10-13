@@ -3,10 +3,11 @@
 
 #include <string.h>
 
+#include "builder.h"
 #include "host/files.h"
 
 /* The keys under the transcript: what the screen offers today. */
-static const char KEYS[] = "crank or up/down: scroll back";
+static const char KEYS[] = "A: build a sentence   crank: scroll back";
 
 static int header_height(int line_height) { return line_height + 4; }
 static int panel_height(int line_height) { return line_height * 3 + 8; }
@@ -39,7 +40,6 @@ bool player_reader_look(player_app *app, player_reader *reader) {
 static void update(player_app *app, void *ctx, const player_input *input) {
   player_reader *reader = (player_reader *)ctx;
   long lines;
-  (void)app;
   /* Turning the other way starts afresh: what was left toward a line the other way is dropped. */
   if ((reader->crank > 0 && input->crank < 0) || (reader->crank < 0 && input->crank > 0)) reader->crank = 0;
   reader->crank += input->crank;
@@ -48,6 +48,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   if (lines != 0) transcript_scroll(&reader->lines, lines);
   if (input->pushed & kButtonUp) transcript_scroll(&reader->lines, 1);
   if (input->pushed & kButtonDown) transcript_scroll(&reader->lines, -1);
+  if (input->pushed & kButtonA) player_builder_open(app, reader);
 }
 
 static void draw(player_app *app, void *ctx) {
@@ -67,6 +68,7 @@ static void draw(player_app *app, void *ctx) {
 
 static void leave(player_app *app, void *ctx) {
   player_reader *reader = (player_reader *)ctx;
+  if (reader->lent) return;
   transcript_free(&reader->lines);
   player_free(app->pd, reader);
 }

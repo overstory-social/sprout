@@ -484,6 +484,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'wrap',
       'transcript',
       'ui',
+      'builder',
     ];
     const missing = wanted.filter((name) => !new RegExp(`player-${name} .*Passed`).test(tests));
     if (missing.length > 0) {
