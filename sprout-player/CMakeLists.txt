@@ -62,7 +62,8 @@ include(${SDK}/C_API/buildsupport/playdate_game.cmake)
 set(PLAYER_SOURCES
   src/bridge.c src/budgets.c src/ed25519.c src/host/files.c src/host/pd_host.c src/host/stack.c
   src/reading_json.c src/reply.c src/savelog.c src/seen.c src/session.c src/shipping.c src/text.c src/told.c
-  src/turns.c src/ui/app.c src/ui/arrival.c src/ui/pen.c src/ui/reader.c src/ui/transcript.c src/ui/wrap.c)
+  src/turns.c src/ui/app.c src/ui/arrival.c src/ui/builder.c src/ui/drum.c src/ui/pen.c src/ui/reader.c src/ui/sentence.c
+  src/ui/transcript.c src/ui/wrap.c)
 add_library(sprout_player_core STATIC ${PLAYER_SOURCES})
 target_include_directories(sprout_player_core PUBLIC src PRIVATE ../runtime-c/src)
 target_compile_definitions(sprout_player_core PUBLIC TARGET_EXTENSION=1)
@@ -89,7 +90,7 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
   target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack reading_json pd_host budgets told reply savelog session turns seen bridge glue
-    wrap transcript ui)
+    wrap transcript ui builder)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)

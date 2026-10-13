@@ -2,8 +2,8 @@
  * The reader screen: the transcript (transcript.h) under the status line, with the keys below.
  * The crank and the d-pad scroll back through what was said, a line for every 12 degrees of
  * crank and for each press of up; down comes forward again. The layout is the Lua app's
- * (Source/main.lua and Source/reader.lua) at 400 by 240. The sentence builder on A comes with
- * #631, and the ticks and the clock with #635.
+ * (Source/main.lua and Source/reader.lua) at 400 by 240. A opens the sentence builder (builder.h),
+ * which the reader is lent to while it is up. The ticks and the clock come with #635.
  */
 #ifndef PLAYER_UI_READER_H
 #define PLAYER_UI_READER_H
@@ -20,6 +20,7 @@
 typedef struct player_reader {
   transcript lines;
   float crank; /* degrees turned toward the next line one way, not yet a line */
+  bool lent;   /* the sentence builder holds it: leaving the reader does not free it */
 } player_reader;
 
 extern const player_screen player_reader_screen;
