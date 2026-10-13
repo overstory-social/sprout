@@ -1,8 +1,7 @@
 /*
  * Whether a nickname may be admitted (see nickname.h), word for word as the TypeScript host says it. A
- * nickname is lower-cased as JavaScript lower-cases a string, final sigma included, and split on the white
- * space JavaScript's `\s` is, each comma a word of its own, so two nicknames are one where they are typed
- * alike. Every refusal carries words the host can show the person, asking for another nickname, and names
+ * nickname is read as a typed line is (typed.h), so two nicknames are one where they are typed alike. Every
+ * refusal carries words the host can show the person, asking for another nickname, and names
  * what it collided on; a host may replace them with its own.
  */
 #include "nickname.h"
@@ -11,6 +10,7 @@
 
 #include "prose/prose.h"
 #include "prose/unicode.h"
+#include "typed.h"
 
 /* The language's reserved words (the spec's The compiler > Lexical rules), which no nickname's word may be. */
 static const char *const RESERVED[] = {
@@ -70,31 +70,6 @@ static void put_number(bytes *out, uint64_t number) {
   put(out, digits + count, sizeof digits - count);
 }
 
-static void put_code_point(bytes *out, unsigned long cp) {
-  char encoded[4];
-  size_t n;
-  if (cp < 0x80) {
-    encoded[0] = (char)cp;
-    n = 1;
-  } else if (cp < 0x800) {
-    encoded[0] = (char)(0xC0 | (cp >> 6));
-    encoded[1] = (char)(0x80 | (cp & 0x3F));
-    n = 2;
-  } else if (cp < 0x10000) {
-    encoded[0] = (char)(0xE0 | (cp >> 12));
-    encoded[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
-    encoded[2] = (char)(0x80 | (cp & 0x3F));
-    n = 3;
-  } else {
-    encoded[0] = (char)(0xF0 | (cp >> 18));
-    encoded[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
-    encoded[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
-    encoded[3] = (char)(0x80 | (cp & 0x3F));
-    n = 4;
-  }
-  put(out, encoded, n);
-}
-
 static sprout_str result_of(const bytes *out) {
   sprout_str str;
   str.bytes = out->items == NULL ? "" : out->items;
@@ -127,71 +102,12 @@ bool nickname_kept(sprout_arena *arena, sprout_str nickname, sprout_str *kept) {
   return true;
 }
 
-/* Whether a cased letter follows `at` (or precedes it, walking backwards), past any case-ignorable code points. */
-static bool cased_beside(const unsigned long *cps, size_t count, size_t at, bool forward) {
-  size_t i = at;
-  for (;;) {
-    if (forward) {
-      if (++i >= count) return false;
-    } else {
-      if (i == 0) return false;
-      i--;
-    }
-    if (prose_unicode_case_ignorable(cps[i])) continue;
-    return prose_unicode_cased(cps[i]);
-  }
-}
-
-sprout_status nickname_typed_words(sprout_arena *arena, sprout_str text, sprout_str **words, size_t *count) {
-  unsigned long *cps = (unsigned long *)sprout_arena_take(arena, (text.length + 1) * sizeof *cps);
-  size_t n = 0, at = 0, width, i, made = 0;
-  sprout_str *found = (sprout_str *)sprout_arena_take(arena, (text.length + 1) * sizeof *found);
-  bytes word;
-  if (cps == NULL || found == NULL) return SPROUT_NO_MEMORY;
-  while (at < text.length) {
-    cps[n++] = prose_decode(text.bytes, text.length, at, &width);
-    at += width;
-  }
-  memset(&word, 0, sizeof word);
-  word.arena = arena;
-  for (i = 0; i <= n; i++) {
-    unsigned long folded[2];
-    size_t k, parts;
-    bool boundary = i == n || prose_is_space(cps[i]) || cps[i] == ',';
-    if (boundary && word.length > 0) {
-      found[made++] = result_of(&word);
-      memset(&word, 0, sizeof word);
-      word.arena = arena;
-    }
-    if (i == n || prose_is_space(cps[i])) continue;
-    if (cps[i] == ',') {
-      put(&word, ",", 1);
-      found[made++] = result_of(&word);
-      memset(&word, 0, sizeof word);
-      word.arena = arena;
-      continue;
-    }
-    if (cps[i] == 0x3A3) {
-      /* A capital sigma ends a word as a final sigma where a cased letter comes before it and none after. */
-      folded[0] = cased_beside(cps, n, i, false) && !cased_beside(cps, n, i, true) ? 0x3C2 : 0x3C3;
-      parts = 1;
-    } else {
-      parts = prose_unicode_lower(cps[i], folded);
-    }
-    for (k = 0; k < parts; k++) put_code_point(&word, folded[k]);
-  }
-  if (word.failed) return SPROUT_NO_MEMORY;
-  *words = found;
-  *count = made;
-  return SPROUT_OK;
-}
-
 /* A nickname's words joined by single spaces: how it is typed, and so what two alike nicknames share. */
 static sprout_status typed_as(sprout_arena *arena, sprout_str text, sprout_str *typed) {
   sprout_str *words;
   size_t count, i;
   bytes out;
-  sprout_status status = nickname_typed_words(arena, text, &words, &count);
+  sprout_status status = typed_words(arena, text, &words, &count);
   if (status != SPROUT_OK) return status;
   memset(&out, 0, sizeof out);
   out.arena = arena;
@@ -360,7 +276,7 @@ sprout_status nickname_check_for(sprout_arena *arena, const sprout_world *world,
       return refused(arena, out, SPROUT_NICKNAME_SOURCE_SHAPED, kept, shaped, shaped_count, &text);
     }
   }
-  status = nickname_typed_words(arena, kept, &words, &word_count);
+  status = typed_words(arena, kept, &words, &word_count);
   if (status != SPROUT_OK) return status;
   for (i = 0; i < word_count; i++)
     if (in_word_set(world, words[i]) || is_connector(words[i])) words[collides++] = words[i];
@@ -386,7 +302,7 @@ sprout_status nickname_check_for(sprout_arena *arena, const sprout_world *world,
     return refused(arena, out, SPROUT_NICKNAME_WORLD_WORD, kept, hit, collides, &text);
   }
   /* The typed words again, for the reserved ones: collisions above removed nothing from the list the second pass needs. */
-  status = nickname_typed_words(arena, kept, &words, &word_count);
+  status = typed_words(arena, kept, &words, &word_count);
   if (status != SPROUT_OK) return status;
   collides = 0;
   for (i = 0; i < word_count; i++)

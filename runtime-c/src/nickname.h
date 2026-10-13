@@ -31,7 +31,4 @@ sprout_status nickname_check_for(sprout_arena *arena, const sprout_world *world,
                                  const sprout_budgets *budgets, sprout_str visit, sprout_str nickname,
                                  nickname_check *out);
 
-/* A nickname's words, folded: each as typed, lower case, a comma a word of its own. The text of each is in the arena. */
-sprout_status nickname_typed_words(sprout_arena *arena, sprout_str text, sprout_str **words, size_t *count);
-
 #endif

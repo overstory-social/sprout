@@ -1,8 +1,8 @@
 /*
  * Tests for src/nickname.c: every nickname the TypeScript runtime was asked about (corpus/goldens/nicknames.json,
  * against the harbour cartridge and a stored world with people standing, away and called alike) is admitted or
- * refused here for the same reason, in the same words, naming the same collisions; and the folding that decides
- * when two nicknames are one is held to what JavaScript's `toLowerCase` makes of them.
+ * refused here for the same reason, in the same words, naming the same collisions; and a nickname is kept as its
+ * words, single-spaced.
  */
 #include "check.h"
 #include "json.h"
@@ -87,30 +87,16 @@ static void every_nickname_in_the_golden_is_admitted_or_refused_as_the_typescrip
   free(cartridge);
 }
 
-static void a_nickname_is_kept_as_its_words_single_spaced_and_folded_as_javascript_folds_it(void) {
+static void a_nickname_is_kept_as_its_words_single_spaced(void) {
   test_heap heap;
   sprout_host host = test_host(&heap);
   sprout_arena arena;
-  sprout_str kept, *words;
-  size_t count;
+  sprout_str kept;
   sprout_arena_init(&arena, &host);
   CHECK(nickname_kept(&arena, (sprout_str){"  Marta \t B\n", 12}, &kept));
   CHECK_BYTES(kept.bytes, kept.length, "Marta B");
   CHECK(nickname_kept(&arena, (sprout_str){"\xC2\xA0 x \xE3\x80\x80 y", 10}, &kept));
   CHECK_BYTES(kept.bytes, kept.length, "x y");
-  CHECK_INT(nickname_typed_words(&arena, (sprout_str){"A, b", 4}, &words, &count), SPROUT_OK);
-  CHECK_INT(count, 3);
-  CHECK_BYTES(words[0].bytes, words[0].length, "a");
-  CHECK_BYTES(words[1].bytes, words[1].length, ",");
-  CHECK_BYTES(words[2].bytes, words[2].length, "b");
-  /* A capital sigma that ends a word after a letter is a final sigma; anywhere else it is not. */
-  CHECK_INT(nickname_typed_words(&arena, (sprout_str){"\xCE\x91\xCE\xA3 \xCE\xA3\xCE\x91\xCE\xA3", 11}, &words, &count), SPROUT_OK);
-  CHECK_INT(count, 2);
-  CHECK_BYTES(words[0].bytes, words[0].length, "\xCE\xB1\xCF\x82");
-  CHECK_BYTES(words[1].bytes, words[1].length, "\xCF\x83\xCE\xB1\xCF\x82");
-  /* A capital I with a dot above lower-cases to two code points. */
-  CHECK_INT(nickname_typed_words(&arena, (sprout_str){"\xC4\xB0", 2}, &words, &count), SPROUT_OK);
-  CHECK_BYTES(words[0].bytes, words[0].length, "i\xCC\x87");
   sprout_arena_reset(&arena);
 }
 
@@ -145,7 +131,7 @@ static void a_host_that_cannot_give_memory_is_told_so_not_misled(void) {
 
 int main(void) {
   RUN(every_nickname_in_the_golden_is_admitted_or_refused_as_the_typescript_runtime_did);
-  RUN(a_nickname_is_kept_as_its_words_single_spaced_and_folded_as_javascript_folds_it);
+  RUN(a_nickname_is_kept_as_its_words_single_spaced);
   RUN(a_host_that_cannot_give_memory_is_told_so_not_misled);
   return REPORT();
 }

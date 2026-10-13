@@ -1,7 +1,6 @@
 import {
   saveWorld,
   SEED_MAX,
-  SproutList,
   type InstanceId,
   type Fault,
   type Plain,
@@ -9,9 +8,9 @@ import {
   type StoredChanges,
   type StoredWorld,
   type WrittenAt,
-  type Value,
 } from '@overstory/sprout/lang';
 
+import { fillerOf, type Handed, type ParseRecord, type ReadFiller } from './parsed.js';
 import { freshStage, playStep, type Aside, type Stage, type Traced } from './play.js';
 import { lineOf, secondsOf, type Script, type Step } from './script.js';
 import type { PlayableWorld } from './stand.js';
@@ -25,35 +24,12 @@ import type { PlayableWorld } from './stand.js';
 // working from ids does not need; a value role carries the value the
 // visitor chose, which `SeenFiller` leaves to `options`. A line the parser
 // answered instead of reading, or that faulted while being read, is marked
-// `skip` so the other runtime does not run it. Times are in seconds, named
+// `skip` so the other runtime does not run it. Beside each command turn is
+// what the parser read (`ParseFacts`), which a runtime that parses compares
+// its own parse with (`sproutc parse`). Times are in seconds, named
 // for what they are: `atSeconds` when a step begins, `forSeconds` for how
 // long an advance lasts. The file travels beside the script as
 // `<script>.readings.json`.
-
-/** A chosen value as JSON: a boolean, a number, a string, or a list of them. */
-export type ReadValue = boolean | number | string | readonly ReadValue[] | null;
-
-/** What fills a role of a resolved reading: a `SeenFiller` by id alone, with a value role's chosen value. */
-export type ReadFiller =
-  | {
-      readonly role: string;
-      readonly binds: 'object';
-      readonly id: InstanceId;
-    }
-  | {
-      readonly role: string;
-      readonly binds: 'set';
-      readonly ids: readonly InstanceId[];
-    }
-  | {
-      readonly role: string;
-      readonly binds: 'exit';
-      readonly direction: string | null;
-      readonly label: string;
-      readonly to: InstanceId;
-    }
-  | { readonly role: string; readonly binds: 'value'; readonly value: ReadValue }
-  | { readonly role: string; readonly binds: 'unbound' };
 
 /** One line a reader read: whose screen, the kind of line it was and its words. */
 export interface Said {
@@ -125,34 +101,48 @@ export interface After {
   readonly world?: StoredWorld;
 }
 
+/**
+ * What a runtime that parses compares its own parse of a turn with: what `host.parse` returned, absent
+ * where the turn read no words (a reading a line planned for it); the reading and the run's item a later
+ * turn of a line was handed; and the stored world a turn after the first in a step began from, which the
+ * first takes from the step before (`After.world`).
+ */
+export interface ParseFacts {
+  readonly parsed?: ParseRecord;
+  readonly handed?: Handed;
+  readonly before?: StoredWorld;
+}
+
 /** One command turn of a typed line: what the parser made of the text. */
-export type ReadTurn =
-  | {
-      readonly typed: string;
-      readonly seed: number;
-      readonly skip: false;
-      readonly verb: string;
-      readonly actor: InstanceId;
-      readonly fillers: readonly ReadFiller[];
-      /** Whether the consent pass refused the reading; the reading is still one to run. */
-      readonly refused: boolean;
-      /** The bounds the parser drew below reading the line, which a runtime that does not parse draws first. */
-      readonly draws: readonly number[];
-      /** What the parser said before the reading's own lines. */
-      readonly asides: readonly Aside[];
-      readonly says: readonly Said[];
-      readonly expect: TurnEntry;
-    }
-  | {
-      readonly typed: string;
-      readonly seed: number;
-      readonly skip: true;
-      /** The parser's own answer (a passage's name or its words), or `faulted`. */
-      readonly why: string;
-      /** What the parser's answer told the reader, and the entry it left, which a runtime that does not parse echoes. */
-      readonly says: readonly Said[];
-      readonly expect: TurnEntry;
-    };
+export type ReadTurn = ParseFacts &
+  (
+    | {
+        readonly typed: string;
+        readonly seed: number;
+        readonly skip: false;
+        readonly verb: string;
+        readonly actor: InstanceId;
+        readonly fillers: readonly ReadFiller[];
+        /** Whether the consent pass refused the reading; the reading is still one to run. */
+        readonly refused: boolean;
+        /** The bounds the parser drew below reading the line, which a runtime that does not parse draws first. */
+        readonly draws: readonly number[];
+        /** What the parser said before the reading's own lines. */
+        readonly asides: readonly Aside[];
+        readonly says: readonly Said[];
+        readonly expect: TurnEntry;
+      }
+    | {
+        readonly typed: string;
+        readonly seed: number;
+        readonly skip: true;
+        /** The parser's own answer (a passage's name or its words), or `faulted`. */
+        readonly why: string;
+        /** What the parser's answer told the reader, and the entry it left, which a runtime that does not parse echoes. */
+        readonly says: readonly Said[];
+        readonly expect: TurnEntry;
+      }
+  );
 
 /** One step of the script, with the clock and seed it begins under. */
 export type ReadStep = {
@@ -187,34 +177,12 @@ export interface Readings {
   readonly steps: readonly ReadStep[];
 }
 
-function valueOf(value: Value): ReadValue {
-  if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
-    return value;
-  }
-  return value instanceof SproutList ? value.elements.map(valueOf) : null;
-}
-
 /** What fills each role: the roles the reading binds in the order it binds them, then the rest, unbound. */
 function fillersOf(reading: NonNullable<Traced['reading']>): ReadFiller[] {
   const names = reading.verb.roles.map((role) => role.name);
   const bound = [...reading.bindings.keys()];
   const order = [...bound, ...names.filter((name) => !bound.includes(name))];
-  return order.map((name): ReadFiller => {
-    const role = { name };
-    const bound = reading.bindings.get(role.name);
-    if (bound === undefined) return { role: role.name, binds: 'unbound' };
-    if ('object' in bound) {
-      return { role: role.name, binds: 'object', id: bound.object };
-    }
-    if ('set' in bound) {
-      return { role: role.name, binds: 'set', ids: bound.set };
-    }
-    if ('exit' in bound) {
-      const { direction, label, to } = bound.exit;
-      return { role: role.name, binds: 'exit', direction, label, to };
-    }
-    return { role: role.name, binds: 'value', value: valueOf(bound.value) };
-  });
+  return order.map((name) => fillerOf(name, reading.bindings.get(name)));
 }
 
 /** What `traced` told the readers, one line to each paragraph, by nickname. */
@@ -278,11 +246,24 @@ function entryOf(traced: Traced): TurnEntry {
   };
 }
 
-function turnOf(stage: Stage, traced: Traced, seed: number): ReadTurn {
+/** What a parser compares with: absent where the turn has none, so a file keeps only what a turn had. */
+function parseFactsOf(traced: Traced, worlds: boolean): ParseFacts {
+  return {
+    ...(traced.parsed === null ? {} : { parsed: traced.parsed }),
+    ...(traced.handed === null ? {} : { handed: traced.handed }),
+    ...(traced.before === null || !worlds ? {} : { before: saveWorld(traced.before) }),
+  };
+}
+
+function turnOf(stage: Stage, traced: Traced, seed: number, worlds: boolean): ReadTurn {
   const typed = traced.typed ?? '';
   // A turn that faulted performed no reading, but the parser made one, and the other runtime runs it.
   const reading = traced.reading ?? traced.read;
-  const echo = { says: saysOf(stage, traced), expect: entryOf(traced) };
+  const echo = {
+    says: saysOf(stage, traced),
+    expect: entryOf(traced),
+    ...parseFactsOf(traced, worlds),
+  };
   if (reading !== null) {
     return {
       typed,
@@ -330,7 +311,7 @@ export function resolveScript(
     const ran = stage.turns.slice(from);
     const turns = ran
       .filter((traced) => traced.turn === 'command')
-      .map((traced, k) => turnOf(stage, traced, (begins.seed + k) % (SEED_MAX + 1)));
+      .map((traced, k) => turnOf(stage, traced, (begins.seed + k) % (SEED_MAX + 1), worlds));
     if ('comment' in step || 'seed' in step) return { ...begins, ...factsOf(step, turns) };
     const after: After = {
       says: ran.flatMap((traced) => saysOf(stage, traced)),

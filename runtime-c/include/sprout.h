@@ -462,6 +462,97 @@ sprout_status sprout_readings_for(sprout_world *world, sprout_state *state, cons
                                   const char *verb, sprout_arena *keep, sprout_seen_view *view);
 
 /*
+ * Reading a typed line (the spec's Parsing; The runtime > Turns): what the words a visitor typed make, read as
+ * the command turn they begin reads them, over the committed state, under that turn's step budget and with
+ * the stream begun from the seed the host draws for it (`seed`), and nothing written. A host previews a line
+ * with it, and the harness compares it with the TypeScript parser line by line. A runtime built without the
+ * parser (CMake's SPROUT_PARSER, which the Playdate leaves off) reads no typed line: every call is
+ * SPROUT_BAD_INPUT.
+ */
+
+/* An item of a run read afresh on its own turn: the role it fills and its words, each value role's words as the line typed them, and what the actor's pronouns named when the line began. */
+typedef struct sprout_reread_value {
+  const char *role;
+  const char *words;
+} sprout_reread_value;
+
+typedef struct sprout_reread {
+  const char *role;
+  const char *words;
+  size_t value_count;
+  const sprout_reread_value *values;
+  size_t referent_count;
+  const char *const *referents;
+} sprout_reread;
+
+/* What a later turn of a line is handed in place of reading its words: the reading planned for it, and the item of a run it re-reads, or NULL. */
+typedef struct sprout_handed {
+  const sprout_reading *planned;
+  const sprout_reread *reread;
+} sprout_handed;
+
+/* A turn a line runs after the one that read it: a reading planned for it, with the item it re-reads, or a command of words `and` or a comma joined. */
+typedef struct sprout_following {
+  const sprout_reading *planned; /* NULL for words */
+  const sprout_reread *reread;   /* NULL where nothing is re-read */
+  const char *text;              /* words: the command, read on its own turn */
+} sprout_following;
+
+/* A name a line of the engine's binds: a thing by id, or a value, which an answer only ever binds to words. */
+typedef struct sprout_said_binding {
+  const char *name;
+  bool object;
+  sprout_str text; /* the thing's id, or the words */
+} sprout_said_binding;
+
+/* How a line ended: understood as a verb's reading or an intent's, answered with a line in place of one, or faulted. */
+typedef enum sprout_parse_end {
+  SPROUT_PARSED_READING,
+  SPROUT_PARSED_INTENT,
+  SPROUT_PARSED_ANSWERED,
+  SPROUT_PARSED_FAULTED
+} sprout_parse_end;
+
+typedef struct sprout_parsed {
+  sprout_parse_end end;
+  /*
+   * READING: the verb's reading, its fillings in the order it binds them, with the draws and the asides below.
+   * INTENT: the same, `verb` naming the intent and the fillings its slots.
+   */
+  sprout_reading reading;
+  size_t rest_count;
+  const sprout_following *rest; /* the turns the line runs after it, in order */
+  bool drawn;                   /* drawn from readings that tied */
+  uint64_t drawn_among;
+  /* ANSWERED: the line said in place of a reading, who says it and what it binds. */
+  const char *line;  /* the passage's name: an engine line's (`unknown`), or one an exit refuses with */
+  const char *words; /* the words where it is said in quotes: the engine's own, where nothing writes the line, or an exit's */
+  bool absent;       /* a passage whose prose file the world was loaded without */
+  sprout_str by;
+  size_t binding_count;
+  const sprout_said_binding *bindings;
+  /* Every outcome: the bounds drawn below, in order, which begin the turn's stream, and the steps spent. */
+  size_t draw_count;
+  const uint64_t *draws;
+  uint64_t steps;
+  /* FAULTED: why, as a turn's fault says it. */
+  const char *fault_name;
+  sprout_fault fault;
+} sprout_parsed;
+
+/*
+ * Reads `line` (`length` bytes of UTF-8) as the visitor under the key `visit` typed it, or, with `handed`, a later
+ * turn of a line as it was handed. Everything the outcome holds is taken from `keep`, which the host owns. A visit
+ * the state does not hold, one that is away, one whose place is gone (the turn displaces them and reads nothing),
+ * and a line this runtime does not read yet are SPROUT_BAD_INPUT with `fault.text` saying which. The runtime reads
+ * a line no phrase places, which is `unknown`; reading one that a phrase places is #643's, a line `and` or a comma
+ * may split, `again` after a reading, and a handed turn are #645's.
+ */
+sprout_status sprout_parse(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
+                           const char *line, size_t length, const sprout_handed *handed, sprout_arena *keep,
+                           sprout_parsed *out);
+
+/*
  * Turns (the spec's The runtime > Turns, Effects, The log, Faults; Time; The host contract > Admission and
  * identity, Time, Storage). Every write turn runs in a draft over the last committed state, under a budget
  * of its own and one stream of draws begun from its seed, and either commits or is abandoned, leaving the
