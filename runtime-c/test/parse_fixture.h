@@ -122,6 +122,16 @@ static inline const char *bench_joined(bench *b, parse_words words) {
   return out;
 }
 
+/* The verb `name` of `library`. */
+static inline const sprout_verb *bench_verb(bench *b, const char *library, const char *name) {
+  size_t i;
+  for (i = 0; i < b->w.world->verb_count; i++)
+    if (strcmp(b->w.world->verbs[i]->library, library) == 0 && strcmp(b->w.world->verbs[i]->name, name) == 0)
+      return b->w.world->verbs[i];
+  fprintf(stderr, "no verb %s.%s\n", library, name);
+  exit(2);
+}
+
 /* The role `name` of the verb `verb` of `library`. */
 static inline const sprout_role *bench_role(bench *b, const char *library, const char *verb, const char *name) {
   size_t i, j;

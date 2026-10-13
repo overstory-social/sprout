@@ -249,7 +249,7 @@ static void each_turn_that_read_words_is_compared_over_the_world_it_began_from(v
   char *argv[] = {"parse", (char *)WORLD, "--readings", (char *)READINGS, NULL};
   size_t length;
   stored = arrived("again", parsed, sizeof parsed);
-  /* `again` read as the runtime reads it; `take ball`, which it does not read yet; `look`, a step a line planned. */
+  /* `again` read as the runtime reads it; `take unicorn`, which it does not read yet; `look`, a step a line planned. */
   snprintf(text, sizeof text,
            "{\"format\":1,\"script\":\"t.json\",\"steps\":["
            "{\"index\":0,\"line\":\"@arrive Marta\",\"atSeconds\":0,\"seed\":5,\"kind\":\"arrive\",\"nickname\":\"Marta\","
@@ -257,14 +257,14 @@ static void each_turn_that_read_words_is_compared_over_the_world_it_began_from(v
            "{\"index\":1,\"line\":\"Marta> again\",\"atSeconds\":0,\"seed\":5,\"kind\":\"command\",\"nickname\":\"Marta\","
            "\"turns\":["
            "{\"typed\":\"again\",\"seed\":5,\"skip\":true,\"why\":\"unknown\",\"parsed\":%s},"
-           "{\"typed\":\"take ball\",\"seed\":6,\"skip\":true,\"why\":\"unknown\",\"parsed\":%s,\"before\":%s},"
+           "{\"typed\":\"take unicorn\",\"seed\":6,\"skip\":true,\"why\":\"unknown\",\"parsed\":%s,\"before\":%s},"
            "{\"typed\":\"again\",\"seed\":7,\"skip\":true,\"why\":\"unknown\",\"handed\":{\"planned\":{\"verb\":\"sprout.look\","
            "\"actor\":\"x\",\"bindings\":[]}},\"before\":%s}]}]}",
            stored, parsed, parsed, stored, stored);
   put(READINGS, text, strlen(text));
   CHECK_INT(run(4, argv), 1);
   out = slurp(OUT, &length);
-  CHECK(strstr(out, "first difference: step 1, turn 2, `take ball`: sproutc does not read it: a line a phrase reads") != NULL);
+  CHECK(strstr(out, "first difference: step 1, turn 2, `take unicorn`: sproutc does not read it: a noun that names nothing in reach") != NULL);
   CHECK(strstr(out, "parsed: 1 agree, 1 differ, 1 planned\n") != NULL);
   free(out);
   free(stored);

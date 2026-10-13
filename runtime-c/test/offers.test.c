@@ -207,7 +207,37 @@ static void a_visitor_who_is_away_can_do_nothing(void) {
   offers_close(&k);
 }
 
+static const sprout_verb *verb_named(const sprout_world *world, const char *library, const char *name) {
+  size_t i;
+  for (i = 0; i < world->verb_count; i++)
+    if (strcmp(world->verbs[i]->library, library) == 0 && strcmp(world->verbs[i]->name, name) == 0) return world->verbs[i];
+  fprintf(stderr, "no verb %s.%s\n", library, name);
+  exit(2);
+}
+
+static void a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_each_asked_a_step(void) {
+  offers_case k;
+  const sprout_world *world;
+  const sprout_verb *verb;
+  uint64_t before, kinds = 0;
+  size_t i;
+  bool only;
+  CHECK_INT(offers_open(&k, "set role is offered"), SPROUT_EVAL_OK);
+  world = k.p.frame.world;
+  for (i = 0; i < world->kind_count; i++) kinds += world->kinds[i]->spawnable ? 1 : 0;
+  verb = verb_named(world, "sprout", "take");
+  before = k.p.meter.steps;
+  CHECK_INT(sprout_only_the_actor_plays(&k.p.frame, verb, &verb->roles[0], &only), SPROUT_EVAL_OK);
+  CHECK(only);
+  CHECK_INT(k.p.meter.steps - before, kinds);
+  verb = verb_named(world, "viewbench", "punch");
+  CHECK_INT(sprout_only_the_actor_plays(&k.p.frame, verb, &verb->roles[0], &only), SPROUT_EVAL_OK);
+  CHECK(!only);
+  offers_close(&k);
+}
+
 int main(void) {
+  RUN(a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_each_asked_a_step);
   RUN(the_offers_are_the_oracles_in_its_order_with_its_typed_lines_and_its_refusals);
   RUN(go_is_offered_by_each_exit_by_its_direction_and_by_each_link_by_its_labels_typed_words);
   RUN(a_way_is_an_exit_filler_naming_where_it_leads);
