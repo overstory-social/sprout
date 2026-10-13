@@ -314,7 +314,16 @@ the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
 scrolling a line at a time needs the lines, which `drawTextInRect` does not
 give back. Text is drawn as written, on the reading that the C API's
 `drawText`, which takes no font family, has no bold or italic to read `*`
-and `_` as; the Simulator has yet to confirm it.
+and `_` as; the Simulator has yet to confirm it. A on the reader opens the
+sentence builder (`src/ui/builder.h`), `sentence.lua` and `wheel.lua` in C
+(`src/ui/sentence.h`, `src/ui/drum.h`) over the session's chip levels: the
+drum, its fonts and detents and the keys below are the Lua builder's, and a
+confirmed sentence runs through `player_turn` and is told in the reader, led
+by the sentence as typed. The reader is lent to the builder while it is up.
+The sentence so far above the drum fits the screen however long it grows: in
+the system font, else the small font, else trimmed from the left behind
+`...`, so its end, the part being built, stays in view. The builder's sound
+cues go through one function that is silent until the sound module lands.
 
 ### The chip tree and the crank sentence builder
 

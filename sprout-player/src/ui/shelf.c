@@ -17,6 +17,9 @@ static const char MORE[] = "Downloading more worlds is not in this player yet.";
 static const char EMPTY[] = "No worlds are on the shelf. ";
 static const char CANNOT[] = " (cannot be opened)";
 static const char UNSAVED[] = " (its save failed)";
+static const char SAVE_FAILED[] =
+    "The save could not be written, so play has stopped and your last move was not kept. Free some room on the "
+    "console. This world stays greyed until its save can be written.";
 
 /* ---- titles ---- */
 
@@ -197,6 +200,12 @@ bool player_shelf_blocked(const player_shelf *shelf, const char *path) {
   return entry != NULL && entry->blocked;
 }
 
+void player_shelf_unsaved(player_app *app) {
+  player_close(app->session);
+  player_shelf_block(app->shelf, app->shelf->opened, SAVE_FAILED);
+  player_message_show(app, SAVE_FAILED);
+}
+
 /* ---- the screen ---- */
 
 static int header_height(int line_height) { return line_height + 4; }
@@ -238,6 +247,7 @@ static void choose(player_app *app, player_shelf *shelf) {
     return;
   }
   player_sound(app, PLAYER_CUE_PICK);
+  copy_text(shelf->opened, sizeof shelf->opened, entry->path);
   player_app_show(app, &player_arrival_screen, arrival);
 }
 

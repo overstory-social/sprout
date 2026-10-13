@@ -484,6 +484,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'wrap',
       'transcript',
       'ui',
+      'builder',
       'canonical',
       'signed_index',
       'shelf',

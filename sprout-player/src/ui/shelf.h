@@ -39,6 +39,7 @@ struct player_shelf {
   bool listed;     /* the entries have been listed: the first frame lists them, and each return to the shelf */
   wrapped panel;   /* the words under the rows, for `panel_for` */
   size_t panel_for;
+  char opened[PLAYER_PATH_BYTES]; /* the world last chosen, which is the one open while a world is */
 };
 
 /* An empty shelf, listed in its first frame; NULL when there is no memory for it. */
@@ -55,6 +56,12 @@ void player_shelf_refuse(player_shelf *shelf, const char *path, const char *reas
 void player_shelf_block(player_shelf *shelf, const char *path, const char *reason);
 void player_shelf_unblock(player_shelf *shelf, const char *path);
 bool player_shelf_blocked(const player_shelf *shelf, const char *path);
+
+/*
+ * The open world's save could not be written: play stops (a move that is not kept is not played),
+ * the world is closed and greyed on the shelf, and the message screen says so.
+ */
+void player_shelf_unsaved(player_app *app);
 
 /* A world's name as words, as the shelf titles it: `printers_shop` is `Printers Shop`. */
 void player_world_title(const char *name, char *title, size_t size);

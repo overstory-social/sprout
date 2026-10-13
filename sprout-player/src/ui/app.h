@@ -25,6 +25,8 @@ struct player_app {
   player_session *session;
   player_pen pen;
   player_shelf *shelf;
+  LCDFont *big_font, *small_font; /* the sentence builder's, loaded when it first opens; NULL where one cannot be */
+  bool fonts_tried;
   const player_screen *screen;
   void *ctx;
   const player_screen *next; /* the screen `player_app_show` asked for, shown when the update is over */

@@ -9,9 +9,6 @@
 #include "text.h"
 
 static const char NO_MEMORY[] = "The player ran out of memory bringing you into the world.";
-static const char SAVE_FAILED[] =
-    "The save could not be written, so play has stopped. Free some room on the console. "
-    "This world stays greyed until its save can be written.";
 
 static void copy_text(char *out, size_t size, const char *text) {
   text_buffer buffer;
@@ -41,13 +38,6 @@ static void stop(player_app *app, const char *words) {
 static void refuse(player_app *app, player_arrival *arrival, const char *reason) {
   player_shelf_refuse(app->shelf, arrival->path, reason != NULL && reason[0] != '\0' ? reason : "The world could not be opened.");
   stop(app, reason);
-}
-
-/* The save could not be written: the world is greyed on the shelf until it can be. */
-static void unsaved(player_app *app, player_arrival *arrival) {
-  player_close(app->session);
-  player_shelf_block(app->shelf, arrival->path, SAVE_FAILED);
-  player_message_show(app, SAVE_FAILED);
 }
 
 /* A copy of `text` from the device's allocator, or NULL. */
@@ -98,14 +88,14 @@ static void arrive(player_app *app, player_arrival *arrival) {
     stop(app, NO_MEMORY);
   } else if (player_shelf_blocked(app->shelf, arrival->path) && !player_save(app->session).ok) {
     /* A world greyed for its save is played again only once a save of it is written. */
-    unsaved(app, arrival);
+    player_shelf_unsaved(app);
   } else {
     player_shelf_unblock(app->shelf, arrival->path);
     admitted = player_admit(app->session, nickname);
     if (!admitted.ok)
       stop(app, admitted.words);
     else if (!admitted.saved)
-      unsaved(app, arrival);
+      player_shelf_unsaved(app);
     else if (!admitted.admitted)
       stop(app, admitted.words);
     else if ((reader = tell_arrival(app, arrival, nickname, notice, &admitted.lines)) == NULL)
