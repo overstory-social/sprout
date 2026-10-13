@@ -128,3 +128,51 @@ sprout_eval_status sprout_value_options(sprout_exec *x, const sprout_frame *fram
   *count = n;
   return SPROUT_EVAL_OK;
 }
+
+/* Whether one `from` hears `value`: a number its range takes, or an option its list property holds now. */
+static sprout_eval_status hears(const sprout_frame *frame, const sprout_node *narrowing,
+                                const sprout_stored_instance *self, const sprout_stored_bound *value, bool *heard) {
+  sprout_value held;
+  bool has;
+  double min = 0, max = 0;
+  size_t i;
+  *heard = false;
+  range_of(&frame->world->graph, narrowing, &has, &min, &max);
+  if (has) {
+    *heard = !value->value_is_string && value->value_number >= min && value->value_number <= max;
+    return SPROUT_EVAL_OK;
+  }
+  if (!value->value_is_string) return SPROUT_EVAL_OK;
+  EXPR_NEED(expr_get(frame, self,
+                     sprout_node_text(&frame->world->graph, sprout_node_get(&frame->world->graph, narrowing, "property"), "name"),
+                     &held));
+  if (held.kind != SPROUT_LIST) return SPROUT_EVAL_OK;
+  for (i = 0; i < held.as.list->count && !*heard; i++) {
+    const sprout_value *element = &held.as.list->items[i];
+    *heard = element->kind == SPROUT_STRING &&
+             sprout_str_same((sprout_str){element->as.string.bytes, element->as.string.length}, value->value_string);
+  }
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_value_heard(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+                                      const sprout_role *role, const sprout_stored_bound *value, bool *heard) {
+  const sprout_participant *participants;
+  size_t count, i, g, p;
+  *heard = false;
+  EXPR_NEED(sprout_participants(x, reading, &participants, &count));
+  for (i = 0; i < count && !*heard; i++) {
+    const sprout_stored_instance *self = expr_instance(frame, participants[i].id);
+    sprout_plays plays;
+    if (self == NULL) return expr_engine(frame, "a participant of a reading is not an instance.");
+    sprout_plays_for(reading, &participants[i], self->kind, &plays);
+    for (g = 0; g < plays.count && !*heard; g++)
+      for (p = 0; p < plays.groups[g]->count && !*heard; p++) {
+        const sprout_graph *graph = &frame->world->graph;
+        const sprout_node *narrowing =
+            sprout_node_map_find(graph, sprout_node_get(graph, plays.groups[g]->plays[p].node, "narrows"), role->name);
+        if (narrowing != NULL) EXPR_NEED(hears(frame, narrowing, self, value, heard));
+      }
+  }
+  return SPROUT_EVAL_OK;
+}

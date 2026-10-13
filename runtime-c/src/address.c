@@ -31,8 +31,7 @@ bool sprout_humanised(sprout_arena *arena, sprout_str text, sprout_str *words) {
 static bool is_lower(char c) { return c >= 'a' && c <= 'z'; }
 static bool is_upper(char c) { return c >= 'A' && c <= 'Z'; }
 
-/* A kind's name as a name, in lower case: `MazeCell` is "maze cell". */
-static bool humanised_kind(sprout_arena *arena, const char *kind, sprout_str *name) {
+bool sprout_humanised_kind(sprout_arena *arena, const char *kind, sprout_str *name) {
   size_t length = strlen(kind), i, n = 0;
   char *out = (char *)sprout_arena_take(arena, length * 2 + 1);
   if (out == NULL) return false;
@@ -94,5 +93,5 @@ sprout_eval_status sprout_name_of(const sprout_frame *frame, const sprout_stored
     return SPROUT_EVAL_OK;
   }
   if (identifier_of(instance, &identifier)) return sprout_humanised(frame->turn, identifier, name) ? SPROUT_EVAL_OK : SPROUT_EVAL_NO_MEMORY;
-  return humanised_kind(frame->turn, instance->kind->name, name) ? SPROUT_EVAL_OK : SPROUT_EVAL_NO_MEMORY;
+  return sprout_humanised_kind(frame->turn, instance->kind->name, name) ? SPROUT_EVAL_OK : SPROUT_EVAL_NO_MEMORY;
 }

@@ -144,7 +144,64 @@ static void an_intents_slot_takes_what_fits_any_role_it_is_given_carried_where_a
   bench_close(&s.b);
 }
 
+/* The value `line` binds for `role` of `verb`, whose first role holds `thing`, written out; "(unbound)" where none is heard. */
+static const char *value_of(slot *s, const char *library, const char *verb, const char *role, const char *thing,
+                            const char *line) {
+  static char text[64];
+  const sprout_verb *v = bench_verb(&s->b, library, verb);
+  sprout_filled *roles = (sprout_filled *)sprout_arena_take(s->b.frame.turn, (v->role_count + 1) * sizeof *roles);
+  static const size_t order[1] = {0};
+  sprout_resolved reading;
+  sprout_stored_bound value;
+  bool bound;
+  roles[0].filled = true;
+  roles[0].bound.kind = SPROUT_BOUND_OBJECT;
+  roles[0].bound.object = bench_str(thing);
+  reading.verb = v;
+  reading.actor = s->b.actor;
+  reading.roles = roles;
+  reading.bound_count = 1;
+  reading.bound_order = order;
+  CHECK_INT(parse_value_of(&s->b.run.x, &s->b.frame, &reading, bench_role(&s->b, library, verb, role),
+                           bench_words(&s->b, line), &bound, &value),
+            SPROUT_EVAL_OK);
+  if (!bound) return "(unbound)";
+  CHECK_INT(value.kind, SPROUT_BOUND_VALUE);
+  if (value.value_is_string) snprintf(text, sizeof text, "%.*s", (int)value.value_string.length, value.value_string.bytes);
+  else snprintf(text, sizeof text, "%g", value.value_number);
+  return text;
+}
+
+static void a_value_binds_the_option_or_number_its_words_spell_where_a_participant_hears_it(void) {
+  slot s;
+  uint64_t before;
+  open_slot(&s, "grammar");
+  before = s.b.run.meter->steps;
+  /* An option as a visitor types it, its words joined, as typed or after an article. */
+  CHECK_STR(value_of(&s, "sprout", "ask", "topic", "study.hall.guard", "old press"), "old_press");
+  CHECK_STR(value_of(&s, "sprout", "ask", "topic", "study.hall.guard", "the bridge"), "bridge");
+  /* An option the guard does not know, and words that are no option's name. */
+  CHECK_STR(value_of(&s, "sprout", "ask", "topic", "study.hall.guard", "toll"), "(unbound)");
+  CHECK_STR(value_of(&s, "sprout", "ask", "topic", "study.hall.guard", "potatoes!"), "(unbound)");
+  CHECK_STR(value_of(&s, "sprout", "ask", "topic", "study.hall.guard", "3"), "(unbound)");
+  /* Nobody but the guard hears a topic: asked of the gong, nothing binds. */
+  CHECK_STR(value_of(&s, "sprout", "ask", "topic", "study.hall.gong", "bridge"), "(unbound)");
+  /* A whole number, one word, within the dial's range. */
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "7"), "7");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "the 12"), "12");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "0012"), "12");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "13"), "(unbound)");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "-0"), "(unbound)");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "seven"), "(unbound)");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "7 8"), "(unbound)");
+  CHECK_STR(value_of(&s, "study", "turn", "number", "study.hall.dial", "9007199254740992"), "(unbound)");
+  /* Hearing charges nothing. */
+  CHECK_INT(s.b.run.meter->steps - before, 0);
+  bench_close(&s.b);
+}
+
 int main(void) {
+  RUN(a_value_binds_the_option_or_number_its_words_spell_where_a_participant_hears_it);
   RUN(an_exit_that_refuses_is_answered_and_a_direction_none_answers_is_no_way);
   RUN(an_exit_that_applies_is_its_option_and_a_label_written_elsewhere_names_nothing_here);
   RUN(a_carried_role_takes_what_is_carried_and_is_outward_where_only_something_further_out_answers);

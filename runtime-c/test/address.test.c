@@ -1,6 +1,6 @@
 /*
- * Tests for src/address.c: what an instance is called before its article, an identifier or an option
- * humanised, and the visitor behind a person as the turn leaves them.
+ * Tests for src/address.c: what an instance is called before its article, an identifier, an option or a kind's
+ * name humanised, and the visitor behind a person as the turn leaves them.
  */
 #include "prose_fixture.h"
 
@@ -12,6 +12,23 @@ static const char *name_of(prose_case *c, const char *object) {
   sprout_str name;
   if (instance == NULL || sprout_name_of(&frame, instance, &name) != SPROUT_EVAL_OK) return "(refused)";
   return sprout_arena_copy(&c->turn, name.bytes, name.length);
+}
+
+static void a_kinds_name_is_humanised_its_words_split_where_the_case_turns(void) {
+  static const char *const kinds[][2] = {{"MazeCell", "maze cell"}, {"Key", "key"},          {"HTMLDoor", "html door"},
+                                         {"Door2Go", "door2 go"},   {"ABC", "abc"},          {"lamp", "lamp"}};
+  sprout_arena arena;
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_str words;
+  size_t i;
+  sprout_arena_init(&arena, &host);
+  for (i = 0; i < sizeof kinds / sizeof *kinds; i++) {
+    CHECK(sprout_humanised_kind(&arena, kinds[i][0], &words));
+    CHECK_BYTES(words.bytes, words.length, kinds[i][1]);
+  }
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
 }
 
 static void a_name_is_the_grammar_blocks_the_identifiers_or_the_kinds_with_no_article(void) {
@@ -68,6 +85,7 @@ static void the_visitor_behind_a_person_is_found_as_the_turn_leaves_them(void) {
 int main(void) {
   RUN(a_name_is_the_grammar_blocks_the_identifiers_or_the_kinds_with_no_article);
   RUN(an_option_is_humanised);
+  RUN(a_kinds_name_is_humanised_its_words_split_where_the_case_turns);
   RUN(the_visitor_behind_a_person_is_found_as_the_turn_leaves_them);
   return REPORT();
 }

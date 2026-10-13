@@ -109,7 +109,40 @@ const EXPECTED_PASSING = [
 ];
 
 // The corpus worlds whose every typed line `sproutc parse` reads as the TypeScript parser does, sorted.
-const EXPECTED_PARSING = [];
+const EXPECTED_PARSING = [
+  'all-leaves-out-refused',
+  'allowed-first',
+  'arrival-order',
+  'brief',
+  'cancel-wakes',
+  'carried-across',
+  'chip-tree',
+  'dotted-paths',
+  'embedded-passage',
+  'engine_lines',
+  'exit-labels',
+  'exit-say',
+  'help_and_wait',
+  'imports',
+  'instance-scope',
+  'intents',
+  'media-room',
+  'move',
+  'narrowing-and',
+  'nested-offers',
+  'notices-through-gate',
+  'own-place',
+  'relatives',
+  'requires-held',
+  'roaming',
+  'rounds',
+  'standard-library',
+  'synonyms',
+  'teashop',
+  'turn-faults',
+  'value-first',
+  'visitor-contents',
+];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 

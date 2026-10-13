@@ -1,15 +1,17 @@
 /*
- * What the words a slot took fill its role with (the spec's Verbs > Slots, Set roles, Carried roles, Exits;
- * Parsing > Sequences, again and all): a thing role takes one noun, or a run of them it runs once for each; a set
- * role a run of them at once; an exit role a direction or a label, an exit that refuses and a direction no exit
- * answers being answered rather than read; a value role any words, which bind only once the reading's participants
- * are known. A carried role takes only what the one typing carries: where what they carry does not answer and
- * something further out would fill the role, the slot is outward, and a carried thing the noun names always wins
- * over an outward one. Reading the options as readings, and `all`, belong to the readings.
+ * What the words a slot took fill its role with (the spec's Verbs > Slots, Set roles, Carried roles, Value roles, A
+ * role-player narrows its own options, Exits; Parsing > Sequences, again and all): a thing role takes one noun, or a
+ * run of them it runs once for each; a set role a run of them at once; an exit role a direction or a label, an exit
+ * that refuses and a direction no exit answers being answered rather than read; a value role any words, which bind
+ * once the reading's things are, and only a value some participant's `from` hears, so nothing typed reaches a body
+ * unless a role-player declared it an option. A carried role takes only what the one typing carries: where what they
+ * carry does not answer and something further out would fill the role, the slot is outward, and a carried thing the
+ * noun names always wins over an outward one.
  */
 #include <string.h>
 
 #include "../expr/expr.h"
+#include "../options.h"
 #include "parse.h"
 
 static parse_words slice(parse_words words, size_t start, size_t end) {
@@ -230,4 +232,64 @@ sprout_eval_status parse_fill_intent_slot(const parse_fill_context *context, con
   g.count = role_count;
   for (i = 0; i < role_count; i++) carried = carried || roles[i]->carried;
   return carried_filled(context, words, carried, fits_given, &g, out);
+}
+
+/* Whether `words` spell `role`'s value: an option's name, the words joined by `_`, or a whole number JavaScript holds exactly. */
+static sprout_eval_status spelt(const sprout_frame *frame, const sprout_role *role, parse_words words, bool *spells,
+                                sprout_stored_bound *value) {
+  size_t i, at, length = 0;
+  char *option;
+  *spells = false;
+  memset(value, 0, sizeof *value);
+  value->kind = SPROUT_BOUND_VALUE;
+  if (role->filler == SPROUT_FILLER_INTEGER) {
+    const sprout_str word = words.words[0];
+    bool negative;
+    uint64_t number = 0;
+    if (words.count != 1 || word.length == 0) return SPROUT_EVAL_OK;
+    negative = word.bytes[0] == '-';
+    at = negative ? 1 : 0;
+    if (at == word.length) return SPROUT_EVAL_OK;
+    for (i = at; i < word.length; i++)
+      if (word.bytes[i] < '0' || word.bytes[i] > '9') return SPROUT_EVAL_OK;
+    while (at + 1 < word.length && word.bytes[at] == '0') at++;
+    if (word.length - at > 16) return SPROUT_EVAL_OK;
+    for (i = at; i < word.length; i++) number = number * 10 + (uint64_t)(word.bytes[i] - '0');
+    if (number > 9007199254740991u) return SPROUT_EVAL_OK;
+    value->value_number = negative && number != 0 ? -(double)number : (double)number;
+    *spells = true;
+    return SPROUT_EVAL_OK;
+  }
+  for (i = 0; i < words.count; i++) length += words.words[i].length + 1;
+  option = (char *)sprout_arena_take(frame->turn, length + 1);
+  if (option == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0, at = 0; i < words.count; i++) {
+    if (i > 0) option[at++] = '_';
+    memcpy(option + at, words.words[i].bytes, words.words[i].length);
+    at += words.words[i].length;
+  }
+  option[at] = '\0';
+  if (at == 0 || option[0] < 'a' || option[0] > 'z') return SPROUT_EVAL_OK;
+  for (i = 1; i < at; i++) {
+    char c = option[i];
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return SPROUT_EVAL_OK;
+  }
+  value->value_is_string = true;
+  value->value_string.bytes = option;
+  value->value_string.length = at;
+  *spells = true;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status parse_value_of(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+                                  const sprout_role *role, parse_words words, bool *bound, sprout_stored_bound *value) {
+  parse_words forms[2];
+  size_t count = parse_forms(words, forms), i;
+  *bound = false;
+  for (i = 0; i < count && !*bound; i++) {
+    bool spells;
+    EXPR_NEED(spelt(frame, role, forms[i], &spells, value));
+    if (spells) EXPR_NEED(sprout_value_heard(x, frame, reading, role, value, bound));
+  }
+  return SPROUT_EVAL_OK;
 }

@@ -46,4 +46,11 @@ sprout_eval_status sprout_offers_for(sprout_exec *x, const sprout_frame *frame, 
                                      size_t way_count, const sprout_reached *reached, size_t reached_count,
                                      const sprout_verb *verb, const sprout_offer **out, size_t *count);
 
+/*
+ * Whether only the actor plays a part in `role` of `verb`: no kind a spawn may name plays it, each kind a step.
+ * `all` never fills such a role with the actor's own place, nor does an offer where the actor's part moves it.
+ */
+sprout_eval_status sprout_only_the_actor_plays(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                              bool *only);
+
 #endif

@@ -544,11 +544,13 @@ typedef struct sprout_parsed {
  * Reads `line` (`length` bytes of UTF-8) as the visitor under the key `visit` typed it, or, with `handed`, a later
  * turn of a line as it was handed. Everything the outcome holds is taken from `keep`, which the host owns. A visit
  * the state does not hold, one that is away, one whose place is gone (the turn displaces them and reads nothing),
- * and a line this runtime does not read yet are SPROUT_BAD_INPUT with `fault.text` saying which. The runtime reads
- * a line no placement of a phrase reads, where none names a thing it cannot take: `unknown`, or `not_here` where its
- * words are a way out written elsewhere. Reading one that a phrase reads is #643's; a line read in part, a noun that
- * names nothing in reach, and a way out that refuses or a direction none answers are #644's; a line `and` or a comma
- * may split, `again` after a reading, and a handed turn are #645's.
+ * and a line this runtime does not read yet are SPROUT_BAD_INPUT with `fault.text` saying which. The runtime reads a
+ * line to the reading the best of its readings makes, a tie drawn, with `all`'s readings after it in `rest`, a
+ * pronoun's correction and a draw's `meant` among its asides; and a line no reading reads, where no phrase reads it
+ * in part: `unknown`, or `not_here` where its words are a way out written elsewhere or `all` leaves nothing. A line
+ * read in part, a noun that names nothing in reach where nothing reads, an object's synonym out of reach, and a way
+ * out that refuses or a direction none answers are #644's; a line `and` or a comma may split, `again` after a
+ * reading, a run's items after its first, and a handed turn are #645's.
  */
 sprout_status sprout_parse(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
                            const char *line, size_t length, const sprout_handed *handed, sprout_arena *keep,
