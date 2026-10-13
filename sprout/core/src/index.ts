@@ -17,6 +17,7 @@ export * from './state.js';
 export * from './visitors.js';
 export * from './store.js';
 export * from './memory-store.js';
+export * from './engine.js';
 export * from './turns.js';
 export * from './ticks.js';
 export * from './views.js';

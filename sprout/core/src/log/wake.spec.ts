@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { dueWakes, wakeTurn } from '@overstory/sprout/lang';
 
 import { command, COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
-import { committedState, runCommand } from '../turns.js';
+import { runCommand } from '../turns.js';
+import { committedState } from '../fixtures/committed.js';
 import { WakeEntry, wakeEntry, wakeOf } from './wake.js';
 
 const { host } = tally();

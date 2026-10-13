@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { visitKey, type CommandTurn, type Level, type VisitKey } from '@overstory/sprout/lang';
+import { visitKey, type Level, type VisitKey } from '@overstory/sprout/lang';
 import {
   clientMessageOf,
   negotiate,
@@ -10,6 +10,7 @@ import {
   runDeparture,
   TEXT_ONLY,
   type ClientMessage,
+  type GivenCommand,
 } from '@overstory/sprout/core';
 
 import {
@@ -296,7 +297,7 @@ async function command(
 }
 
 /** What the host logs of one command turn, and tells the one who typed it at the levels they asked for. */
-function notes(context: ServerContext, connection: Connection, turn: CommandTurn): void {
+function notes(context: ServerContext, connection: Connection, turn: GivenCommand): void {
   const world = connection.world!.served.id;
   if (!turn.committed) {
     const text = `a command faulted, ${turn.fault.name}: ${turn.fault.detail}`;
@@ -305,10 +306,11 @@ function notes(context: ServerContext, connection: Connection, turn: CommandTurn
     return;
   }
   const done = turn.value;
-  if ('step' in done && done.step !== null) {
+  if ('answered' in done || 'displaced' in done) return;
+  if (done.step !== null) {
     record(context, connection, 'info', `step: ${done.step.verb.library}.${done.step.verb.name}`);
   }
-  if ('drawn' in done && done.drawn !== null) {
+  if (done.drawn !== null) {
     const text = `drawn: the line read ${done.drawn.among} ways that tied, and one was drawn`;
     context.log.write('warning', text, world);
     record(context, connection, 'warning', text);

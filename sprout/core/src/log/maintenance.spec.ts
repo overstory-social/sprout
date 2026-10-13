@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { maintenanceTurn } from '@overstory/sprout/lang';
 
 import { command, COUNTER, GAUGE, seeded, tally } from '../fixtures/tally.js';
-import { committedState, runCommand } from '../turns.js';
+import { runCommand } from '../turns.js';
+import { committedState } from '../fixtures/committed.js';
 import { MaintenanceEntry, maintenanceEntry, maintenanceOf } from './maintenance.js';
 
 const { host } = tally();

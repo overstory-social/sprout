@@ -13,7 +13,8 @@ import {
 } from './conversation.js';
 import { HALL, MARTA, seeded as seededTally, tally } from './fixtures/tally.js';
 import type { SproutStore } from './store.js';
-import { committedState, runArrival, runDeparture, type NicknameHost } from './turns.js';
+import { runArrival, runDeparture, type NicknameHost } from './turns.js';
+import { committedState } from './fixtures/committed.js';
 
 const { host } = tally();
 const INES = visitKey('v-ines');

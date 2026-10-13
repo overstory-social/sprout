@@ -1,14 +1,13 @@
 import {
-  occupiedPlaces,
   type HostSeconds,
   type InstanceId,
-  type TickTurn,
   type TurnHost,
   type WriteInputs,
 } from '@overstory/sprout/lang';
 
+import { engineOf, type EngineHost, type GivenTick } from './engine.js';
 import type { SproutStore } from './store.js';
-import { committedState, runTick } from './turns.js';
+import { committedStored, runTick } from './turns.js';
 
 // Ticking a world's occupied places (the spec's Time › Ticks; The host
 // contract › Time). A round reads which places hold a visitor from the
@@ -20,7 +19,7 @@ import { committedState, runTick } from './turns.js';
 
 /** One place's part in a round: the tick turn it ran, or skipped because its last had not run. */
 export type Ticking =
-  | { readonly place: InstanceId; readonly turn: TickTurn }
+  | { readonly place: InstanceId; readonly turn: GivenTick }
   | { readonly place: InstanceId; readonly skipped: true };
 
 /** Ticks worlds' occupied places, one turn per place, never two waiting for one place. */
@@ -36,11 +35,11 @@ export class Ticker {
   async round(
     store: SproutStore,
     microworldId: string,
-    host: TurnHost,
+    host: TurnHost & EngineHost,
     now: HostSeconds,
     inputs: (place: InstanceId) => Omit<WriteInputs, 'now'>,
   ): Promise<Ticking[]> {
-    const places = occupiedPlaces(await committedState(store, microworldId, host));
+    const places = engineOf(host).occupiedPlaces(await committedStored(store, microworldId));
     const waiting = this.waitingIn(microworldId);
     return Promise.all(
       places.map(async (place): Promise<Ticking> => {

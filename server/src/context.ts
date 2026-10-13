@@ -1,9 +1,6 @@
 import { randomInt } from 'node:crypto';
 
 import {
-  nicknamesIn,
-  objectWords,
-  readerOf,
   SEED_MAX,
   type Effect,
   type HostSeconds,
@@ -12,8 +9,9 @@ import {
   type WriteInputs,
 } from '@overstory/sprout/lang';
 import {
-  committedState,
+  committedStored,
   ConversationPace,
+  engineOf,
   deliver,
   sendView,
   Ticker,
@@ -161,11 +159,11 @@ export async function sendStatus(
 ): Promise<void> {
   const visit = connection.visit!;
   const { served } = world;
-  const state = await committedState(context.store, served.id, served.host);
-  const visitor = state.visitors.get(visit);
-  const place =
-    visitor === undefined ? null : (state.instances.get(visitor.instance)?.container ?? null);
-  if (visitor === undefined || place === null) return;
+  const standing = engineOf(served.host).standing(
+    await committedStored(context.store, served.id),
+    visit,
+  );
+  if (standing === null) return;
   const now = context.clock.now();
   if (seq !== undefined) {
     const polled = await world.views.view(context.store, served.id, served.host, visit, now);
@@ -173,15 +171,10 @@ export async function sendStatus(
     connection.send({ t: 'view', seq, view: sendView(polled.view, capabilities) });
   }
   const { scene } = await world.views.scene(context.store, served.id, served.host, visit, now);
-  const reader = readerOf(state);
-  const naming = { state: reader, nicknames: nicknamesIn(state) };
   const status = {
     t: 'status',
-    place: objectWords(place, visitor.instance, naming),
-    here: reader
-      .children(place)
-      .filter((id) => id !== visitor.instance)
-      .map((id) => ({ id, name: objectWords(id, visitor.instance, naming) })),
+    place: standing.place.name,
+    here: standing.here,
     exits: scene.exits,
   } as const;
   const shown = JSON.stringify(status);
@@ -206,10 +199,8 @@ export async function sendReadings(
 ): Promise<void> {
   const visit = connection.visit!;
   const { served } = world;
-  const state = await committedState(context.store, served.id, served.host);
-  const visitor = state.visitors.get(visit);
-  const away =
-    visitor === undefined || (state.instances.get(visitor.instance)?.container ?? null) === null;
+  const stored = await committedStored(context.store, served.id);
+  const away = engineOf(served.host).standing(stored, visit) === null;
   const polled = away
     ? null
     : await world.views.readings(

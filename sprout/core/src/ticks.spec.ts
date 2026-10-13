@@ -15,6 +15,7 @@ import {
   storedChanges,
   visitKey,
   type InstanceId,
+  type TickTurn,
   type Manifest,
   type TurnHost,
   type VisitKey,
@@ -131,7 +132,9 @@ async function recordOf(store: SproutStore, id: InstanceId) {
 
 const elapsedOf = (ticking: Ticking): number | 'skipped' | 'not committed' => {
   if ('skipped' in ticking) return 'skipped';
-  return ticking.turn.committed ? ticking.turn.value.elapsed : 'not committed';
+  // The host names no engine, so each tick is the TypeScript runtime's own.
+  const turn = ticking.turn as TickTurn;
+  return turn.committed ? turn.value.elapsed : 'not committed';
 };
 
 describe('a round of ticks', () => {
