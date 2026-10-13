@@ -6,8 +6,10 @@
  * (fill.c), `all` and `except` (all.c), where a phrase's slots fall in a line (match.c), the readings a placement
  * makes (readings.c), choosing among them (rank.c), a line read in part (partial.c), the words a noun may be made
  * of anywhere in the world (vocabulary.c), an object's synonym out of reach (offered.c), the engine's answers to what
- * it cannot read (answers.c), and a line read as the command turn reads it (command.c, `sprout_parse`). Every step is charged where the TypeScript parser charges
- * it. Scratch is the turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what
+ * it cannot read (answers.c), a run's items after its first (later.c), `and` or a comma between two commands
+ * (chain.c), a reading a line planned (planned.c), the last reading run again (again.c), an item of a run read on
+ * its own turn (item.c), and a line read as the command turn reads it (command.c, `sprout_parse`). Every step is
+ * charged where the TypeScript parser charges it. Scratch is the turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what
  * a host reads is copied into the arena it hands in.
  */
 #ifndef SPROUT_PARSE_H
@@ -345,6 +347,22 @@ typedef struct parse_pronoun_thing {
   parse_pronoun pronoun;
 } parse_pronoun_thing;
 
+/*
+ * What a reading a run made keeps to plan the run's later items once it is chosen: the placement's slots, what each
+ * binds or that it is a value role's words, the run's slot, and each item after the first with what it fills the role
+ * with.
+ */
+typedef struct parse_run {
+  const sprout_typed_phrase *phrase;
+  size_t count;
+  const parse_span *spans;
+  const bool *words;                 /* a value role's words, bound against the item's thing */
+  const sprout_stored_bound *bounds; /* what the slot binds, where it is not words */
+  size_t at;                         /* the run's slot */
+  size_t later_count;
+  const parse_later *later;
+} parse_run;
+
 /* A reading, and what it is ranked by (the spec's Parsing > Choosing a reading). */
 typedef struct parse_ranked {
   parse_reading reading;
@@ -358,7 +376,7 @@ typedef struct parse_ranked {
   bool whole;             /* each item of its run names something, and every value typed is bound */
   size_t rest_count;
   const parse_reading *rest; /* `all`'s readings after this one, each a turn of its own */
-  bool runs;                 /* a run's items after its first follow it, each a turn of its own */
+  const parse_run *run;      /* a run's items after its first, planned once the reading is chosen; NULL for none */
 } parse_ranked;
 
 /* The readings a line made so far, one for each reading however many ways it was made, in the order first made. */
@@ -376,6 +394,20 @@ typedef struct parse_placement {
   size_t count;
   const parse_filled *const *fills;
 } parse_placement;
+
+/*
+ * The reading a verb's placement makes, each slot binding `bounds[i]`, or, where `words[i]`, its words bound as a
+ * value role's once the things are, since who hears a value depends on them.
+ */
+sprout_eval_status parse_reading_of(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                    const parse_placement *placement, const bool *words,
+                                    const sprout_stored_bound *bounds, parse_reading *out);
+
+/* The reading's roles filled as the passes take them, in the turn arena. */
+sprout_eval_status parse_resolved_of(const sprout_frame *frame, const parse_reading *reading, sprout_resolved *out);
+
+/* Whether the reading's consent pass allows it, charged to the turn. */
+sprout_eval_status parse_allows(sprout_exec *x, const sprout_frame *frame, const parse_reading *reading, bool *allowed);
 
 /*
  * Every reading one placement makes, each way of taking one option from each slot's a step, added to `readings`
@@ -431,6 +463,9 @@ int parse_compare_partial(const parse_partial *a, const parse_partial *b);
 sprout_eval_status parse_partials_of(const sprout_frame *frame, const parse_placement *placement, sprout_arena *keep,
                                      parse_partials *partials);
 
+/* A thing as a visitor names it in a line, in `arena`: `the` and its name in lower case, or its name alone where it takes no article. */
+bool parse_definite(sprout_arena *arena, const parse_address *address, sprout_str *out);
+
 /* The partial reading the world answers among `count` (at least one): the best, a tie a step and a draw from the turn's stream below how many tied. */
 sprout_eval_status parse_choose_partial(const sprout_frame *frame, const parse_partial *partials, size_t count,
                                         const parse_partial **chosen, size_t *among);
@@ -462,6 +497,83 @@ void parse_answer_of(const sprout_frame *frame, const char *answer, sprout_str a
 
 /* The words of `way`, an exit that refuses, said by its place to `actor` standing in `here`. */
 void parse_refused(const sprout_way *way, sprout_str actor, sprout_str here, parse_answer *out);
+
+/* ---- later.c: a run's items after its first ---- */
+
+/* A turn a reading plans after it: the reading, and the item of a run its turn reads afresh, or NULL. */
+typedef struct parse_following {
+  parse_reading planned;
+  const sprout_reread *reread;
+} parse_following;
+
+/*
+ * The turns a run's items after its first make, in the order written, `run` being the chosen reading's: each a reading
+ * planned now with every other role as the line binds them, the item's role filled by the thing it names best; or,
+ * where it names nothing it may fill or ties between things, the line's reading less the item's role and the value
+ * roles, with the item's words for its own turn to read afresh. Each thing tried is a step. Kept in `keep`.
+ */
+sprout_eval_status parse_later_of(sprout_exec *x, const sprout_frame *frame, sprout_str actor, parse_words line,
+                                  const parse_run *run, const sprout_str *referents, size_t referent_count,
+                                  sprout_arena *keep, parse_following **out, size_t *count);
+
+/* ---- chain.c: `and` or a comma between two commands ---- */
+
+/* Whether `word` begins a command: the first word of a phrase a visitor may type, or a direction where a phrase begins with a way out. */
+bool parse_begins_command(const sprout_world *world, sprout_str word);
+
+/*
+ * Where `words` may split as two commands, in the order written, into `out` (room for as many as the words): each
+ * `and` or comma with a command's words before it and a word beginning one after it.
+ */
+size_t parse_chain_points(const sprout_world *world, parse_words words, size_t *out);
+
+/* The words before the `and` or comma at `at`, without the commas just before it. */
+parse_words parse_command_before(parse_words words, size_t at);
+
+/* The words after the `and` or comma at `at`, up to the next `and` or comma: what a name beginning there would be. */
+parse_words parse_stretch_after(parse_words words, size_t at);
+
+/* The command after the `and` or comma at `at`, its words joined by single spaces, in `arena`; NULL where it has no room. */
+const char *parse_command_after(sprout_arena *arena, parse_words words, size_t at);
+
+/* ---- planned.c: a reading a line handed its later turn ---- */
+
+/* Whether every thing and way out `reading` binds is among `candidates` and the ways out that lead. */
+bool parse_in_reach(const parse_reading *reading, const parse_candidate *candidates, size_t candidate_count,
+                    const sprout_way *ways, size_t way_count);
+
+/* `reading`, as a host hands one, as the parser holds it, in `arena`; SPROUT_BAD_INPUT where its verb or a role is not the world's. */
+sprout_status parse_handed_reading(const sprout_world *world, sprout_arena *arena, const sprout_reading *reading,
+                                   parse_reading *out);
+
+/* ---- again.c: the actor's last reading run again ---- */
+
+/*
+ * The visitor's last reading, kept as a store keeps it, run by `actor`, in the turn arena: `*fits` false where it is
+ * no longer one its verb takes (the verb or a role gone, a thing gone or no longer of the role's kind, a role it
+ * must bind unbound).
+ */
+sprout_eval_status parse_again_reading(const sprout_frame *frame, const sprout_stored_reading *last, sprout_str actor,
+                                       parse_reading *out, bool *fits);
+
+/* ---- item.c: an item of a run read on its own turn ---- */
+
+/* An item read: the readings its words make, or the world's answer to them. */
+typedef struct parse_item_read {
+  parse_readings readings;   /* one for each thing it names, where it names some it may fill the role with */
+  const char *answer;        /* otherwise: `unknown`, `not_here`, `not_carrying` or `cannot` */
+  bool given;                /* `not_carrying`'s thing or `cannot`'s reading */
+  sprout_said_binding binding;
+} parse_item_read;
+
+/*
+ * `reread`'s words as the item filling its role of `within`, each value role bound from its words against what the
+ * item names, over what the actor can reach and the ways out that apply; every thing named a step and its consent
+ * pass asked; in the turn arena.
+ */
+sprout_eval_status parse_read_item(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                   const parse_reading *within, const sprout_reread *reread, const sprout_way *ways,
+                                   size_t way_count, parse_item_read *out);
 
 /* ---- command.c: a line as the command turn reads it ---- */
 

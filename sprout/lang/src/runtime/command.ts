@@ -14,9 +14,10 @@
 //
 // Reading typed words is the parser's, reached through `Parser`, which
 // `parser.ts` fills: the turn hands it the words, who typed them, each
-// visitor's nickname and the turn's state, meter and draws, and it gives back
-// the reading they make, drawn where several tied, or a line said to the
-// actor in place of one, as an unknown word is answered.
+// visitor's nickname and the turn's state, meter and draws, and, for a later
+// turn of a line, the reading an earlier one planned; it gives back the
+// reading they make, drawn where several tied, or a line said to the actor
+// in place of one, as an unknown word is answered.
 
 import { displace, type Displaced } from './arrival.js';
 import type { Budget } from './budget.js';
@@ -28,7 +29,6 @@ import { owedAfter, owedBy } from './move.js';
 import { engineSaid } from './engine-lines.js';
 import { boundObject } from './evaluate.js';
 import { planIntent, type IntentReading } from './intents.js';
-import { plannedOf } from './parser/planned.js';
 import type { Catalogue } from './catalogue.js';
 import type { Effect, Unrendered } from './effects.js';
 import { faultTold, stockFaultEffect } from './faults.js';
@@ -69,15 +69,18 @@ export interface ParseContext {
   /** The reading the actor's own last command ran, which `again` runs again; null before one. */
   readonly lastReading: Reading | null;
   /**
-   * Where the words are an item of a run read on its own turn: the
-   * reading the line planned, every role but the item's filled as the
-   * line began, and the role the words fill.
+   * Where the turn is a later one of a line: the reading an earlier turn
+   * planned for it, run where what it binds is still in reach, or, with
+   * an item of a run, every role but the item's filled as the line began
+   * and the item's words read afresh.
    */
-  readonly item?: {
-    readonly within: Reading;
-    readonly role: string;
-    readonly values: Reread['values'];
-  };
+  readonly handed?: Handed;
+}
+
+/** What a later turn of a line is handed in place of reading its words: the reading planned, and the item to re-read. */
+export interface Handed {
+  readonly planned: Reading;
+  readonly reread?: Reread;
 }
 
 /**
@@ -232,32 +235,24 @@ export function commandTurn(state: WorldState, host: CommandHost, command: Comma
       const { draft, catalogue, passes, budget, draws } = turn;
       const nicknames = nicknamesIn(state);
       const { planned, reread } = command;
-      const item = planned !== undefined && reread !== undefined;
-      const parsed: Parsed =
-        planned !== undefined && !item
-          ? plannedOf(planned, actor, {
-              state: draft,
-              catalogue,
-              passes,
-              budget,
-              draws,
-              nicknames,
-              referents: [],
-              lastReading: null,
-            })
-          : host.parse(item ? reread.words : command.text, actor, {
-              state: draft,
-              catalogue,
-              passes,
-              budget,
-              draws,
-              nicknames,
-              referents: item ? reread.referents : committed.visitor(command.visit)!.referents,
-              lastReading: committed.visitor(command.visit)!.lastReading,
-              ...(item
-                ? { item: { within: planned, role: reread.role, values: reread.values } }
-                : {}),
-            });
+      const visitor = committed.visitor(command.visit)!;
+      const handed: Handed | undefined =
+        planned === undefined
+          ? undefined
+          : reread === undefined
+            ? { planned }
+            : { planned, reread };
+      const parsed: Parsed = host.parse(command.text, actor, {
+        state: draft,
+        catalogue,
+        passes,
+        budget,
+        draws,
+        nicknames,
+        referents: reread === undefined ? visitor.referents : reread.referents,
+        lastReading: visitor.lastReading,
+        ...(handed === undefined ? {} : { handed }),
+      });
       if ('answered' in parsed) {
         if (!parsed.answered.to.includes(actor)) {
           throw new Error(

@@ -6,9 +6,8 @@
 // reading; where one is not, the turn is answered with `not_here`, which
 // stops the line.
 
-import type { ParseContext, Parsed } from '../command.js';
-import { waysFrom } from '../exits.js';
 import type { InstanceId } from '../ids.js';
+import type { CommandContext, CommandOutcome } from '../parser.js';
 import type { Reading } from '../reading.js';
 import { answer } from './answers.js';
 import type { AppliedWay } from './exits.js';
@@ -42,13 +41,14 @@ export function inReach(
  * actor's reach, and otherwise answered with `not_here`, as `again` is
  * (the spec's Parsing › Sequences, again and all).
  */
-export function plannedOf(planned: Reading, actor: InstanceId, context: ParseContext): Parsed {
+export function plannedOf(
+  planned: Reading,
+  actor: InstanceId,
+  context: CommandContext,
+): CommandOutcome {
   const here = context.state.instance(actor)!.container!;
-  const exits = waysFrom(here, context);
-  const candidates = reachOf(actor, { ...context, exits });
-  if (inReach(planned, candidates, exits)) {
-    return { reading: planned, rest: [], drawn: null, corrected: [] };
+  if (inReach(planned, reachOf(actor, context), context.exits)) {
+    return { understood: planned, rest: [], drawn: null, pronounNamed: [] };
   }
-  const { by, said, bindings } = answer(context.state, 'not_here', actor, here);
-  return { answered: { effect: 'notice', to: [actor], by, speaker: null, said, bindings } };
+  return answer(context.state, 'not_here', actor, here);
 }

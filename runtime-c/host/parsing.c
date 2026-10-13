@@ -313,7 +313,7 @@ static const char *handed_of(sprout_arena *arena, const sprout_json *node, sprou
 /* ---- the comparison ---- */
 
 typedef struct tally {
-  size_t agree, differ, planned;
+  size_t agree, differ, unrecorded; /* a turn with no record of a parse: one that read nothing, as a displaced one */
   bool each; /* every turn's verdict is printed, not only the first difference */
   bool told; /* the first difference has been printed */
 } tally;
@@ -429,7 +429,7 @@ static const char *compare_all(sproutc_host *host, sprout_world *world, const sp
       why = sproutc_readings_turn(&step, k, &turn);
       if (why != NULL) return why;
       if (turn.parsed == NULL) {
-        t->planned++;
+        t->unrecorded++;
         continue;
       }
       before = k == 0 ? world_now : turn.before;
@@ -493,7 +493,7 @@ int sproutc_parse(int argc, char **argv, FILE *out, FILE *err) {
     fprintf(err, "sproutc: %s\n", why);
     code = EXIT_USAGE;
   } else {
-    fprintf(out, "parsed: %zu agree, %zu differ, %zu planned\n", t.agree, t.differ, t.planned);
+    fprintf(out, "parsed: %zu agree, %zu differ, %zu unrecorded\n", t.agree, t.differ, t.unrecorded);
     code = t.differ == 0 ? 0 : EXIT_DIFFERS;
   }
   sproutc_readings_close(&readings);

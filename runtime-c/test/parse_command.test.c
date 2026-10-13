@@ -5,7 +5,8 @@
  * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms`, `all-leaves-out-refused`, `no-way` and
  * `out-of-reach-synonym`. A line reads to
  * the best of its readings, a tie drawn from the turn's stream; a line no reading reads is answered as answers.c
- * says; what this runtime does not read yet is refused in words, never answered wrongly.
+ * says; a line `and` splits, `again` and a turn a line handed are read as sequences are (their own cases are
+ * parse_chain, parse_again, parse_planned, parse_item and parse_later's).
  * The harness (`sproutc parse`) holds every outcome to the TypeScript parser's, steps included.
  */
 #include "turn_fixture.h"
@@ -112,7 +113,7 @@ static void a_line_of_no_words_is_unknown_and_spends_only_the_ways_out(void) {
   close_hall(&p);
 }
 
-static void again_before_any_reading_is_unknown_and_after_one_is_not_read_yet(void) {
+static void again_before_any_reading_is_unknown_and_after_one_runs_it(void) {
   parsing p;
   sprout_outcome taken;
   sprout_filling filling;
@@ -123,25 +124,35 @@ static void again_before_any_reading_is_unknown_and_after_one_is_not_read_yet(vo
   reading = tw_reading("sprout.take", tw_person(&p.w, "v-marta"), &filling, "target", "unknown_word.hall.ball");
   tw_command(&p.w, "v-marta", &reading, 1001, &taken);
   sprout_outcome_free(&taken);
-  CHECK_INT(parse(&p, "v-marta", "again", NULL), SPROUT_BAD_INPUT);
-  CHECK(strstr(p.out.fault.text, "`again` after a reading") != NULL);
+  CHECK_INT(parse(&p, "v-marta", "again", NULL), SPROUT_OK);
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.reading.verb, "sprout.take");
+  CHECK_STR(p.out.reading.fillings[0].id, "unknown_word.hall.ball");
   close_hall(&p);
 }
 
-static void what_this_runtime_does_not_read_yet_is_refused_in_words(void) {
+static void a_line_splits_before_a_verb_and_a_turn_a_line_handed_reads_as_handed(void) {
   parsing p;
   sprout_reading planned;
   sprout_handed handed;
   open_hall(&p);
-  CHECK_INT(parse(&p, "v-marta", "take ball and drop it", NULL), SPROUT_BAD_INPUT);
-  CHECK(strstr(p.out.fault.text, "`and` or a comma") != NULL);
+  CHECK_INT(parse(&p, "v-marta", "take ball and drop it", NULL), SPROUT_OK);
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.reading.verb, "sprout.take");
+  CHECK_INT(p.out.rest_count, 1);
+  CHECK(p.out.rest[0].planned == NULL);
+  CHECK_STR(p.out.rest[0].text, "drop it");
   memset(&planned, 0, sizeof planned);
   planned.verb = "sprout.look";
   planned.actor = tw_person(&p.w, "v-marta");
   handed.planned = &planned;
   handed.reread = NULL;
+  CHECK_INT(parse(&p, "v-marta", "look and look", &handed), SPROUT_OK);
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.reading.verb, "sprout.look");
+  CHECK_INT(p.out.rest_count, 0);
+  handed.planned = NULL;
   CHECK_INT(parse(&p, "v-marta", "look", &handed), SPROUT_BAD_INPUT);
-  CHECK(strstr(p.out.fault.text, "a turn a line handed") != NULL);
   close_hall(&p);
 }
 
@@ -556,8 +567,8 @@ int main(void) {
   RUN(an_objects_synonym_reads_only_where_the_object_takes_part);
   RUN(a_noun_naming_nothing_in_reach_costs_the_worlds_words_though_another_phrase_reads);
   RUN(a_line_of_no_words_is_unknown_and_spends_only_the_ways_out);
-  RUN(again_before_any_reading_is_unknown_and_after_one_is_not_read_yet);
-  RUN(what_this_runtime_does_not_read_yet_is_refused_in_words);
+  RUN(again_before_any_reading_is_unknown_and_after_one_runs_it);
+  RUN(a_line_splits_before_a_verb_and_a_turn_a_line_handed_reads_as_handed);
   RUN(words_that_name_no_way_out_are_unknown_and_a_way_written_elsewhere_is_not_here);
   RUN(a_visit_that_cannot_type_is_refused_in_words);
   RUN(a_trailing_question_mark_is_read_as_nothing_but_alone_it_is_kept);

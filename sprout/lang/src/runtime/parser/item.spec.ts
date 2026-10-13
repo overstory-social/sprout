@@ -63,7 +63,7 @@ function item(
     actor,
     bindings: new Map(bound.map(([name, id]) => [name, { object: id }])),
   };
-  return readItem(words, actor, { within, role, values }, commandContext(one, [], seed, referents));
+  return readItem(words, actor, within, { role, values }, commandContext(one, [], seed, referents));
 }
 
 const answerOf = (outcome: CommandOutcome) => ('answer' in outcome ? outcome.answer : null);
@@ -103,7 +103,7 @@ describe('an item of a run read on its own turn', () => {
       actor,
       bindings: new Map([['container', { object: BOX }]]),
     };
-    const gone = readItem('coin', actor, { within, role: 'item', values: [] }, commandContext(one));
+    const gone = readItem('coin', actor, within, { role: 'item', values: [] }, commandContext(one));
     expect(answerOf(gone)).toBe('not_here');
   });
 

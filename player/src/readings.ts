@@ -103,7 +103,7 @@ export interface After {
 
 /**
  * What a runtime that parses compares its own parse of a turn with: what `host.parse` returned, absent
- * where the turn read no words (a reading a line planned for it); the reading and the run's item a later
+ * where the turn was not parsed (one that displaced its visitor); the reading and the run's item a later
  * turn of a line was handed; and the stored world a turn after the first in a step began from, which the
  * first takes from the step before (`After.world`).
  */

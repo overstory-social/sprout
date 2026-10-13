@@ -7,8 +7,10 @@
  * phrase, a step, with what its slots' words fill their roles with and the readings they make. The best reading is
  * the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with `cannot` or
  * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; naming nothing in reach in the
- * world's words, with `not_here`; and otherwise `unknown`. What this runtime does not read yet, a sequence's parts,
- * is refused in words naming it, never answered wrongly.
+ * world's words, with `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split,
+ * the command after it handed on as words; `again` runs the last reading again; and a later turn of a line is read
+ * as it was handed, a planned reading or an item of a run to read afresh (the spec's Parsing > Sequences, again and
+ * all).
  */
 #include <string.h>
 
@@ -310,21 +312,6 @@ static bool is_word(sprout_str word, const char *text) {
   return word.length == strlen(text) && memcmp(word.bytes, text, word.length) == 0;
 }
 
-/*
- * Whether an `and` or a comma might join two commands: one with words after it and a word not a comma before it
- * (the spec's Parsing > Sequences, again and all). Which of them do is decided by the words after each.
- */
-static bool may_chain(const sprout_str *words, size_t count) {
-  size_t at;
-  bool before = false;
-  for (at = 0; at + 1 < count; at++) {
-    bool connector = is_word(words[at], "and") || is_word(words[at], ",");
-    if (connector && before) return true;
-    if (!is_word(words[at], ",")) before = true;
-  }
-  return false;
-}
-
 /* The line answered: which answer, who says it, the line or the words said, and what it binds, copied into `keep`. */
 static sprout_status answered(reader *r, const parse_answer *answer) {
   sprout_parsed *out = r->out;
@@ -473,41 +460,67 @@ static sprout_eval_status asides_of(reader *r, const parse_chosen *chosen, sprou
   return SPROUT_EVAL_OK;
 }
 
-/* The line understood: the best of the readings it made, a tie drawn, with what it runs after it and what is said before it. */
-static sprout_status understood(reader *r, const parse_readings *readings) {
+/* The reading out, with no draw, no aside and nothing after it: the last reading run again, or one a line planned. */
+static sprout_status read_as(reader *r, const parse_reading *reading) {
+  if (!reading_out(r->keep, reading, &r->out->reading)) return SPROUT_NO_MEMORY;
+  r->out->end = SPROUT_PARSED_READING;
+  return SPROUT_OK;
+}
+
+/* The turns the chosen reading runs after it, in order: `all`'s, a run's later items, then the command `after`, or NULL. */
+static sprout_eval_status rest_of(reader *r, const parse_ranked *chosen, parse_words words, const char *after) {
+  sprout_parsed *out = r->out;
+  sprout_following *rest;
+  parse_following *later = NULL;
+  size_t later_count = 0, i, n = 0;
+  if (chosen->run != NULL)
+    EXPR_NEED(parse_later_of(&r->run.x, &r->frame, r->actor, words, chosen->run, r->referents, r->referent_count, r->keep,
+                             &later, &later_count));
+  rest = (sprout_following *)sprout_arena_take(r->keep, (chosen->rest_count + later_count + 2) * sizeof *rest);
+  if (rest == NULL) return SPROUT_EVAL_NO_MEMORY;
+  memset(rest, 0, (chosen->rest_count + later_count + 2) * sizeof *rest);
+  for (i = 0; i < chosen->rest_count + later_count; i++) {
+    sprout_reading *planned = (sprout_reading *)sprout_arena_take(r->keep, sizeof *planned);
+    const parse_reading *reading = i < chosen->rest_count ? &chosen->rest[i] : &later[i - chosen->rest_count].planned;
+    if (planned == NULL || !reading_out(r->keep, reading, planned)) return SPROUT_EVAL_NO_MEMORY;
+    rest[n].planned = planned;
+    rest[n++].reread = i < chosen->rest_count ? NULL : later[i - chosen->rest_count].reread;
+  }
+  if (after != NULL) rest[n++].text = after;
+  out->rest = rest;
+  out->rest_count = n;
+  return SPROUT_EVAL_OK;
+}
+
+/*
+ * The line understood: the best of the readings it made of `words`, a tie drawn, with what it runs after it, the
+ * command `after` last where a line split, and what is said before it.
+ */
+static sprout_status understood(reader *r, const parse_readings *readings, parse_words words, const char *after) {
   sprout_parsed *out = r->out;
   parse_chosen chosen;
   sprout_aside *asides;
-  sprout_following *rest;
-  uint64_t *draws;
-  size_t aside_count, i;
-  sprout_eval_status status = parse_choose(&r->frame, readings->ranked, readings->count, &chosen);
-  if (status == SPROUT_EVAL_OK && chosen.ranked->runs)
-    return refuse(out, "", "a run's items after its first", " are not read by this runtime yet.");
+  uint64_t *draws = (uint64_t *)sprout_arena_take(r->keep, sizeof *draws);
+  size_t aside_count;
+  sprout_eval_status status;
+  if (draws == NULL) return SPROUT_NO_MEMORY;
+  status = parse_choose(&r->frame, readings->ranked, readings->count, &chosen);
+  if (status == SPROUT_EVAL_OK && chosen.among > 1) {
+    draws[0] = chosen.among;
+    out->draws = draws;
+    out->draw_count = 1;
+  }
+  if (status == SPROUT_EVAL_OK) status = rest_of(r, chosen.ranked, words, after);
   if (status == SPROUT_EVAL_OK) status = asides_of(r, &chosen, &asides, &aside_count);
   if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
   if (status != SPROUT_EVAL_OK) {
     faulted(r);
     return SPROUT_OK;
   }
-  draws = (uint64_t *)sprout_arena_take(r->keep, sizeof *draws);
-  rest = (sprout_following *)sprout_arena_take(r->keep, (chosen.ranked->rest_count + 1) * sizeof *rest);
-  if (draws == NULL || rest == NULL || !reading_out(r->keep, &chosen.ranked->reading, &out->reading)) return SPROUT_NO_MEMORY;
-  for (i = 0; i < chosen.ranked->rest_count; i++) {
-    sprout_reading *planned = (sprout_reading *)sprout_arena_take(r->keep, sizeof *planned);
-    if (planned == NULL || !reading_out(r->keep, &chosen.ranked->rest[i], planned)) return SPROUT_NO_MEMORY;
-    rest[i].planned = planned;
-  }
+  if (!reading_out(r->keep, &chosen.ranked->reading, &out->reading)) return SPROUT_NO_MEMORY;
   out->end = chosen.ranked->reading.verb != NULL ? SPROUT_PARSED_READING : SPROUT_PARSED_INTENT;
-  out->rest = rest;
-  out->rest_count = chosen.ranked->rest_count;
   out->drawn = chosen.among > 1;
   out->drawn_among = chosen.among > 1 ? chosen.among : 0;
-  if (out->drawn) {
-    draws[0] = chosen.among;
-    out->draws = draws;
-    out->draw_count = 1;
-  }
   out->reading.draws = out->draws;
   out->reading.draw_count = out->draw_count;
   out->reading.asides = asides;
@@ -558,44 +571,141 @@ static sprout_status unread(reader *r, const trying *t) {
   return answer(r, t->not_here ? "not_here" : "unknown", NULL);
 }
 
+/* A read stopped by `status`, which is not SPROUT_EVAL_OK: a fault ends it as faulted, and memory is the host's to give. */
+static sprout_status stopped(reader *r, sprout_eval_status status) {
+  if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
+  faulted(r);
+  return SPROUT_OK;
+}
+
+/* One command's words read: understood where they make a reading, the command `after` run after it, else answered. */
+static sprout_status answering(reader *r, const trying *t, const char *after) {
+  if (t->readings.count > 0) return understood(r, &t->readings, t->words, after);
+  return unread(r, t);
+}
+
+/* The readings that read every word the line holds, in the order made, in the turn arena. */
+static bool whole_of(sprout_arena *turn, const parse_readings *readings, parse_readings *out) {
+  size_t i;
+  memset(out, 0, sizeof *out);
+  out->ranked = (parse_ranked *)sprout_arena_take(turn, (readings->count + 1) * sizeof *out->ranked);
+  if (out->ranked == NULL) return false;
+  for (i = 0; i < readings->count; i++)
+    if (readings->ranked[i].whole) out->ranked[out->count++] = readings->ranked[i];
+  out->capacity = out->count;
+  return true;
+}
+
+/*
+ * Where `and` or a comma may join two commands (the spec's Parsing > Sequences, again and all), the line is one
+ * command where a reading reads all of it; otherwise it splits at the first such `and` or comma whose words after it,
+ * up to the next, name nothing outright, so a name that begins with a verb stays whole, and what follows is read on a
+ * turn of its own. A turn reads its line at most twice, so a long chain costs each turn no more than its own line.
+ */
+static sprout_status read_words(reader *r, parse_words typed, const parse_candidate *candidates, size_t candidate_count,
+                                const sprout_way *ways, size_t way_count) {
+  size_t *points = (size_t *)sprout_arena_take(r->run.x.turn, (typed.count + 1) * sizeof *points);
+  size_t point_count, i;
+  trying whole, before;
+  parse_readings reads;
+  parse_noun_context nouns;
+  sprout_eval_status status;
+  if (points == NULL) return SPROUT_NO_MEMORY;
+  point_count = parse_chain_points(r->run.world, typed, points);
+  status = phrases_read(r, typed, candidates, candidate_count, ways, way_count, &whole);
+  if (status != SPROUT_EVAL_OK) return stopped(r, status);
+  if (point_count == 0) return answering(r, &whole, NULL);
+  if (!whole_of(r->run.x.turn, &whole.readings, &reads)) return SPROUT_NO_MEMORY;
+  if (reads.count > 0) return understood(r, &reads, typed, NULL);
+  nouns.frame = &r->frame;
+  nouns.referents = r->referents;
+  nouns.referent_count = r->referent_count;
+  for (i = 0; i < point_count; i++) {
+    bool named;
+    status = parse_names_outright(&nouns, parse_stretch_after(typed, points[i]), candidates, candidate_count, &named);
+    if (status != SPROUT_EVAL_OK) return stopped(r, status);
+    if (!named) break;
+  }
+  if (i == point_count) return answering(r, &whole, NULL);
+  status = phrases_read(r, parse_command_before(typed, points[i]), candidates, candidate_count, ways, way_count, &before);
+  if (status != SPROUT_EVAL_OK) return stopped(r, status);
+  return answering(r, &before, parse_command_after(r->keep, typed, points[i]));
+}
+
+/*
+ * `again` or `g` alone: the actor's last reading run again, the same verb and the same things, where it is still one
+ * its verb takes, `unknown` where it is not or there is none, and `not_here` where what it binds is out of reach.
+ */
+static sprout_status read_again(reader *r, const sprout_stored_visitor *visitor, const parse_candidate *candidates,
+                                size_t candidate_count, const sprout_way *ways, size_t way_count) {
+  parse_reading last;
+  bool fits = false;
+  if (visitor->has_reading) {
+    sprout_eval_status status = parse_again_reading(&r->frame, &visitor->reading, r->actor, &last, &fits);
+    if (status != SPROUT_EVAL_OK) return stopped(r, status);
+  }
+  if (!fits) return answer(r, "unknown", NULL);
+  if (!parse_in_reach(&last, candidates, candidate_count, ways, way_count)) return answer(r, "not_here", NULL);
+  return read_as(r, &last);
+}
+
 /* Reads the words of a line typed by the actor, who stands in a place; anything but SPROUT_OK leaves `out` refused. */
-static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, sprout_str line) {
-  const sprout_way *ways;
+static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, sprout_str line, const sprout_way *ways,
+                               size_t way_count) {
   parse_candidate *candidates;
   sprout_str *words;
-  size_t way_count, candidate_count, count;
-  trying t;
+  size_t candidate_count, count;
   parse_words typed;
-  sprout_eval_status status = sprout_ways_from(&r->frame, r->here, &ways, &way_count);
-  if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
-  if (status != SPROUT_EVAL_OK) {
-    faulted(r);
-    return SPROUT_OK;
-  }
+  sprout_eval_status status;
   if (typed_words(&r->run.scratch, parse_without_question(line), &words, &count) != SPROUT_OK) return SPROUT_NO_MEMORY;
   if (count == 0) return answer(r, "unknown", NULL);
   status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
-  if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
-  if (status != SPROUT_EVAL_OK) {
-    faulted(r);
-    return SPROUT_OK;
-  }
-  if (count == 1 && (is_word(words[0], "again") || is_word(words[0], "g"))) {
-    if (!visitor->has_reading) return answer(r, "unknown", NULL);
-    return refuse(r->out, "", "`again` after a reading", " is not read by this runtime yet.");
-  }
-  if (may_chain(words, count))
-    return refuse(r->out, "", "a line `and` or a comma may split", " is not read by this runtime yet.");
+  if (status != SPROUT_EVAL_OK) return stopped(r, status);
+  if (count == 1 && (is_word(words[0], "again") || is_word(words[0], "g")))
+    return read_again(r, visitor, candidates, candidate_count, ways, way_count);
   typed.words = words;
   typed.count = count;
-  status = phrases_read(r, typed, candidates, candidate_count, ways, way_count, &t);
-  if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
-  if (status != SPROUT_EVAL_OK) {
-    faulted(r);
-    return SPROUT_OK;
+  return read_words(r, typed, candidates, candidate_count, ways, way_count);
+}
+
+/*
+ * A later turn of a line, read as it was handed (the spec's Parsing > Sequences, again and all): the reading planned
+ * for it, run where what it binds is still in reach and `not_here` where it is not; or the item of a run it re-reads.
+ */
+static sprout_status read_handed(reader *r, const sprout_handed *handed, const sprout_way *ways, size_t way_count) {
+  parse_reading planned;
+  parse_candidate *candidates;
+  size_t candidate_count;
+  sprout_eval_status status;
+  sprout_status made = parse_handed_reading(r->run.world, r->run.x.turn, handed->planned, &planned);
+  if (made == SPROUT_BAD_INPUT)
+    return refuse(r->out, "the reading a turn was handed, `", handed->planned->verb,
+                  "`, names a verb or a role this world does not have.");
+  if (made != SPROUT_OK) return made;
+  if (handed->reread != NULL) {
+    parse_item_read item;
+    parse_words none;
+    status = parse_read_item(&r->run.x, &r->frame, r->actor, &planned, handed->reread, ways, way_count, &item);
+    if (status != SPROUT_EVAL_OK) return stopped(r, status);
+    if (item.answer != NULL) return answer(r, item.answer, item.given ? &item.binding : NULL);
+    memset(&none, 0, sizeof none);
+    return understood(r, &item.readings, none, NULL);
   }
-  if (t.readings.count > 0) return understood(r, &t.readings);
-  return unread(r, &t);
+  status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
+  if (status != SPROUT_EVAL_OK) return stopped(r, status);
+  if (!parse_in_reach(&planned, candidates, candidate_count, ways, way_count)) return answer(r, "not_here", NULL);
+  return read_as(r, &planned);
+}
+
+/* The ways out of the actor's place, and then the line's words or what the turn was handed. */
+static sprout_status read_turn(reader *r, const sprout_stored_visitor *visitor, sprout_str line,
+                               const sprout_handed *handed) {
+  const sprout_way *ways;
+  size_t way_count;
+  sprout_eval_status status = sprout_ways_from(&r->frame, r->here, &ways, &way_count);
+  if (status != SPROUT_EVAL_OK) return stopped(r, status);
+  if (handed != NULL) return read_handed(r, handed, ways, way_count);
+  return read_line(r, visitor, line, ways, way_count);
 }
 
 sprout_status sprout_parse(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
@@ -609,7 +719,9 @@ sprout_status sprout_parse(sprout_world *world, sprout_state *state, const sprou
   memset(out, 0, sizeof *out);
   if (world == NULL || state == NULL || host == NULL || host->seed == NULL || visit == NULL || line == NULL)
     return refuse(out, "a parse names a world, a state, a host with a seed, a visit and a line.", "", "");
-  if (handed != NULL) return refuse(out, "", "a turn a line handed", " is not read by this runtime yet.");
+  if (handed != NULL && (handed->planned == NULL || handed->planned->verb == NULL ||
+                         (handed->reread != NULL && (handed->reread->role == NULL || handed->reread->words == NULL))))
+    return refuse(out, "a turn a line handed names the reading planned for it, and an item's role and words.", "", "");
   memset(&r, 0, sizeof r);
   r.keep = keep;
   r.out = out;
@@ -630,7 +742,7 @@ sprout_status sprout_parse(sprout_world *world, sprout_state *state, const sprou
     if (!turn_stands_in_place(&r.frame, r.actor))
       status = refuse(out, "`", visit, "` stands in a place that is gone: the turn moves them, and reads nothing.");
     else
-      status = read_line(&r, visitor, (sprout_str){line, length});
+      status = read_turn(&r, visitor, (sprout_str){line, length}, handed);
   }
   out->steps = r.run.meter->steps;
   turn_drop(&r.run);

@@ -24,16 +24,13 @@ import { answer } from './answers.js';
 import { wayLabels } from './exits.js';
 import { numberText } from '../values.js';
 import { fillSlot, valueOf } from './fill.js';
-import type { ParseContext } from '../command.js';
+import type { Reread } from '../command.js';
 import { writtenAs } from './nouns.js';
 import { boundWords } from './partial.js';
 import { chooseReading, type Ranked } from './rank.js';
 import { inReach } from './planned.js';
 import { reachOf } from './reach.js';
 import { inVocabulary, worldWords } from './vocabulary.js';
-
-/** The item a turn reads: the reading the line planned, the role its words fill, and each value role's words. */
-type ItemOf = NonNullable<ParseContext['item']>;
 
 /**
  * `words`, typed by `actor`, as the item filling `role` of `within`, each
@@ -43,7 +40,8 @@ type ItemOf = NonNullable<ParseContext['item']>;
 export function readItem(
   words: string,
   actor: InstanceId,
-  { within, role, values }: ItemOf,
+  within: Reading,
+  { role, values }: Pick<Reread, 'role' | 'values'>,
   context: CommandContext,
 ): CommandOutcome {
   const { state, budget } = context;

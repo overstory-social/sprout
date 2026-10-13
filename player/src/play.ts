@@ -311,7 +311,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
     (typed) => {
       const before = first ? null : stage.state;
       first = false;
-      // What the parser read is the turn's own: a turn that reads no words, as a step a line planned, has none.
+      // What the parser read is the turn's own, a step a line planned read as it was handed, never the parse before it.
       stage.parsed.length = 0;
       stage.read = null;
       stage.parse = null;

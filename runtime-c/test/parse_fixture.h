@@ -145,4 +145,70 @@ static inline const sprout_role *bench_role(bench *b, const char *library, const
   exit(2);
 }
 
+/* The corpus world `name` with Marta arrived and no turn open, for lines read between commands that commit. */
+static inline void bench_world(bench *b, const char *name) {
+  sprout_outcome arrived;
+  memset(b, 0, sizeof *b);
+  tw_open(&b->w, name);
+  tw_arrive(&b->w, "v-marta", "Marta", 1000, &arrived);
+  sprout_outcome_free(&arrived);
+  b->actor = bench_str(tw_person(&b->w, "v-marta"));
+}
+
+/* Marta's command `verb` (by its full identity) on the thing `id`, committed. */
+static inline void bench_command(bench *b, const char *verb, const char *id) {
+  sprout_filling filling;
+  sprout_reading reading = tw_reading(verb, b->actor.bytes, &filling, "target", id);
+  sprout_outcome done;
+  tw_command(&b->w, "v-marta", &reading, 1001, &done);
+  sprout_outcome_free(&done);
+}
+
+/* `line` read by `sprout_parse` as Marta over the bench's committed state under `seed`, as `handed` where given. */
+static inline sprout_status bench_parse(bench *b, sprout_arena *keep, const char *line, uint64_t seed,
+                                        const sprout_handed *handed, sprout_parsed *out) {
+  b->w.seed = seed;
+  return sprout_parse(b->w.world, b->w.state, &b->w.host, "v-marta", line, strlen(line), handed, keep, out);
+}
+
+/* The last segment of an id: `study.hall.lamp` is `lamp`. */
+static inline const char *bench_last(const char *id) {
+  const char *dot = id == NULL ? NULL : strrchr(id, '.');
+  return id == NULL ? "(none)" : dot == NULL ? id : dot + 1;
+}
+
+/* A reading written short, appended to `out`: its verb's name, then `role=what` for each role it binds, in order. */
+static inline void bench_shown(const sprout_reading *reading, char *out, size_t size) {
+  const char *dot = strrchr(reading->verb, '.');
+  size_t i, j;
+  char one[256];
+  snprintf(one, sizeof one, "%s", dot == NULL ? reading->verb : dot + 1);
+  strncat(out, one, size - strlen(out) - 1);
+  for (i = 0; i < reading->filling_count; i++) {
+    const sprout_filling *f = &reading->fillings[i];
+    snprintf(one, sizeof one, " %s=", f->role);
+    strncat(out, one, size - strlen(out) - 1);
+    switch (f->binds) {
+      case SPROUT_FILL_OBJECT:
+        strncat(out, bench_last(f->id), size - strlen(out) - 1);
+        break;
+      case SPROUT_FILL_SET:
+        for (j = 0; j < f->id_count; j++) {
+          if (j > 0) strncat(out, "+", size - strlen(out) - 1);
+          strncat(out, bench_last(f->ids[j]), size - strlen(out) - 1);
+        }
+        break;
+      case SPROUT_FILL_EXIT:
+        strncat(out, f->direction != NULL ? f->direction : f->label, size - strlen(out) - 1);
+        break;
+      case SPROUT_FILL_TEXT:
+        strncat(out, f->text, size - strlen(out) - 1);
+        break;
+      default:
+        snprintf(one, sizeof one, "%g", f->number);
+        strncat(out, one, size - strlen(out) - 1);
+    }
+  }
+}
+
 #endif

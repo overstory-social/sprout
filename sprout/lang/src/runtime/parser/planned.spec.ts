@@ -15,17 +15,13 @@ describe('a planned reading, as its own turn runs it', () => {
 
   it('runs as planned where what it binds is still in reach', () => {
     const { planned, parsed } = run();
-    expect(parsed).toEqual({ reading: planned, rest: [], drawn: null, corrected: [] });
+    expect(parsed).toEqual({ understood: planned, rest: [], drawn: null, pronounNamed: [] });
   });
 
   it('is `not_here` where a thing it binds has gone out of reach, or out of the world', () => {
     const shut = run((one) => one.draft.place(LAMP, CHEST)).parsed;
-    expect('answered' in shut && shut.answered.said).toMatchObject({
-      passage: { name: 'not_here' },
-    });
+    expect('answer' in shut && shut.answer).toBe('not_here');
     const gone = run((one) => one.draft.remove(LAMP)).parsed;
-    expect('answered' in gone && gone.answered.said).toMatchObject({
-      passage: { name: 'not_here' },
-    });
+    expect('answer' in gone && gone.answer).toBe('not_here');
   });
 });

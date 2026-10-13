@@ -170,11 +170,16 @@ describe('resolveScript', () => {
       'vault.json',
     );
     const [unlocked, opened] = commandOf(readings.steps[3]).turns;
-    // The line ties between the keys, so the first turn draws; the step it planned reads no words.
+    // The line ties between the keys, so the first turn draws; the step it planned is read as handed, drawing nothing.
     expect(unlocked?.parsed).toMatchObject({ intent: { intent: 'sprout.open_with' }, draws: [2] });
     expect(unlocked?.skip === false && unlocked.draws).toEqual([2]);
     expect(opened?.skip === false && opened.draws).toEqual([]);
-    expect(opened?.parsed).toBeUndefined();
+    expect(opened?.parsed).toMatchObject({
+      reading: { verb: 'sprout.open' },
+      rest: [],
+      drawn: null,
+      draws: [],
+    });
     expect(opened?.handed).toEqual({
       planned: {
         verb: 'sprout.open',

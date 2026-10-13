@@ -110,6 +110,7 @@ const EXPECTED_PASSING = [
 
 // The corpus worlds whose every typed line `sproutc parse` reads as the TypeScript parser does, sorted.
 const EXPECTED_PARSING = [
+  'all-in-order',
   'all-leaves-out-refused',
   'allowed-first',
   'arrival-order',
@@ -119,7 +120,9 @@ const EXPECTED_PARSING = [
   'carried',
   'carried-across',
   'chip-tree',
+  'comma-commands',
   'darkness',
+  'destroy-declared',
   'dotted-paths',
   'drop-here',
   'embedded-passage',
@@ -139,15 +142,19 @@ const EXPECTED_PARSING = [
   'out-of-reach-exit',
   'out-of-reach-synonym',
   'own-place',
+  'printers_shop',
   'pronouns',
   'refusal-hands',
   'relatives',
   'requires-held',
   'roaming',
   'rounds',
+  'runs',
+  'sequences',
   'shut-contents',
   'standard-library',
   'synonyms',
+  'take-from',
   'teashop',
   'troll_room',
   'turn-faults',
@@ -338,7 +345,7 @@ const alike = parses
   .filter((one) => one.failed === undefined && one.differ === 0 && one.agree > 0)
   .map((one) => one.name);
 console.log(
-  `runtime-c parse: ${sum('agree')} of ${sum('agree') + sum('differ')} turns the TypeScript parser read are read alike (${sum('unknownAlike')} of ${sum('unknown')} \`unknown\`), ${sum('planned')} planned; worlds alike in full: ${alike.join(', ') || 'none'}`,
+  `runtime-c parse: ${sum('agree')} of ${sum('agree') + sum('differ')} turns the TypeScript parser read are read alike (${sum('unknownAlike')} of ${sum('unknown')} \`unknown\`), ${sum('unrecorded')} unrecorded; worlds alike in full: ${alike.join(', ') || 'none'}`,
 );
 if (broken.length > 0) {
   console.log(

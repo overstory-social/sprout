@@ -91,8 +91,7 @@ static sprout_eval_status option_at(const sprout_frame *frame, const parse_place
   return SPROUT_EVAL_OK;
 }
 
-/* The reading's roles filled as the passes take them, in the turn arena. */
-static sprout_eval_status resolved_of(const sprout_frame *frame, const parse_reading *reading, sprout_resolved *out) {
+sprout_eval_status parse_resolved_of(const sprout_frame *frame, const parse_reading *reading, sprout_resolved *out) {
   sprout_filled *roles = (sprout_filled *)sprout_arena_take(frame->turn, (reading->verb->role_count + 1) * sizeof *roles);
   size_t i;
   if (roles == NULL) return SPROUT_EVAL_NO_MEMORY;
@@ -108,20 +107,19 @@ static sprout_eval_status resolved_of(const sprout_frame *frame, const parse_rea
   return SPROUT_EVAL_OK;
 }
 
-/* Whether the consent pass allows the reading, charged to the turn. */
-static sprout_eval_status allows(sprout_exec *x, const sprout_frame *frame, const parse_reading *reading, bool *allowed) {
+sprout_eval_status parse_allows(sprout_exec *x, const sprout_frame *frame, const parse_reading *reading, bool *allowed) {
   sprout_resolved resolved;
   sprout_permit_refusal refusal;
   bool refused;
-  EXPR_NEED(resolved_of(frame, reading, &resolved));
+  EXPR_NEED(parse_resolved_of(frame, reading, &resolved));
   EXPR_NEED(sprout_consent_pass(x, frame, &resolved, &refused, &refusal));
   *allowed = !refused;
   return SPROUT_EVAL_OK;
 }
 
-/* The reading a verb's placement makes with each slot filled by `options`: the things, then each value heard. */
-static sprout_eval_status reading_of(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const parse_placement *p,
-                                     const option *options, parse_reading *out) {
+sprout_eval_status parse_reading_of(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                    const parse_placement *p, const bool *words, const sprout_stored_bound *given,
+                                    parse_reading *out) {
   size_t *roles = (size_t *)sprout_arena_take(frame->turn, (p->count + 1) * sizeof *roles);
   sprout_stored_bound *bounds = (sprout_stored_bound *)sprout_arena_take(frame->turn, (p->count + 1) * sizeof *bounds);
   sprout_resolved things;
@@ -133,20 +131,34 @@ static sprout_eval_status reading_of(sprout_exec *x, const sprout_frame *frame, 
   out->roles = roles;
   out->bounds = bounds;
   for (i = 0; i < p->count; i++) {
-    if (options[i].words) continue;
+    if (words[i]) continue;
     roles[out->count] = p->spans[i].role;
-    bounds[out->count++] = options[i].bound;
+    bounds[out->count++] = given[i];
   }
   if (out->count == p->count) return SPROUT_EVAL_OK;
-  EXPR_NEED(resolved_of(frame, out, &things));
+  EXPR_NEED(parse_resolved_of(frame, out, &things));
   for (i = 0; i < p->count; i++) {
     bool bound;
-    if (!options[i].words) continue;
+    if (!words[i]) continue;
     EXPR_NEED(parse_value_of(x, frame, &things, &out->verb->roles[p->spans[i].role], slot_words(p, i), &bound,
                              &bounds[out->count]));
     if (bound) roles[out->count++] = p->spans[i].role;
   }
   return SPROUT_EVAL_OK;
+}
+
+/* The reading a verb's placement makes with each slot filled by `options`. */
+static sprout_eval_status reading_of(sprout_exec *x, const sprout_frame *frame, sprout_str actor, const parse_placement *p,
+                                     const option *options, parse_reading *out) {
+  bool *words = (bool *)sprout_arena_take(frame->turn, (p->count + 1) * sizeof *words);
+  sprout_stored_bound *bounds = (sprout_stored_bound *)sprout_arena_take(frame->turn, (p->count + 1) * sizeof *bounds);
+  size_t i;
+  if (words == NULL || bounds == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < p->count; i++) {
+    words[i] = options[i].words;
+    bounds[i] = options[i].bound;
+  }
+  return parse_reading_of(x, frame, actor, p, words, bounds, out);
 }
 
 static bool names_object(const option *options, size_t count, size_t but, sprout_str id) {
@@ -194,7 +206,7 @@ static sprout_eval_status each_of(sprout_exec *x, const sprout_frame *frame, spr
   for (i = 0; i < n; i++) {
     bool allowed;
     if (cap->set && kept >= cap->value) break;
-    EXPR_NEED(allows(x, frame, &made[i], &allowed));
+    EXPR_NEED(parse_allows(x, frame, &made[i], &allowed));
     if (allowed) made[kept++] = made[i];
   }
   *count = kept;
@@ -231,6 +243,21 @@ static bool same_reading(const parse_reading *a, const parse_reading *b) {
   return true;
 }
 
+/* `bound` with what it holds in the phrase's scratch, a set's ids and a value's words, copied into `keep`. */
+static bool kept_bound(sprout_arena *keep, sprout_stored_bound *bound) {
+  if (bound->kind == SPROUT_BOUND_SET) {
+    sprout_str *set = (sprout_str *)sprout_arena_take(keep, (bound->set_count + 1) * sizeof *set);
+    if (set == NULL) return false;
+    if (bound->set_count > 0) memcpy(set, bound->set, bound->set_count * sizeof *set);
+    bound->set = set;
+  }
+  if (bound->kind == SPROUT_BOUND_VALUE && bound->value_is_string) {
+    bound->value_string.bytes = sprout_arena_copy(keep, bound->value_string.bytes, bound->value_string.length);
+    if (bound->value_string.bytes == NULL) return false;
+  }
+  return true;
+}
+
 /* `reading` copied into `keep`, with what it binds that the phrase's scratch holds: a set's ids and an option's words. */
 static bool kept_reading(sprout_arena *keep, const parse_reading *reading, parse_reading *out) {
   size_t *roles = (size_t *)sprout_arena_take(keep, (reading->count + 1) * sizeof *roles);
@@ -241,20 +268,47 @@ static bool kept_reading(sprout_arena *keep, const parse_reading *reading, parse
   for (i = 0; i < reading->count; i++) {
     roles[i] = reading->roles[i];
     bounds[i] = reading->bounds[i];
-    if (bounds[i].kind == SPROUT_BOUND_SET) {
-      sprout_str *set = (sprout_str *)sprout_arena_take(keep, (bounds[i].set_count + 1) * sizeof *set);
-      if (set == NULL) return false;
-      if (bounds[i].set_count > 0) memcpy(set, bounds[i].set, bounds[i].set_count * sizeof *set);
-      bounds[i].set = set;
-    }
-    if (bounds[i].kind == SPROUT_BOUND_VALUE && bounds[i].value_is_string) {
-      bounds[i].value_string.bytes = sprout_arena_copy(keep, bounds[i].value_string.bytes, bounds[i].value_string.length);
-      if (bounds[i].value_string.bytes == NULL) return false;
-    }
+    if (!kept_bound(keep, &bounds[i])) return false;
   }
   out->roles = roles;
   out->bounds = bounds;
   return true;
+}
+
+/* A run's plan copied out of the phrase's scratch into `keep`: its slots, and each later item's things. */
+static const parse_run *kept_run(sprout_arena *keep, const parse_run *run) {
+  parse_run *made = (parse_run *)sprout_arena_take(keep, sizeof *made);
+  parse_span *spans = (parse_span *)sprout_arena_take(keep, (run->count + 1) * sizeof *spans);
+  bool *words = (bool *)sprout_arena_take(keep, (run->count + 1) * sizeof *words);
+  sprout_stored_bound *bounds = (sprout_stored_bound *)sprout_arena_take(keep, (run->count + 1) * sizeof *bounds);
+  parse_later *later = (parse_later *)sprout_arena_take(keep, (run->later_count + 1) * sizeof *later);
+  size_t i;
+  if (made == NULL || spans == NULL || words == NULL || bounds == NULL || later == NULL) return NULL;
+  *made = *run;
+  for (i = 0; i < run->count; i++) {
+    spans[i] = run->spans[i];
+    words[i] = run->words[i];
+    bounds[i] = run->bounds[i];
+    if (!words[i] && !kept_bound(keep, &bounds[i])) return NULL;
+  }
+  for (i = 0; i < run->later_count; i++) {
+    parse_named *things = (parse_named *)sprout_arena_take(keep, (run->later[i].filled.thing_count + 1) * sizeof *things);
+    if (things == NULL) return NULL;
+    later[i] = run->later[i];
+    if (later[i].filled.thing_count > 0)
+      memcpy(things, later[i].filled.things, later[i].filled.thing_count * sizeof *things);
+    /* An item of a run in a role that takes one thing fills it with things, or not at all. */
+    later[i].filled.things = things;
+    later[i].filled.sets = NULL;
+    later[i].filled.set_count = 0;
+    later[i].filled.later = NULL;
+    later[i].filled.later_count = 0;
+  }
+  made->spans = spans;
+  made->words = words;
+  made->bounds = bounds;
+  made->later = later;
+  return made;
 }
 
 /* `ranked`, made in scratch, kept: added where its reading is new, or in place of the same one matched by fewer words. */
@@ -278,6 +332,7 @@ static sprout_eval_status keep_ranked(sprout_arena *keep, const parse_ranked *ra
   made.near = near;
   made.pronouns = pronouns;
   made.rest = rest;
+  if (ranked->run != NULL && (made.run = kept_run(keep, ranked->run)) == NULL) return SPROUT_EVAL_NO_MEMORY;
   if (slot == NULL) {
     slot = (parse_ranked *)sprout_exec_grow(keep, (void **)&readings->ranked, &readings->count, &readings->capacity,
                                             sizeof *slot);
@@ -331,6 +386,30 @@ static bool takes_part(const parse_reading *reading, const char *object) {
   return false;
 }
 
+/* What planning the run in slot `at` needs once its reading is chosen, in the turn arena, which is the phrase's scratch. */
+static sprout_eval_status run_of(const sprout_frame *frame, const parse_placement *p, const option *options, size_t at,
+                                 const parse_run **out) {
+  parse_run *run = (parse_run *)sprout_arena_take(frame->turn, sizeof *run);
+  bool *words = (bool *)sprout_arena_take(frame->turn, (p->count + 1) * sizeof *words);
+  sprout_stored_bound *bounds = (sprout_stored_bound *)sprout_arena_take(frame->turn, (p->count + 1) * sizeof *bounds);
+  size_t i;
+  if (run == NULL || words == NULL || bounds == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < p->count; i++) {
+    words[i] = options[i].words;
+    bounds[i] = options[i].bound;
+  }
+  run->phrase = p->phrase;
+  run->count = p->count;
+  run->spans = p->spans;
+  run->words = words;
+  run->bounds = bounds;
+  run->at = at;
+  run->later_count = p->fills[at]->later_count;
+  run->later = p->fills[at]->later;
+  *out = run;
+  return SPROUT_EVAL_OK;
+}
+
 /* What the choice is ranked by but its reading and whether it is allowed: literal words, nearness, names and pronouns. */
 static sprout_eval_status ranked_by(const sprout_frame *frame, const parse_placement *p, const option *options,
                                     size_t role_count, parse_ranked *out) {
@@ -369,7 +448,7 @@ static sprout_eval_status ranked_by(const sprout_frame *frame, const parse_place
       pronouns[out->pronoun_count++].pronoun = options[i].pronouns[j].pronoun;
     }
     if (p->fills[i]->fills == PARSE_FILLS_RUN) {
-      out->runs = true;
+      if (out->run == NULL) EXPR_NEED(run_of(frame, p, options, i, &out->run));
       for (j = 0; j < p->fills[i]->later_count; j++)
         out->whole = out->whole && p->fills[i]->later[j].filled.fills == PARSE_FILLS_OPTIONS;
     }
@@ -414,7 +493,7 @@ static sprout_eval_status verb_ranked(sprout_exec *x, const sprout_frame *frame,
   out->reading = each[0];
   out->rest = each + 1;
   out->rest_count = count - 1;
-  EXPR_NEED(allows(x, frame, &out->reading, &out->allowed));
+  EXPR_NEED(parse_allows(x, frame, &out->reading, &out->allowed));
   EXPR_NEED(ranked_by(frame, p, options, p->phrase->verb->role_count, out));
   *made = true;
   return SPROUT_EVAL_OK;
