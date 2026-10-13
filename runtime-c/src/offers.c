@@ -117,29 +117,6 @@ static sprout_eval_status ways_for(scene *s, fillings *out) {
   return SPROUT_EVAL_OK;
 }
 
-/*
- * Whether only the actor plays a part in `role` of `verb`: no kind a spawn may name plays it, each kind a
- * step. `all` never fills such a role with the actor's own place, nor does an offer where the actor's part
- * moves it.
- */
-static sprout_eval_status only_the_actor_plays(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
-                                               bool *only) {
-  const sprout_world *world = frame->world;
-  size_t i;
-  *only = true;
-  for (i = 0; i < world->kind_count; i++) {
-    const sprout_play_group *group;
-    if (!world->kinds[i]->spawnable) continue;
-    EXPR_NEED(expr_spend(frame));
-    group = sprout_own_plays(verb, role->name, world->kinds[i]);
-    if (group != NULL && group->count > 0) {
-      *only = false;
-      return SPROUT_EVAL_OK;
-    }
-  }
-  return SPROUT_EVAL_OK;
-}
-
 /* The things that fill a role the actor's own place does not: that place fills no role only the actor plays and their own part moves. */
 static sprout_eval_status things_for(scene *s, const sprout_verb *verb, const sprout_role *role, fillings *out) {
   size_t i;
@@ -153,7 +130,7 @@ static sprout_eval_status things_for(scene *s, const sprout_verb *verb, const sp
   if (here_fits) {
     bool moves, only = false;
     EXPR_NEED(sprout_moves_its_filler(s->frame, verb, role, s->actor, &moves));
-    if (moves) EXPR_NEED(only_the_actor_plays(s->frame, verb, role, &only));
+    if (moves) EXPR_NEED(sprout_only_the_actor_plays(s->frame, verb, role, &only));
     own_place = moves && only;
   }
   for (i = 0; i < s->thing_count; i++) {
@@ -410,4 +387,22 @@ sprout_eval_status sprout_offers_for(sprout_exec *x, const sprout_frame *frame, 
                                      size_t way_count, const sprout_reached *reached, size_t reached_count,
                                      const sprout_verb *verb, const sprout_offer **out, size_t *count) {
   return offers(x, frame, actor, ways, way_count, reached, reached_count, verb, out, count);
+}
+
+sprout_eval_status sprout_only_the_actor_plays(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                              bool *only) {
+  const sprout_world *world = frame->world;
+  size_t i;
+  *only = true;
+  for (i = 0; i < world->kind_count; i++) {
+    const sprout_play_group *group;
+    if (!world->kinds[i]->spawnable) continue;
+    EXPR_NEED(expr_spend(frame));
+    group = sprout_own_plays(verb, role->name, world->kinds[i]);
+    if (group != NULL && group->count > 0) {
+      *only = false;
+      return SPROUT_EVAL_OK;
+    }
+  }
+  return SPROUT_EVAL_OK;
 }

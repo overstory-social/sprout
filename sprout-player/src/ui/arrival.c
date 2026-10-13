@@ -6,6 +6,7 @@
 #include "host/files.h"
 #include "images.h"
 #include "message.h"
+#include "nickname.h"
 #include "pictures.h"
 #include "reader.h"
 #include "text.h"
@@ -42,20 +43,11 @@ static void refuse(player_app *app, player_arrival *arrival, const char *reason)
   stop(app, reason);
 }
 
-/* A copy of `text` from the device's allocator, or NULL. */
-static char *copy_of(PlaydateAPI *pd, const char *text, size_t length) {
-  char *copy = (char *)player_alloc(pd, length + 1);
-  if (copy == NULL) return NULL;
-  memcpy(copy, text, length);
-  copy[length] = '\0';
-  return copy;
-}
-
 /*
  * The reader with the arrival told: who the visitor is, what the save had to say, what the arrival
  * told, the status; and into `pictures`, what the arrival's lines and then the place's view asked to show.
  */
-static player_reader *tell_arrival(player_app *app, const player_arrival *arrival, const char *nickname, const char *notice,
+static player_reader *tell_arrival(player_app *app, const char *title, const char *nickname, const char *notice,
                                    const told_list *lines, gallery *pictures) {
   player_reader *reader = player_reader_new(app);
   const sprout_seen_view *view = NULL;
@@ -64,7 +56,7 @@ static player_reader *tell_arrival(player_app *app, const player_arrival *arriva
   if (reader == NULL) return NULL;
   text_begin(&you, said, sizeof said);
   text_add(&you, "You are in ");
-  text_add(&you, arrival->title);
+  text_add(&you, title);
   text_add(&you, " as ");
   text_add(&you, nickname);
   text_add(&you, ".");
@@ -77,47 +69,59 @@ static player_reader *tell_arrival(player_app *app, const player_arrival *arriva
   return NULL;
 }
 
-/* The world is read: its save is loaded and the visitor admitted, and the reader takes over. */
-static void arrive(player_app *app, player_arrival *arrival) {
-  player_loaded loaded = player_load(app->session);
-  player_told admitted;
-  player_reader *reader;
+bool player_arrival_tell(player_app *app, const char *title, const char *nickname, const char *notice,
+                         const told_list *lines) {
   gallery pictures;
-  char *nickname, *notice = NULL;
+  player_reader *reader;
+  gallery_init(&pictures, app->pd);
+  if ((reader = tell_arrival(app, title, nickname, notice, lines, &pictures)) == NULL) {
+    gallery_free(&pictures);
+    return false;
+  }
+  player_pictures_show(app, reader, &pictures);
+  return true;
+}
+
+/*
+ * The world is read, and `words` are those it reads: its save is loaded and the nickname screen
+ * offers the names those words and the others present leave free, the last name first.
+ */
+static void arrive(player_app *app, player_arrival *arrival, const char *const *words, size_t word_count) {
+  player_loaded loaded;
+  player_nickname *picker = player_nickname_new(app, arrival->title);
+  if (picker == NULL) {
+    stop(app, NO_MEMORY);
+    return;
+  }
+  /* The words are the session's until its next call, so the pool is filtered by them before the load. */
+  picker->count = nickname_without_words(picker->names, picker->count, words, word_count);
+  loaded = player_load(app->session);
   if (!loaded.ok) {
+    player_nickname_screen.leave(app, picker);
     stop(app, loaded.words);
     return;
   }
-  nickname = loaded.nickname != NULL ? copy_of(app->pd, loaded.nickname->bytes, loaded.nickname->length)
-                                     : copy_of(app->pd, PLAYER_FIXED_NICKNAME, strlen(PLAYER_FIXED_NICKNAME));
-  if (loaded.words[0] != '\0') notice = copy_of(app->pd, loaded.words, strlen(loaded.words));
-  /* What the load said is the session's until its next call, so it is copied before the save below. */
-  if (nickname == NULL || (loaded.words[0] != '\0' && notice == NULL)) {
-    stop(app, NO_MEMORY);
-  } else if (player_shelf_blocked(app->shelf, arrival->path) && !player_save(app->session).ok) {
-    /* A world greyed for its save is played again only once a save of it is written. */
-    player_shelf_unsaved(app);
-  } else {
-    player_shelf_unblock(app->shelf, arrival->path);
-    admitted = player_admit(app->session, nickname);
-    if (!admitted.ok)
-      stop(app, admitted.words);
-    else if (!admitted.saved)
-      player_shelf_unsaved(app);
-    else if (!admitted.admitted)
-      stop(app, admitted.words);
-    else {
-      gallery_init(&pictures, app->pd);
-      if ((reader = tell_arrival(app, arrival, nickname, notice, &admitted.lines, &pictures)) == NULL) {
-        gallery_free(&pictures);
-        stop(app, NO_MEMORY);
-      } else {
-        player_pictures_show(app, reader, &pictures);
-      }
+  picker->count = nickname_without_present(picker->names, picker->count, loaded.present, loaded.present_count);
+  picker->selected = nickname_preferred(picker->names, picker->count, loaded.nickname);
+  if (loaded.words[0] != '\0') {
+    /* What the load said is the session's until its next call, so it is kept before the save below. */
+    size_t length = strlen(loaded.words);
+    picker->notice = (char *)player_alloc(app->pd, length + 1);
+    if (picker->notice == NULL) {
+      player_nickname_screen.leave(app, picker);
+      stop(app, NO_MEMORY);
+      return;
     }
+    memcpy(picker->notice, loaded.words, length + 1);
   }
-  player_free(app->pd, nickname);
-  player_free(app->pd, notice);
+  if (player_shelf_blocked(app->shelf, arrival->path) && !player_save(app->session).ok) {
+    /* A world greyed for its save is played again only once a save of it is written. */
+    player_nickname_screen.leave(app, picker);
+    player_shelf_unsaved(app);
+    return;
+  }
+  player_shelf_unblock(app->shelf, arrival->path);
+  player_app_show(app, &player_nickname_screen, picker);
 }
 
 static void update(player_app *app, void *ctx, const player_input *input) {
@@ -141,7 +145,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   }
   arrival->read = step.read;
   arrival->counted = step.counted;
-  if (step.done) arrive(app, arrival);
+  if (step.done) arrive(app, arrival, step.words, step.word_count);
 }
 
 static void draw(player_app *app, void *ctx) {

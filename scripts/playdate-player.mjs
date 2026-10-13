@@ -503,6 +503,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'canonical',
       'signed_index',
       'shelf',
+      'nickname',
       'clock',
       'net',
       'downloads',
