@@ -33,4 +33,11 @@ typedef struct sprout_role_options {
 sprout_eval_status sprout_value_options(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
                                         const sprout_role_options **out, size_t *count);
 
+/*
+ * Whether some participant of `reading` hears `value` for its value role `role`: a `from` of a play its kind runs
+ * for its part, wildcards first, holds it now, or its range takes it. A typed value binds only so. Charges nothing.
+ */
+sprout_eval_status sprout_value_heard(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+                                      const sprout_role *role, const sprout_stored_bound *value, bool *heard);
+
 #endif

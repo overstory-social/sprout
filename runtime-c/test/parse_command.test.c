@@ -1,10 +1,11 @@
 /*
- * Tests for src/parse/command.c: a typed line read as the command turn it begins reads it, under that turn's
- * budget and seed and writing nothing (the spec's Parsing > When nothing matches; Verbs > Exits; The runtime >
- * Turns). A line of no words, `again` before any reading, and words no placement reads are `unknown`, said to the
- * actor where they stand, and a way out written elsewhere is `not_here`; what this runtime does not read yet is
- * refused in words, never answered wrongly. The harness (`sproutc parse`) holds
- * every answer to the TypeScript parser's, steps included.
+ * Tests for src/parse/command.c: a typed line read as the command turn it begins reads it, under that turn's budget
+ * and seed and writing nothing (the spec's Parsing > Matching a line, Choosing a reading, Pronouns, Synonyms, When
+ * nothing matches; Verbs > Exits; The runtime > Turns), in the corpus worlds the TypeScript parser's specs read: the
+ * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms` and `all-leaves-out-refused`. A line reads to
+ * the best of its readings, a tie drawn from the turn's stream; words no placement reads are `unknown`, and a way
+ * out written elsewhere `not_here`; what this runtime does not read yet is refused in words, never answered wrongly.
+ * The harness (`sproutc parse`) holds every outcome to the TypeScript parser's, steps included.
  */
 #include "turn_fixture.h"
 
@@ -131,8 +132,6 @@ static void what_this_runtime_does_not_read_yet_is_refused_in_words(void) {
   sprout_reading planned;
   sprout_handed handed;
   open_hall(&p);
-  CHECK_INT(parse(&p, "v-marta", "take ball", NULL), SPROUT_BAD_INPUT);
-  CHECK(strstr(p.out.fault.text, "a line a phrase reads") != NULL);
   /* A noun naming nothing in reach is `not_here` or `unknown` by the world's words, which this runtime does not read yet. */
   CHECK_INT(parse(&p, "v-marta", "take unicorn", NULL), SPROUT_BAD_INPUT);
   CHECK(strstr(p.out.fault.text, "a noun that names nothing in reach") != NULL);
@@ -206,7 +205,291 @@ static void a_parse_draws_from_the_hosts_seed_and_writes_nothing(void) {
   close_hall(&p);
 }
 
+/* The corpus world `name`, Marta arrived in it. */
+static void open_world(parsing *p, const char *name) {
+  sprout_outcome arrived;
+  memset(p, 0, sizeof *p);
+  tw_open(&p->w, name);
+  tw_arrive(&p->w, "v-marta", "Marta", 1000, &arrived);
+  sprout_outcome_free(&arrived);
+  sprout_arena_init(&p->keep, &p->w.host);
+}
+
+/* Parses `line` as Marta under `seed`, which must read it. */
+static void read_at(parsing *p, const char *line, uint64_t seed) {
+  sprout_status status;
+  p->w.seed = seed;
+  status = sprout_parse(p->w.world, p->w.state, &p->w.host, "v-marta", line, strlen(line), NULL, &p->keep, &p->out);
+  CHECK_INT(status, SPROUT_OK);
+  if (status != SPROUT_OK) fprintf(stderr, "`%s`: %s\n", line, p->out.fault.text);
+}
+
+static void read_as(parsing *p, const char *line) { read_at(p, line, 7); }
+
+/* What the reading binds `role` to, written out: an id, a set's ids joined, a value; "(unbound)" for none. */
+static const char *bound_to(const parsing *p, const char *role) {
+  static char text[512];
+  size_t i, j;
+  for (i = 0; i < p->out.reading.filling_count; i++) {
+    const sprout_filling *one = &p->out.reading.fillings[i];
+    if (strcmp(one->role, role) != 0) continue;
+    text[0] = '\0';
+    switch (one->binds) {
+      case SPROUT_FILL_OBJECT:
+        snprintf(text, sizeof text, "%s", one->id);
+        break;
+      case SPROUT_FILL_SET:
+        for (j = 0; j < one->id_count; j++) {
+          if (j > 0) strcat(text, " ");
+          strcat(text, one->ids[j]);
+        }
+        break;
+      case SPROUT_FILL_TEXT:
+        snprintf(text, sizeof text, "%s", one->text);
+        break;
+      case SPROUT_FILL_NUMBER:
+        snprintf(text, sizeof text, "%g", one->number);
+        break;
+      default:
+        snprintf(text, sizeof text, "(%d)", (int)one->binds);
+    }
+    return text;
+  }
+  return "(unbound)";
+}
+
+/* Runs Marta's command `verb` on `target` (a full id), as a turn of its own. */
+static void command(parsing *p, const char *verb, const char *target) {
+  sprout_filling filling;
+  sprout_reading reading = tw_reading(verb, tw_person(&p->w, "v-marta"), &filling, "target", target);
+  sprout_outcome done;
+  tw_command(&p->w, "v-marta", &reading, 1001, &done);
+  sprout_outcome_free(&done);
+}
+
+static const char *aside_of(const parsing *p, const char *line) {
+  size_t i;
+  for (i = 0; i < p->out.reading.aside_count; i++)
+    if (strcmp(p->out.reading.asides[i].line, line) == 0) return p->out.reading.asides[i].thing;
+  return NULL;
+}
+
+static void a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional(void) {
+  static const char *const lines[] = {"take brass key", "take the brass key", "TAKE  My Brass Key",
+                                      "pick up that brass key", "get a brass key"};
+  parsing p;
+  size_t i;
+  open_world(&p, "grammar");
+  for (i = 0; i < sizeof lines / sizeof *lines; i++) {
+    read_as(&p, lines[i]);
+    CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+    CHECK_STR(p.out.reading.verb, "sprout.take");
+    CHECK_STR(p.out.reading.actor, tw_person(&p.w, "v-marta"));
+    CHECK_INT(p.out.reading.filling_count, 1);
+    CHECK_STR(bound_to(&p, "target"), "study.hall.brass_key");
+    CHECK(!p.out.drawn);
+    CHECK_INT(p.out.draw_count, 0);
+    CHECK_INT(p.out.rest_count, 0);
+    CHECK(p.out.steps > 0);
+  }
+  close_hall(&p);
+}
+
+static void the_engine_verbs_read_by_the_phrases_the_library_gives_them(void) {
+  static const char *const verbs[][2] = {{"l", "sprout.look"},       {"look around", "sprout.look"},
+                                         {"i", "sprout.inventory"},  {"z", "sprout.wait"},
+                                         {"?", "sprout.help"},       {"x gong", "sprout.examine"},
+                                         {"look at gong", "sprout.examine"}, {"inspect gong", "sprout.examine"}};
+  parsing p;
+  size_t i;
+  open_world(&p, "grammar");
+  for (i = 0; i < sizeof verbs / sizeof *verbs; i++) {
+    read_as(&p, verbs[i][0]);
+    CHECK_STR(p.out.reading.verb, verbs[i][1]);
+  }
+  CHECK_STR(bound_to(&p, "target"), "study.hall.gong");
+  close_hall(&p);
+}
+
+static void a_role_fills_with_what_it_takes_and_a_value_only_where_it_is_heard(void) {
+  parsing p;
+  open_world(&p, "grammar");
+  read_as(&p, "unlock door with iron key");
+  CHECK_STR(p.out.reading.verb, "study.unlock");
+  CHECK_STR(bound_to(&p, "target"), "study.hall.door");
+  CHECK_STR(bound_to(&p, "tool"), "study.hall.iron_key");
+  read_as(&p, "unlock door");
+  CHECK_INT(p.out.reading.filling_count, 1);
+  read_as(&p, "ask oskar about old press");
+  CHECK_STR(bound_to(&p, "target"), "study.hall.guard");
+  CHECK_STR(bound_to(&p, "topic"), "old_press");
+  /* `ask [target] [topic]` reads it too, binding nothing, and ranks below: nothing is drawn. */
+  CHECK(!p.out.drawn);
+  read_as(&p, "ask oskar about toll");
+  CHECK_STR(bound_to(&p, "topic"), "(unbound)");
+  read_as(&p, "turn dial to 7");
+  CHECK_INT(p.out.reading.fillings[1].binds, SPROUT_FILL_NUMBER);
+  CHECK_STR(bound_to(&p, "number"), "7");
+  read_as(&p, "juggle gong");
+  CHECK_STR(bound_to(&p, "things"), "study.hall.gong");
+  close_hall(&p);
+}
+
+static void a_thing_answers_to_its_name_its_nouns_and_its_whole_name_first(void) {
+  static const char *const lines[][2] = {{"take shiny thing", "study.hall.brass_key"}, {"take gong", "study.hall.gong"},
+                                         {"take disc", "study.hall.gong"},           {"take oil", "study.hall.lamp_oil"},
+                                         {"take lamp oil", "study.hall.lamp_oil"},   {"take lamp", "study.hall.lamp"},
+                                         {"x lamp oil", "study.hall.lamp_oil"}};
+  parsing p;
+  size_t i;
+  open_world(&p, "grammar");
+  for (i = 0; i < sizeof lines / sizeof *lines; i++) {
+    read_as(&p, lines[i][0]);
+    CHECK_STR(bound_to(&p, "target"), lines[i][1]);
+    CHECK(!p.out.drawn);
+  }
+  close_hall(&p);
+}
+
+static void things_written_alike_are_drawn_from_the_seed_and_nothing_is_said_of_it(void) {
+  parsing p;
+  uint64_t seed;
+  bool a = false, b = false;
+  open_world(&p, "grammar");
+  for (seed = 0; seed < 32; seed++) {
+    char first[64];
+    read_at(&p, "take pebble", seed);
+    snprintf(first, sizeof first, "%s", bound_to(&p, "target"));
+    CHECK(p.out.drawn);
+    CHECK_INT(p.out.drawn_among, 2);
+    CHECK(aside_of(&p, "meant") == NULL);
+    /* The draw is the turn's first, below how many tied. */
+    CHECK_INT(p.out.draw_count, 1);
+    CHECK_INT(p.out.draws[0], 2);
+    CHECK_INT(p.out.reading.draw_count, 1);
+    read_at(&p, "take pebble", seed);
+    CHECK_STR(bound_to(&p, "target"), first);
+    a = a || strcmp(first, "study.hall.pebble_a") == 0;
+    b = b || strcmp(first, "study.hall.pebble_b") == 0;
+  }
+  CHECK(a && b);
+  close_hall(&p);
+}
+
+static void things_that_differ_are_drawn_and_the_engines_meant_names_the_one_taken(void) {
+  parsing p;
+  uint64_t seed;
+  open_world(&p, "grammar");
+  for (seed = 0; seed < 16; seed++) {
+    const char *meant;
+    read_at(&p, "take key", seed);
+    CHECK(p.out.drawn);
+    CHECK_INT(p.out.drawn_among, 2);
+    meant = aside_of(&p, "meant");
+    CHECK(meant != NULL && strcmp(meant, bound_to(&p, "target")) == 0);
+  }
+  close_hall(&p);
+}
+
+static void a_reading_its_consent_pass_allows_is_taken_over_one_it_refuses(void) {
+  parsing p;
+  uint64_t seed;
+  open_world(&p, "grammar");
+  command(&p, "sprout.take", "study.hall.brass_key");
+  for (seed = 0; seed < 16; seed++) {
+    /* Taking the brass key is refused, for it is held; dropping the iron key, for it is not. */
+    read_at(&p, "take key", seed);
+    CHECK_STR(bound_to(&p, "target"), "study.hall.iron_key");
+    CHECK(!p.out.drawn);
+    read_at(&p, "drop key", seed);
+    CHECK_STR(bound_to(&p, "target"), "study.hall.brass_key");
+  }
+  close_hall(&p);
+}
+
+static void all_reads_as_its_first_thing_and_each_after_it_is_a_reading_to_run(void) {
+  parsing p;
+  open_world(&p, "all-leaves-out-refused");
+  read_as(&p, "examine all");
+  CHECK_STR(p.out.reading.verb, "sprout.examine");
+  CHECK_STR(bound_to(&p, "target"), "all_leaves_out_refused.hall.sack");
+  /* The lamp refuses to be examined, and is left out. */
+  CHECK_INT(p.out.rest_count, 2);
+  CHECK(p.out.rest[0].planned != NULL && p.out.rest[0].reread == NULL);
+  CHECK_STR(p.out.rest[0].planned->fillings[0].id, "all_leaves_out_refused.hall.ball");
+  CHECK_STR(p.out.rest[1].planned->fillings[0].id, "all_leaves_out_refused.hall.sack.lunch");
+  CHECK_STR(p.out.rest[1].planned->verb, "sprout.examine");
+  close_hall(&p);
+}
+
+static void a_line_an_intents_phrase_reads_is_the_intent_its_slots_bound_by_name(void) {
+  parsing p;
+  open_world(&p, "intents");
+  command(&p, "sprout.take", "intents.cellar.key");
+  read_as(&p, "open strongbox with key");
+  CHECK_INT(p.out.end, SPROUT_PARSED_INTENT);
+  CHECK_STR(p.out.reading.verb, "sprout.open_with");
+  CHECK_STR(bound_to(&p, "y"), "intents.cellar.strongbox");
+  CHECK_STR(bound_to(&p, "x"), "intents.cellar.key");
+  CHECK_INT(p.out.rest_count, 0);
+  close_hall(&p);
+}
+
+static void a_pronoun_a_thing_declares_another_for_is_corrected_before_the_reading(void) {
+  parsing p;
+  open_world(&p, "pronouns");
+  command(&p, "pronouns.pet", "pronouns.cellar.cat");
+  read_as(&p, "pet it");
+  CHECK_STR(bound_to(&p, "target"), "pronouns.cellar.cat");
+  CHECK_INT(p.out.reading.aside_count, 1);
+  CHECK_STR(p.out.reading.asides[0].line, "pronoun_correction");
+  CHECK_STR(p.out.reading.asides[0].thing, "pronouns.cellar.cat");
+  CHECK_STR(p.out.reading.asides[0].pronoun, "she");
+  /* Not where the pronoun agrees, nor where the thing was named. */
+  read_as(&p, "pet her");
+  CHECK_INT(p.out.reading.aside_count, 0);
+  read_as(&p, "pet cat");
+  CHECK_INT(p.out.reading.aside_count, 0);
+  close_hall(&p);
+}
+
+static void an_objects_synonym_reads_only_where_the_object_takes_part(void) {
+  parsing p;
+  open_world(&p, "synonyms");
+  read_as(&p, "force cabinet");
+  CHECK_STR(p.out.reading.verb, "sprout.open");
+  read_as(&p, "force chest");
+  CHECK_INT(p.out.end, SPROUT_PARSED_ANSWERED);
+  CHECK_STR(p.out.line, "unknown");
+  close_hall(&p);
+}
+
+static void a_noun_naming_nothing_in_reach_costs_the_worlds_words_though_another_phrase_reads(void) {
+  parsing p;
+  uint64_t steps;
+  open_world(&p, "grammar");
+  /* `unlock [target]` finds no "door with brass key", whose words are asked of the world's. */
+  read_as(&p, "unlock door with brass key");
+  CHECK_STR(p.out.reading.verb, "study.unlock");
+  steps = p.out.steps;
+  read_as(&p, "unlock door with brass key");
+  CHECK_INT(p.out.steps, steps);
+  close_hall(&p);
+}
+
 int main(void) {
+  RUN(a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional);
+  RUN(the_engine_verbs_read_by_the_phrases_the_library_gives_them);
+  RUN(a_role_fills_with_what_it_takes_and_a_value_only_where_it_is_heard);
+  RUN(a_thing_answers_to_its_name_its_nouns_and_its_whole_name_first);
+  RUN(things_written_alike_are_drawn_from_the_seed_and_nothing_is_said_of_it);
+  RUN(things_that_differ_are_drawn_and_the_engines_meant_names_the_one_taken);
+  RUN(a_reading_its_consent_pass_allows_is_taken_over_one_it_refuses);
+  RUN(all_reads_as_its_first_thing_and_each_after_it_is_a_reading_to_run);
+  RUN(a_line_an_intents_phrase_reads_is_the_intent_its_slots_bound_by_name);
+  RUN(a_pronoun_a_thing_declares_another_for_is_corrected_before_the_reading);
+  RUN(an_objects_synonym_reads_only_where_the_object_takes_part);
+  RUN(a_noun_naming_nothing_in_reach_costs_the_worlds_words_though_another_phrase_reads);
   RUN(a_line_of_no_words_is_unknown_and_spends_only_the_ways_out);
   RUN(again_before_any_reading_is_unknown_and_after_one_is_not_read_yet);
   RUN(what_this_runtime_does_not_read_yet_is_refused_in_words);

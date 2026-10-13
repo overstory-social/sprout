@@ -166,7 +166,51 @@ static void each_from_asked_is_a_step(void) {
   options_close(&k);
 }
 
+/* Whether the offer typed this hears `text` (or, where `text` is NULL, `number`) for its value role `role`. */
+static bool heard(options_case *k, const char *typed, const char *role, const char *text, double number) {
+  sprout_stored_bound value;
+  size_t i, r;
+  bool hears = false;
+  memset(&value, 0, sizeof value);
+  value.kind = SPROUT_BOUND_VALUE;
+  value.value_is_string = text != NULL;
+  if (text != NULL) value.value_string = (sprout_str){text, strlen(text)};
+  value.value_number = number;
+  for (i = 0; i < k->count; i++) {
+    const sprout_resolved *reading = &k->offers[i].reading;
+    if (strcmp(k->offers[i].typed, typed) != 0) continue;
+    for (r = 0; r < reading->verb->role_count; r++)
+      if (strcmp(reading->verb->roles[r].name, role) == 0)
+        CHECK_INT(sprout_value_heard(&k->p.x, &k->p.frame, reading, &reading->verb->roles[r], &value, &hears),
+                  SPROUT_EVAL_OK);
+    return hears;
+  }
+  fprintf(stderr, "no offer is typed `%s`\n", typed);
+  exit(2);
+}
+
+static void a_value_is_heard_where_a_participants_from_holds_it_or_its_range_takes_it_charging_nothing(void) {
+  options_case k;
+  uint64_t before;
+  options_open(&k, "changes what it hears");
+  before = k.p.meter.steps;
+  CHECK(heard(&k, "vouch to sentry before usher for \xe2\x80\xa6", "topic", "old_road", 0));
+  CHECK(heard(&k, "vouch to sentry before usher for \xe2\x80\xa6", "topic", "toll", 0));
+  CHECK(!heard(&k, "vouch to sentry before usher for \xe2\x80\xa6", "topic", "potatoes", 0));
+  CHECK_INT(k.p.meter.steps - before, 0);
+  options_close(&k);
+  options_open(&k, "set role is offered");
+  CHECK(heard(&k, "punch \xe2\x80\xa6 on keypad", "code", NULL, 12));
+  CHECK(!heard(&k, "punch \xe2\x80\xa6 on keypad", "code", NULL, 13));
+  CHECK(heard(&k, "turn dial to \xe2\x80\xa6", "notch", NULL, 0));
+  CHECK(!heard(&k, "turn dial to \xe2\x80\xa6", "notch", NULL, -1));
+  /* A role nobody narrows hears nothing. */
+  CHECK(!heard(&k, "ask keypad about \xe2\x80\xa6", "topic", "bridge", 0));
+  options_close(&k);
+}
+
 int main(void) {
+  RUN(a_value_is_heard_where_a_participants_from_holds_it_or_its_range_takes_it_charging_nothing);
   RUN(the_options_are_the_oracles_for_every_offer_of_every_bench_case);
   RUN(a_symbol_role_offers_what_each_participants_list_property_holds_first_heard_first);
   RUN(an_option_two_participants_hear_is_offered_once);

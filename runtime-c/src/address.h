@@ -18,6 +18,9 @@ const sprout_stored_visitor *sprout_visitor_of(const sprout_draft *draft, sprout
 /* `_` read as a space: an identifier as a name, an option as a slot renders it. False when the host refuses a page. */
 bool sprout_humanised(sprout_arena *arena, sprout_str text, sprout_str *words);
 
+/* A kind's name as a name, in lower case: `MazeCell` is "maze cell". False when the host refuses a page. */
+bool sprout_humanised_kind(sprout_arena *arena, const char *kind, sprout_str *name);
+
 /* The `value` of a text line the composed kind's grammar writes (`name`, `article`), or NULL. */
 const sprout_node *sprout_grammar_text(const sprout_graph *graph, const sprout_kind_def *kind, const char *line);
 
