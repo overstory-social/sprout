@@ -12,6 +12,8 @@
 #include "support.h"
 #include "ui/app.h"
 #include "ui/arrival.h"
+#include "ui/clock.h"
+#include "ui/downloads.h"
 #include "ui/message.h"
 #include "ui/shelf.h"
 #include "ui/reader.h"
@@ -240,8 +242,9 @@ static void with_no_world_shipped_the_shelf_says_so(void) {
   CHECK(fake_run_at(fake, PLAYER_MARGIN, panel) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, panel)->text, "No worlds are on the"),
         "the panel says the shelf is empty: %s", fake_run_at(fake, PLAYER_MARGIN, panel) ? fake_run_at(fake, PLAYER_MARGIN, panel)->text : "(none)");
   fake_frame(fake, kButtonA, 0);
-  CHECK(app->screen == &player_shelf_screen, "A on more worlds stays on the shelf until downloads come");
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, panel) != NULL, "the panel still says why");
+  CHECK(app->screen == &player_downloads_screen, "A on more worlds opens the download screen");
+  fake_frame(fake, kButtonB, 0);
+  CHECK(app->screen == &player_shelf_screen && fake_run_at(fake, PLAYER_MARGIN, panel) != NULL, "and B comes back");
   player_app_free(app);
   end();
 }
@@ -277,11 +280,80 @@ static void a_cartridge_that_cannot_be_opened_is_told_in_words(void) {
   end();
 }
 
+/* How many of the transcript rows drawn this frame hold `words`. */
+static int rows_holding(const char *words) {
+  const fake_run *rows[32];
+  int n = rows_drawn(rows, 32), i, found = 0;
+  for (i = 0; i < n; i++)
+    if (HAS(rows[i]->text, words)) found++;
+  return found;
+}
+
+/*
+ * The ticks world tells the wind when a tick brings more than thirty seconds: so a tick that ran
+ * shows, and one that did not leaves the transcript as it was.
+ */
+static void the_reader_ticks_while_awake_and_tells_what_a_tick_told(void) {
+  static const char *const shipped[] = {"ticks.sproutworld"};
+  static const char WIND[] = "The wind picks up in the eaves.";
+  begin("ticks");
+  app_folder("app");
+  ship(shipped, 1);
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  frames_until_reader(10000);
+  fake->seconds += PLAYER_TICK_SECONDS;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 0, "the first tick brings no time since arriving, so nothing has blown yet");
+  fake->seconds += 35;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "a tick fell due and what it told is in the transcript, newest at the bottom");
+  {
+    const fake_run *rows[32];
+    int n = rows_drawn(rows, 32);
+    CHECK(n > 0 && HAS(rows[n - 1]->text, WIND), "the newest row is the wind: %s", n > 0 ? rows[n - 1]->text : "(none)");
+  }
+
+  eventHandler(&fake->api, kEventLock, 0);
+  fake->seconds += 100;
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "locked, no tick is asked for");
+  eventHandler(&fake->api, kEventUnlock, 0);
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "unlocked, none is owed for the time away");
+  fake->seconds += PLAYER_TICK_SECONDS - 1;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "the count began at the unlock");
+  fake->seconds += 1;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 2, "an interval after the unlock, a tick: its elapsed carried the time away");
+
+  eventHandler(&fake->api, kEventLowPower, 0);
+  fake->seconds += 100;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 2, "asleep for a low battery, no tick is asked for");
+  eventHandler(&fake->api, kEventUnlock, 0);
+  fake->seconds += PLAYER_TICK_SECONDS;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 3, "the device wakes locked, and its unlock starts the ticks again");
+
+  eventHandler(&fake->api, kEventTerminate, 0);
+  {
+    char command[1200];
+    snprintf(command, sizeof command, "grep -l '\"kind\":\"tick\"' '%s'/saves/*.log >/dev/null", fake->data);
+    CHECK(system(command) == 0, "the ticks are in the log the terminate's save wrote");
+  }
+  end();
+}
+
 int main(void) {
   test_program("ui");
   the_c_main_sets_the_update_callback_and_the_app_saves_at_terminate();
   the_reader_shows_the_arrival_under_the_status_line();
   with_no_world_shipped_the_shelf_says_so();
   a_cartridge_that_cannot_be_opened_is_told_in_words();
+  the_reader_ticks_while_awake_and_tells_what_a_tick_told();
   return finish();
 }

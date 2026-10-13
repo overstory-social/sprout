@@ -11,6 +11,7 @@
 // worlds/ folder with their assets, and writes Source/publickey.lua: the public key the download
 // screen trusts, read from the file named by SPROUT_INDEX_PUBLIC_KEY (default
 // sprout-player/test/index-test.pub, which anyone can sign for, so a build to publish sets it).
+// The C build bakes the same file in as generated/publickey.h (-DPLAYER_INDEX_PUBLIC_KEY_FILE).
 // `npm run playdate` is this. With --c-ui the binaries are built with PLAYER_C_UI, so the C app
 // (sprout-player/src/ui) runs in place of the Lua one, and the pdx (default folder
 // sprout-player/build/c-ui) carries no Lua: pdc packages a copy of Source/ without its .lua files.
@@ -220,15 +221,17 @@ export async function stageWorlds({
   return list;
 }
 
+/** The file holding the public key the download screen trusts: SPROUT_INDEX_PUBLIC_KEY's, else the test key. */
+function publicKeyFile() {
+  return resolve(process.env.SPROUT_INDEX_PUBLIC_KEY || TEST_PUBLIC_KEY);
+}
+
 /**
  * Writes `Source/publickey.lua`, the key the download screen trusts, from the file named by
  * `keyFile` (64 hexadecimal digits, as scripts/publish-index.mjs --generate-key writes). Returns
  * the path of the file read and whether it is the test key.
  */
-export function writePublicKey({
-  keyFile = process.env.SPROUT_INDEX_PUBLIC_KEY || TEST_PUBLIC_KEY,
-  into = pdxSource,
-} = {}) {
+export function writePublicKey({ keyFile = publicKeyFile(), into = pdxSource } = {}) {
   const key = readFileSync(keyFile, 'utf8').trim();
   if (!/^[0-9a-f]{64}$/.test(key)) {
     throw new Error(
@@ -284,9 +287,12 @@ function windowsToolchain(dir) {
  * the console's ELF with the SDK's ARM toolchain, `windows` the DLL the Windows Simulator loads,
  * through the MinGW cross compiler, and only that library, since the tests are native programs.
  * `cUi` builds the C app in place of the Lua one, and on the Simulator only its library, since the
- * tests do not depend on the flag.
+ * tests do not depend on the flag. `keyFile` is the public key the C download screen bakes in.
  */
-function build(dir, { device, windows, cartridges, sanitize, cUi = false }) {
+function build(
+  dir,
+  { device, windows, cartridges, sanitize, cUi = false, keyFile = publicKeyFile() },
+) {
   const sdk = sdkPath();
   const args = [
     '-S',
@@ -295,6 +301,7 @@ function build(dir, { device, windows, cartridges, sanitize, cUi = false }) {
     dir,
     '-DCMAKE_BUILD_TYPE=Release',
     `-DPLAYER_C_UI=${cUi ? 'ON' : 'OFF'}`,
+    `-DPLAYER_INDEX_PUBLIC_KEY_FILE=${resolve(keyFile)}`,
   ];
   if (device) {
     args.push(
@@ -358,7 +365,7 @@ export async function buildPlayer({
   }
   await stageWorlds();
   const key = writePublicKey();
-  if (key.isTest && !cUi) {
+  if (key.isTest) {
     console.warn(
       'The download screen trusts the test public key (sprout-player/test/index-test.pub), whose private half is in the repository, so anyone can sign an index it accepts. Set SPROUT_INDEX_PUBLIC_KEY to the file holding your public key for a build you give to anyone else.',
     );
@@ -439,7 +446,12 @@ export async function checkPlayer({ sanitize = false } = {}) {
     const cartridges = join(sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild, 'cartridges');
     if (!existsSync(cartridges))
       throw new Error('runtime-c has not packed the corpus cartridges yet');
-    const dir = build(join(scratch, 'simulator'), { device: false, cartridges, sanitize });
+    const dir = build(join(scratch, 'simulator'), {
+      device: false,
+      cartridges,
+      sanitize,
+      keyFile: TEST_PUBLIC_KEY,
+    });
     const pdx = join(dir, 'sprout-player.pdx');
     for (const file of ['pdxinfo', 'main.pdz', 'pdex.so']) {
       if (!existsSync(join(pdx, file))) throw new Error(`the pdx has no ${file}`);
@@ -491,6 +503,9 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'canonical',
       'signed_index',
       'shelf',
+      'clock',
+      'net',
+      'downloads',
     ];
     const missing = wanted.filter((name) => !new RegExp(`player-${name} .*Passed`).test(tests));
     if (missing.length > 0) {
@@ -508,7 +523,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
     if (sanitize) {
       ran.push('device target not built under the sanitizers');
     } else if (has('arm-none-eabi-gcc')) {
-      build(join(scratch, 'device'), { device: true });
+      build(join(scratch, 'device'), { device: true, keyFile: TEST_PUBLIC_KEY });
       const bin = join(scratch, 'device', 'sprout-player_DEVICE.pdx', 'pdex.bin');
       if (!existsSync(bin)) throw new Error('the device pdx has no pdex.bin');
       ran.push(`device pdx built (pdex.bin ${statSync(bin).size} bytes)`);
@@ -530,7 +545,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
 function checkCUi(scratch) {
   const sdk = sdkPath();
   const host = hostLibrary();
-  const dir = build(join(scratch, 'c-ui'), { device: false, cUi: true });
+  const dir = build(join(scratch, 'c-ui'), { device: false, cUi: true, keyFile: TEST_PUBLIC_KEY });
   const source = withoutLua(join(scratch, 'c-ui-source'));
   for (const name of readdirSync(source)) {
     if (name.startsWith('pdex.')) rmSync(join(source, name), { force: true });
@@ -541,7 +556,7 @@ function checkCUi(scratch) {
   if (existsSync(join(pdx, 'main.pdz'))) throw new Error('the C UI pdx carries Lua');
   if (!has('arm-none-eabi-gcc'))
     return 'C UI Simulator pdx built with no Lua; its device target not built';
-  build(join(scratch, 'c-ui-device'), { device: true, cUi: true });
+  build(join(scratch, 'c-ui-device'), { device: true, cUi: true, keyFile: TEST_PUBLIC_KEY });
   const bin = join(scratch, 'c-ui-device', 'sprout-player_DEVICE.pdx', 'pdex.bin');
   if (!existsSync(bin)) throw new Error('the C UI device pdx has no pdex.bin');
   return `C UI pdx built with no Lua (device pdex.bin ${statSync(bin).size} bytes)`;

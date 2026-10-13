@@ -4,7 +4,8 @@
  * and in each one's `worlds/` folder, and asks the session whether each can be shelved; one it
  * refuses is listed with the engine's reason and cannot be opened. A cartridge is inspected once
  * for as long as the app runs, and a world refused at its open keeps that reason on the shelf
- * afterwards. The last row, "more worlds...", is the download screen's, which comes with #635.
+ * afterwards. The last row, "more worlds...", opens the download screen (downloads.h); when the
+ * list of worlds could not be had there, the row says why until it is tried again.
  *
  * The shelf outlives its screen: the app holds it, and leaving the screen keeps it.
  */
@@ -26,6 +27,7 @@
 typedef struct shelf_entry {
   char path[PLAYER_PATH_BYTES];
   char title[128];
+  char hash[65]; /* the bundle hash, when it can be opened */
   bool ok;      /* it can be opened */
   bool blocked; /* greyed because its save could not be written; opening it tries the save again */
   char reason[PLAYER_REASON_BYTES]; /* why it cannot be opened, when it cannot */
@@ -40,6 +42,7 @@ struct player_shelf {
   wrapped panel;   /* the words under the rows, for `panel_for` */
   size_t panel_for;
   char opened[PLAYER_PATH_BYTES]; /* the world last chosen, which is the one open while a world is */
+  char more_note[PLAYER_REASON_BYTES + 128]; /* why the list of worlds could not be had, or "" */
 };
 
 /* An empty shelf, listed in its first frame; NULL when there is no memory for it. */
@@ -48,6 +51,15 @@ void player_shelf_free(player_app *app, player_shelf *shelf);
 
 /* Moves the app to the shelf, listed afresh. */
 void player_shelf_show(player_app *app);
+
+/* Lists the shelf afresh where it stands, as a download that arrived needs. */
+void player_shelf_list(player_app *app);
+
+/* Whether a world with the bundle hash `hash` is on the shelf and can be opened. */
+bool player_shelf_holds(const player_shelf *shelf, const char *hash);
+
+/* What the download screen last could not do, said under "more worlds..."; NULL when it could. */
+void player_shelf_note_more(player_shelf *shelf, const char *failure);
 
 /* The world at `path` cannot be opened, for `reason`, from now on. */
 void player_shelf_refuse(player_shelf *shelf, const char *path, const char *reason);

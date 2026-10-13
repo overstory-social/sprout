@@ -92,7 +92,7 @@ static void the_selection_moves_with_the_d_pad_and_the_crank_and_wraps(void) {
   CHECK(app->shelf->selected == 1, "twenty degrees is not yet a row");
   fake_frame(fake, 0, 4.0f);
   CHECK(app->shelf->selected == 2 && strcmp(row(2), "> more worlds...") == 0, "twenty-four is a row: %s", row(2));
-  CHECK(HAS(panel(), "Downloading more worlds"), "the panel says what more worlds is: %s", panel());
+  CHECK(strcmp(panel(), "A looks for more worlds to download.") == 0, "the panel says what more worlds is: %s", panel());
   fake_frame(fake, kButtonDown, 0);
   CHECK(app->shelf->selected == 0, "down from the last wraps to the first");
   fake_frame(fake, kButtonUp, 0);

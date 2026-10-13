@@ -3,7 +3,10 @@
  * The crank and the d-pad scroll back through what was said, a line for every 12 degrees of
  * crank and for each press of up; down comes forward again. The layout is the Lua app's
  * (Source/main.lua and Source/reader.lua) at 400 by 240. A opens the sentence builder (builder.h),
- * which the reader is lent to while it is up. The ticks and the clock come with #635.
+ * which the reader is lent to while it is up. While a reader is open the app's clock (clock.h)
+ * runs, and when a tick is due the reader asks the session for one and tells what it told, behind
+ * the pictures it asked for (pictures.h); a tick is asked for only while the reader itself is on
+ * show, so one falling due under the builder or the pictures comes when they close.
  */
 #ifndef PLAYER_UI_READER_H
 #define PLAYER_UI_READER_H
@@ -25,7 +28,7 @@ typedef struct player_reader {
 
 extern const player_screen player_reader_screen;
 
-/* A reader with nothing told yet, sized from the app's font; NULL when there is no memory for it. */
+/* A reader with nothing told yet, sized from the app's font, and the clock started; NULL when there is no memory for it. */
 player_reader *player_reader_new(player_app *app);
 
 /*

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "arrival.h"
+#include "downloads.h"
 #include "host/files.h"
 #include "message.h"
 #include "sound.h"
@@ -13,7 +14,7 @@
 #define MORE_ROW "more worlds..."
 
 static const char OPENS[] = "A opens it.";
-static const char MORE[] = "Downloading more worlds is not in this player yet.";
+static const char MORE[] = "A looks for more worlds to download.";
 static const char EMPTY[] = "No worlds are on the shelf. ";
 static const char CANNOT[] = " (cannot be opened)";
 static const char UNSAVED[] = " (its save failed)";
@@ -108,6 +109,7 @@ static void inspect(player_app *app, const char *path, shelf_entry *entry) {
     name[strlen(name) - (sizeof CARTRIDGE - 1)] = '\0';
   player_world_title(name, entry->title, sizeof entry->title);
   entry->ok = verdict.ok;
+  if (verdict.ok && verdict.hash != NULL) copy_text(entry->hash, sizeof entry->hash, verdict.hash);
   if (!verdict.ok) copy_text(entry->reason, sizeof entry->reason, verdict.reason != NULL ? verdict.reason : "");
 }
 
@@ -173,6 +175,19 @@ void player_shelf_show(player_app *app) {
   player_app_show(app, &player_shelf_screen, app->shelf);
 }
 
+void player_shelf_list(player_app *app) { list(app, app->shelf); }
+
+bool player_shelf_holds(const player_shelf *shelf, const char *hash) {
+  size_t i;
+  for (i = 0; i < shelf->count; i++)
+    if (shelf->entries[i].ok && strcmp(shelf->entries[i].hash, hash) == 0) return true;
+  return false;
+}
+
+void player_shelf_note_more(player_shelf *shelf, const char *failure) {
+  copy_text(shelf->more_note, sizeof shelf->more_note, failure != NULL ? failure : "");
+}
+
 void player_shelf_refuse(player_shelf *shelf, const char *path, const char *reason) {
   shelf_entry *entry = entry_at(shelf, path);
   if (entry == NULL) return;
@@ -231,7 +246,7 @@ static void choose(player_app *app, player_shelf *shelf) {
   const shelf_entry *entry;
   player_arrival *arrival;
   if (shelf->selected == shelf->count) {
-    player_cue(app, PLAYER_CUE_REFUSED); /* the download screen comes with #635 */
+    player_downloads_open(app);
     return;
   }
   entry = &shelf->entries[shelf->selected];
@@ -274,6 +289,11 @@ static void panel_words(const player_shelf *shelf, char *out, size_t size) {
     if (entry->blocked) text_add(&words, " A tries again.");
     return;
   }
+  if (shelf->more_note[0] != '\0') {
+    text_add(&words, shelf->more_note);
+    text_add(&words, " A tries again.");
+    return;
+  }
   if (shelf->count == 0) text_add(&words, EMPTY);
   text_add(&words, MORE);
 }
@@ -308,7 +328,7 @@ static void draw(player_app *app, void *ctx) {
   }
   app->pd->graphics->drawLine(0, panel, PLAYER_SCREEN_WIDTH, panel, 1, kColorBlack);
   if (shelf->panel.bytes == NULL || shelf->panel_for != shelf->selected) {
-    char words[PLAYER_REASON_BYTES + 64];
+    char words[PLAYER_REASON_BYTES + 256];
     forget_panel(app, shelf);
     panel_words(shelf, words, sizeof words);
     if (!wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width,

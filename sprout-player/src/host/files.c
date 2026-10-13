@@ -155,6 +155,84 @@ bool player_list_files(PlaydateAPI *pd, const char *path, void (*found)(const ch
   return (bool)(intptr_t)player_on_main_stack(list_thunk, &c);
 }
 
+/* ---- a file written a piece at a time ---- */
+
+typedef struct piece_call {
+  PlaydateAPI *pd;
+  const char *path, *to;
+  SDFile *file;
+  const void *bytes;
+  size_t length;
+} piece_call;
+
+/* Makes each folder `path` is in, outermost first; a folder that is there already is left as it is. */
+static void make_folders(PlaydateAPI *pd, const char *path) {
+  char folder[TEMP_PATH];
+  size_t i;
+  for (i = 0; path[i] != '\0' && i < sizeof folder; i++) {
+    if (path[i] == '/' && i > 0) {
+      folder[i] = '\0';
+      pd->file->mkdir(folder);
+    }
+    folder[i] = path[i];
+  }
+}
+
+static void *create_thunk(void *ctx) {
+  piece_call *c = (piece_call *)ctx;
+  make_folders(c->pd, c->path);
+  return c->pd->file->open(c->path, kFileWrite);
+}
+
+static void *append_thunk(void *ctx) {
+  piece_call *c = (piece_call *)ctx;
+  return (void *)(intptr_t)(c->pd->file->write(c->file, c->bytes, (unsigned)c->length) == (int)c->length);
+}
+
+static void *close_thunk(void *ctx) {
+  piece_call *c = (piece_call *)ctx;
+  return (void *)(intptr_t)(c->pd->file->close(c->file) == 0);
+}
+
+static void *move_thunk(void *ctx) {
+  piece_call *c = (piece_call *)ctx;
+  c->pd->file->unlink(c->to, 0);
+  return (void *)(intptr_t)(c->pd->file->rename(c->path, c->to) == 0);
+}
+
+static void *remove_thunk(void *ctx) {
+  piece_call *c = (piece_call *)ctx;
+  c->pd->file->unlink(c->path, 1);
+  return NULL;
+}
+
+SDFile *player_file_create(PlaydateAPI *pd, const char *path) {
+  piece_call c = {pd, path, NULL, NULL, NULL, 0};
+  return (SDFile *)player_on_main_stack(create_thunk, &c);
+}
+
+bool player_file_append(PlaydateAPI *pd, SDFile *file, const void *bytes, size_t length) {
+  piece_call c = {pd, NULL, NULL, file, bytes, length};
+  return (bool)(intptr_t)player_on_main_stack(append_thunk, &c);
+}
+
+bool player_file_close(PlaydateAPI *pd, SDFile *file) {
+  piece_call c = {pd, NULL, NULL, file, NULL, 0};
+  return (bool)(intptr_t)player_on_main_stack(close_thunk, &c);
+}
+
+bool player_file_move(PlaydateAPI *pd, const char *from, const char *to) {
+  piece_call c = {pd, from, to, NULL, NULL, 0};
+  return (bool)(intptr_t)player_on_main_stack(move_thunk, &c);
+}
+
+void player_file_remove(PlaydateAPI *pd, const char *path) {
+  piece_call c = {pd, path, NULL, NULL, NULL, 0};
+  player_on_main_stack(remove_thunk, &c);
+}
+
+/* ---- what is there ---- */
+
 static void *exists_thunk(void *ctx) {
   file_call *c = (file_call *)ctx;
   SDFile *file = c->pd->file->open(c->path, kFileRead | kFileReadData);

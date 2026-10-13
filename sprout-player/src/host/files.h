@@ -33,6 +33,22 @@ bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, siz
  */
 bool player_list_files(PlaydateAPI *pd, const char *path, void (*found)(const char *name, void *ctx), void *ctx);
 
+/*
+ * A file written a piece at a time, for what arrives over the network: `player_file_create` makes
+ * the folders `path` is in and opens it in the Data folder from its start, or gives NULL;
+ * `player_file_append` is false when not every byte was written, and `player_file_close` false
+ * when the file did not close cleanly. Nothing here is whole until the caller moves it into place.
+ */
+SDFile *player_file_create(PlaydateAPI *pd, const char *path);
+bool player_file_append(PlaydateAPI *pd, SDFile *file, const void *bytes, size_t length);
+bool player_file_close(PlaydateAPI *pd, SDFile *file);
+
+/* Moves the file at `from` to `to` in the Data folder, replacing what was there; false when it could not. */
+bool player_file_move(PlaydateAPI *pd, const char *from, const char *to);
+
+/* Removes the file at `path` in the Data folder, or the folder and everything in it. */
+void player_file_remove(PlaydateAPI *pd, const char *path);
+
 /* Whether there is a file at `path`, where `player_read_file` looks. */
 bool player_file_exists(PlaydateAPI *pd, const char *path);
 

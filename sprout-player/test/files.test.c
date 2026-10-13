@@ -1,4 +1,4 @@
-/* host/files.c: whole files over the Playdate's filesystem. */
+/* host/files.c: whole files over the Playdate's filesystem, and files written a piece at a time. */
 #include <stdlib.h>
 
 #include "host/files.h"
@@ -127,6 +127,34 @@ static void a_file_is_found_and_an_image_loaded_where_reading_looks(void) {
   end();
 }
 
+static void a_file_written_in_pieces_is_moved_into_place_and_removed(void) {
+  SDFile *file;
+  size_t length = 0;
+  char *bytes;
+  begin("pieces");
+  file = player_file_create(&fake->api, "worlds/a b.sproutworld.assets/pictures/cellar.png.part");
+  CHECK(file != NULL, "the folders it is in are made");
+  CHECK(player_file_append(&fake->api, file, "one ", 4) && player_file_append(&fake->api, file, "two", 3), "two pieces");
+  CHECK(player_file_close(&fake->api, file), "closed");
+  write_text("worlds/a b.sproutworld.assets/pictures/cellar.png", "older");
+  CHECK(player_file_move(&fake->api, "worlds/a b.sproutworld.assets/pictures/cellar.png.part",
+                         "worlds/a b.sproutworld.assets/pictures/cellar.png"),
+        "moved over what was there");
+  bytes = player_read_file(&fake->api, "worlds/a b.sproutworld.assets/pictures/cellar.png", &length);
+  CHECK(bytes != NULL && length == 7 && strcmp(bytes, "one two") == 0, "the pieces in order, the older file replaced");
+  player_free(&fake->api, bytes);
+  CHECK(!exists("worlds/a b.sproutworld.assets/pictures/cellar.png.part"), "nothing left at the part");
+  CHECK(!player_file_move(&fake->api, "worlds/absent.part", "worlds/absent"), "a part that is not there cannot be moved");
+  player_file_remove(&fake->api, "worlds/a b.sproutworld.assets");
+  CHECK(!exists("worlds/a b.sproutworld.assets/pictures/cellar.png"), "the folder is removed with everything in it");
+  write_text("worlds/one.txt", "one");
+  player_file_remove(&fake->api, "worlds/one.txt");
+  CHECK(!exists("worlds/one.txt"), "and a file by itself");
+  fake->fail_writes = 1;
+  CHECK(player_file_create(&fake->api, "worlds/full.part") == NULL, "a file that cannot be made is NULL");
+  end();
+}
+
 int main(void) {
   test_program("files");
   a_file_is_found_and_an_image_loaded_where_reading_looks();
@@ -135,5 +163,6 @@ int main(void) {
   a_write_cut_short_before_the_swap_is_found_by_the_read();
   a_write_that_cannot_be_made_says_so_and_leaves_the_file();
   a_folder_lists_its_files_and_marks_its_folders();
+  a_file_written_in_pieces_is_moved_into_place_and_removed();
   return finish();
 }
