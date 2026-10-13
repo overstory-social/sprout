@@ -164,7 +164,6 @@ sprout_eval_status parse_partials_of(const sprout_frame *frame, const parse_plac
       if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
       *slot = made;
     }
-    partials->made++;
     for (i = placement->count; i > 0; i--) {
       if (++at[i - 1] < options_of(placement->fills[i - 1])) break;
       at[i - 1] = 0;

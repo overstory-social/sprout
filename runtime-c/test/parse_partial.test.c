@@ -90,7 +90,6 @@ static void it_is_written_as_a_visitor_types_it_each_a_step_and_the_best_kept(vo
   unfit[0] = thing(&p, "study.hall.gong", 2);
   unfit[1] = thing(&p, "study.hall.guard", 1);
   CHECK_INT(partials(&p, filled(PARSE_FILLS_OPTIONS, door, 1), filled(PARSE_FILLS_UNFIT, unfit, 2)), 2);
-  CHECK_INT(p.partials.made, 2);
   CHECK_INT(p.partials.count, 1);
   is_partial(&p.partials.best[0], "unlock the door with the brass disc", 5, NULL);
   /* Tied, both are kept in the order made: a proper name stands alone. */
@@ -156,7 +155,6 @@ static void there_are_none_where_no_slot_names_what_it_cannot_take_or_one_names_
   CHECK_INT(p.partials.count, 0);
   CHECK_INT(partials(&p, filled(PARSE_FILLS_OPTIONS, door, 1), filled(PARSE_FILLS_UNFIT, NULL, 0)), 0);
   CHECK_INT(p.partials.count, 0);
-  CHECK_INT(p.partials.made, 0);
   bench_close(&p.b);
 }
 

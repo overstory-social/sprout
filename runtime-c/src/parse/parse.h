@@ -415,11 +415,10 @@ typedef struct parse_partial {
   sprout_str uncarried;  /* the thing a carried role names that the actor does not carry, where that is all that is wrong; no bytes for `cannot` */
 } parse_partial;
 
-/* The partial readings a line made that are tied for best so far, in the order made, and how many it made in all. */
+/* The partial readings a line made that are tied for best so far, in the order made. */
 typedef struct parse_partials {
   parse_partial *best;
   size_t count, capacity;
-  size_t made;
 } parse_partials;
 
 /* Negative where `a` ranks before `b`: more words matched, then more roles filled; 0 where they tie. */
