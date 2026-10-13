@@ -1,7 +1,7 @@
-/* files.c: whole files over the Playdate's filesystem. */
+/* host/files.c: whole files over the Playdate's filesystem. */
 #include <stdlib.h>
 
-#include "files.h"
+#include "host/files.h"
 #include "support.h"
 
 static void a_file_is_written_whole_and_read_back(void) {

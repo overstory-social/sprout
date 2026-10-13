@@ -2,76 +2,107 @@
 #include <stdlib.h>
 
 #include "session.h"
+#include "state.h"
 #include "support.h"
 
-#define MARTA_GOES_NORTH                                                                              \
-  "{\"verb\":\"sprout.go\",\"fillers\":[{\"role\":\"way\",\"binds\":\"exit\",\"direction\":\"north\"," \
-  "\"label\":\"to the yard\",\"to\":\"chip_tree.yard\"}]}"
+#define CHIP_TREE_HASH "5a9a634cc7238c010d5129c9c325867cbb023b6afee053f396fb0e121c069346"
+
+/* Whether `words` holds `word`. */
+static bool has_word(const player_opening *answer, const char *word) {
+  size_t i;
+  for (i = 0; i < answer->word_count; i++)
+    if (strcmp(answer->words[i], word) == 0) return true;
+  return false;
+}
+
+/* Marta goes north from the hall. */
+static player_told go_north(player_session *s) {
+  sprout_filling way = fill_exit("way", "north", "to the yard", "chip_tree.yard");
+  return turn_of(s, "sprout.go", NULL, 1, &way);
+}
+
+static player_told look(player_session *s) { return turn_of(s, "sprout.look", NULL, 0, NULL); }
 
 static void the_shelf_asks_whether_each_cartridge_can_be_shelved(void) {
   player_session *s;
-  char *good, *garbage, *missing;
+  player_opening answer;
   begin("inspect");
   s = session_new();
   write_text("garbage.sproutworld", "this is not a cartridge");
-  good = keep(player_inspect(s, "chip-tree.sproutworld"));
-  CHECK(HAS(good, "\"ok\":true") && HAS(good, "\"name\":\"chip_tree\"") && HAS(good, "\"reason\":null") &&
-            HAS(good, "\"hash\":\"5a9a634cc7238c010d5129c9c325867cbb023b6afee053f396fb0e121c069346\""), "%s", good);
-  garbage = keep(player_inspect(s, "garbage.sproutworld"));
-  CHECK(HAS(garbage, "\"ok\":false") && HAS(garbage, "Sprout cartridge") && HAS(garbage, "\"hash\":null"), "%s", garbage);
-  missing = keep(player_inspect(s, "absent.sproutworld"));
-  CHECK(HAS(missing, "\"ok\":false") && HAS(missing, "cannot be read"), "%s", missing);
+  answer = player_inspect(s, "chip-tree.sproutworld");
+  CHECK(answer.ok && strcmp(answer.name, "chip_tree") == 0 && strcmp(answer.hash, CHIP_TREE_HASH) == 0 && answer.reason == NULL,
+        "%s", answer.reason);
+  answer = player_inspect(s, "garbage.sproutworld");
+  CHECK(!answer.ok && HAS(answer.reason, "Sprout cartridge") && answer.name == NULL && answer.hash == NULL, "%s", answer.reason);
+  answer = player_inspect(s, "absent.sproutworld");
+  CHECK(!answer.ok && HAS(answer.reason, "cannot be read"), "%s", answer.reason);
   end();
 }
 
 static void opening_says_the_hash_and_the_words_a_nickname_may_not_be(void) {
   player_session *s;
-  char *opened;
+  player_opening opened;
   begin("open");
   s = session_new();
-  opened = keep(player_open(s, "chip-tree.sproutworld"));
-  CHECK(HAS(opened, "\"ok\":true") && HAS(opened, "\"name\":\"chip_tree\"") &&
-            HAS(opened, "\"hash\":\"5a9a634cc7238c010d5129c9c325867cbb023b6afee053f396fb0e121c069346\""), "%.200s", opened);
-  CHECK(HAS(opened, "\"reason\":null") && !HAS(opened, "\"guard\""), "the open reads the header alone");
-  opened = keep(player_step(s));
-  CHECK(HAS(opened, "\"ok\":true") && HAS(opened, "\"done\":false") && HAS(opened, "\"counted\":"), "the first step of a few: %.200s", opened);
-  while (HAS(opened, "\"done\":false")) opened = keep(player_step(s));
-  CHECK(HAS(opened, "\"ok\":true") && HAS(opened, "\"done\":true") && HAS(opened, "\"name\":\"chip_tree\""), "%.200s", opened);
-  CHECK(HAS(opened, "\"guard\"") && HAS(opened, "\"north\"") && HAS(opened, "\"the\""), "the word set comes with the last step: %.300s", opened);
-  opened = keep(player_open_whole(s, "absent.sproutworld"));
-  CHECK(HAS(opened, "\"ok\":false") && HAS(opened, "cannot be read"), "%s", opened);
-  CHECK(HAS(keep(player_step(s)), "No world is being opened."), "a step after a refused open has nothing to read");
+  opened = player_open(s, "chip-tree.sproutworld");
+  CHECK(opened.ok && strcmp(opened.name, "chip_tree") == 0 && strcmp(opened.hash, CHIP_TREE_HASH) == 0, "%s", opened.reason);
+  CHECK(opened.reason == NULL && opened.word_count == 0, "the open reads the header alone");
+  opened = player_step(s);
+  CHECK(opened.ok && !opened.done && opened.counted > 0 && opened.read < opened.counted, "the first step of a few: %zu of %zu",
+        opened.read, opened.counted);
+  CHECK(opened.word_count == 0 && opened.name == NULL, "nothing more until the last step");
+  while (opened.ok && !opened.done) opened = player_step(s);
+  CHECK(opened.ok && opened.done && strcmp(opened.name, "chip_tree") == 0 && opened.read == opened.counted, "%s", opened.reason);
+  CHECK(has_word(&opened, "guard") && has_word(&opened, "north") && has_word(&opened, "the"),
+        "the word set comes with the last step: %zu words", opened.word_count);
+  opened = player_open_whole(s, "absent.sproutworld");
+  CHECK(!opened.ok && HAS(opened.reason, "cannot be read"), "%s", opened.reason);
+  opened = player_step(s);
+  CHECK(!opened.ok && strcmp(opened.reason, "No world is being opened.") == 0, "a step after a refused open has nothing to read");
   end();
 }
 
 static void nothing_open_says_so_in_words(void) {
   player_session *s;
+  player_loaded loaded;
+  player_result saved;
+  player_told closed;
   begin("nothing");
   s = session_new();
-  CHECK(HAS(keep(player_load(s)), "No world is open."), "load");
-  CHECK(HAS(keep(player_save(s)), "No world is open."), "save");
-  CHECK(HAS(keep(player_close(s)), "\"lines\":[]"), "close");
+  loaded = player_load(s);
+  CHECK(!loaded.ok && strcmp(loaded.words, "No world is open.") == 0, "load");
+  saved = player_save(s);
+  CHECK(!saved.ok && strcmp(saved.words, "No world is open.") == 0, "save");
+  closed = player_close(s);
+  CHECK(closed.ok && closed.saved && closed.lines.count == 0, "close");
   end();
 }
 
 static void a_returning_visitor_finds_their_place_and_name(void) {
   player_session *s;
-  char *loaded, *view;
+  player_loaded loaded;
+  player_told told;
+  const sprout_seen_view *view;
+  const char *words;
   begin("return");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  loaded = player_load(s);
+  CHECK(loaded.ok && loaded.fresh && loaded.nickname == NULL && loaded.last == 0, "a new world");
   player_admit(s, "Marta");
-  player_turn(s, MARTA_GOES_NORTH);
-  CHECK(HAS(keep(player_close(s)), "You leave, and take what you carry with you."), "leaving");
+  go_north(s);
+  told = player_close(s);
+  CHECK(told_has(&told, "You leave, and take what you carry with you.") && told.saved, "leaving");
 
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = keep(player_load(s));
-  CHECK(HAS(loaded, "\"fresh\":false") && HAS(loaded, "\"nickname\":\"Marta\"") && HAS(loaded, "\"present\":[]") &&
-            HAS(loaded, "\"recovered\":false") && HAS(loaded, "\"words\":\"\""), "%s", loaded);
-  CHECK(HAS(keep(player_admit(s, "Marta")), "\"admitted\":true"), "arriving again");
-  view = keep(player_view(s));
-  CHECK(HAS(view, "\"place\":{\"id\":\"chip_tree.yard\",\"name\":\"a yard\"}"), "back where they left: %.120s", view);
+  loaded = player_load(s);
+  CHECK(loaded.ok && !loaded.fresh && loaded.nickname != NULL && sprout_str_is(*loaded.nickname, "Marta") &&
+            loaded.present_count == 0 && !loaded.recovered && strcmp(loaded.words, "") == 0 && loaded.last == 1000000,
+        "%s", loaded.words);
+  CHECK(player_admit(s, "Marta").admitted, "arriving again");
+  view = player_view(s, &words);
+  CHECK(view != NULL && sprout_str_is(view->place.id, "chip_tree.yard") && sprout_str_is(view->place.name, "a yard"),
+        "back where they left: %s", words);
   end();
 }
 
@@ -79,11 +110,11 @@ static void a_returning_visitor_finds_their_place_and_name(void) {
 static void a_world_left_open_is_put_away_without_a_word(void) {
   player_session *s;
   char state_path[200], log_path[200];
-  char *opened, *loaded, *state, *log;
+  char *state, *log;
+  player_loaded loaded;
   begin("killed");
   s = session_new();
-  opened = keep(player_open_whole(s, "chip-tree.sproutworld"));
-  save_paths(opened, state_path, log_path, sizeof state_path);
+  save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   player_load(s);
   player_admit(s, "Marta");
   player_save(s);
@@ -96,9 +127,9 @@ static void a_world_left_open_is_put_away_without_a_word(void) {
   free(state);
   free(log);
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = keep(player_load(s));
-  CHECK(HAS(loaded, "\"recovered\":true") && HAS(loaded, "\"nickname\":\"Marta\""), "%s", loaded);
-  CHECK(HAS(keep(player_admit(s, "Marta")), "\"admitted\":true"), "and they can come in");
+  loaded = player_load(s);
+  CHECK(loaded.ok && loaded.recovered && loaded.nickname != NULL && sprout_str_is(*loaded.nickname, "Marta"), "%s", loaded.words);
+  CHECK(player_admit(s, "Marta").admitted, "and they can come in");
   end();
 }
 
@@ -106,24 +137,24 @@ static void a_world_left_open_is_put_away_without_a_word(void) {
 static void the_clock_going_back_is_clamped_to_the_save(void) {
   player_session *s;
   char state_path[200], log_path[200];
-  char *opened, *log, *loaded;
+  char *log;
+  player_loaded loaded;
   begin("clamp");
   s = session_new();
   fake->seconds = 5000000;
-  opened = keep(player_open_whole(s, "chip-tree.sproutworld"));
-  save_paths(opened, state_path, log_path, sizeof state_path);
+  save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   player_load(s);
   player_admit(s, "Marta");
   fake->seconds = 100;
-  player_turn(s, "{\"verb\":\"sprout.look\",\"fillers\":[]}");
+  look(s);
   log = file_text(log_path);
   CHECK(log != NULL && HAS(log, "\"lastSeconds\":5000000") && !HAS(log, "\"seconds\":100,"), "%s", log);
   free(log);
   player_close(s);
 
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = keep(player_load(s));
-  CHECK(HAS(loaded, "\"last\":5000000"), "the save's last seconds: %s", loaded);
+  loaded = player_load(s);
+  CHECK(loaded.last == 5000000, "the save's last seconds: %llu", (unsigned long long)loaded.last);
   player_admit(s, "Marta");
   log = file_text(log_path);
   CHECK(log != NULL && !HAS(log, "\"seconds\":100,") && HAS(log, "\"seconds\":5000000,"), "%s", log);
@@ -135,41 +166,56 @@ static void the_clock_going_back_is_clamped_to_the_save(void) {
 static void a_damaged_save_is_set_aside_in_words(void) {
   player_session *s;
   char state_path[200], log_path[200], aside[260];
-  char *opened, *loaded;
+  player_loaded loaded;
   begin("damaged");
   s = session_new();
-  opened = keep(player_open_whole(s, "chip-tree.sproutworld"));
-  save_paths(opened, state_path, log_path, sizeof state_path);
+  save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   fake->file.mkdir("saves");
   write_text(state_path, "{\"this\":\"is not a stored world\"}");
-  loaded = keep(player_load(s));
-  CHECK(HAS(loaded, "\"ok\":true") && HAS(loaded, "\"fresh\":true") && HAS(loaded, "could not be read") &&
-            HAS(loaded, "set aside"), "%s", loaded);
+  loaded = player_load(s);
+  CHECK(loaded.ok && loaded.fresh && HAS(loaded.words, "could not be read") && HAS(loaded.words, "set aside"), "%s", loaded.words);
   snprintf(aside, sizeof aside, "%s.damaged", state_path);
   CHECK(exists(aside), "the damaged save was not kept");
-  CHECK(HAS(keep(player_admit(s, "Marta")), "\"admitted\":true"), "the world starts again");
+  CHECK(player_admit(s, "Marta").admitted, "the world starts again");
   end();
 }
 
-/* Every fault is told: a save that cannot be written says so, in the reply to save, to the turn and to close. */
+/* Every fault is told: a save that cannot be written says so, in the answer to save, to the turn and to close. */
 static void a_save_that_cannot_be_written_is_told(void) {
   player_session *s;
-  char *saved, *closed;
+  player_result saved;
+  player_told closed;
   begin("full");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
   player_load(s);
   player_admit(s, "Marta");
   fake->fail_writes = 1;
-  saved = keep(player_save(s));
-  CHECK(HAS(saved, "\"ok\":false") && HAS(saved, "The save could not be written"), "%s", saved);
-  player_turn(s, "{\"verb\":\"sprout.look\",\"fillers\":[]}");
-  closed = keep(player_close(s));
-  CHECK(HAS(closed, "\"saved\":false"), "close: %s", closed);
+  saved = player_save(s);
+  CHECK(!saved.ok && HAS(saved.words, "The save could not be written"), "%s", saved.words);
+  CHECK(!look(s).saved, "the turn");
+  closed = player_close(s);
+  CHECK(!closed.saved, "close");
   fake->fail_writes = 0;
   player_open_whole(s, "chip-tree.sproutworld");
   player_load(s);
-  CHECK(HAS(keep(player_save(s)), "\"ok\":true"), "and once there is room it saves");
+  saved = player_save(s);
+  CHECK(saved.ok && strcmp(saved.words, "") == 0, "and once there is room it saves");
+  end();
+}
+
+/* What a call hands back lives until the next call on the session, which releases it. */
+static void an_answer_lives_until_the_next_call(void) {
+  player_session *s;
+  player_opening inspected;
+  int pages;
+  begin("answer");
+  s = session_new();
+  inspected = player_inspect(s, "absent.sproutworld");
+  CHECK(!inspected.ok && HAS(inspected.reason, "absent.sproutworld"), "the reason is the session's copy: %s", inspected.reason);
+  pages = fake->pages;
+  player_inspect(s, "absent.sproutworld");
+  CHECK(fake->pages == pages, "the next call released the last answer before making its own: %d then %d", pages, fake->pages);
   end();
 }
 
@@ -183,5 +229,6 @@ int main(void) {
   the_clock_going_back_is_clamped_to_the_save();
   a_damaged_save_is_set_aside_in_words();
   a_save_that_cannot_be_written_is_told();
+  an_answer_lives_until_the_next_call();
   return finish();
 }

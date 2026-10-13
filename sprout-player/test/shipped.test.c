@@ -22,11 +22,11 @@ static void every_shipped_world_can_be_shelved(const char *folder) {
     player_session *session = session_new();
     while ((entry = readdir(dir)) != NULL) {
       size_t length = strlen(entry->d_name), tail = strlen(SUFFIX);
-      char *reply;
+      player_opening answer;
       if (length < tail || strcmp(entry->d_name + length - tail, SUFFIX) != 0) continue;
       worlds++;
-      reply = keep(player_inspect(session, entry->d_name));
-      CHECK(HAS(reply, "\"ok\":true"), "%s is greyed on the shelf: %.300s", entry->d_name, reply);
+      answer = player_inspect(session, entry->d_name);
+      CHECK(answer.ok, "%s is greyed on the shelf: %.300s", entry->d_name, answer.reason);
     }
     closedir(dir);
   }

@@ -1,8 +1,8 @@
 /*
- * What the registered functions hand back to Lua: one JSON text each (a registered function has
- * no way to build a table), written here from the runtime's own results. Every constructor
- * returns NULL once a page has been refused, and `jb_set` and `jb_add` take NULL without effect,
- * so a builder is checked once, at `jb_finish`.
+ * The JSON the bridge hands back to Lua: one text each (a registered function has no way to
+ * build a table), written from the session's structs. Only the bridge builds it. A constructor
+ * whose page is refused returns NULL and marks the builder failed, as `jb_set` does when given
+ * NULL, so a builder is checked once, at `jb_finish`.
  */
 #ifndef PLAYER_REPLY_H
 #define PLAYER_REPLY_H
@@ -10,6 +10,7 @@
 #include "json.h"
 #include "pd_api.h"
 #include "sprout.h"
+#include "told.h"
 
 typedef struct jb {
   sprout_arena *arena;
@@ -37,38 +38,7 @@ void jb_set(jb *builder, sprout_json *parent, const char *key, sprout_json *chil
  */
 bool jb_finish(jb *builder, PlaydateAPI *pd, const sprout_json *root, char **reply);
 
-/*
- * The lines the turns of one call told, copied out of their outcomes into the reply's arena so
- * the outcomes can be released as each turn ends.
- */
-typedef struct told {
-  const char *reader;
-  size_t reader_length;
-  const char *kind;
-  const char *text;
-  size_t text_length;
-  const char *extension, *statement; /* an extension's effect: the statement that recorded it; NULL for any other */
-  const char *payload;               /* an extension's effect: its payload as JSON text, or NULL */
-  size_t payload_length;
-} told;
-
-typedef struct told_list {
-  told *items;
-  size_t count, capacity;
-} told_list;
-
-/* Adds the lines of `outcome`, and its fault's name as a record where it faulted; false when a page was refused. */
-bool told_collect(sprout_arena *arena, told_list *list, const sprout_outcome *outcome, const char *visit);
-
-/* Adds one line of `kind` for `reader`. */
-bool told_add(sprout_arena *arena, told_list *list, const char *reader, const char *kind, const char *text);
-
 /* The list as an array of { reader, kind, text }, with { extension, statement, payload } on an extension's effect. */
 sprout_json *jb_told(jb *builder, const told_list *list);
-
-/* The word for a kind of line: the one the TypeScript player writes. */
-const char *line_kind_name(sprout_line_kind kind);
-const char *turn_kind_name(sprout_turn_kind kind);
-const char *result_name(sprout_turn_result result);
 
 #endif

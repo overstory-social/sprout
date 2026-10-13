@@ -4,9 +4,7 @@
 #include <string.h>
 
 #include "ed25519.h"
-#include "files.h"
-#include "seeds.h"
-#include "session_internal.h"
+#include "host/files.h"
 
 /* The value of one hexadecimal digit, or -1. */
 static int digit_value(char c) {
@@ -28,49 +26,26 @@ static bool unhex(const char *text, unsigned char *out, size_t bytes) {
   return true;
 }
 
-/* A reply { ok, <key>: text } or, with no `key`, { ok }. */
-static const char *answer(player_session *session, bool ok, const char *key, const char *text) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 2);
-  jb_set(&builder, root, "ok", jb_bool(&builder, ok));
-  if (key != NULL) jb_set(&builder, root, key, jb_string(&builder, text));
-  return session_reply_end(session, &arena, &builder, root);
-}
-
-const char *player_verify(player_session *session, const char *message, const char *signature_hex,
-                          const char *key_hex) {
+const char *player_verify(const char *message, const char *signature_hex, const char *key_hex) {
   unsigned char signature[64], key[32];
-  if (!unhex(signature_hex, signature, sizeof signature))
-    return answer(session, false, "reason", "The signature is not 128 hexadecimal digits.");
-  if (!unhex(key_hex, key, sizeof key))
-    return answer(session, false, "reason", "The public key is not 64 hexadecimal digits.");
+  if (!unhex(signature_hex, signature, sizeof signature)) return "The signature is not 128 hexadecimal digits.";
+  if (!unhex(key_hex, key, sizeof key)) return "The public key is not 64 hexadecimal digits.";
   if (!player_ed25519_verify(signature, (const unsigned char *)message, strlen(message), key))
-    return answer(session, false, "reason", "The signature is not the one the key makes for this text.");
-  return answer(session, true, NULL, NULL);
+    return "The signature is not the one the key makes for this text.";
+  return NULL;
 }
 
-const char *player_digest(player_session *session, const char *path) {
+const char *player_digest(PlaydateAPI *pd, const char *path, char sha256[65], size_t *bytes) {
   static const char DIGITS[] = "0123456789abcdef";
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
   unsigned char digest[32];
-  char hex[65];
-  size_t length = 0, i;
-  if (!player_hash_file(session->pd, path, digest, &length))
-    return answer(session, false, "reason", "The file cannot be read.");
+  size_t i;
+  *bytes = 0;
+  sha256[0] = '\0';
+  if (!player_hash_file(pd, path, digest, bytes)) return "The file cannot be read.";
   for (i = 0; i < 32; i++) {
-    hex[2 * i] = DIGITS[digest[i] >> 4];
-    hex[2 * i + 1] = DIGITS[digest[i] & 15];
+    sha256[2 * i] = DIGITS[digest[i] >> 4];
+    sha256[2 * i + 1] = DIGITS[digest[i] & 15];
   }
-  hex[64] = '\0';
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 3);
-  jb_set(&builder, root, "ok", jb_bool(&builder, true));
-  jb_set(&builder, root, "sha256", jb_string(&builder, hex));
-  jb_set(&builder, root, "bytes", jb_number(&builder, (double)length));
-  return session_reply_end(session, &arena, &builder, root);
+  sha256[64] = '\0';
+  return NULL;
 }

@@ -444,6 +444,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'reading_json',
       'pd_host',
       'budgets',
+      'told',
       'reply',
       'savelog',
       'session',
