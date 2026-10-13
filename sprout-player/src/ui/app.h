@@ -1,5 +1,5 @@
 /*
- * The C app: the session, the system font, and the screen on show (screen.h). The system calls
+ * The C app: the session, the system font, the sounds, and the screen on show (screen.h). The system calls
  * `player_app_update` once a frame; the frame runs on the player's own stack (host/stack.h),
  * since a turn may run in it, and the file calls inside it hop back to the main stack as they
  * always do. A screen moves the app to another with `player_app_show`, which takes effect when
@@ -12,11 +12,13 @@
 #include "pen.h"
 #include "screen.h"
 #include "session.h"
+#include "sound.h"
 
 /* The screen's geometry, as the Lua app lays it out. */
 #define PLAYER_SCREEN_WIDTH 400
 #define PLAYER_SCREEN_HEIGHT 240
 #define PLAYER_MARGIN 4
+#define PLAYER_ASSETS_BYTES 256
 
 struct player_app {
   PlaydateAPI *pd;
@@ -24,6 +26,8 @@ struct player_app {
   player_pen pen;
   LCDFont *big_font, *small_font; /* the sentence builder's, loaded when it first opens; NULL where one cannot be */
   bool fonts_tried;
+  player_sound sound;
+  char assets[PLAYER_ASSETS_BYTES]; /* the open world's assets folder, `<cartridge>.assets/` (images.h), or "" */
   const player_screen *screen;
   void *ctx;
   const player_screen *next; /* the screen `player_app_show` asked for, shown when the update is over */
@@ -41,6 +45,9 @@ void player_app_free(player_app *app);
 
 /* Moves the app to `screen` over `ctx` once the update under way is over; the screen on show is left then. */
 void player_app_show(player_app *app, const player_screen *screen, void *ctx);
+
+/* Sounds the cue `name` (sound.h); every screen's cues come through here. */
+void player_cue(player_app *app, player_cue_name name);
 
 /* The update callback: reads the buttons and the crank and runs one frame on the player's own stack. */
 int player_app_update(void *app);

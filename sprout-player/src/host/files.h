@@ -33,6 +33,12 @@ bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, siz
  */
 bool player_list_files(PlaydateAPI *pd, const char *path, void (*found)(const char *name, void *ctx), void *ctx);
 
+/* Whether there is a file at `path`, where `player_read_file` looks. */
+bool player_file_exists(PlaydateAPI *pd, const char *path);
+
+/* The image at `path` (a compiled image is named without its `.pdi`), loaded on the main stack; NULL where it cannot be. */
+LCDBitmap *player_load_bitmap(PlaydateAPI *pd, const char *path);
+
 /* A block from the device's allocator. */
 void *player_alloc(PlaydateAPI *pd, size_t bytes);
 void player_free(PlaydateAPI *pd, void *block);
