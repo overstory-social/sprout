@@ -1,7 +1,9 @@
 /*
  * A script's readings, as `scripts/resolve-script.mjs` writes them beside
  * the script: each typed line already read by the TypeScript parser, so the
- * host needs no parser. This reads that file into steps the host plays.
+ * host needs no parser, and what that parser read of each, which `sproutc
+ * parse` compares the runtime's own parse with. This reads that file into
+ * steps the host plays.
  */
 #ifndef SPROUTC_READINGS_H
 #define SPROUTC_READINGS_H
@@ -36,6 +38,9 @@ typedef struct sproutc_turn_reading {
   const char *actor; /* otherwise: the id of the instance performing it */
   const sprout_json *fillers;
   bool refused;
+  const sprout_json *parsed; /* what the TypeScript parser read of the line, or NULL where the turn read no words */
+  const sprout_json *handed; /* a later turn of a line: the reading planned for it and the item it re-reads, or NULL */
+  const sprout_json *before; /* a turn after the first in its step: the stored world it began from, or NULL */
 } sproutc_turn_reading;
 
 typedef struct sproutc_step {
@@ -48,6 +53,7 @@ typedef struct sproutc_step {
   uint64_t for_seconds; /* an advance: how long */
   size_t turns;     /* a command: how many turns the line runs */
   const sprout_json *turn_list;
+  const sprout_json *world; /* the stored world once the step is over, or NULL where the file holds none */
 } sproutc_step;
 
 typedef struct sproutc_readings {
@@ -69,5 +75,12 @@ const char *sproutc_readings_step(const sproutc_readings *readings, size_t i, sp
 
 /* Turn `i` of a command step. */
 const char *sproutc_readings_turn(const sproutc_step *step, size_t i, sproutc_turn_reading *turn);
+
+/* A reading's fillings from the TypeScript parser's fillers, by id, in `arena`; NULL on success, or words. */
+const char *sproutc_readings_fillings(sprout_arena *arena, const sprout_json *fillers, sprout_filling **out,
+                                     size_t *count);
+
+/* `budgets` less any the readings were played under, named as the TypeScript runtime names them; NULL, or words. */
+const char *sproutc_readings_budgets(sprout_budgets *budgets, const sprout_json *given);
 
 #endif

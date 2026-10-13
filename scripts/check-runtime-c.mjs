@@ -20,7 +20,8 @@
 // the Simulator target built with the SDK, the C glue's tests over a fake PlaydateAPI, the Lua
 // tests and the glue's save played through `sproutc`; with `--sanitize` the glue's tests are built
 // and run under the sanitizers too. The plain mode also builds the runtime optimised (-O2) under
-// -Wall -Wextra -Werror, as the device and the shipped Simulator build do. The player step needs
+// -Wall -Wextra -Werror, as the device and the shipped Simulator build do, and once more without the parser
+// (-DSPROUT_PARSER=OFF), as the Playdate takes the runtime, running the one test that build has. The player step needs
 // PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh fetches the SDK); without it the step is skipped and
 // the last line says so. Where the variable is set, a failing step fails this script, in the gate
 // and in the e2e alike.
@@ -31,6 +32,12 @@
 // the TypeScript runtime wrote. It prints one line per world and the list of
 // worlds that pass, and fails when that list is not EXPECTED_PASSING. Each
 // later runtime item adds the worlds its change brings in here.
+//
+// Then the parser (`replayParses`): every line of those scripts the TypeScript parser read is read again by
+// `sproutc parse`, over the stored world its turn began from, and compared turn by turn. It prints one line per
+// world with how many turns read alike, and fails when the worlds whose every turn reads alike are not
+// EXPECTED_PARSING, or when the comparison itself cannot run. The rest are counted, not failed: the parser is
+// being built, and each piece that lands adds the worlds it brings in.
 //
 // After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
 // runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without
@@ -100,6 +107,9 @@ const EXPECTED_PASSING = [
   'value-first',
   'visitor-contents',
 ];
+
+// The corpus worlds whose every typed line `sproutc parse` reads as the TypeScript parser does, sorted.
+const EXPECTED_PARSING = [];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -209,6 +219,17 @@ run(
 run('cmake', ['--build', optimised]);
 console.log(`runtime-c (optimised): ${compiler}, -O2 under -Wall -Wextra -Werror builds clean`);
 
+// The same without the parser, as the Playdate builds it: it builds clean, and a typed line is refused.
+const unparsed = `${build}-no-parser`;
+run('cmake', ['-S', root, '-B', unparsed, '-DCMAKE_BUILD_TYPE=Release', '-DSPROUT_PARSER=OFF'], {
+  CC: compiler,
+});
+run('cmake', ['--build', unparsed, '--parallel', '--target', 'parse_command.test']);
+run(join(unparsed, 'parse_command.test'), []);
+console.log(
+  `runtime-c (no parser): ${compiler}, -O2 builds clean without src/parse/, and every typed line is refused`,
+);
+
 // `sproutc play` on a packed corpus world prints the cartridge's header and manifest.
 const sproutc = join(build, 'sproutc');
 const scratch = join(build, 'replay');
@@ -255,6 +276,34 @@ for (const r of unlike)
 if (unlike.length > 0) {
   console.log(
     'runtime-c: FAILED, `sproutc view` prints another page than `sprout view` for the worlds above',
+  );
+  process.exit(1);
+}
+const parses = tools.replayParses(sproutc, scratch);
+const sum = (key) => parses.reduce((total, one) => total + one[key], 0);
+for (const one of parses) {
+  const words =
+    one.failed ?? (one.first === null ? 'every turn alike' : `first difference: ${one.first}`);
+  console.log(
+    `runtime-c parse: ${one.name}: ${one.agree} of ${one.agree + one.differ} turns alike (${one.unknownAlike} of ${one.unknown} \`unknown\`), ${words.replace(/\s*\n\s*/g, ' / ')}`,
+  );
+}
+const broken = parses.filter((one) => one.failed !== undefined);
+const alike = parses
+  .filter((one) => one.failed === undefined && one.differ === 0 && one.agree > 0)
+  .map((one) => one.name);
+console.log(
+  `runtime-c parse: ${sum('agree')} of ${sum('agree') + sum('differ')} turns the TypeScript parser read are read alike (${sum('unknownAlike')} of ${sum('unknown')} \`unknown\`), ${sum('planned')} planned; worlds alike in full: ${alike.join(', ') || 'none'}`,
+);
+if (broken.length > 0) {
+  console.log(
+    `runtime-c: FAILED, \`sproutc parse\` could not compare ${broken.map((one) => one.name).join(', ')}`,
+  );
+  process.exit(1);
+}
+if (alike.join(',') !== EXPECTED_PARSING.join(',')) {
+  console.log(
+    `runtime-c: FAILED, the worlds that parse alike are not the expected ones (expected: ${EXPECTED_PARSING.join(', ') || 'none'}); update EXPECTED_PARSING in scripts/check-runtime-c.mjs if the change is meant`,
   );
   process.exit(1);
 }

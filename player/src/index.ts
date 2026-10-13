@@ -8,6 +8,7 @@
 
 export * from './aslr.js';
 export * from './installed.js';
+export * from './parsed.js';
 export * from './play.js';
 export * from './readings.js';
 export * from './replay.js';

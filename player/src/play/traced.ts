@@ -15,6 +15,7 @@ import {
   type WorldState,
 } from '@overstory/sprout/lang';
 
+import type { Handed, ParseRecord } from '../parsed.js';
 import type { Step } from '../script.js';
 
 // What playing a script records (the spec's The runtime › The log, Levels):
@@ -78,6 +79,12 @@ export interface Traced {
   readonly parseDraws: readonly number[];
   /** What the parser said before the reading's own lines. */
   readonly asides: readonly Aside[];
+  /** What `host.parse` returned for a command turn, and what it spent; null where the turn read no words. */
+  readonly parsed: ParseRecord | null;
+  /** What a later turn of a line was handed in place of words; null for every other turn. */
+  readonly handed: Handed | null;
+  /** The world a command turn after the first in its step began from; null for every other turn. */
+  readonly before: WorldState | null;
 }
 
 /**
@@ -131,6 +138,8 @@ export interface Stage {
   readonly parsed: number[];
   /** What the parser made of the command turn now running, which a turn that faults leaves nowhere else. */
   read: Reading | null;
+  /** What `host.parse` returned for the command turn now running, null until it reads words. */
+  parse: ParseRecord | null;
 }
 
 /**
@@ -190,6 +199,9 @@ export function trace(
     read: null,
     parseDraws: [],
     asides: [],
+    parsed: null,
+    handed: null,
+    before: null,
     ...parts,
     standing: standing(stage),
     logged,
