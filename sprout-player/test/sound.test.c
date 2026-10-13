@@ -2,13 +2,14 @@
  * The app's sounds (ui/sound.c) and the builder's cues through them, over the fake's synths. The
  * rules: each cue is a synth of its own, set to Source/sound.lua's waveform and envelope, and a
  * cue played is one note of its pitch, volume and length, now; with no sound API every cue is
- * silent; and the builder's drum ticks as a slat passes and clacks as it settles, and a pick and a
+ * silent; a world picked on the shelf picks; and the builder's drum ticks as a slat passes and clacks as it settles, and a pick and a
  * step back each sound their cue, one note each.
  */
 #include <stdlib.h>
 
 #include "support.h"
 #include "ui/app.h"
+#include "ui/reader.h"
 #include "ui/sound.h"
 
 static const fake_note *last_note(void) { return fake->note_count > 0 ? &fake->notes[fake->note_count - 1] : NULL; }
@@ -54,19 +55,23 @@ static void with_no_sound_every_cue_is_silent(void) {
   end();
 }
 
-static void the_builders_cues_sound(void) {
+static void the_shelfs_and_the_builders_cues_sound(void) {
+  static const char *const shipped[] = {"chip-tree.sproutworld"};
   const char *why = NULL;
-  char command[2000];
   player_app *app;
   int n;
   begin("builder");
-  snprintf(command, sizeof command, "mkdir -p '%s/worlds' && cp '%s/chip-tree.sproutworld' '%s/worlds/'", fake->data,
-           PLAYER_CARTRIDGES, fake->data);
-  CHECK(system(command) == 0, "%s", command);
+  app_folder("app");
+  ship(shipped, 1);
   app = player_app_new(&fake->api, &why);
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
-  for (n = 0; n < 10000 && fake_run_at(fake, PLAYER_MARGIN, 240 - (FAKE_LINE * 3 + 8) + 2) == NULL; n++) fake_frame(fake, 0, 0);
+  fake_frame(fake, 0, 0);
+  CHECK(fake->note_count == 0, "the shelf is quiet");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(fake->note_count == 1 && sounded(kWaveformTriangle, 660.0f), "a world picked on the shelf");
+  fake->note_count = 0;
+  for (n = 0; n < 10000 && app->screen != &player_reader_screen; n++) fake_frame(fake, 0, 0);
   CHECK(fake->note_count == 0, "arriving is quiet");
   fake_frame(fake, kButtonA, 0);
   CHECK(fake->note_count == 0, "opening the builder is quiet");
@@ -86,6 +91,6 @@ int main(void) {
   test_program("sound");
   each_cue_is_a_note_on_its_own_synth();
   with_no_sound_every_cue_is_silent();
-  the_builders_cues_sound();
+  the_shelfs_and_the_builders_cues_sound();
   return finish();
 }

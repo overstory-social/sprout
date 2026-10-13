@@ -26,7 +26,7 @@ static const char READER_KEYS[] = "A: build a sentence   crank: scroll back";
 static player_app *app;
 
 /* Puts the world into the Data folder's worlds/, with its assets where `assets` is set. */
-static void ship(bool assets) {
+static void ship_media(bool assets) {
   char command[2000];
   snprintf(command, sizeof command, "mkdir -p '%s/worlds' && cp '%s/%s' '%s/worlds/'", fake->data, PLAYER_CARTRIDGES, CARTRIDGE,
            fake->data);
@@ -62,15 +62,18 @@ static bool played_since(int from, float pitch) {
   return false;
 }
 
-/* The app over the media room, run until something is drawn past the loading line: pictures or the reader. */
+/* The app over the media room, opened from the shelf and run until something is drawn past the loading line: pictures or the reader. */
 static void arrive(const char *scenario, bool assets) {
   const char *why = NULL;
   int n;
   begin(scenario);
-  ship(assets);
+  app_folder("app");
+  ship_media(assets);
   app = player_app_new(&fake->api, &why);
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
   for (n = 0; n < 10000 && !on_reader() && fake->draw_count == 0 && fake_run_at(fake, PLAYER_MARGIN, RULE + 2) == NULL; n++)
     fake_frame(fake, 0, 0);
 }
@@ -192,7 +195,8 @@ static void a_picture_that_cannot_be_read_says_so(void) {
   char path[1200];
   int n;
   begin("unreadable");
-  ship(true);
+  app_folder("app");
+  ship_media(true);
   snprintf(path, sizeof path, "worlds/%s.assets/cellar.png", CARTRIDGE);
   write_text(path, "not a picture");
   {
@@ -201,6 +205,8 @@ static void a_picture_that_cannot_be_read_says_so(void) {
     CHECK(app != NULL, "%s", why);
   }
   fake->api.system->setUpdateCallback(player_app_update, app);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
   for (n = 0; n < 10000 && !on_reader() && fake_run_at(fake, PLAYER_MARGIN, 110) == NULL; n++) fake_frame(fake, 0, 0);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 110) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 110)->text, PICTURES_UNREADABLE) == 0,
         "the words in the picture's place");
@@ -211,7 +217,7 @@ static void a_picture_that_cannot_be_read_says_so(void) {
 static void effects_that_are_not_a_picture_ask_for_nothing(void) {
   gallery g;
   begin("asked");
-  ship(true);
+  ship_media(true);
   gallery_init(&g, &fake->api);
   {
     const char *folder = "worlds/" CARTRIDGE ".assets/";

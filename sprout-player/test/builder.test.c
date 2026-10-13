@@ -4,9 +4,10 @@
  * drum's front is the selected entry in the big font, its neighbours curve away in the smaller
  * fonts in the entries' order; the root lists the scene's verbs in the view's order; a greyed
  * chip is drawn greyed and its reason is the panel's words; the sentence so far is the picks
- * joined; a confirmed sentence runs and the reader is told it and then what the turn told; the
- * sentence line fits the screen whatever its length, keeping its end in view; and however the crank
- * turned, the word in the window is the one the panel speaks of and A picks.
+ * joined; a confirmed sentence runs and the reader is told it and then what the turn told, and one
+ * whose save fails stops play and greys the world on the shelf; the sentence line fits the screen
+ * whatever its length, keeping its end in view; and however the crank turned, the word in the
+ * window is the one the panel speaks of and A picks.
  */
 #include <stdlib.h>
 
@@ -14,7 +15,9 @@
 #include "ui/app.h"
 #include "ui/builder.h"
 #include "ui/drum.h"
+#include "ui/message.h"
 #include "ui/reader.h"
+#include "ui/shelf.h"
 
 #define LINE FAKE_LINE
 #define HEADER (LINE + 4)
@@ -26,13 +29,6 @@
 static const char READER_KEYS[] = "A: build a sentence   crank: scroll back";
 
 static player_app *app;
-
-static void ship(const char *name) {
-  char command[2000];
-  snprintf(command, sizeof command, "mkdir -p '%s/worlds' && cp '%s/%s' '%s/worlds/'", fake->data, PLAYER_CARTRIDGES, name,
-           fake->data);
-  CHECK(system(command) == 0, "%s", command);
-}
 
 static const fake_run *panel(void) { return fake_run_at(fake, PLAYER_MARGIN, BOTTOM + 2); }
 
@@ -61,15 +57,19 @@ static const char *phrase(void) {
   return run != NULL ? run->text : "(no line)";
 }
 
-/* The app over the chip_tree world, run until the reader is up. */
+/* The app over the chip_tree world, the only one on the shelf, opened and run until the reader is up. */
 static void arrive(const char *scenario) {
+  static const char *const shipped[] = {"chip-tree.sproutworld"};
   const char *why = NULL;
   int n;
   begin(scenario);
-  ship("chip-tree.sproutworld");
+  app_folder("app");
+  ship(shipped, 1);
   app = player_app_new(&fake->api, &why);
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
   for (n = 0; n < 10000 && !on_reader(); n++) fake_frame(fake, 0, 0);
   CHECK(on_reader(), "the reader came up");
 }
@@ -275,6 +275,28 @@ static void a_completed_reading_runs_and_the_reader_is_told(void) {
   CHECK(strcmp(front(), "juggle -> a pebble, a shell") == 0, "%s", front());
   fake_frame(fake, kButtonA, 0);
   CHECK(on_reader() && shown_text("> juggle -> a pebble, a shell"), "the set juggled");
+  leave();
+}
+
+static void a_turn_whose_save_fails_stops_play_and_greys_the_world(void) {
+  const fake_run *said;
+  arrive("unsaved");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonUp, "ask", 1), "ask");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "a guard", 1), "the guard");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "weather", 2), "the weather");
+  fake_frame(fake, kButtonA, 0);
+  fake->fail_writes = 1;
+  fake_frame(fake, kButtonA, 0);
+  said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
+  CHECK(app->screen == &player_message_screen && said != NULL && HAS(said->text, "The save could not be written"),
+        "play stops on the message screen: %s", said != NULL ? said->text : "(nothing)");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(app->screen == &player_shelf_screen, "A goes back to the shelf");
+  CHECK(player_shelf_blocked(app->shelf, "worlds/chip-tree.sproutworld"), "the world is greyed there");
+  fake->fail_writes = 0;
   leave();
 }
 
@@ -498,6 +520,7 @@ int main(void) {
   a_greyed_chip_is_drawn_greyed_and_says_why();
   descending_into_a_verb_and_back();
   a_completed_reading_runs_and_the_reader_is_told();
+  a_turn_whose_save_fails_stops_play_and_greys_the_world();
   the_sentence_line_fits_the_screen_and_keeps_its_end();
   after_any_crank_turn_the_window_is_what_a_picks();
   return finish();

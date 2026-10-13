@@ -7,10 +7,9 @@
 #include "host/files.h"
 #include "images.h"
 #include "pictures.h"
+#include "shelf.h"
 
 static const char NO_MEMORY[] = "The player ran out of memory telling that.";
-static const char SAVE_FAILED[] =
-    "The save could not be written, so play has stopped and your last move was not kept. Free some room on the console.";
 static const char GO_ON[] = "A to go on";
 /* The one line that needs no memory to wrap. */
 static char unwrapped[] = "The player ran out of memory.";
@@ -146,9 +145,7 @@ static void run(player_app *app, player_builder *b) {
   kept = transcript_push(t, "typed", phrase, strlen(phrase));
   told = player_turn(app->session, &reading, NULL);
   if (told.ok && !told.saved) {
-    /* A move that is not kept is not played: play stops here, and says so. */
-    b->stopped = true;
-    show_words(app, b, SAVE_FAILED);
+    player_shelf_unsaved(app);
     return;
   }
   if (!told.ok)
@@ -185,7 +182,6 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   sentence *s = &b->sentence;
   bool numbered, stepped;
   long down;
-  if (b->stopped) return;
   if (b->message.bytes != NULL) {
     if (input->pushed & (kButtonA | kButtonB)) {
       drop_words(app, b);
@@ -266,7 +262,7 @@ static void draw(player_app *app, void *ctx) {
   wrapped panel;
   if (b->message.bytes != NULL) {
     draw_lines(app, &b->message, 40);
-    if (!b->stopped) player_pen_say(&app->pen, GO_ON, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - line_height - 2);
+    player_pen_say(&app->pen, GO_ON, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - line_height - 2);
     return;
   }
   line_fonts[font_count++] = app->pen.font;

@@ -38,7 +38,6 @@ typedef struct player_builder {
   sentence sentence;
   drum drum;
   wrapped message; /* words shown over the drum until A or B; no bytes when there are none */
-  bool stopped;    /* the save could not be written: play has stopped, and the words say so */
   bool closing;    /* the builder closes once the words are read */
   gallery pictures; /* what the sentence run asked to show, shown once the builder closes */
   char line[512];  /* the sentence so far as it fits the screen */

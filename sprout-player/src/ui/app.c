@@ -3,13 +3,12 @@
 
 #include <string.h>
 
-#include "arrival.h"
+#include "shelf.h"
 #include "host/files.h"
 #include "host/stack.h"
 
 player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   player_app *app = (player_app *)player_alloc(pd, sizeof *app);
-  void *ctx;
   if (app == NULL) {
     *why = "the player ran out of memory starting";
     return NULL;
@@ -22,16 +21,16 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   }
   player_sound_init(&app->sound, pd);
   app->session = player_session_new(pd);
-  ctx = app->session != NULL ? player_arrival_new(app) : NULL;
-  if (ctx == NULL) {
+  app->shelf = app->session != NULL ? player_shelf_new(app) : NULL;
+  if (app->shelf == NULL) {
     if (app->session != NULL) player_session_free(app->session);
     player_sound_free(&app->sound);
     player_free(pd, app);
     *why = "the player ran out of memory starting";
     return NULL;
   }
-  app->screen = &player_arrival_screen;
-  app->ctx = ctx;
+  app->screen = &player_shelf_screen;
+  app->ctx = app->shelf;
   return app;
 }
 
@@ -47,6 +46,7 @@ static void *close_thunk(void *ctx) {
 void player_app_free(player_app *app) {
   if (app == NULL) return;
   player_on_own_stack(app->pd, close_thunk, app);
+  player_shelf_free(app, app->shelf);
   player_session_free(app->session);
   player_sound_free(&app->sound);
   player_free(app->pd, app);

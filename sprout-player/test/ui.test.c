@@ -1,17 +1,19 @@
 /*
- * The C app's screens (ui/app.c, ui/arrival.c, ui/reader.c, ui/pen.c) and its entry point
- * (main.c built with PLAYER_C_UI), driven a frame at a time through the fake PlaydateAPI's
- * update callback, buttons and crank, and judged by what was drawn into its 400 by 240 frame.
+ * The C app's screens (ui/app.c, ui/arrival.c, ui/reader.c, ui/message.c, ui/pen.c) and its entry
+ * point (main.c built with PLAYER_C_UI), driven a frame at a time through the fake PlaydateAPI's
+ * update callback, buttons and crank, and judged by what was drawn into its 400 by 240 frame. The
+ * app starts on the shelf (shelf.test.c), and A opens the world selected.
  * The reader's checks are rules: read top to bottom, the transcript is the client's line and then
  * exactly what the arrival told; the status is the view's place and ways out; the column is
  * full and nothing is drawn past it; and the crank and the d-pad move it a line at a time.
  */
 #include <stdlib.h>
-#include <sys/stat.h>
 
 #include "support.h"
 #include "ui/app.h"
 #include "ui/arrival.h"
+#include "ui/message.h"
+#include "ui/shelf.h"
 #include "ui/reader.h"
 #include "ui/transcript.h"
 
@@ -21,17 +23,8 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg);
 #define TOP (LINE + 2)                    /* the first transcript row */
 #define PANEL (240 - (LINE * 3 + 8))      /* the line above the keys */
 
-/* Puts the cartridges named into the Data folder's worlds/, as a pdx's shipped worlds are found. */
-static void ship(const char *const *names, size_t count) {
-  char command[2000];
-  size_t i;
-  snprintf(command, sizeof command, "mkdir -p '%s/worlds'", fake->data);
-  CHECK(system(command) == 0, "%s", command);
-  for (i = 0; i < count; i++) {
-    snprintf(command, sizeof command, "cp '%s/%s' '%s/worlds/'", PLAYER_CARTRIDGES, names[i], fake->data);
-    CHECK(system(command) == 0, "%s", command);
-  }
-}
+/* The row the shelf draws `n` rows down, and the first line of its panel. */
+#define SHELF_ROW(n) (LINE + 4 + 2 + (n) * LINE)
 
 static const fake_run *status_run(void) { return fake_run_at(fake, 2, 0); }
 
@@ -94,11 +87,20 @@ static void the_c_main_sets_the_update_callback_and_the_app_saves_at_terminate(v
   static const char *const shipped[] = {"chip-tree.sproutworld"};
   int frames;
   begin("main");
+  app_folder("app");
   ship(shipped, 1);
   eventHandler(&fake->api, kEventInitLua, 0);
   CHECK(fake->function_count == 0, "the C app registers nothing with Lua");
   eventHandler(&fake->api, kEventInit, 0);
   CHECK(fake->update != NULL, "the update callback is set at kEventInit");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0,
+        "the app starts on the shelf");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0)) != NULL &&
+            strcmp(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0))->text, "> Chip Tree") == 0,
+        "the shipped world is on it, selected: %s",
+        fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0)) ? fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0))->text : "(none)");
+  fake_frame(fake, kButtonA, 0);
   frames = frames_until_reader(10000);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader came up after %d frames", frames);
   CHECK(status_run() != NULL && status_run()->text[0] != '\0', "the status line is drawn");
@@ -124,6 +126,7 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
 
   record_the_arrival("printers_shop.sproutworld", PLAYER_FIXED_NICKNAME);
   begin("reader");
+  app_folder("app");
   fake->glyph = 14; /* twice the fake font's width, so the arrival runs well past the column */
   ship(shipped, 2);
   write_text("worlds/aardvark.txt", "not a cartridge");
@@ -131,10 +134,11 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
 
-  /* The first frame reads the first cartridge by name, behind its loading line. */
+  /* The shelf lists the worlds by path; A on the first reads it behind its loading line. */
   CHECK(fake_frame(fake, 0, 0) == 1, "a frame");
+  CHECK(fake_frame(fake, kButtonA, 0) == 1, "a frame");
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Loading Printers Shop... "),
-        "the loading line names the first shipped world");
+        "the loading line names the world chosen");
   frames = frames_until_reader(10000);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader after %d frames", frames);
 
@@ -220,18 +224,24 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
   end();
 }
 
-static void with_no_world_shipped_the_screen_says_so(void) {
+static void with_no_world_shipped_the_shelf_says_so(void) {
   const char *why = NULL;
   player_app *app;
+  int panel = 240 - (LINE * 3 + 8) + 2;
   begin("none");
+  app_folder("app");
   app = player_app_new(&fake->api, &why);
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
-  fake_frame(fake, kButtonA, 0);
   fake_frame(fake, 0, 0);
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, 40) != NULL &&
-            strcmp(fake_run_at(fake, PLAYER_MARGIN, 40)->text, "No world is shipped with this player.") == 0,
-        "the words are drawn");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0)) != NULL &&
+            strcmp(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0))->text, "> more worlds...") == 0,
+        "the one row is more worlds");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, panel) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, panel)->text, "No worlds are on the"),
+        "the panel says the shelf is empty: %s", fake_run_at(fake, PLAYER_MARGIN, panel) ? fake_run_at(fake, PLAYER_MARGIN, panel)->text : "(none)");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(app->screen == &player_shelf_screen, "A on more worlds stays on the shelf until downloads come");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, panel) != NULL, "the panel still says why");
   player_app_free(app);
   end();
 }
@@ -241,7 +251,9 @@ static void a_cartridge_that_cannot_be_opened_is_told_in_words(void) {
   player_app *app;
   const fake_run *said;
   char command[1200];
+  int panel = 240 - (LINE * 3 + 8) + 2;
   begin("refused");
+  app_folder("app");
   snprintf(command, sizeof command, "mkdir -p '%s/worlds'", fake->data);
   CHECK(system(command) == 0, "%s", command);
   write_text("worlds/broken.sproutworld", "this is not a cartridge");
@@ -249,43 +261,27 @@ static void a_cartridge_that_cannot_be_opened_is_told_in_words(void) {
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
-  said = fake_run_at(fake, PLAYER_MARGIN, 40);
-  CHECK(said != NULL && HAS(said->text, "Sprout"), "the open's reason is drawn: %s", said ? said->text : "(nothing)");
+  said = fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0));
+  CHECK(said != NULL && strcmp(said->text, "> Broken (cannot be opened)") == 0, "the broken world is shelved: %s",
+        said ? said->text : "(nothing)");
+  said = fake_run_at(fake, PLAYER_MARGIN, panel);
+  CHECK(said != NULL && HAS(said->text, "Sprout"), "the panel gives the engine's reason: %s", said ? said->text : "(nothing)");
+  fake_frame(fake, kButtonA, 0);
+  said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
+  CHECK(app->screen == &player_message_screen && said != NULL && HAS(said->text, "Sprout"),
+        "A tells the reason on the message screen: %s", said ? said->text : "(nothing)");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2) != NULL, "the message says how to go on");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(app->screen == &player_shelf_screen, "A goes back to the shelf");
   player_app_free(app);
-  end();
-}
-
-static void the_first_world_is_the_first_cartridge_by_name(void) {
-  char path[PLAYER_PATH_BYTES];
-  char title[64];
-  begin("first");
-  CHECK(!player_first_world(&fake->api, "shelf", path, sizeof path), "no folder, no world");
-  mkdir(fake->data, 0777);
-  {
-    char folder[700];
-    snprintf(folder, sizeof folder, "%s/shelf", fake->data);
-    mkdir(folder, 0777);
-    snprintf(folder, sizeof folder, "%s/shelf/aaa.sproutworld.d", fake->data);
-    mkdir(folder, 0777);
-  }
-  write_text("shelf/zebra.sproutworld", "");
-  write_text("shelf/apple.txt", "");
-  write_text("shelf/mango.sproutworld", "");
-  CHECK(player_first_world(&fake->api, "shelf", path, sizeof path) && strcmp(path, "shelf/mango.sproutworld") == 0, "%s", path);
-  CHECK(!player_first_world(&fake->api, "shelf", path, 8), "a path that does not fit is no path");
-  player_world_title("printers_shop", title, sizeof title);
-  CHECK(strcmp(title, "Printers Shop") == 0, "%s", title);
-  player_world_title("old_3d_room's_door", title, sizeof title);
-  CHECK(strcmp(title, "Old 3D Room's Door") == 0, "%s", title);
   end();
 }
 
 int main(void) {
   test_program("ui");
-  the_first_world_is_the_first_cartridge_by_name();
   the_c_main_sets_the_update_callback_and_the_app_saves_at_terminate();
   the_reader_shows_the_arrival_under_the_status_line();
-  with_no_world_shipped_the_screen_says_so();
+  with_no_world_shipped_the_shelf_says_so();
   a_cartridge_that_cannot_be_opened_is_told_in_words();
   return finish();
 }
