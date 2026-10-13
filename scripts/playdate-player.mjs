@@ -440,6 +440,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'shipping',
       'shipped',
       'files',
+      'stack',
       'reading_json',
       'pd_host',
       'budgets',
