@@ -124,6 +124,44 @@ char *file_text(const char *path) {
   return text;
 }
 
+void ship(const char *const *names, size_t count) {
+  char command[2000];
+  size_t i;
+  snprintf(command, sizeof command, "mkdir -p '%s/worlds'", fake->data);
+  CHECK(system(command) == 0, "%s", command);
+  for (i = 0; i < count; i++) {
+    snprintf(command, sizeof command, "cp '%s/%s' '%s/worlds/'", PLAYER_CARTRIDGES, names[i], fake->data);
+    CHECK(system(command) == 0, "%s", command);
+  }
+}
+
+void app_folder(const char *name) {
+  char command[1200];
+  snprintf(fake->app, sizeof fake->app, "%s-%s", fake->data, name);
+  snprintf(command, sizeof command, "rm -rf '%s' && mkdir -p '%s'", fake->app, fake->app);
+  CHECK(system(command) == 0, "%s", command);
+}
+
+char *fixture_text(const char *name) {
+  char full[1000];
+  FILE *file;
+  long size;
+  char *text;
+  snprintf(full, sizeof full, "%s/%s", PLAYER_FIXTURES, name);
+  file = fopen(full, "rb");
+  CHECK(file != NULL, "the fixture %s", full);
+  if (file == NULL) return calloc(1, 1);
+  fseek(file, 0, SEEK_END);
+  size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  text = (char *)malloc((size_t)size + 1);
+  CHECK(fread(text, 1, (size_t)size, file) == (size_t)size, "reading %s", full);
+  while (size > 0 && text[size - 1] == '\n') size--;
+  text[size] = '\0';
+  fclose(file);
+  return text;
+}
+
 void write_text(const char *path, const char *text) {
   char full[1000];
   FILE *file;

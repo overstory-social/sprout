@@ -284,14 +284,28 @@ files. Without the option the build is the Lua app, as above. Each frame
 runs on the player's own stack (`src/host/stack.h`), since a turn may run in
 it, and the file calls inside it hop back to the main stack.
 
-The app (`src/ui/app.h`) holds the session, the system font and the screen
-on show. A screen (`src/ui/screen.h`) is three functions over its own
+The app (`src/ui/app.h`) holds the session, the system font, the shelf and
+the screen on show. A screen (`src/ui/screen.h`) is three functions over its own
 context: update with the buttons and the crank, draw, and leave; a screen
 moves the app to another, and the move takes effect when its update is over.
-There are two so far. The arrival (`src/ui/arrival.h`) reads the cartridge a
-step a frame behind a loading line, loads the save and admits the visitor;
-until the shelf and the nickname screen exist it opens the first cartridge
-in `worlds/` by name and admits the visitor the save remembers, or `Wren`.
+The app starts on the shelf (`src/ui/shelf.h`), which is `Source/shelf.lua`'s
+as above; the app holds it, so it outlives its screen and a cartridge is
+inspected once for as long as the app runs. Its "more worlds..." row waits
+for the download screen. A on a world shows the arrival
+(`src/ui/arrival.h`), which reads the cartridge a step a frame behind a
+loading line, loads the save and admits the visitor; until the nickname
+screen exists it admits the visitor the save remembers, or `Wren`. What
+stops an open is told on the message screen (`src/ui/message.h`), whose A
+or B goes back to the shelf: a world refused at its open or a step keeps the
+reason on the shelf, and one whose save could not be written is greyed
+until a save of it succeeds. Every cue goes through one sound function
+(`src/ui/sound.h`), silent until the sounds are ported. The signed index is
+read in C as well (`src/signed_index.h`), over the canonical text of
+`src/canonical.h`, which orders an object's names as the signer's
+JavaScript sort does, by UTF-16 code unit, and writes an empty object as
+`{}`, as the signer does; `canonical.lua` sorts by byte, which differs only
+for names mixing characters above U+FFFF with ones from U+E000 to U+FFFF,
+and writes `{}` as `[]`.
 The reader (`src/ui/reader.h`) is `Source/reader.lua`'s: the transcript
 wrapped to the column, the newest at the bottom, under the status line (the
 place and its ways out, from the view), scrolled a line for each 12 degrees

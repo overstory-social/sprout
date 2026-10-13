@@ -1,5 +1,5 @@
 /*
- * The C app: the session, the system font, and the screen on show (screen.h). The system calls
+ * The C app: the session, the system font, the shelf (shelf.h), and the screen on show (screen.h). The system calls
  * `player_app_update` once a frame; the frame runs on the player's own stack (host/stack.h),
  * since a turn may run in it, and the file calls inside it hop back to the main stack as they
  * always do. A screen moves the app to another with `player_app_show`, which takes effect when
@@ -18,10 +18,13 @@
 #define PLAYER_SCREEN_HEIGHT 240
 #define PLAYER_MARGIN 4
 
+typedef struct player_shelf player_shelf;
+
 struct player_app {
   PlaydateAPI *pd;
   player_session *session;
   player_pen pen;
+  player_shelf *shelf;
   const player_screen *screen;
   void *ctx;
   const player_screen *next; /* the screen `player_app_show` asked for, shown when the update is over */
@@ -29,8 +32,8 @@ struct player_app {
 };
 
 /*
- * The app over `pd`, on the screen that opens the first shipped world; NULL, with the words in
- * `*why`, when it cannot start. Called at kEventInit, on the main stack, since it loads the font.
+ * The app over `pd`, on the shelf; NULL, with the words in `*why`, when it cannot start. Called at
+ * kEventInit, on the main stack, since it loads the font; the shelf is listed in the first frame.
  */
 player_app *player_app_new(PlaydateAPI *pd, const char **why);
 

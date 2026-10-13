@@ -60,6 +60,12 @@ player_session *session_new(void);
 char *keep(const char *reply);
 
 char *file_text(const char *path);
+/* Puts the packed cartridges named into the Data folder's worlds/, as a pdx's shipped worlds are found. */
+void ship(const char *const *names, size_t count);
+/* Points the app folder at an empty folder of the scenario's own, `name`, so the shelf lists only what a test puts there. */
+void app_folder(const char *name);
+/* The text of a file under test/fixtures (`../` reaches test/), without its trailing newlines, from malloc. */
+char *fixture_text(const char *name);
 void write_text(const char *path, const char *text);
 bool exists(const char *path);
 

@@ -1,85 +1,50 @@
-/* Opening the first shipped world and arriving in it; see arrival.h. */
+/* Opening a world and arriving in it; see arrival.h. */
 #include "arrival.h"
 
 #include <string.h>
 
 #include "host/files.h"
+#include "message.h"
 #include "reader.h"
 #include "text.h"
 
-#define CARTRIDGE ".sproutworld"
-
-static const char NO_WORLD[] = "No world is shipped with this player.";
 static const char NO_MEMORY[] = "The player ran out of memory bringing you into the world.";
 static const char SAVE_FAILED[] =
-    "The save could not be written, so play has stopped. Free some room on the console.";
+    "The save could not be written, so play has stopped. Free some room on the console. "
+    "This world stays greyed until its save can be written.";
 
-typedef struct first_found {
-  char name[PLAYER_PATH_BYTES];
-} first_found;
-
-static void consider(const char *name, void *ctx) {
-  first_found *first = (first_found *)ctx;
-  size_t n = strlen(name), suffix = sizeof CARTRIDGE - 1;
-  if (n <= suffix || n >= sizeof first->name || strcmp(name + n - suffix, CARTRIDGE) != 0) return;
-  if (first->name[0] == '\0' || strcmp(name, first->name) < 0) memcpy(first->name, name, n + 1);
+static void copy_text(char *out, size_t size, const char *text) {
+  text_buffer buffer;
+  text_begin(&buffer, out, size);
+  text_add(&buffer, text);
 }
 
-bool player_first_world(PlaydateAPI *pd, const char *folder, char *path, size_t size) {
-  first_found first;
-  text_buffer out;
-  first.name[0] = '\0';
-  if (!player_list_files(pd, folder, consider, &first) || first.name[0] == '\0') return false;
-  if (strlen(folder) + 1 + strlen(first.name) >= size) return false;
-  text_begin(&out, path, size);
-  text_add(&out, folder);
-  text_add(&out, "/");
-  text_add(&out, first.name);
-  return true;
-}
-
-static bool is_letter(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
-static bool is_word(char c) { return is_letter(c) || (c >= '0' && c <= '9') || c == '\''; }
-
-void player_world_title(const char *name, char *title, size_t size) {
-  size_t i;
-  bool in_word = false;
-  if (size == 0) return;
-  for (i = 0; name[i] != '\0' && i + 1 < size; i++) {
-    char c = name[i] == '_' ? ' ' : name[i];
-    if (!in_word && is_letter(c)) {
-      if (c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
-      in_word = true;
-    } else if (in_word && !is_word(c)) {
-      in_word = false;
-    }
-    title[i] = c;
-  }
-  title[i] = '\0';
-}
-
-player_arrival *player_arrival_new(player_app *app) {
+player_arrival *player_arrival_new(player_app *app, const char *path, const char *title) {
   player_arrival *arrival = (player_arrival *)player_alloc(app->pd, sizeof *arrival);
   if (arrival == NULL) return NULL;
   memset(arrival, 0, sizeof *arrival);
-  if (!player_first_world(app->pd, PLAYER_WORLDS_FOLDER, arrival->path, sizeof arrival->path)) arrival->path[0] = '\0';
+  copy_text(arrival->path, sizeof arrival->path, path);
+  copy_text(arrival->title, sizeof arrival->title, title);
   return arrival;
 }
 
-static bool stopped(const player_arrival *arrival) { return arrival->words.bytes != NULL; }
+/* Stops with `words` on the message screen; the world, if any of it is open, is closed. */
+static void stop(player_app *app, const char *words) {
+  player_close(app->session);
+  player_message_show(app, words);
+}
 
-/* Stops with `words` on the screen. */
-static void stop(player_app *app, player_arrival *arrival, const char *words) {
-  if (stopped(arrival)) return;
-  if (words == NULL || words[0] == '\0') words = "The world could not be opened.";
-  arrival->words_held = wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN,
-                                   player_pen_width, &app->pen, &arrival->words);
-  if (!arrival->words_held) {
-    /* No memory to wrap the words: the one line that needs none says what stopped it. */
-    static char unwrapped[] = "The player ran out of memory.";
-    arrival->words.bytes = unwrapped;
-    arrival->words.line_count = 1;
-  }
+/* The world itself refused to open: the shelf keeps the reason. */
+static void refuse(player_app *app, player_arrival *arrival, const char *reason) {
+  player_shelf_refuse(app->shelf, arrival->path, reason != NULL && reason[0] != '\0' ? reason : "The world could not be opened.");
+  stop(app, reason);
+}
+
+/* The save could not be written: the world is greyed on the shelf until it can be. */
+static void unsaved(player_app *app, player_arrival *arrival) {
+  player_close(app->session);
+  player_shelf_block(app->shelf, arrival->path, SAVE_FAILED);
+  player_message_show(app, SAVE_FAILED);
 }
 
 /* A copy of `text` from the device's allocator, or NULL. */
@@ -119,24 +84,32 @@ static void arrive(player_app *app, player_arrival *arrival) {
   player_reader *reader;
   char *nickname, *notice = NULL;
   if (!loaded.ok) {
-    stop(app, arrival, loaded.words);
+    stop(app, loaded.words);
     return;
+  }
+  if (player_shelf_blocked(app->shelf, arrival->path)) {
+    /* A world greyed for its save is played again only once a save of it is written. */
+    if (!player_save(app->session).ok) {
+      unsaved(app, arrival);
+      return;
+    }
+    player_shelf_unblock(app->shelf, arrival->path);
   }
   nickname = loaded.nickname != NULL ? copy_of(app->pd, loaded.nickname->bytes, loaded.nickname->length)
                                      : copy_of(app->pd, PLAYER_FIXED_NICKNAME, strlen(PLAYER_FIXED_NICKNAME));
   if (loaded.words[0] != '\0') notice = copy_of(app->pd, loaded.words, strlen(loaded.words));
   if (nickname == NULL || (loaded.words[0] != '\0' && notice == NULL)) {
-    stop(app, arrival, NO_MEMORY);
+    stop(app, NO_MEMORY);
   } else {
     admitted = player_admit(app->session, nickname);
     if (!admitted.ok)
-      stop(app, arrival, admitted.words);
+      stop(app, admitted.words);
     else if (!admitted.saved)
-      stop(app, arrival, SAVE_FAILED);
+      unsaved(app, arrival);
     else if (!admitted.admitted)
-      stop(app, arrival, admitted.words);
+      stop(app, admitted.words);
     else if ((reader = tell_arrival(app, arrival, nickname, notice, &admitted.lines)) == NULL)
-      stop(app, arrival, NO_MEMORY);
+      stop(app, NO_MEMORY);
     else
       player_app_show(app, &player_reader_screen, reader);
   }
@@ -144,31 +117,22 @@ static void arrive(player_app *app, player_arrival *arrival) {
   player_free(app->pd, notice);
 }
 
-static void begin_opening(player_app *app, player_arrival *arrival) {
-  player_opening opening;
-  arrival->started = true;
-  if (arrival->path[0] == '\0') {
-    stop(app, arrival, NO_WORLD);
-    return;
-  }
-  opening = player_open(app->session, arrival->path);
-  if (!opening.ok) {
-    stop(app, arrival, opening.reason);
-    return;
-  }
-  player_world_title(opening.name, arrival->title, sizeof arrival->title);
-}
-
 static void update(player_app *app, void *ctx, const player_input *input) {
   player_arrival *arrival = (player_arrival *)ctx;
   player_opening step;
   (void)input;
-  if (stopped(arrival)) return;
-  if (!arrival->started) begin_opening(app, arrival);
-  if (stopped(arrival)) return;
+  if (!arrival->started) {
+    player_opening opening = player_open(app->session, arrival->path);
+    arrival->started = true;
+    if (!opening.ok) {
+      refuse(app, arrival, opening.reason);
+      return;
+    }
+    player_world_title(opening.name, arrival->title, sizeof arrival->title);
+  }
   step = player_step(app->session);
   if (!step.ok) {
-    stop(app, arrival, step.reason);
+    refuse(app, arrival, step.reason);
     return;
   }
   arrival->read = step.read;
@@ -179,33 +143,21 @@ static void update(player_app *app, void *ctx, const player_input *input) {
 static void draw(player_app *app, void *ctx) {
   player_arrival *arrival = (player_arrival *)ctx;
   const player_pen *pen = &app->pen;
-  if (stopped(arrival)) {
-    const char *line = arrival->words.bytes;
-    size_t i;
-    int y = 40;
-    for (i = 0; i < arrival->words.line_count; i++, line = wrap_next(line), y += pen->line_height)
-      player_pen_say(pen, line, PLAYER_MARGIN, y);
-  } else {
-    char said[200];
-    text_buffer loading;
-    uint64_t share = arrival->counted > 0 ? (uint64_t)arrival->read * 100u / arrival->counted : 0;
-    int width = PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN;
-    text_begin(&loading, said, sizeof said);
-    text_add(&loading, "Loading ");
-    text_add(&loading, arrival->title);
-    text_add(&loading, "... ");
-    text_add_number(&loading, share);
-    text_add(&loading, "%");
-    player_pen_say(pen, said, PLAYER_MARGIN, 0);
-    app->pd->graphics->drawLine(PLAYER_MARGIN, pen->line_height + 4, PLAYER_MARGIN + (int)(width * (int)share / 100),
-                                pen->line_height + 4, 1, kColorBlack);
-  }
+  char said[200];
+  text_buffer loading;
+  uint64_t share = arrival->counted > 0 ? (uint64_t)arrival->read * 100u / arrival->counted : 0;
+  int width = PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN;
+  text_begin(&loading, said, sizeof said);
+  text_add(&loading, "Loading ");
+  text_add(&loading, arrival->title);
+  text_add(&loading, "... ");
+  text_add_number(&loading, share);
+  text_add(&loading, "%");
+  player_pen_say(pen, said, PLAYER_MARGIN, 0);
+  app->pd->graphics->drawLine(PLAYER_MARGIN, pen->line_height + 4, PLAYER_MARGIN + (int)(width * (int)share / 100),
+                              pen->line_height + 4, 1, kColorBlack);
 }
 
-static void leave(player_app *app, void *ctx) {
-  player_arrival *arrival = (player_arrival *)ctx;
-  if (arrival->words_held) player_free(app->pd, arrival->words.bytes);
-  player_free(app->pd, arrival);
-}
+static void leave(player_app *app, void *ctx) { player_free(app->pd, ctx); }
 
 const player_screen player_arrival_screen = {update, draw, leave};
