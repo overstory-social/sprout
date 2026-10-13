@@ -255,9 +255,15 @@ extension but `media`; a run on a Unicode newer than 17.0 (hole 498).
 
 `sprout-player/` is the app. The engine of `runtime-c/` is compiled into it
 as one source and registered with the Lua runtime at `kEventInitLua`, before
-`main.lua` runs, as eleven functions: `sprout.inspect`, `open`, `load`,
-`admit`, `view`, `turn`, `tick`, `save`, `close`, `verify` and `digest`
-(`src/bridge.c`). Each takes strings and returns a JSON string. At the
+`main.lua` runs, as thirteen functions: `sprout.inspect`, `open`, `step`,
+`load`, `admit`, `view`, `chips`, `turn`, `tick`, `save`, `close`, `verify`
+and `digest` (`src/bridge.c`). Each takes strings and returns a JSON string.
+The JSON is the bridge's alone: the session (`src/session.h`) hands back the
+runtime's structs (the view, a level of the chip tree, the lines a call's
+turns told) and takes a reading as the runtime's struct, and the bridge
+writes the one and reads the other. The Playdate's side of the host
+contract, its files and the stack a call from Lua runs on are
+`src/host/`. At the
 system's terminate event the engine saves and frees its session, and a call
 that still comes after it (Lua may run one more frame) is refused with
 `The engine has shut down.` rather than run (a view, whose reply has one

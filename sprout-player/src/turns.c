@@ -7,36 +7,10 @@
  */
 #include <string.h>
 
-#include "reading_json.h"
 #include "session_internal.h"
 
 #define WAKES_PER_TICK 64
 #define WOKEN_KEPT 16
-
-/* ---- the log entry ---- */
-
-/* The entry the log tail keeps of a turn that ran: kind, seed, seconds, who, how it ended, and the line typed. */
-static void log_turn(player_session *session, const sprout_turn_input *input, const sprout_outcome *outcome) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *entry;
-  const sprout_log_entry *log = &outcome->log;
-  const char *bytes;
-  size_t length;
-  if (!outcome->has_log || sprout_arena_init(&arena, &session->host.record) != SPROUT_OK) return;
-  jb_begin(&builder, &arena);
-  entry = jb_object(&builder, 8);
-  jb_set(&builder, entry, "kind", jb_string(&builder, turn_kind_name(log->kind)));
-  jb_set(&builder, entry, "seed", jb_number(&builder, (double)log->seed));
-  jb_set(&builder, entry, "seconds", jb_number(&builder, (double)log->seconds));
-  jb_set(&builder, entry, "who", log->who.length == 0 ? jb_null(&builder) : jb_str(&builder, log->who));
-  jb_set(&builder, entry, "outcome", jb_string(&builder, result_name(outcome->result)));
-  jb_set(&builder, entry, "fault", log->faulted ? jb_string(&builder, log->fault_name) : jb_null(&builder));
-  jb_set(&builder, entry, "serial", jb_number(&builder, (double)log->serial));
-  jb_set(&builder, entry, "text", input->text != NULL ? jb_text(&builder, input->text, input->text_length) : jb_null(&builder));
-  if (builder.ok && sprout_json_write(&arena, entry, &bytes, &length) == SPROUT_OK) savelog_add(session, bytes, length);
-  sprout_arena_reset(&arena);
-}
 
 /* ---- running a turn ---- */
 
@@ -47,7 +21,7 @@ sprout_status turns_run(player_session *session, sprout_turn_input *input, sprou
   memset(outcome, 0, sizeof *outcome);
   status = sprout_run_turn(session->world, session->state, &session->host.record, input, outcome);
   if (status != SPROUT_OK) return status;
-  log_turn(session, input, outcome);
+  savelog_turn(session, input, outcome);
   if (outcome->committed || outcome->state_changed) session->dirty = true;
   return status;
 }
@@ -66,44 +40,40 @@ bool turns_depart(player_session *session, sprout_outcome *outcome) {
   return true;
 }
 
-/* A reply with the given members all false or empty: nothing could be done, and the words say why. */
-static const char *cannot(player_session *session, const char *flag, const char *words) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 4);
-  jb_set(&builder, root, flag, jb_bool(&builder, false));
-  jb_set(&builder, root, "committed", jb_bool(&builder, false));
-  jb_set(&builder, root, "words", jb_string(&builder, words));
-  jb_set(&builder, root, "lines", jb_array(&builder, 0));
-  return session_reply_end(session, &arena, &builder, root);
+/* Nothing could be run, and the words say why. */
+static player_told cannot(const char *words) {
+  player_told answer;
+  memset(&answer, 0, sizeof answer);
+  answer.result = SPROUT_RESULT_REFUSED;
+  answer.words = words;
+  return answer;
+}
+
+/* Whether the visitor stands in the world, which a command and a tick need. */
+static bool in_world(const player_session *session) {
+  const sprout_stored_visitor *visitor = session_visitor(session);
+  return session->state != NULL && visitor != NULL && session_visitor_present(session, visitor);
 }
 
 /* ---- arrival ---- */
 
-const char *player_admit(player_session *session, const char *nickname) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
+player_told player_admit(player_session *session, const char *nickname) {
+  player_told answer;
+  sprout_arena *arena = session_answer(session);
   sprout_admission admission;
   sprout_outcome outcome;
   sprout_turn_input input;
   sprout_status status;
-  told_list lines;
-  const char *words = "", *reply;
-  bool admitted = false, saved;
-  if (session->state == NULL) return cannot(session, "admitted", "No world is open.");
+  if (session->state == NULL) return cannot("No world is open.");
   status = sprout_admit(session->world, session->state, &session->host.record, PLAYER_VISIT, nickname,
                         strlen(nickname), &admission);
-  if (status != SPROUT_OK) return cannot(session, "admitted", sprout_status_text(status));
-  if (!session_reply_begin(session, &arena, &builder)) {
-    sprout_admission_free(&admission);
-    return session_reply_end(session, &arena, &builder, NULL);
-  }
-  memset(&lines, 0, sizeof lines);
+  if (status != SPROUT_OK) return cannot(sprout_status_text(status));
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.result = SPROUT_RESULT_REFUSED;
+  answer.words = "";
   if (admission.reason != SPROUT_NICKNAME_OK) {
-    words = admission.words.bytes;
+    answer.words = session_keep(session, admission.words.bytes);
   } else {
     /* Catch-up first, so nobody walks into a place about to rearrange itself; it tells nothing. */
     memset(&input, 0, sizeof input);
@@ -117,81 +87,70 @@ const char *player_admit(player_session *session, const char *nickname) {
     input.nickname_length = admission.kept.length;
     status = turns_run(session, &input, &outcome);
     if (status != SPROUT_OK) {
-      words = outcome.fault.text;
+      answer.words = session_keep(session, outcome.fault.text);
     } else {
-      admitted = outcome.result == SPROUT_RESULT_DONE;
-      if (outcome.words != NULL) words = outcome.words;
-      told_collect(&arena, &lines, &outcome, PLAYER_VISIT);
+      answer.admitted = outcome.result == SPROUT_RESULT_DONE;
+      answer.result = outcome.result;
+      if (outcome.words != NULL) answer.words = session_keep(session, outcome.words);
+      told_collect(arena, &answer.lines, &outcome, PLAYER_VISIT);
     }
+    sprout_outcome_free(&outcome);
   }
-  saved = session_save_if_dirty(session);
-  root = jb_object(&builder, 5);
-  jb_set(&builder, root, "admitted", jb_bool(&builder, admitted));
-  jb_set(&builder, root, "saved", jb_bool(&builder, saved));
-  jb_set(&builder, root, "words", jb_string(&builder, words));
-  jb_set(&builder, root, "visit", jb_string(&builder, PLAYER_VISIT));
-  jb_set(&builder, root, "lines", jb_told(&builder, &lines));
-  reply = session_reply_end(session, &arena, &builder, root);
-  if (admission.reason == SPROUT_NICKNAME_OK) sprout_outcome_free(&outcome);
+  answer.saved = session_save_if_dirty(session);
   sprout_admission_free(&admission);
-  return reply;
+  return answer;
 }
 
 /* ---- a command ---- */
 
-const char *player_turn(player_session *session, const char *reading) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
+player_told player_turn(player_session *session, const sprout_reading *reading, const char *text) {
+  player_told answer;
+  sprout_arena *arena = session_answer(session);
   sprout_outcome outcome;
   sprout_turn_input input;
   sprout_reading read;
   sprout_status status;
   const sprout_stored_visitor *visitor = session_visitor(session);
-  told_list lines;
-  const char *why, *text, *actor, *words = NULL, *reply;
-  bool committed = false, saved;
-  const char *result = "refused";
-  if (session->state == NULL || visitor == NULL || !session_visitor_present(session, visitor))
-    return cannot(session, "ran", "You are not in a world.");
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
+  if (!in_world(session)) return cannot("You are not in a world.");
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.result = SPROUT_RESULT_REFUSED;
   /* The actor's id is copied: a committed turn replaces the memory the state's records live in. */
-  actor = sprout_arena_copy(&arena, visitor->instance.bytes, visitor->instance.length);
-  why = actor == NULL ? "The player ran out of memory reading that."
-                      : reading_parse(&arena, reading, strlen(reading), actor, &read, &text);
-  memset(&lines, 0, sizeof lines);
-  memset(&outcome, 0, sizeof outcome);
-  if (why != NULL) {
-    words = why;
-    told_add(&arena, &lines, PLAYER_VISIT, "notice", why);
+  read = *reading;
+  read.actor = sprout_arena_copy(arena, visitor->instance.bytes, visitor->instance.length);
+  if (read.actor == NULL) return player_misread(session, "The player ran out of memory reading that.");
+  memset(&input, 0, sizeof input);
+  input.kind = SPROUT_TURN_COMMAND;
+  input.visit = PLAYER_VISIT;
+  input.reading = &read;
+  input.text = text;
+  input.text_length = text == NULL ? 0 : strlen(text);
+  status = turns_run(session, &input, &outcome);
+  if (status != SPROUT_OK) {
+    /* A reading the world cannot take: said in words, and nothing was written. */
+    answer.words = session_keep(session, status == SPROUT_BAD_INPUT ? outcome.fault.text : sprout_status_text(status));
+    told_add(arena, &answer.lines, PLAYER_VISIT, "notice", answer.words);
   } else {
-    memset(&input, 0, sizeof input);
-    input.kind = SPROUT_TURN_COMMAND;
-    input.visit = PLAYER_VISIT;
-    input.reading = &read;
-    input.text = text;
-    input.text_length = text == NULL ? 0 : strlen(text);
-    status = turns_run(session, &input, &outcome);
-    if (status != SPROUT_OK) {
-      /* A reading the world cannot take: said in words, and nothing was written. */
-      words = status == SPROUT_BAD_INPUT ? outcome.fault.text : sprout_status_text(status);
-      told_add(&arena, &lines, PLAYER_VISIT, "notice", words);
-    } else {
-      committed = outcome.committed;
-      result = result_name(outcome.result);
-      told_collect(&arena, &lines, &outcome, PLAYER_VISIT);
-    }
+    answer.committed = outcome.committed;
+    answer.result = outcome.result;
+    told_collect(arena, &answer.lines, &outcome, PLAYER_VISIT);
   }
-  saved = session_save_if_dirty(session);
-  root = jb_object(&builder, 5);
-  jb_set(&builder, root, "committed", jb_bool(&builder, committed));
-  jb_set(&builder, root, "saved", jb_bool(&builder, saved));
-  jb_set(&builder, root, "result", jb_string(&builder, result));
-  jb_set(&builder, root, "words", words == NULL ? jb_null(&builder) : jb_string(&builder, words));
-  jb_set(&builder, root, "lines", jb_told(&builder, &lines));
-  reply = session_reply_end(session, &arena, &builder, root);
   sprout_outcome_free(&outcome);
-  return reply;
+  answer.saved = session_save_if_dirty(session);
+  return answer;
+}
+
+player_told player_misread(player_session *session, const char *why) {
+  player_told answer;
+  sprout_arena *arena = session_answer(session);
+  if (!in_world(session)) return cannot("You are not in a world.");
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.result = SPROUT_RESULT_REFUSED;
+  answer.words = session_keep(session, why);
+  told_add(arena, &answer.lines, PLAYER_VISIT, "notice", answer.words);
+  answer.saved = session_save_if_dirty(session);
+  return answer;
 }
 
 /* ---- time passing ---- */
@@ -270,23 +229,16 @@ static bool tick_places(player_session *session, sprout_arena *arena, told_list 
   return ran;
 }
 
-const char *player_tick(player_session *session) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
-  told_list lines;
-  const sprout_stored_visitor *visitor = session_visitor(session);
-  bool ran = false, saved;
-  if (session->state == NULL || visitor == NULL || !session_visitor_present(session, visitor))
-    return cannot(session, "ran", "You are not in a world.");
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  memset(&lines, 0, sizeof lines);
-  ran = wake_due(session, &arena, &lines, player_host_seconds(&session->host));
-  ran = tick_places(session, &arena, &lines) || ran;
-  saved = session_save_if_dirty(session);
-  root = jb_object(&builder, 3);
-  jb_set(&builder, root, "ran", jb_bool(&builder, ran));
-  jb_set(&builder, root, "saved", jb_bool(&builder, saved));
-  jb_set(&builder, root, "lines", jb_told(&builder, &lines));
-  return session_reply_end(session, &arena, &builder, root);
+player_told player_tick(player_session *session) {
+  player_told answer;
+  sprout_arena *arena = session_answer(session);
+  if (!in_world(session)) return cannot("You are not in a world.");
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.result = SPROUT_RESULT_DONE;
+  answer.words = "";
+  answer.ran = wake_due(session, arena, &answer.lines, player_host_seconds(&session->host));
+  answer.ran = tick_places(session, arena, &answer.lines) || answer.ran;
+  answer.saved = session_save_if_dirty(session);
+  return answer;
 }

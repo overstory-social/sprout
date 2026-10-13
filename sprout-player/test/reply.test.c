@@ -1,6 +1,6 @@
-/* reply.c: the JSON the registered functions hand back, and the lines a call's turns told. */
-#include "files.h"
-#include "pd_host.h"
+/* reply.c: the JSON the bridge hands back to Lua, the lines a call's turns told among it. */
+#include "host/files.h"
+#include "host/pd_host.h"
 #include "reply.h"
 #include "support.h"
 
@@ -49,24 +49,7 @@ static void a_page_the_host_refuses_fails_the_reply_and_not_the_player(void) {
   end();
 }
 
-static void the_names_of_kinds_are_the_ones_the_typescript_player_writes(void) {
-  CHECK(strcmp(line_kind_name(SPROUT_LINE_SAID), "said") == 0 && strcmp(line_kind_name(SPROUT_LINE_TOLD), "told") == 0 &&
-            strcmp(line_kind_name(SPROUT_LINE_REFUSED), "refused") == 0 &&
-            strcmp(line_kind_name(SPROUT_LINE_DESCRIBED), "described") == 0 &&
-            strcmp(line_kind_name(SPROUT_LINE_NOTICE), "notice") == 0 &&
-            strcmp(line_kind_name(SPROUT_LINE_EXTENSION), "extension") == 0, "line kinds");
-  CHECK(strcmp(turn_kind_name(SPROUT_TURN_COMMAND), "command") == 0 && strcmp(turn_kind_name(SPROUT_TURN_TICK), "tick") == 0 &&
-            strcmp(turn_kind_name(SPROUT_TURN_WAKE), "wake") == 0 &&
-            strcmp(turn_kind_name(SPROUT_TURN_MAINTENANCE), "maintenance") == 0 &&
-            strcmp(turn_kind_name(SPROUT_TURN_POLL), "poll") == 0 &&
-            strcmp(turn_kind_name(SPROUT_TURN_ARRIVAL), "arrival") == 0 &&
-            strcmp(turn_kind_name(SPROUT_TURN_DEPARTURE), "departure") == 0, "turn kinds");
-  CHECK(strcmp(result_name(SPROUT_RESULT_DONE), "done") == 0 && strcmp(result_name(SPROUT_RESULT_FAULTED), "faulted") == 0 &&
-            strcmp(result_name(SPROUT_RESULT_REFUSED), "refused") == 0 && strcmp(result_name(SPROUT_RESULT_CLOSED), "closed") == 0 &&
-            strcmp(result_name(SPROUT_RESULT_IDLE), "idle") == 0, "results");
-}
-
-static void the_lines_of_several_turns_are_kept_after_their_outcomes_are_gone(void) {
+static void the_lines_of_several_turns_are_written_as_an_array_of_lines(void) {
   player_host host;
   sprout_arena arena;
   jb builder;
@@ -111,7 +94,7 @@ static void the_lines_of_several_turns_are_kept_after_their_outcomes_are_gone(vo
   end();
 }
 
-static void an_extensions_effect_carries_what_recorded_it_and_its_payload(void) {
+static void an_extensions_effect_is_written_with_what_recorded_it_and_its_payload(void) {
   player_host host;
   sprout_arena arena;
   jb builder;
@@ -157,8 +140,7 @@ int main(void) {
   test_program("reply");
   a_reply_is_built_and_written_in_canonical_form();
   a_page_the_host_refuses_fails_the_reply_and_not_the_player();
-  the_names_of_kinds_are_the_ones_the_typescript_player_writes();
-  the_lines_of_several_turns_are_kept_after_their_outcomes_are_gone();
-  an_extensions_effect_carries_what_recorded_it_and_its_payload();
+  the_lines_of_several_turns_are_written_as_an_array_of_lines();
+  an_extensions_effect_is_written_with_what_recorded_it_and_its_payload();
   return finish();
 }

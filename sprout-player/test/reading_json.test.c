@@ -1,10 +1,10 @@
 /* reading_json.c: a reading as the sentence builder hands it over. */
-#include "pd_host.h"
+#include "host/pd_host.h"
 #include "reading_json.h"
 #include "support.h"
 
 static const char *parse_into(sprout_arena *arena, const char *json, sprout_reading *read, const char **text) {
-  return reading_parse(arena, json, strlen(json), "chip_tree.visitor", read, text);
+  return reading_parse(arena, json, strlen(json), read, text);
 }
 
 int main(void) {
@@ -22,7 +22,7 @@ int main(void) {
                    "{\"role\":\"target\",\"binds\":\"object\",\"id\":\"w.guard\",\"name\":\"a guard\"},"
                    "{\"role\":\"topic\",\"binds\":\"value\",\"value\":\"weather\"}]}",
                    &read, &text) == NULL, "an ask");
-  CHECK(strcmp(read.verb, "sprout.ask") == 0 && strcmp(read.actor, "chip_tree.visitor") == 0, "verb and actor");
+  CHECK(strcmp(read.verb, "sprout.ask") == 0 && read.actor == NULL, "the verb, and the actor left to the session");
   CHECK(read.filling_count == 2 && read.fillings[0].binds == SPROUT_FILL_OBJECT &&
             strcmp(read.fillings[0].id, "w.guard") == 0, "the object");
   CHECK(read.fillings[1].binds == SPROUT_FILL_TEXT && strcmp(read.fillings[1].text, "weather") == 0, "the word");

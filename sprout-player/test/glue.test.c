@@ -38,7 +38,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
   begin_bridge("transcript");
   json_begin();
   opened = open_world("chip-tree.sproutworld");
-  save_paths(opened, state_path, log_path, sizeof state_path);
+  save_paths_of_reply(opened, state_path, log_path, sizeof state_path);
   CHECK(HAS(call("sprout.load", NULL), "\"fresh\":true"), "a new world");
   reply = parse(call("sprout.admit", "Marta"));
   CHECK(strcmp(line_text(reply, 0), "There is nothing special about a hall.") == 0 && strcmp(line_kind(reply, 0), "described") == 0,
@@ -73,7 +73,7 @@ static void a_built_turn_leaves_the_stored_world_a_typed_line_does(void) {
   char *opened, *view, *told;
   begin_bridge("value-first");
   opened = open_world("value-first.sproutworld");
-  save_paths(opened, state_path, log_path, sizeof state_path);
+  save_paths_of_reply(opened, state_path, log_path, sizeof state_path);
   call("sprout.load", NULL);
   CHECK(HAS(call("sprout.admit", "player"), "\"admitted\":true"), "arriving");
   view = call("sprout.view", NULL);
@@ -97,7 +97,7 @@ static void built_turns_leave_the_stored_world_the_typed_lines_do(void) {
   char *opened;
   begin_bridge("chip-tree-built");
   opened = open_world("chip-tree.sproutworld");
-  save_paths(opened, state_path, log_path, sizeof state_path);
+  save_paths_of_reply(opened, state_path, log_path, sizeof state_path);
   call("sprout.load", NULL);
   call("sprout.admit", "player");
   call("sprout.turn", "{\"verb\":\"sprout.ask\",\"fillers\":[{\"role\":\"target\",\"binds\":\"object\","

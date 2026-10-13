@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "budgets.h"
-#include "files.h"
+#include "host/files.h"
+#include "host/stack.h"
 #include "session_internal.h"
-#include "stack.h"
 #include "text.h"
 #include "world.h"
 
@@ -16,6 +16,7 @@ player_session *player_session_new(PlaydateAPI *pd) {
   memset(session, 0, sizeof *session);
   session->pd = pd;
   player_host_init(&session->host, pd);
+  sprout_arena_init(&session->answer, &session->host.record);
   return session;
 }
 
@@ -38,37 +39,26 @@ static void release_world(player_session *session) {
 void player_session_free(player_session *session) {
   if (session == NULL) return;
   release_world(session);
-  player_free(session->pd, session->reply);
+  sprout_arena_reset(&session->answer);
   player_free(session->pd, session);
 }
 
-bool session_reply_begin(player_session *session, sprout_arena *arena, jb *builder) {
-  memset(arena, 0, sizeof *arena);
-  jb_begin(builder, arena);
-  if (sprout_arena_init(arena, &session->host.record) == SPROUT_OK) return true;
-  builder->ok = false;
-  return false;
+sprout_arena *session_answer(player_session *session) {
+  sprout_arena_reset(&session->answer);
+  return &session->answer;
 }
 
-const char *session_reply_end(player_session *session, sprout_arena *arena, jb *builder, const sprout_json *root) {
-  static const char FAILED[] = "{\"ok\":false,\"admitted\":false,\"committed\":false,\"ran\":false,"
-                               "\"words\":\"The player ran out of memory telling you that.\",\"reason\":"
-                               "\"The player ran out of memory telling you that.\",\"lines\":[]}";
-  bool written = jb_finish(builder, session->pd, root, &session->reply);
-  sprout_arena_reset(arena);
-  return written ? session->reply : FAILED;
+const char *session_keep(player_session *session, const char *text) {
+  const char *copy = sprout_arena_copy(&session->answer, text, strlen(text));
+  return copy != NULL ? copy : "The player ran out of memory telling you that.";
 }
 
-/* A reply that is an object of text members: { ok: false, reason: "..." } and the like. */
-static const char *refuse(player_session *session, const char *flag, const char *key, const char *words) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 3);
-  jb_set(&builder, root, flag, jb_bool(&builder, false));
-  jb_set(&builder, root, key, jb_string(&builder, words));
-  return session_reply_end(session, &arena, &builder, root);
+/* A cartridge that cannot be shelved or opened, and why. */
+static player_opening not_opened(player_session *session, const char *reason) {
+  player_opening answer;
+  memset(&answer, 0, sizeof answer);
+  answer.reason = session_keep(session, reason);
+  return answer;
 }
 
 /* ---- shelving ---- */
@@ -128,43 +118,39 @@ static bool peek(player_session *session, const char *path, char **bytes, size_t
   return true;
 }
 
-const char *player_inspect(player_session *session, const char *path) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
+player_opening player_inspect(player_session *session, const char *path) {
+  player_opening answer;
   sprout_world *world = NULL;
   char *bytes = NULL;
   size_t length = 0;
   char reason[512];
-  const char *reply;
-  bool fits;
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  fits = peek(session, path, &bytes, &length, &world, reason, sizeof reason);
-  root = jb_object(&builder, 4);
-  jb_set(&builder, root, "ok", jb_bool(&builder, fits));
-  jb_set(&builder, root, "name", fits ? jb_string(&builder, world->header.name) : jb_null(&builder));
-  jb_set(&builder, root, "hash", fits ? jb_string(&builder, world->header.hash) : jb_null(&builder));
-  jb_set(&builder, root, "reason", fits ? jb_null(&builder) : jb_string(&builder, reason));
-  reply = session_reply_end(session, &arena, &builder, root);
+  session_answer(session);
+  if (!peek(session, path, &bytes, &length, &world, reason, sizeof reason)) {
+    answer = not_opened(session, reason);
+  } else {
+    memset(&answer, 0, sizeof answer);
+    answer.ok = true;
+    answer.name = session_keep(session, world->header.name);
+    answer.hash = session_keep(session, world->header.hash);
+  }
   if (world != NULL) sprout_world_free(world);
   player_free(session->pd, bytes);
-  return reply;
+  return answer;
 }
 
-const char *player_open(player_session *session, const char *path) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
+player_opening player_open(player_session *session, const char *path) {
+  player_opening answer;
   sprout_world *peeked = NULL;
   sprout_refusal refusal;
   sprout_status status;
   char *bytes = NULL;
   size_t length = 0;
   char reason[512];
+  session_answer(session);
   release_world(session);
   if (!peek(session, path, &bytes, &length, &peeked, reason, sizeof reason)) {
     player_free(session->pd, bytes);
-    return refuse(session, "ok", "reason", reason);
+    return not_opened(session, reason);
   }
   name_files(session, &peeked->header);
   sprout_world_free(peeked);
@@ -174,16 +160,14 @@ const char *player_open(player_session *session, const char *path) {
     text_begin(&out, reason, sizeof reason);
     load_failed(status, &refusal, &out);
     player_free(session->pd, bytes);
-    return refuse(session, "ok", "reason", reason);
+    return not_opened(session, reason);
   }
   session->loading_bytes = bytes;
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 4);
-  jb_set(&builder, root, "ok", jb_bool(&builder, true));
-  jb_set(&builder, root, "name", jb_string(&builder, session->title));
-  jb_set(&builder, root, "hash", jb_string(&builder, session->hash));
-  jb_set(&builder, root, "reason", jb_null(&builder));
-  return session_reply_end(session, &arena, &builder, root);
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.name = session->title;
+  answer.hash = session->hash;
+  return answer;
 }
 
 /*
@@ -193,15 +177,14 @@ const char *player_open(player_session *session, const char *path) {
  */
 #define STEP_BYTES (32u * 1024u)
 
-const char *player_step(player_session *session) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root, *words;
+player_opening player_step(player_session *session) {
+  player_opening answer;
   sprout_refusal refusal;
   sprout_status status;
-  size_t read = 0, counted = 0, i;
+  size_t read = 0, counted = 0;
   bool done = false;
-  if (session->loading == NULL) return refuse(session, "ok", "reason", "No world is being opened.");
+  session_answer(session);
+  if (session->loading == NULL) return not_opened(session, "No world is being opened.");
   status = sprout_load_step(session->loading, STEP_BYTES, &done, &refusal);
   if (status != SPROUT_OK) {
     char reason[512];
@@ -211,7 +194,7 @@ const char *player_step(player_session *session) {
     session->loading = NULL;
     player_free(session->pd, session->loading_bytes);
     session->loading_bytes = NULL;
-    return refuse(session, "ok", "reason", reason);
+    return not_opened(session, reason);
   }
   sprout_load_progress(session->loading, &read, &counted);
   if (done) {
@@ -220,21 +203,18 @@ const char *player_step(player_session *session) {
     player_free(session->pd, session->loading_bytes);
     session->loading_bytes = NULL;
   }
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 7);
-  jb_set(&builder, root, "ok", jb_bool(&builder, true));
-  jb_set(&builder, root, "done", jb_bool(&builder, done));
-  jb_set(&builder, root, "read", jb_number(&builder, (double)read));
-  jb_set(&builder, root, "counted", jb_number(&builder, (double)counted));
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.done = done;
+  answer.read = read;
+  answer.counted = counted;
   if (done) {
-    jb_set(&builder, root, "name", jb_string(&builder, session->title));
-    jb_set(&builder, root, "hash", jb_string(&builder, session->hash));
-    words = jb_array(&builder, session->world->word_count);
-    for (i = 0; i < session->world->word_count; i++)
-      jb_set(&builder, words, NULL, jb_string(&builder, session->world->words[i]));
-    jb_set(&builder, root, "words", words);
+    answer.name = session->title;
+    answer.hash = session->hash;
+    answer.word_count = session->world->word_count;
+    answer.words = session->world->words;
   }
-  return session_reply_end(session, &arena, &builder, root);
+  return answer;
 }
 
 /* ---- the save ---- */
@@ -271,22 +251,20 @@ bool session_save_if_dirty(player_session *session) {
   return true;
 }
 
-const char *player_save(player_session *session) {
-  bool saved;
-  if (session->state == NULL) return refuse(session, "ok", "words", "No world is open.");
-  session->dirty = true;
-  saved = session_save_if_dirty(session);
-  if (!saved) return refuse(session, "ok", "words", "The save could not be written. Is the device out of room?");
-  {
-    sprout_arena arena;
-    jb builder;
-    sprout_json *root;
-    if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-    root = jb_object(&builder, 2);
-    jb_set(&builder, root, "ok", jb_bool(&builder, true));
-    jb_set(&builder, root, "words", jb_string(&builder, ""));
-    return session_reply_end(session, &arena, &builder, root);
+player_result player_save(player_session *session) {
+  player_result answer = {false, ""};
+  session_answer(session);
+  if (session->state == NULL) {
+    answer.words = "No world is open.";
+    return answer;
   }
+  session->dirty = true;
+  if (!session_save_if_dirty(session)) {
+    answer.words = "The save could not be written. Is the device out of room?";
+    return answer;
+  }
+  answer.ok = true;
+  return answer;
 }
 
 typedef struct set_aside_call {
@@ -361,15 +339,48 @@ static bool open_state(player_session *session, bool *fresh, char *words, size_t
   return false;
 }
 
-const char *player_load(player_session *session) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root, *present;
+/* A copy of `text` in the answer's arena, or NULL where there is no room. */
+static const sprout_str *kept_str(player_session *session, sprout_str text) {
+  sprout_str *copy = (sprout_str *)sprout_arena_take(&session->answer, sizeof *copy);
+  if (copy == NULL) return NULL;
+  copy->bytes = sprout_arena_copy(&session->answer, text.bytes, text.length);
+  copy->length = text.length;
+  return copy->bytes == NULL ? NULL : copy;
+}
+
+/* The nicknames of the visitors other than the device's who stand in the world, copied into the answer. */
+static void others_present(player_session *session, player_loaded *answer) {
+  sprout_str *present;
+  size_t i, count = 0;
+  for (i = 0; i < session->state->visitor_count; i++) {
+    const sprout_stored_visitor *other = &session->state->visitors[i];
+    if (!sprout_str_is(other->visit, PLAYER_VISIT) && session_visitor_present(session, other)) count++;
+  }
+  present = (sprout_str *)sprout_arena_take(&session->answer, (count + 1) * sizeof *present);
+  if (present == NULL) return;
+  answer->present = present;
+  for (i = 0; i < session->state->visitor_count; i++) {
+    const sprout_stored_visitor *other = &session->state->visitors[i];
+    const sprout_str *nickname;
+    if (sprout_str_is(other->visit, PLAYER_VISIT) || !session_visitor_present(session, other)) continue;
+    nickname = kept_str(session, other->nickname);
+    if (nickname == NULL) return;
+    present[answer->present_count++] = *nickname;
+  }
+}
+
+player_loaded player_load(player_session *session) {
+  player_loaded answer;
   const sprout_stored_visitor *visitor;
-  bool fresh = true, recovered = false;
+  bool fresh = true;
   char words[640];
-  size_t i, others = 0;
-  if (session->world == NULL) return refuse(session, "ok", "words", "No world is open.");
+  memset(&answer, 0, sizeof answer);
+  answer.words = "";
+  session_answer(session);
+  if (session->world == NULL) {
+    answer.words = "No world is open.";
+    return answer;
+  }
   session_drop_view(session);
   if (session->state != NULL) {
     sprout_state_free(session->state);
@@ -378,7 +389,10 @@ const char *player_load(player_session *session) {
   savelog_clear(session);
   session->host.last_seconds = 0;
   words[0] = '\0';
-  if (!open_state(session, &fresh, words, sizeof words)) return refuse(session, "ok", "words", words);
+  if (!open_state(session, &fresh, words, sizeof words)) {
+    answer.words = session_keep(session, words);
+    return answer;
+  }
   savelog_read(session);
   visitor = session_visitor(session);
   if (visitor != NULL && session_visitor_present(session, visitor)) {
@@ -386,52 +400,31 @@ const char *player_load(player_session *session) {
     sprout_outcome outcome;
     if (turns_depart(session, &outcome)) sprout_outcome_free(&outcome);
     session_save_if_dirty(session);
-    recovered = true;
+    answer.recovered = true;
     visitor = session_visitor(session);
   }
-  for (i = 0; i < session->state->visitor_count; i++) {
-    const sprout_stored_visitor *other = &session->state->visitors[i];
-    if (!sprout_str_is(other->visit, PLAYER_VISIT) && session_visitor_present(session, other)) others++;
-  }
-  if (!session_reply_begin(session, &arena, &builder)) return session_reply_end(session, &arena, &builder, NULL);
-  root = jb_object(&builder, 7);
-  present = jb_array(&builder, others);
-  for (i = 0; i < session->state->visitor_count; i++) {
-    const sprout_stored_visitor *other = &session->state->visitors[i];
-    if (!sprout_str_is(other->visit, PLAYER_VISIT) && session_visitor_present(session, other))
-      jb_set(&builder, present, NULL, jb_str(&builder, other->nickname));
-  }
-  jb_set(&builder, root, "ok", jb_bool(&builder, true));
-  jb_set(&builder, root, "fresh", jb_bool(&builder, fresh));
-  jb_set(&builder, root, "nickname", visitor == NULL ? jb_null(&builder) : jb_str(&builder, visitor->nickname));
-  jb_set(&builder, root, "present", present);
-  jb_set(&builder, root, "last", jb_number(&builder, (double)session->host.last_seconds));
-  jb_set(&builder, root, "recovered", jb_bool(&builder, recovered));
-  jb_set(&builder, root, "words", jb_string(&builder, words));
-  return session_reply_end(session, &arena, &builder, root);
+  answer.ok = true;
+  answer.fresh = fresh;
+  answer.last = session->host.last_seconds;
+  answer.words = session_keep(session, words);
+  if (visitor != NULL) answer.nickname = kept_str(session, visitor->nickname);
+  others_present(session, &answer);
+  return answer;
 }
 
-const char *player_close(player_session *session) {
-  sprout_arena arena;
-  jb builder;
-  sprout_json *root;
+player_told player_close(player_session *session) {
+  player_told answer;
   sprout_outcome outcome;
-  told_list lines = {0};
-  const char *reply;
-  bool saved;
-  if (!session_reply_begin(session, &arena, &builder)) {
-    reply = session_reply_end(session, &arena, &builder, NULL);
-  } else {
-    if (session->state != NULL && turns_depart(session, &outcome)) {
-      told_collect(&arena, &lines, &outcome, PLAYER_VISIT);
-      sprout_outcome_free(&outcome);
-    }
-    saved = session_save_if_dirty(session);
-    root = jb_object(&builder, 2);
-    jb_set(&builder, root, "lines", jb_told(&builder, &lines));
-    jb_set(&builder, root, "saved", jb_bool(&builder, saved));
-    reply = session_reply_end(session, &arena, &builder, root);
+  memset(&answer, 0, sizeof answer);
+  answer.ok = true;
+  answer.result = SPROUT_RESULT_DONE;
+  answer.words = "";
+  session_answer(session);
+  if (session->state != NULL && turns_depart(session, &outcome)) {
+    told_collect(&session->answer, &answer.lines, &outcome, PLAYER_VISIT);
+    sprout_outcome_free(&outcome);
   }
+  answer.saved = session_save_if_dirty(session);
   release_world(session);
-  return reply;
+  return answer;
 }

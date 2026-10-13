@@ -1,19 +1,17 @@
 /*
  * What the session's modules share: the session record and the few functions that cross
  * between them. session.c opens, loads, saves and closes; turns.c runs the write turns;
- * seen.c writes the view; savelog.c keeps the log tail.
+ * seen.c polls the view and walks the chip tree; savelog.c keeps the log tail.
  */
 #ifndef PLAYER_SESSION_INTERNAL_H
 #define PLAYER_SESSION_INTERNAL_H
 
 #include "chips.h"
-#include "pd_host.h"
-#include "reply.h"
+#include "host/pd_host.h"
 #include "session.h"
 #include "state.h"
+#include "told.h"
 
-/* The one visit the device holds in a world. */
-#define PLAYER_VISIT "visit:player"
 /* Entries of the log the save keeps. */
 #define LOG_KEEP 32
 #define PATH_BYTES 128
@@ -32,7 +30,7 @@ struct player_session {
   bool dirty;          /* a turn committed since the last save */
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
-  char *reply;         /* the text last handed to Lua */
+  sprout_arena answer; /* what the last call handed back, released when the next begins */
   sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the next, the close or the end */
   sprout_chip_tree chips; /* one verb each of the scene's, its subtree NULL until its readings are asked for */
   bool *fetched;          /* one for each verb: whether its readings were asked for and came whole */
@@ -41,11 +39,11 @@ struct player_session {
   bool seen_live;
 };
 
-/* Begins a reply in a fresh arena over the session's host; false when the host gives no page. */
-bool session_reply_begin(player_session *session, sprout_arena *arena, jb *builder);
+/* Begins a call's answer: what the last call handed back is released, and the arena returned is empty. */
+sprout_arena *session_answer(player_session *session);
 
-/* Ends a reply: the text written into `session->reply`, which is returned. A reply that could not be built says so. */
-const char *session_reply_end(player_session *session, sprout_arena *arena, jb *builder, const sprout_json *root);
+/* A copy of `text` in the answer's arena; the words for running out of memory where there is no room. */
+const char *session_keep(player_session *session, const char *text);
 
 /* Releases the view kept for the chips, if one is. */
 void session_drop_view(player_session *session);
@@ -64,6 +62,8 @@ void savelog_clear(player_session *session);
 void savelog_add(player_session *session, const char *entry, size_t length);
 void savelog_read(player_session *session);
 bool savelog_write(player_session *session);
+/* Adds the entry of a turn that ran: kind, seed, seconds, who, how it ended, and the line typed. */
+void savelog_turn(player_session *session, const sprout_turn_input *input, const sprout_outcome *outcome);
 
 /*
  * turns.c: runs one write turn at the host's seconds, under a seed drawn now, logs it, and marks
