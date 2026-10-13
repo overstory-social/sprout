@@ -118,11 +118,51 @@ static void a_seed_outside_the_range_is_the_hosts_defect(void) {
   tw_close(&w);
 }
 
+static void a_fault_names_the_object_its_rule_names_and_the_log_keeps_it(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "roaming");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  /* Roaming takes the cat to the attic, and not the hay it carries: the move faults, against the attic. */
+  tw_do(&w, "v-marta", "nudge", "kitchen.cat", 0, &out);
+  CHECK(out.faulted);
+  CHECK_STR(out.fault_name, "MoveFault");
+  CHECK(out.fault_about.has_object && !out.fault_about.engine && out.fault_about.extension == NULL);
+  CHECK_BYTES(out.fault_about.object.bytes, out.fault_about.object.length, "roaming.attic");
+  CHECK(out.log.faulted && out.log.fault_about.has_object);
+  CHECK_BYTES(out.log.fault_about.object.bytes, out.log.fault_about.object.length, "roaming.attic");
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_fault_whose_rule_names_nothing_has_no_object(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "turn-faults");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "crack", "porch.dud", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "light", "porch.dud", 0, &out);
+  sprout_outcome_free(&out);
+  CHECK_INT(tw_run(&w, (sprout_turn_input){.kind = SPROUT_TURN_WAKE, .instant = 100, .object = "turn_faults.porch.dud",
+                                           .serial = tw_instance(&w, "turn_faults.porch.dud")->wakes[0].serial},
+                   0, &out),
+            SPROUT_OK);
+  CHECK_STR(out.fault_name, "IntegerOverflow");
+  CHECK(!out.fault_about.has_object && !out.fault_about.engine);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_call_the_host_should_not_have_made_is_refused_and_writes_nothing);
   RUN(a_host_that_cannot_give_memory_is_told_so_and_the_world_is_as_it_was);
   RUN(the_same_seed_draws_the_same_turn_and_the_log_names_the_seed_it_drew_from);
   RUN(a_seed_outside_the_range_is_the_hosts_defect);
   RUN(a_turn_compacts_a_crowded_state_once_its_scratch_is_gone);
+  RUN(a_fault_names_the_object_its_rule_names_and_the_log_keeps_it);
+  RUN(a_fault_whose_rule_names_nothing_has_no_object);
   return REPORT();
 }

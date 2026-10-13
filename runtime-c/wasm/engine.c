@@ -13,6 +13,7 @@
 
 #include "arena.h"
 #include "json.h"
+#include "logged.h"
 #include "sprout.h"
 #include "state.h"
 #include "view_json.h"
@@ -290,24 +291,65 @@ EXPORT("sw_save") int sw_save(void) {
 static const char *const KINDS[] = {"said", "told", "refused", "described", "notice", "extension"};
 static const char *const RESULTS[] = {"done", "faulted", "refused", "closed", "idle"};
 
+/* How much of each turn the entries this instance gives keep: play depth unless the host asks for debug. */
+static sprout_log_depth log_depth = SPROUT_LOG_PLAY;
+
+/* Every entry this instance gives from now on at debug depth (1), with every effect, or at play depth (0). */
+EXPORT("sw_log_depth") void sw_log_depth(int debug) { log_depth = debug ? SPROUT_LOG_DEBUG : SPROUT_LOG_PLAY; }
+
 static sprout_json *text(const char *bytes, size_t length) { return sprout_json_text(&scratch, bytes, length); }
 
+/* The answer is `head`, the JSON text of an object, with the member `"name":value` (`value` JSON text too) put last. */
+static int with_member(const char *head, size_t head_length, const char *name, const char *value, size_t value_length) {
+  size_t name_length = strlen(name), at = head_length - 1;
+  char *joined = (char *)sprout_arena_take(&scratch, head_length + name_length + value_length + 5);
+  if (joined == NULL) return SPROUT_NO_MEMORY;
+  /* The object's closing brace gives way to `,"name":value}`. */
+  memcpy(joined, head, at);
+  joined[at++] = ',';
+  joined[at++] = '"';
+  memcpy(joined + at, name, name_length);
+  at += name_length;
+  joined[at++] = '"';
+  joined[at++] = ':';
+  memcpy(joined + at, value, value_length);
+  at += value_length;
+  joined[at++] = '}';
+  joined[at] = '\0';
+  output = joined;
+  output_length = at;
+  return SPROUT_OK;
+}
+
 /*
- * A turn's outcome as JSON: what it came to, whether the stored state changed, its fault, the words a
- * host tells a person outside the world where an arrival was closed or faulted, and every line, by reader.
+ * A turn's outcome as JSON: what it came to, whether the stored state changed, its fault in the language's
+ * shape, the words a host tells a person outside the world where an arrival was closed or faulted, every
+ * line by reader, what it said as the language's effects, and who it cut short, by instance. `changes` is
+ * what the store writes, null where it wrote nothing; `stale` whose views it made stale, null where it faulted.
+ * `entry` is what the log keeps of it at this instance's depth, null for a command, whose entry keeps what
+ * the host's parser read (#624).
  */
 static int told(const sprout_outcome *outcome) {
-  sprout_json *root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 5);
+  sprout_json *root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 9);
   sprout_json *lines = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, outcome->line_count);
+  sprout_json *cuts = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, outcome->cut_count);
+  sprout_json *stale = sprout_json_make(&scratch, outcome->committed ? SPROUT_JSON_ARRAY : SPROUT_JSON_NULL,
+                                        outcome->stale_count);
   sprout_json *changed = sprout_json_make(&scratch, SPROUT_JSON_BOOL, 0);
-  sprout_json *fault, *words;
-  size_t i;
-  if (root == NULL || lines == NULL || changed == NULL) return SPROUT_NO_MEMORY;
+  sprout_json *fault, *words, *entry = NULL;
+  const char *head, *changes = "null";
+  size_t i, head_length, changes_length = 4;
+  int status;
+  if (root == NULL || lines == NULL || cuts == NULL || stale == NULL || changed == NULL) return SPROUT_NO_MEMORY;
   sprout_json_adopt(root, "result", text(RESULTS[outcome->result], strlen(RESULTS[outcome->result])));
   changed->boolean = outcome->state_changed;
   sprout_json_adopt(root, "changed", changed);
-  fault = outcome->faulted ? text(outcome->fault_name, strlen(outcome->fault_name))
-                           : sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
+  if (outcome->faulted) {
+    sprout_str detail = {outcome->fault.text, strlen(outcome->fault.text)};
+    fault = sprout_logged_fault(&scratch, outcome->fault_name, detail, &outcome->fault_about, false);
+  } else {
+    fault = sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
+  }
   sprout_json_adopt(root, "fault", fault);
   words = outcome->words != NULL ? text(outcome->words, strlen(outcome->words))
                                  : sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
@@ -322,8 +364,29 @@ static int told(const sprout_outcome *outcome) {
     sprout_json_adopt(lines, NULL, one);
   }
   sprout_json_adopt(root, "lines", lines);
-  if (root->count != 5 || lines->count != outcome->line_count) return SPROUT_NO_MEMORY;
-  return sprout_json_write(&scratch, root, &output, &output_length);
+  sprout_json_adopt(root, "effects", sprout_logged_effects(&scratch, outcome, false));
+  for (i = 0; i < outcome->cut_count; i++)
+    sprout_json_adopt(cuts, NULL, text(outcome->cuts[i].id.bytes, outcome->cuts[i].id.length));
+  sprout_json_adopt(root, "cutShort", cuts);
+  for (i = 0; outcome->committed && i < outcome->stale_count; i++)
+    sprout_json_adopt(stale, NULL, text(outcome->stale[i].bytes, outcome->stale[i].length));
+  sprout_json_adopt(root, "stale", stale);
+  if (outcome->has_log && outcome->log.kind != SPROUT_TURN_COMMAND) {
+    status = sprout_logged_entry(&scratch, &host, outcome, log_depth, &entry);
+    if (status != SPROUT_OK) return status;
+  }
+  sprout_json_adopt(root, "entry", entry != NULL ? entry : sprout_json_make(&scratch, SPROUT_JSON_NULL, 0));
+  if (root->count != 9 || lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
+      (outcome->committed && stale->count != outcome->stale_count))
+    return SPROUT_NO_MEMORY;
+  status = sprout_json_write(&scratch, root, &head, &head_length);
+  if (status != SPROUT_OK) return status;
+  /* The changes are written from the state's own records, as the store keeps them, and put in as they are. */
+  if (outcome->has_changes) {
+    status = sprout_changes_write(state, &outcome->changes, &scratch, &changes, &changes_length);
+    if (status != SPROUT_OK) return status;
+  }
+  return with_member(head, head_length, "changes", changes, changes_length);
 }
 
 static int run(sprout_turn_input *in) {
@@ -394,6 +457,41 @@ EXPORT("sw_depart") int sw_depart(size_t visit_length, uint64_t seed, uint64_t i
   in.kind = SPROUT_TURN_DEPARTURE;
   in.instant = instant;
   in.visit = visit;
+  return run(&in);
+}
+
+/* A tick of the place whose id the input holds; `seed` is the step's, which the turn's own is drawn from with the place's path. */
+EXPORT("sw_tick") int sw_tick(size_t place_length, uint64_t seed, uint64_t instant) {
+  sprout_turn_input in;
+  const char *place;
+  begin(seed);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  place = input_string(0, place_length);
+  if (place == NULL) return refuse("Hand the place in through sw_input first.");
+  memset(&in, 0, sizeof in);
+  in.kind = SPROUT_TURN_TICK;
+  in.instant = instant;
+  in.place = place;
+  return run(&in);
+}
+
+/*
+ * The wake asked under `serial` of the object whose id the input holds, its `nth` this step (from 0); `seed` is the
+ * step's, which the turn's own is drawn from with the object's path and `nth`.
+ */
+EXPORT("sw_wake") int sw_wake(size_t object_length, uint64_t serial, uint64_t nth, uint64_t seed, uint64_t instant) {
+  sprout_turn_input in;
+  const char *object;
+  begin(seed);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  object = input_string(0, object_length);
+  if (object == NULL) return refuse("Hand the object in through sw_input first.");
+  memset(&in, 0, sizeof in);
+  in.kind = SPROUT_TURN_WAKE;
+  in.instant = instant;
+  in.object = object;
+  in.serial = serial;
+  in.nth = nth;
   return run(&in);
 }
 

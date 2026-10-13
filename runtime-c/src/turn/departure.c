@@ -109,19 +109,22 @@ sprout_status turn_departure(sprout_world *world, sprout_state *state, const spr
     return turn_abort(outcome, SPROUT_NO_MEMORY);
   }
   if (eval == SPROUT_EVAL_OK) {
-    status = turn_commit(&run);
+    status = turn_commit(&run, outcome);
     if (status != SPROUT_OK) return turn_abort(outcome, status);
     outcome->committed = outcome->state_changed = true;
     outcome->result = SPROUT_RESULT_DONE;
   } else {
     /* Abandoned; the visitor goes away in a turn of their own, so nobody is kept in by a world's fault. */
-    turn_fault_of(&run, eval, outcome);
+    if (turn_fault_of(&run, eval, outcome) != SPROUT_OK) {
+      turn_drop(&run);
+      return turn_abort(outcome, SPROUT_NO_MEMORY);
+    }
     outcome->line_count = outcome->effect_count = outcome->cut_count = 0;
     turn_drop(&run);
     status = turn_open(&run, world, state, host, SPROUT_TURN_DEPARTURE, seed, input->instant, NULL, NULL);
     if (status != SPROUT_OK) return turn_abort(outcome, status);
     eval = attempt(&run, &held, from, place_stands, true, outcome);
-    if (eval == SPROUT_EVAL_OK) status = turn_commit(&run);
+    if (eval == SPROUT_EVAL_OK) status = turn_commit(&run, outcome);
     if (eval != SPROUT_EVAL_OK || status != SPROUT_OK) {
       turn_drop(&run);
       return turn_abort(outcome, eval == SPROUT_EVAL_NO_MEMORY || status != SPROUT_OK ? SPROUT_NO_MEMORY : SPROUT_FAULT);

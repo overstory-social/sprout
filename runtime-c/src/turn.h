@@ -30,10 +30,25 @@ typedef struct turn_run {
   sprout_exec x;
 } turn_run;
 
-/* What an outcome owns: the host that backs it, and the arena that holds everything it points to. */
+/* A record a turn wrote, and whether the turn made it rather than finding it stored. */
+typedef struct turn_written {
+  sprout_str id;
+  bool made;
+} turn_written;
+
+/* What the commits of one turn changed so far, each id copied into the outcome's arena. */
+typedef struct turn_changes {
+  turn_written *written;
+  size_t written_count, written_capacity;
+  sprout_str *removed, *buried, *visitors;
+  size_t removed_count, removed_capacity, buried_count, buried_capacity, visitor_count, visitor_capacity;
+} turn_changes;
+
+/* What an outcome owns: the host that backs it, the arena that holds everything it points to, and the turn's changes. */
 typedef struct turn_held {
   sprout_host host;
   sprout_arena anchor, arena;
+  turn_changes changes;
 } turn_held;
 
 /* ---- turn.c ---- */
@@ -57,9 +72,10 @@ sprout_status turn_outcome_begin(const sprout_host *host, sprout_outcome *outcom
 
 /*
  * What an attempt that ended in `status` (not SPROUT_EVAL_OK) says of its fault, written into the outcome:
- * the rule broken by name, in words, and the object it is about; for a budget, the figure.
+ * the rule broken by name, in words, the object it is about, copied into the outcome's arena where it owns
+ * one, and whether it is the engine's own; for a budget, the figure. SPROUT_NO_MEMORY where the copy is refused.
  */
-void turn_fault_of(const turn_run *run, sprout_eval_status status, sprout_outcome *outcome);
+sprout_status turn_fault_of(const turn_run *run, sprout_eval_status status, sprout_outcome *outcome);
 
 /*
  * What a render came to, as the host reads it, copied into `keep`: one line to a paragraph by visit, one
@@ -74,8 +90,8 @@ sprout_eval_status turn_handed(sprout_arena *keep, const sprout_draft *draft, co
  */
 sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_outcome *outcome);
 
-/* Commits the attempt's draft; the state is now what the turn made. */
-sprout_status turn_commit(turn_run *run);
+/* Commits the attempt's draft, its changes counted among the outcome's; the state is now what the turn made. */
+sprout_status turn_commit(turn_run *run, sprout_outcome *outcome);
 
 /*
  * Records the log entry of a turn that ran: its kind, the world's last serial, the seed it drew from, the
@@ -94,6 +110,22 @@ const sprout_stored_visitor *turn_visitor(const sprout_state *state, const char 
 
 /* Words for a host defect, written to the outcome's fault text, which a call returns SPROUT_BAD_INPUT with. */
 sprout_status turn_refuse(sprout_outcome *outcome, const char *before, const char *name, const char *after);
+
+/* ---- turn/given.c: what a turn gives a host beside its lines ---- */
+
+/*
+ * Counts one commit's changes among the outcome's: a record written is upserted unless a later commit removes it,
+ * and one removed is deleted unless this turn made it. `made` lists the ids the commit added, which the state
+ * did not hold before it.
+ */
+sprout_status turn_changes_add(sprout_outcome *outcome, const sprout_changes *changes, const sprout_str *made,
+                               size_t made_count);
+
+/*
+ * Once a turn that committed or changed the stored state is over: its changes as a store writes them, under the
+ * state's serial, and, where it committed, every visit present in `state`, whose views it made stale.
+ */
+sprout_status turn_given(const sprout_state *state, sprout_outcome *outcome);
 
 /* ---- turn/arrival.c: entering a place, shared by an arrival and a displaced visitor's next turn ---- */
 

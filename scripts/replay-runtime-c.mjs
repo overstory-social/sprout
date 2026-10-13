@@ -2,8 +2,11 @@
 // `corpus/good/<world>` with transcripts or tests: pack the world, resolve each script into the readings the
 // TypeScript parser made of it and what the TypeScript runtime left behind each step (scripts/resolve-script.mjs),
 // play it with `sproutc play --script --trace`, and compare, step by step, the lines readers read, the entry the
-// log keeps of each turn that ran, and the stored world (player/src/replay.ts). A transcript's own expected
-// lines are compared too, so a runtime that agrees with the TypeScript one and not with the transcript fails.
+// log keeps of each turn that ran, and the stored world (player/src/replay.ts). Each turn's entry carries what
+// a host is given beside it, whose views it made stale and what the store writes, and, for every kind but a
+// command, the entry in core's own form at play depth, its digest included, which core's builders make from
+// what the TypeScript runtime did. A transcript's own expected lines are compared too, so a runtime that
+// agrees with the TypeScript one and not with the transcript fails.
 //
 // A turn the TypeScript parser answered rather than read is not the runtime's to run (the parser is the host's);
 // `sproutc` echoes what was recorded for it, and counts it. Each world's line says how many it echoed.
@@ -26,7 +29,15 @@ import {
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { emitCartridge, saveWorld } from '@overstory/sprout/lang';
+import {
+  arrivalEntry,
+  atDepth,
+  departureEntry,
+  maintenanceEntry,
+  tickEntry,
+  wakeEntry,
+} from '@overstory/sprout/core';
+import { DEFAULT_LIMITS, emitCartridge, saveWorld } from '@overstory/sprout/lang';
 import { checkWorld, formatCheck, inspectView } from '@overstory/sprout-cli';
 import { firstDifference, readScript, standIn, traceOf } from '@overstory/sprout-player';
 
@@ -37,6 +48,86 @@ export function packWorld(dir, file) {
   const checked = checkWorld(dir);
   if (checked.bundle === null) throw new Error(formatCheck(checked));
   writeFileSync(file, emitCartridge(checked.bundle));
+}
+
+/**
+ * The entry core's log keeps of `turn`, a turn the TypeScript runtime ran under the host's default budgets
+ * less `budgets`, as core's builders make it at play depth; undefined for a command, whose entry keeps what
+ * the host's parser read, which the C runtime is handed and does not keep until it parses (#624).
+ */
+export function loggedEntryOf(turn, budgets = {}) {
+  const host = { budgets: { ...DEFAULT_LIMITS.budgets, ...budgets } };
+  const inputs = { seed: turn.seed, mayHold: null, now: turn.seconds };
+  const said = { committed: true, effects: turn.effects, cutShort: turn.cutShort };
+  const faulted = { committed: false, fault: turn.fault };
+  const entry = (() => {
+    switch (turn.kind) {
+      case 'tick':
+        return tickEntry({ ...inputs, place: turn.who }, host, turn.fault ? faulted : said);
+      case 'wake':
+        return wakeEntry(
+          { ...inputs, object: turn.who, serial: turn.wake },
+          host,
+          turn.fault ? faulted : said,
+        );
+      case 'maintenance':
+        return maintenanceEntry(inputs, host, {
+          value: {
+            delivered: turn.delivered,
+            faulted: turn.faulted.map(({ object, serial, fault }) => ({
+              wake: { object, serial },
+              fault,
+            })),
+            abandoned: turn.abandoned,
+          },
+        });
+      case 'arrival':
+        return arrivalEntry(
+          { ...inputs, visit: turn.who, nickname: turn.nickname },
+          host,
+          turn.outcome === 'refused'
+            ? { committed: false, refused: {}, effects: turn.effects }
+            : turn.fault
+              ? faulted
+              : said,
+        );
+      case 'departure':
+        return departureEntry(
+          { ...inputs, visit: turn.who },
+          host,
+          turn.fault
+            ? { ...faulted, quietly: { effects: turn.effects, cutShort: turn.cutShort } }
+            : said,
+        );
+      default:
+        return undefined;
+    }
+  })();
+  return entry === undefined ? undefined : atDepth(entry, 'play');
+}
+
+/**
+ * `readings` with each turn that ran beside the entry core's log keeps of it, as `loggedEntryOf` makes it,
+ * under the readings' budgets and then `budgets`, which only a poll reads, so the turns ran the same.
+ */
+export function withLoggedEntries(readings, budgets = {}) {
+  return {
+    ...readings,
+    steps: readings.steps.map((step) =>
+      step.after === undefined
+        ? step
+        : {
+            ...step,
+            after: {
+              ...step.after,
+              turns: step.after.turns.map((turn) => {
+                const logged = loggedEntryOf(turn, { ...readings.budgets, ...budgets });
+                return logged === undefined ? turn : { ...turn, logged };
+              }),
+            },
+          },
+    ),
+  };
 }
 
 /** What the transcript `script` expects each step to say, as `<reader> (<kind>): <words>`, by step index. */
@@ -93,7 +184,8 @@ export function playAndCompare(
     };
   }
   const trace = traceOf(existsSync(tracePath) ? readFileSync(tracePath, 'utf8') : '');
-  const differs = firstDifference(readings, trace);
+  const polled = pollSteps === undefined ? {} : { pollSteps };
+  const differs = firstDifference(withLoggedEntries(readings, polled), trace);
   const echoed = readings.steps.reduce(
     (sum, step) =>
       sum + (step.kind === 'command' ? step.turns.filter((turn) => turn.skip).length : 0),

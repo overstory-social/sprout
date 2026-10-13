@@ -1,8 +1,8 @@
 /*
  * Tests for src/expr/faults.c: a fault's words are written into the frame's
- * fault and stop at its end rather than overrun; an engine error is not a
- * fault; and a step past the host's figure is a budget fault in the meter's
- * words.
+ * fault and stop at its end rather than overrun; a fault names the object its
+ * rule names, or none; an engine error is not a fault; and a step past the
+ * host's figure is a budget fault in the meter's words.
  */
 #include "expr/expr.h"
 #include "check.h"
@@ -58,6 +58,21 @@ static void a_fault_names_the_rule_it_broke(void) {
   CHECK_STR(h.fault.text, "nothing here");
 }
 
+static void a_fault_names_the_object_its_rule_names_and_one_that_names_none_forgets_it(void) {
+  held h;
+  begin(&h, -1);
+  CHECK_INT(expr_fail_on(&h.frame, "MoveFault", (sprout_str){"shop.attic", 10}), SPROUT_EVAL_FAULT);
+  CHECK_STR(h.fault.name, "MoveFault");
+  CHECK(h.fault.has_object);
+  CHECK_BYTES(h.fault.object.bytes, h.fault.object.length, "shop.attic");
+  /* The next fault names nothing, so the object of the one before does not carry over. */
+  CHECK_INT(expr_fail(&h.frame, "IntegerOverflow"), SPROUT_EVAL_FAULT);
+  CHECK(!h.fault.has_object);
+  CHECK_INT(expr_fail_on(&h.frame, "ActFault", (sprout_str){"shop.key", 8}), SPROUT_EVAL_FAULT);
+  CHECK_INT(expr_budget_fault(&h.frame), SPROUT_EVAL_FAULT);
+  CHECK(!h.fault.has_object);
+}
+
 static void something_the_checker_refuses_is_an_engine_error_not_a_fault(void) {
   held h;
   begin(&h, -1);
@@ -91,6 +106,7 @@ int main(void) {
   RUN(words_and_numbers_are_put_one_after_another);
   RUN(a_message_longer_than_the_text_is_cut_and_still_ends);
   RUN(a_fault_names_the_rule_it_broke);
+  RUN(a_fault_names_the_object_its_rule_names_and_one_that_names_none_forgets_it);
   RUN(something_the_checker_refuses_is_an_engine_error_not_a_fault);
   RUN(a_step_past_the_hosts_figure_faults_in_the_meters_words);
   RUN(with_no_figure_a_step_is_never_refused);

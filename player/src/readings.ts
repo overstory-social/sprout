@@ -3,8 +3,10 @@ import {
   SEED_MAX,
   SproutList,
   type InstanceId,
+  type Fault,
   type Plain,
   type RuntimeBudgets,
+  type StoredChanges,
   type StoredWorld,
   type WrittenAt,
   type Value,
@@ -60,11 +62,22 @@ export interface Said {
   readonly words: string;
 }
 
+/** A fault as the language gives it: the rule broken, what happened, the object it is about, whether it is the engine's own, and its extension. */
+export interface TurnFault {
+  readonly name: string;
+  readonly detail: string;
+  readonly object: string | null;
+  readonly engine: boolean;
+  readonly extension: string | null;
+}
+
 /**
  * What the log keeps of one turn that ran, as a runtime working from the log's inputs reproduces it: the
- * seed it drew from, the instant, whom it was for, how it ended, the fault it ended in, the world's last
- * serial, each effect it told and where its words were written, who it cut short, and, for catch-up,
- * the wakes it delivered, consumed after a fault, and left pending.
+ * seed it drew from, the instant, whom it was for (and an arrival's nickname, a wake's serial), how it
+ * ended, the fault it ended in, the world's last serial, each effect it told in the language's shape, who
+ * it cut short, and, for catch-up, the wakes it delivered, consumed after a fault, and left pending. Beside
+ * the entry, what a host is given: what the store writes, null where the turn wrote nothing, and whose views
+ * it made stale, null where it faulted.
  */
 export interface TurnEntry {
   readonly kind: Traced['turn'];
@@ -72,13 +85,14 @@ export interface TurnEntry {
   readonly seconds: number;
   readonly who: string | null;
   readonly outcome: 'done' | 'faulted' | 'refused';
-  readonly fault: string | null;
-  /** What happened, in the words of the fault's name; null where there was none. */
-  readonly detail: string | null;
+  readonly fault: TurnFault | null;
   readonly serial: number;
+  readonly nickname?: string;
+  readonly wake?: number;
   readonly effects: readonly {
     readonly kind: string;
     readonly from: string;
+    readonly actor: string | null;
     readonly to: string;
     readonly visit: string;
     readonly paragraphs: readonly string[];
@@ -88,13 +102,15 @@ export interface TurnEntry {
     readonly statement?: string;
     readonly payload?: Plain;
   }[];
+  /** Who a line would have taken past their output, by instance. */
   readonly cutShort: readonly string[];
+  readonly stale: readonly string[] | null;
+  readonly changes: StoredChanges | null;
   readonly delivered?: readonly { readonly object: string; readonly serial: number }[];
   readonly faulted?: readonly {
     readonly object: string;
     readonly serial: number;
-    readonly fault: string;
-    readonly detail: string;
+    readonly fault: TurnFault;
   }[];
   readonly abandoned?: readonly { readonly object: string; readonly serial: number }[];
 }
@@ -209,6 +225,12 @@ function saysOf(stage: Stage, traced: Traced): Said[] {
   });
 }
 
+/** `fault` as the entry keeps it. */
+function faultOf(fault: Fault): TurnFault {
+  const { name, detail, object, engine, extension } = fault;
+  return { name, detail, object, engine, extension };
+}
+
 /** The entry the log keeps of `traced`. */
 function entryOf(traced: Traced): TurnEntry {
   const { logged } = traced;
@@ -216,19 +238,22 @@ function entryOf(traced: Traced): TurnEntry {
     object: wake.object,
     serial: wake.serial,
   });
+  // Catch-up keeps the faults of its parts, each against its wake, and none of its own.
+  const fault = traced.turn === 'maintenance' ? undefined : traced.faults[0];
   return {
     kind: traced.turn,
     seed: logged.seed,
     seconds: logged.now,
     who: logged.who,
     outcome: logged.outcome === 'closed' ? 'refused' : logged.outcome,
-    // Catch-up keeps the faults of its parts, each against its wake, and none of its own.
-    fault: traced.turn === 'maintenance' ? null : (traced.faults[0]?.name ?? null),
-    detail: traced.turn === 'maintenance' ? null : (traced.faults[0]?.detail ?? null),
+    fault: fault === undefined ? null : faultOf(fault),
     serial: logged.serial,
+    ...(logged.nickname === null ? {} : { nickname: logged.nickname }),
+    ...(logged.wake === null ? {} : { wake: logged.wake }),
     effects: traced.effects.map((effect) => ({
       kind: effect.kind,
       from: effect.from,
+      actor: effect.actor,
       to: effect.to,
       visit: effect.visit,
       paragraphs: [...effect.paragraphs],
@@ -238,14 +263,15 @@ function entryOf(traced: Traced): TurnEntry {
         : {}),
     })),
     cutShort: [...logged.cut],
+    stale: logged.stale === null ? null : [...logged.stale],
+    changes: logged.changes,
     ...(logged.wakes === null
       ? {}
       : {
           delivered: logged.wakes.delivered.map(named),
           faulted: logged.wakes.faulted.map(({ wake, fault }) => ({
             ...named(wake),
-            fault: fault.name,
-            detail: fault.detail,
+            fault: faultOf(fault),
           })),
           abandoned: logged.wakes.abandoned.map(named),
         }),
