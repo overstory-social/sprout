@@ -45,6 +45,32 @@ static size_t encoded(unsigned long cp, char *out) {
   return 4;
 }
 
+/* The code point at `i` in lower case at `out`, a capital sigma final where a cased letter comes before it and none after; how many bytes. */
+static size_t lowered(const unsigned long *cps, size_t count, size_t i, char *out) {
+  unsigned long folded[2];
+  size_t parts, k, used = 0;
+  if (cps[i] == 0x3A3) return encoded(cased_beside(cps, count, i, false) && !cased_beside(cps, count, i, true) ? 0x3C2 : 0x3C3, out);
+  parts = prose_unicode_lower(cps[i], folded);
+  for (k = 0; k < parts; k++) used += encoded(folded[k], out + used);
+  return used;
+}
+
+sprout_status typed_lower(sprout_arena *arena, sprout_str text, sprout_str *lower) {
+  unsigned long *cps = (unsigned long *)sprout_arena_take(arena, (text.length + 1) * sizeof *cps);
+  char *out = (char *)sprout_arena_take(arena, text.length * 8 + 1);
+  size_t n = 0, at = 0, width, i, used = 0;
+  if (cps == NULL || out == NULL) return SPROUT_NO_MEMORY;
+  while (at < text.length) {
+    cps[n++] = prose_decode(text.bytes, text.length, at, &width);
+    at += width;
+  }
+  for (i = 0; i < n; i++) used += lowered(cps, n, i, out + used);
+  out[used] = '\0';
+  lower->bytes = out;
+  lower->length = used;
+  return SPROUT_OK;
+}
+
 sprout_status typed_words(sprout_arena *arena, sprout_str text, sprout_str **words, size_t *count) {
   unsigned long *cps = (unsigned long *)sprout_arena_take(arena, (text.length + 1) * sizeof *cps);
   sprout_str *found = (sprout_str *)sprout_arena_take(arena, (text.length + 1) * sizeof *found);
@@ -79,14 +105,7 @@ sprout_status typed_words(sprout_arena *arena, sprout_str text, sprout_str **wor
       open = false;
       continue;
     }
-    if (cps[i] == 0x3A3) {
-      /* A capital sigma ends a word as a final sigma where a cased letter comes before it and none after. */
-      used += encoded(cased_beside(cps, n, i, false) && !cased_beside(cps, n, i, true) ? 0x3C2 : 0x3C3, out + used);
-    } else {
-      unsigned long folded[2];
-      size_t parts = prose_unicode_lower(cps[i], folded), k;
-      for (k = 0; k < parts; k++) used += encoded(folded[k], out + used);
-    }
+    used += lowered(cps, n, i, out + used);
   }
   *words = found;
   *count = made;

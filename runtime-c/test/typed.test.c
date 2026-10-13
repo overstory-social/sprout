@@ -59,9 +59,33 @@ static void letters_fold_as_javascript_folds_them(void) {
   sprout_arena_reset(&arena);
 }
 
+static void a_whole_text_lowers_as_javascript_lowers_it_spaces_and_commas_kept(void) {
+  static const struct {
+    const char *text, *lower;
+  } cases[] = {{"Oskar", "oskar"},
+               {"The  Salt, and Pepper", "the  salt, and pepper"},
+               /* A capital sigma at a word's end is final, inside one it is not. */
+               {"\xce\x9f\xce\x94\xce\x9f\xce\xa3 \xce\xa3\xce\x91", "\xce\xbf\xce\xb4\xce\xbf\xcf\x82 \xcf\x83\xce\xb1"},
+               {"", ""}};
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  size_t i;
+  sprout_arena_init(&arena, &host);
+  for (i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+    sprout_str lower;
+    CHECK_INT(typed_lower(&arena, (sprout_str){cases[i].text, strlen(cases[i].text)}, &lower), SPROUT_OK);
+    CHECK_BYTES(lower.bytes, lower.length, cases[i].lower);
+    CHECK_INT(lower.bytes[lower.length], '\0');
+  }
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 int main(void) {
   RUN(a_line_is_lower_case_words_and_each_comma_a_word_of_its_own);
   RUN(white_space_is_what_javascript_reads_as_white_space);
   RUN(letters_fold_as_javascript_folds_them);
+  RUN(a_whole_text_lowers_as_javascript_lowers_it_spaces_and_commas_kept);
   return REPORT();
 }
