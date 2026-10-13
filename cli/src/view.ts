@@ -1,9 +1,13 @@
 import {
+  pollReadings,
+  pollScene,
   pollView,
   type CommandExit,
+  type Fault,
   type InstanceId,
   type SeenFiller,
   type SeenOptions,
+  type SeenPlace,
   type SeenReading,
   type SeenThing,
 } from '@overstory/sprout/lang';
@@ -15,7 +19,8 @@ import { pathOf, type Standing } from '@overstory/sprout-player';
 // description rendered for them, the ways out that apply, who else is
 // there, what they carry, and every reading they could make with its
 // consent pass's answer, what fills each of its roles and the options of
-// each value role. A poll that
+// each value role. `--scene` polls the scene instead, which lists the verbs
+// in place of the readings, and `--verb` one verb's readings. A poll that
 // faults is shown as the visitor would see it, then the fault the host
 // would log.
 
@@ -81,20 +86,16 @@ function readingWritten(reading: SeenReading, world: InstanceId): string[] {
   ];
 }
 
-/** The view of the visitor `standing` holds, polled from where they stand, as a page. */
-export function inspectView(standing: Standing): InspectedView {
-  const { state, host, visit, place } = standing;
-  const world = state.world;
-  const { view, fault } = pollView(state, host, visit);
-  const page = [
-    `standing in ${pathOf(world, place)}\n`,
-    section('description', view.description, '(it renders nothing)'),
-    ...(view.effects.length === 0
+/** What a view and a scene both show, from the description to what the visitor carries. */
+function placeWritten(place: SeenPlace, world: InstanceId): string[] {
+  return [
+    section('description', place.description, '(it renders nothing)'),
+    ...(place.effects.length === 0
       ? []
       : [
           section(
             'effects',
-            view.effects.map(
+            place.effects.map(
               (effect) =>
                 `${effect.extension}.${effect.statement} ${JSON.stringify(effect.payload)} reads ${effect.transcript}`,
             ),
@@ -103,28 +104,86 @@ export function inspectView(standing: Standing): InspectedView {
         ]),
     section(
       'ways out',
-      view.exits.map((exit) => exitWritten(exit, world)),
+      place.exits.map((exit) => exitWritten(exit, world)),
       'none',
     ),
     section(
       'who else is here',
-      view.occupants.map((thing) => thingWritten(thing, world)),
+      place.occupants.map((thing) => thingWritten(thing, world)),
       'nobody',
     ),
     section(
       'carrying',
-      view.carried.map((thing) => thingWritten(thing, world)),
-      'nothing',
-    ),
-    section(
-      'what they could type',
-      view.readings.flatMap((reading) => readingWritten(reading, world)),
+      place.carried.map((thing) => thingWritten(thing, world)),
       'nothing',
     ),
   ];
+}
+
+/** `sections` under where the visitor stands, then the fault where the poll faulted. */
+function pageOf(
+  standing: Standing,
+  sections: readonly string[],
+  fault: Fault | null,
+): InspectedView {
+  const world = standing.state.world;
+  const page = [`standing in ${pathOf(world, standing.place)}\n`, ...sections];
   if (fault !== null) {
     const against = fault.object === null ? '' : `, against ${pathOf(world, fault.object)}`;
     page.push(`the poll faulted${against}, ${fault.name}: ${fault.detail}\n`);
   }
   return { ok: fault === null, page: page.join('\n') };
+}
+
+/** The view of the visitor `standing` holds, polled from where they stand, as a page. */
+export function inspectView(standing: Standing): InspectedView {
+  const world = standing.state.world;
+  const { view, fault } = pollView(standing.state, standing.host, standing.visit);
+  return pageOf(
+    standing,
+    [
+      ...placeWritten(view, world),
+      section(
+        'what they could type',
+        view.readings.flatMap((reading) => readingWritten(reading, world)),
+        'nothing',
+      ),
+    ],
+    fault,
+  );
+}
+
+/** The scene of the visitor `standing` holds: the view's page with the verbs it lists in place of the readings. */
+export function inspectScene(standing: Standing): InspectedView {
+  const world = standing.state.world;
+  const { scene, fault } = pollScene(standing.state, standing.host, standing.visit);
+  return pageOf(
+    standing,
+    [
+      ...placeWritten(scene, world),
+      section(
+        'verbs they could be offered',
+        scene.verbs.map((one) => one.verb),
+        'none',
+      ),
+    ],
+    fault,
+  );
+}
+
+/** The readings of `verb`, by its qualified name, that the visitor `standing` holds could make, as a page. */
+export function inspectReadings(standing: Standing, verb: string): InspectedView {
+  const world = standing.state.world;
+  const { readings, fault } = pollReadings(standing.state, standing.host, standing.visit, verb);
+  return pageOf(
+    standing,
+    [
+      section(
+        `what they could type with ${verb}`,
+        readings.flatMap((reading) => readingWritten(reading, world)),
+        'nothing',
+      ),
+    ],
+    fault,
+  );
 }

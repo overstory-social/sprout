@@ -220,6 +220,13 @@ TypeScript one over whole worlds.
 - **The view comparison.** `sproutc view` prints the page `sprout view`
   prints; the script compares the two for every corpus world, on its own
   line, over the stored world the TypeScript runtime writes for the arrival.
+  Then it polls the view in parts, as a host may: `sproutc view --scene`
+  against `sprout view --scene`, the scene with the verbs it lists, and
+  `sproutc view --verb <name>` against `sprout view --verb <name>` for each
+  verb the TypeScript scene lists. The WebAssembly engine's test polls the
+  scene and each verb's readings of every visitor after every step of every
+  script, against `pollScene` and `pollReadings`, and the fuzzer polls every
+  visitor still in the world at the end of each play.
 - **The fuzzer.** `scripts/fuzz-runtime.mjs` plays, from a seed, offered,
   refused and unreadable lines, ticks, time, departures and arrivals, and
   tight budgets through both runtimes, and writes the first divergence as a
@@ -230,7 +237,10 @@ TypeScript one over whole worlds.
 What is not compared, and why: a command's parsing (the device has none);
 the object a poll's fault names (a C fault carries none); the record of where
 each effect's words were written (an author's tool); any extension but
-`media`. Each is a numbered hole in the working notes.
+`media`. Each is a numbered hole in the working notes. A scene's verbs are
+compared by qualified name alone: the TypeScript scene gives each verb's
+phrases too, which the spec's scene does not name and the C scene does not
+carry.
 
 #### 7d. Extensions on a host that draws
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { checkWorld } from './check.js';
 import { standIn, type Standing } from '@overstory/sprout-player';
 import { LANE, worldFolder } from '@overstory/sprout-player/fixtures';
-import { inspectView } from './view.js';
+import { inspectReadings, inspectScene, inspectView } from './view.js';
 
 const at = (place?: string): Standing =>
   standIn(checkWorld(worldFolder('lane', LANE)).bundle!, place === undefined ? {} : { at: place });
@@ -133,5 +133,75 @@ what they could type
 
 the poll faulted, against yard, BudgetExhausted: pollSteps: a poll turn may take 2 steps.
 `);
+  });
+});
+
+describe('inspectScene', () => {
+  it('is the view’s page with the verbs it lists in place of the readings', () => {
+    const standing = at('shed');
+    const view = inspectView(standing).page;
+    const scene = inspectScene(standing);
+    expect(scene.ok).toBe(true);
+    const place = view.slice(0, view.indexOf('what they could type'));
+    expect(scene.page).toBe(`${place}verbs they could be offered
+  lane.pry
+  lane.turn
+  sprout.go
+  sprout.look
+  sprout.examine
+  sprout.inventory
+  sprout.wait
+  sprout.help
+  sprout.ask
+`);
+  });
+
+  it('shows the world’s `unseen` and the fault where the scene’s poll runs out', () => {
+    const standing = at();
+    const starved = {
+      ...standing,
+      host: { ...standing.host, budgets: { ...standing.host.budgets, pollSteps: 2 } },
+    };
+    const inspected = inspectScene(starved);
+    expect(inspected.ok).toBe(false);
+    expect(inspected.page).toContain('\ndescription\n  Something here is too much to take in.\n');
+    expect(inspected.page).toMatch(
+      /\nthe poll faulted, against yard, BudgetExhausted: pollSteps: a poll turn may take 2 steps\.\n$/,
+    );
+  });
+});
+
+describe('inspectReadings', () => {
+  it('gives each verb the scene lists the readings the whole view gives it, in the same order', () => {
+    const standing = at();
+    const view = inspectView(standing).page;
+    const verbs = /verbs they could be offered\n((?: {2}\S+\n)+)/
+      .exec(inspectScene(standing).page)![1]!
+      .trim()
+      .split(/\s+/);
+    const readings = verbs.map((verb) => {
+      const { ok, page } = inspectReadings(standing, verb);
+      expect(ok).toBe(true);
+      const heading = `what they could type with ${verb}\n`;
+      expect(page.startsWith(`standing in yard\n\n${heading}`)).toBe(true);
+      return page.slice(page.indexOf(heading) + heading.length);
+    });
+    expect(readings.join('')).toBe(view.slice(view.indexOf('what they could type\n') + 21));
+  });
+
+  it('says `nothing` for a verb the visitor can make no reading of, and faults with the budget', () => {
+    const standing = at('shed');
+    expect(inspectReadings(standing, 'sprout.take').page).toBe(
+      'standing in shed\n\nwhat they could type with sprout.take\n  nothing\n',
+    );
+    const starved = {
+      ...standing,
+      host: { ...standing.host, budgets: { ...standing.host.budgets, pollSteps: 2 } },
+    };
+    const inspected = inspectReadings(starved, 'lane.pry');
+    expect(inspected.ok).toBe(false);
+    expect(inspected.page).toMatch(
+      /^standing in shed\n\nwhat they could type with lane\.pry\n {2}nothing\n\nthe poll faulted, against shed, BudgetExhausted: /,
+    );
   });
 });

@@ -125,7 +125,9 @@ sh runtime-c/wasm/build.sh                                   # build engine.wasm
 `sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n] [--profile f]` (with `--offered` the view is
 polled before each command and must offer the reading, as the Playdate's sentence builder needs; `--profile`
 writes each step's bytes held and peak),
-`sproutc view <cartridge> --state f [--json]`
+`sproutc view <cartridge> --state f [--visit k] [--poll-steps n] [--json | --scene | --verb name]` (`--scene` prints the
+scene, which lists the verbs in place of the readings, and `--verb` one verb's readings, by its qualified name, as
+`sprout view --scene` and `--verb` do)
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each
 check holds the C runtime to.

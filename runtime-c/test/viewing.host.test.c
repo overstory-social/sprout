@@ -3,7 +3,8 @@
  * `sprout view` prints (corpus/good/chip-tree/view.txt is that page for the visitor arriving in the chip-tree
  * world), or, with --json, the view's canonical JSON and the chip tree over it; a poll that faults is shown as the
  * visitor would see it, then the fault, and exits 1; a command line or a stored world it cannot follow exits 2
- * with words for what is wrong.
+ * with words for what is wrong. `--scene` is that page with the scene's verbs in place of the readings, and
+ * `--verb` one verb's readings, which are the readings the whole page gives that verb.
  */
 #include <stdio.h>
 
@@ -150,6 +151,52 @@ static void a_poll_that_faults_is_shown_as_the_visitor_sees_it_then_the_fault_an
   release(&r);
 }
 
+static void the_scene_is_the_page_with_its_verbs_in_place_of_the_readings(void) {
+  char *argv[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--scene"};
+  char *wanted = page_of("chip-tree");
+  char *readings = strstr(wanted, "what they could type\n");
+  run r = sproutc(5, argv);
+  CHECK_INT(r.code, 0);
+  CHECK(strncmp(r.out, wanted, (size_t)(readings - wanted)) == 0);
+  CHECK_STR(r.out + (readings - wanted),
+            "verbs they could be offered\n  chip_tree.juggle\n  chip_tree.turn\n  sprout.go\n  sprout.look\n"
+            "  sprout.examine\n  sprout.inventory\n  sprout.wait\n  sprout.help\n  sprout.take\n  sprout.drop\n"
+            "  sprout.give\n  sprout.ask\n");
+  CHECK_STR(r.err, "");
+  free(wanted);
+  release(&r);
+}
+
+static void a_verb_gives_the_readings_the_whole_page_gives_it(void) {
+  char *argv[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--verb", "sprout.give"};
+  char *wanted = page_of("chip-tree");
+  char *from = strstr(wanted, "  give dial to guard"), *to = strstr(wanted, "  ask hall about");
+  char expected[2048];
+  run r = sproutc(6, argv);
+  snprintf(expected, sizeof expected, "standing in hall\n\nwhat they could type with sprout.give\n%.*s", (int)(to - from),
+           from);
+  CHECK_INT(r.code, 0);
+  CHECK_STR(r.out, expected);
+  free(wanted);
+  release(&r);
+}
+
+static void a_scene_or_a_verb_that_runs_out_shows_the_fault_and_exits_1(void) {
+  char *scene[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--scene", "--poll-steps", "30"};
+  char *verb[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--verb", "sprout.ask",
+                  "--poll-steps", "5"};
+  run r = sproutc(7, scene);
+  CHECK_INT(r.code, 1);
+  CHECK(strstr(r.out, "description\n  Something here is too much to take in.\n") != NULL);
+  CHECK(strstr(r.out, "\nthe poll faulted, against hall, BudgetExhausted: ") != NULL);
+  release(&r);
+  r = sproutc(8, verb);
+  CHECK_INT(r.code, 1);
+  CHECK(strstr(r.out, "what they could type with sprout.ask\n  nothing\n\nthe poll faulted, against hall, BudgetExhausted: ") !=
+        NULL);
+  release(&r);
+}
+
 static void a_command_line_it_cannot_follow_exits_2_with_words(void) {
   char *none[] = {"view"};
   char *no_state[] = {"view", cartridge_of("chip-tree")};
@@ -158,6 +205,9 @@ static void a_command_line_it_cannot_follow_exits_2_with_words(void) {
   char *dangling[] = {"view", cartridge_of("chip-tree"), "--visit"};
   char *nobody[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--visit", "nobody"};
   char *missing[] = {"view", "no-such-world.sproutworld", "--state", (char *)state_file("chip-tree")};
+  char *two[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--scene", "--json"};
+  char *no_verb[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--verb"};
+  char *unknown[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--verb", "sprout.fly"};
   run r = sproutc(1, none);
   CHECK_INT(r.code, 2);
   CHECK(strstr(r.err, "write `sproutc view <world.sproutworld> --state save.json`.") != NULL);
@@ -186,6 +236,19 @@ static void a_command_line_it_cannot_follow_exits_2_with_words(void) {
   CHECK_INT(r.code, 2);
   CHECK(strstr(r.err, "cannot read no-such-world.sproutworld.") != NULL);
   release(&r);
+  r = sproutc(6, two);
+  CHECK_INT(r.code, 2);
+  CHECK(strstr(r.err, "write one of --json, --scene and --verb: each prints a poll of its own.") != NULL);
+  release(&r);
+  r = sproutc(5, no_verb);
+  CHECK_INT(r.code, 2);
+  CHECK(strstr(r.err, "--verb wants a value after it.") != NULL);
+  release(&r);
+  r = sproutc(6, unknown);
+  CHECK_INT(r.code, 2);
+  CHECK_STR(r.out, "");
+  CHECK_STR(r.err, "sproutc: `sprout.fly` is not a verb of this world.\n");
+  release(&r);
 }
 
 int main(void) {
@@ -195,6 +258,9 @@ int main(void) {
   RUN(a_picture_in_the_description_is_an_effect_with_its_payload_and_its_transcript_line);
   RUN(the_page_lists_the_effect_after_the_description);
   RUN(a_poll_that_faults_is_shown_as_the_visitor_sees_it_then_the_fault_and_exits_1);
+  RUN(the_scene_is_the_page_with_its_verbs_in_place_of_the_readings);
+  RUN(a_verb_gives_the_readings_the_whole_page_gives_it);
+  RUN(a_scene_or_a_verb_that_runs_out_shows_the_fault_and_exits_1);
   RUN(a_command_line_it_cannot_follow_exits_2_with_words);
   return REPORT();
 }
