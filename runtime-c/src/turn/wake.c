@@ -48,12 +48,12 @@ sprout_eval_status turn_deliver_wake(turn_run *run, sprout_str object, uint64_t 
 
 /* Takes the wake off its object's list in a turn of its own, which cannot fault but by the engine's own defect. */
 static sprout_status consume(sprout_world *world, sprout_state *state, const sprout_host *host,
-                             const sprout_turn_input *input, sprout_str object, uint64_t seed) {
+                             const sprout_turn_input *input, sprout_str object, uint64_t seed, sprout_outcome *outcome) {
   turn_run run;
   sprout_status status = turn_open(&run, world, state, host, SPROUT_TURN_WAKE, seed, input->instant, NULL, NULL);
   if (status != SPROUT_OK) return status;
   if (turn_without_wake(&run, object, input->serial) != SPROUT_EVAL_OK) status = SPROUT_FAULT;
-  else status = turn_commit(&run);
+  else status = turn_commit(&run, outcome);
   turn_drop(&run);
   return status;
 }
@@ -100,17 +100,20 @@ sprout_status turn_wake(sprout_world *world, sprout_state *state, const sprout_h
     return turn_abort(outcome, SPROUT_NO_MEMORY);
   }
   if (eval == SPROUT_EVAL_OK) {
-    status = turn_commit(&run);
+    status = turn_commit(&run, outcome);
     if (status != SPROUT_OK) return turn_abort(outcome, status);
     outcome->committed = outcome->state_changed = true;
     outcome->result = SPROUT_RESULT_DONE;
     turn_drop(&run);
   } else {
-    turn_fault_of(&run, eval, outcome);
+    if (turn_fault_of(&run, eval, outcome) != SPROUT_OK) {
+      turn_drop(&run);
+      return turn_abort(outcome, SPROUT_NO_MEMORY);
+    }
     outcome->line_count = outcome->effect_count = outcome->cut_count = 0;
     turn_drop(&run);
     /* Consumed and logged, not retried. */
-    status = consume(world, state, host, input, object, seed);
+    status = consume(world, state, host, input, object, seed, outcome);
     if (status != SPROUT_OK) return turn_abort(outcome, status);
     outcome->state_changed = true;
   }

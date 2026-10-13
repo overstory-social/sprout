@@ -79,6 +79,33 @@ describe('resolveScript', () => {
     expect(lean.steps[1]?.after?.turns).toEqual(whole.steps[1]?.after?.turns);
   });
 
+  it('keeps beside each entry whose views went stale and what the store writes', () => {
+    const readings = resolve('@arrive Marta\n@arrive Ines\nMarta> fire kiln\n');
+    const arrival = readings.steps[1]?.after?.turns.find((turn) => turn.kind === 'arrival');
+    expect(arrival).toMatchObject({ nickname: 'Ines', stale: ['visit:Ines', 'visit:Marta'] });
+    expect(arrival?.changes?.visitors.map((one) => one.visit)).toEqual(['visit:Ines']);
+    const [fired] = commandOf(readings.steps[2]).turns;
+    expect(fired?.expect.changes?.upsert.map((one) => one.id)).toContain('kiln_yard.yard.kiln');
+    expect(fired?.expect.changes?.serial).toBe(readings.steps[2]?.after?.world?.serial);
+    expect(fired?.expect.effects[0]?.actor).toMatch(/^kiln_yard#/);
+  });
+
+  it('keeps a fault whole and nothing written for a turn that faulted, and a wake’s serial', () => {
+    const readings = resolve(
+      '@arrive Marta\nMarta> kick kiln\nMarta> fire kiln\n@advance 1 hour\n',
+    );
+    const [kicked] = commandOf(readings.steps[1]).turns;
+    expect(kicked?.expect).toMatchObject({
+      fault: { name: 'IntegerOverflow', object: null, engine: false, extension: null },
+      stale: null,
+      changes: null,
+    });
+    const [woke] = readings.steps[3]?.after?.turns ?? [];
+    expect(woke).toMatchObject({ kind: 'wake', who: 'kiln_yard.yard.kiln', fault: null });
+    expect(woke?.wake).toBeGreaterThan(0);
+    expect(woke?.changes?.upsert.map((one) => one.id)).toEqual(['kiln_yard.yard.kiln']);
+  });
+
   it('writes one step to a line, and the file reads back as the same readings', () => {
     const readings = resolve('@arrive Marta\nMarta> fire kiln\n');
     const text = writeReadings(readings);

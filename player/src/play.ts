@@ -29,6 +29,7 @@ import {
   type Reading,
   type RuntimeBudgets,
   type Said,
+  type StoredChanges,
   type VisitKey,
   type WorldState,
 } from '@overstory/sprout/lang';
@@ -142,15 +143,24 @@ export interface Aside {
 /**
  * The inputs and outcome a turn's entry in the log keeps beside what it said (the spec's The runtime ›
  * The log): the seed it drew from, the instant, whom it was for, how it ended, who it cut short, the
- * world's last serial once it ended, and, for catch-up, each wake it delivered, consumed or left pending.
+ * world's last serial once it ended, and, for catch-up, each wake it delivered, consumed or left pending;
+ * and what a host is given beside the entry: what the store writes, where the turn wrote anything (The host
+ * contract › Storage), and every visitor present after it, whose views it made stale, where it committed
+ * (The view; a faulted turn names nobody).
  */
 export interface Logged {
   readonly seed: number;
   readonly now: HostSeconds;
   readonly who: string | null;
+  /** An arrival's nickname, as the visitor came in with it; null for every other turn. */
+  readonly nickname: string | null;
+  /** A wake's serial, as it was asked under; null for every other turn. */
+  readonly wake: number | null;
   readonly outcome: 'done' | 'faulted' | 'refused' | 'closed';
-  readonly cut: readonly string[];
+  readonly cut: readonly InstanceId[];
   readonly serial: number;
+  readonly stale: readonly VisitKey[] | null;
+  readonly changes: StoredChanges | null;
   readonly wakes: {
     readonly delivered: readonly DueWake[];
     readonly faulted: readonly { readonly wake: DueWake; readonly fault: Fault }[];
@@ -197,21 +207,16 @@ function loggedOf(stage: Stage, parts: Partial<Logged> & Pick<Logged, 'seed'>): 
   return {
     now: stage.now,
     who: null,
+    nickname: null,
+    wake: null,
     outcome: 'done',
     cut: [],
     serial: stage.state.serial,
     wakes: null,
+    stale: null,
+    changes: null,
     ...parts,
   };
-}
-
-/** The visit that is `id`, for a log that names who was cut short by their visit. */
-function visitsOf(stage: Stage, ids: readonly InstanceId[]): string[] {
-  return ids.map((id) => {
-    for (const record of stage.state.visitors.values())
-      if (record.instance === id) return record.visit;
-    return id;
-  });
 }
 
 /** Note a turn `stage` ran, once its state is the turn's outcome. */
@@ -357,6 +362,8 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     'maintenance',
     loggedOf(stage, {
       seed: stage.seed,
+      stale: caught.stale,
+      changes: caught.changes,
       wakes: {
         delivered: caught.value.delivered,
         faulted: caught.value.faulted,
@@ -387,14 +394,19 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     logged: Partial<Logged>,
     parts: Partial<Omit<Traced, 'turn' | 'standing' | 'logged'>>,
   ) =>
-    trace(stage, 'arrival', loggedOf(stage, { seed: stage.seed, who: visit, ...logged }), {
-      as: nickname,
-      ...parts,
-    });
+    trace(
+      stage,
+      'arrival',
+      loggedOf(stage, { seed: stage.seed, who: visit, nickname, ...logged }),
+      {
+        as: nickname,
+        ...parts,
+      },
+    );
   if (arrived.committed) {
     stage.state = arrived.state;
     traceArrival(
-      { cut: visitsOf(stage, arrived.cutShort) },
+      { cut: arrived.cutShort, stale: arrived.stale, changes: arrived.changes },
       { effects: arrived.effects, ran: arrived.value.drained.ran },
     );
     if (wanted !== null && arrived.value.entered.place !== wanted) {
@@ -427,7 +439,13 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
     trace(
       stage,
       'departure',
-      loggedOf(stage, { seed: stage.seed, who: visit, cut: visitsOf(stage, left.cutShort) }),
+      loggedOf(stage, {
+        seed: stage.seed,
+        who: visit,
+        cut: left.cutShort,
+        stale: left.stale,
+        changes: left.changes,
+      }),
       { as: nickname, effects: left.effects, ran: left.value.drained?.ran ?? [] },
     );
     return turnLines(stage, left);
@@ -440,7 +458,8 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
       seed: stage.seed,
       who: visit,
       outcome: 'faulted',
-      cut: visitsOf(stage, left.quietly.cutShort),
+      cut: left.quietly.cutShort,
+      changes: left.quietly.changes,
     }),
     { as: nickname, effects: left.quietly.effects, faults: [left.fault] },
   );
@@ -480,7 +499,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
       stage.state = turn.state;
       const { value } = turn;
       traceCommand(
-        { cut: visitsOf(stage, turn.cutShort) },
+        { cut: turn.cutShort, stale: turn.stale, changes: turn.changes },
         {
           effects: turn.effects,
           ran: 'drained' in value ? (value.drained?.ran ?? []) : [],
@@ -533,7 +552,13 @@ function tick(stage: Stage): Made[] {
     trace(
       stage,
       'tick',
-      loggedOf(stage, { seed, who: place, cut: visitsOf(stage, turn.cutShort) }),
+      loggedOf(stage, {
+        seed,
+        who: place,
+        cut: turn.cutShort,
+        stale: turn.stale,
+        changes: turn.changes,
+      }),
       { effects: turn.effects, ran: turn.value.drained.ran },
     );
     out.push(...turnLines(stage, turn));
@@ -569,9 +594,18 @@ function advance(stage: Stage, seconds: number): Made[] {
     if ('unwoken' in turn) continue;
     if (!turn.committed) {
       stage.state = turn.consumed.state;
-      trace(stage, 'wake', loggedOf(stage, { seed, who: next.object, outcome: 'faulted' }), {
-        faults: [turn.fault],
-      });
+      trace(
+        stage,
+        'wake',
+        loggedOf(stage, {
+          seed,
+          who: next.object,
+          wake: next.serial,
+          outcome: 'faulted',
+          changes: turn.consumed.changes,
+        }),
+        { faults: [turn.fault] },
+      );
       out.push(faultLine(stage, `the wake of ${woken}`, turn.fault));
       continue;
     }
@@ -579,7 +613,14 @@ function advance(stage: Stage, seconds: number): Made[] {
     trace(
       stage,
       'wake',
-      loggedOf(stage, { seed, who: next.object, cut: visitsOf(stage, turn.cutShort) }),
+      loggedOf(stage, {
+        seed,
+        who: next.object,
+        wake: next.serial,
+        cut: turn.cutShort,
+        stale: turn.stale,
+        changes: turn.changes,
+      }),
       { effects: turn.effects, ran: turn.value.drained.ran },
     );
     out.push(hostLineOf(`${woken} woke, ${turn.value.elapsed} seconds after it asked`));

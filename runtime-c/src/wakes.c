@@ -37,7 +37,7 @@ sprout_eval_status sprout_wake_ask(sprout_exec *x, const sprout_frame *frame, ui
     expr_put(&text, " pending, and this host allows ");
     expr_put_number(&text, (double)cap.value);
     expr_put(&text, ".");
-    return expr_fail(frame, "WakeFault");
+    return expr_fail_on(frame, "WakeFault", frame->self);
   }
   wait = sprout_wake_seconds(&x->world->host.budgets, seconds);
   if (sprout_draft_next_serial(x->draft, &serial) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;

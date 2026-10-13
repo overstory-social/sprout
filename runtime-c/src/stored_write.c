@@ -8,13 +8,14 @@
  */
 #include <string.h>
 
+#include "sprout.h"
 #include "state.h"
 
 typedef struct text {
   char *bytes; /* NULL while measuring */
   size_t length, capacity;
   bool failed;
-  bool unwritable; /* a number the stored form does not write */
+  bool unwritable; /* a number the stored form does not write, or a changed record the state does not hold */
 } text;
 
 /* Appends `count` bytes; the measuring pass only counts them into `length`, so the text is taken once, at its size. */
@@ -421,6 +422,57 @@ sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratc
   if (t.bytes == NULL) return SPROUT_NO_MEMORY;
   t.length = 0;
   put_state(&t, state);
+  if (t.failed) return SPROUT_NO_MEMORY;
+  t.bytes[t.length] = '\0';
+  *bytes = t.bytes;
+  *length = t.length;
+  return SPROUT_OK;
+}
+
+/* A turn's changes, `{serial, upsert, remove, tombstones, visitors}`, the records read from `state`. */
+static void put_changes(text *t, const sprout_state *state, const sprout_stored_changes *changes) {
+  size_t i;
+  put_text(t, "{\"serial\":");
+  put_whole(t, changes->serial);
+  put_text(t, ",\"upsert\":[");
+  for (i = 0; i < changes->upsert_count; i++) {
+    const sprout_stored_instance *record = sprout_state_find(state, changes->upsert[i]);
+    if (record == NULL) {
+      t->unwritable = true;
+      return;
+    }
+    if (i > 0) put_char(t, ',');
+    put_instance(t, record);
+  }
+  put_text(t, "],\"remove\":");
+  put_ids(t, changes->remove_count, changes->remove);
+  put_text(t, ",\"tombstones\":");
+  put_ids(t, changes->tombstone_count, changes->tombstones);
+  put_text(t, ",\"visitors\":[");
+  for (i = 0; i < changes->visitor_count; i++) {
+    const sprout_stored_visitor *record = sprout_state_find_visitor(state, changes->visitors[i]);
+    if (record == NULL) {
+      t->unwritable = true;
+      return;
+    }
+    if (i > 0) put_char(t, ',');
+    put_visitor(t, record);
+  }
+  put_text(t, "]}");
+}
+
+sprout_status sprout_changes_write(const sprout_state *state, const sprout_stored_changes *changes,
+                                   sprout_arena *scratch, const char **bytes, size_t *length) {
+  text t;
+  memset(&t, 0, sizeof t);
+  put_changes(&t, state, changes);
+  /* A record the changes name that the state does not hold: the state is not the one the turn left. */
+  if (t.unwritable) return SPROUT_BAD_INPUT;
+  t.capacity = t.length + 1;
+  t.bytes = (char *)sprout_arena_take(scratch, t.capacity);
+  if (t.bytes == NULL) return SPROUT_NO_MEMORY;
+  t.length = 0;
+  put_changes(&t, state, changes);
   if (t.failed) return SPROUT_NO_MEMORY;
   t.bytes[t.length] = '\0';
   *bytes = t.bytes;

@@ -13,6 +13,7 @@ sprout_eval_status prose_budget_fault(sprout_eval_fault *fault, const sprout_met
   for (i = 0; i + 1 < sizeof fault->text && meter->fault.text[i] != '\0'; i++) fault->text[i] = meter->fault.text[i];
   fault->text[i] = '\0';
   fault->name = "BudgetExhausted";
+  fault->has_object = false;
   return SPROUT_EVAL_FAULT;
 }
 

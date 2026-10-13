@@ -199,14 +199,14 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
   if (sprout_str_same(item, world)) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "the world is the root of the tree, and goes nowhere.");
-    return expr_fail(frame, "MoveFault");
+    return expr_fail_on(frame, "MoveFault", item);
   }
   if (moving != NULL && moving->made == SPROUT_MADE_VISITOR && !moving->has_container) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "`");
     expr_put_str(&text, item);
     expr_put(&text, "` is a visitor who is away, and is nowhere to be moved from.");
-    return expr_fail(frame, "MoveFault");
+    return expr_fail_on(frame, "MoveFault", item);
   }
   if (moving != NULL && expr_live(frame, item)) EXPR_NEED(expr_reaches(frame, mover, item, NULL, &reached));
   if (!reached) {
@@ -216,7 +216,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     expr_put(&text, "` is out of range of `");
     expr_put_str(&text, mover);
     expr_put(&text, "`, so it could not be moved.");
-    return expr_fail(frame, "MoveFault");
+    return expr_fail_on(frame, "MoveFault", item);
   }
   reached = false;
   if (sprout_draft_instance(x->draft, to) != NULL && expr_live(frame, to)) {
@@ -230,7 +230,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     expr_put(&text, "` is out of range of `");
     expr_put_str(&text, mover);
     expr_put(&text, "`, so nothing could be moved into it.");
-    return expr_fail(frame, "MoveFault");
+    return expr_fail_on(frame, "MoveFault", to);
   }
   destination = sprout_draft_instance(x->draft, to);
   if (!sprout_str_same(to, world) && (destination == NULL || !destination->kind->contains)) {
@@ -240,7 +240,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     expr_put(&text, "` holds nothing, so `");
     expr_put_str(&text, item);
     expr_put(&text, "` could not be moved into it.");
-    return expr_fail(frame, "MoveFault");
+    return expr_fail_on(frame, "MoveFault", to);
   }
   /* Live and not the world, so it is somewhere. */
   from = moving->container;

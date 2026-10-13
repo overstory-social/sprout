@@ -40,7 +40,7 @@ sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, cons
     expr_put(&text, ", so `connect ");
     expr_put(&text, name);
     expr_put(&text, "` has nothing to connect.");
-    return expr_fail(frame, "ConnectFault");
+    return expr_fail_on(frame, "ConnectFault", frame->self);
   }
   place = sprout_draft_instance(frame->draft, to);
   if (place == NULL || !expr_live(frame, to)) {
@@ -52,7 +52,7 @@ sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, cons
     expr_put(&text, "`'s link ");
     expr_put(&text, name);
     expr_put(&text, " could not lead there.");
-    return expr_fail(frame, "ConnectFault");
+    return expr_fail_on(frame, "ConnectFault", to);
   }
   if (!place->kind->contains_actors) {
     text = expr_text_begin(frame);
@@ -63,7 +63,7 @@ sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, cons
     expr_put(&text, "`'s link ");
     expr_put(&text, name);
     expr_put(&text, " could not lead there.");
-    return expr_fail(frame, "ConnectFault");
+    return expr_fail_on(frame, "ConnectFault", to);
   }
   if (sprout_stored_instance_copy(frame->turn, self, &next) != SPROUT_OK) return SPROUT_EVAL_NO_MEMORY;
   links = (sprout_stored_link *)sprout_arena_take(frame->turn, (next.link_count + 1) * sizeof *links);
