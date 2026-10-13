@@ -90,20 +90,17 @@ static void arrive(player_app *app, player_arrival *arrival) {
     stop(app, loaded.words);
     return;
   }
-  if (player_shelf_blocked(app->shelf, arrival->path)) {
-    /* A world greyed for its save is played again only once a save of it is written. */
-    if (!player_save(app->session).ok) {
-      unsaved(app, arrival);
-      return;
-    }
-    player_shelf_unblock(app->shelf, arrival->path);
-  }
   nickname = loaded.nickname != NULL ? copy_of(app->pd, loaded.nickname->bytes, loaded.nickname->length)
                                      : copy_of(app->pd, PLAYER_FIXED_NICKNAME, strlen(PLAYER_FIXED_NICKNAME));
   if (loaded.words[0] != '\0') notice = copy_of(app->pd, loaded.words, strlen(loaded.words));
+  /* What the load said is the session's until its next call, so it is copied before the save below. */
   if (nickname == NULL || (loaded.words[0] != '\0' && notice == NULL)) {
     stop(app, NO_MEMORY);
+  } else if (player_shelf_blocked(app->shelf, arrival->path) && !player_save(app->session).ok) {
+    /* A world greyed for its save is played again only once a save of it is written. */
+    unsaved(app, arrival);
   } else {
+    player_shelf_unblock(app->shelf, arrival->path);
     admitted = player_admit(app->session, nickname);
     if (!admitted.ok)
       stop(app, admitted.words);
