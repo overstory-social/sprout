@@ -201,7 +201,7 @@ sprout_eval_status sprout_reading_exits(const sprout_frame *frame, const sprout_
       expr_put(&text, "`, so `");
       expr_put(&text, reading->verb->name);
       expr_put(&text, "` could not be performed with it.");
-      return expr_fail(frame, "ActFault");
+      return expr_fail_on(frame, "ActFault", way->to);
     }
   }
   return SPROUT_EVAL_OK;

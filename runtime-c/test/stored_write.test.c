@@ -2,7 +2,8 @@
  * Tests for src/stored_write.c: the canonical form of a stored world: keys in
  * the stored schema's order, members as held, no white space, whole numbers
  * as digits, and the escapes JSON.stringify makes; the text is taken once, at
- * its size, from the caller's scratch.
+ * its size, from the caller's scratch. A turn's changes are written the same
+ * way, each record read from the state.
  */
 #include "check.h"
 #include "state.h"
@@ -139,11 +140,58 @@ static void a_host_that_runs_out_of_memory_while_writing_is_told_so(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+static void a_turns_changes_are_written_from_the_records_the_state_holds(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_state *state = NULL;
+  const char *out;
+  size_t length;
+  sprout_arena scratch;
+  sprout_stored_instance *in;
+  sprout_stored_changes changes;
+  const sprout_str upsert[] = {{"shop#3", 6}}, remove[] = {{"shop.box", 8}}, stones[] = {{"shop.box", 8}};
+  const sprout_str missing[] = {{"shop#4", 6}};
+  host.page_bytes = 4096;
+  CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
+  state->serial = 3;
+  state->instances = (sprout_stored_instance *)sprout_arena_take(&state->arena, sizeof *in);
+  state->instance_count = 1;
+  in = &state->instances[0];
+  in->id = S("shop#3");
+  in->made = SPROUT_MADE_SPAWNED;
+  in->made_kind = S("shop.Box");
+  in->has_container = true;
+  in->container = S("shop");
+  in->has_arrival = true;
+  in->arrival = 3;
+  memset(&changes, 0, sizeof changes);
+  changes.serial = 3;
+  changes.upsert = upsert;
+  changes.upsert_count = 1;
+  changes.remove = remove;
+  changes.remove_count = 1;
+  changes.tombstones = stones;
+  changes.tombstone_count = 1;
+  CHECK_INT(sprout_arena_init(&scratch, &host), SPROUT_OK);
+  CHECK_INT(sprout_changes_write(state, &changes, &scratch, &out, &length), SPROUT_OK);
+  CHECK_BYTES(out, length,
+              "{\"serial\":3,\"upsert\":[{\"id\":\"shop#3\",\"made\":{\"from\":\"spawned\",\"kind\":\"shop.Box\"},"
+              "\"container\":\"shop\",\"arrival\":3,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},"
+              "\"lastTick\":null}],\"remove\":[\"shop.box\"],\"tombstones\":[\"shop.box\"],\"visitors\":[]}");
+  /* A record the changes name that the state does not hold: these are not this state's changes. */
+  changes.upsert = missing;
+  CHECK_INT(sprout_changes_write(state, &changes, &scratch, &out, &length), SPROUT_BAD_INPUT);
+  sprout_arena_reset(&scratch);
+  sprout_state_free(state);
+  CHECK_INT(heap.pages, 0);
+}
+
 int main(void) {
   RUN(an_empty_world_is_written_with_every_key_in_order);
   RUN(a_record_built_by_hand_is_written_as_the_schema_orders_it);
   RUN(a_number_the_stored_form_does_not_write_is_refused);
   RUN(the_text_is_taken_once_at_its_size);
   RUN(a_host_that_runs_out_of_memory_while_writing_is_told_so);
+  RUN(a_turns_changes_are_written_from_the_records_the_state_holds);
   return REPORT();
 }

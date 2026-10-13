@@ -18,7 +18,7 @@ endif()
 set(SPROUT_MODULES
   address answers arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds chips darkness describe draft draws
   effects engine-verbs eval exec exits graph graph_build guards hearing inflate intents json lists load move offers options table
-  media nickname outcome prose range reading schedule seeds state status stored stored_check stored_write submit turn values view view_json wakes)
+  logged media nickname outcome prose range reading schedule seeds state status stored stored_check stored_write submit turn values view view_json wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
 set(SPROUT_READING_MODULES carried consent effect sure wildcards)
@@ -30,7 +30,7 @@ set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators pas
 set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speech write)
 
 # The turn kinds, src/turn/<module>.c, each with test/turn_<module>.test.c.
-set(SPROUT_TURN_MODULES arrival command departure maintenance tick wake)
+set(SPROUT_TURN_MODULES arrival command departure given maintenance tick wake)
 
 # Rendering what a turn said, src/prose/<module>.c, each with test/prose_<module>.test.c.
 set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode written)

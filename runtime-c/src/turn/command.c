@@ -334,7 +334,7 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   (void)refused_here;
   if (eval == SPROUT_EVAL_OK) eval = turn_render(&run, &actor, outcome);
   if (eval == SPROUT_EVAL_OK) {
-    status = turn_commit(&run);
+    status = turn_commit(&run, outcome);
     if (status != SPROUT_OK) {
       turn_drop(&run);
       return turn_abort(outcome, status);
@@ -345,7 +345,10 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
     turn_drop(&run);
     return turn_abort(outcome, SPROUT_NO_MEMORY);
   } else {
-    turn_fault_of(&run, eval, outcome);
+    if (turn_fault_of(&run, eval, outcome) != SPROUT_OK) {
+      turn_drop(&run);
+      return turn_abort(outcome, SPROUT_NO_MEMORY);
+    }
     outcome->line_count = outcome->effect_count = outcome->cut_count = 0;
     turn_drop(&run);
     status = tell_fault(world, state, host, seed, input->instant, actor, visit, outcome);

@@ -1,6 +1,8 @@
 // The runtime's WebAssembly engine (engine.c), driven from JavaScript: one world and its live state per
 // instance. Each call writes its input into the instance's buffer, runs one export, and reads back the
-// answer as JSON. A status other than 0 throws, with the words the engine gave where it gave any.
+// answer as JSON. A status other than 0 throws, with the words the engine gave where it gave any. A turn's
+// answer is what engine.c's `told` describes: its lines and effects, its fault, whose views it made stale,
+// what the store writes, and the entry the log keeps.
 
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
@@ -66,6 +68,28 @@ export class WasmEngine {
   depart(visit, seed, instant) {
     const [length] = this.put([encoder.encode(visit)]);
     return JSON.parse(this.call('sw_depart', length, BigInt(seed), BigInt(instant)));
+  }
+
+  /** A tick of `place`; `seed` is the step's, which the turn's own is drawn from with the place's path. */
+  tick(place, seed, instant) {
+    const [length] = this.put([encoder.encode(place)]);
+    return JSON.parse(this.call('sw_tick', length, BigInt(seed), BigInt(instant)));
+  }
+
+  /**
+   * The wake `object` asked for under `serial`, its `nth` this step; `seed` is the step's, which the turn's own
+   * is drawn from with the object's path and `nth`.
+   */
+  wake(object, serial, nth, seed, instant) {
+    const [length] = this.put([encoder.encode(object)]);
+    return JSON.parse(
+      this.call('sw_wake', length, BigInt(serial), BigInt(nth), BigInt(seed), BigInt(instant)),
+    );
+  }
+
+  /** Every entry from now on at debug depth, with every effect, or at play depth, with their digest. */
+  logDepth(depth) {
+    this.x.sw_log_depth(depth === 'debug' ? 1 : 0);
   }
 
   /**

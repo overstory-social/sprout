@@ -72,7 +72,7 @@ static sprout_eval_status named_object(const sprout_frame *frame, sprout_str id,
     expr_put(&text, "`");
     expr_put_str(&text, id);
     expr_put(&text, "` was destroyed, and a declared object destroyed is gone for good.");
-    return expr_fail(frame, "DestroyedReference");
+    return expr_fail_on(frame, "DestroyedReference", id);
   }
   if (expr_instance(frame, id) != NULL) {
     *out = id;
@@ -272,7 +272,7 @@ sprout_eval_status expr_name_out_of_range(const sprout_frame *frame, const char 
     expr_put(&text, written);
     expr_put(&text, "`.");
   }
-  return expr_fail(frame, "NameOutOfRange");
+  return found ? expr_fail_on(frame, "NameOutOfRange", target) : expr_fail(frame, "NameOutOfRange");
 }
 
 sprout_eval_status expr_reached_by_name(const sprout_frame *frame, const sprout_node *named, const char *written,

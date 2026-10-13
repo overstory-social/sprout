@@ -35,6 +35,8 @@ void expr_put_str(expr_text *text, sprout_str str);
 void expr_put_number(expr_text *text, double number);
 /* Names the rule broken, whose words are in the frame's fault text, and ends the evaluation with SPROUT_EVAL_FAULT. */
 sprout_eval_status expr_fail(const sprout_frame *frame, const char *name);
+/* expr_fail for a rule that names the object the fault is about. */
+sprout_eval_status expr_fail_on(const sprout_frame *frame, const char *name, sprout_str object);
 /* Something the checker refuses reached the evaluator: "`what` reached the evaluator, which the checker refuses." */
 sprout_eval_status expr_unchecked(const sprout_frame *frame, const char *what);
 /* An engine error in its own words. */

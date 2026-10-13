@@ -573,11 +573,24 @@ typedef struct sprout_told_effect {
   sprout_str payload;                /* an extension's effect: its payload as JSON text; empty where the runtime holds no code for the extension */
 } sprout_told_effect;
 
-/* A visit a line would have taken past their output: they read nothing more that turn. */
+/* Someone a line would have taken past their output: they read nothing more that turn. */
 typedef struct sprout_cut {
-  const char *recipient;
+  const char *recipient; /* their visit */
   size_t recipient_length;
+  sprout_str id; /* the instance that is them */
 } sprout_cut;
+
+/*
+ * What a fault is laid against, beside its name and words (the spec's The runtime > Faults, The log): the
+ * object the rule broken names, if it names one; whether nothing the world did explains it, the engine's own
+ * defect, which a host reports loudly; and the extension whose code it is, NULL for every other fault.
+ */
+typedef struct sprout_fault_about {
+  bool has_object;
+  sprout_str object;
+  bool engine;
+  const char *extension;
+} sprout_fault_about;
 
 /* A wake as a maintenance turn's entry names it, with the fault its part ended in where it faulted. */
 typedef struct sprout_logged_wake {
@@ -586,6 +599,7 @@ typedef struct sprout_logged_wake {
   uint64_t asked_at;
   const char *fault_name;
   sprout_str fault_detail;
+  sprout_fault_about fault_about;
 } sprout_logged_wake;
 
 /*
@@ -605,9 +619,26 @@ typedef struct sprout_log_entry {
   bool faulted;
   const char *fault_name;
   sprout_str fault_detail;
+  sprout_fault_about fault_about;
   size_t delivered_count, faulted_count, abandoned_count; /* catch-up: the wakes it delivered, consumed after a fault, and left pending */
   const sprout_logged_wake *delivered, *faulted_wakes, *abandoned;
 } sprout_log_entry;
+
+/*
+ * What a turn changed of the stored state, across every commit it made, as a store writes it (the spec's The
+ * host contract > Storage): the world's serial after it, the instance records to write whole, the ids of
+ * those to delete, the tombstones to add and the visitor records to write whole, each list in code-unit
+ * order. An id written and then removed within the turn is in neither list when the turn made it, and among
+ * those removed when it was stored before.
+ */
+typedef struct sprout_stored_changes {
+  uint64_t serial;
+  size_t upsert_count, remove_count, tombstone_count, visitor_count;
+  const sprout_str *upsert;
+  const sprout_str *remove;
+  const sprout_str *tombstones;
+  const sprout_str *visitors;
+} sprout_stored_changes;
 
 /*
  * What a turn came to. The lines, effects and cuts are the turn's own, in the order told, valid until
@@ -616,6 +647,11 @@ typedef struct sprout_log_entry {
  * not what it was, which a faulted wake (its consumption) and a faulted departure (the visitor gone
  * quietly) also do. `words` is what a host tells a person outside the world of an arrival that was
  * closed or faulted.
+ *
+ * Where the turn committed or changed the stored state, `changes` is what a store writes of it; empty
+ * otherwise. Where it committed, `stale` is every visit present once it is over, in code-unit order: their
+ * views are stale (the spec's The view). A turn that faulted names nobody, a faulted wake's consumption
+ * and a faulted departure's quiet going included.
  */
 typedef struct sprout_outcome {
   sprout_turn_result result;
@@ -624,6 +660,7 @@ typedef struct sprout_outcome {
   bool faulted;
   sprout_fault fault;
   const char *fault_name;
+  sprout_fault_about fault_about;
   const char *words;
   size_t line_count;
   const sprout_line *lines;
@@ -634,6 +671,10 @@ typedef struct sprout_outcome {
   bool has_log;
   sprout_log_entry log;
   uint64_t elapsed; /* a tick or a wake: the seconds its object was handed as `elapsed` */
+  bool has_changes;
+  sprout_stored_changes changes;
+  size_t stale_count;
+  const sprout_str *stale;
   void *held;
 } sprout_outcome;
 
@@ -650,6 +691,37 @@ sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sp
 
 /* Releases what an outcome holds. */
 void sprout_outcome_free(sprout_outcome *outcome);
+
+/*
+ * A turn's stored changes as the JSON a store writes, `{serial, upsert, remove, tombstones, visitors}`, each
+ * record written whole in its stored form and read from `state`, which must be as the turn left it. Built in
+ * `scratch`, and valid until that arena is reset.
+ */
+sprout_status sprout_changes_write(const sprout_state *state, const sprout_stored_changes *changes,
+                                   sprout_arena *scratch, const char **bytes, size_t *length);
+
+/* How much of a turn the log keeps (the spec's The runtime > The log): every effect, or how many and their digest. */
+typedef enum sprout_log_depth { SPROUT_LOG_PLAY, SPROUT_LOG_DEBUG } sprout_log_depth;
+
+/*
+ * The entry a write turn leaves in the log, as the JSON a host's log keeps it (the spec's The runtime > The
+ * log): the turn's inputs, the budgets `host` gave it, what it was for, its fault, who it cut short, and, at
+ * debug depth, every effect, or at play depth how many and the SHA-256 of them. Built in `scratch`. An
+ * outcome with no entry, and a row of the budgets the log keeps that `host` leaves unset, are
+ * SPROUT_BAD_INPUT and SPROUT_BAD_HOST. A command's entry also records what the host's parser read, which
+ * the runtime is handed and does not keep, so a command is SPROUT_BAD_INPUT until the runtime parses
+ * (#624).
+ */
+sprout_status sprout_log_write(const sprout_host *host, const sprout_outcome *outcome, sprout_log_depth depth,
+                               sprout_arena *scratch, const char **bytes, size_t *length);
+
+/*
+ * What a turn said, as a JSON array in the language's shape of an effect: `kind`, `from`, `actor`, `to`,
+ * `visit`, `paragraphs` and `written`, and for an extension's, `extension`, `statement` and `payload`.
+ * Built in `scratch`.
+ */
+sprout_status sprout_effects_write(const sprout_outcome *outcome, sprout_arena *scratch, const char **bytes,
+                                   size_t *length);
 
 /* The ids of every place a visitor stands in, once each in code-unit order: the places a host ticks. */
 typedef struct sprout_places {

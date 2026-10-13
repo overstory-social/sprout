@@ -33,7 +33,7 @@ typedef struct wake_list {
 } wake_list;
 
 static bool wake_listed(sprout_arena *keep, wake_list *list, const sprout_due_wake *wake, const char *fault_name,
-                        const char *fault_detail) {
+                        const char *fault_detail, const sprout_fault_about *about) {
   sprout_logged_wake *slot =
       (sprout_logged_wake *)sprout_exec_grow(keep, (void **)&list->items, &list->count, &list->capacity, sizeof *slot);
   sprout_str object;
@@ -50,6 +50,11 @@ static bool wake_listed(sprout_arena *keep, wake_list *list, const sprout_due_wa
     slot->fault_detail.length = strlen(fault_detail);
     slot->fault_detail.bytes = sprout_arena_copy(keep, fault_detail, slot->fault_detail.length);
     if (slot->fault_detail.bytes == NULL) return false;
+  }
+  memset(&slot->fault_about, 0, sizeof slot->fault_about);
+  if (about != NULL) {
+    slot->fault_about = *about;
+    if (about->has_object && !sprout_state_copy_str(keep, about->object, &slot->fault_about.object)) return false;
   }
   return slot->object.bytes != NULL;
 }
@@ -116,14 +121,14 @@ sprout_status turn_maintenance(sprout_world *world, sprout_state *state, const s
     }
     eval = turn_deliver_wake(&run, wake.object, wake.serial, elapsed);
     if (eval == SPROUT_EVAL_OK) {
-      status = turn_commit(&run);
+      status = turn_commit(&run, outcome);
       turn_drop(&run);
       if (status != SPROUT_OK) {
         sprout_arena_reset(&scratch);
         return turn_abort(outcome, status);
       }
       changed = true;
-      if (!wake_listed(keep, &delivered, &wake, NULL, NULL)) lost = true;
+      if (!wake_listed(keep, &delivered, &wake, NULL, NULL, NULL)) lost = true;
     } else if (eval == SPROUT_EVAL_NO_MEMORY) {
       turn_drop(&run);
       sprout_arena_reset(&scratch);
@@ -132,10 +137,11 @@ sprout_status turn_maintenance(sprout_world *world, sprout_state *state, const s
       sprout_outcome fault;
       const char *name, *detail;
       memset(&fault, 0, sizeof fault);
-      turn_fault_of(&run, eval, &fault);
+      /* An outcome of its own owns no arena, so nothing is copied and nothing can be refused. */
+      (void)turn_fault_of(&run, eval, &fault);
       name = fault.fault_name;
       detail = fault.fault.text;
-      lost = !wake_listed(keep, &faulted, &wake, name, detail);
+      lost = !wake_listed(keep, &faulted, &wake, name, detail, &fault.fault_about);
       turn_drop(&run);
       /* Consumed, and the catch-up goes on: a faulted part drew what it drew, and the stream stays where it is. */
       {
@@ -146,7 +152,7 @@ sprout_status turn_maintenance(sprout_world *world, sprout_state *state, const s
         status = turn_open(&again, world, state, host, SPROUT_TURN_MAINTENANCE, seed, input->instant, &meter, &draws);
         if (status == SPROUT_OK) {
           if (turn_without_wake(&again, wake.object, wake.serial) != SPROUT_EVAL_OK) status = SPROUT_FAULT;
-          else status = turn_commit(&again);
+          else status = turn_commit(&again, outcome);
           turn_drop(&again);
         }
         if (status != SPROUT_OK) {
@@ -158,7 +164,7 @@ sprout_status turn_maintenance(sprout_world *world, sprout_state *state, const s
           for (j = i + 1; j < due_count && !lost; j++) {
             sprout_due_wake rest;
             if (schedule_pending(state, due[j].object, due[j].serial, &rest))
-              lost = !wake_listed(keep, &abandoned, &rest, NULL, NULL);
+              lost = !wake_listed(keep, &abandoned, &rest, NULL, NULL, NULL);
           }
           i = due_count;
         }

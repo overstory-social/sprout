@@ -74,7 +74,7 @@ sprout_eval_status stmt_remove(sprout_exec *x, const sprout_frame *frame, sprout
   if (sprout_str_same(id, x->draft->base->world)) {
     text = expr_text_begin(frame);
     expr_put(&text, "the world cannot be destroyed.");
-    return expr_fail(frame, "LifecycleFault");
+    return expr_fail_on(frame, "LifecycleFault", id);
   }
   if (instance == NULL) {
     text = expr_text_begin(frame);
@@ -89,7 +89,7 @@ sprout_eval_status stmt_remove(sprout_exec *x, const sprout_frame *frame, sprout
     expr_put(&text, "`");
     expr_put_str(&text, id);
     expr_put(&text, "` is a visitor, and a person is never destroyed.");
-    return expr_fail(frame, "LifecycleFault");
+    return expr_fail_on(frame, "LifecycleFault", id);
   }
   if (sprout_draft_subtree(x->draft, id, &subtree, &count) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {
@@ -101,7 +101,7 @@ sprout_eval_status stmt_remove(sprout_exec *x, const sprout_frame *frame, sprout
     expr_put(&text, "` has the visitor `");
     expr_put_str(&text, subtree[i]);
     expr_put(&text, "` inside it, and a person is never destroyed.");
-    return expr_fail(frame, "LifecycleFault");
+    return expr_fail_on(frame, "LifecycleFault", id);
   }
   if (sprout_draft_remove(x->draft, id, &removed, &count) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {

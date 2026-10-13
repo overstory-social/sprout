@@ -32,6 +32,14 @@ void expr_put_number(expr_text *text, double number) {
 
 sprout_eval_status expr_fail(const sprout_frame *frame, const char *name) {
   frame->fault->name = name;
+  frame->fault->has_object = false;
+  return SPROUT_EVAL_FAULT;
+}
+
+sprout_eval_status expr_fail_on(const sprout_frame *frame, const char *name, sprout_str object) {
+  frame->fault->name = name;
+  frame->fault->has_object = true;
+  frame->fault->object = object;
   return SPROUT_EVAL_FAULT;
 }
 
@@ -54,6 +62,7 @@ sprout_eval_status expr_budget_fault(const sprout_frame *frame) {
   expr_text text = expr_text_begin(frame);
   expr_put(&text, frame->meter->fault.text);
   frame->fault->name = "BudgetExhausted";
+  frame->fault->has_object = false;
   return SPROUT_EVAL_FAULT;
 }
 

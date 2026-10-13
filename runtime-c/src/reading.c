@@ -87,7 +87,7 @@ static sprout_eval_status in_range(const sprout_frame *frame, sprout_str actor, 
     expr_put(&text, "`, so `");
     expr_put(&text, verb->name);
     expr_put(&text, "` could not be performed with it.");
-    return expr_fail(frame, "ActFault");
+    return expr_fail_on(frame, "ActFault", id);
   }
   return SPROUT_EVAL_OK;
 }

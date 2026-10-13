@@ -48,10 +48,15 @@ typedef enum sprout_eval_status {
   SPROUT_EVAL_NO_MEMORY
 } sprout_eval_status;
 
-/* A fault or an engine error in words: the rule broken, by name, and what happened. */
+/*
+ * A fault or an engine error in words: the rule broken, by name, what happened, and the object the rule names,
+ * where it names one (the spec's The runtime > Faults). `Error` is the engine's own, and names no object.
+ */
 typedef struct sprout_eval_fault {
   const char *name; /* BudgetExhausted, IntegerOverflow, NameOutOfRange, DestroyedReference, LifecycleFault, Error */
   char text[480];
+  bool has_object;
+  sprout_str object; /* valid while the turn's draft is */
 } sprout_eval_fault;
 
 /* What a body is evaluated inside. */

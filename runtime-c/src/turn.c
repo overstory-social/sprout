@@ -95,20 +95,31 @@ static void put_text(char *to, size_t size, const char *from) {
   to[n] = '\0';
 }
 
-void turn_fault_of(const turn_run *run, sprout_eval_status status, sprout_outcome *outcome) {
+sprout_status turn_fault_of(const turn_run *run, sprout_eval_status status, sprout_outcome *outcome) {
   (void)status;
   outcome->faulted = true;
   outcome->result = SPROUT_RESULT_FAULTED;
   memset(&outcome->fault, 0, sizeof outcome->fault);
+  memset(&outcome->fault_about, 0, sizeof outcome->fault_about);
   if (run->meter->faulted) {
     outcome->fault = run->meter->fault;
     outcome->fault_name = "BudgetExhausted";
-    return;
+    return SPROUT_OK;
   }
   outcome->fault.budget = run->fault.name == NULL ? "Error" : run->fault.name;
   outcome->fault.message = run->meter->message;
   put_text(outcome->fault.text, sizeof outcome->fault.text, run->fault.text);
   outcome->fault_name = outcome->fault.budget;
+  /* An `Error` is no rule of the language's: nothing the world did explains it, and it names no object. */
+  outcome->fault_about.engine = strcmp(outcome->fault_name, "Error") == 0;
+  if (outcome->fault_about.engine || !run->fault.has_object) return SPROUT_OK;
+  outcome->fault_about.has_object = true;
+  outcome->fault_about.object = run->fault.object;
+  /* An outcome that owns an arena keeps its own copy; a part of catch-up copies it into its wake. */
+  if (outcome->held != NULL &&
+      !sprout_state_copy_str(turn_keep(outcome), run->fault.object, &outcome->fault_about.object))
+    return SPROUT_NO_MEMORY;
+  return SPROUT_OK;
 }
 
 sprout_status turn_refuse(sprout_outcome *outcome, const char *before, const char *name, const char *after) {
@@ -211,7 +222,8 @@ sprout_eval_status turn_handed(sprout_arena *keep, const sprout_draft *draft, co
   for (i = 0; i < rendered.cut_count; i++) {
     const sprout_stored_visitor *visitor = sprout_visitor_of(draft, rendered.cut[i]);
     sprout_str visit;
-    if (visitor == NULL || !keep_str(keep, visitor->visit, &visit)) return SPROUT_EVAL_NO_MEMORY;
+    if (visitor == NULL || !keep_str(keep, visitor->visit, &visit) || !keep_str(keep, rendered.cut[i], &cuts[i].id))
+      return SPROUT_EVAL_NO_MEMORY;
     cuts[i].recipient = visit.bytes;
     cuts[i].recipient_length = visit.length;
   }
@@ -231,10 +243,17 @@ sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_ou
   return turn_handed(turn_keep(outcome), &run->draft, &rendered, outcome);
 }
 
-sprout_status turn_commit(turn_run *run) {
+sprout_status turn_commit(turn_run *run, sprout_outcome *outcome) {
   sprout_changes changes;
-  sprout_draft_result result = sprout_draft_commit(&run->draft, &changes);
-  return result == SPROUT_DRAFT_OK ? SPROUT_OK : SPROUT_NO_MEMORY;
+  sprout_str *made;
+  size_t made_count = 0, i;
+  /* Which records the draft adds is read before the commit, while the state is still what the draft read. */
+  made = (sprout_str *)sprout_arena_take(&run->scratch, (run->draft.written_count + 1) * sizeof *made);
+  if (made == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < run->draft.written_count; i++)
+    if (sprout_state_find(run->state, run->draft.written[i].id) == NULL) made[made_count++] = run->draft.written[i].id;
+  if (sprout_draft_commit(&run->draft, &changes) != SPROUT_DRAFT_OK) return SPROUT_NO_MEMORY;
+  return turn_changes_add(outcome, &changes, made, made_count);
 }
 
 sprout_status turn_log(turn_run *run, sprout_outcome *outcome, const char *who, size_t who_length) {
@@ -261,6 +280,7 @@ sprout_status turn_log(turn_run *run, sprout_outcome *outcome, const char *who, 
     entry->faulted = true;
     entry->fault_name = outcome->fault_name;
     entry->fault_detail = detail;
+    entry->fault_about = outcome->fault_about;
   }
   outcome->has_log = true;
   return SPROUT_OK;
@@ -329,6 +349,11 @@ sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sp
       break;
     case SPROUT_TURN_POLL:
       return turn_refuse(outcome, "a poll writes nothing and is not a turn: ask for the view with sprout_view.", "", "");
+  }
+  /* What the host is given beside the lines is read from the state as the turn left it. */
+  if (status == SPROUT_OK && (outcome->committed || outcome->state_changed)) {
+    status = turn_given(state, outcome);
+    if (status != SPROUT_OK) return turn_abort(outcome, status);
   }
   /*
    * The turn's scratch is released by now, so the state and the outcome are all that is held while it compacts.

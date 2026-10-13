@@ -1,11 +1,13 @@
 // The WebAssembly engine (engine.c, driven by engine.mjs) checked against the TypeScript runtime, and
-// libc.c against the C standard (libc.test.c). Every corpus script made only of arrivals, departures and
-// commands is resolved by the TypeScript parser into the readings it read (scripts/resolve-script.mjs)
-// and played through the engine from the turns the TypeScript runtime logged: each step's lines, by
-// reader, and the stored world after it must be what the TypeScript runtime left. A turn the parser
-// answered is not the engine's to run, and its lines are the parser's. Then the export layer's edges:
-// loading and opening again, input it cannot read, and an arrival to a world that admits no one, which
-// still has words for the person.
+// libc.c against the C standard (libc.test.c). Every corpus script is resolved by the TypeScript parser
+// into the readings it read (scripts/resolve-script.mjs) and played through the engine from the turns the
+// TypeScript runtime logged: arrivals, departures, commands, ticks and wakes. Each step's lines, by
+// reader, and the stored world after it must be what the TypeScript runtime left, and each turn must give
+// what the TypeScript runtime's did: its effects, fault and who it cut short, whose views it made stale,
+// what the store writes, and, for every kind but a command, the entry core's log keeps at play depth, as
+// core's builders make it. A turn the parser answered is not the engine's to run, and its lines are the
+// parser's. Then the export layer's edges: loading and opening again, input it cannot read, an entry at
+// debug depth, and an arrival to a world that admits no one, which still has words for the person.
 //
 //   node runtime-c/wasm/engine.test.mjs <out folder of build.sh> [corpus/good]
 //
@@ -17,16 +19,17 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
+import { atDepth, loggedEffects } from '@overstory/sprout/core';
 import { DEFAULT_LIMITS, loadCartridge } from '@overstory/sprout/lang';
 import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
 
-import { packWorld } from '../../scripts/replay-runtime-c.mjs';
+import { loggedEntryOf, packWorld } from '../../scripts/replay-runtime-c.mjs';
 import { resolveFile } from '../../scripts/resolve-script.mjs';
 import { WasmEngine } from './engine.mjs';
 
 /**
- * The corpus worlds whose scripts the engine plays, sorted: every one with a script of arrivals, departures
- * and commands alone. A world that comes or goes from this list is a change to say so of.
+ * The corpus worlds whose scripts the engine plays, sorted: every one with a script. A world that comes or
+ * goes from this list is a change to say so of.
  */
 const EXPECTED_WORLDS = [
   'all-in-order',
@@ -34,6 +37,7 @@ const EXPECTED_WORLDS = [
   'allowed-first',
   'arrival-order',
   'brief',
+  'cancel-wakes',
   'cannot',
   'carried',
   'carried-across',
@@ -65,6 +69,8 @@ const EXPECTED_WORLDS = [
   'refusal-hands',
   'relatives',
   'requires-held',
+  'roaming',
+  'rounds',
   'runs',
   'sequences',
   'shut-contents',
@@ -73,16 +79,14 @@ const EXPECTED_WORLDS = [
   'take-from',
   'teashop',
   'troll_room',
+  'turn-faults',
   'unknown-word',
   'value-first',
   'visitor-contents',
 ];
 
 /** The checks that are not a world's, each of which must have run. */
-const EXPECTED_CHECKS = ['libc.c', 'edges', 'closed arrival'];
-
-/** The steps the engine can play: what a host runs as an arrival, a departure or a command. */
-const PLAYABLE = new Set(['comment', 'seed', 'arrive', 'leave', 'command']);
+const EXPECTED_CHECKS = ['libc.c', 'edges', 'closed arrival', 'debug depth'];
 
 const visitOf = (nickname) => `visit:${nickname}`;
 
@@ -103,31 +107,70 @@ function linesDiffer(want, got) {
   return null;
 }
 
+/** What a turn gave the host, as the TypeScript runtime's entry `want` has it: the fields both give. */
+const GIVEN = ['fault', 'effects', 'cutShort', 'stale', 'changes'];
+
+/** The first way the engine's `outcome` differs from the TypeScript runtime's turn `want`, in words; null where it agrees. */
+function turnDiffers(want, outcome, budgets) {
+  for (const field of GIVEN) {
+    if (!isDeepStrictEqual(outcome[field], want[field])) {
+      return `its ${field} is ${JSON.stringify(outcome[field])} where the TypeScript runtime's is ${JSON.stringify(want[field])}`;
+    }
+  }
+  const entry = loggedEntryOf(want, budgets) ?? null;
+  if (!isDeepStrictEqual(outcome.entry, entry)) {
+    return `its entry is ${JSON.stringify(outcome.entry)} where core's is ${JSON.stringify(entry)}`;
+  }
+  return null;
+}
+
+/** The turns `step` ran by the TypeScript runtime's log, each run through `engine`: `[want, outcome]`, or the answer of a turn the parser gave. */
+function playStep(engine, step) {
+  const ran = [];
+  if (step.kind === 'command') {
+    for (const turn of step.turns) {
+      if (turn.skip) ran.push({ says: turn.says });
+      else
+        ran.push({
+          want: turn.expect,
+          outcome: engine.command(visitOf(step.nickname), turn, turn.seed, step.atSeconds),
+        });
+    }
+    return ran;
+  }
+  const woke = new Map();
+  for (const want of step.after?.turns ?? []) {
+    const at = want.seconds;
+    let outcome;
+    if (want.kind === 'maintenance') outcome = engine.maintenance(want.seed, at);
+    else if (want.kind === 'arrival')
+      outcome = engine.arrive(want.who, want.nickname, want.seed, at);
+    else if (want.kind === 'departure') outcome = engine.depart(want.who, want.seed, at);
+    else if (want.kind === 'tick') outcome = engine.tick(want.who, step.seed, at);
+    else {
+      const nth = woke.get(want.who) ?? 0;
+      woke.set(want.who, nth + 1);
+      outcome = engine.wake(want.who, want.wake, nth, step.seed, at);
+    }
+    ran.push({ want, outcome });
+  }
+  return ran;
+}
+
 /** Plays `readings` through a fresh engine; the first difference from the TypeScript runtime, or null. */
 async function playReadings(wasm, cartridge, worldId, readings) {
   const engine = await WasmEngine.open(wasm, cartridge, worldId);
   for (const step of readings.steps) {
     const lines = [];
-    if (step.kind === 'arrive' || step.kind === 'leave') {
-      for (const turn of step.after.turns) {
-        const at = turn.seconds;
-        const outcome =
-          turn.kind === 'maintenance'
-            ? engine.maintenance(turn.seed, at)
-            : turn.kind === 'arrival'
-              ? engine.arrive(visitOf(step.nickname), step.nickname, turn.seed, at)
-              : engine.depart(visitOf(step.nickname), turn.seed, at);
-        lines.push(...outcome.lines.map(said));
+    for (const [at, one] of playStep(engine, step).entries()) {
+      if (one.says !== undefined) {
+        lines.push(...one.says);
+        continue;
       }
-    } else if (step.kind === 'command') {
-      for (const turn of step.turns) {
-        if (turn.skip) {
-          lines.push(...turn.says);
-          continue;
-        }
-        const outcome = engine.command(visitOf(step.nickname), turn, turn.seed, step.atSeconds);
-        lines.push(...outcome.lines.map(said));
-      }
+      lines.push(...one.outcome.lines.map(said));
+      const differs = turnDiffers(one.want, one.outcome, readings.budgets);
+      if (differs !== null)
+        return `step ${step.index} (${step.line}), turn ${at + 1} (${one.want.kind}): ${differs}`;
     }
     if (step.after === undefined) continue;
     const differs = linesDiffer(step.after.says, lines);
@@ -252,6 +295,29 @@ async function closedArrival(wasm, cartridge, worldId, arrivalPlace) {
   return [];
 }
 
+/**
+ * An arrival's entry at debug depth keeps every effect as the log keeps it and no digest, and is the
+ * play-depth entry once core takes it to play depth.
+ */
+async function debugDepth(wasm, cartridge, worldId) {
+  const arrive = async (depth) => {
+    const engine = await WasmEngine.open(wasm, cartridge, worldId);
+    engine.logDepth(depth);
+    engine.maintenance(0, 0);
+    return engine.arrive('visit:Marta', 'Marta', 0, 0);
+  };
+  const played = await arrive('play');
+  const debugged = await arrive('debug');
+  const problems = [];
+  if (debugged.entry.digest !== undefined) problems.push('a debug-depth entry has a digest');
+  if (!isDeepStrictEqual(debugged.entry.effects, loggedEffects(debugged.effects)))
+    problems.push('a debug-depth entry does not keep the effects the turn gave');
+  if (debugged.entry.effects.length === 0) problems.push('the arrival said nothing to keep');
+  if (!isDeepStrictEqual(atDepth(debugged.entry, 'play'), played.entry))
+    problems.push('the debug-depth entry taken to play depth is not the play-depth entry');
+  return problems;
+}
+
 /** Checks the engine in `out` over every world in `corpus`; one result per world, and the edges' and libc's. */
 export async function testEngine(out, corpus = 'corpus/good') {
   const wasm = join(out, 'engine.wasm');
@@ -284,13 +350,6 @@ export async function testEngine(out, corpus = 'corpus/good') {
       let differs = null;
       for (const script of scripts) {
         const readings = JSON.parse(resolveFile(cartridgeFile, script));
-        if (!readings.steps.every((step) => PLAYABLE.has(step.kind))) continue;
-        if (
-          readings.steps.some(
-            (step) => (step.kind === 'arrive' || step.kind === 'leave') && step.after === undefined,
-          )
-        )
-          continue;
         played++;
         try {
           differs = await playReadings(wasm, cartridge, worldId, readings);
@@ -318,6 +377,12 @@ export async function testEngine(out, corpus = 'corpus/good') {
           name: 'closed arrival',
           passed: problems.length === 0,
           words: problems.join('; ') || 'told',
+        });
+        const depth = await debugDepth(wasm, cartridge, worldId);
+        results.push({
+          name: 'debug depth',
+          passed: depth.length === 0,
+          words: depth.join('; ') || 'kept',
         });
       }
     }

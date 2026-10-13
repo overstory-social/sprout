@@ -337,7 +337,7 @@ sprout_status turn_arrival(sprout_world *world, sprout_state *state, const sprou
     eval = sprout_lines_assembled(&run.x, lines, line_count, arrivals, arrival_count, NULL, 0);
     if (eval == SPROUT_EVAL_OK) eval = turn_render(&run, &actor, outcome);
     if (eval == SPROUT_EVAL_OK) {
-      status = turn_commit(&run);
+      status = turn_commit(&run, outcome);
       if (status != SPROUT_OK) return turn_abort(outcome, status);
       outcome->committed = outcome->state_changed = true;
     }
@@ -348,7 +348,10 @@ sprout_status turn_arrival(sprout_world *world, sprout_state *state, const sprou
   }
   if (eval != SPROUT_EVAL_OK) {
     /* A fault abandons the arrival: the visitor is not admitted, and nobody is told in the world. */
-    turn_fault_of(&run, eval, outcome);
+    if (turn_fault_of(&run, eval, outcome) != SPROUT_OK) {
+      turn_drop(&run);
+      return turn_abort(outcome, SPROUT_NO_MEMORY);
+    }
     outcome->line_count = outcome->effect_count = outcome->cut_count = 0;
     outcome->lines = NULL;
     outcome->effects = NULL;

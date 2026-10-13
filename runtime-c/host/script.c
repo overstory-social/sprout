@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "json.h"
+#include "logged.h"
 #include "state.h"
 
 /* What a step has told so far: the lines readers read and the entries of the turns that ran, as JSON text. */
@@ -126,29 +127,55 @@ static sprout_str nickname_of(play *p, const char *visit, size_t length) {
   return record == NULL ? key : record->nickname;
 }
 
+/* A fault as the trace keeps it, in the language's shape: its name, words, object, whether it is the engine's, and its extension. */
+static sprout_json *fault_json(play *p, const char *name, sprout_str detail, const sprout_fault_about *about) {
+  return sprout_logged_fault(&p->arena, name, detail, about, false);
+}
+
 /* A list of wakes as the entry names them. */
 static sprout_json *wakes_json(play *p, size_t count, const sprout_logged_wake *wakes, bool with_fault) {
   sprout_json *list = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, count);
   size_t i;
   for (i = 0; list != NULL && i < count; i++) {
-    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 4);
+    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 3);
     if (one == NULL) return NULL;
     sprout_json_adopt(one, "object", jstr_of(p, wakes[i].object));
     sprout_json_adopt(one, "serial", jnumber(p, (double)wakes[i].serial));
-    if (with_fault) {
-      sprout_json_adopt(one, "fault", jstr(p, wakes[i].fault_name == NULL ? "" : wakes[i].fault_name));
-      sprout_json_adopt(one, "detail", jstr_of(p, wakes[i].fault_detail));
-    }
+    if (with_fault) sprout_json_adopt(one, "fault", fault_json(p, wakes[i].fault_name, wakes[i].fault_detail, &wakes[i].fault_about));
     sprout_json_adopt(list, NULL, one);
   }
   return list;
 }
 
-/* The entry the log keeps of a turn that ran, in the shape the TypeScript player records: see player/src/readings.ts. */
+static sprout_json *ids_json(play *p, size_t count, const sprout_str *ids) {
+  sprout_json *list = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, count);
+  size_t i;
+  for (i = 0; list != NULL && i < count; i++) sprout_json_adopt(list, NULL, jstr_of(p, ids[i]));
+  return list;
+}
+
+/* What the turn changed of the stored state, read back from the state it left; null where it changed nothing. */
+static sprout_json *changes_json(play *p, const sprout_outcome *outcome) {
+  sprout_json *tree = NULL;
+  sprout_json_error error;
+  const char *bytes;
+  size_t length;
+  if (!outcome->has_changes) return jnull(p);
+  if (sprout_changes_write(p->state, &outcome->changes, &p->arena, &bytes, &length) != SPROUT_OK ||
+      sprout_json_read(&p->arena, bytes, length, &tree, &error) != SPROUT_OK)
+    return NULL;
+  return tree;
+}
+
+/*
+ * The entry the log keeps of a turn that ran, in the shape the TypeScript player records (player/src/readings.ts),
+ * with what a host is given beside it: whose views it made stale and what the store writes; and for every
+ * kind but a command, the entry in the log's own form at play depth.
+ */
 static const char *record_of(play *p, const sprout_turn_input *input, const sprout_outcome *outcome) {
-  sprout_json *record = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 14), *effects, *cuts, *paragraphs;
+  sprout_json *record = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 18), *cuts, *logged = NULL;
   const sprout_log_entry *log = &outcome->log;
-  size_t i, j;
+  size_t i;
   (void)input;
   if (record == NULL) return NULL;
   sprout_json_adopt(record, "kind", jstr(p, kind_name(log->kind)));
@@ -156,57 +183,21 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
   sprout_json_adopt(record, "seconds", jnumber(p, (double)log->seconds));
   sprout_json_adopt(record, "who", log->who.length == 0 ? jnull(p) : jstr_of(p, log->who));
   sprout_json_adopt(record, "outcome", jstr(p, outcome_name(outcome->result)));
-  sprout_json_adopt(record, "fault", log->faulted ? jstr(p, log->fault_name) : jnull(p));
-  sprout_json_adopt(record, "detail", log->faulted ? jstr_of(p, log->fault_detail) : jnull(p));
+  sprout_json_adopt(record, "fault", log->faulted ? fault_json(p, log->fault_name, log->fault_detail, &log->fault_about) : jnull(p));
   sprout_json_adopt(record, "serial", jnumber(p, (double)log->serial));
-  effects = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, outcome->effect_count);
+  if (log->kind == SPROUT_TURN_ARRIVAL) sprout_json_adopt(record, "nickname", jstr_of(p, log->nickname));
+  if (log->kind == SPROUT_TURN_WAKE) sprout_json_adopt(record, "wake", jnumber(p, (double)log->wake_serial));
   cuts = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, outcome->cut_count);
-  if (effects == NULL || cuts == NULL) return NULL;
-  for (i = 0; i < outcome->effect_count; i++) {
-    const sprout_told_effect *effect = &outcome->effects[i];
-    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 9), *notes;
-    if (one == NULL) return NULL;
-    paragraphs = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, effect->line_count);
-    notes = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, effect->written_count);
-    if (paragraphs == NULL || notes == NULL) return NULL;
-    for (j = 0; j < effect->written_count; j++) {
-      const sprout_written *noted = &effect->written[j];
-      sprout_json *where = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 3);
-      if (where == NULL) return NULL;
-      if (noted->passage) {
-        sprout_json_adopt(where, "passage", jstr(p, noted->name));
-        sprout_json_adopt(where, "origin", jstr(p, noted->origin));
-        sprout_json_adopt(where, "at", jstr(p, noted->at));
-      } else {
-        sprout_json_adopt(where, "line", jstr(p, noted->at));
-      }
-      sprout_json_adopt(notes, NULL, where);
-    }
-    for (j = 0; j < effect->line_count; j++)
-      sprout_json_adopt(paragraphs, NULL,
-                        jtext(p, outcome->lines[effect->line_first + j].text, outcome->lines[effect->line_first + j].text_length));
-    sprout_json_adopt(one, "kind", jstr(p, line_kind_name(effect->kind)));
-    sprout_json_adopt(one, "from", jstr_of(p, effect->from));
-    sprout_json_adopt(one, "to", jstr_of(p, effect->to));
-    sprout_json_adopt(one, "visit", jstr_of(p, effect->visit));
-    sprout_json_adopt(one, "paragraphs", paragraphs);
-    sprout_json_adopt(one, "written", notes);
-    if (effect->extension != NULL) {
-      sprout_json *payload = NULL;
-      sprout_json_error error;
-      if (effect->payload.length > 0 &&
-          sprout_json_read(&p->arena, effect->payload.bytes, effect->payload.length, &payload, &error) != SPROUT_OK)
-        return NULL;
-      sprout_json_adopt(one, "extension", jstr(p, effect->extension));
-      sprout_json_adopt(one, "statement", jstr(p, effect->statement));
-      if (payload != NULL) sprout_json_adopt(one, "payload", payload);
-    }
-    sprout_json_adopt(effects, NULL, one);
-  }
-  for (i = 0; i < outcome->cut_count; i++)
-    sprout_json_adopt(cuts, NULL, jtext(p, outcome->cuts[i].recipient, outcome->cuts[i].recipient_length));
-  sprout_json_adopt(record, "effects", effects);
+  if (cuts == NULL) return NULL;
+  for (i = 0; i < outcome->cut_count; i++) sprout_json_adopt(cuts, NULL, jstr_of(p, outcome->cuts[i].id));
+  sprout_json_adopt(record, "effects", sprout_logged_effects(&p->arena, outcome, false));
   sprout_json_adopt(record, "cutShort", cuts);
+  sprout_json_adopt(record, "stale", outcome->committed ? ids_json(p, outcome->stale_count, outcome->stale) : jnull(p));
+  sprout_json_adopt(record, "changes", changes_json(p, outcome));
+  if (log->kind != SPROUT_TURN_COMMAND) {
+    if (sprout_logged_entry(&p->arena, &p->host->record, outcome, SPROUT_LOG_PLAY, &logged) != SPROUT_OK) return NULL;
+    sprout_json_adopt(record, "logged", logged);
+  }
   if (log->kind == SPROUT_TURN_MAINTENANCE) {
     sprout_json_adopt(record, "delivered", wakes_json(p, log->delivered_count, log->delivered, false));
     sprout_json_adopt(record, "faulted", wakes_json(p, log->faulted_count, log->faulted_wakes, true));
