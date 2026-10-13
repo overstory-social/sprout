@@ -5,10 +5,14 @@ import {
   NOT_ADMITTING,
   dueWakes,
   visitKey,
+  type CaughtUp,
   type CommandHost,
   type CommandTurn,
+  type Committed,
   type NicknameRefusalReason,
 } from '@overstory/sprout/lang';
+
+import type { GivenCommand, GivenCommitted } from './engine.js';
 
 import { reentrant } from './conformance.js';
 import { digestOf } from './log/depth.js';
@@ -24,17 +28,17 @@ import {
 } from './fixtures/tally.js';
 import type { SproutStore } from './store.js';
 import {
-  committedState,
+  committedStored,
   runArrival,
   runCommand,
   runDeparture,
   runMaintenance,
   runCommandLine,
-  runPoll,
   runTick,
   runWake,
   type NicknameHost,
 } from './turns.js';
+import { committedState, runPoll, tsTurn } from './fixtures/committed.js';
 
 const { host } = tally();
 const { catalogue } = host;
@@ -51,10 +55,29 @@ async function count(store: SproutStore, id = COUNTER): Promise<unknown> {
 
 const stored = (store: SproutStore) => store.read('w', (tx) => tx.state());
 
-function committedCount(turn: CommandTurn): unknown {
+/** A maintenance turn as the TypeScript runtime gave it, the host naming no engine. */
+const caughtUp = (given: GivenCommitted) => tsTurn<Committed<CaughtUp>>(given);
+
+/** The host names no engine, so each turn is the TypeScript runtime's own, whose state these specs read. */
+function committedCount(given: GivenCommand): unknown {
+  const turn = tsTurn<CommandTurn>(given);
   if (!turn.committed) throw new Error(turn.fault.detail);
   return turn.state.instances.get(COUNTER)?.properties.get('n');
 }
+
+describe('the committed stored state', () => {
+  it('is what the store holds once a turn committed, read with no lock', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('bump counter'));
+    expect(await committedStored(store, 'w')).toEqual(await stored(store));
+    let release!: () => void;
+    const held = store.transaction('w', () => new Promise<void>((resolve) => (release = resolve)));
+    // Read while a write turn holds the lock, it does not wait for it.
+    expect(await committedStored(store, 'w')).toEqual(await stored(store));
+    release();
+    await held;
+  });
+});
 
 describe('a command turn against a store', () => {
   it('writes what it committed, and the next turn reads it', async () => {
@@ -80,7 +103,7 @@ describe('a command turn against a store', () => {
     expect(turn.committed).toBe(false);
     if (turn.committed) return;
     expect(turn.fault.name).toBe('IntegerOverflow');
-    expect(turn.told.effect).toBe('notice');
+    expect(tsTurn<CommandTurn & { committed: false }>(turn).told.effect).toBe('notice');
     expect(turn.effects.map((one) => [one.kind, one.visit])).toEqual([['notice', MARTA]]);
     expect(await stored(store)).toEqual(before);
     expect(await count(store)).toBe(1);
@@ -265,12 +288,16 @@ describe('a maintenance turn against a store', () => {
   it('writes what catch-up kept, and a fault is consumed in the same write', async () => {
     const store = await seeded();
     await runCommand(store, 'w', host, command('rest counter', 0));
-    const kept = await runMaintenance(store, 'w', host, { now: 75, seed: 6, mayHold: null });
+    const kept = caughtUp(
+      await runMaintenance(store, 'w', host, { now: 75, seed: 6, mayHold: null }),
+    );
     expect(kept.value).toMatchObject({ faulted: [], abandoned: [] });
     expect(await count(store)).toBe(75);
 
     await runCommand(store, 'w', host, command('rest counter', 100));
-    const faulted = await runMaintenance(store, 'w', host, { now: 900, seed: 7, mayHold: null });
+    const faulted = caughtUp(
+      await runMaintenance(store, 'w', host, { now: 900, seed: 7, mayHold: null }),
+    );
     expect(faulted.value.faulted).toMatchObject([{ fault: { name: 'ValueOutOfRange' } }]);
     expect(await count(store)).toBe(75);
     expect(dueWakes(await committedState(store, 'w', host), 10_000)).toEqual([]);
@@ -281,7 +308,9 @@ describe('a maintenance turn against a store', () => {
     await runCommand(store, 'w', host, command('rest counter', 0));
     await runCommand(store, 'w', host, command('rest gauge', 50));
     // The counter has waited 120 seconds, past what it holds; the gauge 70.
-    const turn = await runMaintenance(store, 'w', host, { now: 120, seed: 8, mayHold: null });
+    const turn = caughtUp(
+      await runMaintenance(store, 'w', host, { now: 120, seed: 8, mayHold: null }),
+    );
     expect(turn.value.faulted).toMatchObject([
       { wake: { object: COUNTER }, fault: { name: 'ValueOutOfRange' } },
     ]);
@@ -301,7 +330,9 @@ describe('a maintenance turn against a store', () => {
     await runCommand(store, 'w', twice, command('rest counter', 0));
     await runCommand(store, 'w', twice, command('rest counter', 10));
     await runCommand(store, 'w', twice, command('rest gauge', 50));
-    const turn = await runMaintenance(store, 'w', twice, { now: 120, seed: 9, mayHold: null });
+    const turn = caughtUp(
+      await runMaintenance(store, 'w', twice, { now: 120, seed: 9, mayHold: null }),
+    );
     expect(turn.value.faulted.map((f) => f.wake.object)).toEqual([COUNTER]);
     expect(turn.value.delivered.map((w) => w.object)).toEqual([GAUGE]);
     const later = dueWakes(await committedState(store, 'w', twice), 120);
@@ -341,7 +372,7 @@ describe('admitting and letting go of a visitor against a store', () => {
       },
       OPEN,
     );
-    expect(admitted.caughtUp!.value.delivered.map((w) => w.object)).toEqual([COUNTER]);
+    expect(caughtUp(admitted.caughtUp!).value.delivered.map((w) => w.object)).toEqual([COUNTER]);
     expect(admitted.arrived.committed).toBe(true);
     // The counter reads the whole absence, delivered before anyone walked in.
     expect(await count(store)).toBe(75);

@@ -1,42 +1,31 @@
 import {
   closedByBundle,
-  NOT_ADMITTING,
-  commandsOfLine,
   keptNickname,
   moderated,
-  nicknameRefusal,
-  pollTurn,
+  NOT_ADMITTING,
   type Arrival,
-  type ArrivalTurn,
-  type CaughtUp,
   type Command,
   type CommandHost,
-  type CommandTurn,
-  type Committed,
   type Departure,
-  type DepartureTurn,
   type NicknameRefused,
-  type Polled,
-  type PollTurn,
   type Tick,
-  type TickTurn,
   type TurnHost,
   type Wake,
-  type WakeTurn,
-  type WorldState,
   type WriteInputs,
 } from '@overstory/sprout/lang';
 
 import {
-  arrivalStep,
-  commandStep,
-  departureStep,
-  loaded,
-  maintenanceStep,
-  tickStep,
-  wakeStep,
-  type Step,
-} from './steps.js';
+  engineOf,
+  type EngineHost,
+  type GivenArrival,
+  type GivenCommand,
+  type GivenCommitted,
+  type GivenDeparture,
+  type GivenTick,
+  type GivenWake,
+} from './engine.js';
+import type { StoredState } from './records.js';
+import type { Step } from './steps.js';
 import { atDepth, type LogDepth } from './log/depth.js';
 import type { SproutStore, StoreTx } from './store.js';
 
@@ -52,10 +41,11 @@ import type { SproutStore, StoreTx } from './store.js';
 // no lock. Each is safe to run twice, as the port's re-run rule asks,
 // since a turn is a function of the state it read and its inputs. When to
 // tick is `ticks.ts`'s, and when to deliver a wake, live or as catch-up,
-// is the host's (Time › Absence).
+// is the host's (Time › Absence). Each turn is the engine's the host names
+// (`engine.ts`), the TypeScript runtime's where it names none.
 
-/** What a host adds to the language's to run a world's turns on a store: the depth it keeps the log at, play where it names none. */
-export interface LogHost {
+/** What a host adds to the language's to run a world's turns on a store: the depth it keeps the log at, play where it names none, and its engine. */
+export interface LogHost extends EngineHost {
   readonly logDepth?: LogDepth;
 }
 
@@ -72,9 +62,10 @@ export function runCommand(
   microworldId: string,
   host: CommandHost & LogHost,
   command: Command,
-): Promise<CommandTurn> {
+): Promise<GivenCommand> {
+  const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, commandStep(loaded(await tx.state(), host), host, command), host),
+    landed(tx, engine.command(await tx.state(), command), host),
   );
 }
 
@@ -92,13 +83,13 @@ export async function runCommandLine(
   host: CommandHost & LogHost,
   command: Command,
   seed: () => number,
-): Promise<CommandTurn[]> {
-  const turns: CommandTurn[] = [];
-  const line = commandsOfLine(command, seed);
-  for (let step = line.next(); !step.done;) {
-    const turn = await runCommand(store, microworldId, host, step.value);
+): Promise<GivenCommand[]> {
+  const turns: GivenCommand[] = [];
+  const line = engineOf(host).line(command, seed);
+  for (let next = line.next(null); next !== null;) {
+    const turn = await runCommand(store, microworldId, host, next);
     turns.push(turn);
-    step = line.next(turn);
+    next = line.next(turn);
   }
   return turns;
 }
@@ -113,9 +104,10 @@ export function runTick(
   microworldId: string,
   host: TurnHost & LogHost,
   tick: Tick,
-): Promise<TickTurn> {
+): Promise<GivenTick> {
+  const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, tickStep(loaded(await tx.state(), host), host, tick), host),
+    landed(tx, engine.tick(await tx.state(), tick), host),
   );
 }
 
@@ -129,9 +121,10 @@ export function runWake(
   microworldId: string,
   host: TurnHost & LogHost,
   wake: Wake,
-): Promise<WakeTurn> {
+): Promise<GivenWake> {
+  const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, wakeStep(loaded(await tx.state(), host), host, wake), host),
+    landed(tx, engine.wake(await tx.state(), wake), host),
   );
 }
 
@@ -145,9 +138,10 @@ export function runMaintenance(
   microworldId: string,
   host: TurnHost & LogHost,
   inputs: WriteInputs,
-): Promise<Committed<CaughtUp>> {
+): Promise<GivenCommitted> {
+  const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, maintenanceStep(loaded(await tx.state(), host), host, inputs), host),
+    landed(tx, engine.maintenance(await tx.state(), inputs), host),
   );
 }
 
@@ -165,8 +159,8 @@ export interface NicknameRefusedTurn {
 
 /** What admitting one visitor did: the catch-up run first, null where nobody was let in, and the arrival. */
 export interface Admission {
-  readonly caughtUp: Committed<CaughtUp> | null;
-  readonly arrived: ArrivalTurn | NicknameRefusedTurn;
+  readonly caughtUp: GivenCommitted | null;
+  readonly arrived: GivenArrival | NicknameRefusedTurn;
 }
 
 /**
@@ -192,10 +186,9 @@ export async function runArrival(
       arrived: { committed: false, closed: { reason, words: NOT_ADMITTING } },
     };
   }
-  const refusalIn = (state: WorldState): NicknameRefused | null =>
-    nicknameRefusal(state, host.catalogue, host.budgets, arrival.visit, arrival.nickname);
+  const engine = engineOf(host);
   const before = await store.read(microworldId, async (tx) =>
-    refusalIn(loaded(await tx.state(), host)),
+    engine.nicknameRefusal(await tx.state(), arrival.visit, arrival.nickname),
   );
   const refused =
     before ??
@@ -221,19 +214,17 @@ export function runArrivalTurn(
   microworldId: string,
   host: TurnHost & LogHost,
   arrival: Arrival,
-): Promise<ArrivalTurn | NicknameRefusedTurn> {
-  return store.transaction(microworldId, async (tx): Promise<ArrivalTurn | NicknameRefusedTurn> => {
-    const state = loaded(await tx.state(), host);
-    const taken = nicknameRefusal(
-      state,
-      host.catalogue,
-      host.budgets,
-      arrival.visit,
-      arrival.nickname,
-    );
-    if (taken !== null) return { committed: false, nicknameRefused: taken };
-    return landed(tx, arrivalStep(state, host, arrival), host);
-  });
+): Promise<GivenArrival | NicknameRefusedTurn> {
+  const engine = engineOf(host);
+  return store.transaction(
+    microworldId,
+    async (tx): Promise<GivenArrival | NicknameRefusedTurn> => {
+      const stored = await tx.state();
+      const taken = engine.nicknameRefusal(stored, arrival.visit, arrival.nickname);
+      if (taken !== null) return { committed: false, nicknameRefused: taken };
+      return landed(tx, engine.arrival(stored, arrival), host);
+    },
+  );
 }
 
 /**
@@ -245,29 +236,14 @@ export function runDeparture(
   microworldId: string,
   host: TurnHost & LogHost,
   departure: Departure,
-): Promise<DepartureTurn> {
+): Promise<GivenDeparture> {
+  const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, departureStep(loaded(await tx.state(), host), host, departure), host),
+    landed(tx, engine.departure(await tx.state(), departure), host),
   );
 }
 
-/** The last committed state of `microworldId`, read against the bundle the host runs, with no lock. */
-export function committedState(
-  store: SproutStore,
-  microworldId: string,
-  host: TurnHost,
-): Promise<WorldState> {
-  return store.read(microworldId, async (tx) => loaded(await tx.state(), host));
-}
-
-/** Run `look` as a poll of `microworldId`, on the last committed state, with no lock. */
-export function runPoll<T>(
-  store: SproutStore,
-  microworldId: string,
-  host: TurnHost,
-  look: (turn: PollTurn) => T,
-): Promise<Polled<T>> {
-  return store.read(microworldId, async (tx) =>
-    pollTurn(loaded(await tx.state(), host), host, look),
-  );
+/** The last committed state of `microworldId` as the store keeps it, with no lock: what an engine is handed for a poll or a host's question. */
+export function committedStored(store: SproutStore, microworldId: string): Promise<StoredState> {
+  return store.read(microworldId, (tx) => tx.state());
 }

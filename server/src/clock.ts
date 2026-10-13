@@ -1,5 +1,5 @@
-import { dueWakes, oldestFirst, type Effect, type VisitKey } from '@overstory/sprout/lang';
-import { committedState, runWake } from '@overstory/sprout/core';
+import { oldestFirst, type Effect, type VisitKey } from '@overstory/sprout/lang';
+import { committedStored, engineOf, runWake } from '@overstory/sprout/core';
 
 import { fanOut, type ServerContext, type WorldRun } from './context.js';
 
@@ -56,8 +56,8 @@ async function wakes(context: ServerContext, world: WorldRun): Promise<void> {
   const { served } = world;
   if (world.connections.size === 0 && !context.config.wakesWhileEmpty) return;
   const now = context.clock.now();
-  const state = await committedState(context.store, served.id, served.host);
-  for (const due of dueWakes(state, now).sort(oldestFirst)) {
+  const stored = await committedStored(context.store, served.id);
+  for (const due of engineOf(served.host).dueWakes(stored, now).sort(oldestFirst)) {
     const turn = await runWake(context.store, served.id, served.host, {
       seed: context.seed(),
       mayHold: null,

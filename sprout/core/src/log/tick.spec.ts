@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { tickTurn, type Faulted } from '@overstory/sprout/lang';
 
 import { COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
-import { committedState } from '../turns.js';
+import { committedState } from '../fixtures/committed.js';
 import { TickEntry, tickEntry, tickOf } from './tick.js';
 
 const { host } = tally();

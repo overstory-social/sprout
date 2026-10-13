@@ -12,9 +12,10 @@ import {
 } from '@overstory/sprout/lang';
 
 import { saidEntry } from './log/said.js';
-import { loaded } from './steps.js';
 import type { SproutStore } from './store.js';
-import { committedState } from './turns.js';
+import { engineOf, type Engine, type EngineHost } from './engine.js';
+import type { StoredState } from './records.js';
+import { committedStored } from './turns.js';
 
 // Conversation between visitors (the spec's Other people › Talking to
 // each other; The host contract › Conversation): free text is the host's,
@@ -135,11 +136,16 @@ export function hearers(state: WorldState, visit: VisitKey): Heard | null {
   return { place, to };
 }
 
-/** Throw where `visit` has no one to talk to because the host asked wrongly: they never came, or are away. */
-function mustBePresent(state: WorldState, visit: VisitKey): void {
-  const visitor = state.visitors.get(visit);
-  if (visitor === undefined) throw new Error(`\`${visit}\` has never visited this world.`);
-  if ((state.instances.get(visitor.instance)?.container ?? null) === null) {
+/**
+ * Throw where `visit` has no one to talk to because the host asked wrongly:
+ * they never came, or are away, which is as the engine finds them, so a
+ * visitor whose instance it cannot read now is away too.
+ */
+function mustBePresent(engine: Engine, stored: StoredState, visit: VisitKey): void {
+  if (!stored.visitors.some((one) => one.visit === visit)) {
+    throw new Error(`\`${visit}\` has never visited this world.`);
+  }
+  if (engine.standing(stored, visit) === null) {
     throw new Error(`\`${visit}\` is not in this world, so has nobody to talk to.`);
   }
 }
@@ -189,7 +195,7 @@ export class ConversationPace {
 export async function runConversation(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost,
+  host: TurnHost & EngineHost,
   conversation: ConversationHost,
   pace: ConversationPace,
   saying: Saying,
@@ -199,7 +205,8 @@ export async function runConversation(
   const bad = sayingRefusal(rules, saying.text);
   if (bad !== null) return bad;
   const text = keptSaying(saying.text);
-  mustBePresent(await committedState(store, microworldId, host), saying.visit);
+  const engine = engineOf(host);
+  mustBePresent(engine, await committedStored(store, microworldId), saying.visit);
   if (!pace.admit(microworldId, saying.visit, at, rules.pace)) {
     const { messages, seconds } = rules.pace!;
     return refused(
@@ -211,13 +218,13 @@ export async function runConversation(
     return refused('moderated', 'That cannot be said here.');
   }
   return store.transaction(microworldId, async (tx) => {
-    const state = loaded(await tx.state(), host);
-    const heard = hearers(state, saying.visit);
+    const stored = await tx.state();
+    const heard = engine.hearers(stored, saying.visit);
     if (heard === null) return GONE;
     const said: Said = {
       said: true,
       from: saying.visit,
-      nickname: state.visitors.get(saying.visit)!.nickname,
+      nickname: stored.visitors.find((one) => one.visit === saying.visit)!.nickname,
       text,
       place: heard.place,
       to: heard.to,

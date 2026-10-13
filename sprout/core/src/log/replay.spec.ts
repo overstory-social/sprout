@@ -8,7 +8,6 @@ import { memoryStore } from '../memory-store.js';
 import type { MicroworldRecord } from '../records.js';
 import type { SproutStore } from '../store.js';
 import {
-  committedState,
   runArrival,
   runCommand,
   runCommandLine,
@@ -17,6 +16,7 @@ import {
   runWake,
   type NicknameHost,
 } from '../turns.js';
+import { committedState } from '../fixtures/committed.js';
 import { runView } from '../views.js';
 import type { LogDepth } from './depth.js';
 import { wholeLog, type Logged } from './entry.js';

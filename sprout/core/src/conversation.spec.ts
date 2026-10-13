@@ -13,7 +13,8 @@ import {
 } from './conversation.js';
 import { HALL, MARTA, seeded as seededTally, tally } from './fixtures/tally.js';
 import type { SproutStore } from './store.js';
-import { committedState, runArrival, runDeparture, type NicknameHost } from './turns.js';
+import { runArrival, runDeparture, type NicknameHost } from './turns.js';
+import { committedState } from './fixtures/committed.js';
 
 const { host } = tally();
 const INES = visitKey('v-ines');
@@ -334,6 +335,15 @@ describe('saying something against a store', () => {
     await expect(runConversation(store, 'w', host, OPEN, pace, say('hi', 1.5))).rejects.toThrow(
       'whole seconds',
     );
+  });
+
+  it('counts a visitor whose instance the engine cannot read now as away, as it finds them', async () => {
+    const store = await hall();
+    // A republish whose visitors' kind is gone leaves Marta's instance dormant: stored, and read as no one.
+    const unread = { ...host, catalogue: { ...host.catalogue, visitorKind: null } };
+    await expect(
+      runConversation(store, 'w', unread, OPEN, new ConversationPace(), say('hi')),
+    ).rejects.toThrow('`v-marta` is not in this world, so has nobody to talk to.');
   });
 
   it('never ends with nothing to tell the speaker: every refusal has words', async () => {

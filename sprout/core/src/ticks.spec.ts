@@ -15,6 +15,7 @@ import {
   storedChanges,
   visitKey,
   type InstanceId,
+  type TickTurn,
   type Manifest,
   type TurnHost,
   type VisitKey,
@@ -23,6 +24,7 @@ import {
 import { memoryStore } from './memory-store.js';
 import type { SproutStore } from './store.js';
 import { Ticker, type Ticking } from './ticks.js';
+import { tsTurn } from './fixtures/committed.js';
 import { withImports } from './fixtures/imports.js';
 
 // Two moors that keep the gap each tick hands them, which holds at most
@@ -131,7 +133,9 @@ async function recordOf(store: SproutStore, id: InstanceId) {
 
 const elapsedOf = (ticking: Ticking): number | 'skipped' | 'not committed' => {
   if ('skipped' in ticking) return 'skipped';
-  return ticking.turn.committed ? ticking.turn.value.elapsed : 'not committed';
+  // The host names no engine, so each tick is the TypeScript runtime's own.
+  const turn = tsTurn<TickTurn>(ticking.turn);
+  return turn.committed ? turn.value.elapsed : 'not committed';
 };
 
 describe('a round of ticks', () => {

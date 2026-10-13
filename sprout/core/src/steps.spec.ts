@@ -13,7 +13,8 @@ import {
   tickStep,
   wakeStep,
 } from './steps.js';
-import { committedState, runCommand } from './turns.js';
+import { runCommand } from './turns.js';
+import { committedState } from './fixtures/committed.js';
 
 const { host } = tally();
 const at = (now: number) => ({ now, seed: 4, mayHold: null });
