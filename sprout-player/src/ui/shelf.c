@@ -18,8 +18,8 @@ static const char EMPTY[] = "No worlds are on the shelf. ";
 static const char CANNOT[] = " (cannot be opened)";
 static const char UNSAVED[] = " (its save failed)";
 static const char SAVE_FAILED[] =
-    "The save could not be written, so play has stopped and your last move was not kept. Free some room on the "
-    "console. This world stays greyed until its save can be written.";
+    "The save could not be written, so play has stopped and nothing since the last save was kept. Free some room "
+    "on the console. This world stays greyed until its save can be written.";
 
 /* ---- titles ---- */
 
