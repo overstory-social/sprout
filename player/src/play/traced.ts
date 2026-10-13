@@ -15,7 +15,7 @@ import {
   type WorldState,
 } from '@overstory/sprout/lang';
 
-import type { Handed, ParseRecord } from '../parsed.js';
+import type { Handed, ParseRecord, ReadReading, ReadReread } from '../parsed.js';
 import type { Step } from '../script.js';
 
 // What playing a script records (the spec's The runtime › The log, Levels):
@@ -75,27 +75,12 @@ export interface Traced {
   readonly logged: Logged;
   /** What the parser made of the line, which a turn that faults performs none of; null where it made none. */
   readonly read: Reading | null;
-  /** The bounds the parser drew below while it read the line, in order: the turn's stream begins with them. */
-  readonly parseDraws: readonly number[];
-  /** What the parser said before the reading's own lines. */
-  readonly asides: readonly Aside[];
   /** What `host.parse` returned for a command turn, and what it spent; null where it was not parsed. */
   readonly parsed: ParseRecord | null;
   /** What a later turn of a line was handed in place of words; null for every other turn. */
   readonly handed: Handed | null;
   /** The world a command turn after the first in its step began from; null for every other turn. */
   readonly before: WorldState | null;
-}
-
-/**
- * A line the parser says before the reading's own (the spec's Parsing › Pronouns, Choosing a reading):
- * the world's `pronoun_correction` for a thing a pronoun named, with the pronoun it declares, or the
- * engine's `meant`, telling the actor which thing a reading drawn from a tie took the words to name.
- */
-export interface Aside {
-  readonly line: 'meant' | 'pronoun_correction';
-  readonly thing: InstanceId;
-  readonly pronoun: string | null;
 }
 
 /**
@@ -123,6 +108,13 @@ export interface Logged {
     readonly delivered: readonly DueWake[];
     readonly faulted: readonly { readonly wake: DueWake; readonly fault: Fault }[];
     readonly abandoned: readonly DueWake[];
+  } | null;
+  /** A command's words, the step a line planned for it, the item it re-read, and how many readings tied where its reading was drawn; null for every other turn. */
+  readonly command: {
+    readonly text: string;
+    readonly planned: ReadReading | null;
+    readonly reread: ReadReread | null;
+    readonly drawn: number | null;
   } | null;
 }
 
@@ -175,6 +167,7 @@ export function loggedOf(stage: Stage, parts: Partial<Logged> & Pick<Logged, 'se
     wakes: null,
     stale: null,
     changes: null,
+    command: null,
     ...parts,
   };
 }
@@ -197,8 +190,6 @@ export function trace(
     refused: false,
     faults: [],
     read: null,
-    parseDraws: [],
-    asides: [],
     parsed: null,
     handed: null,
     before: null,

@@ -2,7 +2,7 @@
 // instance. Each call writes its input into the instance's buffer, runs one export, and reads back the
 // answer as JSON. A status other than 0 throws, with the words the engine gave where it gave any. A turn's
 // answer is what engine.c's `told` describes: its lines and effects, its fault, whose views it made stale,
-// what the store writes, and the entry the log keeps.
+// what the store writes, the entry the log keeps, and for a command what became of its line.
 
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
@@ -93,20 +93,27 @@ export class WasmEngine {
   }
 
   /**
-   * A command of a reading already read: a view's `{ verb, fillers, typed }`, or a readings file's turn,
-   * whose `draws` and `asides` are what the host's parser drew and said first.
+   * One command turn: `command` is `{ text }`, the words typed, which the engine reads in the turn, with `planned`
+   * and `reread` for a later turn of a line, as `line` and `lineNext` hand them out; or `{ verb, fillers, typed }`, a
+   * reading built from the view's chips, run as it is.
    */
-  command(visit, reading, seed, instant) {
-    const json = JSON.stringify({
-      visit,
-      verb: reading.verb,
-      fillers: reading.fillers,
-      typed: reading.typed,
-      draws: reading.draws ?? [],
-      asides: reading.asides ?? [],
-    });
+  command(visit, command, seed, instant) {
+    const json = JSON.stringify({ visit, ...command });
     const [length] = this.put([encoder.encode(json)]);
     return JSON.parse(this.call('sw_command', length, BigInt(seed), BigInt(instant)));
+  }
+
+  /**
+   * Begins the line `text` that `visit` typed, and gives the first command it runs. The command turn this engine runs
+   * next is taken as that command's; `lineNext` then gives the one after it, or null once the line is over.
+   */
+  line(visit, text) {
+    const [length] = this.put([encoder.encode(JSON.stringify({ visit, text }))]);
+    return JSON.parse(this.call('sw_line', length));
+  }
+
+  lineNext() {
+    return JSON.parse(this.call('sw_line_next'));
   }
 
   scene(visit) {

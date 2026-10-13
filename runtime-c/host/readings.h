@@ -1,9 +1,10 @@
 /*
  * A script's readings, as `scripts/resolve-script.mjs` writes them beside
- * the script: each typed line already read by the TypeScript parser, so the
- * host needs no parser, and what that parser read of each, which `sproutc
- * parse` compares the runtime's own parse with. This reads that file into
- * steps the host plays.
+ * the script: each step with what the TypeScript runtime left behind it, which
+ * `sproutc play` compares its own play with; each typed line with the turns it
+ * ran and what the TypeScript parser read of each, which `sproutc parse`
+ * compares the runtime's own parse with, and the reading each ran, which
+ * `--offered` looks for in the view. This reads that file into steps.
  */
 #ifndef SPROUTC_READINGS_H
 #define SPROUTC_READINGS_H
@@ -24,15 +25,13 @@ typedef enum sproutc_step_kind {
   SPROUTC_STEP_COMMAND
 } sproutc_step_kind;
 
-/* One command turn of a typed line. A skipped turn is one the parser answered; the host does not run it. */
+/* One command turn of a typed line, as the TypeScript runtime ran it. A skipped turn is one the parser answered, which ran no reading. */
 typedef struct sproutc_turn_reading {
   const char *typed;
   uint64_t seed;
   bool skip;
   const char *why;  /* when skipped: the parser's answer */
-  const sprout_json *draws;  /* otherwise: the bounds the parser drew below reading the line */
-  const sprout_json *asides; /* otherwise: what the parser said before the reading's own lines */
-  const sprout_json *says;   /* the lines a reader read, as the TypeScript runtime told them: the parser's, which this host echoes when it skips the turn */
+  const sprout_json *says;   /* the lines a reader read, as the TypeScript runtime told them */
   const sprout_json *expect; /* the turn as the TypeScript runtime logged it */
   const char *verb; /* otherwise: the verb, qualified */
   const char *actor; /* otherwise: the id of the instance performing it */
@@ -50,6 +49,7 @@ typedef struct sproutc_step {
   uint64_t seed;
   sproutc_step_kind kind;
   const char *nickname;
+  const char *typed;    /* a command: the line typed */
   uint64_t for_seconds; /* an advance: how long */
   size_t turns;     /* a command: how many turns the line runs */
   const sprout_json *turn_list;
@@ -75,10 +75,6 @@ const char *sproutc_readings_step(const sproutc_readings *readings, size_t i, sp
 
 /* Turn `i` of a command step. */
 const char *sproutc_readings_turn(const sproutc_step *step, size_t i, sproutc_turn_reading *turn);
-
-/* A reading's fillings from the TypeScript parser's fillers, by id, in `arena`; NULL on success, or words. */
-const char *sproutc_readings_fillings(sprout_arena *arena, const sprout_json *fillers, sprout_filling **out,
-                                     size_t *count);
 
 /* `budgets` less any the readings were played under, named as the TypeScript runtime names them; NULL, or words. */
 const char *sproutc_readings_budgets(sprout_budgets *budgets, const sprout_json *given);

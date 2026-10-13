@@ -210,14 +210,16 @@ TypeScript one over whole worlds.
 
 - **The replay of every transcript.** `scripts/check-runtime-c.mjs` packs
   every `corpus/good` world that has transcripts or tests and plays each
-  script. The C side has no parser, so `scripts/resolve-script.mjs` first
-  plays each script with the TypeScript runtime and writes, beside it, the
-  reading the TypeScript parser made of each typed line
-  (`player/src/readings.ts`); a line the parser answered instead of reading
-  is marked and skipped. It prints one line per world and the list that
-  pass, and fails unless that list is `EXPECTED_PASSING`, which is every
-  world. It compares what each reader was told, the log's entry for each turn
-  that ran, and the stored world after every step.
+  script. `scripts/resolve-script.mjs` first plays each script with the
+  TypeScript runtime and writes, beside it, what each step left behind
+  (`player/src/readings.ts`); `sproutc play` then reads each typed line
+  itself, as the command turns it runs (`sprout_line_begin`). It prints one
+  line per world and the list that pass, and fails unless that list is
+  `EXPECTED_PASSING`, which is every world. It compares what each reader was
+  told, the log's entry for each turn that ran (a command's with its words,
+  the step a line planned for it, the item it re-read and its draw), that
+  entry again in core's own form as core's builders make it, and the stored
+  world after every step.
 - **The view comparison.** `sproutc view` prints the page `sprout view`
   prints; the script compares the two for every corpus world, on its own
   line, over the stored world the TypeScript runtime writes for the arrival.
@@ -228,8 +230,8 @@ TypeScript one over whole worlds.
   scene and each verb's readings of every visitor after every step of every
   script, against `pollScene` and `pollReadings`, and the fuzzer polls every
   visitor still in the world at the end of each play.
-- **The parse comparison.** The C parser is being built (#624, one piece at
-  a time), and the readings files are its oracle: beside each command turn
+- **The parse comparison.** The readings files are the C parser's oracle
+  line by line: beside each command turn
   they keep what `host.parse` returned (`parsed`: the reading or intent with
   its bindings in the order bound, the turns after it, the draw, the
   corrections, or the answer's line and bindings, or the fault; the bounds
@@ -241,19 +243,19 @@ TypeScript one over whole worlds.
   compares the two as JSON; a turn with no parse recorded is counted apart. `scripts/check-runtime-c.mjs` runs it over
   every script (`replayParses`), prints one line per world with how many
   turns read alike and how many of the TypeScript parser's `unknown`
-  answers, and fails only when the worlds that parse alike in full are not
-  `EXPECTED_PARSING`, a ratchet each piece of the parser grows.
+  answers, and fails when the worlds that parse alike in full are not
+  `EXPECTED_PARSING`, which is every world.
 - **The fuzzer.** `scripts/fuzz-runtime.mjs` plays, from a seed, offered,
-  refused and unreadable lines, ticks, time, departures and arrivals, and
-  tight budgets through both runtimes, and writes the first divergence as a
+  refused and unreadable lines, offered lines perturbed (a pronoun, the
+  adjectives alone, `all except`, two chained, a word nobody knows, `again`),
+  ticks, time, departures and arrivals, and tight budgets, a step budget a
+  line's reading reaches among them, through both runtimes, each reading the
+  lines itself, and writes the first divergence as a
   transcript under the world's `transcripts/`, to be fixed and kept.
   `npm run e2e` runs about two thousand readings over the corpus; longer
   campaigns are run by hand.
 
-What is not compared, and why: a command's parsing in the replay, which
-plays the TypeScript parser's readings (the parse comparison holds the C
-parser to it apart, and the device has none);
-the object a poll's fault names (a C fault carries none); the record of where
+What is not compared, and why: the object a poll's fault names (a C fault carries none); the record of where
 each effect's words were written (an author's tool); any extension but
 `media`. Each is a numbered hole in the working notes. A scene's verbs are
 compared by qualified name alone: the TypeScript scene gives each verb's
@@ -348,11 +350,11 @@ variable is not set).
   `pictures.test.c` the pictures.
 - **The listed plays of the shipped worlds.** Each graduated world may list
   plays in `sprout-player/worlds.json` (the studio's `underground_caverns`
-  lists the whole of Zork, `tests/walkthrough.json`); the player step resolves
-  each with the TypeScript parser and plays it through `sproutc play
-  --offered --poll-steps` under the app's own poll budget, which polls the
-  view before every command and fails where the reading is not among what it
-  offers, a set role one member at a time, as the sentence builder builds it,
+  lists the whole of Zork, `tests/walkthrough.json`); the player step plays
+  each with the TypeScript runtime and through `sproutc play --offered
+  --poll-steps` under the app's own poll budget, which polls the view before
+  every command turn and fails where the reading the TypeScript runtime ran
+  is not among what it offers, a set role one member at a time, as the sentence builder builds it,
   and compares every line with the TypeScript runtime's. A world the chips
   cannot play to the end, or that outgrows the poll budget, fails the build.
 - **Shipped worlds and downloads** are tested at each seam, with no network.

@@ -27,17 +27,16 @@
 // and in the e2e alike.
 //
 // After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
-// every corpus world with transcripts is packed, its scripts resolved by the
-// TypeScript parser, played through `sproutc`, and diffed with the transcript
-// the TypeScript runtime wrote. It prints one line per world and the list of
-// worlds that pass, and fails when that list is not EXPECTED_PASSING. Each
-// later runtime item adds the worlds its change brings in here.
+// every corpus world with transcripts is packed, its scripts played by the
+// TypeScript runtime and then through `sproutc`, which reads each typed line
+// itself, and diffed with what the TypeScript runtime did. It prints one line
+// per world and the list of worlds that pass, and fails when that list is not
+// EXPECTED_PASSING.
 //
 // Then the parser (`replayParses`): every line of those scripts the TypeScript parser read is read again by
 // `sproutc parse`, over the stored world its turn began from, and compared turn by turn. It prints one line per
 // world with how many turns read alike, and fails when the worlds whose every turn reads alike are not
-// EXPECTED_PARSING, or when the comparison itself cannot run. The rest are counted, not failed: the parser is
-// being built, and each piece that lands adds the worlds it brings in.
+// EXPECTED_PARSING, or when the comparison itself cannot run.
 //
 // After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
 // runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without

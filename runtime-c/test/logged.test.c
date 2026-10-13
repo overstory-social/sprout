@@ -1,8 +1,8 @@
 /*
  * Tests for src/logged.c: a turn's outcome as the JSON a host keeps. The entry is in the log's own shape, with
  * every effect at debug depth and, at play depth, their count and the SHA-256 of them read in code-unit order;
- * a command has none until the runtime parses, and a budget the log keeps left unset is the host's defect (the
- * spec's The runtime > The log, Effects, Faults). The replay compares every entry with core's own.
+ * a command's also keeps its words, the step a line planned for it and its draw; and a budget the log keeps left
+ * unset is the host's defect (the spec's The runtime > The log, Effects, Faults). The replay compares every entry with core's own.
  */
 #include "logged.h"
 #include "seeds.h"
@@ -110,19 +110,52 @@ static void a_turn_that_said_nothing_digests_the_empty_list(void) {
   tw_close(&w);
 }
 
-static void a_command_has_no_entry_until_the_runtime_parses(void) {
+/* A command's entry keeps the words, the step a line planned for it, the item it re-read and its draw, each null where it has none. */
+static void a_command_s_entry_keeps_its_words_and_the_step_a_line_planned(void) {
   turn_world w;
   sprout_outcome out;
   sprout_arena scratch;
-  const char *bytes;
-  size_t length;
+  sprout_turn_input typed = tw_input(SPROUT_TURN_COMMAND, 0), planned = tw_input(SPROUT_TURN_COMMAND, 0);
+  sprout_filling filling;
+  sprout_reading crack;
+  char want[512];
   tw_open(&w, "turn-faults");
   tw_arrive(&w, "v-marta", "Marta", 0, &out);
   sprout_outcome_free(&out);
-  tw_do(&w, "v-marta", "crack", "porch.dud", 0, &out);
-  CHECK(out.has_log);
   CHECK_INT(sprout_arena_init(&scratch, &w.host), SPROUT_OK);
-  CHECK_INT(sprout_log_write(&w.host, &out, SPROUT_LOG_PLAY, &scratch, &bytes, &length), SPROUT_BAD_INPUT);
+  typed.visit = "v-marta";
+  typed.text = "xyzzy";
+  typed.text_length = 5;
+  CHECK_INT(tw_run(&w, typed, 7, &out), SPROUT_OK);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY),
+               "{\"kind\":\"command\",\"level\":\"info\",\"seed\":7,") != NULL);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY),
+               "\"visit\":\"v-marta\",\"text\":\"xyzzy\",\"planned\":null,\"reread\":null,\"drawn\":null,\"fault\":null,"
+               "\"effects\":[],\"cutShort\":[],\"digest\":{\"count\":1,") != NULL);
+  sprout_outcome_free(&out);
+  crack = tw_reading("turn_faults.crack", tw_person(&w, "v-marta"), &filling, "target", "turn_faults.porch.dud");
+  planned.visit = "v-marta";
+  planned.text = "crack dud";
+  planned.text_length = 9;
+  planned.planned = &crack;
+  CHECK_INT(tw_run(&w, planned, 8, &out), SPROUT_OK);
+  snprintf(want, sizeof want,
+           "\"text\":\"crack dud\",\"planned\":{\"verb\":{\"library\":\"turn_faults\",\"name\":\"crack\"},\"actor\":\"%s\","
+           "\"bindings\":[[\"target\",{\"object\":\"turn_faults.porch.dud\"}]]},\"reread\":null,\"drawn\":null,",
+           tw_person(&w, "v-marta"));
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY), want) != NULL);
+  sprout_outcome_free(&out);
+  /* A line too costly to read faults its turn, which keeps the world's `fault` told to the one who typed, and cuts nobody short. */
+  w.host.budgets.steps = (sprout_limit){true, 3};
+  typed.text = "crack dud";
+  typed.text_length = 9;
+  CHECK_INT(tw_run(&w, typed, 9, &out), SPROUT_OK);
+  CHECK(out.faulted);
+  CHECK_STR(out.fault_name, "BudgetExhausted");
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG),
+               "\"drawn\":null,\"fault\":{\"level\":\"error\",\"name\":\"BudgetExhausted\",") != NULL);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG), "\"effects\":[{\"kind\":\"notice\",") != NULL);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG), "\"cutShort\":[]}") != NULL);
   sprout_arena_reset(&scratch);
   sprout_outcome_free(&out);
   tw_close(&w);
@@ -170,7 +203,7 @@ int main(void) {
   RUN(canonical_order_sorts_every_object_all_the_way_down);
   RUN(the_play_digest_is_the_sha256_of_the_debug_effects_in_canonical_order);
   RUN(a_turn_that_said_nothing_digests_the_empty_list);
-  RUN(a_command_has_no_entry_until_the_runtime_parses);
+  RUN(a_command_s_entry_keeps_its_words_and_the_step_a_line_planned);
   RUN(a_budget_the_log_keeps_as_a_figure_left_unset_is_the_hosts_defect);
   RUN(effects_in_the_languages_shape_carry_the_actor_and_where_their_words_were_written);
   return REPORT();

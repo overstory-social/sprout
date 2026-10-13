@@ -8,13 +8,19 @@
  * queue's, then the engine's answers; the place a move carried someone to is read among them where the body
  * that moved them ended.
  *
- * Reading typed words is the host's: the turn is handed the reading they make, with the verb, the actor and
- * what fills each role by id. A visitor standing in a place that is gone is displaced instead, and what they
- * typed is not read, since it was typed about where they no longer are (the spec's What absent means).
+ * A command is a reading built from the view's chips, run as it is; or words typed, read first in the turn,
+ * under its budget and on its stream (parse/command.c), as is a later turn a line planned. A line the parser
+ * answers is answered; an intent's first step runs and the rest follow it; and the reading run is remembered as the
+ * visitor's last, with what it was done to as what their pronouns name. A visitor standing in a place that is gone
+ * is displaced instead, and what they typed is not read, since it was typed about where they no longer are (the
+ * spec's What absent means).
  */
 #include <string.h>
 
 #include "../expr/expr.h"
+#include "../intents.h"
+#include "../line.h"
+#include "../parse/parse.h"
 #include "../prose/prose.h"
 #include "../turn.h"
 
@@ -194,26 +200,25 @@ static sprout_status tell_fault(sprout_world *world, sprout_state *state, const 
   return SPROUT_OK;
 }
 
-/* The lines the host's parser says before the reading's own, told to the actor where they stand. */
-static sprout_eval_status asides_told(const sprout_frame *frame, sprout_str actor, const sprout_reading *reading,
-                                      sprout_effect **out, size_t *count) {
+/* The lines the parser says before the reading's own, told to the actor where they stand. */
+static sprout_eval_status asides_told(const sprout_frame *frame, sprout_str actor, size_t aside_count,
+                                      const sprout_aside *asides, sprout_effect **out, size_t *count) {
   const sprout_stored_instance *standing = expr_instance(frame, actor);
-  sprout_effect *made = (sprout_effect *)sprout_arena_take(frame->turn, (reading->aside_count + 2) * sizeof *made);
+  sprout_effect *made = (sprout_effect *)sprout_arena_take(frame->turn, (aside_count + 2) * sizeof *made);
   size_t i;
   *out = made;
   *count = 0;
   if (made == NULL) return SPROUT_EVAL_NO_MEMORY;
-  if (reading->aside_count == 0) return SPROUT_EVAL_OK;
+  if (aside_count == 0) return SPROUT_EVAL_OK;
   if (standing == NULL || !standing->has_container) return expr_engine(frame, "a visitor is told by the parser, and is away.");
-  for (i = 0; i < reading->aside_count; i++) {
-    const sprout_aside *aside = &reading->asides[i];
+  for (i = 0; i < aside_count; i++) {
+    const sprout_aside *aside = &asides[i];
     sprout_effect *effect = &made[*count];
     sprout_effect_binding *bound;
     sprout_str *to = (sprout_str *)sprout_arena_take(frame->turn, sizeof *to);
     size_t n = 0;
     bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, 4 * sizeof *bound);
     if (to == NULL || bound == NULL) return SPROUT_EVAL_NO_MEMORY;
-    if (aside->line == NULL || aside->thing == NULL) return expr_engine(frame, "a line the parser says names no thing.");
     *to = actor;
     memset(effect, 0, sizeof *effect);
     effect->kind = SPROUT_EFFECT_NOTICE;
@@ -239,15 +244,232 @@ static sprout_eval_status asides_told(const sprout_frame *frame, sprout_str acto
   return SPROUT_EVAL_OK;
 }
 
-/* What the host's parser drew while it read the line comes first on the turn's stream. */
-static sprout_eval_status parse_draws(const sprout_frame *frame, turn_run *run, const sprout_reading *reading) {
+/* What a command became before it runs: the reading to run, or the line said in its place, and what the line runs after it. */
+typedef struct commanded {
+  bool reads;               /* a reading runs */
+  sprout_resolved reading;
+  bool answered, stops;     /* no reading runs: a line is said in its place, which ends the line or does not */
+  sprout_effect said;
+  size_t aside_count;
+  const sprout_aside *asides;
+  uint64_t drawn_among;
+  bool several;             /* an intent's or a line's planned turns follow it */
+  sprout_reading *read;     /* the reading as a host reads it */
+  size_t next_count;
+  const sprout_following *next;
+} commanded;
+
+#ifndef SPROUT_NO_PARSER
+
+/* The parser's answer to a line it did not read as a reading, said to the actor: an exit's refusal as a refusal, every other as a notice. */
+static sprout_eval_status answer_told(const sprout_frame *frame, sprout_str actor, const parse_answer *said,
+                                      sprout_effect *out) {
+  sprout_str *to = (sprout_str *)sprout_arena_take(frame->turn, sizeof *to);
+  sprout_effect_binding *bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, (said->binding_count + 1) * sizeof *bound);
   size_t i;
-  for (i = 0; i < reading->draw_count; i++) {
-    uint32_t drawn;
-    if (!sprout_draws_below(run->draws, reading->draws[i], &drawn))
-      return expr_engine(frame, "the parser drew below a bound that no draw takes.");
+  if (to == NULL || bound == NULL) return SPROUT_EVAL_NO_MEMORY;
+  *to = actor;
+  memset(out, 0, sizeof *out);
+  out->kind = strcmp(said->answer, "refused") == 0 ? SPROUT_EFFECT_REFUSED : SPROUT_EFFECT_NOTICE;
+  out->to = to;
+  out->to_count = 1;
+  out->by = said->by;
+  out->said = said->said;
+  for (i = 0; i < said->binding_count; i++) {
+    const sprout_said_binding *one = &said->bindings[i];
+    bound[i].name = one->name;
+    if (one->object) {
+      bound[i].bound = sprout_evaluated_object(one->text);
+    } else {
+      sprout_value words;
+      if (!sprout_string(frame->turn, one->text.bytes, one->text.length, &words)) return SPROUT_EVAL_NO_MEMORY;
+      bound[i].bound = sprout_evaluated_value(words);
+    }
   }
+  out->bindings = bound;
+  out->binding_count = said->binding_count;
   return SPROUT_EVAL_OK;
+}
+
+/* The engine's `nothing_happens`, said to the actor where they stand: a line whose intent planned no step to run. */
+static sprout_eval_status nothing_happens(const sprout_frame *frame, sprout_str actor, sprout_effect *out) {
+  const sprout_stored_instance *standing = expr_instance(frame, actor);
+  sprout_str *to = (sprout_str *)sprout_arena_take(frame->turn, sizeof *to);
+  sprout_effect_binding *bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, 2 * sizeof *bound);
+  if (to == NULL || bound == NULL) return SPROUT_EVAL_NO_MEMORY;
+  if (standing == NULL || !standing->has_container) return expr_engine(frame, "a visitor's intent planned nothing, and they are away.");
+  *to = actor;
+  memset(out, 0, sizeof *out);
+  out->kind = SPROUT_EFFECT_SAID;
+  out->to = to;
+  out->to_count = 1;
+  sprout_engine_said(frame, "nothing_happens", &actor, &standing->container, &out->by, &out->said);
+  bound[0].name = "actor";
+  bound[0].bound = sprout_evaluated_object(actor);
+  bound[1].name = "here";
+  bound[1].bound = sprout_evaluated_object(standing->container);
+  out->bindings = bound;
+  out->binding_count = 2;
+  return SPROUT_EVAL_OK;
+}
+
+/* `reading` as a host reads one, in `keep`, its roles in the order bound. */
+static bool resolved_out(sprout_arena *keep, sprout_arena *turn, const sprout_resolved *reading, sprout_reading *out) {
+  sprout_stored_bound *bounds = (sprout_stored_bound *)sprout_arena_take(turn, (reading->bound_count + 1) * sizeof *bounds);
+  parse_reading read;
+  size_t i;
+  if (bounds == NULL) return false;
+  for (i = 0; i < reading->bound_count; i++) bounds[i] = reading->roles[reading->bound_order[i]].bound;
+  memset(&read, 0, sizeof read);
+  read.verb = reading->verb;
+  read.actor = reading->actor;
+  read.count = reading->bound_count;
+  read.roles = reading->bound_order;
+  read.bounds = bounds;
+  return parse_reading_out(keep, &read, out);
+}
+
+
+/*
+ * An intent's steps planned (the spec's Parsing > Intents): the first is the reading this turn runs, and the rest
+ * are planned turns before the line's own; with none to run, the line is answered `nothing_happens` and goes on.
+ */
+static sprout_eval_status intended(turn_run *run, const sprout_frame *frame, sprout_arena *keep, sprout_str actor,
+                                   const parse_reading *reading, const sprout_parsed *parsed, commanded *out) {
+  const sprout_intent *intent = reading->intent;
+  sprout_filled *slots = (sprout_filled *)sprout_arena_take(run->x.turn, (intent->slot_count + 1) * sizeof *slots);
+  const sprout_resolved *planned;
+  sprout_intended meant;
+  sprout_following *next;
+  size_t count, i;
+  if (slots == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < reading->count; i++) {
+    slots[reading->roles[i]].filled = true;
+    slots[reading->roles[i]].bound = reading->bounds[i];
+  }
+  meant.intent = intent;
+  meant.actor = reading->actor;
+  meant.slots = slots;
+  EXPR_NEED(sprout_plan_intent(frame, &meant, &planned, &count));
+  out->next = next = (sprout_following *)sprout_arena_take(keep, (count + parsed->rest_count + 1) * sizeof *next);
+  if (next == NULL) return SPROUT_EVAL_NO_MEMORY;
+  if (count == 0) {
+    memcpy(next, parsed->rest, parsed->rest_count * sizeof *next);
+    out->next_count = parsed->rest_count;
+    out->answered = true;
+    return nothing_happens(frame, actor, &out->said);
+  }
+  for (i = 1; i < count; i++) {
+    sprout_reading *step = (sprout_reading *)sprout_arena_take(keep, sizeof *step);
+    if (step == NULL || !resolved_out(keep, run->x.turn, &planned[i], step)) return SPROUT_EVAL_NO_MEMORY;
+    next[out->next_count++].planned = step;
+  }
+  memcpy(next + out->next_count, parsed->rest, parsed->rest_count * sizeof *next);
+  out->next_count += parsed->rest_count;
+  out->reads = true;
+  out->reading = planned[0];
+  out->several = true;
+  out->read = (sprout_reading *)sprout_arena_take(keep, sizeof *out->read);
+  if (out->read == NULL || !resolved_out(keep, run->x.turn, &planned[0], out->read)) return SPROUT_EVAL_NO_MEMORY;
+  return SPROUT_EVAL_OK;
+}
+
+#endif
+
+/*
+ * Reads what the visitor typed, or what a line handed the turn, in the turn (the spec's The runtime > Turns): the
+ * reading to run, with what is said before it, or the parser's answer. A call the parser refuses is the host's
+ * defect, its words in `words`; a parse that faulted is the turn's fault.
+ */
+static sprout_status read_command(turn_run *run, const sprout_frame *frame, const sprout_turn_input *input,
+                                  sprout_arena *keep, sprout_str actor, commanded *out, sprout_eval_status *eval,
+                                  sprout_fault *words) {
+  sprout_handed handed;
+  sprout_parsed parsed;
+  parse_turned turned;
+  sprout_str line = {"", 0};
+  sprout_status status;
+  size_t i;
+  handed.planned = input->planned;
+  handed.reread = input->reread;
+  if (input->text != NULL) {
+    line.bytes = input->text;
+    line.length = input->text_length;
+  }
+  status = parse_command_turn(run, input->visit, line, input->planned == NULL ? NULL : &handed, keep, &parsed, &turned);
+  if (status != SPROUT_OK) {
+    memcpy(words->text, parsed.fault.text, sizeof words->text);
+    return status;
+  }
+  *eval = SPROUT_EVAL_OK;
+#ifdef SPROUT_NO_PARSER
+  /* A runtime built without the parser refuses every typed line above, so no parse comes this far. */
+  (void)frame, (void)keep, (void)actor, (void)out, (void)i, (void)turned;
+  return SPROUT_BAD_INPUT;
+#else
+  switch (parsed.end) {
+    case SPROUT_PARSED_FAULTED:
+      *eval = turned.status;
+      return SPROUT_OK;
+    case SPROUT_PARSED_ANSWERED:
+      out->answered = out->stops = true;
+      *eval = answer_told(frame, actor, &turned.said, &out->said);
+      return SPROUT_OK;
+    case SPROUT_PARSED_INTENT:
+      *eval = intended(run, frame, keep, actor, &turned.reading, &parsed, out);
+      break;
+    case SPROUT_PARSED_READING:
+      out->reads = true;
+      *eval = parse_resolved_of(frame, &turned.reading, &out->reading);
+      out->next = parsed.rest;
+      out->next_count = parsed.rest_count;
+      out->read = (sprout_reading *)sprout_arena_take(keep, sizeof *out->read);
+      if (out->read == NULL) *eval = SPROUT_EVAL_NO_MEMORY;
+      else *out->read = parsed.reading;
+      for (i = 0; i < parsed.rest_count; i++) out->several = out->several || parsed.rest[i].planned != NULL;
+      break;
+  }
+  out->asides = parsed.asides;
+  out->aside_count = parsed.aside_count;
+  out->drawn_among = parsed.drawn ? parsed.drawn_among : 0;
+  return SPROUT_OK;
+#endif
+}
+
+/* Whether the effect pass said a refusal to the actor among the lines from `from` on, which stops a line's steps. */
+static bool refused_actor(const sprout_exec *x, size_t from, sprout_str actor) {
+  size_t i, j;
+  for (i = from; i < x->effect_count; i++) {
+    if (x->effects[i].kind != SPROUT_EFFECT_REFUSED) continue;
+    for (j = 0; j < x->effects[i].to_count; j++)
+      if (sprout_str_same(x->effects[i].to[j], actor)) return true;
+  }
+  return false;
+}
+
+/* The words a turn was handed, the step a line planned for it and the item it re-read, copied into the log entry. */
+static sprout_status logged_command(sprout_outcome *outcome, const sprout_turn_input *input) {
+  sprout_arena *keep = turn_keep(outcome);
+  sprout_log_entry *log = &outcome->log;
+  if (input->text != NULL) {
+    log->text.bytes = sprout_arena_copy(keep, input->text, input->text_length);
+    log->text.length = input->text_length;
+    if (log->text.bytes == NULL) return SPROUT_NO_MEMORY;
+  }
+  if (input->planned != NULL && (log->planned = sprout_reading_copy(keep, input->planned)) == NULL) return SPROUT_NO_MEMORY;
+  if (input->reread != NULL && (log->reread = sprout_reread_copy(keep, input->reread)) == NULL) return SPROUT_NO_MEMORY;
+  log->drawn_among = outcome->drawn_among;
+  return SPROUT_OK;
+}
+
+/* Words for a command the host should not have handed over, or NULL. */
+static const char *misshapen(const sprout_turn_input *input) {
+  if (input->visit == NULL) return "a command names the visit that typed it.";
+  if (input->reading != NULL && input->planned != NULL) return "a command is a reading or a planned step, not both.";
+  if (input->reread != NULL && input->planned == NULL) return "an item of a run is re-read only beside the reading planned for it.";
+  if (input->reading == NULL && input->planned == NULL && input->text == NULL)
+    return "a command is a reading built from chips, a typed line, or a step a line planned.";
+  return NULL;
 }
 
 sprout_status turn_command(sprout_world *world, sprout_state *state, const sprout_host *host,
@@ -259,23 +481,25 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   sprout_frame frame;
   sprout_status status;
   sprout_eval_status eval;
-  sprout_resolved resolved;
   sprout_permit_refusal refusal;
   sprout_reading_end end = SPROUT_READING_ACTED;
   sprout_effect before[2], *asides = NULL;
-  size_t before_count = 0, arrival_count = 0, answer_count = 0, aside_count = 0;
+  size_t before_count = 0, arrival_count = 0, answer_count = 0, aside_count = 0, said_from = 0;
   const sprout_arrived *arrivals = NULL;
   const sprout_effect *engine = NULL;
+  const char *wrong = misshapen(input);
+  commanded c;
   bool gone, refused_here = false;
   uint64_t seed;
-  if (input->visit == NULL || input->reading == NULL) return turn_refuse(outcome, "a command names a visit and a reading.", "", "");
+  if (wrong != NULL) return turn_refuse(outcome, wrong, "", "");
   record = turn_visitor(state, input->visit);
   if (record == NULL) return turn_refuse(outcome, "`", input->visit, "` has never visited this world.");
   instance = sprout_state_find(state, record->instance);
   if (instance == NULL || !instance->has_container)
     return turn_refuse(outcome, "`", input->visit, "` is not in this world, so cannot act in it.");
-  if (input->reading->actor == NULL || strlen(input->reading->actor) != record->instance.length ||
-      memcmp(input->reading->actor, record->instance.bytes, record->instance.length) != 0)
+  if (input->reading != NULL &&
+      (input->reading->actor == NULL || strlen(input->reading->actor) != record->instance.length ||
+       memcmp(input->reading->actor, record->instance.bytes, record->instance.length) != 0))
     return turn_refuse(outcome, "the reading is not `", input->visit, "`'s: its actor is not the visitor.");
   status = turn_outcome_begin(host, outcome);
   if (status != SPROUT_OK) return status;
@@ -289,35 +513,50 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   frame = sprout_exec_frame(&run.x, actor, NULL, NULL);
   gone = !turn_stands_in_place(&frame, actor);
   memset(&refusal, 0, sizeof refusal);
+  memset(&c, 0, sizeof c);
   eval = SPROUT_EVAL_OK;
   if (gone) {
     /* What they typed is not read; they are told where they are instead. */
     eval = displaced(&run, visit, actor, &refused_here, before, &before_count, &arrivals, &arrival_count);
-  } else {
-    status = sprout_reading_resolve(world, &run.draft, &run.scratch, input->reading, &resolved, outcome->fault.text,
+  } else if (input->reading != NULL) {
+    /* A reading built from chips is run as it is, once what it names is checked against the world. */
+    status = sprout_reading_resolve(world, &run.draft, &run.scratch, input->reading, &c.reading, outcome->fault.text,
                                     sizeof outcome->fault.text);
     if (status != SPROUT_OK) {
       turn_drop(&run);
       return turn_abort(outcome, status);
     }
-    eval = parse_draws(&frame, &run, input->reading);
-    if (eval == SPROUT_EVAL_OK) eval = asides_told(&frame, actor, input->reading, &asides, &aside_count);
-    if (eval == SPROUT_EVAL_OK) eval = sprout_reading_exits(&frame, &resolved);
-    if (eval == SPROUT_EVAL_OK) eval = sprout_perform(&run.x, &frame, &resolved, &end, &refusal);
-    if (eval == SPROUT_EVAL_OK) eval = remember(&run, visit, &resolved);
+    c.reads = true;
+    eval = sprout_reading_exits(&frame, &c.reading);
+  } else {
+    status = read_command(&run, &frame, input, turn_keep(outcome), actor, &c, &eval, &outcome->fault);
+    if (status != SPROUT_OK) {
+      turn_drop(&run);
+      return turn_abort(outcome, status);
+    }
+  }
+  if (eval == SPROUT_EVAL_OK && c.reads) {
+    eval = asides_told(&frame, actor, c.aside_count, c.asides, &asides, &aside_count);
+    said_from = run.x.effect_count;
+    if (eval == SPROUT_EVAL_OK) eval = sprout_perform(&run.x, &frame, &c.reading, &end, &refusal);
+    if (eval == SPROUT_EVAL_OK) eval = remember(&run, visit, &c.reading);
     if (eval == SPROUT_EVAL_OK && end == SPROUT_READING_REFUSED) {
       /* The refusal ends the turn: nothing was queued, and nothing is read in. */
       eval = refusal_told(&frame, actor, &refusal, &before[0]);
       before_count = 1;
     } else if (eval == SPROUT_EVAL_OK) {
+      outcome->goes_on = !refused_actor(&run.x, said_from, actor);
       eval = sprout_exec_drain(&run.x);
       if (eval == SPROUT_EVAL_OK) eval = sprout_arrivals_read(&run.x, &frame, &arrivals, &arrival_count);
-      if (eval == SPROUT_EVAL_OK) eval = sprout_engine_answers(&run.x, &frame, &resolved, &engine, &answer_count);
+      if (eval == SPROUT_EVAL_OK) eval = sprout_engine_answers(&run.x, &frame, &c.reading, &engine, &answer_count);
     }
   }
   if (eval == SPROUT_EVAL_OK) {
     if (gone) {
       eval = sprout_lines_assembled(&run.x, before, before_count, arrivals, arrival_count, NULL, 0);
+    } else if (c.answered) {
+      /* The parser's answer, or an intent's `nothing_happens`, is all the turn says. */
+      eval = sprout_lines_assembled(&run.x, &c.said, 1, NULL, 0, NULL, 0);
     } else if (end == SPROUT_READING_REFUSED) {
       /* What the parser said, then the refusal. */
       sprout_effect *both = (sprout_effect *)sprout_arena_take(run.x.turn, (aside_count + 2) * sizeof *both);
@@ -341,6 +580,20 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
     }
     outcome->committed = outcome->state_changed = true;
     outcome->result = SPROUT_RESULT_DONE;
+    /* A line goes on past a reading that refused its actor nothing, and past an answer that does not stop it. */
+    outcome->answered = c.answered;
+    if (c.answered) outcome->goes_on = !c.stops;
+    if (c.reads) {
+      outcome->drawn_among = c.drawn_among;
+      /* A turn of a line of several readings planned at once, an intent's, `all`'s or a run's, is a step the host logs. */
+      if (input->planned != NULL || c.several) outcome->step = c.read;
+    }
+    if (end == SPROUT_READING_REFUSED) {
+      outcome->goes_on = false;
+    } else {
+      outcome->next = c.next;
+      outcome->next_count = c.next_count;
+    }
   } else if (eval == SPROUT_EVAL_NO_MEMORY) {
     turn_drop(&run);
     return turn_abort(outcome, SPROUT_NO_MEMORY);
@@ -350,19 +603,14 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
       return turn_abort(outcome, SPROUT_NO_MEMORY);
     }
     outcome->line_count = outcome->effect_count = outcome->cut_count = 0;
+    outcome->goes_on = false;
     turn_drop(&run);
     status = tell_fault(world, state, host, seed, input->instant, actor, visit, outcome);
     if (status != SPROUT_OK) return turn_abort(outcome, status);
   }
   turn_drop(&run);
   status = turn_log(&run, outcome, visit.bytes, visit.length);
-  if (status == SPROUT_OK && input->text != NULL) {
-    sprout_str text;
-    text.bytes = sprout_arena_copy(turn_keep(outcome), input->text, input->text_length);
-    text.length = input->text_length;
-    if (text.bytes == NULL) status = SPROUT_NO_MEMORY;
-    else outcome->log.text = text;
-  }
+  if (status == SPROUT_OK) status = logged_command(outcome, input);
   if (status != SPROUT_OK) return turn_abort(outcome, status);
   return SPROUT_OK;
 }

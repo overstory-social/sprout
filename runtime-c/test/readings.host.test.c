@@ -2,6 +2,7 @@
  * Tests for host/readings.c: a readings file read into steps and turns, a skipped turn marked, what the parser read
  * beside each turn, a reading's fillers and the budgets a script was played under, and a bad file refused in words.
  */
+#include "reading_json.h"
 #include "readings.h"
 #include "host.h"
 #include "check.h"
@@ -18,7 +19,7 @@ static void written(const char *text) {
 static const char *SAMPLE =
     "{\"format\":1,\"script\":\"order.json\",\"steps\":["
     "{\"index\":0,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":3,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
-    "{\"index\":1,\"line\":\"Ines> north\",\"atSeconds\":0,\"seed\":3,\"kind\":\"command\",\"nickname\":\"Ines\",\"turns\":["
+    "{\"index\":1,\"line\":\"Ines> north\",\"atSeconds\":0,\"seed\":3,\"kind\":\"command\",\"nickname\":\"Ines\",\"typed\":\"north\",\"turns\":["
     "{\"typed\":\"north\",\"seed\":3,\"skip\":false,\"verb\":\"sprout.go\",\"actor\":\"w#1\",\"fillers\":["
     "{\"role\":\"way\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"into the cave\",\"to\":\"w.cave\"}],"
     "\"refused\":false},"
@@ -57,6 +58,7 @@ static void a_read_turn_carries_its_verb_and_fillers_and_a_skipped_turn_says_why
   written(SAMPLE);
   CHECK(sproutc_readings_open(&readings, &host.record, PATH) == NULL);
   CHECK(sproutc_readings_step(&readings, 1, &step) == NULL);
+  CHECK_STR(step.typed, "north");
   CHECK_INT(step.turns, 2);
   CHECK(sproutc_readings_turn(&step, 0, &turn) == NULL);
   CHECK(!turn.skip);
@@ -96,7 +98,7 @@ static const char *PARSED =
     "{\"format\":1,\"script\":\"p.json\",\"budgets\":{\"steps\":40},\"steps\":["
     "{\"index\":0,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":3,\"kind\":\"arrive\",\"nickname\":\"Ines\","
     "\"after\":{\"says\":[],\"turns\":[],\"world\":{\"serial\":1}}},"
-    "{\"index\":1,\"line\":\"Ines> sing\",\"atSeconds\":0,\"seed\":3,\"kind\":\"command\",\"nickname\":\"Ines\",\"turns\":["
+    "{\"index\":1,\"line\":\"Ines> sing\",\"atSeconds\":0,\"seed\":3,\"kind\":\"command\",\"nickname\":\"Ines\",\"typed\":\"sing\",\"turns\":["
     "{\"typed\":\"sing\",\"seed\":3,\"skip\":true,\"why\":\"unknown\",\"parsed\":{\"steps\":4}},"
     "{\"typed\":\"sing\",\"seed\":4,\"skip\":true,\"why\":\"unknown\",\"handed\":{\"planned\":{}},"
     "\"before\":{\"serial\":2}}]}]}";
@@ -137,7 +139,7 @@ static void fillers_and_budgets_are_read_as_the_typescript_runtime_names_them(vo
   CHECK(sproutc_readings_open(&readings, &host.record, PATH) == NULL);
   CHECK(sproutc_readings_step(&readings, 1, &step) == NULL);
   CHECK(sproutc_readings_turn(&step, 0, &turn) == NULL);
-  CHECK(sproutc_readings_fillings(&readings.arena, turn.fillers, &fillings, &count) == NULL);
+  CHECK(sprout_fillings_of_tree(&readings.arena, turn.fillers, &fillings, &count) == NULL);
   CHECK_INT(count, 1);
   CHECK_INT(fillings[0].binds, SPROUT_FILL_EXIT);
   CHECK_STR(fillings[0].id, "w.cave");

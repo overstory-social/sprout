@@ -172,8 +172,17 @@ describe('resolveScript', () => {
     const [unlocked, opened] = commandOf(readings.steps[3]).turns;
     // The line ties between the keys, so the first turn draws; the step it planned is read as handed, drawing nothing.
     expect(unlocked?.parsed).toMatchObject({ intent: { intent: 'sprout.open_with' }, draws: [2] });
-    expect(unlocked?.skip === false && unlocked.draws).toEqual([2]);
-    expect(opened?.skip === false && opened.draws).toEqual([]);
+    expect(commandOf(readings.steps[3]).typed).toBe('open chest with key');
+    // The draw is the first turn's, which its entry keeps; the planned step's entry keeps what it was handed.
+    const [first, second] = readings.steps[3]?.after?.turns ?? [];
+    expect(first).toMatchObject({
+      text: 'open chest with key',
+      planned: null,
+      reread: null,
+      drawn: 2,
+    });
+    expect(second).toMatchObject({ text: 'open chest with key', reread: null, drawn: null });
+    expect(second?.planned).toEqual(opened?.handed?.planned);
     expect(opened?.parsed).toMatchObject({
       reading: { verb: 'sprout.open' },
       rest: [],

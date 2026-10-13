@@ -1,7 +1,8 @@
 /*
  * Tests for host/script.c: a script's steps driven through the turn call on the world the TypeScript player
  * drives them on. A tick tells each place that holds a visitor, time moved on delivers nothing while nobody
- * stands in the world, and a departure empties it; each step prints what it told.
+ * stands in the world, and a departure empties it; a typed line is read by the runtime, a turn to each command;
+ * each step prints what it told.
  */
 #include "play.h"
 #include "check.h"
@@ -78,21 +79,32 @@ static void a_tick_tells_the_places_that_hold_a_visitor_and_a_departure_empties_
   remove(READINGS);
 }
 
-static void a_step_that_the_parser_answered_is_echoed_not_run(void) {
+/* A typed line is read by the runtime, each command a turn: a line it cannot read is answered, and ends the line. */
+static void a_typed_line_is_read_by_the_runtime_as_the_turns_it_runs(void) {
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
   const char *readings =
       "{\"format\":1,\"script\":\"s.json\",\"steps\":["
       "{\"index\":0,\"line\":\"@arrive Marta\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Marta\"},"
-      "{\"index\":1,\"line\":\"plugh\",\"atSeconds\":0,\"seed\":0,\"kind\":\"command\",\"nickname\":\"Marta\",\"turns\":["
-      "{\"typed\":\"plugh\",\"seed\":0,\"skip\":true,\"why\":\"Nothing happens.\","
-      "\"says\":[{\"reader\":\"Marta\",\"kind\":\"notice\",\"words\":\"I do not know that word.\"}]}]}]}";
+      "{\"index\":1,\"line\":\"Marta> look then look\",\"atSeconds\":0,\"seed\":0,\"kind\":\"command\",\"nickname\":\"Marta\","
+      "\"typed\":\"look then look\",\"turns\":[]},"
+      "{\"index\":2,\"line\":\"Marta> plugh. look\",\"atSeconds\":0,\"seed\":0,\"kind\":\"command\",\"nickname\":\"Marta\","
+      "\"typed\":\"plugh. look\",\"turns\":[]}]}";
   static char output[1 << 17];
+  const char *step, *last;
   put_world();
   put(SCRIPT, "{\"steps\":[]}", 12);
   put(READINGS, readings, strlen(readings));
   CHECK_INT(run(4, argv), 0);
   strcpy(output, slurp(OUT));
-  CHECK(strstr(output, "Marta (notice): I do not know that word.\n") != NULL);
+  step = strstr(output, "## step 1: Marta> look then look\n");
+  last = strstr(output, "## step 2: Marta> plugh. look\n");
+  CHECK(step != NULL && last != NULL);
+  if (step != NULL && last != NULL) {
+    const char *first = strstr(step, "Marta (described):"), *second = first == NULL ? NULL : strstr(first + 1, "Marta (described):");
+    CHECK(second != NULL && second < last);
+    CHECK_STR(last, "## step 2: Marta> plugh. look\nMarta (notice): That is not something you can do here.\n");
+  }
+  CHECK_STR(slurp(ERR), "");
   remove(WORLD);
   remove(SCRIPT);
   remove(READINGS);
@@ -100,7 +112,7 @@ static void a_step_that_the_parser_answered_is_echoed_not_run(void) {
 
 int main(void) {
   RUN(a_tick_tells_the_places_that_hold_a_visitor_and_a_departure_empties_the_world);
-  RUN(a_step_that_the_parser_answered_is_echoed_not_run);
+  RUN(a_typed_line_is_read_by_the_runtime_as_the_turns_it_runs);
   remove(OUT);
   remove(ERR);
   return REPORT();

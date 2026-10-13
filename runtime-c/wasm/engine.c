@@ -14,6 +14,7 @@
 #include "arena.h"
 #include "json.h"
 #include "logged.h"
+#include "reading_json.h"
 #include "sprout.h"
 #include "state.h"
 #include "view_json.h"
@@ -148,6 +149,12 @@ static sprout_world *world;
 static sprout_state *state;
 static sprout_arena scratch;
 
+/* The line under way, in an arena of its own that lasts from sw_line to the next: the command it hands out next, once the one before ran. */
+static sprout_arena line_keep;
+static sprout_commands line;
+static sprout_turn_input pending;
+static bool line_more, line_waiting;
+
 /* ---- crossing: one input buffer the host writes into, one output it reads ---- */
 
 /* The largest input the host may hand in at once. */
@@ -236,6 +243,7 @@ EXPORT("sw_load") int sw_load(size_t length) {
     host.emit = host_emit;
     budgets(&host.budgets);
     status = sprout_arena_init(&scratch, &host);
+    if (status == SPROUT_OK) status = sprout_arena_init(&line_keep, &host);
     if (status != SPROUT_OK) return status;
   }
   begin(0);
@@ -321,16 +329,40 @@ static int with_member(const char *head, size_t head_length, const char *name, c
   return SPROUT_OK;
 }
 
+/* What a command turn says of its line, as told() lists it, added to `root`; false when a page is refused. */
+static bool commanded(const sprout_outcome *outcome, sprout_json *root) {
+  sprout_json *answered = sprout_json_make(&scratch, SPROUT_JSON_BOOL, 0), *goes_on = sprout_json_make(&scratch, SPROUT_JSON_BOOL, 0);
+  sprout_json *next = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, outcome->next_count), *drawn;
+  size_t i;
+  if (answered == NULL || goes_on == NULL || next == NULL) return false;
+  answered->boolean = outcome->answered;
+  goes_on->boolean = outcome->goes_on;
+  if (outcome->drawn_among == 0) {
+    drawn = sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
+  } else if ((drawn = sprout_json_make(&scratch, SPROUT_JSON_NUMBER, 0)) != NULL) {
+    drawn->number = (double)outcome->drawn_among;
+  }
+  for (i = 0; i < outcome->next_count; i++) sprout_json_adopt(next, NULL, sprout_following_tree(&scratch, &outcome->next[i]));
+  sprout_json_adopt(root, "answered", answered);
+  sprout_json_adopt(root, "drawn", drawn);
+  sprout_json_adopt(root, "step", outcome->step == NULL ? sprout_json_make(&scratch, SPROUT_JSON_NULL, 0)
+                                                         : sprout_reading_tree(&scratch, "verb", outcome->step));
+  sprout_json_adopt(root, "next", next);
+  sprout_json_adopt(root, "goesOn", goes_on);
+  return next->count == outcome->next_count;
+}
+
 /*
  * A turn's outcome as JSON: what it came to, whether the stored state changed, its fault in the language's
  * shape, the words a host tells a person outside the world where an arrival was closed or faulted, every
  * line by reader, what it said as the language's effects, and who it cut short, by instance. `changes` is
  * what the store writes, null where it wrote nothing; `stale` whose views it made stale, null where it faulted.
- * `entry` is what the log keeps of it at this instance's depth, null for a command, whose entry keeps what
- * the host's parser read (#624).
+ * `entry` is what the log keeps of it at this instance's depth. A command also gives `answered`, that no reading
+ * ran; `drawn`, how many readings tied where its reading was drawn, or null; `step`, the reading it ran as a step of
+ * a line of several, or null; `next`, the turns its line runs after it; and `goesOn`, that the line goes on.
  */
 static int told(const sprout_outcome *outcome) {
-  sprout_json *root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 9);
+  sprout_json *root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 14);
   sprout_json *lines = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, outcome->line_count);
   sprout_json *cuts = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, outcome->cut_count);
   sprout_json *stale = sprout_json_make(&scratch, outcome->committed ? SPROUT_JSON_ARRAY : SPROUT_JSON_NULL,
@@ -371,12 +403,14 @@ static int told(const sprout_outcome *outcome) {
   for (i = 0; outcome->committed && i < outcome->stale_count; i++)
     sprout_json_adopt(stale, NULL, text(outcome->stale[i].bytes, outcome->stale[i].length));
   sprout_json_adopt(root, "stale", stale);
-  if (outcome->has_log && outcome->log.kind != SPROUT_TURN_COMMAND) {
+  if (outcome->has_log) {
     status = sprout_logged_entry(&scratch, &host, outcome, log_depth, &entry);
     if (status != SPROUT_OK) return status;
   }
   sprout_json_adopt(root, "entry", entry != NULL ? entry : sprout_json_make(&scratch, SPROUT_JSON_NULL, 0));
-  if (root->count != 9 || lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
+  if (outcome->has_log && outcome->log.kind == SPROUT_TURN_COMMAND && !commanded(outcome, root)) return SPROUT_NO_MEMORY;
+  if (root->count != (outcome->has_log && outcome->log.kind == SPROUT_TURN_COMMAND ? 14 : 9) ||
+      lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
       (outcome->committed && stale->count != outcome->stale_count))
     return SPROUT_NO_MEMORY;
   status = sprout_json_write(&scratch, root, &head, &head_length);
@@ -395,6 +429,11 @@ static int run(sprout_turn_input *in) {
   int said = status == SPROUT_OK ? told(&outcome)
              : status == SPROUT_BAD_INPUT ? answer_text(status, outcome.fault.text)
                                           : answer_text(status, sprout_status_text(status));
+  /* A line waiting on a command turn is handed what it came to, so its next command is ready; one that could not run ends it. */
+  if (in->kind == SPROUT_TURN_COMMAND && line_waiting) {
+    line_waiting = false;
+    if (status != SPROUT_OK || sprout_line_next(&line, &outcome, &pending, &line_more) != SPROUT_OK) line_more = false;
+  }
   sprout_outcome_free(&outcome);
   return said;
 }
@@ -502,92 +541,38 @@ static const char *string_at(const sprout_json *object, const char *key) {
   return found->bytes;
 }
 
-/* The array member `key` of `object`, or NULL where it has none. */
-static const sprout_json *array_at(const sprout_json *object, const char *key) {
+/* The member `key` of `object` where it is neither missing nor null. */
+static const sprout_json *given(const sprout_json *object, const char *key) {
   const sprout_json *found = object == NULL ? NULL : sprout_json_get(object, key);
-  return found != NULL && found->kind == SPROUT_JSON_ARRAY ? found : NULL;
+  return found != NULL && found->kind != SPROUT_JSON_NULL ? found : NULL;
 }
 
-/* A reading's fillings from fillers as a view writes them, or as the readings file does (`value`); words for what is wrong. */
-static const char *fillings_of(const sprout_json *fillers, sprout_filling **out) {
-  sprout_filling *found = (sprout_filling *)sprout_arena_take(&scratch, (fillers->count + 1) * sizeof *found);
-  size_t i, j;
-  if (found == NULL) return "There is no memory for the reading.";
-  for (i = 0; i < fillers->count; i++) {
-    const sprout_json *one = fillers->items[i];
-    const char *role = string_at(one, "role"), *binds = string_at(one, "binds");
-    const sprout_json *ids = array_at(one, "ids"), *value = one == NULL ? NULL : sprout_json_get(one, "value");
-    if (role == NULL || binds == NULL) return "A filler names no role, or does not say what it binds.";
-    found[i].role = role;
-    if (strcmp(binds, "unbound") == 0) {
-      found[i].binds = SPROUT_FILL_UNBOUND;
-    } else if (strcmp(binds, "object") == 0 && string_at(one, "id") != NULL) {
-      found[i].binds = SPROUT_FILL_OBJECT;
-      found[i].id = string_at(one, "id");
-    } else if (strcmp(binds, "set") == 0 && ids != NULL) {
-      const char **list = (const char **)sprout_arena_take(&scratch, (ids->count + 1) * sizeof *list);
-      if (list == NULL) return "There is no memory for the reading.";
-      for (j = 0; j < ids->count; j++) {
-        if (ids->items[j]->kind != SPROUT_JSON_STRING) return "A set filler holds something other than ids.";
-        list[j] = ids->items[j]->bytes;
-      }
-      found[i].binds = SPROUT_FILL_SET;
-      found[i].ids = list;
-      found[i].id_count = ids->count;
-    } else if (strcmp(binds, "exit") == 0 && string_at(one, "to") != NULL && string_at(one, "label") != NULL) {
-      found[i].binds = SPROUT_FILL_EXIT;
-      found[i].id = string_at(one, "to");
-      found[i].label = string_at(one, "label");
-      found[i].direction = string_at(one, "direction");
-    } else if (strcmp(binds, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_STRING) {
-      found[i].binds = SPROUT_FILL_TEXT;
-      found[i].text = value->bytes;
-    } else if (strcmp(binds, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_NUMBER) {
-      found[i].binds = SPROUT_FILL_NUMBER;
-      found[i].number = value->number;
-    } else {
-      return "A filler binds what no role takes, or lacks what it binds.";
-    }
+/* A command's words, the reading a line planned for it and the item it re-reads, from `root`; NULL, or words. */
+static const char *typed_of(const sprout_json *root, sprout_turn_input *in) {
+  const sprout_json *planned = given(root, "planned"), *reread = given(root, "reread");
+  const char *wrong;
+  in->text = string_at(root, "text");
+  if (in->text == NULL) return "A command names its visit and the words typed, or a verb and its fillers.";
+  in->text_length = strlen(in->text);
+  if (planned != NULL) {
+    sprout_reading *read = (sprout_reading *)sprout_arena_take(&scratch, sizeof *read);
+    if (read == NULL) return "There is no memory for the reading.";
+    if ((wrong = sprout_reading_of_tree(&scratch, planned, read)) != NULL) return wrong;
+    in->planned = read;
   }
-  *out = found;
-  return NULL;
-}
-
-/* What the host's parser drew and said before the reading's own lines, as the readings file writes them. */
-static const char *parsing_of(const sprout_json *root, sprout_reading *reading) {
-  const sprout_json *draws = array_at(root, "draws"), *asides = array_at(root, "asides");
-  size_t i;
-  if (draws != NULL && draws->count > 0) {
-    uint64_t *bounds = (uint64_t *)sprout_arena_take(&scratch, draws->count * sizeof *bounds);
-    if (bounds == NULL) return "There is no memory for the reading.";
-    for (i = 0; i < draws->count; i++) {
-      double bound = draws->items[i]->number;
-      /* A draw's bound is how many things the parser drew among: a whole number, at least one. */
-      if (draws->items[i]->kind != SPROUT_JSON_NUMBER || bound < 1 || bound > 4294967296.0 || bound != __builtin_floor(bound))
-        return "A draw is not a whole number of things to draw among.";
-      bounds[i] = (uint64_t)bound;
-    }
-    reading->draws = bounds;
-    reading->draw_count = draws->count;
-  }
-  if (asides != NULL && asides->count > 0) {
-    sprout_aside *said = (sprout_aside *)sprout_arena_take(&scratch, asides->count * sizeof *said);
-    if (said == NULL) return "There is no memory for the reading.";
-    for (i = 0; i < asides->count; i++) {
-      said[i].line = string_at(asides->items[i], "line");
-      said[i].thing = string_at(asides->items[i], "thing");
-      said[i].pronoun = string_at(asides->items[i], "pronoun");
-      if (said[i].line == NULL || said[i].thing == NULL) return "An aside names no line or no thing.";
-    }
-    reading->asides = said;
-    reading->aside_count = asides->count;
+  if (reread != NULL) {
+    sprout_reread *item = (sprout_reread *)sprout_arena_take(&scratch, sizeof *item);
+    if (item == NULL) return "There is no memory for the reading.";
+    if ((wrong = sprout_reread_of_tree(&scratch, reread, item)) != NULL) return wrong;
+    in->reread = item;
   }
   return NULL;
 }
 
 /*
- * A command: the input holds `{"visit", "verb", "fillers", "typed"}` and, where the host's parser drew or
- * said anything first, `"draws"` and `"asides"`: a reading already read, so no parser runs here.
+ * A command: the input holds `{"visit", "text"}`, the words typed, which the runtime reads in the turn, with
+ * `"planned"` and `"reread"` for a later turn of a line, as sw_line hands them out; or `{"visit", "verb",
+ * "fillers", "typed"}`, a reading a host built from the view's chips, run as it is.
  */
 EXPORT("sw_command") int sw_command(size_t length, uint64_t seed, uint64_t instant) {
   const sprout_json *fillers;
@@ -603,31 +588,87 @@ EXPORT("sw_command") int sw_command(size_t length, uint64_t seed, uint64_t insta
   if (input == NULL || length > input_capacity) return refuse("Hand the command in through sw_input first.");
   status = sprout_json_read(&scratch, (const char *)input, length, &root, NULL);
   if (status != SPROUT_OK) return status == SPROUT_BAD_INPUT ? refuse("The command is not JSON.") : status;
+  memset(&in, 0, sizeof in);
+  in.kind = SPROUT_TURN_COMMAND;
+  in.instant = instant;
   visit = string_at(root, "visit");
+  if (visit == NULL) return refuse("A command names its visit, verb, typed line and fillers, or its visit and words.");
+  in.visit = visit;
+  if (sprout_json_get(root, "verb") == NULL) {
+    wrong = typed_of(root, &in);
+    return wrong != NULL ? refuse(wrong) : run(&in);
+  }
   verb = string_at(root, "verb");
   typed = string_at(root, "typed");
-  fillers = array_at(root, "fillers");
-  if (visit == NULL || verb == NULL || typed == NULL || fillers == NULL)
-    return refuse("A command names its visit, verb, typed line and fillers.");
+  fillers = sprout_json_get(root, "fillers");
+  if (verb == NULL || typed == NULL || fillers == NULL)
+    return refuse("A command names its visit, verb, typed line and fillers, or its visit and words.");
   visitor = sprout_state_find_visitor(state, (sprout_str){visit, strlen(visit)});
   if (visitor == NULL) return refuse("No visitor of this world has that visit.");
   memset(&reading, 0, sizeof reading);
-  wrong = fillings_of(fillers, &fillings);
-  if (wrong == NULL) wrong = parsing_of(root, &reading);
+  wrong = sprout_fillings_of_tree(&scratch, fillers, &fillings, &reading.filling_count);
   if (wrong != NULL) return refuse(wrong);
   reading.verb = verb;
   reading.actor = sprout_arena_copy(&scratch, visitor->instance.bytes, visitor->instance.length);
   if (reading.actor == NULL) return SPROUT_NO_MEMORY;
-  reading.filling_count = fillers->count;
   reading.fillings = fillings;
-  memset(&in, 0, sizeof in);
-  in.kind = SPROUT_TURN_COMMAND;
-  in.instant = instant;
-  in.visit = visit;
   in.reading = &reading;
   in.text = typed;
   in.text_length = strlen(typed);
   return run(&in);
+}
+
+/* The command the line hands out next as JSON, `{"visit", "text", "planned", "reread"}`, or null once the line is over. */
+static int line_command(void) {
+  sprout_json *root, *nothing;
+  if (!line_more) {
+    nothing = sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
+    return nothing == NULL ? SPROUT_NO_MEMORY : sprout_json_write_value(&scratch, nothing, &output, &output_length);
+  }
+  root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 4);
+  if (root == NULL) return SPROUT_NO_MEMORY;
+  sprout_json_adopt(root, "visit", text(pending.visit, strlen(pending.visit)));
+  sprout_json_adopt(root, "text", text(pending.text, pending.text_length));
+  sprout_json_adopt(root, "planned", pending.planned == NULL ? sprout_json_make(&scratch, SPROUT_JSON_NULL, 0)
+                                                             : sprout_reading_tree(&scratch, "verb", pending.planned));
+  sprout_json_adopt(root, "reread", pending.reread == NULL ? sprout_json_make(&scratch, SPROUT_JSON_NULL, 0)
+                                                           : sprout_reread_tree(&scratch, pending.reread));
+  if (root->count != 4) return SPROUT_NO_MEMORY;
+  line_waiting = true;
+  return sprout_json_write(&scratch, root, &output, &output_length);
+}
+
+/*
+ * Begins a line a visitor typed, the input holding `{"visit", "text"}` (the spec's Parsing > Sequences, again and
+ * all; Intents), and answers the first command it runs, which the host runs through sw_command with a seed of its
+ * own. The command turn the instance runs next is taken as that command's, and sw_line_next then answers the one
+ * after it, or null once the line is over.
+ */
+EXPORT("sw_line") int sw_line(size_t length) {
+  sprout_json *root;
+  const char *visit, *words;
+  int status;
+  begin(0);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  if (input == NULL || length > input_capacity) return refuse("Hand the line in through sw_input first.");
+  status = sprout_json_read(&scratch, (const char *)input, length, &root, NULL);
+  if (status != SPROUT_OK) return status == SPROUT_BAD_INPUT ? refuse("The line is not JSON.") : status;
+  visit = string_at(root, "visit");
+  words = string_at(root, "text");
+  if (visit == NULL || words == NULL) return refuse("A line names its visit and the words typed.");
+  sprout_arena_reset(&line_keep);
+  line_waiting = line_more = false;
+  status = sprout_line_begin(&line, &line_keep, visit, words, strlen(words));
+  if (status == SPROUT_OK) status = sprout_line_next(&line, NULL, &pending, &line_more);
+  if (status != SPROUT_OK) return status;
+  return line_command();
+}
+
+/* The command the line under way runs next, once the one it handed out before ran; null once the line is over. */
+EXPORT("sw_line_next") int sw_line_next(void) {
+  begin(0);
+  if (line_waiting) return refuse("Run the command the line handed out before asking for the next.");
+  return line_command();
 }
 
 /* A visitor's scene, the input holding the visit: `{"view", "verbs"}`, the view's JSON beside its verbs. */

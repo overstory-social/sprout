@@ -6,6 +6,7 @@
 
 #include "arena.h"
 #include "host.h"
+#include "reading_json.h"
 #include "readings.h"
 #include "state.h"
 
@@ -40,101 +41,11 @@ static sprout_json *jobject(sprout_arena *arena, size_t count, const char **name
   return object;
 }
 
-static sprout_json *filler_json(sprout_arena *arena, const sprout_filling *filling) {
-  sprout_json *node = sprout_json_make(arena, SPROUT_JSON_OBJECT, 5), *ids;
+/* The first aside of `line` said before the reading, or NULL. */
+static const sprout_aside *aside_of(const sprout_parsed *parsed, const char *line) {
   size_t i;
-  if (node == NULL) return NULL;
-  sprout_json_adopt(node, "role", jtext(arena, filling->role));
-  switch (filling->binds) {
-    case SPROUT_FILL_UNBOUND:
-      sprout_json_adopt(node, "binds", jtext(arena, "unbound"));
-      break;
-    case SPROUT_FILL_OBJECT:
-      sprout_json_adopt(node, "binds", jtext(arena, "object"));
-      sprout_json_adopt(node, "id", jtext(arena, filling->id));
-      break;
-    case SPROUT_FILL_SET:
-      sprout_json_adopt(node, "binds", jtext(arena, "set"));
-      ids = sprout_json_make(arena, SPROUT_JSON_ARRAY, filling->id_count);
-      for (i = 0; ids != NULL && i < filling->id_count; i++) sprout_json_adopt(ids, NULL, jtext(arena, filling->ids[i]));
-      sprout_json_adopt(node, "ids", ids);
-      break;
-    case SPROUT_FILL_EXIT:
-      sprout_json_adopt(node, "binds", jtext(arena, "exit"));
-      sprout_json_adopt(node, "direction", jtext(arena, filling->direction));
-      sprout_json_adopt(node, "label", jtext(arena, filling->label));
-      sprout_json_adopt(node, "to", jtext(arena, filling->id));
-      break;
-    case SPROUT_FILL_TEXT:
-      sprout_json_adopt(node, "binds", jtext(arena, "value"));
-      sprout_json_adopt(node, "value", jtext(arena, filling->text));
-      break;
-    case SPROUT_FILL_NUMBER:
-      sprout_json_adopt(node, "binds", jtext(arena, "value"));
-      sprout_json_adopt(node, "value", jnumber(arena, filling->number));
-      break;
-  }
-  return node;
-}
-
-/* A reading by its verb, or an intent's by the intent (`what`), who performs it and what it binds, in order. */
-static sprout_json *reading_json(sprout_arena *arena, const char *what, const sprout_reading *reading) {
-  sprout_json *bindings = sprout_json_make(arena, SPROUT_JSON_ARRAY, reading->filling_count);
-  const char *names[3];
-  sprout_json *nodes[3];
-  size_t i;
-  if (bindings == NULL) return NULL;
-  for (i = 0; i < reading->filling_count; i++) sprout_json_adopt(bindings, NULL, filler_json(arena, &reading->fillings[i]));
-  names[0] = what;
-  nodes[0] = jtext(arena, reading->verb);
-  names[1] = "actor";
-  nodes[1] = jtext(arena, reading->actor);
-  names[2] = "bindings";
-  nodes[2] = bindings;
-  return jobject(arena, 3, names, nodes);
-}
-
-static sprout_json *reread_json(sprout_arena *arena, const sprout_reread *reread) {
-  sprout_json *values = sprout_json_make(arena, SPROUT_JSON_ARRAY, reread->value_count);
-  sprout_json *referents = sprout_json_make(arena, SPROUT_JSON_ARRAY, reread->referent_count);
-  const char *names[4] = {"role", "words", "values", "referents"};
-  sprout_json *nodes[4];
-  size_t i;
-  if (values == NULL || referents == NULL) return NULL;
-  for (i = 0; i < reread->value_count; i++) {
-    const char *pair[2] = {"role", "words"};
-    sprout_json *of[2];
-    of[0] = jtext(arena, reread->values[i].role);
-    of[1] = jtext(arena, reread->values[i].words);
-    sprout_json_adopt(values, NULL, jobject(arena, 2, pair, of));
-  }
-  for (i = 0; i < reread->referent_count; i++) sprout_json_adopt(referents, NULL, jtext(arena, reread->referents[i]));
-  nodes[0] = jtext(arena, reread->role);
-  nodes[1] = jtext(arena, reread->words);
-  nodes[2] = values;
-  nodes[3] = referents;
-  return jobject(arena, 4, names, nodes);
-}
-
-static sprout_json *following_json(sprout_arena *arena, const sprout_following *following) {
-  const char *names[2] = {"planned", "reread"};
-  sprout_json *nodes[2];
-  if (following->planned == NULL) {
-    const char *text = "text";
-    sprout_json *words = jtext(arena, following->text);
-    return jobject(arena, 1, &text, &words);
-  }
-  nodes[0] = reading_json(arena, "verb", following->planned);
-  if (following->reread == NULL) return jobject(arena, 1, names, nodes);
-  nodes[1] = reread_json(arena, following->reread);
-  return jobject(arena, 2, names, nodes);
-}
-
-/* The first aside of `line` the reading carries, or NULL. */
-static const sprout_aside *aside_of(const sprout_reading *reading, const char *line) {
-  size_t i;
-  for (i = 0; i < reading->aside_count; i++)
-    if (strcmp(reading->asides[i].line, line) == 0) return &reading->asides[i];
+  for (i = 0; i < parsed->aside_count; i++)
+    if (strcmp(parsed->asides[i].line, line) == 0) return &parsed->asides[i];
   return NULL;
 }
 
@@ -142,12 +53,12 @@ static const sprout_aside *aside_of(const sprout_reading *reading, const char *l
 static bool understood_json(sprout_arena *arena, const sprout_parsed *parsed, sprout_json *record) {
   const bool intent = parsed->end == SPROUT_PARSED_INTENT;
   sprout_json *rest = sprout_json_make(arena, SPROUT_JSON_ARRAY, parsed->rest_count);
-  sprout_json *corrected = sprout_json_make(arena, SPROUT_JSON_ARRAY, parsed->reading.aside_count), *drawn;
+  sprout_json *corrected = sprout_json_make(arena, SPROUT_JSON_ARRAY, parsed->aside_count), *drawn;
   size_t i;
   if (rest == NULL || corrected == NULL) return false;
-  for (i = 0; i < parsed->rest_count; i++) sprout_json_adopt(rest, NULL, following_json(arena, &parsed->rest[i]));
-  for (i = 0; i < parsed->reading.aside_count; i++) {
-    const sprout_aside *aside = &parsed->reading.asides[i];
+  for (i = 0; i < parsed->rest_count; i++) sprout_json_adopt(rest, NULL, sprout_following_tree(arena, &parsed->rest[i]));
+  for (i = 0; i < parsed->aside_count; i++) {
+    const sprout_aside *aside = &parsed->asides[i];
     const char *names[2] = {"thing", "pronoun"};
     sprout_json *nodes[2];
     if (strcmp(aside->line, "pronoun_correction") != 0) continue;
@@ -156,7 +67,7 @@ static bool understood_json(sprout_arena *arena, const sprout_parsed *parsed, sp
     sprout_json_adopt(corrected, NULL, jobject(arena, 2, names, nodes));
   }
   if (parsed->drawn) {
-    const sprout_aside *meant = aside_of(&parsed->reading, "meant");
+    const sprout_aside *meant = aside_of(parsed, "meant");
     const char *names[2] = {"among", "meant"};
     sprout_json *nodes[2];
     nodes[0] = jnumber(arena, (double)parsed->drawn_among);
@@ -165,7 +76,7 @@ static bool understood_json(sprout_arena *arena, const sprout_parsed *parsed, sp
   } else {
     drawn = sprout_json_make(arena, SPROUT_JSON_NULL, 0);
   }
-  sprout_json_adopt(record, intent ? "intent" : "reading", reading_json(arena, intent ? "intent" : "verb", &parsed->reading));
+  sprout_json_adopt(record, intent ? "intent" : "reading", sprout_reading_tree(arena, intent ? "intent" : "verb", &parsed->reading));
   sprout_json_adopt(record, "rest", rest);
   sprout_json_adopt(record, "drawn", drawn);
   sprout_json_adopt(record, "corrected", corrected);
@@ -267,7 +178,7 @@ static const char *reading_of(sprout_arena *arena, const sprout_json *node, spro
   reading->actor = text_of(node, "actor");
   if (reading->verb == NULL || reading->actor == NULL || bindings == NULL || bindings->kind != SPROUT_JSON_ARRAY)
     return "a reading in the readings file has no verb, actor or bindings.";
-  why = sproutc_readings_fillings(arena, bindings, &fillings, &count);
+  why = sprout_fillings_of_tree(arena, bindings, &fillings, &count);
   if (why != NULL) return why;
   reading->fillings = fillings;
   reading->filling_count = count;

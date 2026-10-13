@@ -15,12 +15,16 @@ static bool fits(const sprout_role *role, const sprout_stored_instance *instance
   return false;
 }
 
-/* The reading one step makes of what the slots hold; *made is false where a role it gives cannot be filled so. */
+/*
+ * The reading one step makes of what the slots hold, its roles bound in the order the step gives them, a set role as
+ * the set of its slot's one thing; *made is false where a role it gives cannot be filled so.
+ */
 static sprout_eval_status reading_of(const sprout_frame *frame, const sprout_intended *intended,
                                      const sprout_intent_step *step, sprout_resolved *out, bool *made) {
   sprout_filled *roles = (sprout_filled *)sprout_arena_take(frame->turn, (step->verb->role_count + 1) * sizeof *roles);
+  size_t *order = (size_t *)sprout_arena_take(frame->turn, (step->filler_count + 1) * sizeof *order);
   size_t i, j;
-  if (roles == NULL) return SPROUT_EVAL_NO_MEMORY;
+  if (roles == NULL || order == NULL) return SPROUT_EVAL_NO_MEMORY;
   *made = false;
   for (i = 0; i < step->filler_count; i++) {
     const sprout_filled *held = &intended->slots[step->filler_slots[i]];
@@ -31,10 +35,22 @@ static sprout_eval_status reading_of(const sprout_frame *frame, const sprout_int
     if (j == step->verb->role_count) return expr_engine(frame, "an intent's step fills a role its verb does not declare.");
     if (thing == NULL || !fits(&step->verb->roles[j], thing)) return SPROUT_EVAL_OK;
     roles[j] = *held;
+    if (step->verb->roles[j].many) {
+      sprout_str *set = (sprout_str *)sprout_arena_take(frame->turn, sizeof *set);
+      if (set == NULL) return SPROUT_EVAL_NO_MEMORY;
+      *set = held->bound.object;
+      memset(&roles[j].bound, 0, sizeof roles[j].bound);
+      roles[j].bound.kind = SPROUT_BOUND_SET;
+      roles[j].bound.set = set;
+      roles[j].bound.set_count = 1;
+    }
+    order[i] = j;
   }
   out->verb = step->verb;
   out->actor = intended->actor;
   out->roles = roles;
+  out->bound_count = step->filler_count;
+  out->bound_order = order;
   *made = true;
   return SPROUT_EVAL_OK;
 }

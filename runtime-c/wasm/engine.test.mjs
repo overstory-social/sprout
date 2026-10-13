@@ -1,15 +1,16 @@
 // The WebAssembly engine (engine.c, driven by engine.mjs) checked against the TypeScript runtime, and
-// libc.c against the C standard (libc.test.c). Every corpus script is resolved by the TypeScript parser
-// into the readings it read (scripts/resolve-script.mjs) and played through the engine from the turns the
-// TypeScript runtime logged: arrivals, departures, commands, ticks and wakes. Each step's lines, by
-// reader, and the stored world after it must be what the TypeScript runtime left, and each turn must give
-// what the TypeScript runtime's did: its effects, fault and who it cut short, whose views it made stale,
-// what the store writes, and, for every kind but a command, the entry core's log keeps at play depth, as
-// core's builders make it. After each step, every visitor in the world is polled in parts (the spec's The
-// runtime > The view): the scene, then the readings of each verb it lists, which must be the TypeScript
-// runtime's `pollScene` and `pollReadings` over the same stored world. A turn the parser answered is not the
-// engine's to run, and its lines are the parser's. Then the export layer's edges: loading and opening again, input it cannot read, an entry at
-// debug depth, and an arrival to a world that admits no one, which still has words for the person.
+// libc.c against the C standard (libc.test.c). Every corpus script is played by the TypeScript runtime
+// (scripts/resolve-script.mjs) and then through the engine: arrivals, departures, ticks and wakes from the
+// turns the TypeScript runtime logged, and each typed line as the engine reads it, the line handing out each
+// command turn it runs (`line`, `lineNext`). Each step's lines, by reader, and the stored world after it must
+// be what the TypeScript runtime left, and each turn must give what the TypeScript runtime's did: its effects,
+// fault and who it cut short, whose views it made stale, what the store writes, and the entry core's log keeps
+// at play depth, as core's builders make it, a command's with its words, the step a line planned and its draw.
+// After each step, every visitor in the world is polled in parts (the spec's The runtime > The view): the
+// scene, then the readings of each verb it lists, which must be the TypeScript runtime's `pollScene` and
+// `pollReadings` over the same stored world. Then the export layer's edges: loading and opening again, input it
+// cannot read, a reading built from chips, an entry at debug depth, and an arrival to a world that admits no
+// one, which still has words for the person.
 //
 //   node runtime-c/wasm/engine.test.mjs <out folder of build.sh> [corpus/good]
 //
@@ -133,17 +134,23 @@ function turnDiffers(want, outcome, budgets) {
   return null;
 }
 
-/** The turns `step` ran by the TypeScript runtime's log, each run through `engine`: `[want, outcome]`, or the answer of a turn the parser gave. */
+/**
+ * The turns `step` ran, each run through `engine` beside the TypeScript runtime's entry for it: `{ want, outcome }`. A
+ * typed line's turns are the ones the engine's line hands out, the first under the step's seed and each after it the
+ * next; one the TypeScript runtime did not run has no `want`.
+ */
 function playStep(engine, step) {
   const ran = [];
   if (step.kind === 'command') {
-    for (const turn of step.turns) {
-      if (turn.skip) ran.push({ says: turn.says });
-      else
-        ran.push({
-          want: turn.expect,
-          outcome: engine.command(visitOf(step.nickname), turn, turn.seed, step.atSeconds),
-        });
+    const visit = visitOf(step.nickname);
+    for (
+      let command = engine.line(visit, step.typed);
+      command !== null;
+      command = engine.lineNext()
+    ) {
+      const seed = (step.seed + ran.length) % 2 ** 32;
+      const outcome = engine.command(visit, command, seed, step.atSeconds);
+      ran.push({ want: step.after?.turns[ran.length], outcome });
     }
     return ran;
   }
@@ -209,12 +216,13 @@ async function playReadings(wasm, cartridge, worldId, readings, host) {
   const engine = await WasmEngine.open(wasm, cartridge, worldId);
   for (const step of readings.steps) {
     const lines = [];
-    for (const [at, one] of playStep(engine, step).entries()) {
-      if (one.says !== undefined) {
-        lines.push(...one.says);
-        continue;
-      }
+    const ran = playStep(engine, step);
+    if (step.after !== undefined && ran.length !== step.after.turns.length) {
+      return `step ${step.index} (${step.line}): the engine ran ${ran.length} turns and the TypeScript runtime ${step.after.turns.length}`;
+    }
+    for (const [at, one] of ran.entries()) {
       lines.push(...one.outcome.lines.map(said));
+      if (one.want === undefined) continue;
       const differs = turnDiffers(one.want, one.outcome, readings.budgets);
       if (differs !== null)
         return `step ${step.index} (${step.line}), turn ${at + 1} (${one.want.kind}): ${differs}`;
@@ -263,9 +271,19 @@ async function edges(wasm, cartridge, worldId) {
     /not JSON/,
   );
   expectThrow(
-    'a command with no verb',
+    'a command with neither words nor a verb',
     () => engine.command('visit:nobody', { fillers: [], typed: '' }, 0, 0),
-    /names its visit, verb/,
+    /names its visit and the words typed/,
+  );
+  expectThrow(
+    'a typed command for nobody here',
+    () => engine.command('visit:nobody', { text: 'look' }, 0, 0),
+    /never visited/,
+  );
+  expectThrow(
+    'a planned step that is not a reading',
+    () => engine.command('visit:nobody', { text: 'look', planned: { verb: 'sprout.look' } }, 0, 0),
+    /names its verb and who performs it/,
   );
   expectThrow(
     'a command for nobody here',
@@ -286,15 +304,9 @@ async function edges(wasm, cartridge, worldId) {
     /names its visit, verb/,
   );
   expectThrow(
-    'a draw below one',
-    () =>
-      engine.command(
-        'visit:nobody',
-        { verb: 'sprout.look', fillers: [], typed: 'look', draws: [-1] },
-        0,
-        0,
-      ),
-    /No visitor|whole number/,
+    'a line that is not JSON',
+    () => engine.call('sw_line', ...engine.put([new TextEncoder().encode('{')])),
+    /not JSON/,
   );
   expectThrow(
     'readings whose verb runs past the input',
@@ -326,6 +338,26 @@ async function edges(wasm, cartridge, worldId) {
   } catch (err) {
     problems.push(`after a refused load the world is gone: ${err.message}`);
   }
+  // A reading built from chips runs as it is, and a line hands out its next command only once the last one ran.
+  const chosen = engine.command(
+    'visit:Marta',
+    { verb: 'sprout.look', fillers: [], typed: 'look' },
+    0,
+    0,
+  );
+  if (!chosen.changed || chosen.lines.length === 0)
+    problems.push('a reading built from chips told nothing');
+  if (chosen.entry?.kind !== 'command' || chosen.entry.text !== 'look')
+    problems.push(`a reading built from chips logged ${JSON.stringify(chosen.entry)}`);
+  const first = engine.line('visit:Marta', 'look then look');
+  if (first?.text !== 'look') problems.push(`a line began with ${JSON.stringify(first)}`);
+  expectThrow(
+    'the next command before the last ran',
+    () => engine.lineNext(),
+    /before asking for the next/,
+  );
+  engine.command('visit:Marta', first, 0, 0);
+  if (engine.lineNext()?.text !== 'look') problems.push('a line of two commands handed out one');
   return problems;
 }
 
