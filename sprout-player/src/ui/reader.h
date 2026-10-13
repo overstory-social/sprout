@@ -28,8 +28,11 @@ extern const player_screen player_reader_screen;
 /* A reader with nothing told yet, sized from the app's font; NULL when there is no memory for it. */
 player_reader *player_reader_new(player_app *app);
 
-/* Polls the visitor's view and sets the status from it; a view that cannot be had is told as a notice. */
-bool player_reader_look(player_app *app, player_reader *reader);
+/*
+ * Polls the visitor's view and sets the status from it; a view that cannot be had is told as a
+ * notice. `*seen`, where asked for, is the view or NULL, and lives until the next session call.
+ */
+bool player_reader_look(player_app *app, player_reader *reader, const sprout_seen_view **seen);
 
 /* How many transcript lines the column shows with a font `line_height` tall. */
 size_t player_reader_rows(int line_height);

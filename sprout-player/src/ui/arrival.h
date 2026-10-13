@@ -1,7 +1,8 @@
 /*
  * The screen that opens a world and brings the visitor into it: the cartridge read a step a
  * frame behind a loading line, so a big world never holds up a frame; the save loaded; the
- * visitor admitted; and the reader shown with the arrival told and the status from the view.
+ * visitor admitted; and the reader shown with the arrival told and the status from the view,
+ * behind the pictures the arrival and the place asked for (pictures.h).
  * What stops it is shown here in words. Until the shelf (#632) and the nickname screen (#633)
  * exist, the app opens the first shipped world, the first cartridge in `worlds/` by name, and
  * admits the visitor its save remembers or else the fixed nickname PLAYER_FIXED_NICKNAME.

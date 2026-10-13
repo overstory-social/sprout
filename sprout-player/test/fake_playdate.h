@@ -7,7 +7,9 @@
  * fonts load: the system font, `glyph` pixels a character (FAKE_GLYPH unless a test says
  * otherwise) and FAKE_LINE tall, and the sentence builder's big and small fonts from the pdx's
  * fonts/; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
- * to the screen as the device's is. The SDK's headers are the declarations; nothing of the SDK is linked.
+ * to the screen as the device's is. Bitmaps load from PNG files, the size their header declares, and
+ * are drawn as a black block of that size, each draw recorded; synths keep what they were set to and
+ * record each note played. The SDK's headers are the declarations; nothing of the SDK is linked.
  */
 #ifndef FAKE_PLAYDATE_H
 #define FAKE_PLAYDATE_H
@@ -23,6 +25,10 @@
 #define FAKE_BIG_LINE 30
 #define FAKE_SMALL_GLYPH 5
 #define FAKE_SMALL_LINE 12
+#define FAKE_SYNTHS 16
+#define FAKE_NOTES 256
+#define FAKE_BITMAPS 32
+#define FAKE_DRAWS 32
 
 /* The fonts the fake loads; a run says which it was drawn in. */
 typedef enum fake_font { FAKE_FONT_NONE, FAKE_FONT_SYSTEM, FAKE_FONT_BIG, FAKE_FONT_SMALL } fake_font;
@@ -34,12 +40,42 @@ typedef struct fake_run {
   fake_font font;
 } fake_run;
 
+/* A synth newSynth made: what it was set to, and whether it is freed. */
+typedef struct fake_synth {
+  int live;
+  SoundWaveform wave;
+  float attack, decay, sustain, release;
+} fake_synth;
+
+/* One playNote: the synth it played on, that synth's waveform then, and the note. */
+typedef struct fake_note {
+  int synth;
+  SoundWaveform wave;
+  float pitch, volume, length;
+} fake_note;
+
+/* A bitmap loadBitmap made: the path it was loaded from, its size, and whether it is freed. */
+typedef struct fake_bitmap {
+  int live;
+  char path[512];
+  int width, height;
+} fake_bitmap;
+
+/* One drawBitmap or drawScaledBitmap since the frame was cleared: which bitmap, where, at what scale. */
+typedef struct fake_draw {
+  int bitmap;
+  int x, y;
+  float scale;
+} fake_draw;
+
 typedef struct fake_playdate {
   PlaydateAPI api;
   struct playdate_sys sys;
   struct playdate_file file;
   struct playdate_lua lua;
   struct playdate_graphics gfx;
+  struct playdate_sound sound;
+  struct playdate_sound_synth synth;
   /* the clock: seconds since 2000 and the millisecond counter */
   unsigned seconds, milliseconds, counter;
   /* where kFileWrite and kFileReadData go, and where kFileRead looks */
@@ -64,6 +100,16 @@ typedef struct fake_playdate {
   fake_font font_set; /* the font set; drawing in none is a fault */
   int glyph;          /* the width of a system font character, FAKE_GLYPH unless a test widens it */
   int big_glyph, small_glyph; /* the same for the builder's fonts, FAKE_BIG_GLYPH and FAKE_SMALL_GLYPH unless a test says */
+  /* the sounds: the synths made and the notes played */
+  fake_synth synths[FAKE_SYNTHS];
+  int synth_count;
+  fake_note notes[FAKE_NOTES];
+  int note_count;
+  /* the bitmaps loaded, how many are held now, and those drawn since the frame was cleared */
+  fake_bitmap bitmaps[FAKE_BITMAPS];
+  int bitmap_count, bitmaps_live;
+  fake_draw draws[FAKE_DRAWS];
+  int draw_count;
   /* the input the next frame reads, and the update callback the game set */
   PDButtons buttons_held, buttons_pushed;
   float crank;

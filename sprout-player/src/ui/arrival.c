@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "host/files.h"
+#include "images.h"
+#include "pictures.h"
 #include "reader.h"
 #include "text.h"
 
@@ -91,10 +93,14 @@ static char *copy_of(PlaydateAPI *pd, const char *text, size_t length) {
   return copy;
 }
 
-/* The reader with the arrival told: who the visitor is, what the save had to say, what the arrival told, the status. */
+/*
+ * The reader with the arrival told: who the visitor is, what the save had to say, what the arrival
+ * told, the status; and into `pictures`, what the arrival's lines and then the place's view asked to show.
+ */
 static player_reader *tell_arrival(player_app *app, const player_arrival *arrival, const char *nickname, const char *notice,
-                                   const told_list *lines) {
+                                   const told_list *lines, gallery *pictures) {
   player_reader *reader = player_reader_new(app);
+  const sprout_seen_view *view = NULL;
   char said[256];
   text_buffer you;
   if (reader == NULL) return NULL;
@@ -106,7 +112,8 @@ static player_reader *tell_arrival(player_app *app, const player_arrival *arriva
   text_add(&you, ".");
   if (transcript_push(&reader->lines, "client", said, strlen(said)) &&
       (notice == NULL || transcript_push(&reader->lines, "notice", notice, strlen(notice))) &&
-      transcript_tell(&reader->lines, lines) && player_reader_look(app, reader))
+      transcript_tell(&reader->lines, lines) && images_take_told(pictures, app->assets, lines) &&
+      player_reader_look(app, reader, &view) && (view == NULL || images_take_view(pictures, app->assets, view)))
     return reader;
   player_reader_screen.leave(app, reader);
   return NULL;
@@ -117,6 +124,7 @@ static void arrive(player_app *app, player_arrival *arrival) {
   player_loaded loaded = player_load(app->session);
   player_told admitted;
   player_reader *reader;
+  gallery pictures;
   char *nickname, *notice = NULL;
   if (!loaded.ok) {
     stop(app, arrival, loaded.words);
@@ -135,10 +143,15 @@ static void arrive(player_app *app, player_arrival *arrival) {
       stop(app, arrival, SAVE_FAILED);
     else if (!admitted.admitted)
       stop(app, arrival, admitted.words);
-    else if ((reader = tell_arrival(app, arrival, nickname, notice, &admitted.lines)) == NULL)
-      stop(app, arrival, NO_MEMORY);
-    else
-      player_app_show(app, &player_reader_screen, reader);
+    else {
+      gallery_init(&pictures, app->pd);
+      if ((reader = tell_arrival(app, arrival, nickname, notice, &admitted.lines, &pictures)) == NULL) {
+        gallery_free(&pictures);
+        stop(app, arrival, NO_MEMORY);
+      } else {
+        player_pictures_show(app, reader, &pictures);
+      }
+    }
   }
   player_free(app->pd, nickname);
   player_free(app->pd, notice);
@@ -156,6 +169,7 @@ static void begin_opening(player_app *app, player_arrival *arrival) {
     stop(app, arrival, opening.reason);
     return;
   }
+  if (!images_folder(arrival->path, app->assets, sizeof app->assets)) app->assets[0] = '\0';
   player_world_title(opening.name, arrival->title, sizeof arrival->title);
 }
 

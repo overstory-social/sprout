@@ -27,9 +27,10 @@ player_reader *player_reader_new(player_app *app) {
   return reader;
 }
 
-bool player_reader_look(player_app *app, player_reader *reader) {
+bool player_reader_look(player_app *app, player_reader *reader, const sprout_seen_view **seen) {
   const char *words = NULL;
   const sprout_seen_view *view = player_view(app->session, &words);
+  if (seen != NULL) *seen = view;
   if (view == NULL) {
     const char *why = words != NULL ? words : "The place cannot be seen.";
     return transcript_push(&reader->lines, "notice", why, strlen(why));

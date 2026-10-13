@@ -137,6 +137,7 @@ int fake_pixel(const fake_playdate *fake, int x, int y) {
 static void fake_clear(LCDColor color) {
   memset(current->frame, color == kColorBlack ? 0xFF : 0x00, sizeof current->frame);
   current->run_count = 0;
+  current->draw_count = 0;
 }
 
 static void fill(int x, int y, int width, int height, LCDColor color) {
@@ -277,6 +278,120 @@ const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
   return NULL;
 }
 
+/* ---- bitmaps ---- */
+
+static int bitmap_of(LCDBitmap *bitmap) {
+  int index = (int)((fake_bitmap *)bitmap - current->bitmaps);
+  if (index < 0 || index >= current->bitmap_count || !current->bitmaps[index].live) abort();
+  return index;
+}
+
+/* The size a PNG's header declares, from the file at `path` or `path`.pdi where the game would look. */
+static LCDBitmap *fake_load_bitmap(const char *path, const char **error) {
+  char compiled[600];
+  unsigned char head[24];
+  static const unsigned char SIGNATURE[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
+  SDFile *file = fake_open(path, kFileRead | kFileReadData);
+  fake_bitmap *bitmap;
+  int got;
+  if (file == NULL) {
+    snprintf(compiled, sizeof compiled, "%s.pdi", path);
+    file = fake_open(compiled, kFileRead | kFileReadData);
+  }
+  if (file == NULL) {
+    *error = "no such image";
+    return NULL;
+  }
+  got = fake_read(file, head, sizeof head);
+  fake_close(file);
+  if (got != (int)sizeof head || memcmp(head, SIGNATURE, sizeof SIGNATURE) != 0) {
+    *error = "not an image the fake reads";
+    return NULL;
+  }
+  if (current->bitmap_count == FAKE_BITMAPS) abort();
+  bitmap = &current->bitmaps[current->bitmap_count++];
+  bitmap->live = 1;
+  snprintf(bitmap->path, sizeof bitmap->path, "%s", path);
+  bitmap->width = (int)((unsigned)head[16] << 24 | (unsigned)head[17] << 16 | (unsigned)head[18] << 8 | head[19]);
+  bitmap->height = (int)((unsigned)head[20] << 24 | (unsigned)head[21] << 16 | (unsigned)head[22] << 8 | head[23]);
+  current->bitmaps_live++;
+  return (LCDBitmap *)bitmap;
+}
+
+static void fake_free_bitmap(LCDBitmap *bitmap) {
+  current->bitmaps[bitmap_of(bitmap)].live = 0;
+  current->bitmaps_live--;
+}
+
+static void fake_bitmap_data(LCDBitmap *bitmap, int *width, int *height, int *rowbytes, uint8_t **mask, uint8_t **data) {
+  const fake_bitmap *held = &current->bitmaps[bitmap_of(bitmap)];
+  if (width != NULL) *width = held->width;
+  if (height != NULL) *height = held->height;
+  if (rowbytes != NULL) *rowbytes = (held->width + 7) / 8;
+  if (mask != NULL) *mask = NULL;
+  if (data != NULL) *data = NULL;
+}
+
+static void drawn_at(LCDBitmap *bitmap, int x, int y, float scale) {
+  int index = bitmap_of(bitmap);
+  fake_draw *draw;
+  if (current->draw_count == FAKE_DRAWS) abort();
+  draw = &current->draws[current->draw_count++];
+  draw->bitmap = index;
+  draw->x = x;
+  draw->y = y;
+  draw->scale = scale;
+  fill(x, y, (int)((float)current->bitmaps[index].width * scale), (int)((float)current->bitmaps[index].height * scale),
+       kColorBlack);
+}
+
+static void fake_draw_bitmap(LCDBitmap *bitmap, int x, int y, LCDBitmapFlip flip) {
+  if (flip != kBitmapUnflipped) abort();
+  drawn_at(bitmap, x, y, 1.0f);
+}
+
+static void fake_draw_scaled_bitmap(LCDBitmap *bitmap, int x, int y, float xscale, float yscale) {
+  if (xscale != yscale) abort();
+  drawn_at(bitmap, x, y, xscale);
+}
+
+/* ---- sound ---- */
+
+static int synth_of(PDSynth *synth) {
+  int index = (int)((fake_synth *)synth - current->synths);
+  if (index < 0 || index >= current->synth_count || !current->synths[index].live) abort();
+  return index;
+}
+
+static PDSynth *fake_new_synth(void) {
+  fake_synth *synth;
+  if (current->synth_count == FAKE_SYNTHS) return NULL;
+  synth = &current->synths[current->synth_count++];
+  memset(synth, 0, sizeof *synth);
+  synth->live = 1;
+  return (PDSynth *)synth;
+}
+
+static void fake_free_synth(PDSynth *synth) { current->synths[synth_of(synth)].live = 0; }
+static void fake_set_waveform(PDSynth *synth, SoundWaveform wave) { current->synths[synth_of(synth)].wave = wave; }
+static void fake_set_attack(PDSynth *synth, float time) { current->synths[synth_of(synth)].attack = time; }
+static void fake_set_decay(PDSynth *synth, float time) { current->synths[synth_of(synth)].decay = time; }
+static void fake_set_sustain(PDSynth *synth, float level) { current->synths[synth_of(synth)].sustain = level; }
+static void fake_set_release(PDSynth *synth, float time) { current->synths[synth_of(synth)].release = time; }
+
+static void fake_play_note(PDSynth *synth, float pitch, float volume, float length, uint32_t when) {
+  int index = synth_of(synth);
+  fake_note *note;
+  if (when != 0) abort(); /* a cue sounds now */
+  if (current->note_count == FAKE_NOTES) return;
+  note = &current->notes[current->note_count++];
+  note->synth = index;
+  note->wave = current->synths[index].wave;
+  note->pitch = pitch;
+  note->volume = volume;
+  note->length = length;
+}
+
 /* ---- the input ---- */
 
 static void fake_buttons(PDButtons *held, PDButtons *pushed, PDButtons *released) {
@@ -361,6 +476,20 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->gfx.loadFont = fake_load_font;
   fake->gfx.setFont = fake_set_font;
   fake->gfx.getFontHeight = fake_font_height;
+  fake->gfx.loadBitmap = fake_load_bitmap;
+  fake->gfx.freeBitmap = fake_free_bitmap;
+  fake->gfx.getBitmapData = fake_bitmap_data;
+  fake->gfx.drawBitmap = fake_draw_bitmap;
+  fake->gfx.drawScaledBitmap = fake_draw_scaled_bitmap;
+  fake->synth.newSynth = fake_new_synth;
+  fake->synth.freeSynth = fake_free_synth;
+  fake->synth.setWaveform = fake_set_waveform;
+  fake->synth.setAttackTime = fake_set_attack;
+  fake->synth.setDecayTime = fake_set_decay;
+  fake->synth.setSustainLevel = fake_set_sustain;
+  fake->synth.setReleaseTime = fake_set_release;
+  fake->synth.playNote = fake_play_note;
+  fake->sound.synth = &fake->synth;
   fake->lua.addFunction = fake_add_function;
   fake->lua.getArgString = fake_arg_string;
   fake->lua.pushString = fake_push_string;
@@ -368,6 +497,7 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->api.file = &fake->file;
   fake->api.lua = &fake->lua;
   fake->api.graphics = &fake->gfx;
+  fake->api.sound = &fake->sound;
 }
 
 const char *fake_call_with(fake_playdate *fake, const char *name, int count, const char *const *arguments) {
