@@ -1,9 +1,11 @@
 /* Whole files over the Playdate's filesystem; see files.h. */
 #include "files.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "seeds.h"
+#include "stack.h"
 
 #define CHUNK 4096u
 #define TEMP_PATH 256u
@@ -56,7 +58,16 @@ static bool temp_path_of(const char *path, char *temp) {
   return true;
 }
 
-char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length) {
+typedef struct file_call {
+  PlaydateAPI *pd;
+  const char *path;
+  size_t *length;
+  const char *bytes;
+  size_t count;
+  unsigned char *digest;
+} file_call;
+
+static char *read_file_direct(PlaydateAPI *pd, const char *path, size_t *length) {
   char temp[TEMP_PATH];
   char *bytes = read_from(pd, path, length);
   if (bytes != NULL || !temp_path_of(path, temp)) return bytes;
@@ -82,13 +93,13 @@ static bool hash_from(PlaydateAPI *pd, const char *path, unsigned char digest[32
   return true;
 }
 
-bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length) {
+static bool hash_file_direct(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length) {
   char temp[TEMP_PATH];
   if (hash_from(pd, path, digest, length)) return true;
   return temp_path_of(path, temp) && hash_from(pd, temp, digest, length);
 }
 
-bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length) {
+static bool write_file_direct(PlaydateAPI *pd, const char *path, const char *bytes, size_t length) {
   char temp[TEMP_PATH];
   SDFile *file;
   bool whole;
@@ -100,4 +111,34 @@ bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, siz
   if (!whole) return false;
   pd->file->unlink(path, 0);
   return pd->file->rename(temp, path) == 0;
+}
+
+/* ---- the main stack: the firmware's file system is called there (stack.h) ---- */
+
+static void *read_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  return read_file_direct(c->pd, c->path, c->length);
+}
+static void *hash_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  return (void *)(intptr_t)hash_file_direct(c->pd, c->path, c->digest, c->length);
+}
+static void *write_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  return (void *)(intptr_t)write_file_direct(c->pd, c->path, c->bytes, c->count);
+}
+
+char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length) {
+  file_call c = {pd, path, length, NULL, 0, NULL};
+  return (char *)player_on_main_stack(read_thunk, &c);
+}
+
+bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length) {
+  file_call c = {pd, path, length, NULL, 0, digest};
+  return (bool)(intptr_t)player_on_main_stack(hash_thunk, &c);
+}
+
+bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length) {
+  file_call c = {pd, path, NULL, bytes, length, NULL};
+  return (bool)(intptr_t)player_on_main_stack(write_thunk, &c);
 }

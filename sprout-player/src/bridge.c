@@ -1,8 +1,11 @@
 /* The functions Lua calls; see bridge.h. */
 #include "bridge.h"
 
+#include <stdint.h>
+
 #include "session.h"
 #include "shipping.h"
+#include "stack.h"
 
 static PlaydateAPI *api;
 static player_session *session;
@@ -32,6 +35,13 @@ static int reply(const char *json) {
 /* Refuses the call when there is no session; otherwise the call's own reply. */
 #define ANSWER(call) return reply(session == NULL ? SHUT_DOWN : (call))
 
+/* A call that may run a turn or render prose runs on the player's own stack (stack.h); the rest run where Lua called them. */
+#define LUA_ENTRY(name)                                                                              \
+  static int name##_body(lua_State *L);                                                              \
+  static void *name##_thunk(void *L) { return (void *)(intptr_t)name##_body((lua_State *)L); }     \
+  static int name(lua_State *L) { return (int)(intptr_t)player_on_own_stack(api, name##_thunk, L); } \
+  static int name##_body(lua_State *L)
+
 static int lua_inspect(lua_State *L) {
   (void)L;
   ANSWER(player_inspect(session, argument(1)));
@@ -47,32 +57,32 @@ static int lua_step(lua_State *L) {
   ANSWER(player_step(session));
 }
 
-static int lua_load(lua_State *L) {
+LUA_ENTRY(lua_load) {
   (void)L;
   ANSWER(player_load(session));
 }
 
-static int lua_admit(lua_State *L) {
+LUA_ENTRY(lua_admit) {
   (void)L;
   ANSWER(player_admit(session, argument(1)));
 }
 
-static int lua_view(lua_State *L) {
+LUA_ENTRY(lua_view) {
   (void)L;
   return reply(session == NULL ? SHUT_DOWN_VIEW : player_view(session));
 }
 
-static int lua_chips(lua_State *L) {
+LUA_ENTRY(lua_chips) {
   (void)L;
   ANSWER(player_chips(session, argument(1)));
 }
 
-static int lua_turn(lua_State *L) {
+LUA_ENTRY(lua_turn) {
   (void)L;
   ANSWER(player_turn(session, argument(1)));
 }
 
-static int lua_tick(lua_State *L) {
+LUA_ENTRY(lua_tick) {
   (void)L;
   ANSWER(player_tick(session));
 }
