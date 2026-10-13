@@ -125,11 +125,18 @@ typedef struct served {
 
 static served world;
 
+static void forget_teashop(void) {
+  free(world.cartridge);
+  free(world.picture);
+  world.cartridge = world.picture = NULL;
+}
+
 /* Lists teashop under the title "Tea Shop", with `hash` (NULL: its own) and the cartridge's true size and checksum. */
 static void list_teashop(const char *hash) {
   char command[1200];
   size_t bytes = 0;
   player_opening seen;
+  forget_teashop();
   snprintf(command, sizeof command, "mkdir -p '%s/served' && cp '%s/teashop.sproutworld' '%s/served/'", fake->data,
            PLAYER_CARTRIDGES, fake->data);
   CHECK(system(command) == 0, "%s", command);
@@ -148,12 +155,6 @@ static void list_teashop(const char *hash) {
            world.cartridge_bytes, hash != NULL ? hash : world.hash, world.sha, world.picture_bytes, world.picture_sha);
   snprintf(world.final, sizeof world.final, "worlds/tea-shop-%.8s.sproutworld", world.hash);
   fake_serve(fake, INDEX_URL, 200, world.index, strlen(world.index));
-}
-
-static void forget_teashop(void) {
-  free(world.cartridge);
-  free(world.picture);
-  world.cartridge = world.picture = NULL;
 }
 
 /* Whether nothing of the world is in worlds/: no part, no cartridge, no assets folder. */
