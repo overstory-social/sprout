@@ -18,7 +18,7 @@ endif()
 set(SPROUT_MODULES
   address answers arena budget bus catalogue catalogue_grammar catalogue_helpers catalogue_kinds chips darkness describe draft draws
   effects engine-verbs eval exec exits graph graph_build guards hearing inflate intents json lists load move offers options table
-  logged media nickname outcome prose range reading schedule seeds state status stored stored_check stored_write submit turn values view view_json wakes)
+  logged media nickname outcome prose range reading schedule seeds state status stored stored_check stored_write submit turn typed values view view_json wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
 set(SPROUT_READING_MODULES carried consent effect sure wildcards)
@@ -34,6 +34,20 @@ set(SPROUT_TURN_MODULES arrival command departure given maintenance tick wake)
 
 # Rendering what a turn said, src/prose/<module>.c, each with test/prose_<module>.test.c.
 set(SPROUT_PROSE_MODULES engine_lines names output reflow slots unicode written)
+
+# The command parser, src/parse/<module>.c, each with test/parse_<module>.test.c. A runtime built for this folder
+# alone has it; one another project takes as a subdirectory (sprout-player/, whose chips build readings) leaves it
+# out unless that project turns it on. Without it `sprout_parse` (parse/command.c) refuses every typed line.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  option(SPROUT_PARSER "Build the command parser" ON)
+else()
+  option(SPROUT_PARSER "Build the command parser" OFF)
+endif()
+if(SPROUT_PARSER)
+  set(SPROUT_PARSE_MODULES command match)
+else()
+  set(SPROUT_PARSE_MODULES command)
+endif()
 
 set(SPROUT_SOURCES "")
 foreach(module ${SPROUT_MODULES})
@@ -60,9 +74,16 @@ foreach(module ${SPROUT_TURN_MODULES})
   list(APPEND SPROUT_SOURCES src/turn/${module}.c)
 endforeach()
 
+foreach(module ${SPROUT_PARSE_MODULES})
+  list(APPEND SPROUT_SOURCES src/parse/${module}.c)
+endforeach()
+
 add_library(sprout STATIC ${SPROUT_SOURCES})
 target_include_directories(sprout PUBLIC include PRIVATE src)
 target_link_libraries(sprout PUBLIC m)
+if(NOT SPROUT_PARSER)
+  target_compile_definitions(sprout PRIVATE SPROUT_NO_PARSER)
+endif()
 
 # The desktop host, `sproutc` and every test are for building this folder on its own. Another
 # project that takes the library as a subdirectory (sprout-player/) turns this OFF and gets only `sprout`.
@@ -73,7 +94,7 @@ endif()
 
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
-set(SPROUTC_MODULES cartridge evaluate host play readings script viewing)
+set(SPROUTC_MODULES cartridge evaluate host parsing play readings script viewing)
 
 set(SPROUTC_SOURCES "")
 foreach(module ${SPROUTC_MODULES})
@@ -164,6 +185,21 @@ foreach(module ${SPROUT_TURN_MODULES})
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME turn_${module} COMMAND turn_${module}.test)
   set_tests_properties(turn_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+endforeach()
+
+# Without the parser, parse_command.test checks that every typed line is refused.
+foreach(module ${SPROUT_PARSE_MODULES})
+  add_executable(parse_${module}.test test/parse_${module}.test.c)
+  target_link_libraries(parse_${module}.test PRIVATE sprout)
+  target_include_directories(parse_${module}.test PRIVATE src test)
+  target_compile_definitions(parse_${module}.test PRIVATE
+    SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
+    SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
+  if(NOT SPROUT_PARSER)
+    target_compile_definitions(parse_${module}.test PRIVATE SPROUT_NO_PARSER)
+  endif()
+  add_test(NAME parse_${module} COMMAND parse_${module}.test)
+  set_tests_properties(parse_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})

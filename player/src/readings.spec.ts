@@ -5,6 +5,23 @@ import { scriptOf } from './fixtures/scripts.js';
 import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
+
+/** A chest that `open chest with key` unlocks and then opens, and two keys that line ties between. */
+const VAULT = bundleOf('vault', {
+  'vault.sprout': `world vault is sprout.World {
+  visitors are Walker
+  visitors arrive at hall
+  object hall is sprout.Place {
+    object chest is Chest { :open false }
+    object brass_key is Key { grammar { name "brass key" } }
+    object iron_key is Key { grammar { name "iron key" } }
+  }
+}
+`,
+  'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+  'chest.sprout': 'kind Chest is sprout.Container, sprout.Lockable { }\n',
+  'key.sprout': 'kind Key {\n  grammar { nouns "key" }\n}\n',
+});
 const resolve = (lines: string) => resolveScript(bundle, scriptOf(lines), 'yard.json');
 
 function commandOf(step: ReadStep | undefined) {
@@ -111,5 +128,61 @@ describe('resolveScript', () => {
     const text = writeReadings(readings);
     expect(JSON.parse(text)).toEqual(JSON.parse(JSON.stringify(readings)));
     expect(text.split('\n').filter((line) => line.startsWith('    {'))).toHaveLength(2);
+  });
+
+  it('keeps what the parser read: the outcome, its bindings in order, the draw and the steps', () => {
+    const readings = resolve('@arrive Marta\nMarta> fire kiln\nMarta> sing loudly\n');
+    const [fired] = commandOf(readings.steps[1]).turns;
+    expect(fired?.parsed).toEqual({
+      reading: {
+        verb: 'kiln_yard.fire',
+        actor: fired?.skip === false ? fired.actor : '',
+        bindings: [{ role: 'target', binds: 'object', id: 'kiln_yard.yard.kiln' }],
+      },
+      rest: [],
+      drawn: null,
+      corrected: [],
+      draws: [],
+      steps: expect.any(Number),
+    });
+    expect(fired?.parsed?.steps).toBeGreaterThan(0);
+    const [sung] = commandOf(readings.steps[2]).turns;
+    expect(sung?.parsed).toMatchObject({
+      answered: {
+        line: { passage: 'unknown' },
+        bindings: [
+          { name: 'actor', object: fired?.skip === false ? fired.actor : '' },
+          { name: 'here', object: 'kiln_yard.yard' },
+        ],
+      },
+      draws: [],
+    });
+    expect(fired?.handed).toBeUndefined();
+    expect(fired?.before).toBeUndefined();
+  });
+
+  it('keeps a later turn of a line apart from the parse before it: no draws of its own, what it was handed, the world it began from', () => {
+    const readings = resolveScript(
+      VAULT,
+      scriptOf(
+        '@arrive Marta\nMarta> take brass key\nMarta> take iron key\nMarta> open chest with key\n',
+      ),
+      'vault.json',
+    );
+    const [unlocked, opened] = commandOf(readings.steps[3]).turns;
+    // The line ties between the keys, so the first turn draws; the step it planned reads no words.
+    expect(unlocked?.parsed).toMatchObject({ intent: { intent: 'sprout.open_with' }, draws: [2] });
+    expect(unlocked?.skip === false && unlocked.draws).toEqual([2]);
+    expect(opened?.skip === false && opened.draws).toEqual([]);
+    expect(opened?.parsed).toBeUndefined();
+    expect(opened?.handed).toEqual({
+      planned: {
+        verb: 'sprout.open',
+        actor: opened?.skip === false ? opened.actor : '',
+        bindings: [{ role: 'target', binds: 'object', id: 'vault.hall.chest' }],
+      },
+    });
+    expect(opened?.before?.serial).toBe(unlocked?.expect.serial);
+    expect(unlocked?.before).toBeUndefined();
   });
 });
