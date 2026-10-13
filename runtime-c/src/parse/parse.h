@@ -4,8 +4,9 @@
  * (address.c), what an actor can name (reach.c), what a noun names (nouns.c), a run of things in a role that
  * takes one (runs.c), the way out a slot's words name (exits.c), what a slot's words fill its role with
  * (fill.c), `all` and `except` (all.c), where a phrase's slots fall in a line (match.c), the readings a placement
- * makes (readings.c), choosing among them (rank.c), what the world's words cost (vocabulary.c), and a line read as
- * the command turn reads it (command.c, `sprout_parse`). Every step is charged where the TypeScript parser charges
+ * makes (readings.c), choosing among them (rank.c), a line read in part (partial.c), the words a noun may be made
+ * of anywhere in the world (vocabulary.c), an object's synonym out of reach (offered.c), the engine's answers to what
+ * it cannot read (answers.c), and a line read as the command turn reads it (command.c, `sprout_parse`). Every step is charged where the TypeScript parser charges
  * it. Scratch is the turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what
  * a host reads is copied into the arena it hands in.
  */
@@ -48,6 +49,8 @@ bool parse_is_determiner(sprout_str word);
 bool parse_is_connector(sprout_str word);
 /* `all`, or `everything` for it. */
 bool parse_is_all(sprout_str word);
+/* A word the parser reads in a noun: a determiner, a connector, a relative phrase's word, a pronoun, `all`, `everything` or `except`. */
+bool parse_is_noun_word(sprout_str word);
 /* The pronoun a typed word is, `them` being `they`; PARSE_PRONOUN_NONE where it is none a visitor types. */
 parse_pronoun parse_pronoun_in(sprout_str word);
 /* The pronoun a grammar block's `pronouns` value names; PARSE_PRONOUN_NONE for NULL. */
@@ -292,8 +295,20 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
 
 /* ---- vocabulary.c: the words a noun may be made of anywhere in the world ---- */
 
-/* Visits every instance the world's tree holds, each a step: what reading the world's words costs. */
-sprout_eval_status parse_world_visits(const sprout_frame *frame);
+/* Every word some thing in the world is named by, or was or could be, and every kind's name; not the parser's own. */
+typedef struct parse_vocabulary {
+  const sprout_str *words;
+  size_t count;
+} parse_vocabulary;
+
+/*
+ * The world's words, kept in `keep`: what the bundle writes, which costs nothing, and what each live thing is
+ * called, every instance in the world's tree a step.
+ */
+sprout_eval_status parse_world_words(const sprout_frame *frame, sprout_arena *keep, parse_vocabulary *out);
+
+/* Whether every one of `words` is one a noun may hold in the world: the vocabulary's, or the parser's own. */
+bool parse_in_vocabulary(parse_words words, const parse_vocabulary *vocabulary);
 
 /* ---- match.c: where a phrase's slots fall ---- */
 
@@ -389,6 +404,64 @@ typedef struct parse_chosen {
  */
 sprout_eval_status parse_choose(const sprout_frame *frame, const parse_ranked *ranked, size_t count,
                                 parse_chosen *out);
+
+/* ---- partial.c: a line read in part ---- */
+
+/* A partial reading: the line as far as it was understood, and what it is ranked by. */
+typedef struct parse_partial {
+  sprout_str words;      /* as a visitor would type it */
+  size_t literal;        /* the line's words it matched literally, what a role cannot take included */
+  size_t bound;          /* the roles its slots fill */
+  sprout_str uncarried;  /* the thing a carried role names that the actor does not carry, where that is all that is wrong; no bytes for `cannot` */
+} parse_partial;
+
+/* The partial readings a line made that are tied for best so far, in the order made. */
+typedef struct parse_partials {
+  parse_partial *best;
+  size_t count, capacity;
+} parse_partials;
+
+/* Negative where `a` ranks before `b`: more words matched, then more roles filled; 0 where they tie. */
+int parse_compare_partial(const parse_partial *a, const parse_partial *b);
+
+/*
+ * Every partial reading a placement makes, each a step, kept in `keep` where it ranks with the best so far: none
+ * where no slot names a thing it cannot take or does not carry, or a slot names nothing, or no thing.
+ */
+sprout_eval_status parse_partials_of(const sprout_frame *frame, const parse_placement *placement, sprout_arena *keep,
+                                     parse_partials *partials);
+
+/* The partial reading the world answers among `count` (at least one): the best, a tie a step and a draw from the turn's stream below how many tied. */
+sprout_eval_status parse_choose_partial(const sprout_frame *frame, const parse_partial *partials, size_t count,
+                                        const parse_partial **chosen, size_t *among);
+
+/* ---- offered.c: an object's synonym out of reach ---- */
+
+/*
+ * Whether a placement of an object's synonym's phrase, some noun of which names nothing in reach, would read were
+ * the object in reach: it is live, and each such noun names it, tried alone, in a role it may fill, each noun a
+ * step. False for any other phrase.
+ */
+sprout_eval_status parse_offered_out_of_reach(const parse_fill_context *fill, const parse_placement *placement,
+                                              bool *named);
+
+/* ---- answers.c: the engine's answers to what it cannot read ---- */
+
+/* A line answered rather than understood: which answer, who says it, what is said, and what it binds, unrendered. */
+typedef struct parse_answer {
+  const char *answer; /* `cannot`, `not_carrying`, `no_way`, `not_here`, `unknown`, or `refused`, an exit's own words */
+  sprout_str by;
+  sprout_speech said;
+  size_t binding_count;
+  sprout_said_binding bindings[3]; /* `actor`, `here`, then `cannot`'s `reading`, `not_carrying`'s `thing` or `no_way`'s `way` */
+} parse_answer;
+
+/* The engine's line `answer`, said to `actor` standing in `here`, with `given` bound after them where it is not NULL. */
+void parse_answer_of(const sprout_frame *frame, const char *answer, sprout_str actor, sprout_str here,
+                     const sprout_said_binding *given, parse_answer *out);
+
+/* The words of `way`, an exit that refuses, said by its place to `actor` standing in `here`. */
+void parse_refused(const sprout_way *way, sprout_str actor, sprout_str here, parse_answer *out);
 
 /* ---- command.c: a line as the command turn reads it ---- */
 

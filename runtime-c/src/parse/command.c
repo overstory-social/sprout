@@ -5,9 +5,10 @@
  * the draws it makes are the turn's own. The order is the TypeScript parser's, since every step is charged where it
  * is: the ways out of the actor's place, then the words, then what the actor can reach, then each placement of each
  * phrase, a step, with what its slots' words fill their roles with and the readings they make. The best reading is
- * the one understood, a tie drawn; a line no reading reads, where nothing reads it in part, is `not_here` where a
- * placement's way out is one the world writes elsewhere or `all` leaves nothing, and otherwise `unknown`. What this
- * runtime does not read yet is refused in words naming it, never answered wrongly.
+ * the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with `cannot` or
+ * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; naming nothing in reach in the
+ * world's words, with `not_here`; and otherwise `unknown`. What this runtime does not read yet, a sequence's parts,
+ * is refused in words naming it, never answered wrongly.
  */
 #include <string.h>
 
@@ -103,11 +104,12 @@ typedef struct trying {
   size_t memo_count, memo_capacity;
   const parse_filled **fills; /* the placement's, by span */
   parse_readings readings;
-  const char *owner; /* what this runtime does not read yet, which the line came to; NULL while it reads on */
-  bool partial;      /* a placement reads in part, which the line is answered by where nothing reads */
-  bool going;        /* a placement names a way out that refuses, or a direction none answers */
-  bool not_here;     /* a placement's way out is one the world writes, not here, or `all` leaves nothing */
-  bool vocabulary;   /* a placement's noun names nothing in reach, which the world's words decide the answer to */
+  parse_partials partials;   /* the partial readings tied for best, which the line is answered by where nothing reads */
+  bool has_going;            /* a way out named does not go */
+  parse_filled going;        /* the first: an exit that refuses, or a direction none answers */
+  bool not_here;             /* a placement's noun names nothing in reach in the world's words, or `all` leaves nothing */
+  bool read_words;           /* the world's words are read, once for the line */
+  parse_vocabulary vocabulary;
 } trying;
 
 static parse_words words_between(parse_words words, size_t start, size_t end) {
@@ -166,45 +168,31 @@ static sprout_eval_status fill_of(trying *t, const parse_span *span, size_t *at)
   return SPROUT_EVAL_OK;
 }
 
-/*
- * How many partial readings a placement's fills make, which the line is answered with where nothing reads: one for
- * each way to take one thing from each slot, where a slot names what its role cannot take or, carried, only what is
- * not carried, and every slot names something.
- */
-static size_t partials_of(const parse_filled *const *fills, size_t count) {
-  size_t i, made = 1;
-  bool unfit = false, outward = false;
-  for (i = 0; i < count; i++) {
-    unfit = unfit || fills[i]->fills == PARSE_FILLS_UNFIT;
-    outward = outward || fills[i]->fills == PARSE_FILLS_OUTWARD;
-  }
-  if (!unfit && !outward) return 0;
-  for (i = 0; i < count; i++) {
-    const parse_filled *one = fills[i];
-    switch (one->fills) {
-      case PARSE_FILLS_NOTHING:
-      case PARSE_FILLS_REFUSED:
-      case PARSE_FILLS_NO_WAY:
-        return 0;
-      case PARSE_FILLS_WORDS:
-        continue;
-      case PARSE_FILLS_OPTIONS:
-        made *= one->way != NULL ? 1 : one->set_count > 0 ? one->set_count : one->thing_count;
-        break;
-      default:
-        made *= one->thing_count;
-        break;
-    }
-    if (made == 0) return 0;
-  }
-  return made;
-}
-
 static bool any_fills(const parse_filled *const *fills, size_t count, parse_fills which) {
   size_t i;
   for (i = 0; i < count; i++)
     if (fills[i]->fills == which) return true;
   return false;
+}
+
+/*
+ * Whether every noun of a placement that names nothing in reach is made of the world's words, read once for the line;
+ * a way out's label names nothing only by being one the world writes, so it is not asked.
+ */
+static sprout_eval_status named_in_world(trying *t, const parse_placement *placement, bool *named) {
+  size_t i;
+  *named = true;
+  for (i = 0; i < placement->count && *named; i++) {
+    const parse_filled *one = placement->fills[i];
+    const parse_span *span = &placement->spans[i];
+    if (one->fills != PARSE_FILLS_NOTHING) continue;
+    if (t->phrase != NULL && t->phrase->verb->roles[span->role].filler == SPROUT_FILLER_EXIT) continue;
+    if (!t->read_words) EXPR_NEED(parse_world_words(t->all.fill.nouns.frame, t->keep, &t->vocabulary));
+    t->read_words = true;
+    *named = parse_in_vocabulary(words_between(t->words, span->start + one->start, span->start + one->end),
+                                 &t->vocabulary);
+  }
+  return SPROUT_EVAL_OK;
 }
 
 /* One placement of the phrase's slots: a step, its fills, what they come to, and the readings they make. */
@@ -213,9 +201,8 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   const sprout_frame *frame = t->all.fill.nouns.frame;
   const parse_filled **fills = t->fills;
   parse_placement placement;
-  size_t i, at, several = 0, partials;
-  bool nothing = false;
-  if (t->owner != NULL) return SPROUT_EVAL_OK;
+  size_t i, at, several = 0;
+  bool nothing = false, named;
   EXPR_NEED(expr_spend(frame));
   for (i = 0; i < count; i++) EXPR_NEED(fill_of(t, &spans[i], &at));
   /* The memos may move as they grow, so each is found once they are all filled. */
@@ -223,44 +210,36 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
     EXPR_NEED(fill_of(t, &spans[i], &at));
     fills[i] = &t->memos[at].filled;
   }
-  /* An object's synonym reads only where the object takes part, so what it names in part is not about it. */
-  partials = t->phrase == NULL || t->phrase->only == NULL ? partials_of(fills, count) : 0;
-  for (i = 0; i < partials; i++) EXPR_NEED(expr_spend(frame));
-  t->partial = t->partial || partials > 0;
-  if (any_fills(fills, count, PARSE_FILLS_UNFIT) || any_fills(fills, count, PARSE_FILLS_OUTWARD)) return SPROUT_EVAL_OK;
-  if (any_fills(fills, count, PARSE_FILLS_REFUSED) || any_fills(fills, count, PARSE_FILLS_NO_WAY)) {
-    t->going = t->going || (t->phrase != NULL && t->phrase->only == NULL);
-    return SPROUT_EVAL_OK;
-  }
-  if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
-    bool way_only = true;
-    if (t->phrase != NULL && t->phrase->only != NULL) {
-      t->owner = "an object's synonym out of reach";
-      return SPROUT_EVAL_OK;
-    }
-    /* A way out's label names nothing only by being one the world writes; a noun's words are asked of the world's, read once. */
-    for (i = 0; i < count; i++)
-      if (fills[i]->fills == PARSE_FILLS_NOTHING &&
-          (t->phrase == NULL || t->phrase->verb->roles[spans[i].role].filler != SPROUT_FILLER_EXIT))
-        way_only = false;
-    if (way_only) {
-      t->not_here = true;
-    } else {
-      if (!t->vocabulary) EXPR_NEED(parse_world_visits(frame));
-      t->vocabulary = true;
-    }
-    return SPROUT_EVAL_OK;
-  }
-  /* One role runs once for each of several things, never two. */
-  for (i = 0; i < count; i++)
-    if (fills[i]->fills == PARSE_FILLS_RUN || fills[i]->fills == PARSE_FILLS_ALL) several++;
-  if (several > 1) return SPROUT_EVAL_OK;
   placement.phrase = t->phrase;
   placement.intent = t->intent;
   placement.words = t->words;
   placement.spans = spans;
   placement.count = count;
   placement.fills = fills;
+  /* An object's synonym reads only where the object takes part, so what it names in part is not about it. */
+  if (t->phrase == NULL || t->phrase->only == NULL) EXPR_NEED(parse_partials_of(frame, &placement, t->keep, &t->partials));
+  if (any_fills(fills, count, PARSE_FILLS_UNFIT) || any_fills(fills, count, PARSE_FILLS_OUTWARD)) return SPROUT_EVAL_OK;
+  for (i = 0; i < count; i++) {
+    if (fills[i]->fills != PARSE_FILLS_REFUSED && fills[i]->fills != PARSE_FILLS_NO_WAY) continue;
+    if (!t->has_going && t->phrase != NULL && t->phrase->only == NULL) {
+      t->has_going = true;
+      t->going = *fills[i];
+    }
+    return SPROUT_EVAL_OK;
+  }
+  if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
+    /* An object's synonym typed where the object is out of reach. */
+    if (t->phrase != NULL && t->phrase->only != NULL)
+      EXPR_NEED(parse_offered_out_of_reach(&t->all.fill, &placement, &named));
+    else
+      EXPR_NEED(named_in_world(t, &placement, &named));
+    t->not_here = t->not_here || named;
+    return SPROUT_EVAL_OK;
+  }
+  /* One role runs once for each of several things, never two. */
+  for (i = 0; i < count; i++)
+    if (fills[i]->fills == PARSE_FILLS_RUN || fills[i]->fills == PARSE_FILLS_ALL) several++;
+  if (several > 1) return SPROUT_EVAL_OK;
   EXPR_NEED(parse_placement_readings(t->x, frame, t->all.actor, &placement, t->keep, &t->readings, &nothing));
   t->not_here = t->not_here || nothing;
   return SPROUT_EVAL_OK;
@@ -268,8 +247,7 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
 
 /*
  * Tries every phrase of the world's and its intents' against `words`, each with its fills in an arena rewound for the
- * next, the readings they make kept in the turn's; `t->owner` is set where the line comes to what this runtime does
- * not read yet.
+ * next, the readings they make, the partial readings and the world's words kept in the turn's.
  */
 static sprout_eval_status phrases_read(reader *r, parse_words words, const parse_candidate *candidates,
                                        size_t candidate_count, const sprout_way *ways, size_t way_count, trying *t) {
@@ -299,7 +277,7 @@ static sprout_eval_status phrases_read(reader *r, parse_words words, const parse
   t->all.fill.candidate_count = candidate_count;
   t->all.fill.ways = ways;
   t->all.fill.way_count = way_count;
-  for (i = 0; status == SPROUT_EVAL_OK && t->owner == NULL && i < world->phrase_count + world->intent_phrase_count; i++) {
+  for (i = 0; status == SPROUT_EVAL_OK && i < world->phrase_count + world->intent_phrase_count; i++) {
     const sprout_typed_part *parts;
     size_t part_count;
     sprout_arena_rewind(&scratch);
@@ -347,27 +325,38 @@ static bool may_chain(const sprout_str *words, size_t count) {
   return false;
 }
 
-/* The answer `name`, said to the actor where they stand, with `actor` and `here` bound. */
-static sprout_status answer(reader *r, const char *name) {
+/* The line answered: which answer, who says it, the line or the words said, and what it binds, copied into `keep`. */
+static sprout_status answered(reader *r, const parse_answer *answer) {
   sprout_parsed *out = r->out;
-  sprout_speech said;
-  sprout_str by;
-  sprout_said_binding *bound = (sprout_said_binding *)sprout_arena_take(r->keep, 2 * sizeof *bound);
+  const sprout_graph *graph = &r->run.world->graph;
+  sprout_said_binding *bound = (sprout_said_binding *)sprout_arena_take(r->keep, answer->binding_count * sizeof *bound);
+  size_t i;
   if (bound == NULL) return SPROUT_NO_MEMORY;
-  sprout_engine_said(&r->frame, name, &r->actor, &r->here, &by, &said);
   out->end = SPROUT_PARSED_ANSWERED;
-  out->line = said.name;
-  if (said.kind == SPROUT_SPEECH_ENGINE) out->words = prose_stock_words(said.name);
-  out->absent = said.kind == SPROUT_SPEECH_ABSENT;
-  bound[0].name = "actor";
-  bound[0].object = true;
-  bound[1].name = "here";
-  bound[1].object = true;
-  if (!kept(r->keep, by, &out->by) || !kept(r->keep, r->actor, &bound[0].text) || !kept(r->keep, r->here, &bound[1].text))
-    return SPROUT_NO_MEMORY;
+  out->answer = answer->answer;
+  out->line = answer->said.name;
+  out->absent = answer->said.kind == SPROUT_SPEECH_ABSENT;
+  if (answer->said.kind == SPROUT_SPEECH_ENGINE) out->words = prose_stock_words(answer->said.name);
+  if (answer->said.kind == SPROUT_SPEECH_TEXT) {
+    const sprout_node *value = sprout_node_get(graph, answer->said.node, "value");
+    if ((out->words = sprout_arena_copy(r->keep, sprout_text(graph, value), sprout_text_length(graph, value))) == NULL)
+      return SPROUT_NO_MEMORY;
+  }
+  if (!kept(r->keep, answer->by, &out->by)) return SPROUT_NO_MEMORY;
+  for (i = 0; i < answer->binding_count; i++) {
+    bound[i] = answer->bindings[i];
+    if (!kept(r->keep, answer->bindings[i].text, &bound[i].text)) return SPROUT_NO_MEMORY;
+  }
   out->bindings = bound;
-  out->binding_count = 2;
+  out->binding_count = answer->binding_count;
   return SPROUT_OK;
+}
+
+/* The engine's line `name`, said to the actor where they stand, with `given` bound after `actor` and `here`. */
+static sprout_status answer(reader *r, const char *name, const sprout_said_binding *given) {
+  parse_answer said;
+  parse_answer_of(&r->frame, name, r->actor, r->here, given, &said);
+  return answered(r, &said);
 }
 
 /* A read that faulted: the turn it begins is abandoned, as one whose parse spends its budget is. */
@@ -526,6 +515,49 @@ static sprout_status understood(reader *r, const parse_readings *readings) {
   return SPROUT_OK;
 }
 
+/*
+ * The world's answer to a line no reading reads: the partial reading chosen, a tie drawn, as `cannot` or
+ * `not_carrying`; else the first way out named that does not go, `no_way` or the exit's own words; else `not_here`
+ * where a noun names nothing in reach in the world's words, and `unknown` otherwise.
+ */
+static sprout_status unread(reader *r, const trying *t) {
+  sprout_said_binding given;
+  if (t->partials.count > 0) {
+    const parse_partial *chosen;
+    size_t among;
+    sprout_eval_status status = parse_choose_partial(&r->frame, t->partials.best, t->partials.count, &chosen, &among);
+    if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
+    if (status != SPROUT_EVAL_OK) {
+      faulted(r);
+      return SPROUT_OK;
+    }
+    if (among > 1) {
+      uint64_t *draws = (uint64_t *)sprout_arena_take(r->keep, sizeof *draws);
+      if (draws == NULL) return SPROUT_NO_MEMORY;
+      draws[0] = among;
+      r->out->draws = draws;
+      r->out->draw_count = 1;
+    }
+    given.object = chosen->uncarried.bytes != NULL;
+    given.name = given.object ? "thing" : "reading";
+    given.text = given.object ? chosen->uncarried : chosen->words;
+    return answer(r, given.object ? "not_carrying" : "cannot", &given);
+  }
+  if (t->has_going && t->going.fills == PARSE_FILLS_REFUSED) {
+    parse_answer said;
+    parse_refused(t->going.way, r->actor, r->here, &said);
+    return answered(r, &said);
+  }
+  if (t->has_going) {
+    given.name = "way";
+    given.object = false;
+    given.text.bytes = t->going.direction;
+    given.text.length = strlen(t->going.direction);
+    return answer(r, "no_way", &given);
+  }
+  return answer(r, t->not_here ? "not_here" : "unknown", NULL);
+}
+
 /* Reads the words of a line typed by the actor, who stands in a place; anything but SPROUT_OK leaves `out` refused. */
 static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, sprout_str line) {
   const sprout_way *ways;
@@ -541,7 +573,7 @@ static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, 
     return SPROUT_OK;
   }
   if (typed_words(&r->run.scratch, parse_without_question(line), &words, &count) != SPROUT_OK) return SPROUT_NO_MEMORY;
-  if (count == 0) return answer(r, "unknown");
+  if (count == 0) return answer(r, "unknown", NULL);
   status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
   if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
   if (status != SPROUT_EVAL_OK) {
@@ -549,7 +581,7 @@ static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, 
     return SPROUT_OK;
   }
   if (count == 1 && (is_word(words[0], "again") || is_word(words[0], "g"))) {
-    if (!visitor->has_reading) return answer(r, "unknown");
+    if (!visitor->has_reading) return answer(r, "unknown", NULL);
     return refuse(r->out, "", "`again` after a reading", " is not read by this runtime yet.");
   }
   if (may_chain(words, count))
@@ -562,14 +594,8 @@ static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, 
     faulted(r);
     return SPROUT_OK;
   }
-  if (t.owner != NULL) return refuse(r->out, "", t.owner, " is not read by this runtime yet.");
   if (t.readings.count > 0) return understood(r, &t.readings);
-  if (t.partial) return refuse(r->out, "", "a line some phrase reads in part", " is not read by this runtime yet.");
-  if (t.going)
-    return refuse(r->out, "", "a way out that refuses, or a direction no way out answers,", " is not read by this runtime yet.");
-  if (!t.not_here && t.vocabulary)
-    return refuse(r->out, "", "a noun that names nothing in reach", " is not read by this runtime yet.");
-  return answer(r, t.not_here ? "not_here" : "unknown");
+  return unread(r, &t);
 }
 
 sprout_status sprout_parse(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
