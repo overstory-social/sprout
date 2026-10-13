@@ -66,7 +66,6 @@ async function main() {
     caps: DEFAULT_LIMITS.caps,
     installed: INSTALLED_EXTENSIONS,
   }).world;
-  const before = heapNow();
   let started = performance.now();
   const engine = await WasmEngine.open(wasm, cartridge, worldId);
   const loadMs = performance.now() - started;
@@ -160,9 +159,6 @@ async function main() {
       `process: rss ${megabytes(usage.rss)} MB, js heap ${megabytes(usage.heapUsed)} MB, array buffers ${megabytes(usage.arrayBuffers)} MB`,
     );
   }
-  console.log(
-    `profile-wasm: the JS heap held ${megabytes(base - before)} MB more after loading than before`,
-  );
   return 0;
 }
 

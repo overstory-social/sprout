@@ -25,6 +25,10 @@
 // the last line says so. Where the variable is set, a failing step fails this script, in the gate
 // and in the e2e alike.
 //
+// After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
+// runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without
+// clang's wasm32 target and wasm-ld the step is skipped, and its line says so.
+//
 // After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
 // every corpus world with transcripts is packed, its scripts resolved by the
 // TypeScript parser, played through `sproutc`, and diffed with the transcript
@@ -125,6 +129,34 @@ function run(command, args, env) {
 }
 
 /** The Playdate app, which is built on the runtime and plays the cartridges packed above. */
+/**
+ * The runtime built for WebAssembly (runtime-c/wasm/build.sh) and checked against the TypeScript runtime
+ * (runtime-c/wasm/engine.test.mjs). It needs clang with the wasm32 target and wasm-ld; without them it
+ * is skipped, in words, as the Playdate step is without its SDK.
+ */
+async function wasmStep() {
+  const targets = spawnSync('clang', ['--print-targets'], { encoding: 'utf8' });
+  if (targets.status !== 0 || !/\bwasm32\b/.test(targets.stdout) || !has('wasm-ld')) {
+    console.log(
+      'runtime-c wasm: SKIPPED, clang with the wasm32 target and wasm-ld are needed to build the WebAssembly engine',
+    );
+    return;
+  }
+  const out = `${build}-wasm`;
+  run('sh', [join(root, 'wasm', 'build.sh')], { OUT: out });
+  const { testEngine } = await import('../runtime-c/wasm/engine.test.mjs');
+  const checks = await testEngine(out);
+  const failed = checks.filter((one) => !one.passed);
+  for (const one of failed) console.log(`runtime-c wasm: ${one.name}: fails, ${one.words}`);
+  console.log(
+    `runtime-c wasm: ${checks.length - failed.length} of ${checks.length} checks pass against the TypeScript runtime`,
+  );
+  if (failed.length > 0) {
+    console.log('runtime-c: FAILED, the WebAssembly engine differs from the TypeScript runtime');
+    process.exit(1);
+  }
+}
+
 async function playerStep(sanitized) {
   const { checkPlayer, sdkPath } = await import('./playdate-player.mjs');
   if (sdkPath() === null) {
@@ -226,6 +258,8 @@ if (unlike.length > 0) {
   );
   process.exit(1);
 }
+await wasmStep();
+
 const passing = results.filter((r) => r.passed).map((r) => r.name);
 console.log(
   `runtime-c replay: ${passing.length} of ${results.length} worlds pass${passing.length > 0 ? `: ${passing.join(', ')}` : ''}`,

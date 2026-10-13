@@ -30,6 +30,7 @@ export class WasmEngine {
   put(parts) {
     const total = parts.reduce((n, part) => n + part.length, 0);
     const at = this.x.sw_input(total);
+    if (at === 0) throw new Error(`the engine cannot take ${total} bytes of input`);
     const bytes = new Uint8Array(this.x.memory.buffer, at, total + 1);
     let offset = 0;
     for (const part of parts) {
@@ -52,18 +53,33 @@ export class WasmEngine {
     return decoder.decode(new Uint8Array(this.x.memory.buffer, at, this.x.sw_output_length()));
   }
 
+  /** Catch-up as one maintenance turn, as a host runs it before it admits anyone. */
+  maintenance(seed, instant) {
+    return JSON.parse(this.call('sw_maintenance', BigInt(seed), BigInt(instant)));
+  }
+
   arrive(visit, nickname, seed, instant) {
     const lengths = this.put([encoder.encode(visit), encoder.encode(nickname)]);
     return JSON.parse(this.call('sw_arrive', ...lengths, BigInt(seed), BigInt(instant)));
   }
 
-  /** A command of a reading a view offered: `{ verb, fillers, typed }`. */
+  depart(visit, seed, instant) {
+    const [length] = this.put([encoder.encode(visit)]);
+    return JSON.parse(this.call('sw_depart', length, BigInt(seed), BigInt(instant)));
+  }
+
+  /**
+   * A command of a reading already read: a view's `{ verb, fillers, typed }`, or a readings file's turn,
+   * whose `draws` and `asides` are what the host's parser drew and said first.
+   */
   command(visit, reading, seed, instant) {
     const json = JSON.stringify({
       visit,
       verb: reading.verb,
       fillers: reading.fillers,
       typed: reading.typed,
+      draws: reading.draws ?? [],
+      asides: reading.asides ?? [],
     });
     const [length] = this.put([encoder.encode(json)]);
     return JSON.parse(this.call('sw_command', length, BigInt(seed), BigInt(instant)));

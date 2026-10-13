@@ -1,6 +1,7 @@
 /*
- * The runtime as a WebAssembly module a JavaScript host drives: one world and its live state per
- * instance, freestanding (no WASI, no libc beyond libc.c), every value crossing as bytes. The host
+ * The runtime as a WebAssembly module a JavaScript host drives (the spec's The host contract): one
+ * world and its live state per instance, freestanding (no WASI, no libc beyond libc.c), every value
+ * crossing as bytes. The host
  * writes its input into the buffer `sw_input` hands it, calls one export, and reads the answer from
  * `sw_output`. Memory comes to the runtime in pages from a pool here, which grows the instance's
  * memory and never gives it back, so what the pool holds and what the instance has grown to are both
@@ -83,6 +84,7 @@ static void *pool_alloc(void *ctx, size_t bytes) {
 static void pool_release(void *ctx, void *block, size_t bytes) {
   free_run *freed = (free_run *)block, **at = &free_runs;
   (void)ctx;
+  if (block == NULL) return;
   bytes = whole_pages(bytes);
   held_bytes -= bytes;
   while (*at != NULL && (uintptr_t)*at < (uintptr_t)freed) {
@@ -108,6 +110,12 @@ static void pool_release(void *ctx, void *block, size_t bytes) {
 }
 
 /* ---- the host record ---- */
+
+/*
+ * What an arena adds to each page it asks for, at most: a page's header (arena.c). The runtime's pages
+ * are a pool page less this, so each takes one pool page and not two.
+ */
+#define ARENA_HEADER ((size_t)64)
 
 static uint64_t turn_seed;
 static double turn_began_ms;
@@ -141,16 +149,21 @@ static sprout_arena scratch;
 
 /* ---- crossing: one input buffer the host writes into, one output it reads ---- */
 
+/* The largest input the host may hand in at once. */
+#define INPUT_LIMIT ((size_t)1 << 30)
+
 static unsigned char *input;
 static size_t input_capacity;
 static const char *output;
 static size_t output_length;
 
+/* A buffer of at least `bytes` bytes and a NUL for the host to write into; NULL past the limit or when memory runs out. */
 EXPORT("sw_input") unsigned char *sw_input(size_t bytes) {
+  if (bytes >= INPUT_LIMIT) return NULL;
   if (bytes + 1 > input_capacity) {
     size_t capacity = PAGE_BYTES;
     while (capacity < bytes + 1) capacity *= 2;
-    if (input != NULL) pool_release(NULL, input, input_capacity);
+    pool_release(NULL, input, input_capacity);
     input = (unsigned char *)pool_alloc(NULL, capacity);
     input_capacity = input == NULL ? 0 : capacity;
   }
@@ -163,6 +176,7 @@ EXPORT("sw_held_bytes") size_t sw_held_bytes(void) { return held_bytes; }
 EXPORT("sw_peak_held_bytes") size_t sw_peak_held_bytes(void) { return peak_held_bytes; }
 EXPORT("sw_memory_bytes") size_t sw_memory_bytes(void) { return __builtin_wasm_memory_size(0) * WASM_PAGE; }
 
+/* The spec's Runtime budgets table, as host/host.c sets it; a row it gives no figure for stays unset. */
 static void budgets(sprout_budgets *b) {
   b->steps = (sprout_limit){true, 50000};
   b->poll_steps = (sprout_limit){true, 10000};
@@ -181,30 +195,37 @@ static void budgets(sprout_budgets *b) {
 static void begin(uint64_t seed) {
   turn_seed = seed;
   turn_began_ms = host_now_ms();
-  sprout_arena_reset(&scratch);
   output = NULL;
   output_length = 0;
+  sprout_arena_reset(&scratch);
 }
 
-/* `text` as the answer, copied into the scratch arena. */
-static int answer(const char *text, size_t length) {
+/* `text` as the answer, copied into the scratch arena; `status` given back, or SPROUT_NO_MEMORY. */
+static int answer(int status, const char *text, size_t length) {
   char *copy = (char *)sprout_arena_take(&scratch, length + 1);
   if (copy == NULL) return SPROUT_NO_MEMORY;
   memcpy(copy, text, length);
   output = copy;
   output_length = length;
-  return SPROUT_OK;
+  return status;
 }
 
-static int answer_text(const char *text) { return answer(text, strlen(text)); }
+static int answer_text(int status, const char *text) { return answer(status, text, strlen(text)); }
+
+/* A refusal of what the host handed in, in words. */
+static int refuse(const char *why) { return answer_text(SPROUT_BAD_INPUT, why); }
+
+static bool ready(void) { return world != NULL && state != NULL; }
 
 /* ---- the exports ---- */
 
-/* Loads the cartridge in the input buffer; the instance's one world. */
+/* Loads the cartridge in the input buffer as the instance's one world, replacing any before it and its state. */
 EXPORT("sw_load") int sw_load(size_t length) {
+  sprout_world *loaded = NULL;
+  sprout_refusal refusal;
   sprout_status status;
   if (host.alloc == NULL) {
-    host.page_bytes = PAGE_BYTES;
+    host.page_bytes = PAGE_BYTES - ARENA_HEADER;
     host.alloc = pool_alloc;
     host.release = pool_release;
     host.now = host_now;
@@ -217,33 +238,51 @@ EXPORT("sw_load") int sw_load(size_t length) {
     if (status != SPROUT_OK) return status;
   }
   begin(0);
-  status = sprout_load(&host, (const char *)input, length, &world);
+  if (input == NULL || length > input_capacity) return refuse("Hand the cartridge in through sw_input first.");
+  refusal.text[0] = '\0';
+  status = sprout_load_explained(&host, (const char *)input, length, &loaded, &refusal);
   /* The cartridge is read; the buffer that held it goes back to the pool. */
   pool_release(NULL, input, input_capacity);
   input = NULL;
   input_capacity = 0;
-  return status;
+  if (status != SPROUT_OK) return refusal.text[0] == '\0' ? status : answer_text(status, refusal.text);
+  if (state != NULL) sprout_state_free(state);
+  if (world != NULL) sprout_world_free(world);
+  state = NULL;
+  world = loaded;
+  return SPROUT_OK;
 }
 
-/* Opens the stored state in the input buffer against the world, or a new one where `length` is 0. */
+/* Opens the stored state in the input buffer against the world, or a new one for the world id there where `length` is 0. */
 EXPORT("sw_open") int sw_open(size_t length, size_t world_id_length) {
+  sprout_state *opened = NULL;
+  sprout_refusal refusal;
   sprout_status status;
   begin(0);
+  if (world == NULL) return refuse("Load a cartridge before opening a state.");
+  if (input == NULL) return refuse("Hand the state in through sw_input first.");
+  refusal.text[0] = '\0';
   if (length == 0) {
-    char *id = (char *)sprout_arena_take(&scratch, world_id_length + 1);
+    const char *id = (const char *)sprout_arena_copy(&scratch, (const char *)input, world_id_length);
     if (id == NULL) return SPROUT_NO_MEMORY;
-    memcpy(id, input, world_id_length);
-    status = sprout_state_empty(&host, id, &state);
+    status = sprout_state_empty(&host, id, &opened);
   } else {
-    status = sprout_state_read(&host, (const char *)input, length, &state, NULL);
+    status = sprout_state_read(&host, (const char *)input, length, &opened, &refusal);
   }
-  if (status != SPROUT_OK) return status;
-  return sprout_state_open(state, world, NULL, NULL);
+  if (status == SPROUT_OK) status = sprout_state_open(opened, world, NULL, &refusal);
+  if (status != SPROUT_OK) {
+    if (opened != NULL) sprout_state_free(opened);
+    return refusal.text[0] == '\0' ? status : answer_text(status, refusal.text);
+  }
+  if (state != NULL) sprout_state_free(state);
+  state = opened;
+  return SPROUT_OK;
 }
 
 /* The state as the store keeps it. */
 EXPORT("sw_save") int sw_save(void) {
   begin(0);
+  if (!ready()) return refuse("There is no state to save.");
   return sprout_state_write(state, &scratch, &output, &output_length);
 }
 
@@ -252,12 +291,15 @@ static const char *const RESULTS[] = {"done", "faulted", "refused", "closed", "i
 
 static sprout_json *text(const char *bytes, size_t length) { return sprout_json_text(&scratch, bytes, length); }
 
-/* A turn's outcome as JSON: what it came to, its fault, and every line, by reader. */
+/*
+ * A turn's outcome as JSON: what it came to, whether the stored state changed, its fault, the words a
+ * host tells a person outside the world where an arrival was closed or faulted, and every line, by reader.
+ */
 static int told(const sprout_outcome *outcome) {
   sprout_json *root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 5);
   sprout_json *lines = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, outcome->line_count);
   sprout_json *changed = sprout_json_make(&scratch, SPROUT_JSON_BOOL, 0);
-  sprout_json *fault;
+  sprout_json *fault, *words;
   size_t i;
   if (root == NULL || lines == NULL || changed == NULL) return SPROUT_NO_MEMORY;
   sprout_json_adopt(root, "result", text(RESULTS[outcome->result], strlen(RESULTS[outcome->result])));
@@ -266,6 +308,9 @@ static int told(const sprout_outcome *outcome) {
   fault = outcome->faulted ? text(outcome->fault_name, strlen(outcome->fault_name))
                            : sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
   sprout_json_adopt(root, "fault", fault);
+  words = outcome->words != NULL ? text(outcome->words, strlen(outcome->words))
+                                 : sprout_json_make(&scratch, SPROUT_JSON_NULL, 0);
+  sprout_json_adopt(root, "words", words);
   for (i = 0; i < outcome->line_count; i++) {
     const sprout_line *line = &outcome->lines[i];
     sprout_json *one = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, 3);
@@ -276,28 +321,35 @@ static int told(const sprout_outcome *outcome) {
     sprout_json_adopt(lines, NULL, one);
   }
   sprout_json_adopt(root, "lines", lines);
+  if (root->count != 5 || lines->count != outcome->line_count) return SPROUT_NO_MEMORY;
   return sprout_json_write(&scratch, root, &output, &output_length);
 }
 
 static int run(sprout_turn_input *in) {
   sprout_outcome outcome;
   sprout_status status = sprout_run_turn(world, state, &host, in, &outcome);
-  int wrote;
-  if (status != SPROUT_OK) {
-    int said = answer_text(status == SPROUT_BAD_INPUT ? outcome.fault.text : sprout_status_text(status));
-    (void)said;
-    return status;
-  }
-  wrote = told(&outcome);
+  int said = status == SPROUT_OK ? told(&outcome)
+             : status == SPROUT_BAD_INPUT ? answer_text(status, outcome.fault.text)
+                                          : answer_text(status, sprout_status_text(status));
   sprout_outcome_free(&outcome);
-  return wrote;
+  return said;
 }
 
-/* The C string of `length` bytes at `at` in the input, copied into the scratch arena. */
+/* The C string of `length` bytes at `at` in the input, copied into the scratch arena; NULL past the input. */
 static const char *input_string(size_t at, size_t length) {
-  char *copy = (char *)sprout_arena_take(&scratch, length + 1);
-  if (copy != NULL) memcpy(copy, input + at, length);
-  return copy;
+  if (input == NULL || at + length > input_capacity) return NULL;
+  return sprout_arena_copy(&scratch, (const char *)input + at, length);
+}
+
+/* Catch-up as one maintenance turn at `instant`, as a host runs it before it admits anyone. */
+EXPORT("sw_maintenance") int sw_maintenance(uint64_t seed, uint64_t instant) {
+  sprout_turn_input in;
+  begin(seed);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  memset(&in, 0, sizeof in);
+  in.kind = SPROUT_TURN_MAINTENANCE;
+  in.instant = instant;
+  return run(&in);
 }
 
 /* An arrival: the input holds the visit and then the nickname. */
@@ -307,15 +359,16 @@ EXPORT("sw_arrive") int sw_arrive(size_t visit_length, size_t nickname_length, u
   const char *visit, *nickname;
   sprout_status status;
   begin(seed);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
   visit = input_string(0, visit_length);
   nickname = input_string(visit_length, nickname_length);
-  if (visit == NULL || nickname == NULL) return SPROUT_NO_MEMORY;
+  if (visit == NULL || nickname == NULL) return refuse("Hand the visit and nickname in through sw_input first.");
   status = sprout_admit(world, state, &host, visit, nickname, nickname_length, &admission);
-  if (status != SPROUT_OK) return status;
+  if (status != SPROUT_OK) return answer_text(status, sprout_status_text(status));
   if (admission.reason != SPROUT_NICKNAME_OK) {
-    int said = answer(admission.words.bytes, admission.words.length);
+    int said = answer(SPROUT_BAD_INPUT, admission.words.bytes, admission.words.length);
     sprout_admission_free(&admission);
-    return said == SPROUT_OK ? SPROUT_BAD_INPUT : said;
+    return said;
   }
   memset(&in, 0, sizeof in);
   in.kind = SPROUT_TURN_ARRIVAL;
@@ -328,76 +381,149 @@ EXPORT("sw_arrive") int sw_arrive(size_t visit_length, size_t nickname_length, u
   return run(&in);
 }
 
-/* A reading's fillings from a view's fillers, as `sw_readings` writes them. */
-static int fillings_of(const sprout_json *fillers, sprout_filling **out) {
+/* A departure: the input holds the visit. */
+EXPORT("sw_depart") int sw_depart(size_t visit_length, uint64_t seed, uint64_t instant) {
+  sprout_turn_input in;
+  const char *visit;
+  begin(seed);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  visit = input_string(0, visit_length);
+  if (visit == NULL) return refuse("Hand the visit in through sw_input first.");
+  memset(&in, 0, sizeof in);
+  in.kind = SPROUT_TURN_DEPARTURE;
+  in.instant = instant;
+  in.visit = visit;
+  return run(&in);
+}
+
+/* The string member `key` of `object`, or NULL where it has none. */
+static const char *string_at(const sprout_json *object, const char *key) {
+  const sprout_json *found = object == NULL ? NULL : sprout_json_get(object, key);
+  return found != NULL && found->kind == SPROUT_JSON_STRING ? found->bytes : NULL;
+}
+
+/* The array member `key` of `object`, or NULL where it has none. */
+static const sprout_json *array_at(const sprout_json *object, const char *key) {
+  const sprout_json *found = object == NULL ? NULL : sprout_json_get(object, key);
+  return found != NULL && found->kind == SPROUT_JSON_ARRAY ? found : NULL;
+}
+
+/* A reading's fillings from fillers as a view writes them, or as the readings file does (`value`); words for what is wrong. */
+static const char *fillings_of(const sprout_json *fillers, sprout_filling **out) {
   sprout_filling *found = (sprout_filling *)sprout_arena_take(&scratch, (fillers->count + 1) * sizeof *found);
   size_t i, j;
-  if (found == NULL) return SPROUT_NO_MEMORY;
+  if (found == NULL) return "There is no memory for the reading.";
   for (i = 0; i < fillers->count; i++) {
     const sprout_json *one = fillers->items[i];
-    const sprout_json *binds = sprout_json_get(one, "binds"), *id = sprout_json_get(one, "id");
-    const sprout_json *ids = sprout_json_get(one, "ids"), *to = sprout_json_get(one, "to");
-    const sprout_json *direction = sprout_json_get(one, "direction"), *label = sprout_json_get(one, "label");
-    found[i].role = sprout_json_get(one, "role")->bytes;
-    if (strcmp(binds->bytes, "object") == 0) {
+    const char *role = string_at(one, "role"), *binds = string_at(one, "binds");
+    const sprout_json *ids = array_at(one, "ids"), *value = one == NULL ? NULL : sprout_json_get(one, "value");
+    if (role == NULL || binds == NULL) return "A filler names no role, or does not say what it binds.";
+    found[i].role = role;
+    if (strcmp(binds, "unbound") == 0) {
+      found[i].binds = SPROUT_FILL_UNBOUND;
+    } else if (strcmp(binds, "object") == 0 && string_at(one, "id") != NULL) {
       found[i].binds = SPROUT_FILL_OBJECT;
-      found[i].id = id->bytes;
-    } else if (strcmp(binds->bytes, "set") == 0) {
+      found[i].id = string_at(one, "id");
+    } else if (strcmp(binds, "set") == 0 && ids != NULL) {
       const char **list = (const char **)sprout_arena_take(&scratch, (ids->count + 1) * sizeof *list);
-      if (list == NULL) return SPROUT_NO_MEMORY;
-      for (j = 0; j < ids->count; j++) list[j] = ids->items[j]->bytes;
+      if (list == NULL) return "There is no memory for the reading.";
+      for (j = 0; j < ids->count; j++) {
+        if (ids->items[j]->kind != SPROUT_JSON_STRING) return "A set filler holds something other than ids.";
+        list[j] = ids->items[j]->bytes;
+      }
       found[i].binds = SPROUT_FILL_SET;
       found[i].ids = list;
       found[i].id_count = ids->count;
-    } else if (strcmp(binds->bytes, "exit") == 0) {
+    } else if (strcmp(binds, "exit") == 0 && string_at(one, "to") != NULL && string_at(one, "label") != NULL) {
       found[i].binds = SPROUT_FILL_EXIT;
-      found[i].id = to->bytes;
-      found[i].label = label->bytes;
-      found[i].direction = direction->kind == SPROUT_JSON_STRING ? direction->bytes : NULL;
+      found[i].id = string_at(one, "to");
+      found[i].label = string_at(one, "label");
+      found[i].direction = string_at(one, "direction");
+    } else if (strcmp(binds, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_STRING) {
+      found[i].binds = SPROUT_FILL_TEXT;
+      found[i].text = value->bytes;
+    } else if (strcmp(binds, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_NUMBER) {
+      found[i].binds = SPROUT_FILL_NUMBER;
+      found[i].number = value->number;
     } else {
-      found[i].binds = SPROUT_FILL_UNBOUND;
+      return "A filler binds what no role takes, or lacks what it binds.";
     }
   }
   *out = found;
-  return SPROUT_OK;
+  return NULL;
+}
+
+/* What the host's parser drew and said before the reading's own lines, as the readings file writes them. */
+static const char *parsing_of(const sprout_json *root, sprout_reading *reading) {
+  const sprout_json *draws = array_at(root, "draws"), *asides = array_at(root, "asides");
+  size_t i;
+  if (draws != NULL && draws->count > 0) {
+    uint64_t *bounds = (uint64_t *)sprout_arena_take(&scratch, draws->count * sizeof *bounds);
+    if (bounds == NULL) return "There is no memory for the reading.";
+    for (i = 0; i < draws->count; i++) {
+      if (draws->items[i]->kind != SPROUT_JSON_NUMBER) return "A draw is not a number.";
+      bounds[i] = (uint64_t)draws->items[i]->number;
+    }
+    reading->draws = bounds;
+    reading->draw_count = draws->count;
+  }
+  if (asides != NULL && asides->count > 0) {
+    sprout_aside *said = (sprout_aside *)sprout_arena_take(&scratch, asides->count * sizeof *said);
+    if (said == NULL) return "There is no memory for the reading.";
+    for (i = 0; i < asides->count; i++) {
+      said[i].line = string_at(asides->items[i], "line");
+      said[i].thing = string_at(asides->items[i], "thing");
+      said[i].pronoun = string_at(asides->items[i], "pronoun");
+      if (said[i].line == NULL || said[i].thing == NULL) return "An aside names no line or no thing.";
+    }
+    reading->asides = said;
+    reading->aside_count = asides->count;
+  }
+  return NULL;
 }
 
 /*
- * A command: the input holds `{"visit", "verb", "fillers", "typed"}`, a reading a view offered, so
- * no parser runs here (the TypeScript parser is the host's).
+ * A command: the input holds `{"visit", "verb", "fillers", "typed"}` and, where the host's parser drew or
+ * said anything first, `"draws"` and `"asides"`: a reading already read, so no parser runs here.
  */
 EXPORT("sw_command") int sw_command(size_t length, uint64_t seed, uint64_t instant) {
-  const sprout_json *root, *visit, *verb, *fillers, *typed;
+  const sprout_json *fillers;
   const sprout_stored_visitor *visitor;
-  sprout_filling *fillings;
+  const char *visit, *verb, *typed, *wrong;
+  sprout_filling *fillings = NULL;
   sprout_reading reading;
   sprout_turn_input in;
-  sprout_json *tree;
+  sprout_json *root;
   int status;
   begin(seed);
-  status = sprout_json_read(&scratch, (const char *)input, length, &tree, NULL);
-  if (status != SPROUT_OK) return status;
-  root = tree;
-  visit = sprout_json_get(root, "visit");
-  verb = sprout_json_get(root, "verb");
-  fillers = sprout_json_get(root, "fillers");
-  typed = sprout_json_get(root, "typed");
-  visitor = sprout_state_find_visitor(state, (sprout_str){visit->bytes, visit->length});
-  if (visitor == NULL) return answer_text("no such visitor") == SPROUT_OK ? SPROUT_BAD_INPUT : SPROUT_NO_MEMORY;
-  status = fillings_of(fillers, &fillings);
-  if (status != SPROUT_OK) return status;
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  if (input == NULL || length > input_capacity) return refuse("Hand the command in through sw_input first.");
+  status = sprout_json_read(&scratch, (const char *)input, length, &root, NULL);
+  if (status != SPROUT_OK) return status == SPROUT_BAD_INPUT ? refuse("The command is not JSON.") : status;
+  visit = string_at(root, "visit");
+  verb = string_at(root, "verb");
+  typed = string_at(root, "typed");
+  fillers = array_at(root, "fillers");
+  if (visit == NULL || verb == NULL || typed == NULL || fillers == NULL)
+    return refuse("A command names its visit, verb, typed line and fillers.");
+  visitor = sprout_state_find_visitor(state, (sprout_str){visit, strlen(visit)});
+  if (visitor == NULL) return refuse("No visitor of this world has that visit.");
   memset(&reading, 0, sizeof reading);
-  reading.verb = verb->bytes;
-  reading.actor = (const char *)sprout_arena_copy(&scratch, visitor->instance.bytes, visitor->instance.length);
+  wrong = fillings_of(fillers, &fillings);
+  if (wrong == NULL) wrong = parsing_of(root, &reading);
+  if (wrong != NULL) return refuse(wrong);
+  reading.verb = verb;
+  reading.actor = sprout_arena_copy(&scratch, visitor->instance.bytes, visitor->instance.length);
+  if (reading.actor == NULL) return SPROUT_NO_MEMORY;
   reading.filling_count = fillers->count;
   reading.fillings = fillings;
   memset(&in, 0, sizeof in);
   in.kind = SPROUT_TURN_COMMAND;
   in.instant = instant;
-  in.visit = visit->bytes;
+  in.visit = visit;
   in.reading = &reading;
-  in.text = typed->bytes;
-  in.text_length = typed->length;
+  in.text = typed;
+  in.text_length = strlen(typed);
   return run(&in);
 }
 
@@ -405,11 +531,16 @@ EXPORT("sw_command") int sw_command(size_t length, uint64_t seed, uint64_t insta
 EXPORT("sw_scene") int sw_scene(size_t visit_length) {
   sprout_seen_view view;
   sprout_json *tree, *verbs, *root;
+  const char *visit;
   sprout_status status;
   size_t i;
   begin(0);
-  status = sprout_scene(world, state, &host, input_string(0, visit_length), &view);
-  if (status != SPROUT_OK) return status;
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
+  visit = input_string(0, visit_length);
+  if (visit == NULL) return refuse("Hand the visit in through sw_input first.");
+  status = sprout_scene(world, state, &host, visit, &view);
+  if (status == SPROUT_BAD_INPUT) return answer_text(status, view.fault.text);
+  if (status != SPROUT_OK) return answer_text(status, sprout_status_text(status));
   tree = sprout_view_tree(&scratch, &view);
   verbs = sprout_json_make(&scratch, SPROUT_JSON_ARRAY, view.verb_count);
   root = sprout_json_make(&scratch, SPROUT_JSON_OBJECT, 2);
@@ -432,10 +563,13 @@ EXPORT("sw_readings") int sw_readings(size_t visit_length, size_t verb_length) {
   sprout_status status;
   const char *visit, *verb;
   begin(0);
+  if (!ready()) return refuse("Load a cartridge and open a state first.");
   visit = input_string(0, visit_length);
   verb = input_string(visit_length, verb_length);
+  if (visit == NULL || verb == NULL) return refuse("Hand the visit and verb in through sw_input first.");
   status = sprout_readings_for(world, state, &host, visit, verb, &scratch, &view);
-  if (status != SPROUT_OK) return status;
+  if (status == SPROUT_BAD_INPUT) return answer_text(status, view.fault.text);
+  if (status != SPROUT_OK) return answer_text(status, sprout_status_text(status));
   tree = sprout_view_tree(&scratch, &view);
   if (tree == NULL) return SPROUT_NO_MEMORY;
   return sprout_json_write(&scratch, tree, &output, &output_length);

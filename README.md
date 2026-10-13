@@ -78,9 +78,9 @@ tui/src           the terminal client: a session with a server, its screen (Ink)
 cli/src           the `sprout` command: scaffold and check, the inspectors parse (what a world accepts) and view (what a visitor is offered), skill, and play and test through the player and the REPL
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
-runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest
+runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm`, one world per instance driven from JavaScript (`engine.mjs`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
 sprout-player/    the Playdate app: the C runtime under a Lua UI (shelf, reader, crank sentence builder, nickname picker, downloads); built by CMake against the Playdate SDK, with Lua tests and C tests over a fake `PlaydateAPI`
-scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the corpus replay, the view comparison, the player), `fuzz-runtime.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
+scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the corpus replay, the view comparison, the WebAssembly engine, the player), `fuzz-runtime.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
@@ -117,6 +117,8 @@ node scripts/fuzz-runtime.mjs --corpus --readings 2000       # the C runtime aga
 node --expose-gc scripts/profile-runtime.mjs <world>         # the TypeScript runtime's heap over a long play
 node --expose-gc scripts/profile-store.mjs <world>           # a world served as the server serves it: turns, views, the log
 node scripts/profile-runtime-c.mjs <world>                   # the C runtime's bytes held and peak per step over a long play
+node --expose-gc scripts/profile-wasm.mjs <engine.wasm> <world>  # the same workload as profile-store, through the C runtime built for WebAssembly
+sh runtime-c/wasm/build.sh                                   # build engine.wasm (and, given WASI_SYSROOT, sproutc.wasm) into runtime-c/wasm/out
 ```
 
 `sproutc` is the C runtime's desktop host, built under `${TMPDIR}/sprout-runtime-c-<hash>/`:
