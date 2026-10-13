@@ -9,6 +9,7 @@
 
 #include "support.h"
 #include "ui/app.h"
+#include "ui/nickname.h"
 #include "ui/reader.h"
 #include "ui/sound.h"
 
@@ -70,6 +71,15 @@ static void the_shelfs_and_the_builders_cues_sound(void) {
   CHECK(fake->note_count == 0, "the shelf is quiet");
   fake_frame(fake, kButtonA, 0);
   CHECK(fake->note_count == 1 && sounded(kWaveformTriangle, 660.0f), "a world picked on the shelf");
+  fake->note_count = 0;
+  for (n = 0; n < 10000 && app->screen != &player_nickname_screen; n++) fake_frame(fake, 0, 0);
+  CHECK(fake->note_count == 0, "loading is quiet");
+  fake_frame(fake, kButtonDown, 0);
+  CHECK(fake->note_count == 1 && sounded(kWaveformNoise, 3000.0f), "a name moved ticks");
+  fake_frame(fake, 0, 24.0f);
+  CHECK(fake->note_count == 2 && sounded(kWaveformNoise, 3000.0f), "and so does a name cranked past");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(fake->note_count == 3 && sounded(kWaveformTriangle, 660.0f), "a name entered");
   fake->note_count = 0;
   for (n = 0; n < 10000 && app->screen != &player_reader_screen; n++) fake_frame(fake, 0, 0);
   CHECK(fake->note_count == 0, "arriving is quiet");

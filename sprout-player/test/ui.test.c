@@ -2,7 +2,8 @@
  * The C app's screens (ui/app.c, ui/arrival.c, ui/reader.c, ui/message.c, ui/pen.c) and its entry
  * point (main.c built with PLAYER_C_UI), driven a frame at a time through the fake PlaydateAPI's
  * update callback, buttons and crank, and judged by what was drawn into its 400 by 240 frame. The
- * app starts on the shelf (shelf.test.c), and A opens the world selected.
+ * app starts on the shelf (shelf.test.c), A opens the world selected, and A on the nickname
+ * screen (nickname.test.c) enters the name it offers first.
  * The reader's checks are rules: read top to bottom, the transcript is the client's line and then
  * exactly what the arrival told; the status is the view's place and ways out; the column is
  * full and nothing is drawn past it; and the crank and the d-pad move it a line at a time.
@@ -13,6 +14,7 @@
 #include "ui/app.h"
 #include "ui/arrival.h"
 #include "ui/message.h"
+#include "ui/nickname.h"
 #include "ui/shelf.h"
 #include "ui/reader.h"
 #include "ui/transcript.h"
@@ -28,11 +30,17 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg);
 
 static const fake_run *status_run(void) { return fake_run_at(fake, 2, 0); }
 
-/* Runs frames until the reader is up (its keys are drawn) or `most` have run; how many ran. */
+/* Whether the nickname screen was drawn last frame. */
+static bool on_nickname(void) {
+  const fake_run *top = fake_run_at(fake, PLAYER_MARGIN, 0);
+  return top != NULL && strncmp(top->text, "Who are you in ", 15) == 0;
+}
+
+/* Runs frames, entering the name offered first, until the reader is up (its keys are drawn) or `most` have run; how many ran. */
 static int frames_until_reader(int most) {
   int n;
   for (n = 1; n <= most; n++) {
-    CHECK(fake_frame(fake, 0, 0) == 1, "a frame asks for the display to be updated");
+    CHECK(fake_frame(fake, on_nickname() ? kButtonA : 0, 0) == 1, "a frame asks for the display to be updated");
     if (fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL) return n;
   }
   return n;
@@ -124,7 +132,7 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
   int n, frames, rows_shown, back, i;
   size_t t;
 
-  record_the_arrival("printers_shop.sproutworld", PLAYER_FIXED_NICKNAME);
+  record_the_arrival("printers_shop.sproutworld", nickname_pool[0]);
   begin("reader");
   app_folder("app");
   fake->glyph = 14; /* twice the fake font's width, so the arrival runs well past the column */
@@ -188,7 +196,7 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
 
   /* Top to bottom, the transcript is the client's line and then exactly what the arrival told. */
   want[0] = got[0] = '\0';
-  ink("- You are in Printers Shop as Wren.", want);
+  ink("- You are in Printers Shop as Alder.", want);
   for (t = 0; t < told_count; t++) ink(told_lines[t], want);
   for (n = back; n >= 0; n--) ink(top_rows[n], got);
   for (n = 1; n < rows_shown; n++) ink(newest[n], got);

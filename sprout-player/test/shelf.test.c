@@ -10,6 +10,7 @@
 #include "support.h"
 #include "ui/app.h"
 #include "ui/message.h"
+#include "ui/nickname.h"
 #include "ui/reader.h"
 #include "ui/shelf.h"
 
@@ -45,11 +46,14 @@ static void put(const char *folder, const char *cartridge, const char *path) {
   CHECK(system(command) == 0, "%s", command);
 }
 
+/* What the next frame presses: A on the nickname screen, which enters the name offered first, else nothing. */
+static PDButtons enter_name(void) { return app->screen == &player_nickname_screen ? kButtonA : 0; }
+
 /* Runs frames until the reader is up, or `most` have run; whether it came up. */
 static bool reader_within(int most) {
   int n;
   for (n = 0; n < most; n++) {
-    fake_frame(fake, 0, 0);
+    fake_frame(fake, enter_name(), 0);
     if (app->screen == &player_reader_screen) return true;
   }
   return app->screen == &player_reader_screen;
@@ -158,7 +162,7 @@ static void a_world_whose_save_failed_is_greyed_until_a_save_is_written(void) {
   fake_frame(fake, 0, 0);
   fake->fail_writes = 1;
   fake_frame(fake, kButtonA, 0);
-  for (n = 0; n < 10000 && app->screen != &player_message_screen && app->screen != &player_reader_screen; n++) fake_frame(fake, 0, 0);
+  for (n = 0; n < 10000 && app->screen != &player_message_screen && app->screen != &player_reader_screen; n++) fake_frame(fake, enter_name(), 0);
   CHECK(app->screen == &player_message_screen, "the arrival stopped on the message screen");
   CHECK(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP) != NULL &&
             HAS(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, "The save could not be written"),
@@ -167,7 +171,7 @@ static void a_world_whose_save_failed_is_greyed_until_a_save_is_written(void) {
   CHECK(strcmp(row(0), "> Printers Shop (its save failed)") == 0, "greyed on the shelf: %s", row(0));
   CHECK(HAS(panel(), "The save could not be written"), "the panel says why: %s", panel());
   fake_frame(fake, kButtonA, 0);
-  for (n = 0; n < 10000 && app->screen != &player_message_screen && app->screen != &player_reader_screen; n++) fake_frame(fake, 0, 0);
+  for (n = 0; n < 10000 && app->screen != &player_message_screen && app->screen != &player_reader_screen; n++) fake_frame(fake, enter_name(), 0);
   CHECK(app->screen == &player_message_screen, "still unwritable, it stops again");
   fake_frame(fake, kButtonA, 0);
   fake->fail_writes = 0;
