@@ -1,9 +1,9 @@
-/* shipping.c: the signature check and the file digest Lua asks for, called as Lua calls them. */
+/* shipping.c: the signature check and the file digest the download screen asks for. */
 #include <stdlib.h>
 
-#include "support.h"
-
 #include "seeds.h"
+#include "shipping.h"
+#include "support.h"
 
 #define SIGNATURE_2                                                                                                  \
   "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aee" \
@@ -31,8 +31,8 @@ static char *fixture(const char *name, char *out, size_t size) {
 
 static void the_signature_node_made_over_an_index_verifies_here(void) {
   static char canonical[4096], signature[200], key[100], tampered[4096];
-  char *reply;
-  begin_bridge("fixture");
+  const char *why;
+  begin("fixture");
   fixture("index.canonical.txt", canonical, sizeof canonical);
   fixture("index.signature.txt", signature, sizeof signature);
   snprintf(key, sizeof key, "%s", "");
@@ -49,70 +49,69 @@ static void the_signature_node_made_over_an_index_verifies_here(void) {
       key[got] = '\0';
     }
   }
-  reply = call3("sprout.verify", canonical, signature, key);
-  CHECK(HAS(reply, "\"ok\":true"), "the signed index text: %s", reply);
+  why = player_verify(canonical, signature, key);
+  CHECK(why == NULL, "the signed index text: %s", why);
   snprintf(tampered, sizeof tampered, "%s", canonical);
   tampered[strlen("[{\"assets\":[{\"bytes\":8")] = '1';
-  reply = call3("sprout.verify", tampered, signature, key);
-  CHECK(HAS(reply, "\"ok\":false"), "one digit of a size changed: %s", reply);
+  CHECK(player_verify(tampered, signature, key) != NULL, "one digit of a size changed");
   end();
 }
 
 static void the_published_signature_is_accepted_and_a_changed_text_is_refused(void) {
-  char *reply;
-  begin_bridge("verify");
+  const char *why;
+  begin("verify");
   /* RFC 8032 section 7.1, test 2: the message is the single byte 0x72, the letter r. */
-  reply = call3("sprout.verify", "r", SIGNATURE_2, KEY_2);
-  CHECK(HAS(reply, "\"ok\":true"), "%s", reply);
-  reply = call3("sprout.verify", "s", SIGNATURE_2, KEY_2);
-  CHECK(HAS(reply, "\"ok\":false") && HAS(reply, "is not the one the key makes for this text"), "%s", reply);
-  reply = call3("sprout.verify", "", SIGNATURE_2, KEY_2);
-  CHECK(HAS(reply, "\"ok\":false"), "an empty text: %s", reply);
+  why = player_verify("r", SIGNATURE_2, KEY_2);
+  CHECK(why == NULL, "%s", why);
+  why = player_verify("s", SIGNATURE_2, KEY_2);
+  CHECK(why != NULL && strcmp(why, "The signature is not the one the key makes for this text.") == 0, "%s", why);
+  CHECK(player_verify("", SIGNATURE_2, KEY_2) != NULL, "an empty text");
   end();
 }
 
 static void a_signature_or_key_that_is_not_hexadecimal_of_the_right_length_is_refused_in_words(void) {
-  char *reply, not_hex[sizeof SIGNATURE_2];
-  begin_bridge("hex");
-  reply = call3("sprout.verify", "r", "92a0", KEY_2);
-  CHECK(HAS(reply, "\"ok\":false") && HAS(reply, "128 hexadecimal digits"), "%s", reply);
-  reply = call3("sprout.verify", "r", SIGNATURE_2, "3d40");
-  CHECK(HAS(reply, "\"ok\":false") && HAS(reply, "64 hexadecimal digits"), "%s", reply);
+  const char *why;
+  char not_hex[sizeof SIGNATURE_2];
+  begin("hex");
+  why = player_verify("r", "92a0", KEY_2);
+  CHECK(why != NULL && HAS(why, "128 hexadecimal digits"), "%s", why);
+  why = player_verify("r", SIGNATURE_2, "3d40");
+  CHECK(why != NULL && HAS(why, "64 hexadecimal digits"), "%s", why);
   memcpy(not_hex, SIGNATURE_2, sizeof SIGNATURE_2);
   not_hex[0] = 'z';
-  reply = call3("sprout.verify", "r", not_hex, KEY_2);
-  CHECK(HAS(reply, "\"ok\":false") && HAS(reply, "128 hexadecimal digits"), "%s", reply);
-  reply = call3("sprout.verify", NULL, NULL, NULL);
-  CHECK(HAS(reply, "\"ok\":false"), "no arguments at all: %s", reply);
+  why = player_verify("r", not_hex, KEY_2);
+  CHECK(why != NULL && HAS(why, "128 hexadecimal digits"), "%s", why);
+  CHECK(player_verify("", "", "") != NULL, "nothing at all");
   end();
 }
 
 static void a_file_in_the_data_folder_has_its_sha256_and_size_told(void) {
-  char *reply;
-  begin_bridge("digest");
+  char sha256[65];
+  size_t bytes = 99;
+  const char *why;
+  begin("digest");
   write_text("abc.txt", "abc");
-  reply = call("sprout.digest", "abc.txt");
-  CHECK(HAS(reply, "\"ok\":true") &&
-            HAS(reply, "\"sha256\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"") &&
-            HAS(reply, "\"bytes\":3"),
-        "%s", reply);
+  why = player_digest(&fake->api, "abc.txt", sha256, &bytes);
+  CHECK(why == NULL && strcmp(sha256, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad") == 0 && bytes == 3,
+        "%s %zu", sha256, bytes);
   write_text("empty.txt", "");
-  reply = call("sprout.digest", "empty.txt");
-  CHECK(HAS(reply, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855") && HAS(reply, "\"bytes\":0"),
-        "%s", reply);
-  reply = call("sprout.digest", "absent.txt");
-  CHECK(HAS(reply, "\"ok\":false") && HAS(reply, "cannot be read"), "%s", reply);
+  why = player_digest(&fake->api, "empty.txt", sha256, &bytes);
+  CHECK(why == NULL && strcmp(sha256, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855") == 0 && bytes == 0,
+        "%s %zu", sha256, bytes);
+  why = player_digest(&fake->api, "absent.txt", sha256, &bytes);
+  CHECK(why != NULL && strcmp(why, "The file cannot be read.") == 0, "%s", why);
   end();
 }
 
 static void a_file_far_larger_than_memory_allows_is_digested_a_chunk_at_a_time(void) {
   enum { SIZE = 4 * 1024 * 1024 + 123 };
-  char full[1000], expected[65], *reply;
+  char full[1000], expected[65], sha256[65];
+  size_t length = 0;
   unsigned char digest[32];
   char *bytes = (char *)malloc(SIZE);
   FILE *file;
   size_t i;
-  begin_bridge("large");
+  begin("large");
   for (i = 0; i < SIZE; i++) bytes[i] = (char)((i * 31 + (i >> 8)) & 255);
   snprintf(full, sizeof full, "%s/large.bin", fake->data);
   file = fopen(full, "wb");
@@ -122,17 +121,18 @@ static void a_file_far_larger_than_memory_allows_is_digested_a_chunk_at_a_time(v
   for (i = 0; i < 32; i++) snprintf(expected + 2 * i, 3, "%02x", digest[i]);
   free(bytes);
   fake->largest = 0;
-  reply = call("sprout.digest", "large.bin");
-  CHECK(HAS(reply, expected) && HAS(reply, "\"bytes\":4194427"), "%s", reply);
+  CHECK(player_digest(&fake->api, "large.bin", sha256, &length) == NULL && strcmp(sha256, expected) == 0 && length == 4194427,
+        "%s %zu", sha256, length);
   CHECK(fake->largest < 256 * 1024, "the largest block asked for was %zu bytes, not the file's", fake->largest);
   end();
 }
 
 static void a_cartridge_in_the_app_folder_is_digested_too(void) {
-  char *reply = NULL;
-  begin_bridge("app");
-  reply = call("sprout.digest", "chip-tree.sproutworld");
-  CHECK(HAS(reply, "\"ok\":true") && HAS(reply, "\"sha256\":\""), "%s", reply);
+  char sha256[65];
+  size_t bytes = 0;
+  begin("app");
+  CHECK(player_digest(&fake->api, "chip-tree.sproutworld", sha256, &bytes) == NULL && strlen(sha256) == 64 && bytes > 0,
+        "%s", sha256);
   end();
 }
 

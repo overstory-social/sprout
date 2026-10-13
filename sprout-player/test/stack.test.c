@@ -1,11 +1,11 @@
 /*
- * Tests for src/stack.c: a call on the player's own stack and a call back on the main stack each run the function
+ * host/stack.c: a call on the player's own stack and a call back on the main stack each run the function
  * once with its context and hand back its result, nested or not. The switch itself is device code (Thumb-2) and
  * runs only there; here, as on the Simulator, both calls are direct, which is what this pins.
  */
 #include <stdint.h>
 
-#include "stack.h"
+#include "host/stack.h"
 #include "support.h"
 
 static int runs = 0;

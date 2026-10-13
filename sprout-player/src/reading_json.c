@@ -50,8 +50,8 @@ static const char *filling_of(sprout_arena *arena, const sprout_json *one, sprou
   return NULL;
 }
 
-const char *reading_parse(sprout_arena *arena, const char *json, size_t length, const char *actor,
-                          sprout_reading *read, const char **text) {
+const char *reading_parse(sprout_arena *arena, const char *json, size_t length, sprout_reading *read,
+                          const char **text) {
   sprout_json *root = NULL;
   sprout_json_error error;
   const sprout_json *verb, *fillers, *typed;
@@ -74,7 +74,6 @@ const char *reading_parse(sprout_arena *arena, const char *json, size_t length, 
     if (why != NULL) return why;
   }
   read->verb = verb->bytes;
-  read->actor = actor;
   read->filling_count = fillers->count;
   read->fillings = fillings;
   if (is_text(typed)) *text = typed->bytes;

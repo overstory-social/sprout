@@ -1,5 +1,5 @@
-/* pd_host.c: the host record, the clock and the seeds. */
-#include "pd_host.h"
+/* host/pd_host.c: the host record, the clock and the seeds. */
+#include "host/pd_host.h"
 #include "support.h"
 
 static void the_clamp_never_goes_below_what_was_seen(void) {

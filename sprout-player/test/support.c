@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #include "bridge.h"
-#include "pd_host.h"
+#include "host/pd_host.h"
 
 int test_checks, test_failures;
 fake_playdate *fake;
@@ -85,14 +85,14 @@ char *open_world(const char *path) {
   return reply;
 }
 
-const char *player_open_whole(player_session *session, const char *path) {
-  const char *reply = player_open(session, path);
+player_opening player_open_whole(player_session *session, const char *path) {
+  player_opening answer = player_open(session, path);
   int steps = 0;
-  if (!HAS(reply, "\"ok\":true")) return reply;
+  if (!answer.ok) return answer;
   do {
-    reply = player_step(session);
-  } while (HAS(reply, "\"done\":false") && ++steps < 100000);
-  return reply;
+    answer = player_step(session);
+  } while (answer.ok && !answer.done && ++steps < 100000);
+  return answer;
 }
 
 char *call3(const char *name, const char *first, const char *second, const char *third) {
@@ -141,15 +141,140 @@ bool exists(const char *path) {
   return access(full, F_OK) == 0;
 }
 
-void save_paths(const char *opened, char *state, char *log, size_t size) {
+void save_paths(const char *hash, char *state, char *log, size_t size) {
+  CHECK(hash != NULL && strlen(hash) == 64, "no hash: %s", hash == NULL ? "(null)" : hash);
+  snprintf(state, size, "saves/%s.json", hash == NULL ? "" : hash);
+  snprintf(log, size, "saves/%s.log", hash == NULL ? "" : hash);
+}
+
+void save_paths_of_reply(const char *opened, char *state, char *log, size_t size) {
   const char *hash = strstr(opened, "\"hash\":\"");
   char digits[65];
   CHECK(hash != NULL, "open said no hash: %s", opened);
   if (hash == NULL) return;
   memcpy(digits, hash + 8, 64);
   digits[64] = '\0';
-  snprintf(state, size, "saves/%s.json", digits);
-  snprintf(log, size, "saves/%s.log", digits);
+  save_paths(digits, state, log, size);
+}
+
+/* ---- readings and what turns told ---- */
+
+sprout_filling fill_object(const char *role, const char *id) {
+  sprout_filling filling;
+  memset(&filling, 0, sizeof filling);
+  filling.role = role;
+  filling.binds = SPROUT_FILL_OBJECT;
+  filling.id = id;
+  return filling;
+}
+
+sprout_filling fill_word(const char *role, const char *word) {
+  sprout_filling filling;
+  memset(&filling, 0, sizeof filling);
+  filling.role = role;
+  filling.binds = SPROUT_FILL_TEXT;
+  filling.text = word;
+  return filling;
+}
+
+sprout_filling fill_number(const char *role, double number) {
+  sprout_filling filling;
+  memset(&filling, 0, sizeof filling);
+  filling.role = role;
+  filling.binds = SPROUT_FILL_NUMBER;
+  filling.number = number;
+  return filling;
+}
+
+sprout_filling fill_exit(const char *role, const char *direction, const char *label, const char *to) {
+  sprout_filling filling;
+  memset(&filling, 0, sizeof filling);
+  filling.role = role;
+  filling.binds = SPROUT_FILL_EXIT;
+  filling.direction = direction;
+  filling.label = label;
+  filling.id = to;
+  return filling;
+}
+
+sprout_filling fill_set(const char *role, size_t count, const char *const *ids) {
+  sprout_filling filling;
+  memset(&filling, 0, sizeof filling);
+  filling.role = role;
+  filling.binds = SPROUT_FILL_SET;
+  filling.id_count = count;
+  filling.ids = ids;
+  return filling;
+}
+
+player_told turn_of(player_session *session, const char *verb, const char *text, size_t count, const sprout_filling *fillings) {
+  sprout_reading reading;
+  memset(&reading, 0, sizeof reading);
+  reading.verb = verb;
+  reading.filling_count = count;
+  reading.fillings = fillings;
+  return player_turn(session, &reading, text);
+}
+
+const char *told_text(const player_told *answer, size_t index) {
+  return index < answer->lines.count ? answer->lines.items[index].text : "";
+}
+
+const char *told_kind(const player_told *answer, size_t index) {
+  return index < answer->lines.count ? answer->lines.items[index].kind : "";
+}
+
+bool told_has(const player_told *answer, const char *needle) {
+  size_t i;
+  for (i = 0; i < answer->lines.count; i++)
+    if (HAS(answer->lines.items[i].text, needle)) return true;
+  return false;
+}
+
+/* The verb whose name ends in `verb` among the last view's, by its 1-based pick; 0 where there is none. */
+static size_t verb_pick(player_session *session, const char *verb, const char **name) {
+  player_chip_level root = player_chips(session, NULL, 0);
+  size_t v, tail = strlen(verb);
+  for (v = 0; root.ok && v < root.choice_count; v++) {
+    size_t length = strlen(root.choices[v].verb);
+    if (length >= tail && strcmp(root.choices[v].verb + length - tail, verb) == 0) {
+      *name = root.choices[v].verb;
+      return v + 1;
+    }
+  }
+  return 0;
+}
+
+bool reading_from(player_session *session, const char *verb, const char *thing, sprout_reading *out) {
+  static sprout_filling filling;
+  static const char *members[1];
+  static char verb_name[200], id[200], role[100];
+  const char *name = NULL;
+  size_t pick = verb_pick(session, verb, &name), c;
+  player_chip_level level;
+  memset(out, 0, sizeof *out);
+  if (pick == 0) {
+    CHECK(false, "the view offers no %s", verb);
+    return false;
+  }
+  snprintf(verb_name, sizeof verb_name, "%s", name);
+  level = player_chips(session, &pick, 1);
+  for (c = 0; level.ok && c < level.choice_count; c++) {
+    const sprout_seen_filler *filler = level.choices[c].filler;
+    const sprout_seen_thing *named = filler->binds == SPROUT_SEEN_SET && filler->member_count > 0 ? &filler->members[0] : &filler->thing;
+    if (filler->binds != SPROUT_SEEN_OBJECT && filler->binds != SPROUT_SEEN_SET) continue;
+    if (named->name.length != strlen(thing) || memcmp(named->name.bytes, thing, named->name.length) != 0) continue;
+    snprintf(id, sizeof id, "%.*s", (int)named->id.length, named->id.bytes);
+    snprintf(role, sizeof role, "%s", filler->role);
+    members[0] = id;
+    filling = filler->binds == SPROUT_SEEN_SET ? fill_set(role, 1, members) : fill_object(role, id);
+    out->verb = verb_name;
+    out->filling_count = 1;
+    out->fillings = &filling;
+    return true;
+  }
+  CHECK(false, "the view offers no %s %s", verb, thing);
+  return false;
 }
 
 /* ---- JSON ---- */
@@ -189,32 +314,6 @@ const char *line_kind(const sprout_json *reply, size_t index) {
 size_t line_count(const sprout_json *reply) {
   const sprout_json *lines = sprout_json_get(reply, "lines");
   return lines == NULL ? 0 : lines->count;
-}
-
-void reading_from(player_session *session, const char *verb, const char *thing, char *out, size_t size) {
-  const sprout_json *root = parse(keep(player_chips(session, "[]"))), *verbs = sprout_json_get(root, "choices");
-  size_t v, c;
-  out[0] = '\0';
-  for (v = 0; verbs != NULL && v < verbs->count; v++) {
-    const char *name = string_at(verbs->items[v], "verb");
-    size_t length = strlen(name), tail = strlen(verb);
-    char path[32];
-    const sprout_json *level, *choices;
-    if (length < tail || strcmp(name + length - tail, verb) != 0) continue;
-    snprintf(path, sizeof path, "[%zu]", v + 1);
-    level = parse(keep(player_chips(session, path)));
-    choices = sprout_json_get(level, "choices");
-    for (c = 0; choices != NULL && c < choices->count; c++) {
-      const sprout_json *filler = sprout_json_get(choices->items[c], "filler");
-      const char *bytes;
-      size_t written;
-      if (strcmp(string_at(filler, "name"), thing) != 0) continue;
-      CHECK(sprout_json_write_value(&arena, filler, &bytes, &written) == SPROUT_OK, "writing a filler");
-      snprintf(out, size, "{\"verb\":\"%s\",\"fillers\":[%.*s]}", name, (int)written, bytes);
-      return;
-    }
-  }
-  CHECK(false, "the view offers no %s %s", verb, thing);
 }
 
 int finish(void) {

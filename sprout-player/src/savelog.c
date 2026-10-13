@@ -2,11 +2,12 @@
  * The log tail the save keeps beside the stored world (the spec's The runtime > The log): the
  * last turns the player ran, one JSON text each, and the greatest host seconds seen, which the
  * clamp starts from when the world is opened again. The file is `saves/<hash>.log`; its first
- * line names the bundle it belongs to, and a log of another bundle is not read.
+ * line names the bundle it belongs to, and a log of another bundle is not read. Each entry is a
+ * turn that ran: its kind, seed, seconds, who, how it ended, and the line typed.
  */
 #include <string.h>
 
-#include "files.h"
+#include "host/files.h"
 #include "json.h"
 #include "session_internal.h"
 #include "text.h"
@@ -103,4 +104,42 @@ bool savelog_write(player_session *session) {
   written = player_write_file(session->pd, session->log_path, bytes, total);
   player_free(session->pd, bytes);
   return written;
+}
+
+/* ---- a turn's entry ---- */
+
+static sprout_json *number_node(sprout_arena *arena, double number) {
+  sprout_json *node = sprout_json_make(arena, SPROUT_JSON_NUMBER, 0);
+  if (node != NULL) node->number = number;
+  return node;
+}
+
+static sprout_json *text_node(sprout_arena *arena, const char *text) {
+  return text == NULL ? sprout_json_make(arena, SPROUT_JSON_NULL, 0) : sprout_json_text(arena, text, strlen(text));
+}
+
+void savelog_turn(player_session *session, const sprout_turn_input *input, const sprout_outcome *outcome) {
+  sprout_arena arena;
+  sprout_json *entry;
+  const sprout_log_entry *log = &outcome->log;
+  const char *bytes;
+  size_t length;
+  if (!outcome->has_log || sprout_arena_init(&arena, &session->host.record) != SPROUT_OK) return;
+  entry = sprout_json_make(&arena, SPROUT_JSON_OBJECT, 8);
+  if (entry != NULL) {
+    sprout_json_adopt(entry, "kind", text_node(&arena, turn_kind_name(log->kind)));
+    sprout_json_adopt(entry, "seed", number_node(&arena, (double)log->seed));
+    sprout_json_adopt(entry, "seconds", number_node(&arena, (double)log->seconds));
+    sprout_json_adopt(entry, "who",
+                      log->who.length == 0 ? text_node(&arena, NULL) : sprout_json_text(&arena, log->who.bytes, log->who.length));
+    sprout_json_adopt(entry, "outcome", text_node(&arena, result_name(outcome->result)));
+    sprout_json_adopt(entry, "fault", text_node(&arena, log->faulted ? log->fault_name : NULL));
+    sprout_json_adopt(entry, "serial", number_node(&arena, (double)log->serial));
+    sprout_json_adopt(entry, "text", input->text == NULL ? text_node(&arena, NULL)
+                                                         : sprout_json_text(&arena, input->text, input->text_length));
+  }
+  /* An entry missing a member, for want of a page, is not kept. */
+  if (entry != NULL && entry->count == 8 && sprout_json_write(&arena, entry, &bytes, &length) == SPROUT_OK)
+    savelog_add(session, bytes, length);
+  sprout_arena_reset(&arena);
 }

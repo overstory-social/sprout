@@ -1,7 +1,7 @@
 /* savelog.c: the log tail the save keeps beside the stored world. */
 #include <stdlib.h>
 
-#include "files.h"
+#include "host/files.h"
 #include "session_internal.h"
 #include "support.h"
 
@@ -76,10 +76,50 @@ static void a_log_of_another_bundle_or_a_damaged_one_is_not_read(void) {
   end();
 }
 
+static void a_turn_that_ran_is_kept_as_its_entry_and_one_that_kept_nothing_is_not(void) {
+  player_session *session;
+  sprout_turn_input input;
+  sprout_outcome outcome;
+  begin("entry");
+  session = logged("abc");
+  memset(&input, 0, sizeof input);
+  memset(&outcome, 0, sizeof outcome);
+  input.text = "ask guard about weather and more";
+  input.text_length = 23;
+  outcome.has_log = true;
+  outcome.result = SPROUT_RESULT_DONE;
+  outcome.log.kind = SPROUT_TURN_COMMAND;
+  outcome.log.seed = 42;
+  outcome.log.seconds = 1000;
+  outcome.log.serial = 7;
+  outcome.log.who = (sprout_str){"visit:player", 12};
+  savelog_turn(session, &input, &outcome);
+  CHECK(session->log_count == 1 &&
+            strcmp(session->log[0], "{\"kind\":\"command\",\"seed\":42,\"seconds\":1000,\"who\":\"visit:player\","
+                                    "\"outcome\":\"done\",\"fault\":null,\"serial\":7,\"text\":\"ask guard about weather\"}") == 0,
+        "%s", session->log_count > 0 ? session->log[0] : "");
+  memset(&input, 0, sizeof input);
+  outcome.result = SPROUT_RESULT_FAULTED;
+  outcome.log.kind = SPROUT_TURN_MAINTENANCE;
+  outcome.log.who = (sprout_str){"", 0};
+  outcome.log.faulted = true;
+  outcome.log.fault_name = "BudgetExhausted";
+  savelog_turn(session, &input, &outcome);
+  CHECK(session->log_count == 2 && HAS(session->log[1], "\"kind\":\"maintenance\"") && HAS(session->log[1], "\"who\":null") &&
+            HAS(session->log[1], "\"fault\":\"BudgetExhausted\"") && HAS(session->log[1], "\"text\":null"),
+        "catch-up names nobody and its fault: %s", session->log_count > 1 ? session->log[1] : "");
+  outcome.has_log = false;
+  savelog_turn(session, &input, &outcome);
+  CHECK(session->log_count == 2, "a turn the runtime logged nothing of adds nothing");
+  savelog_clear(session);
+  end();
+}
+
 int main(void) {
   test_program("savelog");
   the_tail_keeps_the_last_entries_and_drops_the_oldest();
   the_tail_and_the_clamps_seconds_are_written_and_read_back();
   a_log_of_another_bundle_or_a_damaged_one_is_not_read();
+  a_turn_that_ran_is_kept_as_its_entry_and_one_that_kept_nothing_is_not();
   return finish();
 }
