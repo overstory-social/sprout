@@ -36,20 +36,23 @@ typedef struct drum_row {
 } drum_row;
 
 typedef struct drum {
-  int still; /* frames the crank has rested */
+  int still;   /* frames the crank has rested */
+  bool turned; /* the crank has moved since the drum last came to rest */
 } drum;
 
 /*
  * A frame of the drum, the sentence already turned by the crank and `turned` whether the crank moved
- * this frame. True the frame the drum comes to rest on a slat after being between two; `*steps` is 1 or
- * -1 the frame a drum left past halfway completes its step, and 0 otherwise.
+ * this frame. True the frame the drum comes to rest on a slat after the crank moved, wherever the
+ * crank stopped, so the entry it rests on is always asked after.
  */
-bool drum_update(drum *d, sentence *s, bool turned, long *steps);
+bool drum_update(drum *d, sentence *s, bool turned);
 
 /*
  * Where each of `count` entries sits this frame, `selected` in the window and the drum `fraction` of a
- * slat past it toward the next. A slat turned past the drum's edge is left out and each entry appears
- * once. Rows come far to near, the one above first of two as far, so the front one is drawn last.
+ * slat past it toward the next, within half a slat. The selected entry is the front one wherever the
+ * drum is turned, since it is the one the window is nearest. A slat turned past the drum's edge is left
+ * out and each entry appears once. Rows come far to near, the one above first of two as far, so the
+ * front one is drawn last.
  */
 size_t drum_rows(size_t count, size_t selected, float fraction, drum_row rows[DRUM_MOST_ROWS]);
 

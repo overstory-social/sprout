@@ -184,7 +184,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   player_builder *b = (player_builder *)ctx;
   sentence *s = &b->sentence;
   bool numbered, stepped;
-  long down, completed;
+  long down;
   if (b->stopped) return;
   if (b->message.bytes != NULL) {
     if (input->pushed & (kButtonA | kButtonB)) {
@@ -194,11 +194,10 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     return;
   }
   if (sentence_turn(s, input->crank) != 0) player_cue(app, PLAYER_CUE_TICK);
-  if (drum_update(&b->drum, s, input->crank != 0, &completed)) {
+  if (drum_update(&b->drum, s, input->crank != 0)) {
     player_cue(app, PLAYER_CUE_CLACK);
     sentence_prepare(s);
   }
-  if (completed != 0) player_cue(app, PLAYER_CUE_TICK);
   /* Down moves to the next entry; on a number it takes the number down, as up takes it up. */
   numbered = sentence_numbered(s);
   down = numbered ? -1 : 1;
