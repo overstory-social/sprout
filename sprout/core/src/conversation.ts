@@ -13,7 +13,7 @@ import {
 
 import { saidEntry } from './log/said.js';
 import type { SproutStore } from './store.js';
-import { engineOf, type EngineHost } from './engine.js';
+import { engineOf, type Engine, type EngineHost } from './engine.js';
 import type { StoredState } from './records.js';
 import { committedStored } from './turns.js';
 
@@ -136,12 +136,16 @@ export function hearers(state: WorldState, visit: VisitKey): Heard | null {
   return { place, to };
 }
 
-/** Throw where `visit` has no one to talk to because the host asked wrongly: they never came, or are away. */
-function mustBePresent(stored: StoredState, visit: VisitKey): void {
-  const visitor = stored.visitors.find((one) => one.visit === visit);
-  if (visitor === undefined) throw new Error(`\`${visit}\` has never visited this world.`);
-  const instance = stored.instances.find((one) => one.id === visitor.instance);
-  if ((instance?.container ?? null) === null) {
+/**
+ * Throw where `visit` has no one to talk to because the host asked wrongly:
+ * they never came, or are away, which is as the engine finds them, so a
+ * visitor whose instance it cannot read now is away too.
+ */
+function mustBePresent(engine: Engine, stored: StoredState, visit: VisitKey): void {
+  if (!stored.visitors.some((one) => one.visit === visit)) {
+    throw new Error(`\`${visit}\` has never visited this world.`);
+  }
+  if (engine.standing(stored, visit) === null) {
     throw new Error(`\`${visit}\` is not in this world, so has nobody to talk to.`);
   }
 }
@@ -201,7 +205,8 @@ export async function runConversation(
   const bad = sayingRefusal(rules, saying.text);
   if (bad !== null) return bad;
   const text = keptSaying(saying.text);
-  mustBePresent(await committedStored(store, microworldId), saying.visit);
+  const engine = engineOf(host);
+  mustBePresent(engine, await committedStored(store, microworldId), saying.visit);
   if (!pace.admit(microworldId, saying.visit, at, rules.pace)) {
     const { messages, seconds } = rules.pace!;
     return refused(
@@ -212,7 +217,6 @@ export async function runConversation(
   if (!(await conversation.moderate(text, saying.visit))) {
     return refused('moderated', 'That cannot be said here.');
   }
-  const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) => {
     const stored = await tx.state();
     const heard = engine.hearers(stored, saying.visit);

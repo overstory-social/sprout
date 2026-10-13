@@ -28,6 +28,7 @@ import {
 } from './fixtures/tally.js';
 import type { SproutStore } from './store.js';
 import {
+  committedStored,
   runArrival,
   runCommand,
   runDeparture,
@@ -37,7 +38,7 @@ import {
   runWake,
   type NicknameHost,
 } from './turns.js';
-import { committedState, runPoll } from './fixtures/committed.js';
+import { committedState, runPoll, tsTurn } from './fixtures/committed.js';
 
 const { host } = tally();
 const { catalogue } = host;
@@ -55,14 +56,28 @@ async function count(store: SproutStore, id = COUNTER): Promise<unknown> {
 const stored = (store: SproutStore) => store.read('w', (tx) => tx.state());
 
 /** A maintenance turn as the TypeScript runtime gave it, the host naming no engine. */
-const caughtUp = (given: GivenCommitted) => given as Committed<CaughtUp>;
+const caughtUp = (given: GivenCommitted) => tsTurn<Committed<CaughtUp>>(given);
 
 /** The host names no engine, so each turn is the TypeScript runtime's own, whose state these specs read. */
 function committedCount(given: GivenCommand): unknown {
-  const turn = given as CommandTurn;
+  const turn = tsTurn<CommandTurn>(given);
   if (!turn.committed) throw new Error(turn.fault.detail);
   return turn.state.instances.get(COUNTER)?.properties.get('n');
 }
+
+describe('the committed stored state', () => {
+  it('is what the store holds once a turn committed, read with no lock', async () => {
+    const store = await seeded();
+    await runCommand(store, 'w', host, command('bump counter'));
+    expect(await committedStored(store, 'w')).toEqual(await stored(store));
+    let release!: () => void;
+    const held = store.transaction('w', () => new Promise<void>((resolve) => (release = resolve)));
+    // Read while a write turn holds the lock, it does not wait for it.
+    expect(await committedStored(store, 'w')).toEqual(await stored(store));
+    release();
+    await held;
+  });
+});
 
 describe('a command turn against a store', () => {
   it('writes what it committed, and the next turn reads it', async () => {
@@ -88,7 +103,7 @@ describe('a command turn against a store', () => {
     expect(turn.committed).toBe(false);
     if (turn.committed) return;
     expect(turn.fault.name).toBe('IntegerOverflow');
-    expect((turn as CommandTurn & { committed: false }).told.effect).toBe('notice');
+    expect(tsTurn<CommandTurn & { committed: false }>(turn).told.effect).toBe('notice');
     expect(turn.effects.map((one) => [one.kind, one.visit])).toEqual([['notice', MARTA]]);
     expect(await stored(store)).toEqual(before);
     expect(await count(store)).toBe(1);

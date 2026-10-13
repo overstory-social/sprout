@@ -33,3 +33,15 @@ export function runPoll<T>(
     pollTurn(loaded(await tx.state(), host), host, look),
   );
 }
+
+/**
+ * `given` as the TypeScript runtime gave it, for a spec whose host names no
+ * engine and which reads what only that runtime's turns hold; thrown where
+ * a committed turn holds no state, being another engine's.
+ */
+export function tsTurn<T extends object>(given: object): T {
+  if ('committed' in given && given.committed === true && !('state' in given)) {
+    throw new Error('This turn is not the TypeScript runtime’s, so holds none of its state.');
+  }
+  return given as T;
+}

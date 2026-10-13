@@ -2,11 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { visitKey, type TurnHost } from '@overstory/sprout/lang';
 
+import { ConversationPace, runConversation } from './conversation.js';
 import { engineOf, tsEngine, type Engine, type GivenCommand } from './engine.js';
 import { command, COUNTER, GAUGE, HALL, MARTA, seeded, tally } from './fixtures/tally.js';
+import { emptyState } from './records.js';
 import type { SproutStore } from './store.js';
-import { committedStored, runCommand, runCommandLine } from './turns.js';
-import { runScene } from './views.js';
+import { Ticker } from './ticks.js';
+import {
+  committedStored,
+  runArrival,
+  runCommand,
+  runCommandLine,
+  runDeparture,
+  runWake,
+} from './turns.js';
+import { runReadings, runScene, runView } from './views.js';
 
 const { host } = tally();
 const stored = (store: SproutStore) => committedStored(store, 'w');
@@ -17,23 +27,52 @@ describe('the engine a host runs', () => {
     expect(engineOf({ ...host })).not.toBe(engineOf(host));
   });
 
-  it('is the one the host names, and every turn and poll runs through it', async () => {
+  it('is the one the host names, and every turn, poll and question runs through it', async () => {
     const store = await seeded(host);
     const own = tsEngine(host);
-    const asked: string[] = [];
-    const counted = Object.fromEntries(
+    const asked = new Set<string>();
+    const recording = Object.fromEntries(
       Object.entries(own).map(([name, run]) => [
         name,
         (...args: unknown[]) => {
-          asked.push(name);
+          asked.add(name);
           return (run as (...args: unknown[]) => unknown)(...args);
         },
       ]),
     ) as unknown as Engine;
-    const named = { ...host, engine: counted };
-    await runCommand(store, 'w', named, command('bump counter'));
+    const named = { ...host, engine: recording };
+    const at = (now: number) => ({ seed: 1, mayHold: null, now });
+    const ines = visitKey('v-ines');
+    await runArrival(
+      store,
+      'w',
+      named,
+      at(0),
+      { ...at(0), visit: ines, nickname: 'Ines' },
+      {
+        moderate: () => true,
+      },
+    );
+    await runCommandLine(store, 'w', named, command('twice counter'), () => 11);
+    await runCommand(store, 'w', named, command('rest counter'));
+    await new Ticker().round(store, 'w', named, 1, () => ({ seed: 1, mayHold: null }));
+    const [due] = engineOf(named).dueWakes(await stored(store), 10_000);
+    if (due !== undefined) {
+      await runWake(store, 'w', named, { ...at(10_000), object: due.object, serial: due.serial });
+    }
+    await runConversation(
+      store,
+      'w',
+      named,
+      { rules: { characters: null, pace: null }, moderate: () => true },
+      new ConversationPace(),
+      { visit: MARTA, text: 'hello', at: 1 },
+    );
+    await runView(store, 'w', named, MARTA, 0);
     await runScene(store, 'w', named, MARTA, 0);
-    expect(asked).toEqual(['command', 'scene']);
+    await runReadings(store, 'w', named, MARTA, 'tally.bump', 0);
+    await runDeparture(store, 'w', named, { ...at(1), visit: ines });
+    expect([...asked].sort()).toEqual(Object.keys(own).sort());
   });
 });
 
@@ -80,16 +119,10 @@ describe('the TypeScript runtime as an engine', () => {
     });
   });
 
-  it('runs no command for a host without a parser', async () => {
-    const store = await seeded(host);
+  it('runs no command for a host without a parser', () => {
     const { parse: _parse, ...unparsed } = host;
     expect(() =>
-      tsEngine(unparsed as TurnHost).command(
-        // The stored state is read before the parser is asked for, so hand one over.
-        { serial: 0, instances: [], visitors: [], tombstones: [] },
-        command('bump counter'),
-      ),
+      tsEngine(unparsed as TurnHost).command(emptyState(), command('bump counter')),
     ).toThrow(/no parser/);
-    expect(await stored(store)).toBeDefined();
   });
 });

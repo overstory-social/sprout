@@ -72,11 +72,12 @@ export interface GivenFaulted {
  * What a host records of a command that committed, beside its effects: for
  * a reading, the step of a line of several it ran as, which is logged at
  * info, and how many readings tied where the parser drew one, a warning;
- * nothing for a line the parser answered or a visitor displaced.
+ * nothing for a line the parser answered or a visitor displaced. `answered`
+ * and `displaced` only mark which: nothing reads what they hold.
  */
 export type CommandNotes =
-  | { readonly answered: unknown }
-  | { readonly displaced: unknown }
+  | { readonly answered: object }
+  | { readonly displaced: object }
   | {
       readonly step: { readonly verb: { readonly library: string; readonly name: string } } | null;
       readonly drawn: { readonly among: number } | null;
@@ -95,10 +96,14 @@ export type GivenTick =
 export type GivenWake =
   GivenCommitted | GivenFaulted | { readonly committed: false; readonly unwoken: true };
 
-/** An arrival turn: admitted, refused by the place in its words, closed, or faulted, with words for the person. */
+/**
+ * An arrival turn: admitted, refused by the place in its words (its
+ * effects; `refused` only marks it, and nothing reads what it holds),
+ * closed, or faulted, with words for the person.
+ */
 export type GivenArrival =
   | (GivenCommitted & { readonly value: { readonly returning: boolean } })
-  | { readonly committed: false; readonly refused: unknown; readonly effects: readonly Effect[] }
+  | { readonly committed: false; readonly refused: object; readonly effects: readonly Effect[] }
   | { readonly committed: false; readonly closed: Closed }
   | (GivenFaulted & { readonly words: string });
 
@@ -116,6 +121,10 @@ export interface Standing {
  * The commands one typed line runs, each a turn of its own: `next` is
  * handed the turn the last command gave, and gives the command after it,
  * or null once the line is done (the spec's Parsing › Intents; Sequences).
+ * A command is lang's, and one an intent planned carries the reading it
+ * planned, which only the TypeScript parser makes until each engine has a
+ * parser of its own; core only hands each command and each turn back to
+ * the engine that gave it.
  */
 export interface CommandLine {
   next(previous: GivenCommand | null): Command | null;

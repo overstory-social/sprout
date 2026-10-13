@@ -15,12 +15,16 @@ visitor's record, their instance and what it held, and every memory of
 them; `exportVisitor` hands back the same, but what their instance held.
 Reads write nothing.
 
-A world's turns run against a store through `runCommand`, `runTick`,
-`runWake`, `runMaintenance`, `runArrival`, `runDeparture` and `runPoll`
-(`turns.ts`): a write turn runs in the store's transaction, under the
-world's lock, and writes its change set only where it committed, so a
-fault writes nothing of the world; a poll reads a snapshot and takes no
-lock. `runView` polls a visitor's view, `runScene` its scene and
+A world's turns run against a store through `runCommand`,
+`runCommandLine`, `runTick`, `runWake`, `runMaintenance`, `runArrival` and
+`runDeparture` (`turns.ts`): a write turn runs in the store's transaction,
+under the world's lock, and writes its change set only where it committed,
+so a fault writes nothing of the world; a poll reads a snapshot
+(`committedStored`) and takes no lock. Each runs on the world's engine
+(`engine.ts`): an `Engine` is handed the stored state and gives each
+turn's effects, stale visitors and fault, what is written and logged, each
+poll, and what the host asks between turns; `tsEngine` is the TypeScript
+runtime's, and `engineOf` gives it where a host names no `engine`. `runView` polls a visitor's view, `runScene` its scene and
 `runReadings` one verb's readings (the spec's _The view_), and a
 `ViewCache` keeps each until a committed turn's `stale` names its visitor
 (`views.ts`).
