@@ -293,8 +293,14 @@ as above; the app holds it, so it outlives its screen and a cartridge is
 inspected once for as long as the app runs. Its "more worlds..." row waits
 for the download screen. A on a world shows the arrival
 (`src/ui/arrival.h`), which reads the cartridge a step a frame behind a
-loading line, loads the save and admits the visitor; until the nickname
-screen exists it admits the visitor the save remembers, or `Wren`. What
+loading line, loads the save and shows the nickname screen
+(`src/ui/nickname.h`), `nickname.lua` in C as Nickname below describes it:
+"Who are you in <world>?" over one name of the pool, which the crank (24
+degrees a name) and up and down move through, A entering it and B closing
+the world and going back to the shelf. A name `player_admit` refuses is told
+in the engine's words over the screen until A or B, and the person picks
+again; with no name free, A says so on the message screen. An admitted
+visitor goes on to the reader, behind the arrival's pictures. What
 stops an open is told on the message screen (`src/ui/message.h`), whose A
 or B goes back to the shelf: a world refused at its open or a step keeps the
 reason on the shelf, and one whose save could not be written is greyed
@@ -343,8 +349,9 @@ The sounds (`src/ui/sound.h`) are `Source/sound.lua`'s cues, each a short
 note on a synth of its own (`pd->sound->synth`) with the Lua table's
 waveform, pitch, volume, length and envelope, made when the app starts and
 freed when it ends. Every screen sounds a cue through `player_cue` in
-`src/ui/app.h`: the builder's tick, clack, pick, back and refusal, and the
-pictures' tick and clack. With no synth a cue is silent.
+`src/ui/app.h`: the builder's tick, clack, pick, back and refusal, the
+nickname screen's tick, pick, back and refusal, and the pictures' tick and
+clack. With no synth a cue is silent.
 
 The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) loads a
 bitmap from a PNG at the size its header declares, draws it as a black block
