@@ -268,6 +268,7 @@ static player_fetch_state poll_now(player_fetch *f, uint64_t now) {
     f->heard = now;
     taken += (size_t)got;
     if (!redirecting && !f->sink(f->sink_ctx, f->piece, (size_t)got)) {
+      f->status = status;
       let_go(f);
       return PLAYER_FETCH_STOPPED;
     }

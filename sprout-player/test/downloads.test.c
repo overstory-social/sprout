@@ -292,6 +292,20 @@ static void a_world_whose_bytes_are_not_the_listed_ones_is_refused_and_leaves_no
   CHECK(nothing_left(), "the cartridge's part and the assets folder are gone");
   stop();
 
+  start("missing-page");
+  list_teashop(NULL);
+  {
+    static char page[4096];
+    memset(page, '<', sizeof page);
+    fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
+    fake_serve(fake, "https://w.example/files/cellar.png", 404, page, sizeof page);
+  }
+  CHECK(strcmp(refused_download(), "Could not download Tea Shop. There is no pictures/cellar.png at that address (the "
+                                   "server answered 404).") == 0,
+        "a 404 page longer than the file is still a 404: %s", panel());
+  CHECK(nothing_left(), "nothing is left in worlds/");
+  stop();
+
   start("another-build");
   list_teashop("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
   fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);

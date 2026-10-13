@@ -180,7 +180,8 @@ static void a_sink_that_refuses_stops_the_fetch_and_cancel_lets_go(void) {
   memset(&t, 0, sizeof t);
   t.most = 2000;
   CHECK(player_fetch_start(&f, &fake->api, "http://w.example/big", PURPOSE, take, &t, fake->seconds), "%s", f.reason);
-  CHECK(run(&f, 20) == PLAYER_FETCH_STOPPED && t.length <= 2000, "stopped at %zu bytes", t.length);
+  CHECK(run(&f, 20) == PLAYER_FETCH_STOPPED && t.length <= 2000 && f.status == 200, "stopped at %zu bytes, status %d",
+        t.length, f.status);
   CHECK(fake->connections_live == 0, "the connection is let go");
   CHECK(player_fetch_start(&f, &fake->api, "http://w.example/big", PURPOSE, take, &t, fake->seconds), "%s", f.reason);
   fake_network_step(fake);

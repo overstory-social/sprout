@@ -188,10 +188,6 @@ static void open_index(player_app *app, player_downloads *d) {
 static void index_arrived(player_app *app, player_downloads *d, player_fetch_state state) {
   player_index read;
   char why[PLAYER_REASON_BYTES];
-  if (state == PLAYER_FETCH_STOPPED) {
-    fail_index(app, d, d->too_big ? INDEX_TOO_BIG : INDEX_NO_MEMORY);
-    return;
-  }
   if (state == PLAYER_FETCH_FAILED) {
     fail_index(app, d, d->fetch.reason);
     return;
@@ -199,6 +195,10 @@ static void index_arrived(player_app *app, player_downloads *d, player_fetch_sta
   if (d->fetch.status != 200) {
     status_words(why, sizeof why, d->fetch.status, "list of worlds");
     fail_index(app, d, why);
+    return;
+  }
+  if (state == PLAYER_FETCH_STOPPED) {
+    fail_index(app, d, d->too_big ? INDEX_TOO_BIG : INDEX_NO_MEMORY);
     return;
   }
   read = player_index_read(&d->arena, d->text != NULL ? d->text : "", d->length, d->trusts, d->trust_ctx);
@@ -331,16 +331,7 @@ static void file_arrived(player_app *app, player_downloads *d, player_fetch_stat
   const char *why;
   if (!player_file_close(app->pd, d->file)) d->write_failed = true;
   d->file = NULL;
-  if (d->overrun) {
-    SAY(said, file->label, " is longer than the list says it is, so it was thrown away.");
-    fail_world(app, d, said);
-    return;
-  }
-  if (d->write_failed) {
-    SAY(said, "The file ", file->part, " could not be written.", OUT_OF_ROOM);
-    fail_world(app, d, said);
-    return;
-  }
+  /* The server's answer first: the body of a 404 page is no measure of the file. */
   if (state == PLAYER_FETCH_FAILED) {
     SAY(said, d->fetch.reason);
     fail_world(app, d, said);
@@ -348,6 +339,16 @@ static void file_arrived(player_app *app, player_downloads *d, player_fetch_stat
   }
   if (d->fetch.status != 200) {
     status_words(said, sizeof said, d->fetch.status, file->label);
+    fail_world(app, d, said);
+    return;
+  }
+  if (d->overrun) {
+    SAY(said, file->label, " is longer than the list says it is, so it was thrown away.");
+    fail_world(app, d, said);
+    return;
+  }
+  if (d->write_failed) {
+    SAY(said, "The file ", file->part, " could not be written.", OUT_OF_ROOM);
     fail_world(app, d, said);
     return;
   }

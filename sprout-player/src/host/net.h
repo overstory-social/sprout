@@ -45,7 +45,7 @@ typedef enum player_fetch_state {
   PLAYER_FETCH_RUNNING,
   PLAYER_FETCH_DONE,    /* the whole answer came: `status` is the server's */
   PLAYER_FETCH_FAILED,  /* `reason` says why */
-  PLAYER_FETCH_STOPPED  /* the sink stopped it */
+  PLAYER_FETCH_STOPPED  /* the sink stopped it: `status` is the server's, which may not be 200 */
 } player_fetch_state;
 
 typedef struct player_fetch {
