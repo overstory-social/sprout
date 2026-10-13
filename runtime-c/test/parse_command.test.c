@@ -1,8 +1,9 @@
 /*
  * Tests for src/parse/command.c: a typed line read as the command turn it begins reads it, under that turn's
- * budget and seed and writing nothing (the spec's Parsing > When nothing matches; The runtime > Turns). A line
- * of no words, and `again` before any reading, are `unknown`, said to the actor where they stand; what this
- * runtime does not read yet is refused in words, never answered wrongly. The harness (`sproutc parse`) holds
+ * budget and seed and writing nothing (the spec's Parsing > When nothing matches; Verbs > Exits; The runtime >
+ * Turns). A line of no words, `again` before any reading, and words no placement reads are `unknown`, said to the
+ * actor where they stand, and a way out written elsewhere is `not_here`; what this runtime does not read yet is
+ * refused in words, never answered wrongly. The harness (`sproutc parse`) holds
  * every answer to the TypeScript parser's, steps included.
  */
 #include "turn_fixture.h"
@@ -130,9 +131,11 @@ static void what_this_runtime_does_not_read_yet_is_refused_in_words(void) {
   sprout_reading planned;
   sprout_handed handed;
   open_hall(&p);
-  /* The library's `go` places any words at all, as a way out to try. */
-  CHECK_INT(parse(&p, "v-marta", "xyzzy", NULL), SPROUT_BAD_INPUT);
-  CHECK(strstr(p.out.fault.text, "a line a phrase places") != NULL);
+  CHECK_INT(parse(&p, "v-marta", "take ball", NULL), SPROUT_BAD_INPUT);
+  CHECK(strstr(p.out.fault.text, "a line a phrase reads") != NULL);
+  /* A noun naming nothing in reach is `not_here` or `unknown` by the world's words, which this runtime does not read yet. */
+  CHECK_INT(parse(&p, "v-marta", "take unicorn", NULL), SPROUT_BAD_INPUT);
+  CHECK(strstr(p.out.fault.text, "a noun that names nothing in reach") != NULL);
   CHECK_INT(parse(&p, "v-marta", "take ball and drop it", NULL), SPROUT_BAD_INPUT);
   CHECK(strstr(p.out.fault.text, "`and` or a comma") != NULL);
   memset(&planned, 0, sizeof planned);
@@ -142,6 +145,28 @@ static void what_this_runtime_does_not_read_yet_is_refused_in_words(void) {
   handed.reread = NULL;
   CHECK_INT(parse(&p, "v-marta", "look", &handed), SPROUT_BAD_INPUT);
   CHECK(strstr(p.out.fault.text, "a turn a line handed") != NULL);
+  close_hall(&p);
+}
+
+static void words_that_name_no_way_out_are_unknown_and_a_way_written_elsewhere_is_not_here(void) {
+  parsing p;
+  sprout_outcome arrived;
+  open_hall(&p);
+  /* The library's `go` places any words at all, as a way out to try; these are none, and no other phrase reads them. */
+  CHECK_INT(parse(&p, "v-marta", "xyzzy", NULL), SPROUT_OK);
+  is_unknown(&p);
+  CHECK_INT(parse(&p, "v-marta", "go plugh", NULL), SPROUT_OK);
+  is_unknown(&p);
+  close_hall(&p);
+  memset(&p, 0, sizeof p);
+  tw_open(&p.w, "out-of-reach-exit");
+  tw_arrive(&p.w, "v-marta", "Marta", 1000, &arrived);
+  sprout_outcome_free(&arrived);
+  sprout_arena_init(&p.keep, &p.w.host);
+  /* Only the yard has a window. */
+  CHECK_INT(parse(&p, "v-marta", "enter window", NULL), SPROUT_OK);
+  CHECK_INT(p.out.end, SPROUT_PARSED_ANSWERED);
+  CHECK_STR(p.out.line, "not_here");
   close_hall(&p);
 }
 
@@ -185,6 +210,7 @@ int main(void) {
   RUN(a_line_of_no_words_is_unknown_and_spends_only_the_ways_out);
   RUN(again_before_any_reading_is_unknown_and_after_one_is_not_read_yet);
   RUN(what_this_runtime_does_not_read_yet_is_refused_in_words);
+  RUN(words_that_name_no_way_out_are_unknown_and_a_way_written_elsewhere_is_not_here);
   RUN(a_visit_that_cannot_type_is_refused_in_words);
   RUN(a_trailing_question_mark_is_read_as_nothing_but_alone_it_is_kept);
   RUN(a_parse_that_spends_its_budget_faults_as_its_turn_would);

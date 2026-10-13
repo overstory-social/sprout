@@ -477,7 +477,11 @@ export const BENCH_CASES: readonly Bench[] = [
 ];
 
 /** A visitor arriving in `catalogue`'s world as the inspectors admit one, and the state they arrive in. */
-function arrived(catalogue: Catalogue): { state: WorldState; host: TurnHost; visit: VisitKey } {
+export function arrived(catalogue: Catalogue): {
+  state: WorldState;
+  host: TurnHost;
+  visit: VisitKey;
+} {
   const host = hostOf(catalogue);
   const visit = visitKey('inspector');
   const loaded = initialState(catalogue);

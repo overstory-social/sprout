@@ -12,4 +12,7 @@
 /* `text`'s words, each NUL-terminated, in the arena; SPROUT_NO_MEMORY when the host refuses a page. */
 sprout_status typed_words(sprout_arena *arena, sprout_str text, sprout_str **words, size_t *count);
 
+/* `text` in lower case as JavaScript's `toLowerCase` makes it, every other byte kept, NUL-terminated in the arena. */
+sprout_status typed_lower(sprout_arena *arena, sprout_str text, sprout_str *lower);
+
 #endif

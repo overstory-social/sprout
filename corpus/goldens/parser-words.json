@@ -1,0 +1,39 @@
+{
+  "determiners": ["a", "an", "the", "my", "this", "that"],
+  "connectors": ["and", ","],
+  "relativeWords": ["in", "on", "that", "is", "one"],
+  "allWords": ["all", "everything"],
+  "parserWords": ["then", "again", "g", "all", "everything", "except"],
+  "directions": [
+    "north",
+    "south",
+    "east",
+    "west",
+    "northeast",
+    "northwest",
+    "southeast",
+    "southwest",
+    "up",
+    "down",
+    "in",
+    "out"
+  ],
+  "typedPronouns": [
+    ["it", "it"],
+    ["them", "they"],
+    ["him", "he"],
+    ["her", "she"]
+  ],
+  "abbreviations": [
+    ["n", "north"],
+    ["s", "south"],
+    ["e", "east"],
+    ["w", "west"],
+    ["ne", "northeast"],
+    ["nw", "northwest"],
+    ["se", "southeast"],
+    ["sw", "southwest"],
+    ["u", "up"],
+    ["d", "down"]
+  ]
+}
