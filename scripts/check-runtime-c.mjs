@@ -25,16 +25,16 @@
 // the last line says so. Where the variable is set, a failing step fails this script, in the gate
 // and in the e2e alike.
 //
-// After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
-// runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without
-// clang's wasm32 target and wasm-ld the step is skipped, and its line says so.
-//
 // After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
 // every corpus world with transcripts is packed, its scripts resolved by the
 // TypeScript parser, played through `sproutc`, and diffed with the transcript
 // the TypeScript runtime wrote. It prints one line per world and the list of
 // worlds that pass, and fails when that list is not EXPECTED_PASSING. Each
 // later runtime item adds the worlds its change brings in here.
+//
+// After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
+// runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without
+// clang's wasm32 target and wasm-ld the step is skipped, and its line says so.
 
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
@@ -128,7 +128,6 @@ function run(command, args, env) {
   return done.stdout;
 }
 
-/** The Playdate app, which is built on the runtime and plays the cartridges packed above. */
 /**
  * The runtime built for WebAssembly (runtime-c/wasm/build.sh) and checked against the TypeScript runtime
  * (runtime-c/wasm/engine.test.mjs). It needs clang with the wasm32 target and wasm-ld; without them it
@@ -157,6 +156,7 @@ async function wasmStep() {
   }
 }
 
+/** The Playdate app, which is built on the runtime and plays the cartridges packed above. */
 async function playerStep(sanitized) {
   const { checkPlayer, sdkPath } = await import('./playdate-player.mjs');
   if (sdkPath() === null) {

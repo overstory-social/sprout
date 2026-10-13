@@ -260,7 +260,8 @@ EXPORT("sw_open") int sw_open(size_t length, size_t world_id_length) {
   sprout_status status;
   begin(0);
   if (world == NULL) return refuse("Load a cartridge before opening a state.");
-  if (input == NULL) return refuse("Hand the state in through sw_input first.");
+  if (input == NULL || length > input_capacity || world_id_length > input_capacity)
+    return refuse("Hand the state in through sw_input first.");
   refusal.text[0] = '\0';
   if (length == 0) {
     const char *id = (const char *)sprout_arena_copy(&scratch, (const char *)input, world_id_length);
@@ -337,7 +338,7 @@ static int run(sprout_turn_input *in) {
 
 /* The C string of `length` bytes at `at` in the input, copied into the scratch arena; NULL past the input. */
 static const char *input_string(size_t at, size_t length) {
-  if (input == NULL || at + length > input_capacity) return NULL;
+  if (input == NULL || length > input_capacity || at > input_capacity - length) return NULL;
   return sprout_arena_copy(&scratch, (const char *)input + at, length);
 }
 
@@ -396,10 +397,11 @@ EXPORT("sw_depart") int sw_depart(size_t visit_length, uint64_t seed, uint64_t i
   return run(&in);
 }
 
-/* The string member `key` of `object`, or NULL where it has none. */
+/* The string member `key` of `object`, or NULL where it has none, or one holding a NUL, which no id or line does. */
 static const char *string_at(const sprout_json *object, const char *key) {
   const sprout_json *found = object == NULL ? NULL : sprout_json_get(object, key);
-  return found != NULL && found->kind == SPROUT_JSON_STRING ? found->bytes : NULL;
+  if (found == NULL || found->kind != SPROUT_JSON_STRING || strlen(found->bytes) != found->length) return NULL;
+  return found->bytes;
 }
 
 /* The array member `key` of `object`, or NULL where it has none. */
@@ -461,8 +463,11 @@ static const char *parsing_of(const sprout_json *root, sprout_reading *reading) 
     uint64_t *bounds = (uint64_t *)sprout_arena_take(&scratch, draws->count * sizeof *bounds);
     if (bounds == NULL) return "There is no memory for the reading.";
     for (i = 0; i < draws->count; i++) {
-      if (draws->items[i]->kind != SPROUT_JSON_NUMBER) return "A draw is not a number.";
-      bounds[i] = (uint64_t)draws->items[i]->number;
+      double bound = draws->items[i]->number;
+      /* A draw's bound is how many things the parser drew among: a whole number, at least one. */
+      if (draws->items[i]->kind != SPROUT_JSON_NUMBER || bound < 1 || bound > 4294967296.0 || bound != __builtin_floor(bound))
+        return "A draw is not a whole number of things to draw among.";
+      bounds[i] = (uint64_t)bound;
     }
     reading->draws = bounds;
     reading->draw_count = draws->count;

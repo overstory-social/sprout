@@ -24,6 +24,63 @@ import { packWorld } from '../../scripts/replay-runtime-c.mjs';
 import { resolveFile } from '../../scripts/resolve-script.mjs';
 import { WasmEngine } from './engine.mjs';
 
+/**
+ * The corpus worlds whose scripts the engine plays, sorted: every one with a script of arrivals, departures
+ * and commands alone. A world that comes or goes from this list is a change to say so of.
+ */
+const EXPECTED_WORLDS = [
+  'all-in-order',
+  'all-leaves-out-refused',
+  'allowed-first',
+  'arrival-order',
+  'brief',
+  'cannot',
+  'carried',
+  'carried-across',
+  'chip-tree',
+  'comma-commands',
+  'darkness',
+  'destroy-declared',
+  'dotted-paths',
+  'drop-here',
+  'embedded-passage',
+  'engine_lines',
+  'exit-labels',
+  'exit-say',
+  'help_and_wait',
+  'imports',
+  'instance-scope',
+  'intents',
+  'media-room',
+  'move',
+  'narrowing-and',
+  'nested-offers',
+  'no-way',
+  'notices-through-gate',
+  'out-of-reach-exit',
+  'out-of-reach-synonym',
+  'own-place',
+  'printers_shop',
+  'pronouns',
+  'refusal-hands',
+  'relatives',
+  'requires-held',
+  'runs',
+  'sequences',
+  'shut-contents',
+  'standard-library',
+  'synonyms',
+  'take-from',
+  'teashop',
+  'troll_room',
+  'unknown-word',
+  'value-first',
+  'visitor-contents',
+];
+
+/** The checks that are not a world's, each of which must have run. */
+const EXPECTED_CHECKS = ['libc.c', 'edges', 'closed arrival'];
+
 /** The steps the engine can play: what a host runs as an arrival, a departure or a command. */
 const PLAYABLE = new Set(['comment', 'seed', 'arrive', 'leave', 'command']);
 
@@ -131,15 +188,51 @@ async function edges(wasm, cartridge, worldId) {
   if (engine.memory().held > held)
     problems.push(`opening again holds ${engine.memory().held - held} more bytes`);
   expectThrow(
-    'a cartridge that is not one',
-    () => engine.call('sw_load', ...engine.put([new TextEncoder().encode('nonsense')])),
-    /\S/,
+    'a visit with a NUL in it',
+    () => engine.command('v0\u0000junk', { verb: 'sprout.look', fillers: [], typed: 'look' }, 0, 0),
+    /names its visit, verb/,
   );
   expectThrow(
-    'a turn after a refused load, with the world it replaced still held',
-    () => engine.scene('visit:nobody'),
-    /\S/,
+    'a draw below one',
+    () =>
+      engine.command(
+        'visit:nobody',
+        { verb: 'sprout.look', fillers: [], typed: 'look', draws: [-1] },
+        0,
+        0,
+      ),
+    /No visitor|whole number/,
   );
+  expectThrow(
+    'readings whose verb runs past the input',
+    () => {
+      const [length] = engine.put([new TextEncoder().encode('visit:nobody')]);
+      engine.call('sw_readings', length, 0xffffffff);
+    },
+    /through sw_input/,
+  );
+  expectThrow(
+    'a state whose world id runs past the input',
+    () => {
+      engine.put([new TextEncoder().encode('x')]);
+      engine.call('sw_open', 0, 1 << 20);
+    },
+    /through sw_input/,
+  );
+  // Someone in the world, then a cartridge that is not one: the world and its state stay as they were.
+  engine.maintenance(0, 0);
+  engine.arrive('visit:Marta', 'Marta', 0, 0);
+  expectThrow(
+    'a cartridge that is not one',
+    () => engine.call('sw_load', ...engine.put([new TextEncoder().encode('nonsense')])),
+    /^(?![\s\S]*Load a cartridge)[\s\S]*\S/,
+  );
+  try {
+    if (engine.scene('visit:Marta').verbs.length === 0)
+      problems.push('after a refused load Marta is offered nothing');
+  } catch (err) {
+    problems.push(`after a refused load the world is gone: ${err.message}`);
+  }
   return problems;
 }
 
@@ -231,6 +324,18 @@ export async function testEngine(out, corpus = 'corpus/good') {
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+  const played = results
+    .filter((one) => !EXPECTED_CHECKS.includes(one.name))
+    .map((one) => one.name);
+  const missing = EXPECTED_CHECKS.filter((name) => !results.some((one) => one.name === name));
+  results.push({
+    name: 'what was played',
+    passed: played.join(',') === EXPECTED_WORLDS.join(',') && missing.length === 0,
+    words:
+      missing.length > 0
+        ? `the checks ${missing.join(', ')} did not run`
+        : `the worlds played are ${played.join(', ')}; update EXPECTED_WORLDS in runtime-c/wasm/engine.test.mjs if the change is meant`,
+  });
   return results;
 }
 
