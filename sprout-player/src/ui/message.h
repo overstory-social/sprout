@@ -8,7 +8,7 @@
 
 #include "app.h"
 
-/* The top of the words, as the Lua app draws its messages. */
+/* The top of the words. */
 #define MESSAGE_TOP 40
 
 /* Shows `words` (a copy is kept) in place of the screen on show, once its update is over. */

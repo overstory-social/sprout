@@ -1,5 +1,5 @@
 /*
- * The sentence's drum seen from the side, as Source/wheel.lua lays it out: the selected word sits
+ * The sentence's drum seen from the side: the selected word sits
  * in a window at the drum's front, the next words curve away above and below it, the drum turns
  * with the crank, and once the crank rests it settles on the nearest slat. The sentence (sentence.h)
  * holds what the drum offers and which word is selected; this is only where each word sits this

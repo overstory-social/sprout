@@ -3,7 +3,7 @@
 2026-10-10
 
 The design of the Playdate player as it is built: a C runtime that
-runs a closed world file, a Lua app that lets a person play one with a
+runs a closed world file, a C app over it that lets a person play one with a
 crank, and the checks that hold the first to the TypeScript runtime. The
 design spec says what any host owes a world (_The host contract_,
 _Limits_); this document is the concrete choices the Playdate host makes.
@@ -40,7 +40,7 @@ Three programs share one language and meet at two files.
   `memcpy`, `memset`, `strlen`, `floor` and `pow`, takes its memory,
   clock and seed from a host record, and holds no default for any limit.
 - **The viewer is per host.** The desktop host `sproutc` prints text; the
-  Playdate app is Lua over the C functions; the TypeScript hosts (CLI,
+  Playdate app is C over the same runtime (_The Playdate app_); the TypeScript hosts (CLI,
   server, terminal client) are unchanged.
 
 The **stored world** (the spec's _State_) is the second meeting point: the
@@ -253,50 +253,33 @@ extension but `media`; a run on a Unicode newer than 17.0 (hole 498).
 
 ## The Playdate app
 
-`sprout-player/` is the app. The engine of `runtime-c/` is compiled into it
-as one source and registered with the Lua runtime at `kEventInitLua`, before
-`main.lua` runs, as thirteen functions: `sprout.inspect`, `open`, `step`,
-`load`, `admit`, `view`, `chips`, `turn`, `tick`, `save`, `close`, `verify`
-and `digest` (`src/bridge.c`). Each takes strings and returns a JSON string.
-The JSON is the bridge's alone: the session (`src/session.h`) hands back the
+`sprout-player/` is the app, and it is C over the engine. The engine of
+`runtime-c/` is compiled into it as one source. The session
+(`src/session.h`) holds the one world open on the device: it hands back the
 runtime's structs (the view, a level of the chip tree, the lines a call's
-turns told) and takes a reading as the runtime's struct, and the bridge
-writes the one and reads the other. The Playdate's side of the host
-contract, its files and the stack a call from Lua runs on are
-`src/host/`. At the
-system's terminate event the engine saves and frees its session, and a call
-that still comes after it (Lua may run one more frame) is refused with
-`The engine has shut down.` rather than run (a view, whose reply has one
-shape, comes back as the empty view with those words). The app
-sets no update callback; Lua's `update()` runs everything. Everything a
-person sees is Lua; `Source/engine.lua` is the one place the registered
-functions are called.
-
-### The C app
-
-The player is becoming pure C, a screen at a time, beside the Lua app, which
-keeps shipping until the C app has every screen. Built with the CMake option
-`PLAYER_C_UI` (`npm run playdate -- --c-ui`, which writes
-`sprout-player/build/c-ui/sprout-player.pdx`), `main.c` sets the update
-callback at `kEventInit`, which tells the system the game is pure C, and the
-pdx carries no Lua: `pdc` packages a copy of `Source/` without its `.lua`
-files. Without the option the build is the Lua app, as above. Each frame
-runs on the player's own stack (`src/host/stack.h`), since a turn may run in
-it, and the file calls inside it hop back to the main stack.
+turns told) and takes a reading as the runtime's struct. The Playdate's side
+of the host contract, its files, its network and the stack a frame runs on
+are `src/host/`; the screens are `src/ui/`. `main.c` sets the update
+callback at `kEventInit`, which tells the system the game is pure C, and
+hands the app the lock, low-power, unlock and terminate events; the pdx
+carries no script, only `pdxinfo`, the fonts, the shipped worlds and the
+binaries `pdc` packages from `Source/`. Each frame runs on the player's own
+stack (`src/host/stack.h`), since a turn may run in it, and the file calls
+inside it hop back to the main stack.
 
 The app (`src/ui/app.h`) holds the session, the system font, the shelf and
 the screen on show. A screen (`src/ui/screen.h`) is three functions over its own
 context: update with the buttons and the crank, draw, and leave; a screen
 moves the app to another, and the move takes effect when its update is over.
-The app starts on the shelf (`src/ui/shelf.h`), which is `Source/shelf.lua`'s
-as above; the app holds it, so it outlives its screen and a cartridge is
+The app starts on the shelf (`src/ui/shelf.h`), as The shelf below describes
+it; the app holds it, so it outlives its screen and a cartridge is
 inspected once for as long as the app runs. Its "more worlds..." row opens
 the download screen (`src/ui/downloads.h`), and when the list of worlds could
 not be had there, the row's panel says why until it is tried again. A on a
 world shows the arrival
 (`src/ui/arrival.h`), which reads the cartridge a step a frame behind a
 loading line, loads the save and shows the nickname screen
-(`src/ui/nickname.h`), `nickname.lua` in C as Nickname below describes it:
+(`src/ui/nickname.h`), as Nickname below describes it:
 "Who are you in <world>?" over one name of the pool, which the crank (24
 degrees a name) and up and down move through, A entering it and B closing
 the world and going back to the shelf. A name `player_admit` refuses is told
@@ -307,33 +290,34 @@ stops an open is told on the message screen (`src/ui/message.h`), whose A
 or B goes back to the shelf: a world refused at its open or a step keeps the
 reason on the shelf, and one whose save could not be written is greyed
 until a save of it succeeds. The shelf's cues go through `player_cue` like
-every screen's. The signed index is
-read in C as well (`src/signed_index.h`), over the canonical text of
-`src/canonical.h`, which orders an object's names as the signer's
-JavaScript sort does, by UTF-16 code unit, and writes an empty object as
-`{}`, as the signer does; `canonical.lua` sorts by byte, which differs only
-for names mixing characters above U+FFFF with ones from U+E000 to U+FFFF,
-and writes `{}` as `[]`.
-The reader (`src/ui/reader.h`) is `Source/reader.lua`'s: the transcript
+every screen's. "leave world" in the system menu, chosen while a reader is
+open, leaves the world as B on the nickname screen does: the visitor leaves,
+the save is written and the app goes back to the shelf; chosen elsewhere it
+does nothing. The signed index is read by `src/signed_index.h`, over the
+canonical text of `src/canonical.h`, which orders an object's names as the
+signer's JavaScript sort does, by UTF-16 code unit, and writes an empty
+object as `{}`, as the signer does.
+
+The reader (`src/ui/reader.h`) is the transcript
 wrapped to the column, the newest at the bottom, under the status line (the
 place and its ways out, from the view), scrolled a line for each 12 degrees
-of crank and each press of up or down. Its word wrap is `wrap.lua`'s, over
-the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
+of crank and each press of up or down. Its word wrap (`src/ui/wrap.h`) is
+over the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
 scrolling a line at a time needs the lines, which `drawTextInRect` does not
 give back. Text is drawn as written, on the reading that the C API's
 `drawText`, which takes no font family, has no bold or italic to read `*`
 and `_` as; the Simulator has yet to confirm it. A on the reader opens the
-sentence builder (`src/ui/builder.h`), `sentence.lua` and `wheel.lua` in C
-(`src/ui/sentence.h`, `src/ui/drum.h`) over the session's chip levels: the
-drum, its fonts and detents and the keys below are the Lua builder's, and a
+sentence builder (`src/ui/builder.h`, over `src/ui/sentence.h` and
+`src/ui/drum.h`) over the session's chip levels, as The chip tree and the
+crank sentence builder below describes it; a
 confirmed sentence runs through `player_turn` and is told in the reader, led
 by the sentence as typed. The reader is lent to the builder while it is up.
 The sentence so far above the drum fits the screen however long it grows: in
 the system font, else the small font, else trimmed from the left behind
 `...`, so its end, the part being built, stays in view.
 
-The pictures (`src/ui/pictures.h`) are `Source/gallery.lua` and
-`Source/images.lua` in C, as Images below describes them. After the arrival
+The pictures (`src/ui/pictures.h`) are shown as Images below describes them.
+After the arrival
 is told, every picture its lines and then the place's view asked for, and
 after a sentence runs, every picture its turn asked for once the builder has
 closed, is shown one at a time on the whole screen over the reader, which is
@@ -347,15 +331,15 @@ file call is, holds at most the one on screen and the one leaving, frees the
 one that left once the next has landed, and frees both when A or B closes
 it, so a picture costs memory only while it is on screen.
 
-The sounds (`src/ui/sound.h`) are `Source/sound.lua`'s cues, each a short
-note on a synth of its own (`pd->sound->synth`) with the Lua table's
+The sounds (`src/ui/sound.h`) are cues, each a short
+note on a synth of its own (`pd->sound->synth`) with its own
 waveform, pitch, volume, length and envelope, made when the app starts and
 freed when it ends. Every screen sounds a cue through `player_cue` in
 `src/ui/app.h`: the builder's tick, clack, pick, back and refusal, the
 nickname screen's tick, pick, back and refusal, and the pictures' tick and
 clack. With no synth a cue is silent.
 
-The reader's clock (`src/ui/clock.h`) is `Source/clock.lua`'s: while a
+The reader's clock (`src/ui/clock.h`): while a
 reader is open, a tick is asked of the session (`player_tick`) every ten
 seconds of the device's clock, clamped so a clock set back brings no tick
 sooner; what the tick told is added to the transcript and the status looked
@@ -369,10 +353,9 @@ time the device was locked or asleep owes no tick of its own; the next tick's
 The C API has no wake event: the device wakes from low-power sleep locked,
 on the reading that its unlock is what starts the ticks again.
 `kEventTerminate` frees the app, which leaves the screen on show and closes
-the world, the save written: the one path Lua's `gameWillTerminate` takes.
+the world, the save written.
 
-The download screen (`src/ui/downloads.h`) is `Source/downloads.lua`,
-`net.lua` and `config.lua` in C, over the SDK's C network API
+The download screen (`src/ui/downloads.h`) works over the SDK's C network API
 (`src/host/net.h`, each call on the main stack as the file calls are). The C
 API cannot pause the game for the permission dialog, so a fetch asks with
 `requestAccess` and the purpose string and waits for the answer across
@@ -381,13 +364,12 @@ a redirect's `Location`, and the end of an answer all come by callback, and
 the screen polls. The index is read and verified by `src/signed_index.h`
 against the key the build bakes in as the generated `publickey.h`
 (`PLAYER_INDEX_PUBLIC_KEY_FILE`, which `scripts/playdate-player.mjs` sets
-from the same file it writes `publickey.lua` from), and a world is written a
+from `SPROUT_INDEX_PUBLIC_KEY`), and a world is written a
 piece at a time (`player_file_create` and its kin in `src/host/files.h`),
 hashed with `player_digest`, and shelved as Shipped worlds and downloads
 below describes, with the share of the file arrived in the panel. The index
-address is `PLAYER_INDEX_URL` in `downloads.h`, the same placeholder as
-`config.lua`'s, and the Data folder's `downloads.json` points it elsewhere
-for both apps.
+address is `PLAYER_INDEX_URL` in `downloads.h`, a placeholder, and the Data
+folder's `downloads.json` points it elsewhere.
 
 The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) loads a
 bitmap from a PNG at the size its header declares, draws it as a black block
@@ -409,25 +391,25 @@ the consent pass refuses it, and the options. A reading carries its fillers
 by id, which is what lets a viewer hand the runtime a reading without a
 parser.
 
-The tree stays on the C side, and is built a verb at a time. `sprout.view`
+The tree stays in the session, and is built a verb at a time. `player_view`
 polls the scene alone (`sprout_scene`): the place, the description, the
 ways out, who is there and what is carried, and the verbs the world
 offers, with no readings, and keeps it (`seen.c`) until the next view, load
-or close. `sprout.chips(path)`, with the picks so far as 1-based indexes
-(`[]` for the verbs), answers one level: each choice with `greyed`, whether
+or close. `player_chips`, with the picks so far as 1-based indexes
+(none for the verbs), answers one level: each choice with `greyed`, whether
 nothing under it can be done, and `reason`, the first refusal under it, and
 the level's `leaf`. The first level under a verb asks the runtime for that
 verb's readings alone (`sprout_readings_for`: the offers and consent passes
 for one verb over what is in range, a hundredth of the whole poll), arranges
 them as the verb's subtree and keeps it; at the root a verb not yet reached
-is neither greyed nor not (`null`), and the level under a verb says of the
-verb what the root then shows. `sentence.lua` asks for the verb the drum
+is neither greyed nor not (`PLAYER_GREYED_UNKNOWN`), and the level under a verb says of the
+verb what the root then shows. The sentence builder asks for the verb the drum
 settles on, so it is greyed or not before it is picked. The caverns' whole
 tree was 223 KB of JSON and 2,194 nodes built in one poll that reset the
 console; now a level is a few hundred bytes, a verb's readings cost one
-small poll, and Lua never holds the tree.
+small poll, and the screens never hold the tree.
 
-`sentence.lua` turns the crank over those levels. A is pick, B is step back,
+The sentence builder (`src/ui/sentence.h`) turns the crank over those levels. A is pick, B is step back,
 the crank or the d-pad moves a wheel of the choices at this step (24
 degrees of crank for a step). It lists the verbs in the view's order, then
 what fills each role, then a word or a number for each value role (a number
@@ -444,14 +426,14 @@ which is the order the TypeScript parser binds them in
 (`corpus/good/value-first` pins it). The view offers readings and not
 intents, so the wheel has no intents at the top (hole 500).
 
-On the screen the wheel is a drum seen from the side (`wheel.lua`): the
+On the screen the wheel is a drum seen from the side (`src/ui/drum.h`): the
 selected word sits large in a window at the drum's front, the words either
 side curve away above and below in smaller type, and the drum turns with
 the crank, so the words rise and fall as it turns; once the crank has
 rested for a few frames the drum settles on the nearest slat, completing
 a step the crank took past halfway rather than sliding back. Each slat
 passing the window ticks, the drum settling clacks, a pick and a step back
-each sound a note and a refusal a buzz (`sound.lua`: short notes on the
+each sound a note and a refusal a buzz (`src/ui/sound.h`: short notes on the
 SDK's synths, silent where there is no sound to play on). The fonts are
 Panic's Asheville Sans 24 Light and Roobert 10 Bold (CC BY 4.0), shipped
 under `Source/fonts/`.
@@ -504,14 +486,14 @@ The author places the `media.show` where the picture belongs: in a place's
 portrait, behind a flag the world keeps for "the first time". The app shows
 what a turn asked for: after the turn's lines are told, every picture its
 effects asked for (and, on arrival, the place's own) is shown one at a time
-on the whole screen (`Source/gallery.lua`), scaled to fit above a caption
+on the whole screen (`src/ui/gallery.h`), scaled to fit above a caption
 line that also says `2 of 3  crank: next   A: close`, until A or B closes
 them and the transcript reads (a tick's turn can ask for one too, so a picture
 may come up while the reader is open and idle). The crank, or left and right, steps between
 them slat by slat: the picture on screen is held an elastic moment,
 stretched the way it will go, then whizzes out as the next whizzes in and
 lands with the clack the sentence wheel makes; each step ticks. A picture is
-a name until it is drawn: `Source/images.lua` loads the asset from
+a name until it is drawn: `src/ui/images.h` finds the asset at
 `<cartridge path>.assets/<image>` when the screen draws it and lets it go
 when another is on screen or the gallery closes, so pictures never count
 against the world's memory on the console. The pdx holds a compiled image
@@ -581,8 +563,7 @@ first eight digits of the bundle hash, so two builds of one world sit side
 by side; a newer build does not replace or remove an older one, whose save
 would be orphaned. The index is read to at most 256 KB.
 
-The index address is `sprout-player/Source/config.lua` (and
-`PLAYER_INDEX_URL` in the C app's `src/ui/downloads.h`), a placeholder that
+The index address is `PLAYER_INDEX_URL` in `src/ui/downloads.h`, a placeholder that
 never resolves until a real one is chosen; `downloads.json` in the Data
 folder points a built app elsewhere. Without Wi-Fi, with permission
 refused, or with a server that cannot be reached, the screen says why, B
@@ -611,13 +592,12 @@ kinds, files, source bytes) are unset (hole 500).
 
 ### What is checked
 
-Without a console and without the Simulator: the C app's screens driven a
+Without a console and without the Simulator: the screens driven a
 frame at a time through a fake `PlaydateAPI` whose graphics draw into a 400
-by 240 one-bit frame; the Lua modules under a
-desktop Lua 5.4 (`lua5.4 sprout-player/test/run.lua`); a C test program
-beside each module of `sprout-player/src` through a fake `PlaydateAPI` that
-implements only what the glue calls; `glue.test.c`, which plays `chip-tree`
-through the registered functions against its transcript; a round trip of
+by 240 one-bit frame; a C test program
+beside each module of `sprout-player/src` through the same fake;
+`played.test.c`, which plays `chip-tree` through the session against its
+transcript; a round trip of
 the save through `sproutc` (the save must read and write back byte for byte,
 and the turns built from the chips must leave the stored world the
 same lines typed leave); the download screen over a fake network, files and
@@ -628,46 +608,43 @@ played through `sproutc play --offered` over the packed cartridge, the view
 polled before every command under the app's poll budget and each reading
 required to be among what it offers, a set role one member at a time, as the
 sentence builder builds it, with every line the TypeScript runtime's. The
-Simulator target must compile and `pdc` must package the pdx; the device
-target is built too where `arm-none-eabi-gcc` is installed; and both are
-built again as the C app, whose pdx must carry no Lua.
+Simulator target must compile and `pdc` must package the pdx with no
+compiled script in it; the device target is built too where
+`arm-none-eabi-gcc` is installed.
 `docs/design/sprout-test-harness.md` lists each.
 
 ### What has run on a screen, and what has not
 
-The app has run on the Windows Simulator (SDK 3.1.2), from a pdx built on
-WSL2 with the `pdex.dll` that llvm-mingw cross-compiles: the shelf with its
-greyed rows, the nickname picker, the reader's status line and transcript,
-the sentence builder through a `many` role, and turns through the C engine.
-The layout at 400 by 240 reads as designed. Seen there and fixed: the SDK's
-`drawText` reads `_` and `*` as styling, so every world's words are drawn
-through `markup.lua`, which doubles them.
+The app has run on the Linux Simulator (SDK 3.1.2, under WSLg): the shelf
+with both graduated worlds, the arrival's loading line and bar, the nickname
+screen with the remembered name first, the reader, the sentence builder's
+fonts, greyed leaves and their reasons, the drum under the d-pad and the
+crank, the arrival's picture with its caption, the download screen's
+permission prompt and its refusals in words, and the ticks stopping while the
+Simulator is locked and starting again after. The layout at 400 by 240 reads
+as designed.
 
 Not yet checked:
 
-- the C app (`PLAYER_C_UI`) on any screen: its arrival and reader have run
-  only through the fake `PlaydateAPI`;
-- a console: the device pdx builds and `pdc` packages it, and no Playdate
-  has been on the bus;
+- a console: the device pdx builds and `pdc` packages it, and the app has
+  not yet run on one;
+- that the C API's `drawText` draws `_` and `*` as written;
+- the sounds, which the Simulator's sandbox does not route;
 - the crank's feel (24 degrees a step and 12 degrees a scrolled line are
   guesses);
 - the budgets, tuned on hardware (the Simulator is far faster);
 - the memory and the time of a big world on a console's 16 MB and 168 MHz:
   `underground_caverns` packs to 1.8 MB, its stored world is 480 KB, and
   its fullest room polls 344,254 steps into a chip tree of 12,153 readings
-  that stays on the C side and is read a level at a time; it plays whole
+  that stays in the session and is read a level at a time; it plays whole
   through `sproutc` and the Simulator;
-- a real network fetch, and the system's permission dialog: what the system
-  returns when the person refuses is not documented, so a refusal is read
-  as `http.new` returning nothing or the request failing, both told in
-  words; in C, as `requestAccess` answering no or `newConnection` giving
-  NULL. The C app's fetch has run only against the fake network: which
+- a real download: a refusal of permission is read as `requestAccess`
+  answering no or `newConnection` giving NULL, both told in words; which
   callbacks the system calls on a server that closes without a
   `Content-Length`, and whether the network calls need the main stack as
   the file calls do, are unchecked (they are put there to be safe);
-- the C app's lock and low-power events on a Simulator or a console, and
-  that a console waking from low-power sleep sends `kEventUnlock`;
-- the picture's look (1-bit scaling) and the time it takes to load one.
+- that a console waking from low-power sleep sends `kEventUnlock`;
+- the time a picture takes to load on a console.
 
 ## Verified SDK facts (SDK 3.1.2)
 
@@ -683,7 +660,7 @@ memory:
   the Simulator target, a shared library; `arm.cmake` with
   `-DTOOLCHAIN=armgcc` for the device, an ELF that needs `arm-none-eabi-gcc`.
   `pdc` packages either into a pdx.
-- `pdc` packages every `pdex.*` beside the Lua, so one pdx can hold
+- `pdc` packages every `pdex.*` in the folder it compiles, so one pdx can hold
   `pdex.so`, `pdex.dylib`, `pdex.dll` and `pdex.bin` and run wherever one of
   them was built for; a Simulator loads only its own platform's library and
   never executes `pdex.bin`. `scripts/playdate-player.mjs` builds each it can
@@ -704,15 +681,13 @@ memory:
 - The device is a Cortex-M7 (`-mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfloat-abi=hard`)
   at 168 MHz with 16 MB of RAM; its screen is 400 by 240, one bit, and the
   app asks for 30 frames a second.
-- `eventHandler` receives `kEventInitLua` before `main.lua`; `lua->addFunction`
-  registers a C function under a dotted name; the allocator is
+- `eventHandler` receives `kEventInit` first; a game that sets an update
+  callback there is run as pure C, with no script; the allocator is
   `system->realloc`; files open with `kFileRead | kFileReadData`, which reads
   the app bundle and the Data folder together, and `listFiles` lists both.
-- `playdate.getSecondsSinceEpoch` counts seconds since 2000-01-01.
-- `playdate.network.http` needs system software 2.7. `http.new` asks the
-  person's permission for a server, with a purpose string, by pausing the
-  runtime, so a request starts from `update()` and never from a callback.
-  Wi-Fi sleeps 30 seconds after the last request.
+- `system->getSecondsSinceEpoch` counts seconds since 2000-01-01.
+- The network API needs system software 2.7. Wi-Fi sleeps 30 seconds after
+  the last request.
 - In C (`pd_api_network.h`, `Inside Playdate with C`), `http->requestAccess`
   must be called before `newConnection`, since C cannot pause the game for
   the dialog: it answers `kAccessAllow`, `kAccessDeny`, or `kAccessAsk` with
@@ -751,7 +726,7 @@ The Simulator pdx, and the player's checks, need the SDK:
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # once
 npm run playdate                                             # packs the graduated worlds, builds the one pdx
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
-node scripts/check-runtime-c.mjs                             # now also builds the Simulator target and runs the Lua and glue tests
+node scripts/check-runtime-c.mjs                             # now also builds the Simulator target and runs the player's C tests
 ```
 
 The pdx carries every binary the machine can build and the script says
@@ -778,8 +753,7 @@ the spec_ with the alternatives; none is closed until Eric decides it.
   no file.
 - **493.** What C does with a store and cartridge the spec leaves open:
   stored order, whole numbers only, refusal wording, the typed words
-  travelling final, and nickname admission folded in Lua as TypeScript folds
-  it.
+  travelling final, and nickname admission folded as TypeScript folds it.
 - **494.** What a spawn costs (the instance and each content), what bounds
   live instances (a host row), and that C does not decode extension-typed
   properties.

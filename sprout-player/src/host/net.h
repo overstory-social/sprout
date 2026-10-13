@@ -1,6 +1,6 @@
 /*
- * Fetching over the SDK's HTTP API (`pd->network->http`, system software 2.7), Source/net.lua in
- * C, polled a frame at a time. A fetch asks the person's permission for its server first, with
+ * Fetching over the SDK's HTTP API (`pd->network->http`, system software 2.7), polled a frame at
+ * a time. A fetch asks the person's permission for its server first, with
  * a purpose string, and waits for the answer without holding up a frame; it hands each piece of
  * the body to a sink as it arrives, follows a redirect up to PLAYER_NET_MOST_REDIRECTS times, and
  * gives up on a server that stops answering. Every refusal is a sentence for the person holding

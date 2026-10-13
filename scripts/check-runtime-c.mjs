@@ -17,9 +17,9 @@
 // player. Without it the packing setup fails and the tests that need it do not run.
 //
 // The last step, in both modes, is sprout-player/ (the Playdate app, scripts/playdate-player.mjs):
-// the Simulator target built with the SDK, the C glue's tests over a fake PlaydateAPI, the Lua
-// tests and the glue's save played through `sproutc`; with `--sanitize` the glue's tests are built
-// and run under the sanitizers too. The plain mode also builds the runtime optimised (-O2) under
+// the Simulator target built with the SDK, the player's C tests over a fake PlaydateAPI, and the
+// saves they wrote played through `sproutc`; with `--sanitize` the player's tests are built and run
+// under the sanitizers too. The plain mode also builds the runtime optimised (-O2) under
 // -Wall -Wextra -Werror, as the device and the shipped Simulator build do, and once more without the parser
 // (-DSPROUT_PARSER=OFF), as the Playdate takes the runtime, running the one test that build has. The player step needs
 // PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh fetches the SDK); without it the step is skipped and
@@ -223,7 +223,7 @@ async function playerStep(sanitized) {
   const { checkPlayer, sdkPath } = await import('./playdate-player.mjs');
   if (sdkPath() === null) {
     console.log(
-      'sprout-player: SKIPPED, PLAYDATE_SDK_PATH is not set to a Playdate SDK (`bash scripts/playdate-sdk.sh` fetches one): the Simulator build, the glue tests and the Lua tests did not run',
+      'sprout-player: SKIPPED, PLAYDATE_SDK_PATH is not set to a Playdate SDK (`bash scripts/playdate-sdk.sh` fetches one): the Simulator build and the C tests of the player did not run',
     );
     return;
   }

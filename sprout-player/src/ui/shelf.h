@@ -1,5 +1,5 @@
 /*
- * The shelf: the cartridges the player can open, as Source/shelf.lua lists them (the design
+ * The shelf: the cartridges the player can open (the design
  * doc's The shelf). It lists the `.sproutworld` files at the root of the app and its Data folder
  * and in each one's `worlds/` folder, and asks the session whether each can be shelved; one it
  * refuses is listed with the engine's reason and cannot be opened. A cartridge is inspected once

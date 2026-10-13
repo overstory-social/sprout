@@ -1,6 +1,5 @@
 /*
- * Word wrap for a column a number of pixels wide, as the Lua reader's wrap.lua does it: a newline
- * starts a line, a paragraph is cut at white space with the words of a line joined by one space,
+ * Word wrap for a column a number of pixels wide: a newline starts a line, a paragraph is cut at white space with the words of a line joined by one space,
  * each line takes as many words as fit, and a word wider than the column is cut between
  * characters, never inside one. `measure` is the font's (pen.h), so nothing counts characters.
  */

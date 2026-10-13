@@ -1,5 +1,5 @@
 /*
- * The pictures a world shows, Source/images.lua's (the design doc's Images). `media.show` records
+ * The pictures a world shows (the design doc's Images). `media.show` records
  * an effect whose payload is `{"image": ..., "caption": ...}`; the image is a 1-bit picture that
  * `sprout pack` put beside the cartridge, at `<cartridge>.assets/<image>`, which the pdx holds
  * compiled under its name without `.png`. A picture is a name until it is drawn: these functions

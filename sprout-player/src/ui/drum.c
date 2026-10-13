@@ -23,7 +23,7 @@ static float sine(float degrees) {
 
 static float magnitude(float v) { return v < 0 ? -v : v; }
 
-/* The nearest whole number, halves up, as Lua's math.floor(v + 0.5). */
+/* The nearest whole number, halves up. */
 static int nearest(float v) {
   float up = v + 0.5f;
   int whole = (int)up;
