@@ -13,6 +13,7 @@
 #include "support.h"
 #include "ui/app.h"
 #include "ui/images.h"
+#include "ui/nickname.h"
 #include "ui/pictures.h"
 #include "ui/reader.h"
 
@@ -62,7 +63,7 @@ static bool played_since(int from, float pitch) {
   return false;
 }
 
-/* The app over the media room, opened from the shelf and run until something is drawn past the loading line: pictures or the reader. */
+/* The app over the media room, opened from the shelf, the name offered first entered, and run until pictures or the reader are drawn. */
 static void arrive(const char *scenario, bool assets) {
   const char *why = NULL;
   int n;
@@ -74,8 +75,10 @@ static void arrive(const char *scenario, bool assets) {
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
   fake_frame(fake, kButtonA, 0);
-  for (n = 0; n < 10000 && !on_reader() && fake->draw_count == 0 && fake_run_at(fake, PLAYER_MARGIN, RULE + 2) == NULL; n++)
-    fake_frame(fake, 0, 0);
+  for (n = 0; n < 10000 && (app->screen == &player_nickname_screen ||
+                            (!on_reader() && fake->draw_count == 0 && fake_run_at(fake, PLAYER_MARGIN, RULE + 2) == NULL));
+       n++)
+    fake_frame(fake, app->screen == &player_nickname_screen ? kButtonA : 0, 0);
 }
 
 static void leave(void) {
@@ -207,7 +210,8 @@ static void a_picture_that_cannot_be_read_says_so(void) {
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
   fake_frame(fake, kButtonA, 0);
-  for (n = 0; n < 10000 && !on_reader() && fake_run_at(fake, PLAYER_MARGIN, 110) == NULL; n++) fake_frame(fake, 0, 0);
+  for (n = 0; n < 10000 && !on_reader() && fake_run_at(fake, PLAYER_MARGIN, 110) == NULL; n++)
+    fake_frame(fake, app->screen == &player_nickname_screen ? kButtonA : 0, 0);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 110) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 110)->text, PICTURES_UNREADABLE) == 0,
         "the words in the picture's place");
   CHECK(where_run(PICTURES_CLOSE) != NULL, "the keys are still drawn");

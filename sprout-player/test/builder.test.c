@@ -16,6 +16,7 @@
 #include "ui/builder.h"
 #include "ui/drum.h"
 #include "ui/message.h"
+#include "ui/nickname.h"
 #include "ui/reader.h"
 #include "ui/shelf.h"
 
@@ -70,7 +71,7 @@ static void arrive(const char *scenario) {
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
   fake_frame(fake, kButtonA, 0);
-  for (n = 0; n < 10000 && !on_reader(); n++) fake_frame(fake, 0, 0);
+  for (n = 0; n < 10000 && !on_reader(); n++) fake_frame(fake, app->screen == &player_nickname_screen ? kButtonA : 0, 0);
   CHECK(on_reader(), "the reader came up");
 }
 
