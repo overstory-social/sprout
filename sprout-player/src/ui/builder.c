@@ -5,8 +5,9 @@
 #include <string.h>
 
 #include "host/files.h"
+#include "images.h"
+#include "pictures.h"
 #include "shelf.h"
-#include "sound.h"
 
 static const char NO_MEMORY[] = "The player ran out of memory telling that.";
 static const char GO_ON[] = "A to go on";
@@ -114,6 +115,7 @@ bool player_builder_open(player_app *app, player_reader *reader) {
   b = (player_builder *)player_alloc(app->pd, sizeof *b);
   if (b == NULL) return tell_reader(reader, "The player ran out of memory building a sentence.");
   memset(b, 0, sizeof *b);
+  gallery_init(&b->pictures, app->pd);
   if (!sentence_begin(&b->sentence, app->pd, app->session, &words)) {
     player_free(app->pd, b);
     return tell_reader(reader, words);
@@ -125,10 +127,10 @@ bool player_builder_open(player_app *app, player_reader *reader) {
   return true;
 }
 
-/* Hands the reader back and shows it. */
+/* Hands the reader back and shows it, behind the pictures the sentence run asked for where it asked for any. */
 static void close_builder(player_app *app, player_builder *b) {
   b->reader->lent = false;
-  player_app_show(app, &player_reader_screen, b->reader);
+  player_pictures_show(app, b->reader, &b->pictures);
   b->reader = NULL;
 }
 
@@ -149,8 +151,8 @@ static void run(player_app *app, player_builder *b) {
   if (!told.ok)
     kept = transcript_push(t, "notice", told.words, strlen(told.words)) && kept;
   else
-    kept = transcript_tell(t, &told.lines) && kept;
-  kept = player_reader_look(app, b->reader) && kept;
+    kept = transcript_tell(t, &told.lines) && images_take_told(&b->pictures, app->assets, &told.lines) && kept;
+  kept = player_reader_look(app, b->reader, NULL) && kept;
   transcript_scroll(t, -(long)t->offset);
   if (!kept) {
     /* The transcript could not hold all of it: the words say so, and the builder closes after them. */
@@ -165,11 +167,11 @@ static void confirm(player_app *app, player_builder *b) {
   const char *words = NULL;
   sentence_end end = sentence_pick(&b->sentence, &words);
   if (end == SENTENCE_REFUSED) {
-    player_sound(app, PLAYER_CUE_REFUSED);
+    player_cue(app, PLAYER_CUE_REFUSED);
     show_words(app, b, words);
     return;
   }
-  player_sound(app, PLAYER_CUE_PICK);
+  player_cue(app, PLAYER_CUE_PICK);
   if (end == SENTENCE_DONE) run(app, b);
 }
 
@@ -187,9 +189,9 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     }
     return;
   }
-  if (sentence_turn(s, input->crank) != 0) player_sound(app, PLAYER_CUE_TICK);
+  if (sentence_turn(s, input->crank) != 0) player_cue(app, PLAYER_CUE_TICK);
   if (drum_update(&b->drum, s, input->crank != 0)) {
-    player_sound(app, PLAYER_CUE_CLACK);
+    player_cue(app, PLAYER_CUE_CLACK);
     sentence_prepare(s);
   }
   /* Down moves to the next entry; on a number it takes the number down, as up takes it up. */
@@ -201,13 +203,13 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   if (numbered && (input->pushed & kButtonLeft)) sentence_add_number(s, -1, true);
   stepped = (input->pushed & (kButtonDown | kButtonUp)) || (numbered && (input->pushed & (kButtonRight | kButtonLeft)));
   if (stepped) {
-    player_sound(app, PLAYER_CUE_TICK);
+    player_cue(app, PLAYER_CUE_TICK);
     sentence_prepare(s);
   }
   if (input->pushed & kButtonA) {
     confirm(app, b);
   } else if (input->pushed & kButtonB) {
-    player_sound(app, PLAYER_CUE_BACK);
+    player_cue(app, PLAYER_CUE_BACK);
     if (sentence_back(s))
       sentence_prepare(s);
     else
@@ -289,6 +291,7 @@ static void leave(player_app *app, void *ctx) {
     player_reader_screen.leave(app, b->reader);
   }
   drop_words(app, b);
+  gallery_free(&b->pictures);
   sentence_free(&b->sentence);
   player_free(app->pd, b);
 }

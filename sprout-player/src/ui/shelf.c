@@ -231,22 +231,22 @@ static void choose(player_app *app, player_shelf *shelf) {
   const shelf_entry *entry;
   player_arrival *arrival;
   if (shelf->selected == shelf->count) {
-    player_sound(app, PLAYER_CUE_REFUSED); /* the download screen comes with #635 */
+    player_cue(app, PLAYER_CUE_REFUSED); /* the download screen comes with #635 */
     return;
   }
   entry = &shelf->entries[shelf->selected];
   if (!entry->ok) {
-    player_sound(app, PLAYER_CUE_REFUSED);
+    player_cue(app, PLAYER_CUE_REFUSED);
     player_message_show(app, entry->reason);
     return;
   }
   arrival = player_arrival_new(app, entry->path, entry->title);
   if (arrival == NULL) {
-    player_sound(app, PLAYER_CUE_REFUSED);
+    player_cue(app, PLAYER_CUE_REFUSED);
     player_message_show(app, "The player ran out of memory opening the world.");
     return;
   }
-  player_sound(app, PLAYER_CUE_PICK);
+  player_cue(app, PLAYER_CUE_PICK);
   copy_text(shelf->opened, sizeof shelf->opened, entry->path);
   player_app_show(app, &player_arrival_screen, arrival);
 }

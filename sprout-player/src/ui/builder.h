@@ -3,7 +3,9 @@
  * wheel.lua): the sentence so far at the top, the drum of choices in the middle with the selected
  * one in its window, and the selected choice's refusal or the keys at the bottom. The crank turns
  * the drum and up and down step it; A picks, and on the whole sentence runs it; B steps back, and at
- * the verbs closes the builder. A run sentence is told in the reader, led by the sentence as typed.
+ * the verbs closes the builder. A run sentence is told in the reader, led by the sentence as typed,
+ * and the pictures its turn asked for are shown (pictures.h) once the builder has closed. Its
+ * cues sound through `player_cue`.
  *
  * The reader lends itself to the builder while it is up (reader.h); the builder hands it back when
  * it closes, or frees it if the app ends first. The sentence so far fits the screen whatever its
@@ -17,6 +19,7 @@
 
 #include "app.h"
 #include "drum.h"
+#include "gallery.h"
 #include "reader.h"
 #include "sentence.h"
 #include "wrap.h"
@@ -36,6 +39,7 @@ typedef struct player_builder {
   drum drum;
   wrapped message; /* words shown over the drum until A or B; no bytes when there are none */
   bool closing;    /* the builder closes once the words are read */
+  gallery pictures; /* what the sentence run asked to show, shown once the builder closes */
   char line[512];  /* the sentence so far as it fits the screen */
 } player_builder;
 

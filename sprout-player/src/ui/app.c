@@ -19,10 +19,12 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
     player_free(pd, app);
     return NULL;
   }
+  player_sound_init(&app->sound, pd);
   app->session = player_session_new(pd);
   app->shelf = app->session != NULL ? player_shelf_new(app) : NULL;
   if (app->shelf == NULL) {
     if (app->session != NULL) player_session_free(app->session);
+    player_sound_free(&app->sound);
     player_free(pd, app);
     *why = "the player ran out of memory starting";
     return NULL;
@@ -46,8 +48,11 @@ void player_app_free(player_app *app) {
   player_on_own_stack(app->pd, close_thunk, app);
   player_shelf_free(app, app->shelf);
   player_session_free(app->session);
+  player_sound_free(&app->sound);
   player_free(app->pd, app);
 }
+
+void player_cue(player_app *app, player_cue_name name) { player_sound_play(&app->sound, name); }
 
 void player_app_show(player_app *app, const player_screen *screen, void *ctx) {
   if (app->next != NULL) app->next->leave(app, app->next_ctx);

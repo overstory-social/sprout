@@ -298,8 +298,8 @@ screen exists it admits the visitor the save remembers, or `Wren`. What
 stops an open is told on the message screen (`src/ui/message.h`), whose A
 or B goes back to the shelf: a world refused at its open or a step keeps the
 reason on the shelf, and one whose save could not be written is greyed
-until a save of it succeeds. Every cue goes through one sound function
-(`src/ui/sound.h`), silent until the sounds are ported. The signed index is
+until a save of it succeeds. The shelf's cues go through `player_cue` like
+every screen's. The signed index is
 read in C as well (`src/signed_index.h`), over the canonical text of
 `src/canonical.h`, which orders an object's names as the signer's
 JavaScript sort does, by UTF-16 code unit, and writes an empty object as
@@ -322,8 +322,34 @@ confirmed sentence runs through `player_turn` and is told in the reader, led
 by the sentence as typed. The reader is lent to the builder while it is up.
 The sentence so far above the drum fits the screen however long it grows: in
 the system font, else the small font, else trimmed from the left behind
-`...`, so its end, the part being built, stays in view. The builder's sound
-cues go through one function that is silent until the sound module lands.
+`...`, so its end, the part being built, stays in view.
+
+The pictures (`src/ui/pictures.h`) are `Source/gallery.lua` and
+`Source/images.lua` in C, as Images below describes them. After the arrival
+is told, every picture its lines and then the place's view asked for, and
+after a sentence runs, every picture its turn asked for once the builder has
+closed, is shown one at a time on the whole screen over the reader, which is
+lent to it; a picture the world's assets do not hold is left out, and a turn
+that asks for none goes straight to the reader. The queue and the slat-clack
+motion are `src/ui/gallery.h`, which holds names and never bitmaps; finding
+an image in `<cartridge>.assets/` (compiled without `.png`, else as asked)
+and reading the effect's payload are `src/ui/images.h`. The screen loads a
+picture with `loadBitmap` when it first draws it, on the main stack as every
+file call is, holds at most the one on screen and the one leaving, frees the
+one that left once the next has landed, and frees both when A or B closes
+it, so a picture costs memory only while it is on screen.
+
+The sounds (`src/ui/sound.h`) are `Source/sound.lua`'s cues, each a short
+note on a synth of its own (`pd->sound->synth`) with the Lua table's
+waveform, pitch, volume, length and envelope, made when the app starts and
+freed when it ends. Every screen sounds a cue through `player_cue` in
+`src/ui/app.h`: the builder's tick, clack, pick, back and refusal, and the
+pictures' tick and clack. With no synth a cue is silent.
+
+The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) loads a
+bitmap from a PNG at the size its header declares, draws it as a black block
+and records each draw, and records each note a synth plays; `gallery`,
+`pictures` and `sound` are the test programs.
 
 ### The chip tree and the crank sentence builder
 

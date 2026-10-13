@@ -154,3 +154,27 @@ bool player_list_files(PlaydateAPI *pd, const char *path, void (*found)(const ch
   file_call c = {pd, path, NULL, NULL, 0, NULL, found, ctx};
   return (bool)(intptr_t)player_on_main_stack(list_thunk, &c);
 }
+
+static void *exists_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  SDFile *file = c->pd->file->open(c->path, kFileRead | kFileReadData);
+  if (file == NULL) return (void *)(intptr_t) false;
+  c->pd->file->close(file);
+  return (void *)(intptr_t) true;
+}
+
+static void *bitmap_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  const char *error = NULL;
+  return c->pd->graphics->loadBitmap(c->path, &error);
+}
+
+bool player_file_exists(PlaydateAPI *pd, const char *path) {
+  file_call c = {pd, path, NULL, NULL, 0, NULL, NULL, NULL};
+  return (bool)(intptr_t)player_on_main_stack(exists_thunk, &c);
+}
+
+LCDBitmap *player_load_bitmap(PlaydateAPI *pd, const char *path) {
+  file_call c = {pd, path, NULL, NULL, 0, NULL, NULL, NULL};
+  return (LCDBitmap *)player_on_main_stack(bitmap_thunk, &c);
+}

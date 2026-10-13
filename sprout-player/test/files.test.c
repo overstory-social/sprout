@@ -102,8 +102,34 @@ static void a_folder_lists_its_files_and_marks_its_folders(void) {
   end();
 }
 
+static void a_file_is_found_and_an_image_loaded_where_reading_looks(void) {
+  static const char PNG[] = "\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x05\0\0\0\x03";
+  LCDBitmap *bitmap;
+  int width = 0, height = 0;
+  FILE *file;
+  char full[1100];
+  begin("exists");
+  CHECK(!player_file_exists(&fake->api, "absent"), "a missing file");
+  write_text("here.txt", "x");
+  CHECK(player_file_exists(&fake->api, "here.txt"), "a file in the Data folder");
+  CHECK(player_load_bitmap(&fake->api, "here.txt") == NULL, "a file that is no image");
+  snprintf(full, sizeof full, "%s/tiny.png", fake->data);
+  file = fopen(full, "wb");
+  CHECK(file != NULL && fwrite(PNG, 1, sizeof PNG - 1, file) == sizeof PNG - 1, "writing a picture");
+  if (file != NULL) fclose(file);
+  bitmap = player_load_bitmap(&fake->api, "tiny.png");
+  CHECK(bitmap != NULL, "an image loads");
+  if (bitmap != NULL) {
+    fake->api.graphics->getBitmapData(bitmap, &width, &height, NULL, NULL, NULL);
+    CHECK(width == 5 && height == 3, "at its size: %d by %d", width, height);
+    fake->api.graphics->freeBitmap(bitmap);
+  }
+  end();
+}
+
 int main(void) {
   test_program("files");
+  a_file_is_found_and_an_image_loaded_where_reading_looks();
   a_file_is_written_whole_and_read_back();
   a_file_bigger_than_a_chunk_is_read_whole();
   a_write_cut_short_before_the_swap_is_found_by_the_read();
