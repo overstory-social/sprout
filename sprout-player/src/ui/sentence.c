@@ -530,30 +530,20 @@ void sentence_nudge(sentence *s, long steps) {
 }
 
 long sentence_turn(sentence *s, float degrees) {
+  float half = SENTENCE_DEGREES_PER_STEP / 2;
   long steps = 0;
   s->crank += degrees;
-  for (; s->crank >= SENTENCE_DEGREES_PER_STEP; steps++) s->crank -= SENTENCE_DEGREES_PER_STEP;
-  for (; s->crank <= -SENTENCE_DEGREES_PER_STEP; steps--) s->crank += SENTENCE_DEGREES_PER_STEP;
+  for (; s->crank >= half; steps++) s->crank -= SENTENCE_DEGREES_PER_STEP;
+  for (; s->crank < -half; steps--) s->crank += SENTENCE_DEGREES_PER_STEP;
   if (steps != 0) sentence_nudge(s, steps);
   return steps;
 }
 
 float sentence_fraction(const sentence *s) { return s->crank / SENTENCE_DEGREES_PER_STEP; }
 
-bool sentence_settle(sentence *s, float share, long *steps) {
-  float half = SENTENCE_DEGREES_PER_STEP / 2;
-  *steps = s->crank >= half ? 1 : s->crank <= -half ? -1 : 0;
-  if (*steps != 0) {
-    s->crank -= (float)*steps * SENTENCE_DEGREES_PER_STEP;
-    sentence_nudge(s, *steps);
-  }
-  if (s->crank == 0) return false;
+void sentence_settle(sentence *s, float share) {
   s->crank *= 1 - share;
-  if (s->crank > -0.5f && s->crank < 0.5f) {
-    s->crank = 0;
-    return true;
-  }
-  return false;
+  if (s->crank > -0.5f && s->crank < 0.5f) s->crank = 0;
 }
 
 bool sentence_prepare(sentence *s) {
@@ -646,6 +636,7 @@ sentence_end sentence_pick(sentence *s, const char **words) {
   }
   next.selected = 0;
   s->state = next;
+  s->crank = 0;
   refresh(s);
   return SENTENCE_GOES_ON;
 }
@@ -653,6 +644,7 @@ sentence_end sentence_pick(sentence *s, const char **words) {
 bool sentence_back(sentence *s) {
   if (s->history_count == 0) return false;
   s->state = s->history[--s->history_count];
+  s->crank = 0;
   return_to(s);
   return true;
 }

@@ -124,7 +124,7 @@ typedef struct sentence {
   sentence_state state;
   sentence_state *history;
   size_t history_count, history_room;
-  float crank; /* degrees turned past the selected entry toward the next */
+  float crank; /* degrees the drum is turned past the selected entry, within half a step either way */
   /* the level at the state's path */
   sentence_choice *choices;
   size_t choice_count, choice_room;
@@ -174,25 +174,26 @@ bool sentence_numbered(const sentence *s);
 /* Moves the number by `steps`, each of 1 or, when `big`, of SENTENCE_BIG_STEP; a big step past the end goes to the end. */
 void sentence_add_number(sentence *s, long steps, bool big);
 
-/* Turns the crank by `degrees`: a step for each SENTENCE_DEGREES_PER_STEP, the rest kept toward the next. The steps. */
+/*
+ * Turns the crank by `degrees`. The selected entry is always the one nearest the window, so the word
+ * the drum shows there is the one the panel speaks of and A picks: the drum steps as the crank passes
+ * halfway to the next entry, and keeps the rest. The steps.
+ */
 long sentence_turn(sentence *s, float degrees);
 
-/* How far the crank has turned past the selected entry toward the next, in steps (-1 to 1). */
+/* How far the drum is turned past the selected entry toward the next, in steps (-0.5 to 0.5). */
 float sentence_fraction(const sentence *s);
 
-/*
- * Lets the drum come to rest on the nearest entry, `share` of the way a call: a crank past half a step
- * completes the step first. Whether it arrived this call; `*steps` the steps the completion moved.
- */
-bool sentence_settle(sentence *s, float share, long *steps);
+/* Lets the drum come to rest on the selected entry, `share` of the way a call; the fraction is 0 once it has. */
+void sentence_settle(sentence *s, float share);
 
 /* Asks for the readings of the verb in the window, if the drum is at the verbs and they are not known. Whether it asked. */
 bool sentence_prepare(sentence *s);
 
-/* Picks the entry in the window; for SENTENCE_REFUSED `*words` says why. */
+/* Picks the entry in the window; for SENTENCE_REFUSED `*words` says why. A level it opens is at rest. */
 sentence_end sentence_pick(sentence *s, const char **words);
 
-/* Steps back one pick; false when the builder is already at the verbs. */
+/* Steps back one pick, to its level at rest; false when the builder is already at the verbs. */
 bool sentence_back(sentence *s);
 
 /* The reading confirmed, its actor left for the session; it points into the sentence and the view. */

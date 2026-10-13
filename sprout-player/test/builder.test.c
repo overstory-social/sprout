@@ -5,8 +5,9 @@
  * fonts in the entries' order; the root lists the scene's verbs in the view's order; a greyed
  * chip is drawn greyed and its reason is the panel's words; the sentence so far is the picks
  * joined; a confirmed sentence runs and the reader is told it and then what the turn told, and one
- * whose save fails stops play and greys the world on the shelf; and
- * the sentence line fits the screen whatever its length, keeping its end in view.
+ * whose save fails stops play and greys the world on the shelf; the sentence line fits the screen
+ * whatever its length, keeping its end in view; and however the crank turned, the word in the
+ * window is the one the panel speaks of and A picks.
  */
 #include <stdlib.h>
 
@@ -144,7 +145,7 @@ static void the_root_is_the_scenes_verbs_on_a_drum_turned_by_the_crank(void) {
   fake_frame(fake, kButtonUp, 0);
   CHECK(strcmp(front(), verbs[count - 1]) == 0, "up steps back");
 
-  /* Left past halfway, the drum completes the step once the crank rests. */
+  /* Left past halfway, the next verb is the one in the window, and the drum rolls it to the centre once the crank rests. */
   fake_frame(fake, 0, 14.0f);
   CHECK(run_in(FAKE_FONT_BIG, FRONT_Y) == NULL && run_in(FAKE_FONT_BIG, FRONT_Y + 18) != NULL &&
             strcmp(run_in(FAKE_FONT_BIG, FRONT_Y + 18)->text, verbs[0]) == 0,
@@ -349,6 +350,125 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
   leave();
 }
 
+/* Rests the crank long enough for the drum to settle. */
+static void rest(void) {
+  int n;
+  for (n = 0; n < DRUM_REST_FRAMES + 60; n++) fake_frame(fake, 0, 0);
+}
+
+/* Turns the crank by `degrees` a frame, `frames` times, `still` frames of rest after each. */
+static void turn(float degrees, int frames, int still) {
+  int n, m;
+  for (n = 0; n < frames; n++) {
+    fake_frame(fake, 0, degrees);
+    for (m = 0; m < still; m++) fake_frame(fake, 0, 0);
+  }
+}
+
+/* Whether `text` ends with `tail`. */
+static bool ends_with(const char *text, const char *tail) {
+  size_t a = strlen(text), b = strlen(tail);
+  return a >= b && strcmp(text + a - b, tail) == 0;
+}
+
+/*
+ * The drum agrees with itself: the word in the window, drawn in the big font, has its reason in the
+ * panel (or the keys, where it has none), and A picks it. `shape` names how the drum got there.
+ * Whether A moved the builder on a level; a sentence to confirm is not run.
+ */
+static bool window_is_the_pick(const char *shape) {
+  char word[512];
+  const fake_run *window = run_in(FAKE_FONT_BIG, -1);
+  const sentence_entry *entries, *entry = NULL;
+  size_t count, i, depth;
+  CHECK(window != NULL, "%s: a word in the window", shape);
+  if (window == NULL) return false;
+  snprintf(word, sizeof word, "%s", window->text);
+  entries = sentence_entries(&((player_builder *)app->ctx)->sentence, &count);
+  for (i = 0; i < count; i++)
+    if (strcmp(entries[i].label, word) == 0) entry = &entries[i];
+  CHECK(entry != NULL, "%s: %s is on the drum", shape, word);
+  if (entry == NULL) return false;
+  if (entry->reason != NULL)
+    CHECK(panel() != NULL && strncmp(entry->reason, panel()->text, strlen(panel()->text)) == 0, "%s: the panel is %s's reason: %s",
+          shape, word, panel() != NULL ? panel()->text : "(none)");
+  else
+    CHECK(keys_shown(), "%s: %s has no reason, so the panel shows the keys: %s", shape, word, panel() != NULL ? panel()->text : "(none)");
+  if (entry->kind == SENTENCE_ENTRY_CONFIRM || entry->kind == SENTENCE_ENTRY_NONE) return false;
+  depth = ((player_builder *)app->ctx)->sentence.history_count;
+  fake_frame(fake, kButtonA, 0);
+  CHECK(((player_builder *)app->ctx)->sentence.history_count == depth + 1 && ends_with(phrase(), word),
+        "%s: A on %s picks it: the sentence reads %s", shape, word, phrase());
+  return ((player_builder *)app->ctx)->sentence.history_count == depth + 1;
+}
+
+/* At rest on the verbs, the verb in the window has been asked after, so its reason, if it has one, is known. */
+static void asked_after(const char *shape) {
+  const sentence *sentence = &((player_builder *)app->ctx)->sentence;
+  size_t count;
+  const sentence_entry *entry = &sentence_entries(sentence, &count)[sentence->state.selected];
+  CHECK(entry->kind == SENTENCE_ENTRY_VERB && sentence->choices[entry->index].greyed != PLAYER_GREYED_UNKNOWN,
+        "%s: the verb at rest in the window, %s, has been asked after", shape, entry->label);
+}
+
+/* Steps back to the verbs. */
+static void back_to_the_verbs(const char *shape) {
+  int n;
+  for (n = 0; n < SENTENCE_MOST_PARTS && strcmp(phrase(), "") != 0; n++) fake_frame(fake, kButtonB, 0);
+  CHECK(strcmp(phrase(), "") == 0 && !on_reader(), "%s: back at the verbs: %s", shape, phrase());
+}
+
+static void after_any_crank_turn_the_window_is_what_a_picks(void) {
+  /* Shapes of turn: steady, jumpy with rests between, reversing, stopped between slats, a crank that never quite rests. */
+  static const struct {
+    const char *name;
+    float degrees[3];
+    int frames[3], still[3];
+  } shapes[] = {
+      {"a steady turn on", {5.0f, 0, 0}, {10, 0, 0}, {0, 0, 0}},
+      {"a steady turn back", {-7.0f, 0, 0}, {9, 0, 0}, {0, 0, 0}},
+      {"twelve quick presses back", {-14.0f, 0, 0}, {12, 0, 0}, {1, 0, 0}},
+      {"twelve presses back, a rest between", {-14.0f, 0, 0}, {12, 0, 0}, {3, 0, 0}},
+      {"presses on, resting almost long enough to settle", {14.0f, 0, 0}, {7, 0, 0}, {DRUM_REST_FRAMES - 1, 0, 0}},
+      {"presses on, settling between", {14.0f, 0, 0}, {5, 0, 0}, {DRUM_REST_FRAMES + 2, 0, 0}},
+      {"on and then back", {20.0f, -14.0f, 0}, {3, 4, 0}, {0, 2, 0}},
+      {"back and then on", {-9.0f, 13.0f, -3.0f}, {5, 3, 1}, {1, 0, 0}},
+      {"stopped short of halfway", {11.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
+      {"stopped past halfway", {13.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
+      {"stopped past halfway back", {-13.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
+      {"stopped exactly halfway", {12.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
+      {"stopped exactly halfway back", {-12.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
+      {"a step and most of another on", {40.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
+      {"a crank that never quite rests", {-14.0f, 0.01f, 0}, {1, 60, 0}, {0, 0, 0}},
+  };
+  size_t i, j;
+  arrive("crank");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(keys_shown(), "the builder is open");
+  for (i = 0; i < sizeof shapes / sizeof shapes[0]; i++) {
+    const char *shape = shapes[i].name;
+    for (j = 0; j < 3; j++) turn(shapes[i].degrees[j], shapes[i].frames[j], shapes[i].still[j]);
+    window_is_the_pick(shape);
+    /* Turned and let rest, and then on the level A opened: from the start, and after a turn of its own. */
+    back_to_the_verbs(shape);
+    for (j = 0; j < 3; j++) turn(shapes[i].degrees[j], shapes[i].frames[j], shapes[i].still[j]);
+    rest();
+    asked_after(shape);
+    if (window_is_the_pick(shape)) {
+      window_is_the_pick("the level opened after the turn");
+      fake_frame(fake, kButtonB, 0);
+      rest();
+      window_is_the_pick("the level opened, at rest");
+      fake_frame(fake, kButtonB, 0);
+      for (j = 0; j < 3; j++) turn(shapes[i].degrees[j], shapes[i].frames[j], shapes[i].still[j]);
+      rest();
+      window_is_the_pick("a turn on the level opened");
+    }
+    back_to_the_verbs(shape);
+  }
+  leave();
+}
+
 static void the_fit_trims_a_character_at_a_time_and_never_inside_one(void) {
   LCDFont *fonts[1];
   LCDFont *font = NULL;
@@ -378,14 +498,17 @@ static void the_drum_places_each_entry_once_and_settles(void) {
   made = drum_rows(3, 0, 0.0f, rows);
   CHECK(made == 3 && rows[2].index == 0, "three entries: the front drawn last");
   CHECK(rows[0].index == 2 && rows[0].y < 0 && rows[1].index == 1 && rows[1].y > 0, "the last above, the next below");
-  /* Half a step turned: no slat is at the front, and the one two back has turned past the drum's edge. */
+  /* Half a step turned: the selected slat is still the front one, the window nearest it, and the one two back has turned past the drum's edge. */
   made = drum_rows(12, 5, 0.5f, rows);
   CHECK(made == 4, "four slats: %zu", made);
   CHECK(rows[0].index == 4 && rows[0].angle == -54.0f && rows[0].y == -57 && rows[0].tier == DRUM_FAR, "the furthest above first, curving away: %zu %f %d",
         rows[0].index, (double)rows[0].angle, rows[0].y);
   CHECK(rows[1].index == 7 && rows[1].angle == 54.0f && rows[1].y == 57, "then the furthest below");
-  CHECK(rows[2].index == 5 && rows[2].angle == -18.0f && rows[3].index == 6 && rows[3].angle == 18.0f, "then the two nearest");
-  CHECK(rows[2].tier == DRUM_NEAR && rows[3].tier == DRUM_NEAR, "neither in the window");
+  CHECK(rows[2].index == 6 && rows[2].angle == 18.0f && rows[2].tier == DRUM_NEAR, "then the next, beside the window");
+  CHECK(rows[3].index == 5 && rows[3].angle == -18.0f && rows[3].tier == DRUM_FRONT, "and the selected last, in the window");
+  made = drum_rows(12, 5, -0.5f, rows);
+  CHECK(made == 4 && rows[3].index == 5 && rows[3].tier == DRUM_FRONT && rows[2].index == 4 && rows[2].tier == DRUM_NEAR,
+        "half a step back too");
   end();
 }
 
@@ -399,5 +522,6 @@ int main(void) {
   a_completed_reading_runs_and_the_reader_is_told();
   a_turn_whose_save_fails_stops_play_and_greys_the_world();
   the_sentence_line_fits_the_screen_and_keeps_its_end();
+  after_any_crank_turn_the_window_is_what_a_picks();
   return finish();
 }
