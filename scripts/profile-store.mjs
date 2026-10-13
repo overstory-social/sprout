@@ -212,6 +212,12 @@ async function main() {
     } else if (stale.has(visit)) await rescene(visit);
     if (turn % Number(flags.sample) === 0) sample(turn);
   }
+  {
+    const usage = (globalThis.gc?.(), process.memoryUsage());
+    console.log(
+      `process: rss ${megabytes(usage.rss)} MB, js heap ${megabytes(usage.heapUsed)} MB, array buffers ${megabytes(usage.arrayBuffers)} MB`,
+    );
+  }
   if (flags.json !== undefined) writeFileSync(flags.json, JSON.stringify(samples, null, 1));
   return 0;
 }

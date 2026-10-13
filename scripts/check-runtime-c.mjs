@@ -31,6 +31,10 @@
 // the TypeScript runtime wrote. It prints one line per world and the list of
 // worlds that pass, and fails when that list is not EXPECTED_PASSING. Each
 // later runtime item adds the worlds its change brings in here.
+//
+// After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
+// runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without
+// clang's wasm32 target and wasm-ld the step is skipped, and its line says so.
 
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
@@ -122,6 +126,34 @@ function run(command, args, env) {
     process.exit(1);
   }
   return done.stdout;
+}
+
+/**
+ * The runtime built for WebAssembly (runtime-c/wasm/build.sh) and checked against the TypeScript runtime
+ * (runtime-c/wasm/engine.test.mjs). It needs clang with the wasm32 target and wasm-ld; without them it
+ * is skipped, in words, as the Playdate step is without its SDK.
+ */
+async function wasmStep() {
+  const targets = spawnSync('clang', ['--print-targets'], { encoding: 'utf8' });
+  if (targets.status !== 0 || !/\bwasm32\b/.test(targets.stdout) || !has('wasm-ld')) {
+    console.log(
+      'runtime-c wasm: SKIPPED, clang with the wasm32 target and wasm-ld are needed to build the WebAssembly engine',
+    );
+    return;
+  }
+  const out = `${build}-wasm`;
+  run('sh', [join(root, 'wasm', 'build.sh')], { OUT: out });
+  const { testEngine } = await import('../runtime-c/wasm/engine.test.mjs');
+  const checks = await testEngine(out);
+  const failed = checks.filter((one) => !one.passed);
+  for (const one of failed) console.log(`runtime-c wasm: ${one.name}: fails, ${one.words}`);
+  console.log(
+    `runtime-c wasm: ${checks.length - failed.length} of ${checks.length} checks pass against the TypeScript runtime`,
+  );
+  if (failed.length > 0) {
+    console.log('runtime-c: FAILED, the WebAssembly engine differs from the TypeScript runtime');
+    process.exit(1);
+  }
 }
 
 /** The Playdate app, which is built on the runtime and plays the cartridges packed above. */
@@ -226,6 +258,8 @@ if (unlike.length > 0) {
   );
   process.exit(1);
 }
+await wasmStep();
+
 const passing = results.filter((r) => r.passed).map((r) => r.name);
 console.log(
   `runtime-c replay: ${passing.length} of ${results.length} worlds pass${passing.length > 0 ? `: ${passing.join(', ')}` : ''}`,
