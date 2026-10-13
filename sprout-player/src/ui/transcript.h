@@ -1,0 +1,61 @@
+/*
+ * The reader's transcript, as the Lua reader keeps it (Source/reader.lua, after the TUI's
+ * tui/src/state.ts): paragraphs wrapped to the column, the newest at the bottom, with a status
+ * line of the place and its ways out. A paragraph's kind leads it with a mark, so the screen
+ * needs no colour to tell them apart. A reader who has scrolled back keeps their place as more
+ * is told; the oldest paragraphs fall off past TRANSCRIPT_KEEP.
+ */
+#ifndef PLAYER_UI_TRANSCRIPT_H
+#define PLAYER_UI_TRANSCRIPT_H
+
+#include <stdbool.h>
+#include <stddef.h>
+
+#include "pd_api.h"
+#include "sprout.h"
+#include "told.h"
+#include "wrap.h"
+
+#define TRANSCRIPT_KEEP 200
+
+typedef struct transcript {
+  PlaydateAPI *pd;
+  wrap_measure measure;
+  void *measure_ctx;
+  int width;   /* the column in pixels */
+  size_t rows; /* the lines the column shows */
+  wrapped paragraphs[TRANSCRIPT_KEEP]; /* a ring: `first` is the oldest */
+  size_t first, count;
+  size_t line_count; /* lines in every kept paragraph */
+  size_t offset;     /* lines scrolled back from the newest */
+  char *status;      /* the status line's words, or NULL before the first view */
+} transcript;
+
+void transcript_init(transcript *t, PlaydateAPI *pd, wrap_measure measure, void *measure_ctx, int width, size_t rows);
+void transcript_free(transcript *t);
+
+/* The mark a kind of line is led by: `typed`, `refused`, `notice` and `client` have one. */
+const char *transcript_lead(const char *kind);
+
+/* Adds a paragraph of `kind`; false when no memory could be had, and the transcript is as it was. */
+bool transcript_push(transcript *t, const char *kind, const char *text, size_t length);
+
+/* Adds every line a call told; false when one could not be kept. */
+bool transcript_tell(transcript *t, const told_list *lines);
+
+/* Scrolls `lines` back (positive) or forward (negative), within what there is. */
+void transcript_scroll(transcript *t, long lines);
+
+/* How far back the transcript can be scrolled. */
+size_t transcript_furthest(const transcript *t);
+
+/* Whether newer lines than the ones shown wait below. */
+bool transcript_behind(const transcript *t);
+
+/* The lines shown, oldest first, into `lines` (room for `rows`); how many. */
+size_t transcript_visible(const transcript *t, const char **lines);
+
+/* The status from a view: the place, then its ways out, each by its direction or its label. */
+bool transcript_set_status(transcript *t, const sprout_seen_view *view);
+
+#endif

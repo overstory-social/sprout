@@ -1,6 +1,7 @@
 # sprout-player: the Playdate app. The C engine of ../runtime-c is the one source of the language;
 # this folder adds the Lua UI and the glue that registers the engine's functions with the Lua
-# runtime. Two targets, as the SDK's C_API examples build them:
+# runtime, and the C app's screens (src/ui), which run in place of the Lua with -DPLAYER_C_UI=ON.
+# Two targets, as the SDK's C_API examples build them:
 #
 #   Simulator (the default)   a native shared library the Simulator loads, and the pdx
 #   device                    -DCMAKE_TOOLCHAIN_FILE=$PLAYDATE_SDK_PATH/C_API/buildsupport/arm.cmake
@@ -26,6 +27,7 @@ if(NOT EXISTS "${SDK}")
 endif()
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release")
+option(PLAYER_C_UI "Run the C app in place of the Lua one" OFF)
 
 set(PLAYDATE_GAME_NAME sprout-player)
 set(PLAYDATE_GAME_DEVICE sprout-player_DEVICE)
@@ -60,7 +62,7 @@ include(${SDK}/C_API/buildsupport/playdate_game.cmake)
 set(PLAYER_SOURCES
   src/bridge.c src/budgets.c src/ed25519.c src/host/files.c src/host/pd_host.c src/host/stack.c
   src/reading_json.c src/reply.c src/savelog.c src/seen.c src/session.c src/shipping.c src/text.c src/told.c
-  src/turns.c)
+  src/turns.c src/ui/app.c src/ui/arrival.c src/ui/pen.c src/ui/reader.c src/ui/transcript.c src/ui/wrap.c)
 add_library(sprout_player_core STATIC ${PLAYER_SOURCES})
 target_include_directories(sprout_player_core PUBLIC src PRIVATE ../runtime-c/src)
 target_compile_definitions(sprout_player_core PUBLIC TARGET_EXTENSION=1)
@@ -70,6 +72,10 @@ endif()
 target_compile_options(sprout_player_core PRIVATE -Wall -Wextra -Werror -pedantic)
 target_link_libraries(sprout_player_core PUBLIC sprout)
 target_link_libraries(${PLAYER_GAME} PRIVATE sprout_player_core)
+if(PLAYER_C_UI)
+  target_compile_definitions(${PLAYER_GAME} PRIVATE PLAYER_C_UI=1)
+  target_include_directories(${PLAYER_GAME} PRIVATE ../runtime-c/src)
+endif()
 
 # The tests need no device and no Simulator: the glue runs against a fake PlaydateAPI. The
 # Simulator build only, since the fake is a native program.
@@ -82,12 +88,16 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
   target_include_directories(player_test_support PUBLIC test ../runtime-c/src)
   target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
-  set(PLAYER_TESTS text ed25519 shipping shipped files stack reading_json pd_host budgets told reply savelog session turns seen bridge glue)
+  set(PLAYER_TESTS text ed25519 shipping shipped files stack reading_json pd_host budgets told reply savelog session turns seen bridge glue
+    wrap transcript ui)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)
     add_test(NAME player-${name} COMMAND player_${name}_test)
   endforeach()
+  # The screens' test drives the C app through its entry point, built as the C UI build builds it.
+  target_sources(player_ui_test PRIVATE src/main.c)
+  target_compile_definitions(player_ui_test PRIVATE PLAYER_C_UI=1)
 
   find_program(PLAYER_LUA NAMES lua5.4 lua54 lua)
   if(PLAYER_LUA)
