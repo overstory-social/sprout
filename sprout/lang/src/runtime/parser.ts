@@ -73,7 +73,7 @@ import { fits, writtenAs, type Candidate, type PronounNamed } from './parser/nou
 import { allIn, allowedOf, type AllContext } from './parser/all.js';
 import { reachOf } from './parser/reach.js';
 import { readItem } from './parser/item.js';
-import { inReach } from './parser/planned.js';
+import { inReach, plannedOf } from './parser/planned.js';
 import { chainPoints, commandAfter, commandBefore, stretchAfter } from './parser/chain.js';
 import { namesOutright } from './parser/runs.js';
 import { choosePartial, partialsOf, type Partial } from './parser/partial.js';
@@ -683,19 +683,23 @@ function placeOf(state: StateReader, actor: InstanceId): InstanceId {
 }
 
 /**
- * The parser a command turn reads through: `readCommand`, over the exits
- * that apply where the actor stands. An answer is said to the actor as a
+ * The parser a command turn reads through: `readCommand`, or, for a turn
+ * a line handed, `plannedOf` or `readItem`, over the exits that apply
+ * where the actor stands. An answer is said to the actor as a
  * notice, and an exit's refusal as `refused`, as a consent pass's is (the
  * spec's Runtime › Effects); the engine's `meant` for a reading drawn, as a notice.
  */
 export const parseCommand: Parser = (text, actor, context) => {
   const here = placeOf(context.state, actor);
   const exits = waysFrom(here, context);
-  const { item } = context;
+  const { handed } = context;
+  const reading = { ...context, exits };
   const outcome =
-    item === undefined
-      ? readCommand(text, actor, { ...context, exits })
-      : readItem(text, actor, item, { ...context, exits });
+    handed === undefined
+      ? readCommand(text, actor, reading)
+      : handed.reread === undefined
+        ? plannedOf(handed.planned, actor, reading)
+        : readItem(handed.reread.words, actor, handed.planned, handed.reread, reading);
   if ('understood' in outcome) {
     const { understood, drawn } = outcome;
     const meant = drawn?.meant == null ? null : meantLine(context.state, actor, here, drawn.meant);

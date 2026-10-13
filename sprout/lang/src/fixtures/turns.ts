@@ -160,8 +160,12 @@ const NOUNS: Readonly<Record<string, InstanceId>> = {
  * A parser that reads `verb noun`, one step a word, against the hall's
  * declared objects, and answers anything else with the world's
  * `unknown`, standing in for the parser proper so a case needs no grammar.
+ * A turn a line handed runs the reading planned for it.
  */
 export const parseBelfry: Parser = (text, actor, context) => {
+  if (context.handed !== undefined) {
+    return { reading: context.handed.planned, rest: [], drawn: null, corrected: [] };
+  }
   const typed = text.split(' ');
   context.budget.spend(typed.length);
   const [verb, noun] = typed;

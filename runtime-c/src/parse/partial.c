@@ -57,12 +57,27 @@ static bool put(written *w, const char *bytes, size_t length) {
   return true;
 }
 
-/* A thing as a visitor names it in a line: `the` and its name in lower case, or its name alone where it takes no article. */
-static bool definite(written *w, const parse_address *address) {
+bool parse_definite(sprout_arena *arena, const parse_address *address, sprout_str *out) {
   sprout_str lower;
-  if (strcmp(address->article, "none") == 0) return put(w, address->name.bytes, address->name.length);
-  if (typed_lower(w->arena, address->name, &lower) != SPROUT_OK) return false;
-  return put(w, "the ", 4) && put(w, lower.bytes, lower.length);
+  char *bytes;
+  if (strcmp(address->article, "none") == 0) {
+    *out = address->name;
+    return true;
+  }
+  if (typed_lower(arena, address->name, &lower) != SPROUT_OK) return false;
+  bytes = (char *)sprout_arena_take_aligned(arena, lower.length + 5, 1);
+  if (bytes == NULL) return false;
+  memcpy(bytes, "the ", 4);
+  memcpy(bytes + 4, lower.bytes, lower.length);
+  bytes[lower.length + 4] = '\0';
+  out->bytes = bytes;
+  out->length = lower.length + 4;
+  return true;
+}
+
+static bool definite(written *w, const parse_address *address) {
+  sprout_str named;
+  return parse_definite(w->arena, address, &named) && put(w, named.bytes, named.length);
 }
 
 /* The words `words` joined by single spaces. */

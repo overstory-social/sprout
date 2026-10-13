@@ -398,7 +398,7 @@ function answeredUnknown(turn) {
 
 /**
  * Reads every line of the script file `script` through `sproutc parse --each` over `cartridge`, its readings
- * resolved beside it, and tallies the verdicts: how many turns agree, differ, and read no words (`planned`); of
+ * resolved beside it, and tallies the verdicts: how many turns agree, differ, and have no parse recorded (`unrecorded`); of
  * the TypeScript parser's `unknown` answers, how many there were and how many agree; and the first difference in
  * words, or null.
  */
@@ -414,7 +414,7 @@ export function compareParses(sproutc, cartridge, script) {
       maxBuffer: 1 << 28,
     },
   );
-  const counts = /^parsed: (\d+) agree, (\d+) differ, (\d+) planned$/m.exec(done.stdout ?? '');
+  const counts = /^parsed: (\d+) agree, (\d+) differ, (\d+) unrecorded$/m.exec(done.stdout ?? '');
   if (done.status === 2 || counts === null) {
     throw new Error((done.stderr || done.stdout || `exit ${done.status}`).trim());
   }
@@ -431,7 +431,7 @@ export function compareParses(sproutc, cartridge, script) {
   return {
     agree: Number(counts[1]),
     differ: Number(counts[2]),
-    planned: Number(counts[3]),
+    unrecorded: Number(counts[3]),
     unknown: unknown.length,
     unknownAlike: unknown.filter((key) => agreed.has(key)).length,
     first: /^differ: (.*)$/m.exec(done.stdout ?? '')?.[1] ?? null,
@@ -440,7 +440,7 @@ export function compareParses(sproutc, cartridge, script) {
 
 /**
  * Holds `sproutc parse` to the TypeScript parser over every script under `transcripts` and `tests` of every world
- * under `corpus` (`compareParses`); one result per world: its name, the turns that agree, differ and were planned,
+ * under `corpus` (`compareParses`); one result per world: its name, the turns that agree, differ and have no parse recorded,
  * the TypeScript parser's `unknown` answers and how many of them agree, and the first difference, or the words
  * of what stopped it. `only` names the worlds to compare; the default is every one.
  */
@@ -458,7 +458,7 @@ export function replayParses(sproutc, scratch, corpus = 'corpus/good', only = nu
       name,
       agree: 0,
       differ: 0,
-      planned: 0,
+      unrecorded: 0,
       unknown: 0,
       unknownAlike: 0,
       first: null,
@@ -472,7 +472,7 @@ export function replayParses(sproutc, scratch, corpus = 'corpus/good', only = nu
           const script = join(folder, `${kind}-${file}`);
           copyFileSync(join(world, kind, file), script);
           const one = compareParses(sproutc, cartridge, script);
-          for (const key of ['agree', 'differ', 'planned', 'unknown', 'unknownAlike'])
+          for (const key of ['agree', 'differ', 'unrecorded', 'unknown', 'unknownAlike'])
             result[key] += one[key];
           if (result.first === null && one.first !== null)
             result.first = `${kind}/${file}, ${one.first}`;

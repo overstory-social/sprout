@@ -96,8 +96,14 @@ export function tally(click = 'Click.'): { bundle: Bundle; host: CommandHost } {
     { mode: 'publish', limits: DEFAULT_LIMITS },
   );
   if (bundle === null) throw new Error('the tally does not compile');
-  /** Reads `verb counter` and `intent gauge`, a verb's or an intent's; anything else is not reached by these cases. */
-  const parse: Parser = (text, actor) => {
+  /**
+   * Reads `verb counter` and `intent gauge`, a verb's or an intent's, and runs a step a line handed as
+   * planned; anything else is not reached by these cases.
+   */
+  const parse: Parser = (text, actor, context) => {
+    if (context.handed !== undefined) {
+      return { reading: context.handed.planned, rest: [], drawn: null, corrected: [] };
+    }
     const [word, noun] = text.split(' ');
     const object = noun === 'gauge' ? GAUGE : COUNTER;
     const intent = bundle.intents.find((one) => one.name === word);

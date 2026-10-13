@@ -236,9 +236,9 @@ TypeScript one over whole worlds.
   drawn and the steps spent), what a later turn of a line was handed, and
   the stored world a turn after the first in its step began from
   (`player/src/parsed.ts`). `sproutc parse <cartridge> --readings <file>`
-  reads each turn's words through `sprout_parse` over that world, under the
-  turn's seed, and compares the two as JSON; a turn a line planned reads no
-  words and is counted apart. `scripts/check-runtime-c.mjs` runs it over
+  reads each turn's words, or what a later turn of a line was handed,
+  through `sprout_parse` over that world, under the turn's seed, and
+  compares the two as JSON; a turn with no parse recorded is counted apart. `scripts/check-runtime-c.mjs` runs it over
   every script (`replayParses`), prints one line per world with how many
   turns read alike and how many of the TypeScript parser's `unknown`
   answers, and fails only when the worlds that parse alike in full are not

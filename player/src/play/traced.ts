@@ -79,7 +79,7 @@ export interface Traced {
   readonly parseDraws: readonly number[];
   /** What the parser said before the reading's own lines. */
   readonly asides: readonly Aside[];
-  /** What `host.parse` returned for a command turn, and what it spent; null where the turn read no words. */
+  /** What `host.parse` returned for a command turn, and what it spent; null where it was not parsed. */
   readonly parsed: ParseRecord | null;
   /** What a later turn of a line was handed in place of words; null for every other turn. */
   readonly handed: Handed | null;
