@@ -1,15 +1,18 @@
 /* The sentence's drum; see drum.h. */
 #include "drum.h"
 
-bool drum_update(drum *d, sentence *s, bool turned, long *steps) {
-  *steps = 0;
+bool drum_update(drum *d, sentence *s, bool turned) {
   if (turned) {
     d->still = 0;
+    d->turned = true;
     return false;
   }
   if (d->still < DRUM_REST_FRAMES) d->still++;
   if (d->still < DRUM_REST_FRAMES) return false;
-  return sentence_settle(s, DRUM_SETTLE, steps);
+  sentence_settle(s, DRUM_SETTLE);
+  if (!d->turned || sentence_fraction(s) != 0) return false;
+  d->turned = false;
+  return true;
 }
 
 /* The sine of `degrees` within a quarter turn either side of 0, by its series, since the device's libm is not relied on. */
@@ -27,16 +30,17 @@ static int nearest(float v) {
   return (float)whole > up ? whole - 1 : whole;
 }
 
+/* The tier of a slat beside the front one, by how far it has turned from the front. */
 static drum_tier tier_of(float angle) {
   float away = magnitude(angle);
-  if (away < DRUM_SLAT_DEGREES / 2) return DRUM_FRONT;
   if (away < DRUM_SLAT_DEGREES * 1.5f) return DRUM_NEAR;
   return DRUM_FAR;
 }
 
-/* Whether row `a` is drawn before row `b`: further from the front first, then the one above. */
+/* Whether row `a` is drawn before row `b`: the front last, further from the front first, then the one above. */
 static bool before(const drum_row *a, const drum_row *b) {
   float da = magnitude(a->angle), db = magnitude(b->angle);
+  if ((a->tier == DRUM_FRONT) != (b->tier == DRUM_FRONT)) return b->tier == DRUM_FRONT;
   if (da != db) return da > db;
   return a->angle < b->angle;
 }
@@ -58,7 +62,7 @@ size_t drum_rows(size_t count, size_t selected, float fraction, drum_row rows[DR
     rows[made].index = index;
     rows[made].angle = angle;
     rows[made].y = nearest((float)DRUM_RADIUS * sine(angle));
-    rows[made].tier = tier_of(angle);
+    rows[made].tier = k == 0 ? DRUM_FRONT : tier_of(angle);
     made++;
   }
   for (i = 1; i < made; i++)
