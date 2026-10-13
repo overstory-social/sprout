@@ -2,9 +2,10 @@
  * Tests for src/parse/command.c: a typed line read as the command turn it begins reads it, under that turn's budget
  * and seed and writing nothing (the spec's Parsing > Matching a line, Choosing a reading, Pronouns, Synonyms, When
  * nothing matches; Verbs > Exits; The runtime > Turns), in the corpus worlds the TypeScript parser's specs read: the
- * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms` and `all-leaves-out-refused`. A line reads to
- * the best of its readings, a tie drawn from the turn's stream; words no placement reads are `unknown`, and a way
- * out written elsewhere `not_here`; what this runtime does not read yet is refused in words, never answered wrongly.
+ * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms`, `all-leaves-out-refused`, `no-way` and
+ * `out-of-reach-synonym`. A line reads to
+ * the best of its readings, a tie drawn from the turn's stream; a line no reading reads is answered as answers.c
+ * says; what this runtime does not read yet is refused in words, never answered wrongly.
  * The harness (`sproutc parse`) holds every outcome to the TypeScript parser's, steps included.
  */
 #include "turn_fixture.h"
@@ -132,9 +133,6 @@ static void what_this_runtime_does_not_read_yet_is_refused_in_words(void) {
   sprout_reading planned;
   sprout_handed handed;
   open_hall(&p);
-  /* A noun naming nothing in reach is `not_here` or `unknown` by the world's words, which this runtime does not read yet. */
-  CHECK_INT(parse(&p, "v-marta", "take unicorn", NULL), SPROUT_BAD_INPUT);
-  CHECK(strstr(p.out.fault.text, "a noun that names nothing in reach") != NULL);
   CHECK_INT(parse(&p, "v-marta", "take ball and drop it", NULL), SPROUT_BAD_INPUT);
   CHECK(strstr(p.out.fault.text, "`and` or a comma") != NULL);
   memset(&planned, 0, sizeof planned);
@@ -477,7 +475,74 @@ static void a_noun_naming_nothing_in_reach_costs_the_worlds_words_though_another
   close_hall(&p);
 }
 
+
+/* Whether the line was answered with the engine's line `name`, its words, or a place's passage of that name. */
+static void answered(const parsing *p, const char *name) {
+  CHECK_INT(p->out.end, SPROUT_PARSED_ANSWERED);
+  if (p->out.end != SPROUT_PARSED_ANSWERED) return;
+  CHECK_STR(p->out.answer, name);
+}
+
+static void a_noun_naming_nothing_in_reach_is_not_here_only_where_the_world_holds_its_words(void) {
+  parsing p;
+  open_world(&p, "unknown-word");
+  read_as(&p, "take ball again");
+  answered(&p, "unknown");
+  read_as(&p, "examine through the ball");
+  answered(&p, "unknown");
+  /* The gong is in the cellar; `the` and `in` are the parser's own. */
+  read_as(&p, "take gong");
+  answered(&p, "not_here");
+  CHECK_INT(p.out.binding_count, 2);
+  read_as(&p, "take the ball in the box");
+  answered(&p, "not_here");
+  close_hall(&p);
+}
+
+static void a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way(void) {
+  parsing p;
+  open_world(&p, "no-way");
+  read_as(&p, "north");
+  answered(&p, "refused");
+  CHECK_STR(p.out.words, "The brambles are too thick.");
+  CHECK_BYTES(p.out.by.bytes, p.out.by.length, "no_way.clearing");
+  CHECK_INT(p.out.binding_count, 2);
+  read_as(&p, "east");
+  answered(&p, "refused");
+  CHECK_STR(p.out.line, "boarded");
+  CHECK(p.out.words == NULL && !p.out.absent);
+  CHECK_BYTES(p.out.by.bytes, p.out.by.length, "no_way.clearing");
+  read_as(&p, "down");
+  answered(&p, "no_way");
+  CHECK_STR(p.out.line, "no_way");
+  CHECK_INT(p.out.binding_count, 3);
+  if (p.out.binding_count == 3) {
+    CHECK_STR(p.out.bindings[2].name, "way");
+    CHECK(!p.out.bindings[2].object);
+    CHECK_BYTES(p.out.bindings[2].text.bytes, p.out.bindings[2].text.length, "down");
+  }
+  /* A direction abbreviated is written out. */
+  read_as(&p, "go d");
+  CHECK_BYTES(p.out.bindings[2].text.bytes, p.out.bindings[2].text.length, "down");
+  read_as(&p, "go yonder");
+  answered(&p, "unknown");
+  close_hall(&p);
+}
+
+static void an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the_object(void) {
+  parsing p;
+  open_world(&p, "out-of-reach-synonym");
+  read_as(&p, "enter window");
+  answered(&p, "not_here");
+  read_as(&p, "enter door");
+  answered(&p, "unknown");
+  close_hall(&p);
+}
+
 int main(void) {
+  RUN(a_noun_naming_nothing_in_reach_is_not_here_only_where_the_world_holds_its_words);
+  RUN(a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way);
+  RUN(an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the_object);
   RUN(a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional);
   RUN(the_engine_verbs_read_by_the_phrases_the_library_gives_them);
   RUN(a_role_fills_with_what_it_takes_and_a_value_only_where_it_is_heard);
