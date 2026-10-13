@@ -8,9 +8,10 @@
  * of anywhere in the world (vocabulary.c), an object's synonym out of reach (offered.c), the engine's answers to what
  * it cannot read (answers.c), a run's items after its first (later.c), `and` or a comma between two commands
  * (chain.c), a reading a line planned (planned.c), the last reading run again (again.c), an item of a run read on
- * its own turn (item.c), and a line read as the command turn reads it (command.c, `sprout_parse`). Every step is
- * charged where the TypeScript parser charges it. Scratch is the turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what
- * a host reads is copied into the arena it hands in.
+ * its own turn (item.c), and a line read as the command turn reads it (command.c, `parse_command_turn` inside the
+ * turn and `sprout_parse` for a host). Every step is charged where the TypeScript parser charges it. Scratch is the
+ * turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what a host reads is
+ * copied into the arena it hands in.
  */
 #ifndef SPROUT_PARSE_H
 #define SPROUT_PARSE_H
@@ -18,6 +19,7 @@
 #include "../eval.h"
 #include "../exits.h"
 #include "../reading/reading.h"
+#include "../turn.h"
 #include "../world.h"
 
 /* ---- words.c: the parser's word lists ---- */
@@ -579,5 +581,23 @@ sprout_eval_status parse_read_item(sprout_exec *x, const sprout_frame *frame, sp
 
 /* `line` without a trailing `?`, which is read as nothing; a `?` alone is kept, since it is a phrase of `help`. */
 sprout_str parse_without_question(sprout_str line);
+
+/* `reading` as a host reads one, in `keep`: its verb or intent by qualified name, its actor, and what it binds in order. */
+bool parse_reading_out(sprout_arena *keep, const parse_reading *reading, sprout_reading *out);
+
+/* What a command turn reads of its parse beside what sprout_parse gives a host. */
+typedef struct parse_turned {
+  sprout_eval_status status; /* FAULTED: what stopped it; the run holds the fault */
+  parse_answer said;         /* ANSWERED: the answer, unrendered, its ids and words the turn's */
+  parse_reading reading;     /* READING, INTENT: the reading, in the turn's arena */
+} parse_turned;
+
+/*
+ * The parse a command turn begins with (the spec's The runtime > Turns): `line`, or what a line `handed` the turn, read
+ * as sprout_parse reads it, but over the turn's own draft, meter and stream, so its steps and draws are the turn's.
+ * What a host reads is taken from `keep`. A call sprout_parse refuses is refused alike, with the words in `out`.
+ */
+sprout_status parse_command_turn(turn_run *run, const char *visit, sprout_str line, const sprout_handed *handed,
+                                 sprout_arena *keep, sprout_parsed *out, parse_turned *turned);
 
 #endif

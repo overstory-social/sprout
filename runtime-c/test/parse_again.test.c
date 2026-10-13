@@ -90,7 +90,7 @@ static void again_runs_the_last_reading_whatever_its_words_would_mean_now(void) 
     CHECK_INT(out.reading.filling_count, 1);
     if (out.reading.filling_count == 1) CHECK_STR(out.reading.fillings[0].id, "study.hall.gong");
     CHECK_INT(out.rest_count, 0);
-    CHECK_INT(out.reading.aside_count, 0);
+    CHECK_INT(out.aside_count, 0);
   }
   sprout_arena_reset(&keep);
   tw_close(&b.w);

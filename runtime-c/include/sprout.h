@@ -246,9 +246,9 @@ void sprout_state_free(sprout_state *state);
 /*
  * A reading (the spec's Verbs, Parsing > The three roles): a verb, who
  * performs it, and what fills each of its roles, by id. Nothing here is
- * text: whoever submits it has already read a typed line, or built a reading
- * from the view's chips. A filling has the fields of the view's filler less
- * the words a visitor reads, and a value role carries the value chosen.
+ * text: a host builds one from the view's chips, and the runtime reads a
+ * typed line to one itself. A filling has the fields of the view's filler
+ * less the words a visitor reads, and a value role carries the value chosen.
  */
 typedef enum sprout_fill {
   SPROUT_FILL_UNBOUND, /* a tool left out; a set role left out is the empty set */
@@ -271,26 +271,11 @@ typedef struct sprout_filling {
   double number;                /* NUMBER */
 } sprout_filling;
 
-/*
- * A line a host's parser says before the reading's own (the spec's Parsing > Pronouns, Choosing a reading):
- * the world's `pronoun_correction` for a thing a pronoun named, with the pronoun the thing declares, or the
- * engine's `meant`, telling the actor which thing a reading drawn from a tie took the words to name.
- */
-typedef struct sprout_aside {
-  const char *line;    /* `pronoun_correction` or `meant` */
-  const char *thing;   /* the thing it names, by id */
-  const char *pronoun; /* pronoun_correction: the pronoun the thing declares */
-} sprout_aside;
-
 typedef struct sprout_reading {
   const char *verb;  /* by its full identity, `sprout.take` */
   const char *actor; /* the id of the instance performing it */
   size_t filling_count;
   const sprout_filling *fillings; /* in the order the reading binds its roles, which a visitor's last reading keeps */
-  size_t draw_count;
-  const uint64_t *draws; /* the bounds the host's parser drew below reading the line, in order: the turn's stream begins with them */
-  size_t aside_count;
-  const sprout_aside *asides;
 } sprout_reading;
 
 /* How a reading ended: both passes ran, the consent pass refused, or its actor destroyed itself. */
@@ -498,6 +483,17 @@ typedef struct sprout_following {
   const char *text;              /* words: the command, read on its own turn */
 } sprout_following;
 
+/*
+ * A line the parser says before the reading's own (the spec's Parsing > Pronouns, Choosing a reading): the world's
+ * `pronoun_correction` for a thing a pronoun named, with the pronoun the thing declares, or the engine's `meant`,
+ * telling the actor which thing a reading drawn from a tie took the words to name.
+ */
+typedef struct sprout_aside {
+  const char *line;    /* `pronoun_correction` or `meant` */
+  const char *thing;   /* the thing it names, by id */
+  const char *pronoun; /* pronoun_correction: the pronoun the thing declares */
+} sprout_aside;
+
 /* A name a line of the engine's binds: a thing by id, or a value, which an answer only ever binds to words. */
 typedef struct sprout_said_binding {
   const char *name;
@@ -516,10 +512,12 @@ typedef enum sprout_parse_end {
 typedef struct sprout_parsed {
   sprout_parse_end end;
   /*
-   * READING: the verb's reading, its fillings in the order it binds them, with the draws and the asides below.
+   * READING: the verb's reading, its fillings in the order it binds them, and what is said before it.
    * INTENT: the same, `verb` naming the intent and the fillings its slots.
    */
   sprout_reading reading;
+  size_t aside_count;
+  const sprout_aside *asides;
   size_t rest_count;
   const sprout_following *rest; /* the turns the line runs after it, in order */
   bool drawn;                   /* drawn from readings that tied */
@@ -605,16 +603,23 @@ sprout_status sprout_admit(const sprout_world *world, const sprout_state *state,
 /* Releases what an admission holds. */
 void sprout_admission_free(sprout_admission *admission);
 
-/* What the host hands one turn; the seed it draws from is the host's `seed`, drawn once for the turn. */
+/*
+ * What the host hands one turn; the seed it draws from is the host's `seed`, drawn once for the turn. A command is
+ * one of three: a `reading` the visitor built from the view's chips, run as it is; a typed line in `text`, read in
+ * the turn, under its budget and on its stream, before it runs (the spec's The runtime > Turns); or a later turn of
+ * a line (sprout_line_next), the reading an earlier turn `planned` with the item of a run it re-reads, if any.
+ */
 typedef struct sprout_turn_input {
   sprout_turn_kind kind;
   uint64_t instant;              /* when the turn runs, in host seconds */
   const char *visit;             /* ARRIVAL, DEPARTURE, COMMAND: the visit key */
   const char *nickname;          /* ARRIVAL: the nickname sprout_admit admitted */
   size_t nickname_length;
-  const sprout_reading *reading; /* COMMAND: what the visitor typed or chose, read */
-  const char *text;              /* COMMAND: the typed line, which the log keeps (may be NULL) */
+  const sprout_reading *reading; /* COMMAND: a reading built from chips, or NULL */
+  const char *text;              /* COMMAND: the words the turn reads where it is handed no reading; the log keeps them */
   size_t text_length;
+  const sprout_reading *planned; /* COMMAND: a later turn of a line, the reading an earlier turn planned for it, or NULL */
+  const sprout_reread *reread;   /* COMMAND: with `planned`, the item of a run read afresh, or NULL */
   const char *place;             /* TICK: the place ticked, by id; its turn is seeded from the host's seed and the place's path */
   const char *object;            /* WAKE: the object woken, by id */
   uint64_t serial;               /* WAKE: the serial the wake was asked under */
@@ -715,6 +720,9 @@ typedef struct sprout_log_entry {
   sprout_str who;      /* the visit, the place or the object; empty for catch-up */
   sprout_str nickname; /* an arrival: the nickname they came in with */
   sprout_str text;     /* a command: the line typed */
+  const sprout_reading *planned; /* a command: the step an earlier turn of the line planned, or NULL */
+  const sprout_reread *reread;   /* a command: the item of a run it read afresh, or NULL */
+  uint64_t drawn_among;          /* a command: how many readings tied where it was drawn from them; 0 otherwise */
   uint64_t wake_serial;
   bool faulted;
   const char *fault_name;
@@ -752,6 +760,11 @@ typedef struct sprout_stored_changes {
  * otherwise. Where it committed, `stale` is every visit present once it is over, in code-unit order: their
  * views are stale (the spec's The view). A turn that faulted names nobody, a faulted wake's consumption
  * and a faulted departure's quiet going included.
+ *
+ * A command also says what became of its line (the spec's Parsing > Sequences, again and all; Intents): whether
+ * no reading ran, the parser having answered or an intent having planned no step; how many readings tied where
+ * the one run was drawn from them; the reading it ran as a step of a line of several, an intent's, `all`'s or a
+ * run's, which a host logs at info; the turns the line runs after it, in order; and whether the line goes on.
  */
 typedef struct sprout_outcome {
   sprout_turn_result result;
@@ -775,6 +788,12 @@ typedef struct sprout_outcome {
   sprout_stored_changes changes;
   size_t stale_count;
   const sprout_str *stale;
+  bool answered;
+  uint64_t drawn_among; /* 0 where the reading was not drawn */
+  const sprout_reading *step;
+  size_t next_count;
+  const sprout_following *next;
+  bool goes_on;
   void *held;
 } sprout_outcome;
 
@@ -793,6 +812,34 @@ sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sp
 void sprout_outcome_free(sprout_outcome *outcome);
 
 /*
+ * A line a visitor typed, as the command turns it runs (the spec's Parsing > Sequences, again and all; Intents):
+ * split at each `.` and each word `then` into commands, each its own turn, and each command's turn followed by the
+ * turns it planned, in order, a command `and` or a comma joined run with the turns it plans in turn. A turn that
+ * does not let the line go on ends it, and what ran before stays done. The host runs each turn the line hands it,
+ * with a seed of its own, and hands back what it came to. Everything the line holds is taken from `keep`.
+ */
+typedef struct sprout_commands {
+  sprout_arena *keep;
+  const char *visit;
+  size_t part_count, part_at;
+  const sprout_str *parts; /* the line's commands */
+  size_t depth, room;
+  void *frames; /* the commands under way, the innermost last */
+  bool waiting; /* a turn was handed out, and what it came to is the next call's */
+} sprout_commands;
+
+/* Begins `text` (`length` bytes of UTF-8), typed by the visitor under `visit`. */
+sprout_status sprout_line_begin(sprout_commands *line, sprout_arena *keep, const char *visit, const char *text,
+                                size_t length);
+
+/*
+ * The next turn of the line, written into `input` (its kind, visit, words and what it was planned; the instant is
+ * the host's), `*more` false once the line is over. `last` is what the turn the call before handed out came to,
+ * and NULL on the first call; a turn the host could not run (anything but SPROUT_OK) ends the line.
+ */
+sprout_status sprout_line_next(sprout_commands *line, const sprout_outcome *last, sprout_turn_input *input, bool *more);
+
+/*
  * A turn's stored changes as the JSON a store writes, `{serial, upsert, remove, tombstones, visitors}`, each
  * record written whole in its stored form and read from `state`, which must be as the turn left it. Built in
  * `scratch`, and valid until that arena is reset.
@@ -806,11 +853,10 @@ typedef enum sprout_log_depth { SPROUT_LOG_PLAY, SPROUT_LOG_DEBUG } sprout_log_d
 /*
  * The entry a write turn leaves in the log, as the JSON a host's log keeps it (the spec's The runtime > The
  * log): the turn's inputs, the budgets `host` gave it, what it was for, its fault, who it cut short, and, at
- * debug depth, every effect, or at play depth how many and the SHA-256 of them. Built in `scratch`. An
+ * debug depth, every effect, or at play depth how many and the SHA-256 of them; a command's also keeps the
+ * step a line planned for it, the item it re-read, and the draw its reading was. Built in `scratch`. An
  * outcome with no entry, and a row of the budgets the log keeps that `host` leaves unset, are
- * SPROUT_BAD_INPUT and SPROUT_BAD_HOST. A command's entry also records what the host's parser read, which
- * the runtime is handed and does not keep, so a command is SPROUT_BAD_INPUT until the runtime parses
- * (#624).
+ * SPROUT_BAD_INPUT and SPROUT_BAD_HOST.
  */
 sprout_status sprout_log_write(const sprout_host *host, const sprout_outcome *outcome, sprout_log_depth depth,
                                sprout_arena *scratch, const char **bytes, size_t *length);

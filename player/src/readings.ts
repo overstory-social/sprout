@@ -10,26 +10,34 @@ import {
   type WrittenAt,
 } from '@overstory/sprout/lang';
 
-import { fillerOf, type Handed, type ParseRecord, type ReadFiller } from './parsed.js';
-import { freshStage, playStep, type Aside, type Stage, type Traced } from './play.js';
+import {
+  fillerOf,
+  type Handed,
+  type ParseRecord,
+  type ReadFiller,
+  type ReadReading,
+  type ReadReread,
+} from './parsed.js';
+import { freshStage, playStep, type Stage, type Traced } from './play.js';
 import { lineOf, secondsOf, type Script, type Step } from './script.js';
 import type { PlayableWorld } from './stand.js';
 
-// A script read once by the parser, for a runtime that has no parser. Each
-// typed line becomes the reading the TypeScript parser resolved for it, in
-// the world as the script has made it by then: the verb by its qualified
-// name, who acted, and what fills each role, by id only (the spec's The
-// runtime › The log). A filler has the fields of the view's `SeenFiller`
-// except the words a visitor reads (`name`, `names`), which a runtime
-// working from ids does not need; a value role carries the value the
-// visitor chose, which `SeenFiller` leaves to `options`. A line the parser
-// answered instead of reading, or that faulted while being read, is marked
-// `skip` so the other runtime does not run it. Beside each command turn is
-// what the parser read (`ParseFacts`), which a runtime that parses compares
-// its own parse with (`sproutc parse`). Times are in seconds, named
-// for what they are: `atSeconds` when a step begins, `forSeconds` for how
-// long an advance lasts. The file travels beside the script as
-// `<script>.readings.json`.
+// A script played once by the TypeScript runtime, for another runtime to
+// play and be compared with: each step with what it left behind it (the
+// lines readers read, the entry the log keeps of each turn, the stored
+// world), and each typed line with the command turns it ran. Each turn
+// keeps the reading the TypeScript parser resolved for it, in the world as
+// the script has made it by then: the verb by its qualified name, who
+// acted, and what fills each role, by id only (the spec's The runtime ›
+// The log). A filler has the fields of the view's `SeenFiller` except the
+// words a visitor reads (`name`, `names`); a value role carries the value
+// the visitor chose, which `SeenFiller` leaves to `options`. A turn the
+// parser answered instead of reading, or that faulted while being read, is
+// marked `skip`: it ran no reading. Beside each command turn is what the
+// parser read (`ParseFacts`), which a runtime that parses compares its own
+// parse with (`sproutc parse`). Times are in seconds, named for what they
+// are: `atSeconds` when a step begins, `forSeconds` for how long an advance
+// lasts. The file travels beside the script as `<script>.readings.json`.
 
 /** One line a reader read: whose screen, the kind of line it was and its words. */
 export interface Said {
@@ -89,6 +97,11 @@ export interface TurnEntry {
     readonly fault: TurnFault;
   }[];
   readonly abandoned?: readonly { readonly object: string; readonly serial: number }[];
+  /** A command's words, the step a line planned for it, the item it re-read, and how many readings tied where its reading was drawn. */
+  readonly text?: string;
+  readonly planned?: ReadReading | null;
+  readonly reread?: ReadReread | null;
+  readonly drawn?: number | null;
 }
 
 /** What a step left behind it, which a runtime playing the readings is compared with. */
@@ -125,10 +138,6 @@ export type ReadTurn = ParseFacts &
         readonly fillers: readonly ReadFiller[];
         /** Whether the consent pass refused the reading; the reading is still one to run. */
         readonly refused: boolean;
-        /** The bounds the parser drew below reading the line, which a runtime that does not parse draws first. */
-        readonly draws: readonly number[];
-        /** What the parser said before the reading's own lines. */
-        readonly asides: readonly Aside[];
         readonly says: readonly Said[];
         readonly expect: TurnEntry;
       }
@@ -166,7 +175,13 @@ export type Facts =
   | { readonly kind: 'arrive' | 'leave'; readonly nickname: string }
   | { readonly kind: 'tick' }
   | { readonly kind: 'advance'; readonly forSeconds: number }
-  | { readonly kind: 'command'; readonly nickname: string; readonly turns: readonly ReadTurn[] };
+  | {
+      readonly kind: 'command';
+      readonly nickname: string;
+      /** The line typed, which a runtime that reads lines runs as the turns below. */
+      readonly typed: string;
+      readonly turns: readonly ReadTurn[];
+    };
 
 /** The whole file. */
 export interface Readings {
@@ -243,6 +258,7 @@ function entryOf(traced: Traced): TurnEntry {
           })),
           abandoned: logged.wakes.abandoned.map(named),
         }),
+    ...(logged.command === null ? {} : logged.command),
   };
 }
 
@@ -273,8 +289,6 @@ function turnOf(stage: Stage, traced: Traced, seed: number, worlds: boolean): Re
       actor: reading.actor,
       fillers: fillersOf(reading),
       refused: traced.refused,
-      draws: [...traced.parseDraws],
-      asides: [...traced.asides],
       ...echo,
     };
   }
@@ -284,7 +298,7 @@ function turnOf(stage: Stage, traced: Traced, seed: number, worlds: boolean): Re
 function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
   if ('comment' in step) return { kind: 'comment' };
   if ('seed' in step) return { kind: 'seed' };
-  if ('as' in step) return { kind: 'command', nickname: step.as, turns };
+  if ('as' in step) return { kind: 'command', nickname: step.as, typed: step.type, turns };
   if ('arrive' in step) return { kind: 'arrive', nickname: step.arrive };
   if ('leave' in step) return { kind: 'leave', nickname: step.leave };
   if ('tick' in step) return { kind: 'tick' };

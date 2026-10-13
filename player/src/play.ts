@@ -38,7 +38,6 @@ import {
 import {
   loggedOf,
   trace,
-  type Aside,
   type Logged,
   type Made,
   type PlayedStep,
@@ -74,7 +73,7 @@ import {
 // typed line at a time, read into the same steps, so what a session
 // records is a script by construction.
 
-export type { Aside, Logged, Made, PlayedStep, Stage, Traced } from './play/traced.js';
+export type { Logged, Made, PlayedStep, Stage, Traced } from './play/traced.js';
 
 /** One interactive line read: the line as the grammar writes it, and the step it is. */
 export interface Typed {
@@ -320,15 +319,26 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
       const traceCommand = (
         logged: Partial<Logged>,
         parts: Partial<Omit<Traced, 'turn' | 'standing' | 'logged'>>,
+        drawn: number | null = null,
       ) =>
         trace(
           stage,
           'command',
-          loggedOf(stage, { seed: typed.seed, now: typed.now, who: visit, ...logged }),
+          loggedOf(stage, {
+            seed: typed.seed,
+            now: typed.now,
+            who: visit,
+            command: {
+              text: typed.text,
+              planned: handed?.planned ?? null,
+              reread: handed?.reread ?? null,
+              drawn,
+            },
+            ...logged,
+          }),
           {
             as: nickname,
             typed: typed.text,
-            parseDraws: [...stage.parsed],
             parsed: stage.parse,
             handed,
             before,
@@ -357,8 +367,8 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
               : null,
           answered: 'answered' in value ? answeredBy(value.answered) : null,
           refused: 'refused' in value,
-          asides: asidesOf(value),
         },
+        'drawn' in value && value.drawn !== null ? value.drawn.among : null,
       );
       // A step of an intent that runs is the host's to log at info.
       if ('step' in value && value.step !== null) {
@@ -475,27 +485,6 @@ function advance(stage: Stage, seconds: number): Made[] {
   }
   stage.now = until;
   return out;
-}
-
-/** The lines the parser said before a committed command's own, in the order it said them. */
-function asidesOf(value: object): Aside[] {
-  if (!('corrected' in value) || !('drawn' in value)) return [];
-  const said = (line: Said, name: Aside['line']): Aside | null => {
-    const thing = line.bindings.get('thing');
-    const pronoun = line.bindings.get('pronoun');
-    if (thing === undefined || thing.binds !== 'object') return null;
-    return {
-      line: name,
-      thing: thing.id,
-      pronoun:
-        pronoun?.binds === 'value' && typeof pronoun.value === 'string' ? pronoun.value : null,
-    };
-  };
-  const drawn = value.drawn as { readonly meant: Said | null } | null;
-  return [
-    ...(value.corrected as readonly Said[]).map((line) => said(line, 'pronoun_correction')),
-    ...(drawn?.meant == null ? [] : [said(drawn.meant, 'meant')]),
-  ].filter((one): one is Aside => one !== null);
 }
 
 /** The engine line the parser answered a command with, by its passage's name, or its words where they are a string. */

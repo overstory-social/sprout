@@ -20,6 +20,7 @@ describe('loggedOf', () => {
       wakes: null,
       stale: null,
       changes: null,
+      command: null,
     });
   });
 });

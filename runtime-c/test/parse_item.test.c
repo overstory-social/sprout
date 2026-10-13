@@ -150,9 +150,9 @@ static void an_item_naming_things_that_tie_is_drawn_and_the_engine_says_which_wa
     CHECK_INT(out.draw_count, 1);
     CHECK_INT(out.reading.filling_count, 1);
     id = out.reading.fillings[0].id;
-    CHECK_INT(out.reading.aside_count, 1);
-    CHECK_STR(out.reading.asides[0].line, "meant");
-    CHECK_STR(out.reading.asides[0].thing, id);
+    CHECK_INT(out.aside_count, 1);
+    CHECK_STR(out.asides[0].line, "meant");
+    CHECK_STR(out.asides[0].thing, id);
     brass = brass || strcmp(id, "runs.kitchen.brass_key") == 0;
     iron = iron || strcmp(id, "runs.kitchen.iron_key") == 0;
   }

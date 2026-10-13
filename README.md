@@ -122,9 +122,10 @@ sh runtime-c/wasm/build.sh                                   # build engine.wasm
 ```
 
 `sproutc` is the C runtime's desktop host, built under `${TMPDIR}/sprout-runtime-c-<hash>/`:
-`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n] [--profile f]` (with `--offered` the view is
-polled before each command and must offer the reading, as the Playdate's sentence builder needs; `--profile`
-writes each step's bytes held and peak),
+`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n] [--profile f]` (reads each typed line
+as the command turns it runs; with `--offered` the view is polled before each command turn and must offer the reading
+the TypeScript runtime ran, as the Playdate's sentence builder needs; `--profile` writes each step's bytes held and
+peak),
 `sproutc view <cartridge> --state f [--visit k] [--poll-steps n] [--json | --scene | --verb name]` (`--scene` prints the
 scene, which lists the verbs in place of the readings, and `--verb` one verb's readings, by its qualified name, as
 `sprout view --scene` and `--verb` do),

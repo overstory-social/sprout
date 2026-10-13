@@ -1,7 +1,9 @@
 // A differential fuzzer over the two runtimes. From a seed it builds a play of a world one step at a
-// time: a visitor takes the view, and the step is a reading the view offered (sometimes a refused one), a
-// line the parser will not read, a tick, time moving on (an hour, a night), a visitor leaving or coming
-// back, or a new seed. The whole play is run by the TypeScript runtime and then through `sproutc` from the
+// time: a visitor takes the view, and the step is a line typed (a reading the view offered, sometimes a
+// refused one, as it is or perturbed: its thing named by a pronoun, by its adjectives alone, or left out of
+// `all`, two of them chained, a word nobody knows put in, `again`), a line the parser will not read, a tick,
+// time moving on (an hour, a night), a visitor leaving or coming back, or a new seed. Both runtimes read
+// every typed line themselves. The whole play is run by the TypeScript runtime and then through `sproutc` from the
 // same start and the same seeds, and compared as the corpus replay compares a transcript: the lines
 // readers read, the entry the log keeps of each turn, and the stored world after each step. The first step
 // on which they differ ends the run, and the sequence up to it is written as a transcript,
@@ -34,9 +36,8 @@ import { runtimeCBuild } from './runtime-c-build.mjs';
 const NICKNAMES = ['Marta', 'Ines', 'Odo', 'Pell'];
 
 // The budgets a play may be held to, so the faults of a turn that spends its figure are fuzzed too: the
-// host's defaults, and then figures small enough that a world's own bodies reach them. Both runtimes are set to
-// the same. The step budget is left at the host's: a command's parsing is charged to it by the TypeScript
-// runtime, which reads the words, and not by the C runtime, which is handed the reading.
+// host's defaults, and then figures small enough that a world's own bodies reach them, and a step budget a
+// line's reading reaches part way. Both runtimes are set to the same.
 const BUDGETS = [
   {},
   { events: 3, cascadeDepth: 2 },
@@ -44,6 +45,7 @@ const BUDGETS = [
   { spawnsPerTurn: 1, passageDepth: 2 },
   { peoplePerPlace: 1 },
   { setRoleObjects: 2, events: 6 },
+  { steps: 400 },
 ];
 const UNPARSED = ['xyzzy', 'dance wildly', 'take', 'go sideways', 'again and again'];
 
@@ -104,6 +106,50 @@ function pollsDiffer(sproutc, cartridge, stage, scratch) {
   return null;
 }
 
+const PRONOUNS = ['it', 'them', 'her', 'him'];
+const JOINERS = [' and ', ', ', ' then ', '. '];
+
+/** What `typed` calls the thing `filler` holds, without its article, where the line writes it; null otherwise. */
+function namedIn(typed, filler) {
+  if (filler?.binds !== 'object') return null;
+  const name = filler.name.toLowerCase().replace(/^(a|an|the|some) /, '');
+  return typed.toLowerCase().includes(name) ? name : null;
+}
+
+/**
+ * `reading`'s line, perturbed one way or another, so the parser is fuzzed past the lines the view writes: its thing
+ * named by a pronoun or by its adjectives alone, left out of `all`, chained with `other`'s, a word nobody knows put
+ * in, or `again`; the line as written where a way does not apply to it.
+ */
+export function perturbed(reading, other, random) {
+  const typed = reading.typed;
+  const filler = reading.fillers.find((one) => namedIn(typed, one) !== null);
+  const name = namedIn(typed, filler);
+  const at = name === null ? -1 : typed.toLowerCase().indexOf(name);
+  const before = at < 0 ? '' : typed.slice(0, at).replace(/\b(a|an|the|some) $/i, '');
+  const words = typed.split(' ');
+  switch (random.below(6)) {
+    case 0:
+      return at < 0 ? typed : `${before}${random.pick(PRONOUNS)}${typed.slice(at + name.length)}`;
+    case 1: {
+      const adjectives = name?.split(' ').slice(0, -1).join(' ') ?? '';
+      return adjectives === ''
+        ? typed
+        : `${typed.slice(0, at)}${adjectives}${typed.slice(at + name.length)}`;
+    }
+    case 2:
+      return at < 0 ? typed : `${before.trim()} all${random.chance(0.7) ? ` except ${name}` : ''}`;
+    case 3:
+      return `${typed}${random.pick(JOINERS)}${other.typed}`;
+    case 4: {
+      const where = random.below(words.length + 1);
+      return [...words.slice(0, where), 'florble', ...words.slice(where)].join(' ');
+    }
+    default:
+      return random.pick(['again', 'g']);
+  }
+}
+
 /** The step to take next: what a visitor's view offers, or a host event. */
 export function nextStep(stage, random) {
   const here = NICKNAMES.filter((nickname) => present(stage, nickname));
@@ -124,7 +170,9 @@ export function nextStep(stage, random) {
   const refused = typable.filter((reading) => reading.refused !== null);
   const pool = refused.length > 0 && random.chance(0.3) ? refused : typable;
   if (pool.length === 0) return { as: nickname, type: random.pick(UNPARSED) };
-  return { as: nickname, type: random.pick(pool).typed };
+  const reading = random.pick(pool);
+  if (random.chance(0.5)) return { as: nickname, type: reading.typed };
+  return { as: nickname, type: perturbed(reading, random.pick(typable), random) };
 }
 
 /**

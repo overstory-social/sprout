@@ -4,11 +4,9 @@
  * TypeScript runtime for the same script, so the two are compared like with like: a visitor admitted, and
  * catch-up run first, by `@arrive`; a departure by `@leave`; a tick for each place that holds a visitor by
  * `@tick`; time moved on by `@advance`, each wake delivered live at the instant it falls due while anyone
- * stands in the world, and left for the next arrival's catch-up while nobody does; and each typed line's
- * turns, the reading the TypeScript parser made of each, run as command turns.
- *
- * A turn the parser answered rather than read is not the runtime's to run: its lines and its entry are
- * echoed as the readings file holds them. Each step ends with one line of the trace, if there is one:
+ * stands in the world, and left for the next arrival's catch-up while nobody does; and each typed line read by
+ * the runtime as the command turns it runs (sprout_line_begin), the first under the step's seed and each after
+ * it the next. Each step ends with one line of the trace, if there is one:
  * `{"step":N,"says":[...],"turns":[...],"world":{...}}`, the lines readers read, the log's entry for each
  * turn that ran, and the stored world as the store would hold it.
  */
@@ -21,9 +19,9 @@
 #include "readings.h"
 
 /*
- * How a play is held to the view: with `offered`, the view is polled before each command and the
- * reading must be among what it offers, a set role one member at a time, as the chip tree builds
- * it; `poll_steps`, where set, is the poll's budget, over any the readings file names.
+ * How a play is held to the view: with `offered`, the view is polled before each command turn and the
+ * reading the TypeScript runtime ran on that turn must be among what it offers, a set role one member at
+ * a time, as the chip tree builds it; `poll_steps`, where set, is the poll's budget, over any the readings file names.
  */
 typedef struct sproutc_play_options {
   bool offered;

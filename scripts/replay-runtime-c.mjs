@@ -1,15 +1,13 @@
 // Replays the corpus through `sproutc` and diffs it against what the TypeScript runtime does. For every
-// `corpus/good/<world>` with transcripts or tests: pack the world, resolve each script into the readings the
-// TypeScript parser made of it and what the TypeScript runtime left behind each step (scripts/resolve-script.mjs),
-// play it with `sproutc play --script --trace`, and compare, step by step, the lines readers read, the entry the
-// log keeps of each turn that ran, and the stored world (player/src/replay.ts). Each turn's entry carries what
-// a host is given beside it, whose views it made stale and what the store writes, and, for every kind but a
-// command, the entry in core's own form at play depth, its digest included, which core's builders make from
-// what the TypeScript runtime did. A transcript's own expected lines are compared too, so a runtime that
-// agrees with the TypeScript one and not with the transcript fails.
-//
-// A turn the TypeScript parser answered rather than read is not the runtime's to run (the parser is the host's);
-// `sproutc` echoes what was recorded for it, and counts it. Each world's line says how many it echoed.
+// `corpus/good/<world>` with transcripts or tests: pack the world, resolve each script into what the TypeScript
+// runtime left behind each step (scripts/resolve-script.mjs), play it with `sproutc play --script --trace`, each
+// typed line read by the C runtime as the command turns it runs, and compare, step by step, the lines readers
+// read, the entry the log keeps of each turn that ran, and the stored world (player/src/replay.ts). Each turn's
+// entry carries what a host is given beside it, whose views it made stale and what the store writes; a command's
+// carries its words, the step a line planned for it, the item it re-read and its draw; and every entry is also
+// compared in core's own form at play depth, its digest included, which core's builders make from what the
+// TypeScript runtime did. A transcript's own expected lines are compared too, so a runtime that agrees with the
+// TypeScript one and not with the transcript fails.
 //
 // The views are compared apart from the scripts (`replayViews`): for every `corpus/good` world, the stored
 // world a visitor arrives into is written with the TypeScript runtime, `sproutc view` polls the visitor over it,
@@ -38,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import {
   arrivalEntry,
   atDepth,
+  commandEntry,
   departureEntry,
   maintenanceEntry,
   tickEntry,
@@ -62,10 +61,28 @@ export function packWorld(dir, file) {
   writeFileSync(file, emitCartridge(checked.bundle));
 }
 
+/** A reading as a readings file keeps one (player/src/parsed.ts), as lang's `Reading` has it for the log. */
+function readingOf(read) {
+  const at = read.verb.lastIndexOf('.');
+  const bound = (filler) => {
+    if (filler.binds === 'object') return { object: filler.id };
+    if (filler.binds === 'set') return { set: filler.ids };
+    if (filler.binds === 'exit') {
+      const { direction, label, to } = filler;
+      return { exit: { direction, label, to } };
+    }
+    return { value: filler.value };
+  };
+  return {
+    verb: { library: read.verb.slice(0, at), name: read.verb.slice(at + 1) },
+    actor: read.actor,
+    bindings: new Map(read.bindings.map((filler) => [filler.role, bound(filler)])),
+  };
+}
+
 /**
  * The entry core's log keeps of `turn`, a turn the TypeScript runtime ran under the host's default budgets
- * less `budgets`, as core's builders make it at play depth; undefined for a command, whose entry keeps what
- * the host's parser read, which the C runtime is handed and does not keep until it parses (#624).
+ * less `budgets`, as core's builders make it at play depth.
  */
 export function loggedEntryOf(turn, budgets = {}) {
   const host = { budgets: { ...DEFAULT_LIMITS.budgets, ...budgets } };
@@ -74,6 +91,23 @@ export function loggedEntryOf(turn, budgets = {}) {
   const faulted = { committed: false, fault: turn.fault };
   const entry = (() => {
     switch (turn.kind) {
+      case 'command':
+        return commandEntry(
+          {
+            ...inputs,
+            visit: turn.who,
+            text: turn.text,
+            ...(turn.planned === null ? {} : { planned: readingOf(turn.planned) }),
+            ...(turn.reread === null ? {} : { reread: turn.reread }),
+          },
+          host,
+          turn.fault
+            ? { committed: false, fault: turn.fault, effects: turn.effects }
+            : {
+                ...said,
+                value: { drawn: turn.drawn === null ? null : { among: turn.drawn } },
+              },
+        );
       case 'tick':
         return tickEntry({ ...inputs, place: turn.who }, host, turn.fault ? faulted : said);
       case 'wake':
@@ -112,10 +146,10 @@ export function loggedEntryOf(turn, budgets = {}) {
             : said,
         );
       default:
-        return undefined;
+        throw new Error(`a turn of the kind \`${turn.kind}\` has no entry in the log.`);
     }
   })();
-  return entry === undefined ? undefined : atDepth(entry, 'play');
+  return atDepth(entry, 'play');
 }
 
 /**
@@ -132,10 +166,10 @@ export function withLoggedEntries(readings, budgets = {}) {
             ...step,
             after: {
               ...step.after,
-              turns: step.after.turns.map((turn) => {
-                const logged = loggedEntryOf(turn, { ...readings.budgets, ...budgets });
-                return logged === undefined ? turn : { ...turn, logged };
-              }),
+              turns: step.after.turns.map((turn) => ({
+                ...turn,
+                logged: loggedEntryOf(turn, { ...readings.budgets, ...budgets }),
+              })),
             },
           },
     ),
@@ -164,8 +198,7 @@ function transcriptSays(script) {
  * polled before each command under `pollSteps` (the host's default where unset) and must offer the reading,
  * as the Playdate's sentence builder needs it to; `widest` is then the most steps a poll spent; `prefix` is
  * the words a sanitized `sproutc` is launched behind (player/src/aslr.ts). `how` is
- * `passed`; `differs`, with the first step that went another way in `why`; or `failed`. `echoed` is how many
- * turns the parser answered and the play echoed.
+ * `passed`; `differs`, with the first step that went another way in `why`; or `failed`.
  */
 export function playAndCompare(
   sproutc,
@@ -191,19 +224,13 @@ export function playAndCompare(
     return {
       how: 'failed',
       why: (done.stderr || done.stdout || `exit ${done.status}`).trim(),
-      echoed: 0,
       widest,
     };
   }
   const trace = traceOf(existsSync(tracePath) ? readFileSync(tracePath, 'utf8') : '');
   const polled = pollSteps === undefined ? {} : { pollSteps };
   const differs = firstDifference(withLoggedEntries(readings, polled), trace);
-  const echoed = readings.steps.reduce(
-    (sum, step) =>
-      sum + (step.kind === 'command' ? step.turns.filter((turn) => turn.skip).length : 0),
-    0,
-  );
-  if (differs !== null) return { how: 'differs', why: differs, echoed, widest };
+  if (differs !== null) return { how: 'differs', why: differs, widest };
   if (transcript) {
     const wanted = transcriptSays(readScript(readFileSync(script, 'utf8'), script));
     for (const [index, lines] of wanted) {
@@ -214,13 +241,12 @@ export function playAndCompare(
         return {
           how: 'differs',
           why: `step ${index} said\n${got.join('\n') || '(nothing)'}\nand the transcript has\n${lines.join('\n') || '(nothing)'}`,
-          echoed,
           widest,
         };
       }
     }
   }
-  return { how: 'passed', why: '', echoed, widest };
+  return { how: 'passed', why: '', widest };
 }
 
 function replayOne(sproutc, cartridge, world, folder, file, scratch) {
@@ -231,8 +257,8 @@ function replayOne(sproutc, cartridge, world, folder, file, scratch) {
 
 /**
  * Replays every script under `transcripts` and `tests` of every world under `corpus/good`, in order; one result
- * per world: its name, whether every script passed, and a sentence about the first that did not (or about how
- * many turns the parser answered). `only` names the worlds to replay; the default is every one.
+ * per world: its name, whether every script passed, and a sentence about the first that did not. `only` names
+ * the worlds to replay; the default is every one.
  */
 export function replayWorlds(sproutc, scratch, corpus = 'corpus/good', only = null) {
   const results = [];
@@ -257,13 +283,12 @@ export function replayWorlds(sproutc, scratch, corpus = 'corpus/good', only = nu
           })),
       );
       const bad = each.find((one) => one.how !== 'passed');
-      const echoed = each.reduce((sum, one) => sum + one.echoed, 0);
       result =
         bad === undefined
           ? {
               name,
               passed: true,
-              words: `${each.length} script${each.length === 1 ? '' : 's'} match${echoed === 0 ? '' : `, ${echoed} turn${echoed === 1 ? '' : 's'} the parser answered echoed`}`,
+              words: `${each.length} script${each.length === 1 ? '' : 's'} match`,
             }
           : { name, passed: false, words: `${bad.how}, ${bad.file}, ${bad.why}` };
     } catch (err) {

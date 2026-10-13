@@ -278,8 +278,8 @@ static void command(parsing *p, const char *verb, const char *target) {
 
 static const char *aside_of(const parsing *p, const char *line) {
   size_t i;
-  for (i = 0; i < p->out.reading.aside_count; i++)
-    if (strcmp(p->out.reading.asides[i].line, line) == 0) return p->out.reading.asides[i].thing;
+  for (i = 0; i < p->out.aside_count; i++)
+    if (strcmp(p->out.asides[i].line, line) == 0) return p->out.asides[i].thing;
   return NULL;
 }
 
@@ -375,7 +375,6 @@ static void things_written_alike_are_drawn_from_the_seed_and_nothing_is_said_of_
     /* The draw is the turn's first, below how many tied. */
     CHECK_INT(p.out.draw_count, 1);
     CHECK_INT(p.out.draws[0], 2);
-    CHECK_INT(p.out.reading.draw_count, 1);
     read_at(&p, "take pebble", seed);
     CHECK_STR(bound_to(&p, "target"), first);
     a = a || strcmp(first, "study.hall.pebble_a") == 0;
@@ -450,15 +449,15 @@ static void a_pronoun_a_thing_declares_another_for_is_corrected_before_the_readi
   command(&p, "pronouns.pet", "pronouns.cellar.cat");
   read_as(&p, "pet it");
   CHECK_STR(bound_to(&p, "target"), "pronouns.cellar.cat");
-  CHECK_INT(p.out.reading.aside_count, 1);
-  CHECK_STR(p.out.reading.asides[0].line, "pronoun_correction");
-  CHECK_STR(p.out.reading.asides[0].thing, "pronouns.cellar.cat");
-  CHECK_STR(p.out.reading.asides[0].pronoun, "she");
+  CHECK_INT(p.out.aside_count, 1);
+  CHECK_STR(p.out.asides[0].line, "pronoun_correction");
+  CHECK_STR(p.out.asides[0].thing, "pronouns.cellar.cat");
+  CHECK_STR(p.out.asides[0].pronoun, "she");
   /* Not where the pronoun agrees, nor where the thing was named. */
   read_as(&p, "pet her");
-  CHECK_INT(p.out.reading.aside_count, 0);
+  CHECK_INT(p.out.aside_count, 0);
   read_as(&p, "pet cat");
-  CHECK_INT(p.out.reading.aside_count, 0);
+  CHECK_INT(p.out.aside_count, 0);
   close_hall(&p);
 }
 

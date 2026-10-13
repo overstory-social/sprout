@@ -172,8 +172,8 @@ static void a_reading_is_written_with_its_bindings_the_turns_after_it_the_draw_a
   parsed.reading.actor = "w#1";
   parsed.reading.fillings = fillings;
   parsed.reading.filling_count = 2;
-  parsed.reading.asides = asides;
-  parsed.reading.aside_count = 2;
+  parsed.asides = asides;
+  parsed.aside_count = 2;
   parsed.rest = rest;
   parsed.rest_count = 2;
   parsed.drawn = true;
@@ -192,7 +192,7 @@ static void a_reading_is_written_with_its_bindings_the_turns_after_it_the_draw_a
   parsed.reading.verb = "sprout.open_with";
   parsed.rest_count = 0;
   parsed.drawn = false;
-  parsed.reading.aside_count = 0;
+  parsed.aside_count = 0;
   parsed.reading.filling_count = 0;
   CHECK_STR(written(&arena, &parsed),
             "{\"intent\":{\"intent\":\"sprout.open_with\",\"actor\":\"w#1\",\"bindings\":[]},\"rest\":[],\"drawn\":null,"
@@ -254,7 +254,7 @@ static void each_turn_that_read_words_is_compared_over_the_world_it_began_from(v
            "{\"format\":1,\"script\":\"t.json\",\"steps\":["
            "{\"index\":0,\"line\":\"@arrive Marta\",\"atSeconds\":0,\"seed\":5,\"kind\":\"arrive\",\"nickname\":\"Marta\","
            "\"after\":{\"says\":[],\"turns\":[],\"world\":%s}},"
-           "{\"index\":1,\"line\":\"Marta> again\",\"atSeconds\":0,\"seed\":5,\"kind\":\"command\",\"nickname\":\"Marta\","
+           "{\"index\":1,\"line\":\"Marta> again\",\"atSeconds\":0,\"seed\":5,\"kind\":\"command\",\"nickname\":\"Marta\",\"typed\":\"again\","
            "\"turns\":["
            "{\"typed\":\"again\",\"seed\":5,\"skip\":true,\"why\":\"unknown\",\"parsed\":%s},"
            "{\"typed\":\"take ball and drop it\",\"seed\":6,\"skip\":true,\"why\":\"unknown\",\"parsed\":%s,\"before\":%s},"
@@ -275,7 +275,7 @@ static void a_turn_with_no_world_to_begin_from_and_a_bad_command_line_are_refuse
   char *bare[] = {"parse", (char *)WORLD, NULL};
   const char *text =
       "{\"format\":1,\"script\":\"t.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"Marta> again\",\"atSeconds\":0,\"seed\":5,\"kind\":\"command\",\"nickname\":\"Marta\","
+      "{\"index\":0,\"line\":\"Marta> again\",\"atSeconds\":0,\"seed\":5,\"kind\":\"command\",\"nickname\":\"Marta\",\"typed\":\"again\","
       "\"turns\":[{\"typed\":\"again\",\"seed\":5,\"skip\":true,\"why\":\"unknown\",\"parsed\":{}}]}]}";
   char *err;
   size_t length;

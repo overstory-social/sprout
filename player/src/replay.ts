@@ -2,8 +2,7 @@ import type { Readings, Said, TurnEntry } from './readings.js';
 
 // The comparison half of the differential replay: what `sproutc play --trace` wrote after each step, read
 // back, and what the TypeScript runtime left behind the same step (`readings.ts`, `After`): the lines
-// readers read, the entry the log keeps of each turn that ran, and the stored world. A turn the parser
-// answered rather than read is echoed by the other runtime as it was recorded, so it compares as itself.
+// readers read, the entry the log keeps of each turn that ran, and the stored world.
 
 /** One step as the other runtime's trace holds it. */
 export interface TraceStep {

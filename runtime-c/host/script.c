@@ -1,4 +1,4 @@
-/* Plays a script's readings through the runtime's turn call; see script.h. */
+/* Plays a script through the runtime's turn call, its typed lines read by the runtime; see script.h. */
 #include "script.h"
 
 #include <stdlib.h>
@@ -6,6 +6,7 @@
 
 #include "json.h"
 #include "logged.h"
+#include "reading_json.h"
 #include "state.h"
 
 /* What a step has told so far: the lines readers read and the entries of the turns that ran, as JSON text. */
@@ -169,8 +170,9 @@ static sprout_json *changes_json(play *p, const sprout_outcome *outcome) {
 
 /*
  * The entry the log keeps of a turn that ran, in the shape the TypeScript player records (player/src/readings.ts),
- * with what a host is given beside it: whose views it made stale and what the store writes; and for every
- * kind but a command, the entry in the log's own form at play depth.
+ * with what a host is given beside it: whose views it made stale and what the store writes; a command's words, the
+ * step a line planned for it, the item it re-read and the draw its reading was; and the entry in the log's own form
+ * at play depth.
  */
 static const char *record_of(play *p, const sprout_turn_input *input, const sprout_outcome *outcome) {
   sprout_json *record = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 18), *cuts, *logged = NULL;
@@ -194,10 +196,15 @@ static const char *record_of(play *p, const sprout_turn_input *input, const spro
   sprout_json_adopt(record, "cutShort", cuts);
   sprout_json_adopt(record, "stale", outcome->committed ? ids_json(p, outcome->stale_count, outcome->stale) : jnull(p));
   sprout_json_adopt(record, "changes", changes_json(p, outcome));
-  if (log->kind != SPROUT_TURN_COMMAND) {
-    if (sprout_logged_entry(&p->arena, &p->host->record, outcome, SPROUT_LOG_PLAY, &logged) != SPROUT_OK) return NULL;
-    sprout_json_adopt(record, "logged", logged);
+  if (log->kind == SPROUT_TURN_COMMAND) {
+    sprout_json_adopt(record, "text", jstr_of(p, log->text));
+    sprout_json_adopt(record, "planned",
+                      log->planned == NULL ? jnull(p) : sprout_reading_tree(&p->arena, "verb", log->planned));
+    sprout_json_adopt(record, "reread", log->reread == NULL ? jnull(p) : sprout_reread_tree(&p->arena, log->reread));
+    sprout_json_adopt(record, "drawn", log->drawn_among == 0 ? jnull(p) : jnumber(p, (double)log->drawn_among));
   }
+  if (sprout_logged_entry(&p->arena, &p->host->record, outcome, SPROUT_LOG_PLAY, &logged) != SPROUT_OK) return NULL;
+  sprout_json_adopt(record, "logged", logged);
   if (log->kind == SPROUT_TURN_MAINTENANCE) {
     sprout_json_adopt(record, "delivered", wakes_json(p, log->delivered_count, log->delivered, false));
     sprout_json_adopt(record, "faulted", wakes_json(p, log->faulted_count, log->faulted_wakes, true));
@@ -386,49 +393,6 @@ static bool advance(play *p, const sproutc_step *step) {
   return true;
 }
 
-/* What the parser drew and said while it read the line, as the reading carries it. */
-static const char *parsing_of(play *p, const sproutc_turn_reading *turn, sprout_reading *read) {
-  size_t i;
-  if (turn->draws != NULL && turn->draws->count > 0) {
-    uint64_t *bounds = (uint64_t *)sprout_arena_take(&p->arena, turn->draws->count * sizeof *bounds);
-    if (bounds == NULL) return "the host cannot give the reading memory.";
-    for (i = 0; i < turn->draws->count; i++) bounds[i] = (uint64_t)turn->draws->items[i]->number;
-    read->draw_count = turn->draws->count;
-    read->draws = bounds;
-  }
-  if (turn->asides != NULL && turn->asides->count > 0) {
-    sprout_aside *asides = (sprout_aside *)sprout_arena_take(&p->arena, turn->asides->count * sizeof *asides);
-    if (asides == NULL) return "the host cannot give the reading memory.";
-    for (i = 0; i < turn->asides->count; i++) {
-      const sprout_json *one = turn->asides->items[i], *line = sprout_json_get(one, "line"),
-                        *thing = sprout_json_get(one, "thing"), *pronoun = sprout_json_get(one, "pronoun");
-      if (line == NULL || thing == NULL) return "an aside in the readings file names no line or thing.";
-      asides[i].line = line->bytes;
-      asides[i].thing = thing->bytes;
-      asides[i].pronoun = pronoun == NULL || pronoun->kind != SPROUT_JSON_STRING ? NULL : pronoun->bytes;
-    }
-    read->aside_count = turn->asides->count;
-    read->asides = asides;
-  }
-  return NULL;
-}
-
-/* A turn the parser answered: its lines and its entry, echoed as the readings file holds them. */
-static bool echo(play *p, const sproutc_turn_reading *turn) {
-  size_t i;
-  fprintf(p->out, "-- the parser answered: %s\n", turn->why);
-  for (i = 0; turn->says != NULL && i < turn->says->count; i++) {
-    const sprout_json *one = turn->says->items[i];
-    const sprout_json *reader = sprout_json_get(one, "reader"), *kind = sprout_json_get(one, "kind"),
-                      *words = sprout_json_get(one, "words");
-    if (reader == NULL || kind == NULL || words == NULL) return false;
-    if (push(p, &p->says, written(p, one)) == NULL) return false;
-    fprintf(p->out, "%s (%s): %s\n", reader->bytes, kind->bytes, words->bytes);
-  }
-  if (turn->expect != NULL && push(p, &p->turns, written(p, turn->expect)) == NULL) return false;
-  return true;
-}
-
 /* ---- what the view offers ---- */
 
 /* Whether a value role's chosen value is among the options the view writes beside the reading. */
@@ -530,51 +494,53 @@ static void offered(play *p, const char *visit, const sprout_reading *read, cons
   if (!found) p->unoffered++;
 }
 
+/* Before turn `t` of a command step, the view polled for the reading the TypeScript runtime ran on that turn, if one ran. */
+static bool offered_turn(play *p, const sproutc_step *step, size_t t, const char *visit) {
+  sproutc_turn_reading reading;
+  sprout_reading read;
+  sprout_filling *fillings;
+  size_t count;
+  const char *why;
+  if (t >= step->turns) return true;
+  why = sproutc_readings_turn(step, t, &reading);
+  if (why == NULL && reading.skip) return true;
+  if (why == NULL) why = sprout_fillings_of_tree(&p->arena, reading.fillers, &fillings, &count);
+  if (why != NULL) {
+    fprintf(p->err, "sproutc: %s\n", why);
+    p->failure = 1;
+    return false;
+  }
+  memset(&read, 0, sizeof read);
+  read.verb = reading.verb;
+  read.actor = reading.actor;
+  read.filling_count = count;
+  read.fillings = fillings;
+  offered(p, visit, &read, reading.typed, step->index);
+  return true;
+}
+
+/* The line typed, as the command turns it runs: the first under the step's seed, and each after it the next. */
 static bool command(play *p, const sproutc_step *step) {
   char *visit = visit_of(p, step->nickname);
+  sprout_commands line;
+  sprout_turn_input input;
+  bool more = false;
   size_t t;
   if (visit == NULL) return false;
-  for (t = 0; t < step->turns; t++) {
-    sproutc_turn_reading reading;
-    sprout_turn_input input;
-    sprout_reading read;
-    sprout_filling *fillings;
-    size_t count;
-    const char *why = sproutc_readings_turn(step, t, &reading);
-    if (why != NULL) {
-      fprintf(p->err, "sproutc: %s\n", why);
-      p->failure = 1;
+  if (sprout_line_begin(&line, &p->arena, visit, step->typed, strlen(step->typed)) != SPROUT_OK ||
+      sprout_line_next(&line, NULL, &input, &more) != SPROUT_OK)
+    return false;
+  for (t = 0; more; t++) {
+    sprout_outcome outcome;
+    sprout_status status;
+    if (p->offered && !offered_turn(p, step, t, visit)) return false;
+    if (!run(p, &input, (step->seed + t) & 0xffffffffu, &outcome)) {
+      sprout_outcome_free(&outcome);
       return false;
     }
-    if (reading.skip) {
-      if (!echo(p, &reading)) return false;
-      continue;
-    }
-    why = sproutc_readings_fillings(&p->arena, reading.fillers, &fillings, &count);
-    if (why != NULL) {
-      fprintf(p->err, "sproutc: %s\n", why);
-      p->failure = 1;
-      return false;
-    }
-    memset(&read, 0, sizeof read);
-    why = parsing_of(p, &reading, &read);
-    if (why != NULL) {
-      fprintf(p->err, "sproutc: %s\n", why);
-      p->failure = 1;
-      return false;
-    }
-    read.verb = reading.verb;
-    read.actor = reading.actor;
-    read.filling_count = count;
-    read.fillings = fillings;
-    memset(&input, 0, sizeof input);
-    input.kind = SPROUT_TURN_COMMAND;
-    input.visit = visit;
-    input.reading = &read;
-    input.text = reading.typed;
-    input.text_length = strlen(reading.typed);
-    if (p->offered) offered(p, visit, &read, reading.typed, step->index);
-    if (!run_and_free(p, &input, reading.seed)) return false;
+    status = sprout_line_next(&line, &outcome, &input, &more);
+    sprout_outcome_free(&outcome);
+    if (status != SPROUT_OK) return false;
   }
   return true;
 }

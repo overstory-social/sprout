@@ -264,12 +264,105 @@ static sprout_json *wakes_of(sprout_arena *arena, size_t count, const sprout_log
   return whole(list, count) ? list : NULL;
 }
 
+/* A planned step as the log keeps it: its verb by library and name, who performs it, and what fills each role it binds. */
+static sprout_json *planned_of(sprout_arena *arena, const sprout_reading *reading) {
+  sprout_json *planned = sprout_json_make(arena, SPROUT_JSON_OBJECT, 3), *verb = sprout_json_make(arena, SPROUT_JSON_OBJECT, 2);
+  sprout_json *bindings = sprout_json_make(arena, SPROUT_JSON_ARRAY, reading->filling_count);
+  const char *dot = strrchr(reading->verb, '.');
+  size_t i, j, bound = 0;
+  if (planned == NULL || verb == NULL || bindings == NULL || dot == NULL) return NULL;
+  sprout_json_adopt(verb, "library", sprout_json_text(arena, reading->verb, (size_t)(dot - reading->verb)));
+  sprout_json_adopt(verb, "name", word(arena, dot + 1));
+  for (i = 0; i < reading->filling_count; i++) {
+    const sprout_filling *one = &reading->fillings[i];
+    sprout_json *pair = sprout_json_make(arena, SPROUT_JSON_ARRAY, 2), *what = sprout_json_make(arena, SPROUT_JSON_OBJECT, 1);
+    sprout_json *exit, *ids;
+    if (one->binds == SPROUT_FILL_UNBOUND) continue;
+    if (pair == NULL || what == NULL) return NULL;
+    switch (one->binds) {
+      case SPROUT_FILL_OBJECT:
+        sprout_json_adopt(what, "object", word(arena, one->id));
+        break;
+      case SPROUT_FILL_SET:
+        ids = sprout_json_make(arena, SPROUT_JSON_ARRAY, one->id_count);
+        for (j = 0; ids != NULL && j < one->id_count; j++) sprout_json_adopt(ids, NULL, word(arena, one->ids[j]));
+        if (ids == NULL || ids->count != one->id_count) return NULL;
+        sprout_json_adopt(what, "set", ids);
+        break;
+      case SPROUT_FILL_EXIT:
+        exit = sprout_json_make(arena, SPROUT_JSON_OBJECT, 3);
+        if (exit == NULL) return NULL;
+        sprout_json_adopt(exit, "direction", one->direction == NULL ? nothing(arena) : word(arena, one->direction));
+        sprout_json_adopt(exit, "label", word(arena, one->label));
+        sprout_json_adopt(exit, "to", word(arena, one->id));
+        if (!whole(exit, 3)) return NULL;
+        sprout_json_adopt(what, "exit", exit);
+        break;
+      case SPROUT_FILL_TEXT:
+        sprout_json_adopt(what, "value", word(arena, one->text));
+        break;
+      case SPROUT_FILL_NUMBER:
+        sprout_json_adopt(what, "value", number(arena, one->number));
+        break;
+      case SPROUT_FILL_UNBOUND:
+        break;
+    }
+    sprout_json_adopt(pair, NULL, word(arena, one->role));
+    sprout_json_adopt(pair, NULL, what);
+    if (!whole(pair, 2) || !whole(what, 1)) return NULL;
+    sprout_json_adopt(bindings, NULL, pair);
+    bound++;
+  }
+  sprout_json_adopt(planned, "verb", verb);
+  sprout_json_adopt(planned, "actor", word(arena, reading->actor));
+  sprout_json_adopt(planned, "bindings", bindings);
+  return whole(verb, 2) && whole(bindings, bound) && whole(planned, 3) ? planned : NULL;
+}
+
+/* An item of a run read afresh, as the log keeps it: its role and words, each value role's words, and what the pronouns named. */
+static sprout_json *reread_of(sprout_arena *arena, const sprout_reread *reread) {
+  sprout_json *kept = sprout_json_make(arena, SPROUT_JSON_OBJECT, 4);
+  sprout_json *values = sprout_json_make(arena, SPROUT_JSON_ARRAY, reread->value_count);
+  sprout_json *referents = sprout_json_make(arena, SPROUT_JSON_ARRAY, reread->referent_count);
+  size_t i;
+  if (kept == NULL || values == NULL || referents == NULL) return NULL;
+  for (i = 0; i < reread->value_count; i++) {
+    sprout_json *one = sprout_json_make(arena, SPROUT_JSON_OBJECT, 2);
+    if (one == NULL) return NULL;
+    sprout_json_adopt(one, "role", word(arena, reread->values[i].role));
+    sprout_json_adopt(one, "words", word(arena, reread->values[i].words));
+    if (!whole(one, 2)) return NULL;
+    sprout_json_adopt(values, NULL, one);
+  }
+  for (i = 0; i < reread->referent_count; i++) sprout_json_adopt(referents, NULL, word(arena, reread->referents[i]));
+  sprout_json_adopt(kept, "role", word(arena, reread->role));
+  sprout_json_adopt(kept, "words", word(arena, reread->words));
+  sprout_json_adopt(kept, "values", values);
+  sprout_json_adopt(kept, "referents", referents);
+  return whole(values, reread->value_count) && whole(referents, reread->referent_count) && whole(kept, 4) ? kept : NULL;
+}
+
+/* The draw a command's reading was, as a warning; null where it stood alone. */
+static sprout_json *drawn_of(sprout_arena *arena, uint64_t among) {
+  sprout_json *drawn;
+  if (among == 0) return nothing(arena);
+  drawn = sprout_json_make(arena, SPROUT_JSON_OBJECT, 2);
+  if (drawn == NULL) return NULL;
+  sprout_json_adopt(drawn, "level", word(arena, "warning"));
+  sprout_json_adopt(drawn, "among", number(arena, (double)among));
+  return whole(drawn, 2) ? drawn : NULL;
+}
+
 /* What the entry keeps beside its inputs, for each kind of turn; the number of members it added. */
 static size_t parts_of(sprout_arena *arena, const sprout_outcome *outcome, sprout_json *entry, sprout_json **effects_kept) {
   const sprout_log_entry *log = &outcome->log;
   bool faulted = log->faulted, refused = outcome->result == SPROUT_RESULT_REFUSED;
-  /* A faulted tick, wake or arrival says nothing in the world; a faulted departure keeps what its quiet going said. */
-  bool says = !faulted || log->kind == SPROUT_TURN_DEPARTURE;
+  /*
+   * A faulted tick, wake or arrival says nothing in the world; a faulted departure keeps what its quiet going said,
+   * and a faulted command the world's `fault` told to the one who typed.
+   */
+  bool says = !faulted || log->kind == SPROUT_TURN_DEPARTURE || log->kind == SPROUT_TURN_COMMAND;
+  bool cuts = says && !refused && !(faulted && log->kind == SPROUT_TURN_COMMAND);
   sprout_json *fault = faulted ? sprout_logged_fault(arena, log->fault_name, log->fault_detail, &log->fault_about, true)
                                : nothing(arena);
   size_t added = 0;
@@ -300,6 +393,13 @@ static size_t parts_of(sprout_arena *arena, const sprout_outcome *outcome, sprou
       added = 1;
       break;
     case SPROUT_TURN_COMMAND:
+      sprout_json_adopt(entry, "visit", text_of(arena, log->who));
+      sprout_json_adopt(entry, "text", text_of(arena, log->text));
+      sprout_json_adopt(entry, "planned", log->planned == NULL ? nothing(arena) : planned_of(arena, log->planned));
+      sprout_json_adopt(entry, "reread", log->reread == NULL ? nothing(arena) : reread_of(arena, log->reread));
+      sprout_json_adopt(entry, "drawn", drawn_of(arena, log->drawn_among));
+      added = 5;
+      break;
     case SPROUT_TURN_POLL:
       return 0;
   }
@@ -307,7 +407,7 @@ static size_t parts_of(sprout_arena *arena, const sprout_outcome *outcome, sprou
   *effects_kept = says ? sprout_logged_effects(arena, outcome, true) : sprout_json_make(arena, SPROUT_JSON_ARRAY, 0);
   sprout_json_adopt(entry, "effects", *effects_kept);
   /* A refused arrival kept nobody from reading on: only an admission's lines can cut anyone short. */
-  sprout_json_adopt(entry, "cutShort", cuts_of(arena, outcome, says && !refused));
+  sprout_json_adopt(entry, "cutShort", cuts_of(arena, outcome, cuts));
   return added + 3;
 }
 
@@ -318,13 +418,12 @@ sprout_status sprout_logged_entry(sprout_arena *arena, const sprout_host *host, 
   sprout_json *entry, *budgets, *effects;
   size_t members;
   *out = NULL;
-  if (!outcome->has_log) return SPROUT_BAD_INPUT;
-  /* A command's entry keeps what the host's parser read of the line, which the runtime is handed and does not keep (#624). */
-  if (log->kind == SPROUT_TURN_COMMAND || log->kind == SPROUT_TURN_POLL) return SPROUT_BAD_INPUT;
+  if (!outcome->has_log || log->kind == SPROUT_TURN_POLL) return SPROUT_BAD_INPUT;
   if (!budgets_of(arena, &host->budgets, &budgets)) return SPROUT_BAD_HOST;
   entry = sprout_json_make(arena, SPROUT_JSON_OBJECT, 16);
   if (entry == NULL || budgets == NULL) return SPROUT_NO_MEMORY;
-  sprout_json_adopt(entry, "kind", word(arena, log->kind == SPROUT_TURN_TICK          ? "tick"
+  sprout_json_adopt(entry, "kind", word(arena, log->kind == SPROUT_TURN_COMMAND       ? "command"
+                                               : log->kind == SPROUT_TURN_TICK        ? "tick"
                                                : log->kind == SPROUT_TURN_WAKE        ? "wake"
                                                : log->kind == SPROUT_TURN_MAINTENANCE ? "maintenance"
                                                : log->kind == SPROUT_TURN_ARRIVAL     ? "arrival"
