@@ -1,6 +1,6 @@
 // Builds sprout-player/ (the Playdate app) and checks it.
 //
-//   node scripts/playdate-player.mjs [--no-device] [--no-windows] [--out <folder>]
+//   node scripts/playdate-player.mjs [--c-ui] [--no-device] [--no-windows] [--out <folder>]
 //
 // writes one pdx, <folder>/sprout-player.pdx (default sprout-player/build), that carries every
 // binary this machine can build: the Simulator library of this platform (pdex.so or pdex.dylib),
@@ -11,19 +11,23 @@
 // worlds/ folder with their assets, and writes Source/publickey.lua: the public key the download
 // screen trusts, read from the file named by SPROUT_INDEX_PUBLIC_KEY (default
 // sprout-player/test/index-test.pub, which anyone can sign for, so a build to publish sets it).
-// `npm run playdate` is this.
+// `npm run playdate` is this. With --c-ui the binaries are built with PLAYER_C_UI, so the C app
+// (sprout-player/src/ui) runs in place of the Lua one, and the pdx (default folder
+// sprout-player/build/c-ui) carries no Lua: pdc packages a copy of Source/ without its .lua files.
 //
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
 // shipping scripts, builds the Simulator target, runs the C glue's tests and the Lua tests, checks
 // that the app shelves every graduated world, plays the save the glue wrote through `sproutc`, and
 // plays each graduated world's listed plays (`"plays"` in worlds.json, scripts under the world's
 // folder) through `sproutc` with the view polled first under the app's poll budget, so every
-// reading a play makes is one the sentence builder could build. It needs the Playdate SDK
-// (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
+// reading a play makes is one the sentence builder could build; it also builds the C app's
+// Simulator library and pdx, and its device binary, so the C UI build is checked beside the
+// default. It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
 
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -279,10 +283,19 @@ function windowsToolchain(dir) {
  * Configures and builds one target in `dir`; returns the folder the pdx is in. `device` builds
  * the console's ELF with the SDK's ARM toolchain, `windows` the DLL the Windows Simulator loads,
  * through the MinGW cross compiler, and only that library, since the tests are native programs.
+ * `cUi` builds the C app in place of the Lua one, and on the Simulator only its library, since the
+ * tests do not depend on the flag.
  */
-function build(dir, { device, windows, cartridges, sanitize }) {
+function build(dir, { device, windows, cartridges, sanitize, cUi = false }) {
   const sdk = sdkPath();
-  const args = ['-S', player, '-B', dir, '-DCMAKE_BUILD_TYPE=Release'];
+  const args = [
+    '-S',
+    player,
+    '-B',
+    dir,
+    '-DCMAKE_BUILD_TYPE=Release',
+    `-DPLAYER_C_UI=${cUi ? 'ON' : 'OFF'}`,
+  ];
   if (device) {
     args.push(
       `-DCMAKE_TOOLCHAIN_FILE=${join(sdk, 'C_API/buildsupport/arm.cmake')}`,
@@ -302,7 +315,7 @@ function build(dir, { device, windows, cartridges, sanitize }) {
     );
   }
   run('cmake', args, { PLAYDATE_SDK_PATH: sdk });
-  const target = windows ? ['--target', 'sprout-player'] : [];
+  const target = (windows || cUi) && !device ? ['--target', 'sprout-player'] : [];
   run('cmake', ['--build', dir, '--parallel', ...target], { PLAYDATE_SDK_PATH: sdk });
   return dir;
 }
@@ -332,7 +345,8 @@ function placeBinary(dir, built, pdex) {
  * Windows, pdex.bin where arm-none-eabi-gcc is. Returns the pdx and the binaries it carries.
  */
 export async function buildPlayer({
-  out = join(player, 'build'),
+  cUi = false,
+  out = join(player, cUi ? 'build/c-ui' : 'build'),
   device = true,
   windows = true,
 } = {}) {
@@ -344,7 +358,7 @@ export async function buildPlayer({
   }
   await stageWorlds();
   const key = writePublicKey();
-  if (key.isTest) {
+  if (key.isTest && !cUi) {
     console.warn(
       'The download screen trusts the test public key (sprout-player/test/index-test.pub), whose private half is in the repository, so anyone can sign an index it accepts. Set SPROUT_INDEX_PUBLIC_KEY to the file holding your public key for a build you give to anyone else.',
     );
@@ -354,14 +368,14 @@ export async function buildPlayer({
   const binaries = [];
   const host = hostLibrary();
   binaries.push(
-    placeBinary(build(join(out, 'simulator'), { device: false }), host.built, host.pdex),
+    placeBinary(build(join(out, 'simulator'), { device: false, cUi }), host.built, host.pdex),
   );
   const skipped = [];
   if (windows && process.platform !== 'win32') {
     if (has(MINGW)) {
       binaries.push(
         placeBinary(
-          build(join(out, 'windows'), { windows: true }),
+          build(join(out, 'windows'), { windows: true, cUi }),
           'libsprout-player.dll',
           'pdex.dll',
         ),
@@ -373,7 +387,7 @@ export async function buildPlayer({
   if (device) {
     if (has('arm-none-eabi-gcc')) {
       placeBinary(
-        build(join(out, 'device'), { device: true }),
+        build(join(out, 'device'), { device: true, cUi }),
         'sprout-player_DEVICE.elf',
         'pdex.elf',
       );
@@ -383,12 +397,27 @@ export async function buildPlayer({
     }
   }
   const pdx = join(out, 'sprout-player.pdx');
+  packagePdx(sdk, cUi ? withoutLua(join(out, 'source')) : pdxSource, pdx, binaries);
+  return { pdx, binaries, skipped };
+}
+
+/**
+ * A copy of Source/ in `dir` without its Lua, for the C app: with no main.lua, pdc packages the
+ * binaries, pdxinfo and the worlds, and the system runs the update callback the C app sets.
+ */
+export function withoutLua(dir, from = pdxSource) {
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(from, dir, { recursive: true, filter: (path) => !path.endsWith('.lua') });
+  return dir;
+}
+
+/** Runs pdc over `source` into `pdx`; throws where a binary in `binaries` was not packaged. */
+function packagePdx(sdk, source, pdx, binaries) {
   rmSync(pdx, { recursive: true, force: true });
-  run(join(sdk, 'bin/pdc'), ['-sdkpath', sdk, pdxSource, pdx]);
+  run(join(sdk, 'bin/pdc'), ['-sdkpath', sdk, source, pdx]);
   for (const name of binaries) {
     if (!existsSync(join(pdx, name))) throw new Error(`pdc did not package ${name} into ${pdx}`);
   }
-  return { pdx, binaries, skipped };
 }
 
 /**
@@ -452,6 +481,9 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'seen',
       'bridge',
       'glue',
+      'wrap',
+      'transcript',
+      'ui',
     ];
     const missing = wanted.filter((name) => !new RegExp(`player-${name} .*Passed`).test(tests));
     if (missing.length > 0) {
@@ -476,11 +508,36 @@ export async function checkPlayer({ sanitize = false } = {}) {
     } else {
       ran.push('device target not built (no arm-none-eabi-gcc)');
     }
+    if (!sanitize) ran.push(checkCUi(scratch));
   } finally {
     clearBinaries();
     rmSync(scratch, { recursive: true, force: true });
   }
   return `sprout-player: ${ran.join('; ')}`;
+}
+
+/**
+ * The C UI build: the Simulator library built with PLAYER_C_UI and packaged with no Lua (the pdx
+ * holds the library and no main.pdz), and the device binary where arm-none-eabi-gcc is. One line.
+ */
+function checkCUi(scratch) {
+  const sdk = sdkPath();
+  const host = hostLibrary();
+  const dir = build(join(scratch, 'c-ui'), { device: false, cUi: true });
+  const source = withoutLua(join(scratch, 'c-ui-source'));
+  for (const name of readdirSync(source)) {
+    if (name.startsWith('pdex.')) rmSync(join(source, name), { force: true });
+  }
+  copyFileSync(join(dir, host.built), join(source, host.pdex));
+  const pdx = join(scratch, 'c-ui', 'sprout-player.pdx');
+  packagePdx(sdk, source, pdx, [host.pdex]);
+  if (existsSync(join(pdx, 'main.pdz'))) throw new Error('the C UI pdx carries Lua');
+  if (!has('arm-none-eabi-gcc'))
+    return 'C UI Simulator pdx built with no Lua; its device target not built';
+  build(join(scratch, 'c-ui-device'), { device: true, cUi: true });
+  const bin = join(scratch, 'c-ui-device', 'sprout-player_DEVICE.pdx', 'pdex.bin');
+  if (!existsSync(bin)) throw new Error('the C UI device pdx has no pdex.bin');
+  return `C UI pdx built with no Lua (device pdex.bin ${statSync(bin).size} bytes)`;
 }
 
 /** Runs the specs of the shipping scripts (the signed index, the graduated list); one line of what ran. */
@@ -557,6 +614,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const out = outAt >= 0 ? args[outAt + 1] : undefined;
   try {
     const built = await buildPlayer({
+      cUi: args.includes('--c-ui'),
       out,
       device: !args.includes('--no-device'),
       windows: !args.includes('--no-windows'),

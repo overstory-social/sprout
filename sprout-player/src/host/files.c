@@ -65,6 +65,8 @@ typedef struct file_call {
   const char *bytes;
   size_t count;
   unsigned char *digest;
+  void (*found)(const char *name, void *ctx);
+  void *found_ctx;
 } file_call;
 
 static char *read_file_direct(PlaydateAPI *pd, const char *path, size_t *length) {
@@ -128,17 +130,27 @@ static void *write_thunk(void *ctx) {
   return (void *)(intptr_t)write_file_direct(c->pd, c->path, c->bytes, c->count);
 }
 
+static void *list_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  return (void *)(intptr_t)(c->pd->file->listfiles(c->path, c->found, c->found_ctx, 0) == 0);
+}
+
 char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length) {
-  file_call c = {pd, path, length, NULL, 0, NULL};
+  file_call c = {pd, path, length, NULL, 0, NULL, NULL, NULL};
   return (char *)player_on_main_stack(read_thunk, &c);
 }
 
 bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length) {
-  file_call c = {pd, path, length, NULL, 0, digest};
+  file_call c = {pd, path, length, NULL, 0, digest, NULL, NULL};
   return (bool)(intptr_t)player_on_main_stack(hash_thunk, &c);
 }
 
 bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length) {
-  file_call c = {pd, path, NULL, bytes, length, NULL};
+  file_call c = {pd, path, NULL, bytes, length, NULL, NULL, NULL};
   return (bool)(intptr_t)player_on_main_stack(write_thunk, &c);
+}
+
+bool player_list_files(PlaydateAPI *pd, const char *path, void (*found)(const char *name, void *ctx), void *ctx) {
+  file_call c = {pd, path, NULL, NULL, 0, NULL, found, ctx};
+  return (bool)(intptr_t)player_on_main_stack(list_thunk, &c);
 }

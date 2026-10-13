@@ -93,6 +93,176 @@ static int fake_rename(const char *from, const char *to) {
   return rename(a, b);
 }
 
+static int fake_listfiles(const char *path, void (*callback)(const char *path, void *userdata), void *userdata,
+                          int showhidden) {
+  char full[1100], line[1200];
+  const char *folders[2];
+  int i, listed = 0;
+  (void)showhidden;
+  folders[0] = current->app;
+  folders[1] = current->data;
+  for (i = 0; i < 2; i++) {
+    FILE *names;
+    snprintf(full, sizeof full, "ls -1Ap '%s/%s' 2>/dev/null", folders[i], path);
+    names = popen(full, "r");
+    if (names == NULL) continue;
+    while (fgets(line, sizeof line, names) != NULL) {
+      line[strcspn(line, "\n")] = '\0';
+      if (line[0] == '\0' || line[0] == '.') continue;
+      callback(line, userdata);
+      listed = 1;
+    }
+    if (pclose(names) == 0) listed = 1;
+  }
+  return listed ? 0 : -1;
+}
+
+/* ---- the screen ---- */
+
+static void set_pixel(int x, int y, int black) {
+  uint8_t *byte;
+  if (x < 0 || y < 0 || x >= LCD_COLUMNS || y >= LCD_ROWS) return;
+  byte = &current->frame[y * LCD_ROWSIZE + x / 8];
+  if (black)
+    *byte |= (uint8_t)(0x80u >> (x % 8));
+  else
+    *byte &= (uint8_t)~(0x80u >> (x % 8));
+}
+
+int fake_pixel(const fake_playdate *fake, int x, int y) {
+  if (x < 0 || y < 0 || x >= LCD_COLUMNS || y >= LCD_ROWS) return 0;
+  return (fake->frame[y * LCD_ROWSIZE + x / 8] >> (7 - x % 8)) & 1;
+}
+
+static void fake_clear(LCDColor color) {
+  memset(current->frame, color == kColorBlack ? 0xFF : 0x00, sizeof current->frame);
+  current->run_count = 0;
+}
+
+static void fill(int x, int y, int width, int height, LCDColor color) {
+  int i, j;
+  for (j = y; j < y + height; j++)
+    for (i = x; i < x + width; i++) set_pixel(i, j, color == kColorBlack);
+}
+
+static void fake_fill_rect(int x, int y, int width, int height, LCDColor color) { fill(x, y, width, height, color); }
+
+/* Lines across or down the screen, which is all the screens draw. */
+static void fake_draw_line(int x1, int y1, int x2, int y2, int width, LCDColor color) {
+  int lo, hi;
+  if (y1 == y2) {
+    lo = x1 < x2 ? x1 : x2;
+    hi = x1 < x2 ? x2 : x1;
+    fill(lo, y1, hi - lo + 1, width, color);
+  } else if (x1 == x2) {
+    lo = y1 < y2 ? y1 : y2;
+    hi = y1 < y2 ? y2 : y1;
+    fill(x1, lo, width, hi - lo + 1, color);
+  } else {
+    abort();
+  }
+}
+
+/* The bytes of the first `count` UTF-8 characters of `text`, stopping at a NUL; reads nothing past them. */
+static size_t utf8_bytes(const char *text, size_t count) {
+  size_t i = 0, seen = 0;
+  while (seen < count && text[i] != '\0') {
+    unsigned char lead = (unsigned char)text[i];
+    size_t n = lead < 0x80u ? 1 : lead >= 0xF0u ? 4 : lead >= 0xE0u ? 3 : lead >= 0xC0u ? 2 : 1, k;
+    for (k = 1; k < n && text[i + k] != '\0'; k++) continue;
+    i += k;
+    seen++;
+  }
+  return i;
+}
+
+static int fake_text_width(LCDFont *font, const void *text, size_t len, PDStringEncoding encoding, int tracking) {
+  const char *bytes = (const char *)text;
+  size_t n = utf8_bytes(bytes, len), i;
+  int width = 0;
+  (void)font;
+  (void)encoding;
+  (void)tracking;
+  for (i = 0; i < n; i++)
+    if (((unsigned char)bytes[i] & 0xC0u) != 0x80u) width += current->glyph;
+  return width;
+}
+
+static int fake_draw_text(const void *text, size_t len, PDStringEncoding encoding, int x, int y) {
+  const char *bytes = (const char *)text;
+  size_t n = utf8_bytes(bytes, len), i;
+  int at = x;
+  fake_run *run;
+  (void)encoding;
+  if (!current->font_set) abort(); /* the screens draw in the font they loaded, never the default */
+  if (current->run_count == FAKE_RUNS) abort();
+  run = &current->runs[current->run_count++];
+  if (n >= sizeof run->text) abort();
+  memcpy(run->text, bytes, n);
+  run->text[n] = '\0';
+  run->x = x;
+  run->y = y;
+  for (i = 0; i < n; i++) {
+    if (((unsigned char)bytes[i] & 0xC0u) == 0x80u) continue;
+    if (bytes[i] != ' ') fill(at + 1, y + 3, current->glyph - 2, FAKE_LINE - 6, kColorBlack);
+    at += current->glyph;
+  }
+  return at - x;
+}
+
+static char fake_font_bytes;
+
+static LCDFont *fake_load_font(const char *path, const char **error) {
+  if (strcmp(path, "/System/Fonts/Asheville-Sans-14-Light.pft") != 0) {
+    *error = "no such font";
+    return NULL;
+  }
+  return (LCDFont *)&fake_font_bytes;
+}
+
+static void fake_set_font(LCDFont *font) { current->font_set = font == (LCDFont *)&fake_font_bytes; }
+
+static uint8_t fake_font_height(LCDFont *font) {
+  (void)font;
+  return FAKE_LINE;
+}
+
+const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
+  int i;
+  for (i = 0; i < fake->run_count; i++)
+    if (fake->runs[i].x == x && fake->runs[i].y == y) return &fake->runs[i];
+  return NULL;
+}
+
+/* ---- the input ---- */
+
+static void fake_buttons(PDButtons *held, PDButtons *pushed, PDButtons *released) {
+  *held = current->buttons_held;
+  *pushed = current->buttons_pushed;
+  *released = 0;
+}
+
+static float fake_crank_change(void) { return current->crank; }
+static int fake_crank_docked(void) { return current->docked; }
+
+static void fake_set_update(PDCallbackFunction *update, void *userdata) {
+  current->update = update;
+  current->update_ctx = userdata;
+}
+
+int fake_frame(fake_playdate *fake, PDButtons pushed, float crank) {
+  int shown;
+  current = fake;
+  if (fake->update == NULL) abort();
+  fake->buttons_pushed = pushed;
+  fake->buttons_held = pushed;
+  fake->crank = crank;
+  shown = fake->update(fake->update_ctx);
+  fake->buttons_pushed = fake->buttons_held = 0;
+  fake->crank = 0;
+  return shown;
+}
+
 /* ---- Lua ---- */
 
 static int fake_add_function(lua_CFunction function, const char *name, const char **error) {
@@ -119,6 +289,7 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   snprintf(fake->data, sizeof fake->data, "%s", data);
   snprintf(fake->app, sizeof fake->app, "%s", app);
   fake->seconds = 1000000;
+  fake->glyph = FAKE_GLYPH;
   fake->sys.realloc = fake_realloc;
   fake->sys.getSecondsSinceEpoch = fake_seconds;
   fake->sys.getCurrentTimeMilliseconds = fake_counter;
@@ -131,12 +302,26 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->file.mkdir = fake_mkdir;
   fake->file.unlink = fake_unlink;
   fake->file.rename = fake_rename;
+  fake->file.listfiles = fake_listfiles;
+  fake->sys.getButtonState = fake_buttons;
+  fake->sys.getCrankChange = fake_crank_change;
+  fake->sys.isCrankDocked = fake_crank_docked;
+  fake->sys.setUpdateCallback = fake_set_update;
+  fake->gfx.clear = fake_clear;
+  fake->gfx.fillRect = fake_fill_rect;
+  fake->gfx.drawLine = fake_draw_line;
+  fake->gfx.drawText = fake_draw_text;
+  fake->gfx.getTextWidth = fake_text_width;
+  fake->gfx.loadFont = fake_load_font;
+  fake->gfx.setFont = fake_set_font;
+  fake->gfx.getFontHeight = fake_font_height;
   fake->lua.addFunction = fake_add_function;
   fake->lua.getArgString = fake_arg_string;
   fake->lua.pushString = fake_push_string;
   fake->api.system = &fake->sys;
   fake->api.file = &fake->file;
   fake->api.lua = &fake->lua;
+  fake->api.graphics = &fake->gfx;
 }
 
 const char *fake_call_with(fake_playdate *fake, const char *name, int count, const char *const *arguments) {

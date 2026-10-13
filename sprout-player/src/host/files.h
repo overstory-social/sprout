@@ -27,6 +27,12 @@ bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32
 /* Writes `bytes` as the file at `path`, whole; false when it could not be. */
 bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length);
 
+/*
+ * Calls `found(name, ctx)` for each entry of the folder at `path`, in the app and its Data folder
+ * both, a folder's name ending in `/`; false when the folder cannot be listed.
+ */
+bool player_list_files(PlaydateAPI *pd, const char *path, void (*found)(const char *name, void *ctx), void *ctx);
+
 /* A block from the device's allocator. */
 void *player_alloc(PlaydateAPI *pd, size_t bytes);
 void player_free(PlaydateAPI *pd, void *block);

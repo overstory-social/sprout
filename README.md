@@ -143,6 +143,10 @@ npm run playdate                                             # packs the graduat
 lua5.4 sprout-player/test/run.lua                            # the Lua tests alone, with no SDK
 ```
 
+The player is becoming pure C a screen at a time. `npm run playdate -- --c-ui` builds the C app
+instead, into `sprout-player/build/c-ui/sprout-player.pdx`, with no Lua in it: so far it opens the
+first shipped world and shows the arrival in the reader. The default build is the Lua app.
+
 On macOS or Windows install the SDK from play.date/dev and point `PLAYDATE_SDK_PATH` at it. With
 the variable set, `node scripts/check-runtime-c.mjs` (and so the gate) also builds the Simulator
 target and runs the player's Lua and C tests; with it unset the last line says they were skipped.
