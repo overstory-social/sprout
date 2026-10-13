@@ -248,7 +248,7 @@ for (const result of results) {
 const views = tools.replayViews(sproutc, scratch);
 const unlike = views.filter((r) => !r.passed);
 console.log(
-  `runtime-c view: ${views.length - unlike.length} of ${views.length} worlds print the page \`sprout view\` prints`,
+  `runtime-c view: ${views.length - unlike.length} of ${views.length} worlds print the pages \`sprout view\` prints: the view, the scene and each verb's readings`,
 );
 for (const r of unlike)
   console.log(`runtime-c view: ${r.name}: ${r.words.replace(/\s*\n\s*/g, ' / ')}`);

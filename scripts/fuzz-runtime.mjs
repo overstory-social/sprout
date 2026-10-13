@@ -5,7 +5,10 @@
 // same start and the same seeds, and compared as the corpus replay compares a transcript: the lines
 // readers read, the entry the log keeps of each turn, and the stored world after each step. The first step
 // on which they differ ends the run, and the sequence up to it is written as a transcript,
-// `corpus/good/<world>/transcripts/fuzz-<seed>.json`, to be fixed and kept.
+// `corpus/good/<world>/transcripts/fuzz-<seed>.json`, to be fixed and kept. Where the play agrees, every
+// visitor still in the world at its end is polled in parts through `sproutc view`: the scene, and the readings
+// of each verb it lists, against the TypeScript runtime's (`comparePolls`); a difference there writes the
+// whole play, whose last step leaves the world the polls differ over.
 //
 //   node scripts/fuzz-runtime.mjs <world folder> --seed N [--steps 40] [--visitors 2]
 //        [--sproutc path] [--out folder]
@@ -21,10 +24,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { pollView } from '@overstory/sprout/lang';
+import { DEFAULT_LIMITS, pollView, saveWorld } from '@overstory/sprout/lang';
 import { expectationsOf, freshStage, playStep, writeScript } from '@overstory/sprout-player';
 
-import { packWorld, playAndCompare } from './replay-runtime-c.mjs';
+import { comparePolls, packWorld, playAndCompare } from './replay-runtime-c.mjs';
 import { playableWorld } from './resolve-script.mjs';
 import { runtimeCBuild } from './runtime-c-build.mjs';
 
@@ -79,6 +82,28 @@ function present(stage, nickname) {
   return record !== undefined && Boolean(stage.state.instances.get(record.instance)?.container);
 }
 
+/**
+ * The first way `sproutc`'s polls of each visitor in the world under `stage` differ from the TypeScript
+ * runtime's, both under the host's default budgets, which `sproutc view` polls under; null where they agree.
+ */
+function pollsDiffer(sproutc, cartridge, stage, scratch) {
+  const stored = join(scratch, 'end.json');
+  writeFileSync(stored, JSON.stringify(saveWorld(stage.state)));
+  const host = { ...stage.host, budgets: DEFAULT_LIMITS.budgets };
+  for (const nickname of NICKNAMES.filter((one) => present(stage, one))) {
+    const visit = stage.visits.get(nickname);
+    const place = stage.state.instances.get(stage.state.visitors.get(visit).instance).container;
+    const { differs } = comparePolls(sproutc, cartridge, stored, {
+      state: stage.state,
+      host,
+      visit,
+      place,
+    });
+    if (differs !== null) return `for ${nickname}, ${differs}`;
+  }
+  return null;
+}
+
 /** The step to take next: what a visitor's view offers, or a host event. */
 export function nextStep(stage, random) {
   const here = NICKNAMES.filter((nickname) => present(stage, nickname));
@@ -131,7 +156,21 @@ export function fuzzWorld(
     for (let i = 0; i < Number(steps) && typed < readings; i++) play(nextStep(stage, random));
     writeFileSync(script, writeScript({ about: `fuzz seed ${seed}`, steps: made }));
     const result = playAndCompare(sproutc, cartridge, script, false, budgets);
-    if (result.how === 'passed') return { typed, ran: made.length, differs: null };
+    if (result.how === 'passed') {
+      const polls = pollsDiffer(sproutc, cartridge, stage, scratch);
+      if (polls === null) return { typed, ran: made.length, differs: null };
+      return {
+        typed,
+        ran: made.length,
+        differs: {
+          words: `differ in their polls once the last step is over: ${polls}`,
+          transcript: writeScript({
+            about: `fuzz seed ${seed}${Object.keys(budgets).length === 0 ? '' : ` under the budgets ${JSON.stringify(budgets)}`}: the runtimes' polls differ once the last step is over.`,
+            steps: made,
+          }),
+        },
+      };
+    }
     const at = /step (\d+)/.exec(result.why);
     const kept = at === null ? made : made.slice(0, Number(at[1]) + 1);
     return {

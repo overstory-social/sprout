@@ -5,8 +5,10 @@
 // reader, and the stored world after it must be what the TypeScript runtime left, and each turn must give
 // what the TypeScript runtime's did: its effects, fault and who it cut short, whose views it made stale,
 // what the store writes, and, for every kind but a command, the entry core's log keeps at play depth, as
-// core's builders make it. A turn the parser answered is not the engine's to run, and its lines are the
-// parser's. Then the export layer's edges: loading and opening again, input it cannot read, an entry at
+// core's builders make it. After each step, every visitor in the world is polled in parts (the spec's The
+// runtime > The view): the scene, then the readings of each verb it lists, which must be the TypeScript
+// runtime's `pollScene` and `pollReadings` over the same stored world. A turn the parser answered is not the
+// engine's to run, and its lines are the parser's. Then the export layer's edges: loading and opening again, input it cannot read, an entry at
 // debug depth, and an arrival to a world that admits no one, which still has words for the person.
 //
 //   node runtime-c/wasm/engine.test.mjs <out folder of build.sh> [corpus/good]
@@ -20,8 +22,15 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
 import { atDepth, loggedEffects } from '@overstory/sprout/core';
-import { DEFAULT_LIMITS, loadCartridge } from '@overstory/sprout/lang';
-import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
+import {
+  DEFAULT_LIMITS,
+  loadCartridge,
+  loadWorld,
+  pollReadings,
+  pollScene,
+  renderEffects,
+} from '@overstory/sprout/lang';
+import { catalogueFor, INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
 
 import { loggedEntryOf, packWorld } from '../../scripts/replay-runtime-c.mjs';
 import { resolveFile } from '../../scripts/resolve-script.mjs';
@@ -157,8 +166,46 @@ function playStep(engine, step) {
   return ran;
 }
 
+/** `value` with the field `name` left out. */
+function without(value, name) {
+  const { [name]: _left, ...rest } = value;
+  return rest;
+}
+
+/**
+ * The first way the engine's polls of every visitor in the stored world `stored` differ from the TypeScript
+ * runtime's under `host`, in words; null where they agree. The scene is compared but its verbs, then its verbs
+ * by qualified name (the engine lists no phrases), then each verb's readings.
+ */
+function pollsDiffer(engine, host, stored) {
+  const { state } = loadWorld(stored, host.catalogue);
+  const present = [...state.visitors.values()]
+    .filter((visitor) => (state.instances.get(visitor.instance)?.container ?? null) !== null)
+    .map((visitor) => visitor.visit)
+    .sort();
+  for (const visit of present) {
+    const want = pollScene(state, host, visit).scene;
+    const got = engine.scene(visit);
+    if (!isDeepStrictEqual(without(got.view, 'readings'), without(want, 'verbs'))) {
+      return `${visit}'s scene is ${JSON.stringify(without(got.view, 'readings'))} where the TypeScript runtime's is ${JSON.stringify(without(want, 'verbs'))}`;
+    }
+    const verbs = want.verbs.map((one) => one.verb);
+    if (!isDeepStrictEqual(got.verbs, verbs)) {
+      return `${visit}'s scene lists the verbs ${got.verbs.join(', ')} where the TypeScript runtime's lists ${verbs.join(', ')}`;
+    }
+    for (const verb of verbs) {
+      const readings = pollReadings(state, host, visit, verb).readings;
+      const given = engine.readings(visit, verb).readings;
+      if (!isDeepStrictEqual(given, readings)) {
+        return `${visit}'s readings of ${verb} are ${JSON.stringify(given)} where the TypeScript runtime's are ${JSON.stringify(readings)}`;
+      }
+    }
+  }
+  return null;
+}
+
 /** Plays `readings` through a fresh engine; the first difference from the TypeScript runtime, or null. */
-async function playReadings(wasm, cartridge, worldId, readings) {
+async function playReadings(wasm, cartridge, worldId, readings, host) {
   const engine = await WasmEngine.open(wasm, cartridge, worldId);
   for (const step of readings.steps) {
     const lines = [];
@@ -181,6 +228,9 @@ async function playReadings(wasm, cartridge, worldId, readings) {
     ) {
       return `step ${step.index} (${step.line}): the stored world is not the TypeScript runtime's`;
     }
+    const polls =
+      step.after.world === undefined ? null : pollsDiffer(engine, host, step.after.world);
+    if (polls !== null) return `step ${step.index} (${step.line}): ${polls}`;
   }
   return null;
 }
@@ -342,17 +392,24 @@ export async function testEngine(out, corpus = 'corpus/good') {
       const cartridgeFile = join(scratch, `${name}.sproutworld`);
       packWorld(world, cartridgeFile);
       const cartridge = readFileSync(cartridgeFile);
-      const worldId = loadCartridge(cartridge, {
+      const loaded = loadCartridge(cartridge, {
         caps: DEFAULT_LIMITS.caps,
         installed: INSTALLED_EXTENSIONS,
-      }).world;
+      });
+      const worldId = loaded.world;
+      // The engine polls under the host's default budgets, as the corpus scripts are played.
+      const host = {
+        catalogue: catalogueFor(loaded),
+        budgets: DEFAULT_LIMITS.budgets,
+        render: renderEffects,
+      };
       let played = 0;
       let differs = null;
       for (const script of scripts) {
         const readings = JSON.parse(resolveFile(cartridgeFile, script));
         played++;
         try {
-          differs = await playReadings(wasm, cartridge, worldId, readings);
+          differs = await playReadings(wasm, cartridge, worldId, readings, host);
         } catch (err) {
           differs = `the engine refused it: ${err.message}`;
         }

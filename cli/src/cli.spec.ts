@@ -145,6 +145,33 @@ describe('main', () => {
     expect(io.out()).toMatch(/^standing in shed\n\ndescription\n {2}Tools hang in rows\.\n/);
   });
 
+  it('view --scene lists the verbs in place of the readings, and --verb gives one verb’s readings', () => {
+    const dir = worldFolder('lane', LANE);
+    const scene = captured();
+    expect(main(['view', dir, '--scene', '--at', 'shed'], scene)).toBe(0);
+    expect(scene.out()).toContain('\nverbs they could be offered\n  lane.pry\n');
+    expect(scene.out()).not.toContain('what they could type');
+    const verb = captured();
+    expect(main(['view', dir, '--at', 'shed', '--verb', 'lane.pry'], verb)).toBe(0);
+    expect(verb.out()).toBe(
+      'standing in shed\n\nwhat they could type with lane.pry\n  pry shed  (lane.pry)\n    target: a shed (shed)\n',
+    );
+  });
+
+  it('view refuses --verb with no verb, or with --scene, saying what to write instead', () => {
+    const dir = worldFolder('lane', LANE);
+    const bare = captured();
+    expect(main(['view', dir, '--verb'], bare)).toBe(1);
+    expect(bare.err()).toBe(
+      'sprout: --verb wants a verb after it, by its qualified name: --verb sprout.take\n',
+    );
+    const both = captured();
+    expect(main(['view', dir, '--scene', '--verb', 'lane.pry'], both)).toBe(1);
+    expect(both.err()).toBe(
+      'sprout: Write one of --scene and --verb: each prints a poll of its own.\n',
+    );
+  });
+
   it('parse and view on a refused world print what check prints, and fail', () => {
     const dir = worldFolder('lane', { ...LANE, 'dial.sprout': 'kind Dial {\n' });
     for (const argv of [

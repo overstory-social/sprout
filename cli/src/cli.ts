@@ -34,7 +34,7 @@ import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { clientConnect, mcpServe, serverStart } from './peers.js';
-import { inspectView } from './view.js';
+import { inspectReadings, inspectScene, inspectView } from './view.js';
 
 // The `sprout` command: six verbs on a microworld folder; `skill`, the
 // builder's reference this compiler generates from its own tables; and
@@ -42,7 +42,7 @@ import { inspectView } from './view.js';
 // and the MCP host where they are installed. `mcp` says a refused world's
 // page on stderr, since its stdout may be the protocol's.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
-// `--json`, `--debug` and `--write` are always alone. The first bare word
+// `--json`, `--debug`, `--write`, `--plain`, `--watch` and `--scene` are always alone. The first bare word
 // is the command, the next the path. Every command but `play` with no
 // script, `client`, `server` and `mcp` is synchronous; those hand back a
 // promise of their exit code rather than the code itself.
@@ -57,8 +57,10 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
-  sprout view [dir] [--at place] [--as name]
-                                      what a visitor standing there is shown and could type
+  sprout view [dir] [--at place] [--as name] [--scene | --verb name]
+                                      what a visitor standing there is shown and could type; --scene the
+                                      scene, which lists the verbs in place of the readings; --verb one
+                                      verb's readings, by its qualified name (sprout.take)
   sprout play dir script.json [--write] [--report file.json]    (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
@@ -97,7 +99,14 @@ export interface Parsed {
 }
 
 /** Flags that stand alone and never take the word after them as their value. */
-const SWITCHES: ReadonlySet<string> = new Set(['json', 'debug', 'write', 'plain', 'watch']);
+const SWITCHES: ReadonlySet<string> = new Set([
+  'json',
+  'debug',
+  'write',
+  'plain',
+  'watch',
+  'scene',
+]);
 
 /** The short flags there are, and the long flag each stands for. */
 const SHORT: Readonly<Record<string, string>> = { o: 'out' };
@@ -250,7 +259,20 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
       case 'view': {
         const checked = compiled(positional[0] ?? '.', say);
         if (checked === null) return 1;
-        const inspected = inspectView(standIn(checked, standing(flags)));
+        const verb = flags['verb'];
+        if (verb === true)
+          throw new Error(
+            '--verb wants a verb after it, by its qualified name: --verb sprout.take',
+          );
+        if (verb !== undefined && flags['scene'] !== undefined)
+          throw new Error('Write one of --scene and --verb: each prints a poll of its own.');
+        const stood = standIn(checked, standing(flags));
+        const inspected =
+          verb !== undefined
+            ? inspectReadings(stood, verb)
+            : flags['scene'] !== undefined
+              ? inspectScene(stood)
+              : inspectView(stood);
         say(inspected.page);
         return inspected.ok ? 0 : 1;
       }
