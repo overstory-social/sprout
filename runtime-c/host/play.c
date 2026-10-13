@@ -11,6 +11,7 @@
 #include "host.h"
 #include "readings.h"
 #include "script.h"
+#include "parsing.h"
 #include "viewing.h"
 
 #define USAGE                                                                                          \
@@ -232,6 +233,7 @@ int sproutc_main(int argc, char **argv, FILE *out, FILE *err) {
 
   if (argc > 0 && strcmp(argv[0], "eval") == 0) return sproutc_evaluate(argc - 1, argv + 1, out, err);
   if (argc > 0 && strcmp(argv[0], "view") == 0) return sproutc_view(argc - 1, argv + 1, out, err);
+  if (argc > 0 && strcmp(argv[0], "parse") == 0) return sproutc_parse(argc - 1, argv + 1, out, err);
   why = options_of(argc, argv, &o, words, sizeof words);
   if (why != NULL) {
     fprintf(err, "%s\n%s", why, USAGE);

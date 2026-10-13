@@ -17,7 +17,11 @@
 // (`--scene`), and the readings of each verb the TypeScript runtime's scene lists (`--verb`), each with the page
 // `sprout view` prints for it (`comparePolls`).
 //
-// Used by scripts/check-runtime-c.mjs, which owns the list of worlds that are expected to pass.
+// The parser is compared apart too (`replayParses`): for every script, `sproutc parse` reads each line the
+// TypeScript parser read, over the stored world its turn began from, under the turn's seed, and compares what it
+// read with what the TypeScript parser read (player/src/parsed.ts), turn by turn.
+//
+// Used by scripts/check-runtime-c.mjs, which owns the lists of worlds that are expected to pass.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -383,6 +387,101 @@ export function replayViews(sproutc, scratch, corpus = 'corpus/good') {
         words: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+  return results;
+}
+
+/** Whether the TypeScript parser answered a turn with the engine's `unknown`. */
+function answeredUnknown(turn) {
+  return turn.parsed?.answered?.line?.passage === 'unknown';
+}
+
+/**
+ * Reads every line of the script file `script` through `sproutc parse --each` over `cartridge`, its readings
+ * resolved beside it, and tallies the verdicts: how many turns agree, differ, and read no words (`planned`); of
+ * the TypeScript parser's `unknown` answers, how many there were and how many agree; and the first difference in
+ * words, or null.
+ */
+export function compareParses(sproutc, cartridge, script) {
+  const text = resolveFile(cartridge, script);
+  writeFileSync(readingsPath(script), text);
+  const readings = JSON.parse(text);
+  const done = spawnSync(
+    sproutc,
+    ['parse', cartridge, '--readings', readingsPath(script), '--each'],
+    {
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+    },
+  );
+  const counts = /^parsed: (\d+) agree, (\d+) differ, (\d+) planned$/m.exec(done.stdout ?? '');
+  if (done.status === 2 || counts === null) {
+    throw new Error((done.stderr || done.stdout || `exit ${done.status}`).trim());
+  }
+  const agreed = new Set(
+    [...(done.stdout ?? '').matchAll(/^agree: step (\d+), turn (\d+)$/gm)].map(
+      ([, s, t]) => `${s}:${t}`,
+    ),
+  );
+  const unknown = readings.steps.flatMap((step) =>
+    step.kind === 'command'
+      ? step.turns.flatMap((turn, k) => (answeredUnknown(turn) ? [`${step.index}:${k + 1}`] : []))
+      : [],
+  );
+  return {
+    agree: Number(counts[1]),
+    differ: Number(counts[2]),
+    planned: Number(counts[3]),
+    unknown: unknown.length,
+    unknownAlike: unknown.filter((key) => agreed.has(key)).length,
+    first: /^differ: (.*)$/m.exec(done.stdout ?? '')?.[1] ?? null,
+  };
+}
+
+/**
+ * Holds `sproutc parse` to the TypeScript parser over every script under `transcripts` and `tests` of every world
+ * under `corpus` (`compareParses`); one result per world: its name, the turns that agree, differ and were planned,
+ * the TypeScript parser's `unknown` answers and how many of them agree, and the first difference, or the words
+ * of what stopped it. `only` names the worlds to compare; the default is every one.
+ */
+export function replayParses(sproutc, scratch, corpus = 'corpus/good', only = null) {
+  const results = [];
+  for (const name of readdirSync(corpus).sort()) {
+    if (only !== null && !only.includes(name)) continue;
+    const world = join(corpus, name);
+    const folders = ['transcripts', 'tests'].filter((folder) => existsSync(join(world, folder)));
+    if (folders.length === 0) continue;
+    const folder = join(scratch, `${name}-parse`);
+    mkdirSync(folder, { recursive: true });
+    const cartridge = join(folder, `${name}.sproutworld`);
+    const result = {
+      name,
+      agree: 0,
+      differ: 0,
+      planned: 0,
+      unknown: 0,
+      unknownAlike: 0,
+      first: null,
+    };
+    try {
+      packWorld(world, cartridge);
+      for (const kind of folders) {
+        for (const file of readdirSync(join(world, kind))
+          .filter((f) => f.endsWith('.json'))
+          .sort()) {
+          const script = join(folder, `${kind}-${file}`);
+          copyFileSync(join(world, kind, file), script);
+          const one = compareParses(sproutc, cartridge, script);
+          for (const key of ['agree', 'differ', 'planned', 'unknown', 'unknownAlike'])
+            result[key] += one[key];
+          if (result.first === null && one.first !== null)
+            result.first = `${kind}/${file}, ${one.first}`;
+        }
+      }
+    } catch (err) {
+      result.failed = err instanceof Error ? err.message : String(err);
+    }
+    results.push(result);
   }
   return results;
 }
