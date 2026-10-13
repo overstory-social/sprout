@@ -316,6 +316,19 @@ variable is not set).
   `sproutc`: the save must read and write back byte for byte, and the turns
   built from the view's chips must leave the stored world the same lines typed
   leave (`corpus/good/chip-tree`, `corpus/good/value-first`).
+- **The C app's screens** (`sprout-player/src/ui`) are driven a frame at a
+  time through the same fake, whose graphics draw into a 400 by 240 one-bit
+  frame and keep each run of text with where it was drawn, and whose buttons
+  and crank a test sets. `ui.test.c` builds `main.c` with `PLAYER_C_UI`, so
+  the update callback the system would call is the one driven, arrives in
+  `printers_shop` and holds the reader to rules: read top to bottom, the
+  transcript is the client's line and then exactly what the arrival told; the
+  status line is the view's place and ways out; the column is full, no row is
+  wider than it and nothing is drawn below it; up and the crank scroll a line
+  at a time and stop at either end. `wrap.test.c` holds word wrap to its rules
+  over generated text (no line wider than the column but a single character, no
+  character lost or moved, every break as late as it can be, none inside a
+  character), and `transcript.test.c` the scrollback.
 - **The listed plays of the shipped worlds.** Each graduated world may list
   plays in `sprout-player/worlds.json` (the studio's `underground_caverns`
   lists the whole of Zork, `tests/walkthrough.json`); the player step resolves

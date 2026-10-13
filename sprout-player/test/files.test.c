@@ -65,11 +65,49 @@ static void a_write_that_cannot_be_made_says_so_and_leaves_the_file(void) {
   end();
 }
 
+typedef struct listing {
+  char names[8][64];
+  int count;
+} listing;
+
+static void note(const char *name, void *ctx) {
+  listing *seen = (listing *)ctx;
+  if (seen->count < 8) snprintf(seen->names[seen->count++], sizeof seen->names[0], "%s", name);
+}
+
+static bool listed(const listing *seen, const char *name) {
+  int i;
+  for (i = 0; i < seen->count; i++)
+    if (strcmp(seen->names[i], name) == 0) return true;
+  return false;
+}
+
+static void a_folder_lists_its_files_and_marks_its_folders(void) {
+  listing seen;
+  char folder[700];
+  begin("list");
+  memset(&seen, 0, sizeof seen);
+  CHECK(!player_list_files(&fake->api, "listing", note, &seen) && seen.count == 0, "no folder, no list");
+  snprintf(folder, sizeof folder, "%s/listing/inner", fake->data);
+  {
+    char command[800];
+    snprintf(command, sizeof command, "mkdir -p '%s'", folder);
+    CHECK(system(command) == 0, "%s", command);
+  }
+  write_text("listing/one.sproutworld", "1");
+  write_text("listing/two.txt", "2");
+  CHECK(player_list_files(&fake->api, "listing", note, &seen), "listed");
+  CHECK(seen.count == 3 && listed(&seen, "one.sproutworld") && listed(&seen, "two.txt") && listed(&seen, "inner/"),
+        "%d names", seen.count);
+  end();
+}
+
 int main(void) {
   test_program("files");
   a_file_is_written_whole_and_read_back();
   a_file_bigger_than_a_chunk_is_read_whole();
   a_write_cut_short_before_the_swap_is_found_by_the_read();
   a_write_that_cannot_be_made_says_so_and_leaves_the_file();
+  a_folder_lists_its_files_and_marks_its_folders();
   return finish();
 }

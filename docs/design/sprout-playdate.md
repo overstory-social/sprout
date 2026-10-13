@@ -272,6 +272,36 @@ sets no update callback; Lua's `update()` runs everything. Everything a
 person sees is Lua; `Source/engine.lua` is the one place the registered
 functions are called.
 
+### The C app
+
+The player is becoming pure C, a screen at a time, beside the Lua app, which
+keeps shipping until the C app has every screen. Built with the CMake option
+`PLAYER_C_UI` (`npm run playdate -- --c-ui`, which writes
+`sprout-player/build/c-ui/sprout-player.pdx`), `main.c` sets the update
+callback at `kEventInit`, which tells the system the game is pure C, and the
+pdx carries no Lua: `pdc` packages a copy of `Source/` without its `.lua`
+files. Without the option the build is the Lua app, as above. Each frame
+runs on the player's own stack (`src/host/stack.h`), since a turn may run in
+it, and the file calls inside it hop back to the main stack.
+
+The app (`src/ui/app.h`) holds the session, the system font and the screen
+on show. A screen (`src/ui/screen.h`) is three functions over its own
+context: update with the buttons and the crank, draw, and leave; a screen
+moves the app to another, and the move takes effect when its update is over.
+There are two so far. The arrival (`src/ui/arrival.h`) reads the cartridge a
+step a frame behind a loading line, loads the save and admits the visitor;
+until the shelf and the nickname screen exist it opens the first cartridge
+in `worlds/` by name and admits the visitor the save remembers, or `Wren`.
+The reader (`src/ui/reader.h`) is `Source/reader.lua`'s: the transcript
+wrapped to the column, the newest at the bottom, under the status line (the
+place and its ways out, from the view), scrolled a line for each 12 degrees
+of crank and each press of up or down. Its word wrap is `wrap.lua`'s, over
+the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
+scrolling a line at a time needs the lines, which `drawTextInRect` does not
+give back. Text is drawn as written, on the reading that the C API's
+`drawText`, which takes no font family, has no bold or italic to read `*`
+and `_` as; the Simulator has yet to confirm it.
+
 ### The chip tree and the crank sentence builder
 
 A reading is not typed. The view lists every reading the visitor could make,
@@ -483,7 +513,9 @@ kinds, files, source bytes) are unset (hole 500).
 
 ### What is checked
 
-Without a console and without the Simulator: the Lua modules under a
+Without a console and without the Simulator: the C app's screens driven a
+frame at a time through a fake `PlaydateAPI` whose graphics draw into a 400
+by 240 one-bit frame; the Lua modules under a
 desktop Lua 5.4 (`lua5.4 sprout-player/test/run.lua`); a C test program
 beside each module of `sprout-player/src` through a fake `PlaydateAPI` that
 implements only what the glue calls; `glue.test.c`, which plays `chip-tree`
@@ -499,7 +531,8 @@ polled before every command under the app's poll budget and each reading
 required to be among what it offers, a set role one member at a time, as the
 sentence builder builds it, with every line the TypeScript runtime's. The
 Simulator target must compile and `pdc` must package the pdx; the device
-target is built too where `arm-none-eabi-gcc` is installed.
+target is built too where `arm-none-eabi-gcc` is installed; and both are
+built again as the C app, whose pdx must carry no Lua.
 `docs/design/sprout-test-harness.md` lists each.
 
 ### What has run on a screen, and what has not
@@ -514,6 +547,8 @@ through `markup.lua`, which doubles them.
 
 Not yet checked:
 
+- the C app (`PLAYER_C_UI`) on any screen: its arrival and reader have run
+  only through the fake `PlaydateAPI`;
 - a console: the device pdx builds and `pdc` packages it, and no Playdate
   has been on the bus;
 - the crank's feel (24 degrees a step and 12 degrees a scrolled line are
