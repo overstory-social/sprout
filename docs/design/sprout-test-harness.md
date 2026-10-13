@@ -166,6 +166,7 @@ diff is read like any golden.
 | `prose.json`, `prose.sproutworld`                  | `prose-goldens.spec.ts`           | every kind of slot, `{if}`, `{for}`, `{one of}`, reflow; the edge of every run of letters and every upper-case change          |
 | `views.json`, `views.sproutworld`                  | `view-goldens.spec.ts`            | a bench world's polls and a visitor's arrival in every corpus world: the view's JSON, the chip tree, steps and fault           |
 | `seeds.json`, `nicknames.json`, `budgets.json`     | the turn specs                    | the turn seed, nickname admission, the budget faults' words                                                                    |
+| `parser-words.json`, `addresses.json`              | `parser/goldens.spec.ts`          | the parser's word lists; a visitor's arrival in every corpus world: each live thing's address, what they may name, near and carried |
 
 Four rules keep the layer honest.
 
