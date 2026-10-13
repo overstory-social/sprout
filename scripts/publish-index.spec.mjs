@@ -10,7 +10,14 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { buildIndex, canonicalText, indexIsSigned, privateKeyOf, readKeyFile, signWorlds } from './index-signing.mjs';
+import {
+  buildIndex,
+  canonicalText,
+  indexIsSigned,
+  privateKeyOf,
+  readKeyFile,
+  signWorlds,
+} from './index-signing.mjs';
 import { main } from './publish-index.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '../..');
@@ -25,11 +32,14 @@ async function packed() {
   const { main: cli } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
   const quiet = { write: () => true };
   for (const name of ['chip-tree', 'media-room']) {
-    const code = await cli(['pack', join(root, 'corpus/good', name), '-o', join(dir, `${name}.sproutworld`)], {
-      stdout: quiet,
-      stderr: quiet,
-      stdin: process.stdin,
-    });
+    const code = await cli(
+      ['pack', join(root, 'corpus/good', name), '-o', join(dir, `${name}.sproutworld`)],
+      {
+        stdout: quiet,
+        stderr: quiet,
+        stdin: process.stdin,
+      },
+    );
     assert.equal(code, 0, `${name} packs`);
   }
   return dir;
@@ -42,12 +52,15 @@ function run(args, env = {}) {
 }
 
 test('the canonical text has sorted keys, no spaces, JSON strings and integers', () => {
-  assert.equal(canonicalText({ b: 1, a: ['x', 2], c: 'q"\\\n\u0001é' }), '{"a":["x",2],"b":1,"c":"q\\"\\\\\\n\\u0001é"}');
+  assert.equal(
+    canonicalText({ b: 1, a: ['x', 2], c: 'q"\\\n\u0001é' }),
+    '{"a":["x",2],"b":1,"c":"q\\"\\\\\\n\\u0001é"}',
+  );
   assert.throws(() => canonicalText({ n: 1.5 }), /not an integer/);
   assert.throws(() => canonicalText({ n: null }), /no canonical text/);
 });
 
-test('the fixture the Lua and C tests read is signed by the test key over the canonical text', () => {
+test('the fixture the C tests read is signed by the test key over the canonical text', () => {
   const index = JSON.parse(fixture('index.json'));
   assert.equal(canonicalText(index.worlds), fixture('index.canonical.txt'));
   assert.equal(`${index.signed}\n`, fixture('index.signature.txt'));
@@ -57,7 +70,11 @@ test('the fixture the Lua and C tests read is signed by the test key over the ca
 
 test('an index lists each cartridge with its header, size, SHA-256 and address, and its assets', async () => {
   const dir = await packed();
-  const index = buildIndex(dir, 'https://worlds.example/sprout', privateKeyOf(readKeyFile(TEST_KEY)));
+  const index = buildIndex(
+    dir,
+    'https://worlds.example/sprout',
+    privateKeyOf(readKeyFile(TEST_KEY)),
+  );
   assert.deepEqual(
     index.worlds.map((w) => w.title),
     ['chip_tree', 'media_room'],
@@ -74,7 +91,10 @@ test('an index lists each cartridge with its header, size, SHA-256 and address, 
     media.assets.map((a) => a.path),
     ['cellar.png', 'pictures/cabinet-open.png', 'pictures/cabinet.png'],
   );
-  assert.equal(media.assets[2].url, 'https://worlds.example/sprout/media-room.sproutworld.assets/pictures/cabinet.png');
+  assert.equal(
+    media.assets[2].url,
+    'https://worlds.example/sprout/media-room.sproutworld.assets/pictures/cabinet.png',
+  );
   assert.equal(indexIsSigned(index, TEST_PUBLIC), true);
 });
 
@@ -90,7 +110,13 @@ test('a changed index, or another key, does not verify', async () => {
 
 test('the command writes index.json beside the cartridges, signed with the key file named', async () => {
   const dir = await packed();
-  const { code, said } = run([dir, '--base-url', 'https://worlds.example/sprout/', '--key', TEST_KEY]);
+  const { code, said } = run([
+    dir,
+    '--base-url',
+    'https://worlds.example/sprout/',
+    '--key',
+    TEST_KEY,
+  ]);
   assert.equal(code, 0, said);
   assert.match(said, /signed 2 worlds into .*index\.json/);
   const index = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8'));
@@ -101,7 +127,9 @@ test('the command writes index.json beside the cartridges, signed with the key f
 test('the key may come from the environment, and --out gathers the cartridges, assets and index in one folder', async () => {
   const dir = await packed();
   const out = join(mkdtempSync(join(tmpdir(), 'sprout-out-')), 'site');
-  const { code, said } = run([dir, '--base-url', 'http://localhost:8000', '--out', out], { SPROUT_INDEX_KEY: TEST_KEY });
+  const { code, said } = run([dir, '--base-url', 'http://localhost:8000', '--out', out], {
+    SPROUT_INDEX_KEY: TEST_KEY,
+  });
   assert.equal(code, 0, said);
   for (const file of [
     'index.json',
@@ -122,7 +150,11 @@ test('a command that cannot proceed says what to do and exits non-zero', async (
     [[dir, '--base-url', 'https://x.example/'], {}, /Give the private key file with --key/],
     [[dir, '--base-url', 'ftp://x.example/', '--key', TEST_KEY], {}, /should begin with http/],
     [[dir, '--base-url', 'https://x.example/', '--key', join(dir, 'absent.key')], {}, /ENOENT/],
-    [[empty, '--base-url', 'https://x.example/', '--key', TEST_KEY], {}, /holds no \.sproutworld cartridge/],
+    [
+      [empty, '--base-url', 'https://x.example/', '--key', TEST_KEY],
+      {},
+      /holds no \.sproutworld cartridge/,
+    ],
   ];
   for (const [args, env, pattern] of cases) {
     const { code, said } = run(args, env);
@@ -147,7 +179,10 @@ test('--generate-key writes a private key only its owner can read and the public
   const publicKey = readFileSync(`${prefix}.pub`, 'utf8').trim();
   assert.match(publicKey, /^[0-9a-f]{64}$/);
   const worlds = [{ title: 'T' }];
-  assert.equal(indexIsSigned({ worlds, signed: signWorlds(worlds, privateKeyOf(seed)) }, publicKey), true);
+  assert.equal(
+    indexIsSigned({ worlds, signed: signWorlds(worlds, privateKeyOf(seed)) }, publicKey),
+    true,
+  );
   const again = run(['--generate-key', prefix]);
   assert.equal(again.code, 1);
   assert.match(again.said, /already exists; it is not replaced/);
@@ -162,9 +197,13 @@ test('the index the script writes has exactly the members index.schema.json requ
   assert.deepEqual(Object.keys(index).sort(), [...schema.required].sort());
   for (const entry of index.worlds) {
     for (const key of world.required) assert.ok(key in entry, `${key} is listed`);
-    for (const key of Object.keys(entry)) assert.ok(key in world.properties, `${key} is in the schema`);
+    for (const key of Object.keys(entry))
+      assert.ok(key in world.properties, `${key} is in the schema`);
     for (const asset of entry.assets ?? []) {
-      assert.deepEqual(Object.keys(asset).sort(), [...world.properties.assets.items.required].sort());
+      assert.deepEqual(
+        Object.keys(asset).sort(),
+        [...world.properties.assets.items.required].sort(),
+      );
     }
   }
   assert.match(index.signed, new RegExp(schema.properties.signed.pattern));
@@ -179,7 +218,14 @@ test('the command runs from the shell as the README says', async () => {
   const dir = await packed();
   const out = execFileSync(
     process.execPath,
-    [join(root, 'scripts/publish-index.mjs'), dir, '--base-url', 'https://worlds.example/', '--key', TEST_KEY],
+    [
+      join(root, 'scripts/publish-index.mjs'),
+      dir,
+      '--base-url',
+      'https://worlds.example/',
+      '--key',
+      TEST_KEY,
+    ],
     { encoding: 'utf8' },
   );
   assert.match(out, /signed 2 worlds/);

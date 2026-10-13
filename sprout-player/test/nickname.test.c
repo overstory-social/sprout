@@ -151,7 +151,7 @@ static void the_crank_and_the_d_pad_pick_a_name(void) {
   to_nickname("pick", true);
   count = picker()->count;
   CHECK(picker()->selected == 0 && strcmp(offered(), shown(want, sizeof want)) == 0, "a new visitor is offered the first name: %s", offered());
-  CHECK(HAS(drawn_at(240 - LINE - 2), "A to enter"), "the keys are said: %s", drawn_at(240 - LINE - 2));
+  CHECK(HAS(drawn_at(240 - LINE - 2), "A: enter"), "the keys are said: %s", drawn_at(240 - LINE - 2));
   fake->note_count = 0;
   fake_frame(fake, kButtonDown, 0);
   CHECK(picker()->selected == 1 && strcmp(offered(), shown(want, sizeof want)) == 0, "down offers the next: %s", offered());

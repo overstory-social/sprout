@@ -5,15 +5,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "bridge.h"
-#include "host/pd_host.h"
-
 int test_checks, test_failures;
 fake_playdate *fake;
 
 static char program[80], root[400];
 static int scenarios;
-static bool bridged;
 static player_session *owned;
 
 void test_program(const char *name) {
@@ -41,48 +37,15 @@ void begin(const char *scenario) {
   mkdir(data, 0777);
   fake = (fake_playdate *)calloc(1, sizeof *fake);
   fake_init(fake, data, PLAYER_CARTRIDGES);
-  bridged = false;
   owned = NULL;
   scenarios++;
 }
 
-void begin_bridge(const char *scenario) {
-  begin(scenario);
-  CHECK(player_register(&fake->api), "registering");
-  bridged = true;
-}
-
 void end(void) {
-  if (bridged) player_shutdown();
   if (owned != NULL) player_session_free(owned);
   CHECK(fake->pages == 0, "%d pages still out at the end", fake->pages);
   free(fake);
   fake = NULL;
-}
-
-char *keep(const char *reply) {
-  static char replies[8][1 << 17];
-  static int next;
-  char *copy = replies[next++ % 8];
-  CHECK(reply != NULL, "a call returned nothing");
-  if (reply == NULL) {
-    copy[0] = '\0';
-    return copy;
-  }
-  snprintf(copy, sizeof replies[0], "%s", reply);
-  return copy;
-}
-
-char *call(const char *name, const char *argument) { return keep(fake_call(fake, name, argument)); }
-
-char *open_world(const char *path) {
-  char *reply = call("sprout.open", path);
-  int steps = 0;
-  if (!HAS(reply, "\"ok\":true")) return reply;
-  do {
-    reply = call("sprout.step", NULL);
-  } while (HAS(reply, "\"done\":false") && ++steps < 100000);
-  return reply;
 }
 
 player_opening player_open_whole(player_session *session, const char *path) {
@@ -93,11 +56,6 @@ player_opening player_open_whole(player_session *session, const char *path) {
     answer = player_step(session);
   } while (answer.ok && !answer.done && ++steps < 100000);
   return answer;
-}
-
-char *call3(const char *name, const char *first, const char *second, const char *third) {
-  const char *const arguments[3] = {first, second, third};
-  return keep(fake_call_with(fake, name, 3, arguments));
 }
 
 player_session *session_new(void) {
@@ -183,16 +141,6 @@ void save_paths(const char *hash, char *state, char *log, size_t size) {
   CHECK(hash != NULL && strlen(hash) == 64, "no hash: %s", hash == NULL ? "(null)" : hash);
   snprintf(state, size, "saves/%s.json", hash == NULL ? "" : hash);
   snprintf(log, size, "saves/%s.log", hash == NULL ? "" : hash);
-}
-
-void save_paths_of_reply(const char *opened, char *state, char *log, size_t size) {
-  const char *hash = strstr(opened, "\"hash\":\"");
-  char digits[65];
-  CHECK(hash != NULL, "open said no hash: %s", opened);
-  if (hash == NULL) return;
-  memcpy(digits, hash + 8, 64);
-  digits[64] = '\0';
-  save_paths(digits, state, log, size);
 }
 
 /* ---- readings and what turns told ---- */
@@ -317,41 +265,9 @@ bool reading_from(player_session *session, const char *verb, const char *thing, 
 
 /* ---- JSON ---- */
 
-static sprout_arena arena;
-static player_host json_host;
-
-void json_begin(void) {
-  player_host_init(&json_host, &fake->api);
-  sprout_arena_init(&arena, &json_host.record);
-}
-
-void json_end(void) { sprout_arena_reset(&arena); }
-
-const sprout_json *parse(const char *text) {
-  sprout_json *node = NULL;
-  sprout_json_error error;
-  CHECK(sprout_json_read(&arena, text, strlen(text), &node, &error) == SPROUT_OK, "bad JSON: %s", text);
-  return node;
-}
-
 const char *string_at(const sprout_json *node, const char *key) {
   const sprout_json *member = node == NULL ? NULL : sprout_json_get(node, key);
   return member != NULL && member->kind == SPROUT_JSON_STRING ? member->bytes : "";
-}
-
-const char *line_text(const sprout_json *reply, size_t index) {
-  const sprout_json *lines = sprout_json_get(reply, "lines");
-  return lines != NULL && index < lines->count ? string_at(lines->items[index], "text") : "";
-}
-
-const char *line_kind(const sprout_json *reply, size_t index) {
-  const sprout_json *lines = sprout_json_get(reply, "lines");
-  return lines != NULL && index < lines->count ? string_at(lines->items[index], "kind") : "";
-}
-
-size_t line_count(const sprout_json *reply) {
-  const sprout_json *lines = sprout_json_get(reply, "lines");
-  return lines == NULL ? 0 : lines->count;
 }
 
 int finish(void) {

@@ -20,11 +20,11 @@ const char *const nickname_pool[NICKNAME_POOL_SIZE] = {
 static const char NO_NAME[] = "Every name this world allows is taken.";
 static const char NO_MEMORY[] = "The player ran out of memory bringing you into the world.";
 static const char REFUSED[] = "That name cannot be taken here; choose another.";
-static const char KEYS[] = "Crank or up/down to choose, A to enter, B to go back";
+static const char KEYS[] = "crank: choose   A: enter   B: back";
 static const char GO_ON[] = "A to go on";
 static const char NO_NAME_FREE[] = "No name is free.";
 
-/* The top of the name, as the Lua app draws it. */
+/* The top of the name. */
 #define NAME_TOP 100
 
 static char lower(char c) { return c >= 'A' && c <= 'Z' ? (char)(c - 'A' + 'a') : c; }

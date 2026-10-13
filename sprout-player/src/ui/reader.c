@@ -28,6 +28,7 @@ player_reader *player_reader_new(player_app *app) {
   transcript_init(&reader->lines, app->pd, player_pen_width, &app->pen, PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN,
                   player_reader_rows(app->pen.line_height));
   player_clock_start(&app->clock, player_app_seconds(app));
+  app->reading = true;
   return reader;
 }
 
@@ -109,6 +110,7 @@ static void draw(player_app *app, void *ctx) {
 static void leave(player_app *app, void *ctx) {
   player_reader *reader = (player_reader *)ctx;
   if (reader->lent) return;
+  app->reading = false;
   player_clock_stop(&app->clock);
   transcript_free(&reader->lines);
   player_free(app->pd, reader);

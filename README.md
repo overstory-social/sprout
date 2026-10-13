@@ -79,7 +79,7 @@ cli/src           the `sprout` command: scaffold and check, the inspectors parse
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm`, one world per instance driven from JavaScript (`engine.mjs`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
-sprout-player/    the Playdate app: the C runtime under a Lua UI (shelf, reader, crank sentence builder, nickname picker, downloads); built by CMake against the Playdate SDK, with Lua tests and C tests over a fake `PlaydateAPI`
+sprout-player/    the Playdate app, pure C over the C runtime: the session, the host adapter (`src/host`) and the screens (`src/ui`: shelf, reader, crank sentence builder, nickname picker, pictures, downloads); built by CMake against the Playdate SDK, with C tests over a fake `PlaydateAPI`
 scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the corpus replay, the view comparison, the WebAssembly engine, the player), `fuzz-runtime.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
@@ -137,7 +137,7 @@ check holds the C runtime to.
 
 ## Playdate
 
-`sprout-player/` is a Sprout player for the Playdate console: the C runtime under a Lua UI, with
+`sprout-player/` is a Sprout player for the Playdate console, written in C over the C runtime, with
 a crank sentence builder in place of a keyboard. You need the Playdate SDK (Panic's, 3.1.2; never
 committed here), CMake, a C compiler, and the repository built (`npm ci && npm run build`).
 
@@ -145,16 +145,11 @@ committed here), CMake, a C compiler, and the repository built (`npm ci && npm r
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once (Linux)
 npm run playdate                                             # packs the graduated worlds and builds the pdx
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
-lua5.4 sprout-player/test/run.lua                            # the Lua tests alone, with no SDK
 ```
-
-The player is becoming pure C a screen at a time. `npm run playdate -- --c-ui` builds the C app
-instead, into `sprout-player/build/c-ui/sprout-player.pdx`, with no Lua in it: so far it starts on the
-shelf, opens the world chosen and shows the arrival in the reader. The default build is the Lua app.
 
 On macOS or Windows install the SDK from play.date/dev and point `PLAYDATE_SDK_PATH` at it. With
 the variable set, `node scripts/check-runtime-c.mjs` (and so the gate) also builds the Simulator
-target and runs the player's Lua and C tests; with it unset the last line says they were skipped.
+target and runs the player's C tests; with it unset the last line says they were skipped.
 
 `npm run playdate` writes **one pdx** that carries every binary the machine can build, and says
 which: the Simulator library of the platform that built it (`pdex.so` on Linux, `pdex.dylib` on
@@ -176,9 +171,9 @@ cp -r sprout-player/build/sprout-player.pdx /mnt/c/Users/<you>/sprout-playdate/
   'C:\Users\<you>\sprout-playdate\sprout-player.pdx')
 ```
 
-In the Simulator the A button is the S key and B is the A key. The app has run this way on the
-Windows Simulator: shelf, nickname picker, reader, sentence builder and turns. It has not yet run on a
-console. To put it on one, with the pdx holding `pdex.bin`: plug the Playdate in over USB and use
+In the Simulator the A button is the S key and B is the A key. The app has run on the
+Simulator: shelf, nickname picker, reader, sentence builder, pictures, downloads and ticks. It has
+not yet run on a console. To put it on one, with the pdx holding `pdex.bin`: plug the Playdate in over USB and use
 the Simulator's **Device › Upload Game to Device**; or `"$PLAYDATE_SDK_PATH/bin/pdutil" install
 sprout-player.pdx` where the Linux `pdutil` runs; or zip the pdx folder and sideload it from your
 account at play.date, which the console then fetches over Wi-Fi.
@@ -194,7 +189,8 @@ shelf's last row fetches more from a signed index
 (`node scripts/publish-index.mjs --generate-key <prefix>` makes the publisher's key, which never
 enters this repository; `publish-index.mjs <folder> --base-url <url> --key <file>` writes the
 index; the app is built with the public half through `SPROUT_INDEX_PUBLIC_KEY`, and
-`Source/config.lua` or the Data folder's `downloads.json` holds the address). The design doc,
+the Data folder's `downloads.json` holds the address, else the placeholder `PLAYER_INDEX_URL` in
+`sprout-player/src/ui/downloads.h`). The design doc,
 [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md), has the whole of it. For
 players, see the manual's [Playing on the Playdate](docs/manual/06-playdate.md).
 

@@ -1,5 +1,5 @@
 /*
- * The app's sounds, Source/sound.lua's: each cue a short note on a synth of the SDK's
+ * The app's sounds: each cue a short note on a synth of the SDK's
  * (`pd->sound->synth`), made once when the app starts and freed when it ends. Every screen sounds
  * its cues through `player_cue`; where the synths could not be made, a cue is silent.
  */

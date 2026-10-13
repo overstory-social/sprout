@@ -2,6 +2,5 @@
 # binary, the packed worlds the build stages, the public key it bakes in, and the pdx.
 /Source/pdex.*
 /Source/worlds/
-/Source/publickey.lua
 *.pdx/
 build/

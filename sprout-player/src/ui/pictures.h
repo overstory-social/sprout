@@ -1,5 +1,5 @@
 /*
- * The pictures screen, Source/main.lua's picture mode: what a turn's effects asked for (and, on
+ * The pictures screen: what a turn's effects asked for (and, on
  * arrival, the place's own) shown one at a time on the whole screen (gallery.h), each scaled to
  * fit above a caption line that also says `2 of 3  crank: next   A: close`. The crank, or the
  * d-pad, steps between them slat by slat, each step ticking and each landing clacking; A or B

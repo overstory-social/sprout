@@ -1,4 +1,4 @@
-/* The C app; see app.h. */
+/* The app; see app.h. */
 #include "app.h"
 
 #include <string.h>
@@ -6,6 +6,9 @@
 #include "shelf.h"
 #include "host/files.h"
 #include "host/stack.h"
+
+/* The system menu's callback, outside any frame: the leaving waits for the next one, which runs on the own stack. */
+static void leave_world_chosen(void *userdata) { ((player_app *)userdata)->leave_asked = true; }
 
 player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   player_app *app = (player_app *)player_alloc(pd, sizeof *app);
@@ -32,6 +35,7 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   }
   app->screen = &player_shelf_screen;
   app->ctx = app->shelf;
+  app->leave_item = pd->system->addMenuItem("leave world", leave_world_chosen, app);
   return app;
 }
 
@@ -46,6 +50,7 @@ static void *close_thunk(void *ctx) {
 
 void player_app_free(player_app *app) {
   if (app == NULL) return;
+  if (app->leave_item != NULL) app->pd->system->removeMenuItem(app->leave_item);
   player_on_own_stack(app->pd, close_thunk, app);
   player_shelf_free(app, app->shelf);
   player_session_free(app->session);
@@ -67,8 +72,21 @@ void player_app_show(player_app *app, const player_screen *screen, void *ctx) {
   app->next_ctx = ctx;
 }
 
+/* The visitor leaves the world for the shelf, as B on the nickname screen does. */
+static void leave_world(player_app *app) {
+  player_cue(app, PLAYER_CUE_BACK);
+  if (player_close(app->session).saved)
+    player_shelf_show(app);
+  else
+    player_shelf_unsaved(app);
+}
+
 void player_app_frame(player_app *app, const player_input *input) {
-  app->screen->update(app, app->ctx, input);
+  if (app->leave_asked && app->reading)
+    leave_world(app);
+  else
+    app->screen->update(app, app->ctx, input);
+  app->leave_asked = false;
   if (app->next != NULL) {
     app->screen->leave(app, app->ctx);
     app->screen = app->next;

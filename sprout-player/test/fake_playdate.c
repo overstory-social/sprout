@@ -558,6 +558,24 @@ static void fake_buttons(PDButtons *held, PDButtons *pushed, PDButtons *released
 static float fake_crank_change(void) { return current->crank; }
 static int fake_crank_docked(void) { return current->docked; }
 
+static PDMenuItem *fake_add_menu_item(const char *title, PDMenuItemCallbackFunction *callback, void *userdata) {
+  if (current->menu_title[0] != '\0') return NULL;
+  snprintf(current->menu_title, sizeof current->menu_title, "%s", title);
+  current->menu_callback = callback;
+  current->menu_ctx = userdata;
+  return (PDMenuItem *)current->menu_title;
+}
+
+static void fake_remove_menu_item(PDMenuItem *item) {
+  if (item == (PDMenuItem *)current->menu_title) current->menu_title[0] = '\0';
+}
+
+int fake_menu(fake_playdate *fake, const char *title) {
+  if (fake->menu_title[0] == '\0' || strcmp(fake->menu_title, title) != 0) return 0;
+  fake->menu_callback(fake->menu_ctx);
+  return 1;
+}
+
 static void fake_set_update(PDCallbackFunction *update, void *userdata) {
   current->update = update;
   current->update_ctx = userdata;
@@ -575,26 +593,6 @@ int fake_frame(fake_playdate *fake, PDButtons pushed, float crank) {
   fake->buttons_pushed = fake->buttons_held = 0;
   fake->crank = 0;
   return shown;
-}
-
-/* ---- Lua ---- */
-
-static int fake_add_function(lua_CFunction function, const char *name, const char **error) {
-  (void)error;
-  if (current->function_count == FAKE_FUNCTIONS) return 0;
-  current->names[current->function_count] = name;
-  current->functions[current->function_count++] = function;
-  return 1;
-}
-
-static const char *fake_arg_string(int position) {
-  return position >= 1 && position <= current->arg_count ? current->args[position - 1] : NULL;
-}
-
-static void fake_push_string(const char *text) {
-  if (strlen(text) >= sizeof current->pushed) abort();
-  snprintf(current->pushed, sizeof current->pushed, "%s", text);
-  current->push_count++;
 }
 
 void fake_init(fake_playdate *fake, const char *data, const char *app) {
@@ -623,6 +621,8 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->sys.getCrankChange = fake_crank_change;
   fake->sys.isCrankDocked = fake_crank_docked;
   fake->sys.setUpdateCallback = fake_set_update;
+  fake->sys.addMenuItem = fake_add_menu_item;
+  fake->sys.removeMenuItem = fake_remove_menu_item;
   fake->gfx.clear = fake_clear;
   fake->gfx.fillRect = fake_fill_rect;
   fake->gfx.fillTriangle = fake_fill_triangle;
@@ -646,9 +646,6 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->synth.setReleaseTime = fake_set_release;
   fake->synth.playNote = fake_play_note;
   fake->sound.synth = &fake->synth;
-  fake->lua.addFunction = fake_add_function;
-  fake->lua.getArgString = fake_arg_string;
-  fake->lua.pushString = fake_push_string;
   fake->wifi = kWifiConnected;
   fake->access = kAccessAllow;
   fake->piece = 1024;
@@ -674,25 +671,6 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->api.network = &fake->network;
   fake->api.system = &fake->sys;
   fake->api.file = &fake->file;
-  fake->api.lua = &fake->lua;
   fake->api.graphics = &fake->gfx;
   fake->api.sound = &fake->sound;
-}
-
-const char *fake_call_with(fake_playdate *fake, const char *name, int count, const char *const *arguments) {
-  int i, a;
-  current = fake;
-  for (i = 0; i < fake->function_count; i++) {
-    if (strcmp(fake->names[i], name) != 0) continue;
-    fake->arg_count = count;
-    for (a = 0; a < count && a < FAKE_ARGS; a++) fake->args[a] = arguments[a];
-    fake->push_count = 0;
-    if (fake->functions[i](NULL) != 1 || fake->push_count != 1) return NULL;
-    return fake->pushed;
-  }
-  return NULL;
-}
-
-const char *fake_call(fake_playdate *fake, const char *name, const char *argument) {
-  return fake_call_with(fake, name, argument == NULL ? 0 : 1, &argument);
 }

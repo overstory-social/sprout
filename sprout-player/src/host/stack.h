@@ -1,6 +1,6 @@
 /*
- * Which stack a call runs on. On the device, a call from Lua that may run a
- * turn runs on a stack of the player's own, since the main stack has little
+ * Which stack a call runs on. On the device, a frame of the app, which may run a
+ * turn, runs on a stack of the player's own, since the main stack has little
  * room left by then, and the firmware's file system is called back on the
  * main stack, the only one it accepts. On the Simulator every call is direct.
  */

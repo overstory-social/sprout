@@ -1,13 +1,20 @@
 // The index of published worlds that the Playdate app's download screen reads
 // (sprout-player/index.schema.json), and the keys that sign it: building the index from a
 // folder of cartridges, its canonical text, Ed25519 signing and verifying. scripts/publish-index.mjs
-// is the command line over this; the specs and the app's Lua (Source/canonical.lua) agree with
-// `canonicalText` byte for byte.
+// is the command line over this; the specs and the app's C (sprout-player/src/canonical.c) agree
+// with `canonicalText` byte for byte.
 //
 // A private key is a file holding the 32-byte Ed25519 seed as 64 hexadecimal digits; a public key
 // is a file holding the 32-byte key the same way. Private keys never enter the repository.
 
-import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify } from 'node:crypto';
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  generateKeyPairSync,
+  sign,
+  verify,
+} from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -24,7 +31,8 @@ const SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 export function canonicalText(value) {
   if (typeof value === 'string') return JSON.stringify(value);
   if (typeof value === 'number') {
-    if (!Number.isInteger(value)) throw new Error(`${value} is not an integer, so it has no canonical text`);
+    if (!Number.isInteger(value))
+      throw new Error(`${value} is not an integer, so it has no canonical text`);
     return String(value);
   }
   if (Array.isArray(value)) return `[${value.map(canonicalText).join(',')}]`;
@@ -39,19 +47,28 @@ export function canonicalText(value) {
 export function readKeyFile(path) {
   const text = readFileSync(path, 'utf8').trim();
   if (!/^[0-9a-f]{64}$/.test(text)) {
-    throw new Error(`${path} should hold 64 lowercase hexadecimal digits (a 32-byte Ed25519 key) and nothing else.`);
+    throw new Error(
+      `${path} should hold 64 lowercase hexadecimal digits (a 32-byte Ed25519 key) and nothing else.`,
+    );
   }
   return Buffer.from(text, 'hex');
 }
 
 /** The private key a seed makes. */
 export function privateKeyOf(seed) {
-  return createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, seed]), format: 'der', type: 'pkcs8' });
+  return createPrivateKey({
+    key: Buffer.concat([PKCS8_PREFIX, seed]),
+    format: 'der',
+    type: 'pkcs8',
+  });
 }
 
 /** The 32-byte public key of a private key, as 64 hexadecimal digits. */
 export function publicKeyHex(privateKey) {
-  return createPublicKey(privateKey).export({ format: 'der', type: 'spki' }).subarray(SPKI_PREFIX.length).toString('hex');
+  return createPublicKey(privateKey)
+    .export({ format: 'der', type: 'spki' })
+    .subarray(SPKI_PREFIX.length)
+    .toString('hex');
 }
 
 /** A new key pair as { seed, publicKey }, both 64 hexadecimal digits. */
@@ -74,7 +91,12 @@ export function indexIsSigned(index, publicKey) {
       format: 'der',
       type: 'spki',
     });
-    return verify(null, Buffer.from(canonicalText(index.worlds)), key, Buffer.from(index.signed, 'hex'));
+    return verify(
+      null,
+      Buffer.from(canonicalText(index.worlds)),
+      key,
+      Buffer.from(index.signed, 'hex'),
+    );
   } catch {
     return false;
   }
@@ -134,7 +156,9 @@ export function worldsOf(dir, baseUrl) {
     worlds.push(world);
   }
   if (worlds.length === 0) {
-    throw new Error(`${dir} holds no ${CARTRIDGE_EXTENSION} cartridge (pack worlds with \`sprout pack\` first).`);
+    throw new Error(
+      `${dir} holds no ${CARTRIDGE_EXTENSION} cartridge (pack worlds with \`sprout pack\` first).`,
+    );
   }
   return worlds;
 }
