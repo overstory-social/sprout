@@ -1,11 +1,11 @@
 /* The functions Lua calls; see bridge.h. */
-#include <stdint.h>
-
 #include "bridge.h"
-#include "stack.h"
+
+#include <stdint.h>
 
 #include "session.h"
 #include "shipping.h"
+#include "stack.h"
 
 static PlaydateAPI *api;
 static player_session *session;

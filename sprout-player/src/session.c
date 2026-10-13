@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "budgets.h"
-#include "stack.h"
 #include "files.h"
 #include "session_internal.h"
+#include "stack.h"
 #include "text.h"
 #include "world.h"
 

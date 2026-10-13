@@ -1,11 +1,11 @@
 /* Whole files over the Playdate's filesystem; see files.h. */
-#include <stdint.h>
 #include "files.h"
-#include "stack.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "seeds.h"
+#include "stack.h"
 
 #define CHUNK 4096u
 #define TEMP_PATH 256u
