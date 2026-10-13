@@ -45,6 +45,7 @@ import {
   type Stage,
   type Traced,
 } from './play/traced.js';
+import { faultedParseOf, handedOf, parseRecordOf } from './parsed.js';
 import { turnSeed } from './seeds.js';
 import {
   catalogueFor,
@@ -304,9 +305,17 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
   const visit = present(stage, nickname, where);
   const out: Made[] = [];
   let seed = stage.seed;
+  let first = true;
   runLine(
     { ...inputs(stage), visit, text },
     (typed) => {
+      const before = first ? null : stage.state;
+      first = false;
+      // What the parser read is the turn's own: a turn that reads no words, as a step a line planned, has none.
+      stage.parsed.length = 0;
+      stage.read = null;
+      stage.parse = null;
+      const handed = typed.planned === undefined ? null : handedOf(typed.planned, typed.reread);
       const turn = commandTurn(stage.state, stage.host, typed);
       const traceCommand = (
         logged: Partial<Logged>,
@@ -316,7 +325,15 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
           stage,
           'command',
           loggedOf(stage, { seed: typed.seed, now: typed.now, who: visit, ...logged }),
-          { as: nickname, typed: typed.text, parseDraws: [...stage.parsed], ...parts },
+          {
+            as: nickname,
+            typed: typed.text,
+            parseDraws: [...stage.parsed],
+            parsed: stage.parse,
+            handed,
+            before,
+            ...parts,
+          },
         );
       if (!turn.committed) {
         traceCommand(
@@ -551,19 +568,25 @@ export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets
       catalogue,
       budgets: { ...DEFAULT_LIMITS.budgets, ...budgets },
       render: renderEffects,
-      // The parser's draws are noted, since a runtime that does not parse begins its stream with them.
+      // What the parser drew, spent and made is noted, since a runtime that does not parse begins its
+      // stream with the draws, and one that does compares its parse with all of it.
       parse: (text, actor, context) => {
-        stage.parsed.length = 0;
-        stage.read = null;
         const recording = {
           below: (n: number): number => {
             stage.parsed.push(n);
             return context.draws.below(n);
           },
         };
-        const parsed = parseCommand(text, actor, { ...context, draws: recording });
-        if ('reading' in parsed) stage.read = parsed.reading;
-        return parsed;
+        const from = context.budget.spentSteps;
+        try {
+          const parsed = parseCommand(text, actor, { ...context, draws: recording });
+          if ('reading' in parsed) stage.read = parsed.reading;
+          stage.parse = parseRecordOf(parsed, stage.parsed, context.budget.spentSteps - from);
+          return parsed;
+        } catch (thrown) {
+          stage.parse = faultedParseOf(thrown, stage.parsed, context.budget.spentSteps - from);
+          throw thrown;
+        }
       },
     },
     state: initialState(catalogue),
@@ -573,6 +596,7 @@ export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets
     turns: [],
     parsed: [],
     read: null,
+    parse: null,
   };
   return stage;
 }

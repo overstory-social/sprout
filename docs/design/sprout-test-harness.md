@@ -227,6 +227,21 @@ TypeScript one over whole worlds.
   scene and each verb's readings of every visitor after every step of every
   script, against `pollScene` and `pollReadings`, and the fuzzer polls every
   visitor still in the world at the end of each play.
+- **The parse comparison.** The C parser is being built (#624, one piece at
+  a time), and the readings files are its oracle: beside each command turn
+  they keep what `host.parse` returned (`parsed`: the reading or intent with
+  its bindings in the order bound, the turns after it, the draw, the
+  corrections, or the answer's line and bindings, or the fault; the bounds
+  drawn and the steps spent), what a later turn of a line was handed, and
+  the stored world a turn after the first in its step began from
+  (`player/src/parsed.ts`). `sproutc parse <cartridge> --readings <file>`
+  reads each turn's words through `sprout_parse` over that world, under the
+  turn's seed, and compares the two as JSON; a turn a line planned reads no
+  words and is counted apart. `scripts/check-runtime-c.mjs` runs it over
+  every script (`replayParses`), prints one line per world with how many
+  turns read alike and how many of the TypeScript parser's `unknown`
+  answers, and fails only when the worlds that parse alike in full are not
+  `EXPECTED_PARSING`, a ratchet each piece of the parser grows.
 - **The fuzzer.** `scripts/fuzz-runtime.mjs` plays, from a seed, offered,
   refused and unreadable lines, ticks, time, departures and arrivals, and
   tight budgets through both runtimes, and writes the first divergence as a
@@ -234,7 +249,9 @@ TypeScript one over whole worlds.
   `npm run e2e` runs about two thousand readings over the corpus; longer
   campaigns are run by hand.
 
-What is not compared, and why: a command's parsing (the device has none);
+What is not compared, and why: a command's parsing in the replay, which
+plays the TypeScript parser's readings (the parse comparison holds the C
+parser to it apart, and the device has none);
 the object a poll's fault names (a C fault carries none); the record of where
 each effect's words were written (an author's tool); any extension but
 `media`. Each is a numbered hole in the working notes. A scene's verbs are

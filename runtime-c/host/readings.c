@@ -105,6 +105,7 @@ const char *sproutc_readings_step(const sproutc_readings *readings, size_t i, sp
   step->line = text_of(one, "line");
   step->nickname = text_of(one, "nickname");
   number_of(one, "forSeconds", &step->for_seconds);
+  if (sprout_json_get(one, "after") != NULL) step->world = sprout_json_get(sprout_json_get(one, "after"), "world");
   turns = sprout_json_get(one, "turns");
   if (step->kind == SPROUTC_STEP_COMMAND) {
     if (turns == NULL || turns->kind != SPROUT_JSON_ARRAY || step->nickname == NULL)
@@ -129,6 +130,9 @@ const char *sproutc_readings_turn(const sproutc_step *step, size_t i, sproutc_tu
   turn->skip = skip->boolean;
   turn->says = sprout_json_get(one, "says");
   turn->expect = sprout_json_get(one, "expect");
+  turn->parsed = sprout_json_get(one, "parsed");
+  turn->handed = sprout_json_get(one, "handed");
+  turn->before = sprout_json_get(one, "before");
   if (turn->skip) {
     turn->why = text_of(one, "why");
     return turn->why == NULL ? "a skipped turn in the readings file does not say why." : NULL;
@@ -141,5 +145,83 @@ const char *sproutc_readings_turn(const sproutc_step *step, size_t i, sproutc_tu
   turn->refused = sprout_json_get(one, "refused") != NULL && sprout_json_get(one, "refused")->boolean;
   if (turn->verb == NULL || turn->actor == NULL || turn->fillers == NULL || turn->fillers->kind != SPROUT_JSON_ARRAY)
     return "a turn in the readings file has no verb, actor or fillers.";
+  return NULL;
+}
+
+const char *sproutc_readings_fillings(sprout_arena *arena, const sprout_json *fillers, sprout_filling **out,
+                                     size_t *count) {
+  sprout_filling *found = (sprout_filling *)sprout_arena_take(arena, (fillers->count + 1) * sizeof *found);
+  size_t i, j;
+  if (found == NULL) return "the host cannot give the reading memory.";
+  for (i = 0; i < fillers->count; i++) {
+    const sprout_json *one = fillers->items[i], *role = sprout_json_get(one, "role"), *binds = sprout_json_get(one, "binds");
+    const sprout_json *id = sprout_json_get(one, "id"), *ids = sprout_json_get(one, "ids");
+    const sprout_json *direction = sprout_json_get(one, "direction"), *label = sprout_json_get(one, "label");
+    const sprout_json *to = sprout_json_get(one, "to"), *value = sprout_json_get(one, "value");
+    if (role == NULL || binds == NULL || role->kind != SPROUT_JSON_STRING || binds->kind != SPROUT_JSON_STRING)
+      return "a filler in the readings file has no role or binds.";
+    found[i].role = role->bytes;
+    if (strcmp(binds->bytes, "unbound") == 0) {
+      found[i].binds = SPROUT_FILL_UNBOUND;
+    } else if (strcmp(binds->bytes, "object") == 0 && id != NULL) {
+      found[i].binds = SPROUT_FILL_OBJECT;
+      found[i].id = id->bytes;
+    } else if (strcmp(binds->bytes, "set") == 0 && ids != NULL) {
+      const char **list = (const char **)sprout_arena_take(arena, (ids->count + 1) * sizeof *list);
+      if (list == NULL) return "the host cannot give the reading memory.";
+      for (j = 0; j < ids->count; j++) list[j] = ids->items[j]->bytes;
+      found[i].binds = SPROUT_FILL_SET;
+      found[i].ids = list;
+      found[i].id_count = ids->count;
+    } else if (strcmp(binds->bytes, "exit") == 0 && to != NULL && label != NULL) {
+      found[i].binds = SPROUT_FILL_EXIT;
+      found[i].id = to->bytes;
+      found[i].label = label->bytes;
+      found[i].direction = direction == NULL || direction->kind != SPROUT_JSON_STRING ? NULL : direction->bytes;
+    } else if (strcmp(binds->bytes, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_STRING) {
+      found[i].binds = SPROUT_FILL_TEXT;
+      found[i].text = value->bytes;
+    } else if (strcmp(binds->bytes, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_NUMBER) {
+      found[i].binds = SPROUT_FILL_NUMBER;
+      found[i].number = value->number;
+    } else {
+      return "a filler in the readings file fills a role with what no role takes.";
+    }
+  }
+  *out = found;
+  *count = fillers->count;
+  return NULL;
+}
+
+
+const char *sproutc_readings_budgets(sprout_budgets *b, const sprout_json *given) {
+  struct {
+    const char *name;
+    sprout_limit *limit;
+  } rows[] = {{"steps", &b->steps},
+              {"pollSteps", &b->poll_steps},
+              {"output", &b->output},
+              {"events", &b->events},
+              {"cascadeDepth", &b->cascade_depth},
+              {"passageDepth", &b->passage_depth},
+              {"setRoleObjects", &b->set_role_objects},
+              {"spawnsPerTurn", &b->spawns},
+              {"shortestWakeSeconds", &b->shortest_wake_seconds},
+              {"pendingWakesPerObject", &b->pending_wakes},
+              {"peoplePerPlace", &b->people_per_place},
+              {"extensionEffects", &b->extension_effects},
+              {"nicknameCharacters", &b->nickname_characters},
+              {"wallClockMs", &b->wall_clock_ms}};
+  size_t i, j;
+  for (i = 0; given != NULL && i < given->count; i++) {
+    bool found = false;
+    for (j = 0; j < sizeof rows / sizeof *rows && !found; j++) {
+      if (strcmp(given->items[i]->key, rows[j].name) != 0) continue;
+      found = true;
+      rows[j].limit->set = given->items[i]->kind == SPROUT_JSON_NUMBER;
+      rows[j].limit->value = rows[j].limit->set ? (uint64_t)given->items[i]->number : 0;
+    }
+    if (!found) return "the readings file sets a budget this host has no row for.";
+  }
   return NULL;
 }

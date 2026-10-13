@@ -112,7 +112,7 @@ WSL2); without `setarch` it prints the remedy, `setarch -R npm run e2e`.
 ```sh
 sprout pack corpus/good/chip-tree -o chip-tree.sproutworld   # compile strictly, write the cartridge (and <cartridge>.assets/)
 sprout play chip-tree.sproutworld                            # play, test and view take a cartridge where they take a folder
-npm run build && node scripts/check-runtime-c.mjs            # build runtime-c/, run ctest, replay every transcript and compare every view
+npm run build && node scripts/check-runtime-c.mjs            # build runtime-c/, run ctest, replay every transcript, compare every view and every parse
 node scripts/fuzz-runtime.mjs --corpus --readings 2000       # the C runtime against the TypeScript one over generated plays
 node --expose-gc scripts/profile-runtime.mjs <world>         # the TypeScript runtime's heap over a long play
 node --expose-gc scripts/profile-store.mjs <world>           # a world served as the server serves it: turns, views, the log
@@ -127,7 +127,10 @@ polled before each command and must offer the reading, as the Playdate's sentenc
 writes each step's bytes held and peak),
 `sproutc view <cartridge> --state f [--visit k] [--poll-steps n] [--json | --scene | --verb name]` (`--scene` prints the
 scene, which lists the verbs in place of the readings, and `--verb` one verb's readings, by its qualified name, as
-`sprout view --scene` and `--verb` do)
+`sprout view --scene` and `--verb` do),
+`sproutc parse <cartridge> --readings f [--each]` (reads every line the readings file says the TypeScript parser
+read, over the stored world its turn began from and under its seed, and compares the two, printing the first
+difference and how many turns agree; `--each` prints every turn's verdict)
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each
 check holds the C runtime to.

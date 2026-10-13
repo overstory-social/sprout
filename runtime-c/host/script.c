@@ -386,51 +386,6 @@ static bool advance(play *p, const sproutc_step *step) {
   return true;
 }
 
-/* A reading's fillings from the TypeScript parser's fillers, by id. */
-static const char *fillings_of(play *p, const sprout_json *fillers, sprout_filling **out, size_t *count) {
-  sprout_filling *found = (sprout_filling *)sprout_arena_take(&p->arena, (fillers->count + 1) * sizeof *found);
-  size_t i, j;
-  if (found == NULL) return "the host cannot give the reading memory.";
-  for (i = 0; i < fillers->count; i++) {
-    const sprout_json *one = fillers->items[i], *role = sprout_json_get(one, "role"), *binds = sprout_json_get(one, "binds");
-    const sprout_json *id = sprout_json_get(one, "id"), *ids = sprout_json_get(one, "ids");
-    const sprout_json *direction = sprout_json_get(one, "direction"), *label = sprout_json_get(one, "label");
-    const sprout_json *to = sprout_json_get(one, "to"), *value = sprout_json_get(one, "value");
-    if (role == NULL || binds == NULL || role->kind != SPROUT_JSON_STRING || binds->kind != SPROUT_JSON_STRING)
-      return "a filler in the readings file has no role or binds.";
-    found[i].role = role->bytes;
-    if (strcmp(binds->bytes, "unbound") == 0) {
-      found[i].binds = SPROUT_FILL_UNBOUND;
-    } else if (strcmp(binds->bytes, "object") == 0 && id != NULL) {
-      found[i].binds = SPROUT_FILL_OBJECT;
-      found[i].id = id->bytes;
-    } else if (strcmp(binds->bytes, "set") == 0 && ids != NULL) {
-      const char **list = (const char **)sprout_arena_take(&p->arena, (ids->count + 1) * sizeof *list);
-      if (list == NULL) return "the host cannot give the reading memory.";
-      for (j = 0; j < ids->count; j++) list[j] = ids->items[j]->bytes;
-      found[i].binds = SPROUT_FILL_SET;
-      found[i].ids = list;
-      found[i].id_count = ids->count;
-    } else if (strcmp(binds->bytes, "exit") == 0 && to != NULL && label != NULL) {
-      found[i].binds = SPROUT_FILL_EXIT;
-      found[i].id = to->bytes;
-      found[i].label = label->bytes;
-      found[i].direction = direction == NULL || direction->kind != SPROUT_JSON_STRING ? NULL : direction->bytes;
-    } else if (strcmp(binds->bytes, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_STRING) {
-      found[i].binds = SPROUT_FILL_TEXT;
-      found[i].text = value->bytes;
-    } else if (strcmp(binds->bytes, "value") == 0 && value != NULL && value->kind == SPROUT_JSON_NUMBER) {
-      found[i].binds = SPROUT_FILL_NUMBER;
-      found[i].number = value->number;
-    } else {
-      return "a filler in the readings file fills a role with what no role takes.";
-    }
-  }
-  *out = found;
-  *count = fillers->count;
-  return NULL;
-}
-
 /* What the parser drew and said while it read the line, as the reading carries it. */
 static const char *parsing_of(play *p, const sproutc_turn_reading *turn, sprout_reading *read) {
   size_t i;
@@ -595,7 +550,7 @@ static bool command(play *p, const sproutc_step *step) {
       if (!echo(p, &reading)) return false;
       continue;
     }
-    why = fillings_of(p, reading.fillers, &fillings, &count);
+    why = sproutc_readings_fillings(&p->arena, reading.fillers, &fillings, &count);
     if (why != NULL) {
       fprintf(p->err, "sproutc: %s\n", why);
       p->failure = 1;
@@ -624,42 +579,6 @@ static bool command(play *p, const sproutc_step *step) {
   return true;
 }
 
-/* ---- the budgets ---- */
-
-/* The host's budgets, less any the readings were played under, named as the TypeScript runtime names them. */
-static const char *budgets_of(sproutc_host *host, const sprout_json *given) {
-  sprout_budgets *b = &host->record.budgets;
-  struct {
-    const char *name;
-    sprout_limit *limit;
-  } rows[] = {{"steps", &b->steps},
-              {"pollSteps", &b->poll_steps},
-              {"output", &b->output},
-              {"events", &b->events},
-              {"cascadeDepth", &b->cascade_depth},
-              {"passageDepth", &b->passage_depth},
-              {"setRoleObjects", &b->set_role_objects},
-              {"spawnsPerTurn", &b->spawns},
-              {"shortestWakeSeconds", &b->shortest_wake_seconds},
-              {"pendingWakesPerObject", &b->pending_wakes},
-              {"peoplePerPlace", &b->people_per_place},
-              {"extensionEffects", &b->extension_effects},
-              {"nicknameCharacters", &b->nickname_characters},
-              {"wallClockMs", &b->wall_clock_ms}};
-  size_t i, j;
-  for (i = 0; given != NULL && i < given->count; i++) {
-    bool found = false;
-    for (j = 0; j < sizeof rows / sizeof *rows && !found; j++) {
-      if (strcmp(given->items[i]->key, rows[j].name) != 0) continue;
-      found = true;
-      rows[j].limit->set = given->items[i]->kind == SPROUT_JSON_NUMBER;
-      rows[j].limit->value = rows[j].limit->set ? (uint64_t)given->items[i]->number : 0;
-    }
-    if (!found) return "the readings file sets a budget this host has no row for.";
-  }
-  return NULL;
-}
-
 /* ---- the trace ---- */
 
 static void trace_step(play *p, const sproutc_step *step, FILE *trace) {
@@ -678,7 +597,7 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
                         const sproutc_play_options *options, FILE *out, FILE *err, FILE *trace) {
   play p;
   size_t i, n = sproutc_readings_count(readings);
-  const char *why = budgets_of(host, readings->budgets);
+  const char *why = sproutc_readings_budgets(&host->record.budgets, readings->budgets);
   if (why != NULL) {
     fprintf(err, "sproutc: %s\n", why);
     return 1;
