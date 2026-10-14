@@ -433,7 +433,8 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   snprintf(before, sizeof before, "%s", name != NULL ? name->text : "");
   frames = frames_until_reader(100);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader came up after %d frames", frames);
-  CHECK(saved_file(".json") && saved_file(".log"), "the arrival is saved");
+  for (frames = 0; frames < 100 && !saved_file(".json"); frames++) fake_frame(fake, 0, 0);
+  CHECK(saved_file(".json") && saved_file(".log"), "the arrival is saved over the frames after it: %d", frames);
 
   fake->note_count = 0;
   CHECK(fake_menu(fake, "start over"), "chosen in the reader");
@@ -475,6 +476,63 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   end();
 }
 
+/*
+ * The arrival's log line is on disk when the reader comes up, and its state follows a slice a frame
+ * behind it; opening the system menu (kEventPause) writes the rest at once.
+ */
+static void the_save_follows_the_reply_and_the_system_menu_finishes_it(void) {
+  const char *folder = getenv("PLAYER_SHIPPED_DIR");
+  char command[2600];
+  int slices = 0, drawn = 0;
+  if (folder == NULL) {
+    printf("ui: PLAYER_SHIPPED_DIR is not set, the caverns' save is not watched\n");
+    return;
+  }
+  begin("save-frames");
+  app_folder("app");
+  snprintf(command, sizeof command, "mkdir -p '%s'/worlds && cp '%s'/underground_caverns.sproutworld '%s'/worlds/", fake->data,
+           folder, fake->data);
+  CHECK(system(command) == 0, "the caverns are on the shelf");
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  frames_until_nickname(10000);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(saved_file(".log") && !saved_file(".json"), "the arrival told, its log line is written and its state is not yet");
+  while (!saved_file(".json") && slices < 1000) {
+    fake_frame(fake, 0, 0);
+    slices++;
+    if (saved_file(".part") && fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL) drawn++;
+  }
+  CHECK(slices > 10, "the caverns' state takes many frames of %u bytes: %d", PLAYER_SAVE_SLICE, slices);
+  CHECK(drawn + 2 >= slices, "the reader is drawn in the frames it is written in: %d of %d", drawn, slices);
+  snprintf(command, sizeof command, "rm -f '%s'/saves/*.json", fake->data);
+  CHECK(system(command) == 0, "the save removed, to watch it written again");
+  fake_menu(fake, "leave world");
+  fake_frame(fake, 0, 0);
+  CHECK(saved_file(".json") && !saved_file(".part"), "leaving writes the departure's save whole before the shelf");
+  eventHandler(&fake->api, kEventTerminate, 0);
+  end();
+}
+
+/* The system menu opening writes what the save owes, whole, before the person can end the app from it. */
+static void pausing_writes_the_save_owed(void) {
+  static const char *const shipped[] = {"chip-tree.sproutworld"};
+  begin("pause");
+  app_folder("app");
+  ship(shipped, 1);
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  frames_until_nickname(10000);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!saved_file(".json") && !saved_file(".part"), "the arrival's state is owed");
+  eventHandler(&fake->api, kEventPause, 0);
+  CHECK(saved_file(".json") && !saved_file(".part"), "the pause wrote it whole");
+  eventHandler(&fake->api, kEventTerminate, 0);
+  end();
+}
+
 int main(void) {
   test_program("ui");
   main_sets_the_update_callback_and_the_app_saves_at_terminate();
@@ -484,5 +542,7 @@ int main(void) {
   the_reader_ticks_while_awake_and_tells_what_a_tick_told();
   leave_world_in_the_system_menu_goes_back_to_the_shelf();
   start_over_in_the_system_menu_asks_and_begins_the_world_again();
+  the_save_follows_the_reply_and_the_system_menu_finishes_it();
+  pausing_writes_the_save_owed();
   return finish();
 }

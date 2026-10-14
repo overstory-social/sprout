@@ -65,7 +65,22 @@ void player_app_free(player_app *app) {
 
 uint64_t player_app_seconds(const player_app *app) { return app->pd->system->getSecondsSinceEpoch(NULL); }
 
-void player_app_sleep(player_app *app) { player_clock_sleep(&app->clock); }
+static void *settle_thunk(void *ctx) {
+  player_save_settle(((player_app *)ctx)->session);
+  return NULL;
+}
+
+/* The save owed is written whole, on the own stack, since its bytes are the runtime's to make; a failure is told by the next frame's step. */
+static void settle(player_app *app) {
+  if (player_saving(app->session)) player_on_own_stack(app->pd, settle_thunk, app);
+}
+
+void player_app_pause(player_app *app) { settle(app); }
+
+void player_app_sleep(player_app *app) {
+  settle(app);
+  player_clock_sleep(&app->clock);
+}
 
 void player_app_wake(player_app *app) { player_clock_wake(&app->clock, player_app_seconds(app)); }
 
@@ -129,7 +144,10 @@ static void draw_restart_question(player_app *app) {
 }
 
 void player_app_frame(player_app *app, const player_input *input) {
-  if (app->leave_asked && app->reading) {
+  if (!player_save_step(app->session, PLAYER_SAVE_SLICE).ok) {
+    app->restart_question = false;
+    player_shelf_unsaved(app);
+  } else if (app->leave_asked && app->reading) {
     app->restart_question = false;
     leave_world(app);
   } else if (app->restart_question) {
