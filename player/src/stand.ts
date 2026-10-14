@@ -9,11 +9,10 @@ import {
 } from '@overstory/sprout/lang';
 import { applyChanges, emptyState, type Engine, type StoredState } from '@overstory/sprout/core';
 
-import { engineFor, hostFor, type EngineName, type PlayableWorld } from './engine.js';
+import { engineFor, hostFor, type PlayableWorld } from './engine.js';
 
 // One visitor standing in a freshly loaded world, for the inspectors to
-// look through (`sprout parse` and `sprout view`), on the engine the caller
-// names. The world is as it loads, nothing yet having happened in it,
+// look through (`sprout parse` and `sprout view`). The world is as it loads, nothing yet having happened in it,
 // under the host's default limits and no clock. The visitor comes in by an
 // arrival turn, as a host admits anyone (the spec's The host contract ›
 // Admission and identity): at the place visitors arrive at, or, named with
@@ -49,18 +48,14 @@ export function pathOf(world: InstanceId, id: InstanceId): string {
 }
 
 /**
- * A visitor admitted to `playable` on the engine `engine` names, standing
+ * A visitor admitted to `playable`, standing
  * where `options.at` names or where visitors arrive. Anything that keeps
  * them from standing there is thrown, in words that say what to write
  * instead.
  */
-export function standIn(
-  playable: PlayableWorld,
-  engine: EngineName,
-  options: StandOptions = {},
-): Standing {
+export function standIn(playable: PlayableWorld, options: StandOptions = {}): Standing {
   const host = hostFor(playable);
-  const running = engineFor(engine, playable, host);
+  const running = engineFor(playable, host);
   const { catalogue } = host;
   const world = catalogue.world;
   const visit = visitKey('inspector');

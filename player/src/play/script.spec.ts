@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { playScript as playScriptOn } from '../play.js';
-import type { Script } from '../script.js';
-import type { PlayableWorld } from '../engine.js';
+import { playScript } from '../play.js';
 import { scriptOf, transcriptOf } from '../fixtures/scripts.js';
 import { bundleOf, KILN_YARD } from '../fixtures/worlds.js';
-import { bundle, ENGINES_BUILT, play as playOn } from '../fixtures/play.js';
+import { bundle, play } from '../fixtures/play.js';
 
-describe.each(ENGINES_BUILT)('playScript, on the %s engine', (engine) => {
-  const play = (lines: string) => playOn(lines, engine);
-  const playScript = (world: PlayableWorld, script: Script, name: string) =>
-    playScriptOn(world, script, name, engine);
-
+describe('playScript', () => {
   it('writes each line, then what every reader read of it, under their nickname and the kind', () => {
     expect(play('@arrive Marta\n@arrive Ines\nMarta> fire kiln\nMarta> fire kiln\n')).toBe(
       [

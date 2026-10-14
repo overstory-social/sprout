@@ -2,15 +2,13 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import * as core from '@overstory/sprout/core';
 import * as lang from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 // The player imports the language, core and the WebAssembly engine, and
 // node:* — nothing of any host or client. It runs every turn, poll and
 // question through an engine (core's `Engine`), so it never imports the
-// language's turns, polls or state; what reads the TypeScript runtime's
-// state beside the engine is named here with the one file each is for.
+// language's turns, polls or state.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = [
@@ -47,11 +45,6 @@ const NEVER = [
   'standsInPlace',
   'renderActed',
 ];
-
-/** What reads the TypeScript runtime beside the engine, and the files it is for: the TypeScript engine itself. */
-const ONLY_IN: Readonly<Record<string, readonly string[]>> = {
-  tsEngine: ['engine.ts'],
-};
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
@@ -96,7 +89,6 @@ describe('@overstory/sprout-player imports the language, core, the WebAssembly e
 describe('@overstory/sprout-player runs the world only through an engine', () => {
   it('names only what the language and core export', () => {
     expect(NEVER.filter((name) => !(name in lang))).toEqual([]);
-    expect(Object.keys(ONLY_IN).filter((name) => !(name in lang) && !(name in core))).toEqual([]);
   });
   for (const file of sources(SRC).filter((one) => !one.endsWith('.spec.ts'))) {
     it(relative(SRC, file), () => {
@@ -105,7 +97,6 @@ describe('@overstory/sprout-player runs the world only through an engine', () =>
         ...valuesFrom(text, '@overstory/sprout/lang'),
         ...valuesFrom(text, '@overstory/sprout/core'),
       ];
-      const at = relative(SRC, file);
       // Every value is imported by name, so the names above are all it imports of either.
       const whole = [
         ...text.matchAll(
@@ -114,9 +105,6 @@ describe('@overstory/sprout-player runs the world only through an engine', () =>
       ].map((m) => m[0]);
       expect(whole).toEqual([]);
       expect(named.filter((name) => NEVER.includes(name))).toEqual([]);
-      expect(
-        named.filter((name) => ONLY_IN[name] !== undefined && !ONLY_IN[name].includes(at)),
-      ).toEqual([]);
     });
   }
 });

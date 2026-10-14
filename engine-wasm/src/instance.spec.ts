@@ -4,7 +4,7 @@ import { DEFAULT_LIMITS, visitKey, type InstanceId } from '@overstory/sprout/lan
 import { TALLY } from '@overstory/sprout/engine-conformance';
 
 import { WasmInstance } from './instance.js';
-import { engineBuilt, NOT_BUILT, shippedModule } from './wasm.js';
+import { shippedModule } from './wasm.js';
 
 // One instance of the engine driven directly: its world and live state,
 // the host's terms, the lines under way, and what it refuses in words.
@@ -20,7 +20,7 @@ function tally(): WasmInstance {
   return instance;
 }
 
-describe.skipIf(!engineBuilt())('an instance of the engine', () => {
+describe('an instance of the engine', () => {
   it('saves its live state as the store keeps it, and opens it again', () => {
     const instance = tally();
     const saved = instance.save();
@@ -113,8 +113,4 @@ describe.skipIf(!engineBuilt())('an instance of the engine', () => {
     expect(() => instance.view(visitKey('v-nobody'))).toThrow(/never visited/);
     expect(instance.memory().held).toBeGreaterThan(0);
   });
-});
-
-describe.runIf(!engineBuilt())('an instance of the engine, without engine.wasm', () => {
-  it.skip(NOT_BUILT, () => {});
 });

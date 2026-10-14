@@ -3,7 +3,7 @@
 # The installed CLI scaffolds a world, a kind and an object in it, checks it and runs its first test,
 # checks a corpus world the same way, and inspects the new world and a corpus world: the grammar a
 # world accepts, a line read where a visitor stands, and that visitor's
-# view, and that a flag a command does not take, as --engine, is refused in words. It checks the
+# view, and that a flag a command does not take, as --quiet, is refused in words. It checks the
 # worked microworld and plays each of its golden transcripts, which must print exactly what they
 # hold; runs its own tests,
 # which must pass, and its transcripts as tests, which must pass too, with a
@@ -47,8 +47,8 @@ npx sprout view shed
 npx sprout parse "$grammar" >/dev/null
 npx sprout parse "$grammar" "take metal"
 npx sprout view "$grammar" --at cellar
-if npx sprout view shed --engine ts 2> engine.txt; then exit 1; fi
-grep -qx 'sprout: view takes no --engine; it takes --at, --as, --scene and --verb.' engine.txt
+if npx sprout view shed --quiet 2> flag.txt; then exit 1; fi
+grep -qx 'sprout: view takes no --quiet; it takes --at, --as, --scene and --verb.' flag.txt
 echo "a flag view does not take is refused in words"
 npx sprout check "$shop"
 for transcript in "$shop"/transcripts/*.json; do

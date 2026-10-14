@@ -91,9 +91,9 @@ describe('the server’s config', () => {
     ]);
   });
 
-  it('takes no engine, since every world runs on the WebAssembly one, and says so by the line', () => {
-    expect(problems('engine = "ts"\n[[worlds]]\npath = "w"\n')).toEqual([
-      '/srv/sprout/server.toml:1: `engine` is not a key the config takes.',
+  it('refuses a key it does not take, by the line', () => {
+    expect(problems('colour = "green"\n[[worlds]]\npath = "w"\n')).toEqual([
+      '/srv/sprout/server.toml:1: `colour` is not a key the config takes.',
     ]);
     expect(problems('[store]\nkind = "memory"\npath = "x"\n[[worlds]]\npath = "w"\n')).toEqual([
       '/srv/sprout/server.toml:3: `store.path` is not a key the config takes.',

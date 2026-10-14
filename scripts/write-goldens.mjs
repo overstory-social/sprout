@@ -211,7 +211,7 @@ async function storedWorlds(scratch) {
     }).bundle;
     for (const transcript of readdirSync(folder).sort()) {
       const script = readScript(readFileSync(join(folder, transcript), 'utf8'), transcript);
-      const stage = freshStage(bundle, 'wasm');
+      const stage = freshStage(bundle);
       const states = script.steps.map((step, i) => {
         playStep(stage, step, `${transcript}, step ${i + 1}`);
         // The runtime writes a state back in the order it reads one: the C stored tests compare those bytes.

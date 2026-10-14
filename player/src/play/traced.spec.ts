@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { bundle, ENGINES_BUILT } from '../fixtures/play.js';
+import { bundle } from '../fixtures/play.js';
 import { arrive, freshStage } from '../play.js';
 import { trace } from './traced.js';
 
-describe.each(ENGINES_BUILT)('trace, on the %s engine', (engine) => {
+describe('trace', () => {
   it('notes a turn with every place a visitor stands in, read from the stored state as the turn left it', () => {
-    const stage = freshStage(bundle, engine);
+    const stage = freshStage(bundle);
     arrive(stage, 'Marta');
     const before = stage.turns.length;
     trace(stage, 'tick', {});

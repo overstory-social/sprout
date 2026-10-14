@@ -1,16 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EngineName } from './engine.js';
 import { bundleOf, KILN_YARD, RIVER, scriptOf } from './fixtures/index.js';
-import { ENGINES_BUILT } from './fixtures/play.js';
 import { playSteps } from './play.js';
 import { reportOf, writeReport, type PlayedRun } from './report.js';
 
 const kilnYard = bundleOf('kiln_yard', KILN_YARD);
 
-/** `lines` played over the kiln yard on `engine`, the TypeScript one where none is named, as a run named `name`. */
-function run(lines: string, name = 'yard.json', engine: EngineName = 'ts'): PlayedRun {
-  return { name, played: playSteps(kilnYard, scriptOf(lines, name), name, engine) };
+/** `lines` played over the kiln yard, as a run named `name`. */
+function run(lines: string, name = 'yard.json'): PlayedRun {
+  return { name, played: playSteps(kilnYard, scriptOf(lines, name), name) };
 }
 
 const WALK = `@arrive Marta
@@ -23,8 +21,8 @@ Marta> look
 Marta> look
 @advance 1 hours`;
 
-describe.each(ENGINES_BUILT)('what a playthrough on the %s engine reached', (engine) => {
-  const report = reportOf(kilnYard, [run(WALK, 'yard.json', engine)]);
+describe('what a playthrough reached', () => {
+  const report = reportOf(kilnYard, [run(WALK)]);
 
   it('counts the lines typed, and each visitor’s command turns', () => {
     expect(report.scripts).toEqual(['yard.json']);
@@ -138,7 +136,7 @@ describe('a passage that printed nothing', () => {
 }
 `,
     });
-    const played = playSteps(quiet, scriptOf('@arrive Marta\nMarta> look'), 'yard.json', 'ts');
+    const played = playSteps(quiet, scriptOf('@arrive Marta\nMarta> look'), 'yard.json');
     const report = reportOf(quiet, [{ name: 'yard.json', played }]);
     expect(report.reach.passages.never).toContain('kiln_yard.Yard.lamp (yard.sprout:4:11)');
     expect(report.reach.passages.reached).toContain('yard.sprout:3:31 "A kiln yard."');
@@ -152,7 +150,6 @@ describe('the places a playthrough reached', () => {
       river,
       scriptOf('@arrive Marta\nMarta> go in', 'river.json'),
       'river.json',
-      'ts',
     );
     const report = reportOf(river, [{ name: 'river.json', played }]);
     expect(report.reach.places).toEqual({
