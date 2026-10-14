@@ -8,6 +8,7 @@
 #define SPROUT_WORLD_H
 
 #include "catalogue.h"
+#include "entry_map.h"
 
 struct sprout_world {
   sprout_host host; /* the host record as it was at load */
@@ -43,9 +44,9 @@ struct sprout_world {
   size_t word_count;
   const char **words;
 
-  /* Indexed by a graph entry's `index`: the node a name written there names, and whether a slot renders an option. */
-  const sprout_node **bound;
-  bool *option_slot;
+  /* By the index of the entry written: the node a name names, and the slots that render an option. */
+  sprout_entry_map bound;
+  sprout_entry_map option_slots;
 
   bool peeked; /* only the header and caps were read: no graph, no catalogue */
 
@@ -69,5 +70,8 @@ const sprout_content *sprout_world_content_at(const sprout_world *world, const c
 
 /* The node a body's name, written at `written`, names; NULL when none is bound. */
 const sprout_node *sprout_world_bound(const sprout_world *world, const sprout_node *written);
+
+/* Whether the prose slot at `piece` renders an option, which is humanised. */
+bool sprout_world_option_slot(const sprout_world *world, const sprout_node *piece);
 
 #endif

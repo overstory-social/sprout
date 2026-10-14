@@ -164,11 +164,38 @@ static void lookups_find_what_the_tree_and_the_kinds_hold(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+/* The name table and the option slots have room for what they hold (half as much would not do), not for every entry. */
+static void the_name_table_and_the_option_slots_are_sized_to_what_they_hold(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_arena arena;
+  const sprout_json *dump;
+  size_t w, i;
+  sprout_arena_init(&arena, &host);
+  dump = corpus_dump(&arena);
+  for (w = 0; w < dump->count; w++) {
+    sprout_world *world = corpus_load(dump->items[w]->key, &host);
+    size_t named = 0, slots = 0;
+    for (i = 0; i < world->graph.count; i++) {
+      const sprout_node *entry = &world->graph.table.nodes[i];
+      if (sprout_world_bound(world, entry) != NULL) named++;
+      if (sprout_world_option_slot(world, entry)) slots++;
+    }
+    CHECK_INT(named, world->bound.count);
+    CHECK_INT(slots, world->option_slots.count);
+    CHECK(world->bound.capacity == 8 || world->bound.capacity / 2 / 4 * 3 < world->bound.count);
+    CHECK(world->option_slots.capacity == 8 || world->option_slots.capacity / 2 / 4 * 3 < world->option_slots.count);
+    sprout_world_free(world);
+  }
+  sprout_arena_reset(&arena);
+}
+
 int main(void) {
   RUN(every_corpus_cartridge_loads_with_the_header_and_tree_the_dump_holds);
   RUN(the_words_the_world_and_the_visitor_are_made_of_match_the_dump);
   RUN(the_caps_a_cartridge_records_are_read_and_the_optional_ones_stay_unset);
   RUN(the_extensions_a_cartridge_pins_are_recorded);
   RUN(lookups_find_what_the_tree_and_the_kinds_hold);
+  RUN(the_name_table_and_the_option_slots_are_sized_to_what_they_hold);
   return REPORT();
 }

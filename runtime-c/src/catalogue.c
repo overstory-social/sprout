@@ -361,24 +361,23 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   }
 
   /* The name table binds each name a body writes to what it names, by the index of the entry written. */
-  world->bound = (const sprout_node **)cat_array(l, world->graph.count, sizeof(sprout_node *));
-  world->option_slot = (bool *)cat_array(l, world->graph.count, sizeof(bool));
-  MEMORY(world->bound);
-  MEMORY(world->option_slot);
   names = sprout_graph_cell(&world->graph, sprout_json_get(bodies_section, "names"));
   if (names == NULL || names->kind != SPROUT_NODE_MAP) return cat_shaped(l, "bodies.names");
+  NEED(sprout_entry_map_init(&world->bound, l->arena, names->count));
   for (i = 0; i < names->count; i++) {
     size_t at = sprout_graph_index(&world->graph, sprout_map_key(l->graph, names, i));
-    if (at != SPROUT_NOT_AN_ENTRY) world->bound[at] = sprout_item(l->graph, names, i);
+    if (at != SPROUT_NOT_AN_ENTRY) NEED(sprout_entry_map_put(&world->bound, l->arena, at, sprout_item(l->graph, names, i)));
   }
   {
     const sprout_node *slots_set =
         sprout_graph_cell(&world->graph, sprout_json_get(bodies_section, "optionSlots"));
     if (slots_set == NULL || slots_set->kind != SPROUT_NODE_SET)
       return cat_shaped(l, "bodies.optionSlots");
+    NEED(sprout_entry_map_init(&world->option_slots, l->arena, slots_set->count));
     for (i = 0; i < slots_set->count; i++) {
-      size_t at = sprout_graph_index(&world->graph, sprout_item(l->graph, slots_set, i));
-      if (at != SPROUT_NOT_AN_ENTRY) world->option_slot[at] = true;
+      const sprout_node *slot = sprout_item(l->graph, slots_set, i);
+      size_t at = sprout_graph_index(&world->graph, slot);
+      if (at != SPROUT_NOT_AN_ENTRY) NEED(sprout_entry_map_put(&world->option_slots, l->arena, at, slot));
     }
   }
 
@@ -455,5 +454,10 @@ const sprout_content *sprout_world_content_at(const sprout_world *world, const c
 const sprout_node *sprout_world_bound(const sprout_world *world, const sprout_node *written) {
   size_t at = sprout_graph_index(&world->graph, written);
   if (at == SPROUT_NOT_AN_ENTRY) return NULL;
-  return world->bound[at];
+  return (const sprout_node *)sprout_entry_map_get(&world->bound, at);
+}
+
+bool sprout_world_option_slot(const sprout_world *world, const sprout_node *piece) {
+  size_t at = sprout_graph_index(&world->graph, piece);
+  return at != SPROUT_NOT_AN_ENTRY && sprout_entry_map_get(&world->option_slots, at) != NULL;
 }
