@@ -85,7 +85,7 @@ typedef struct sprout_kind_def {
   size_t order_count;
   const char **order; /* every kind it composes, itself last */
   size_t property_count;
-  sprout_property *properties; /* in declared order */
+  const sprout_property **properties; /* in declared order; a property two kinds list is one record */
   size_t passage_count;
   sprout_passage *passages;
   size_t play_group_count;

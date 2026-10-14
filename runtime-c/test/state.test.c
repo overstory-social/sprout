@@ -99,7 +99,7 @@ static void an_opened_record_keeps_only_what_holds_other_than_its_default(void) 
     const sprout_stored_instance *in = &state->instances[i];
     if (in->kind == NULL) continue;
     for (j = 0; j < in->kind->property_count; j++)
-      if (!in->kind->properties[j].remembered) declared++;
+      if (!in->kind->properties[j]->remembered) declared++;
     for (j = 0; j < in->property_count; j++) {
       char name[64];
       const sprout_property *one;

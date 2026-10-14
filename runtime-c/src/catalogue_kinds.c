@@ -104,13 +104,25 @@ static sprout_status read_literal(loader *l, const sprout_node *node, sprout_lit
 
 /* ---- kinds ---- */
 
+/* The property a map lists under `name_node`; one record for each property entry and name, however many maps list it. */
 static sprout_status read_property(loader *l, const sprout_node *name_node,
-                                   const sprout_node *node, sprout_property *out) {
+                                   const sprout_node *node, const sprout_property **read) {
   const sprout_node *remembered = sprout_node_get(l->graph, node, "remembered");
   const sprout_node *declaration = sprout_node_get(l->graph, node, "declaration");
+  const sprout_property *kept;
+  sprout_property *out;
   if (name_node->kind != SPROUT_NODE_STRING || remembered == NULL ||
       remembered->kind != SPROUT_NODE_BOOL)
     return cat_shaped(l, "a property");
+  kept = (const sprout_property *)cat_read_as(l, node);
+  if (kept != NULL && strcmp(kept->name, sprout_text(l->graph, name_node)) == 0) {
+    *read = kept;
+    return SPROUT_OK;
+  }
+  out = (sprout_property *)cat_array(l, 1, sizeof *out);
+  MEMORY(out);
+  if (kept == NULL) NEED(cat_keep(l, node, out));
+  *read = out;
   out->name = sprout_text(l->graph, name_node);
   out->remembered = sprout_truth(remembered);
   out->origin = cat_text(l->graph, node, "origin");
@@ -130,11 +142,11 @@ static sprout_status keep(loader *l, const sprout_node *node, void *read) {
 }
 
 /* A kind's properties, in declared order; a map two kinds share is read once. */
-static sprout_status read_properties(loader *l, const sprout_node *map, sprout_property **out) {
-  sprout_property *properties = (sprout_property *)already(l, map);
+static sprout_status read_properties(loader *l, const sprout_node *map, const sprout_property ***out) {
+  const sprout_property **properties = (const sprout_property **)already(l, map);
   size_t i;
   if (properties == NULL) {
-    properties = (sprout_property *)cat_array(l, map->count, sizeof(sprout_property));
+    properties = (const sprout_property **)cat_array(l, map->count, sizeof(sprout_property *));
     MEMORY(properties);
     for (i = 0; i < map->count; i++)
       NEED(read_property(l, sprout_map_key(l->graph, map, i), sprout_item(l->graph, map, i), &properties[i]));

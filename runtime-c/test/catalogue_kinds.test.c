@@ -56,11 +56,11 @@ static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const s
   CHECK_INT(kind->property_count, properties->count);
   for (i = 0; i < kind->property_count && i < properties->count; i++) {
     const sprout_json *p = properties->items[i];
-    CHECK_STR(kind->properties[i].name, corpus_get(p, "name")->bytes);
-    CHECK_STR(kind->properties[i].type->key, corpus_get(p, "type")->bytes);
-    CHECK(kind->properties[i].remembered == corpus_get(p, "remembered")->boolean);
-    CHECK_STR(kind->properties[i].origin, corpus_get(p, "origin")->bytes);
-    expect_default(arena, &kind->properties[i].default_value, corpus_get(p, "default"));
+    CHECK_STR(kind->properties[i]->name, corpus_get(p, "name")->bytes);
+    CHECK_STR(kind->properties[i]->type->key, corpus_get(p, "type")->bytes);
+    CHECK(kind->properties[i]->remembered == corpus_get(p, "remembered")->boolean);
+    CHECK_STR(kind->properties[i]->origin, corpus_get(p, "origin")->bytes);
+    expect_default(arena, &kind->properties[i]->default_value, corpus_get(p, "default"));
   }
   CHECK_INT(kind->passage_count, passages->count);
   for (i = 0; i < kind->passage_count && i < passages->count; i++)
@@ -119,6 +119,25 @@ static void plays_two_kinds_hold_alike_are_one_array(void) {
   sprout_world_free(world);
 }
 
+static void a_property_two_kinds_list_is_one_record(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("standard-library", &host);
+  size_t i, j, p, q, shared = 0;
+  for (i = 0; i < world->kind_count; i++)
+    for (j = i + 1; j < world->kind_count; j++)
+      for (p = 0; p < world->kinds[i]->property_count; p++)
+        for (q = 0; q < world->kinds[j]->property_count; q++) {
+          const sprout_property *a = world->kinds[i]->properties[p], *b = world->kinds[j]->properties[q];
+          if (strcmp(a->name, b->name) != 0 || strcmp(a->origin, b->origin) != 0) continue;
+          CHECK(a == b);
+          shared++;
+        }
+  /* Every kind that composes sprout.Thing lists Thing's properties. */
+  CHECK(shared > 0);
+  sprout_world_free(world);
+}
+
 static void a_property_is_found_by_name_with_its_type_range_and_options(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
@@ -138,7 +157,7 @@ static void a_property_is_found_by_name_with_its_type_range_and_options(void) {
     bool seen_symbol = false, seen_list = false;
     for (k = 0; k < world->kind_count; k++)
       for (p = 0; p < world->kinds[k]->property_count; p++) {
-        const sprout_decl_type *type = world->kinds[k]->properties[p].type;
+        const sprout_decl_type *type = world->kinds[k]->properties[p]->type;
         if (type->kind == SPROUT_DECL_SYMBOL) {
           seen_symbol = true;
           CHECK(type->option_count > 0);
@@ -194,6 +213,7 @@ static void the_contents_a_kind_gives_are_found_by_the_path_in_its_body(void) {
 int main(void) {
   RUN(every_kind_of_every_corpus_world_matches_the_dump);
   RUN(plays_two_kinds_hold_alike_are_one_array);
+  RUN(a_property_two_kinds_list_is_one_record);
   RUN(a_property_is_found_by_name_with_its_type_range_and_options);
   RUN(the_world_and_visitor_kinds_are_never_spawnable);
   RUN(the_contents_a_kind_gives_are_found_by_the_path_in_its_body);

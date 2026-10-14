@@ -413,7 +413,7 @@ const sprout_kind_def *sprout_world_kind(const sprout_world *world, const char *
 const sprout_property *sprout_kind_property(const sprout_kind_def *kind, const char *name) {
   size_t i;
   for (i = 0; i < kind->property_count; i++)
-    if (strcmp(kind->properties[i].name, name) == 0) return &kind->properties[i];
+    if (strcmp(kind->properties[i]->name, name) == 0) return kind->properties[i];
   return NULL;
 }
 
