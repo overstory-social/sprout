@@ -418,6 +418,27 @@ describe('a type an extension adds', () => {
     ]);
   });
 
+  it('answers an expression that wants one with a property, never with text in quotes there', () => {
+    const image = {
+      type: 'extension',
+      extension: 'media',
+      name: 'Image',
+      definition: IMAGE,
+    } as const;
+    expect(remedyFor(image, 'hall.png', 'expression')).toBe(
+      "Text in quotes is a `media.Image` only as a property's default or in a `media` statement: " +
+        'declare `:image media.Image default "hall.png"` and write `self.get(:image)` here, ' +
+        'or write "hall.png" in the `media` statement that uses it.',
+    );
+    expect(remedyFor(image, null, 'expression')).toBe(
+      'Write a property that holds `media.Image` here, as in `self.get(:image)`, ' +
+        'and give that property its value in quotes as its default.',
+    );
+    expect(remedyFor(image, null, 'declared')).toBe(
+      'Write it as text in quotes, which the extension `media` reads.',
+    );
+  });
+
   it('resolves with no definition where the extension is absent, and holds its literal unread', () => {
     const { type, accepted, said } = extensionTyped(
       ':image media.Image default "anything"',
