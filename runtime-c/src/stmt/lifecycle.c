@@ -14,8 +14,8 @@ static sprout_eval_status kind_written(const sprout_frame *frame, const sprout_n
   const sprout_kind_def *kind = expr_kind_named(frame, written);
   const sprout_node *library = sprout_node_get(frame->graph, written, "library");
   const char *library_text = library == NULL || library->kind == SPROUT_NODE_NULL ? frame->library
-                                                                                  : sprout_node_text(frame->graph, library, "text");
-  const char *name = expr_ident(frame->graph, written, "name");
+                                                                                  : sprout_name(frame->graph, library);
+  const char *name = sprout_node_name(frame->graph, written, "name");
   char *joined;
   size_t library_length;
   if (kind != NULL) {

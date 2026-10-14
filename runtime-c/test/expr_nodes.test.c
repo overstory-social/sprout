@@ -49,8 +49,8 @@ static void a_calls_arguments_are_counted_and_read_in_order(void) {
   bench_open(&b);
   sees = bench_expr(&b, "sees finds a lit light");
   CHECK_INT(expr_argument_count(&b.world->graph, sees), 2);
-  CHECK_STR(expr_ident(&b.world->graph, expr_argument(&b.world->graph, sees, 0), "name"), "LightSource");
-  CHECK_STR(expr_ident(&b.world->graph, expr_argument(&b.world->graph, sees, 1), "name"), "lit");
+  CHECK_STR(sprout_node_name(&b.world->graph, expr_argument(&b.world->graph, sees, 0), "name"), "LightSource");
+  CHECK_STR(sprout_node_name(&b.world->graph, expr_argument(&b.world->graph, sees, 1), "name"), "lit");
   CHECK_INT(expr_argument_count(&b.world->graph, bench_expr(&b, "get reads the property")), 1);
   CHECK_INT(expr_argument_count(&b.world->graph, bench_expr(&b, "a boolean literal")), 0);
   bench_close(&b);

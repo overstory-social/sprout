@@ -8,6 +8,7 @@
 import type { StaticCaps } from '../bundle/limits.js';
 import { readCartridge } from '../bundle/cartridge.js';
 import { readGraph } from '../bundle/cartridge-graph.js';
+import { restoreNames } from '../bundle/cartridge-names.js';
 import { lookingFrom, SPROUT } from '../declare/enums.js';
 import { pinExtensions, type Extension } from '../declare/extensions.js';
 import type { KindContents } from '../declare/contents.js';
@@ -64,7 +65,8 @@ export function loadCartridge(bytes: Uint8Array, host: CartridgeHost): Catalogue
       bodies: cartridge.bodies.entries,
       rest: cartridge.table.entries,
     },
-    (object) => {
+    (object, nowhere) => {
+      restoreNames(object, nowhere);
       if (
         'phrases' in object &&
         !('synonyms' in object) &&

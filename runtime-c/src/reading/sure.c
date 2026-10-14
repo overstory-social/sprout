@@ -24,8 +24,8 @@ static const sprout_node *sure_move(const sprout_graph *graph, const sprout_play
 
 /* The one name a path is, or NULL where it is dotted. */
 static const char *lone_name(const sprout_graph *graph, const sprout_node *path) {
-  const sprout_node *parts = sprout_node_get(graph, path, "parts");
-  return parts != NULL && parts->count == 1 ? sprout_node_text(graph, sprout_item(graph, parts, 0), "text") : NULL;
+  const char *name = sprout_name(graph, path);
+  return name != NULL && strchr(name, '.') == NULL ? name : NULL;
 }
 
 /* The object a one-word path names in `frame`: `self` or a name it binds to an object. */

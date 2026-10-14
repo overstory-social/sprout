@@ -149,6 +149,49 @@ static void the_lookups_find_fields_elements_and_map_values_in_built_nodes(void)
   CHECK_INT(heap.pages, 0);
 }
 
+static void a_name_is_a_string_or_a_bound_entrys_text(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_build_room room = SPROUT_BUILD_LINE_ROOM;
+  sprout_arena arena;
+  sprout_builder b;
+  sprout_graph graph;
+  const sprout_graph *g;
+  char error[200];
+  size_t length, at, i, strings = 0, entries = 0;
+  unsigned char *body;
+  static const char *const keys[] = {"kind", "text"};
+  const sprout_node *values[2], *bound, *plain, *number;
+  sprout_arena_init(&arena, &host);
+  sprout_build_begin(&b, &arena, room);
+  values[0] = sprout_build_string(&b, "path", 4);
+  values[1] = sprout_build_string(&b, "kiln.shelf", 10);
+  bound = sprout_build_object(&b, keys, values, 2);
+  plain = sprout_build_string(&b, "lamp", 4);
+  number = sprout_build_number(&b, 1);
+  g = sprout_build_graph(&b);
+  CHECK_STR(sprout_name(g, bound), "kiln.shelf");
+  CHECK_STR(sprout_name(g, plain), "lamp");
+  CHECK(sprout_name(g, number) == NULL && sprout_name(g, NULL) == NULL);
+  CHECK(sprout_node_name(g, bound, "kind") != NULL && sprout_node_name(g, bound, "missing") == NULL);
+  /* In a packed world a binding's name is its text, or an entry where the name table binds it. */
+  body = body_of(&arena, "printers_shop", &length, &at);
+  CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files_of(&arena, body, at), error, sizeof error), SPROUT_OK);
+  for (i = 0; i < graph.count; i++) {
+    const sprout_node *n = &graph.table.nodes[i], *name;
+    if (!sprout_node_is(&graph, sprout_node_get(&graph, n, "kind"), "binding")) continue;
+    name = sprout_node_get(&graph, n, "name");
+    CHECK(sprout_node_name(&graph, n, "name") != NULL);
+    if (name->kind == SPROUT_NODE_STRING) strings++;
+    else if (sprout_node_is(&graph, sprout_node_get(&graph, name, "kind"), "ident") &&
+             sprout_node_get(&graph, name, "at") == NULL)
+      entries++;
+  }
+  CHECK(strings > 0 && entries > 0);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_map_is_read_by_its_key_node_or_its_text(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
@@ -191,7 +234,7 @@ static void a_block_that_is_not_a_table_or_names_a_file_not_listed_is_refused(vo
   body = body_of(&arena, "printers_shop", &length, &at);
   CHECK_INT(sprout_graph_map(&graph, body + at + 8, length - at - 8, &arena, files_of(&arena, body, at), error, sizeof error),
             SPROUT_BAD_INPUT);
-  CHECK_STR(error, "the cartridge's table is not one this runtime reads: it does not begin with `TBL3`");
+  CHECK_STR(error, "the cartridge's table is not one this runtime reads: it does not begin with `TBL4`");
   CHECK_INT(sprout_json_read(&arena, "[\"only.sprout\"]", 15, &few, &e), SPROUT_OK);
   CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, few, error, sizeof error), SPROUT_BAD_INPUT);
   CHECK_STR(error, "the cartridge names a file it does not list.");
@@ -228,6 +271,7 @@ static void a_host_that_runs_out_of_memory_is_told_so(void) {
 int main(void) {
   RUN(a_packed_world_maps_with_its_entries_first_and_its_cells_after);
   RUN(the_lookups_find_fields_elements_and_map_values_in_built_nodes);
+  RUN(a_name_is_a_string_or_a_bound_entrys_text);
   RUN(a_map_is_read_by_its_key_node_or_its_text);
   RUN(a_block_that_is_not_a_table_or_names_a_file_not_listed_is_refused);
   RUN(a_host_that_runs_out_of_memory_is_told_so);

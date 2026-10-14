@@ -84,7 +84,8 @@ const sprout_binding *sprout_bind(const sprout_frame *frame, const char *name, s
 sprout_eval_status sprout_eval(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out);
 
 /*
- * What a name written as a statement's object, a lone identifier, stands for:
+ * What a name written as a statement's object, a lone identifier as the
+ * cartridge writes one (sprout_name), stands for:
  * `self`, a binding, or what the name table says it reaches in range of
  * `self`. One step, as a binding written in an expression is.
  */

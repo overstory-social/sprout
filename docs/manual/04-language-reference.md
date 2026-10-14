@@ -2576,7 +2576,7 @@ sprout scaffold test name [dir]
 sprout check [dir] [--json]
 sprout parse [dir]
 sprout parse dir "line" [--at place] [--as name]
-sprout view [dir] [--at place] [--as name]
+sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--poll-steps n]
 sprout play dir script.json [--write] [--report file.json]
 sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json]
 sprout test [dir] [script ...] [--report file.json]
@@ -2584,7 +2584,7 @@ sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n]
 sprout skill
 ```
 
-Every command runs the world as it loads, under the default limits, with
+Every command runs the world as it loads, under the default limits (`view --poll-steps` raises one), with
 no clock and no extensions.
 
 | command        | does                                                                                                                      |
@@ -2592,7 +2592,7 @@ no clock and no extensions.
 | `scaffold`     | `world`: a folder with a manifest, a world, a visitor kind and a first test; the folder must be empty or new. `kind`, `object`: the declaration in a file of its own named for it, or added to the file `--path` names, with the imports it needs, the file added to the manifest; the world is checked and nothing is written where it would no longer compile. `test`: a first test in `tests/`. |
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
 | `parse`        | with no line: every phrase the world accepts. With a line: how a visitor would read it, and whether it would be refused, without running it. |
-| `view`         | what a visitor is shown and could type.                                                                                   |
+| `view`         | what a visitor is shown and could type. `--poll-steps n` lets the poll take n steps in place of the default 10,000, for a room whose readings cost more. |
 | `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`), every turn seeded from a stream begun at `--seed` or the clock. |
 | `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |
 | `mcp`          | serves the world to an AI agent as a visitor and only a visitor, over MCP: tools to `arrive`, `say` a line and `leave`, each answered with the prose that visitor reads. Stdio for one visitor, `--http host:port` for several in one world. `--seed`, `--record`, `--turn-cap` and `--advance-per-turn` are the host's, never shown to the agent. Needs `@overstory/sprout-mcp` installed. |

@@ -81,7 +81,7 @@ describe('the header of a cartridge', () => {
     expect(header.tableAt % 8).toBe(0);
     expect(header.tableAt).toBeLessThan(body.length);
     expect(new TextDecoder().decode(body.subarray(header.tableAt, header.tableAt + 4))).toBe(
-      'TBL3',
+      'TBL4',
     );
     // Gzip's own magic follows.
     expect([...bytes.subarray(16, 18)]).toEqual([0x1f, 0x8b]);
@@ -263,7 +263,7 @@ describe('a cartridge damaged after the header', () => {
       readCartridge(cartridgeWith(BENCH.level, preamble, new Uint8Array(16))),
     );
     expect(message).toBe(
-      'This cartridge is not shaped as a cartridge is at `table`: it does not begin with `TBL3`.',
+      'This cartridge is not shaped as a cartridge is at `table`: it does not begin with `TBL4`.',
     );
   });
 });

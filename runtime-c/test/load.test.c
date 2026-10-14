@@ -10,7 +10,7 @@
 #include "inflate.h"
 
 /* A table of no nodes: its counts, then the one string offset and the one shape offset, each padded. */
-static const unsigned char EMPTY_TABLE[64] = {'T', 'B', 'L', '3'};
+static const unsigned char EMPTY_TABLE[64] = {'T', 'B', 'L', '4'};
 
 /* 16 header bytes, then `preamble`, padded to eight, and `table` as one stored gzip member. */
 static char *cartridge_with(const char *preamble, const unsigned char *table, size_t table_length, size_t *length) {
@@ -23,7 +23,7 @@ static char *cartridge_with(const char *preamble, const unsigned char *table, si
   crc = sprout_crc32(0, body, n);
   memset(out, 0, 16);
   memcpy(out, "SPRT", 4);
-  out[4] = 3;
+  out[4] = SPROUT_CARTRIDGE_FORMAT;
   out[6] = 1;
   out[8] = (unsigned char)n, out[9] = (unsigned char)(n >> 8), out[10] = (unsigned char)(n >> 16), out[11] = (unsigned char)(n >> 24);
   out[12] = (unsigned char)table_at, out[13] = (unsigned char)(table_at >> 8), out[14] = (unsigned char)(table_at >> 16),
@@ -72,19 +72,19 @@ static void refuses(const char *bytes, size_t length, const char *words) {
 static void a_newer_format_or_level_is_refused_naming_the_number(void) {
   size_t length;
   char *bytes = corpus_cartridge("printers_shop", &length);
-  bytes[4] = 4;
+  bytes[4] = 5;
   refuses(bytes, length,
-          "This cartridge is format version 4, and this runtime reads up to version 3. Update the runtime, or pack the world again with this one.");
-  bytes[4] = 3;
+          "This cartridge is format version 5, and this runtime reads up to version 4. Update the runtime, or pack the world again with this one.");
+  bytes[4] = 4;
   bytes[6] = 7;
   refuses(bytes, length,
           "This cartridge was made for language level 7, and this runtime reads up to level 1. Update the runtime, or pack the world again with this one.");
   bytes[6] = 1;
   bytes[4] = 0;
   refuses(bytes, length, "This cartridge says it is format version 0, and versions begin at 1. It is damaged.");
-  bytes[4] = 2;
+  bytes[4] = 3;
   refuses(bytes, length,
-          "This cartridge is format version 2, and this runtime reads version 3. Pack the world again with `sprout pack`.");
+          "This cartridge is format version 3, and this runtime reads version 4. Pack the world again with `sprout pack`.");
   free(bytes);
 }
 
@@ -134,7 +134,7 @@ static void a_damaged_body_is_refused_in_words(void) {
   free(good);
   good = cartridge_with("{\"table\":{\"files\":[]}}", (const unsigned char *)"not a table at all", 18, &length);
   refuses(good, length,
-          "This cartridge is not shaped as a cartridge is: the cartridge's table is not one this runtime reads: it does not begin with `TBL3`");
+          "This cartridge is not shaped as a cartridge is: the cartridge's table is not one this runtime reads: it does not begin with `TBL4`");
   free(good);
 }
 

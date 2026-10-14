@@ -9,15 +9,14 @@
 //
 // The layout, every count a 32-bit word and every section padded to eight:
 //
-//   `TBL3`, then node count, entry count, the three runs' counts (prose,
+//   `TBL4`, then node count, entry count, the three runs' counts (prose,
 //   bodies, rest), child count, string count, string bytes, double count,
-//   place count, shape count, shape field count;
+//   shape count, then a word of nothing to end the head on eight;
 //   nodes: kind (a byte), flags (a byte), shape (16 bits), count, first;
 //   children: node indexes;
 //   string offsets (one more than the strings, the last the bytes' length),
 //   then the bytes;
 //   doubles;
-//   places: line (32 bits), file (16, signed, -1 for none), column (16);
 //   shape offsets (one more than the shapes), then the shapes' fields as
 //   string indexes.
 //
@@ -25,13 +24,14 @@
 // its values begin; an array's or a set's elements, and a map's pairs (key then
 // value, `count` pairs), likewise. A string's `first` is its index and `count`
 // its length. A number is `first` as a signed 32-bit integer when the INLINE
-// flag is set, else `first` indexes the doubles. A place's `first` indexes the
-// places. A boolean's TRUE flag is its value.
+// flag is set, else `first` indexes the doubles. A place is held in its node:
+// `shape` is its file (NO_FILE for a place that was not kept), `first` its line
+// and `count` its column. A boolean's TRUE flag is its value.
 
 import type { Cell, Entry, GraphTables } from './cartridge-graph.js';
 
 /** The four bytes the table begins with. */
-export const TABLE_MAGIC = 'TBL3';
+export const TABLE_MAGIC = 'TBL4';
 
 /** A table that is not what this reads: damaged, or from something that is not this compiler. */
 export class TableUnreadable extends Error {
@@ -50,12 +50,12 @@ const SET = 8;
 
 const INLINE = 1; /* a number's `first` is a signed 32-bit integer */
 const TRUE = 1; /* a boolean's value */
+const NO_FILE = 0xffff; /* a place's file where none was kept */
 
 const NODE_BYTES = 12;
-const HEAD_WORDS = 11;
-const HEAD_BYTES = 4 + HEAD_WORDS * 4;
-
 const padded = (bytes: number): number => (bytes + 7) & ~7;
+const HEAD_WORDS = 10;
+const HEAD_BYTES = padded(4 + HEAD_WORDS * 4);
 
 /** Whether a number travels inline: a whole number a signed 32-bit word holds. */
 const isInline = (value: number): boolean =>
@@ -103,7 +103,6 @@ export function writeTable(tables: GraphTables): Uint8Array {
   const children: number[] = [];
   const strings = interned<string>();
   const doubles: number[] = [];
-  const places = interned<readonly [number, number, number]>();
   const shapes = interned<readonly number[]>();
   const scalars = new Map<string, number>();
   const encoder = new TextEncoder();
@@ -147,13 +146,14 @@ export function writeTable(tables: GraphTables): Uint8Array {
         }));
       default: {
         if ('p' in cell) {
-          const place = cell.p;
-          return scalar(`p:${place.join(':')}`, () => ({
+          const [file, line, column] = cell.p;
+          if (file >= NO_FILE) throw new Error(`a table cannot place file ${file}`);
+          return scalar(`p:${cell.p.join(':')}`, () => ({
             kind: PLACE,
             flags: 0,
-            shape: 0,
-            count: 0,
-            first: intern(places, place.join(':'), place),
+            shape: file < 0 ? NO_FILE : file,
+            count: column,
+            first: line,
           }));
         }
         const at = cell[0];
@@ -197,7 +197,6 @@ export function writeTable(tables: GraphTables): Uint8Array {
     padded((strings.values.length + 1) * 4),
     padded(stringTotal),
     doubles.length * 8,
-    places.values.length * 8,
     padded((shapes.values.length + 1) * 4),
     padded(shapeFields * 4),
   ];
@@ -214,7 +213,6 @@ export function writeTable(tables: GraphTables): Uint8Array {
     strings.values.length,
     stringTotal,
     doubles.length,
-    places.values.length,
     shapes.values.length,
   ];
   head.forEach((word, i) => view.setUint32(4 + i * 4, word, true));
@@ -246,19 +244,13 @@ export function writeTable(tables: GraphTables): Uint8Array {
   at += sizes[3]!;
   doubles.forEach((value, i) => view.setFloat64(at + i * 8, value, true));
   at += sizes[4]!;
-  places.values.forEach(([file, line, column], i) => {
-    view.setInt32(at + i * 8, line, true);
-    view.setInt16(at + i * 8 + 4, file, true);
-    view.setUint16(at + i * 8 + 6, column, true);
-  });
-  at += sizes[5]!;
   offset = 0;
   shapes.values.forEach((fields, i) => {
     view.setUint32(at + i * 4, offset, true);
     offset += fields.length;
   });
   view.setUint32(at + shapes.values.length * 4, offset, true);
-  at += sizes[6]!;
+  at += sizes[5]!;
   offset = 0;
   for (const fields of shapes.values) {
     fields.forEach((field, i) => view.setUint32(at + (offset + i) * 4, field, true));
@@ -279,7 +271,6 @@ interface Located {
   readonly strings: number;
   readonly stringBytes: number;
   readonly doubles: number;
-  readonly places: number;
   readonly shapes: number;
   readonly at: {
     readonly nodes: number;
@@ -287,7 +278,6 @@ interface Located {
     readonly stringOffsets: number;
     readonly stringBytes: number;
     readonly doubles: number;
-    readonly places: number;
     readonly shapeOffsets: number;
     readonly shapeFields: number;
   };
@@ -299,22 +289,10 @@ const refuse = (why: string): never => {
 
 function locate(bytes: Uint8Array): Located {
   if (bytes.length < HEAD_BYTES || new TextDecoder().decode(bytes.subarray(0, 4)) !== TABLE_MAGIC)
-    refuse('it does not begin with `TBL3`');
+    refuse('it does not begin with `TBL4`');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const word = (i: number): number => view.getUint32(4 + i * 4, true);
-  const [
-    nodes,
-    entries,
-    prose,
-    bodies,
-    rest,
-    children,
-    strings,
-    stringBytes,
-    doubles,
-    places,
-    shapes,
-  ] = [
+  const [nodes, entries, prose, bodies, rest, children, strings, stringBytes, doubles, shapes] = [
     word(0),
     word(1),
     word(2),
@@ -325,7 +303,6 @@ function locate(bytes: Uint8Array): Located {
     word(7),
     word(8),
     word(9),
-    word(10),
   ] as const;
   if (entries > nodes || prose + bodies + rest !== entries) refuse('its counts do not agree');
   if (shapes > 65535) refuse('it holds more shapes than a node names');
@@ -335,7 +312,6 @@ function locate(bytes: Uint8Array): Located {
     stringOffsets: number;
     stringBytes: number;
     doubles: number;
-    places: number;
     shapeOffsets: number;
     shapeFields: number;
   };
@@ -343,8 +319,7 @@ function locate(bytes: Uint8Array): Located {
   at.stringOffsets = at.children + padded(children * 4);
   at.stringBytes = at.stringOffsets + padded((strings + 1) * 4);
   at.doubles = at.stringBytes + padded(stringBytes);
-  at.places = at.doubles + doubles * 8;
-  at.shapeOffsets = at.places + places * 8;
+  at.shapeOffsets = at.doubles + doubles * 8;
   at.shapeFields = at.shapeOffsets + padded((shapes + 1) * 4);
   if (at.shapeFields > bytes.length) refuse('it ends before its sections do');
   const fieldWords = view.getUint32(at.shapeOffsets + shapes * 4, true);
@@ -358,7 +333,6 @@ function locate(bytes: Uint8Array): Located {
     strings,
     stringBytes,
     doubles,
-    places,
     shapes,
     at,
   };
@@ -422,17 +396,8 @@ export function readTable(bytes: Uint8Array): GraphTables {
         return view.getFloat64(at.doubles + n.first * 8, true);
       case STRING:
         return strings[n.first] ?? refuse('it names a string it does not hold');
-      case PLACE: {
-        if (n.first >= t.places) refuse('it names a place it does not hold');
-        const base = at.places + n.first * 8;
-        return {
-          p: [
-            view.getInt16(base + 4, true),
-            view.getInt32(base, true),
-            view.getUint16(base + 6, true),
-          ],
-        };
-      }
+      case PLACE:
+        return { p: [n.shape === NO_FILE ? -1 : n.shape, n.first, n.count] };
       default:
         return refuse('a scalar is not a scalar');
     }

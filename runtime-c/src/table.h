@@ -17,7 +17,7 @@
 
 #include "sprout.h"
 
-#define SPROUT_TABLE_MAGIC "TBL3"
+#define SPROUT_TABLE_MAGIC "TBL4"
 
 /* A node's kind: the same numbering as sprout_node_kind. */
 enum {
@@ -34,6 +34,7 @@ enum {
 
 #define SPROUT_TABLE_INLINE 1u /* a number's flag: `first` is a signed 32-bit integer */
 #define SPROUT_TABLE_TRUE 1u   /* a boolean's flag: its value */
+#define SPROUT_TABLE_NO_FILE 0xffffu /* a place's file where none was kept */
 
 /*
  * One node. An object's `count` fields are the shape's, their values at
@@ -41,7 +42,8 @@ enum {
  * pairs are key then value from `children[first]`. A string's `first` indexes
  * the strings and `count` is its length in bytes. A number's `first` is a
  * signed integer under the INLINE flag, else an index into the doubles. A
- * place's `first` indexes the places.
+ * place is held in its node: `shape` is its file (SPROUT_TABLE_NO_FILE where
+ * none was kept), `first` its line and `count` its column.
  */
 typedef struct sprout_table_node {
   uint8_t kind;
@@ -50,12 +52,6 @@ typedef struct sprout_table_node {
   uint32_t count;
   uint32_t first;
 } sprout_table_node;
-
-typedef struct sprout_table_place {
-  int32_t line;
-  int16_t file; /* -1 for a place that was not kept */
-  uint16_t column;
-} sprout_table_place;
 
 /* A table mapped over its block, every section located and checked. */
 typedef struct sprout_table {
@@ -69,8 +65,6 @@ typedef struct sprout_table {
   size_t string_count, string_bytes_length;
   const double *doubles;
   size_t double_count;
-  const sprout_table_place *places;
-  size_t place_count;
   const uint32_t *shape_offsets; /* shape_count + 1 of them, into shape_fields */
   const uint32_t *shape_fields;  /* string indexes */
   size_t shape_count, shape_field_count;

@@ -30,7 +30,7 @@ static const sprout_message *message_in(const sprout_world *world, const char *l
 /* The message a send names, reached from the library that wrote the body; NULL where it is absent at load. */
 static sprout_eval_status declared_message(const sprout_frame *frame, const sprout_node *statement,
                                            const sprout_message **out) {
-  const char *name = expr_ident(frame->graph, statement, "message");
+  const char *name = sprout_node_name(frame->graph, statement, "message");
   size_t i;
   *out = NULL;
   for (i = 0; i < sizeof ENGINE_MESSAGES / sizeof *ENGINE_MESSAGES; i++)

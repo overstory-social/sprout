@@ -19,7 +19,8 @@ import { pathOf, type Standing } from '@overstory/sprout-player';
 // each value role. `--scene` polls the scene instead, which lists the verbs
 // in place of the readings, and `--verb` one verb's readings. A poll that
 // faults is shown as the visitor would see it, then the fault the host
-// would log. Each poll is the engine's the visitor stands under.
+// would log, and, where it ran out of steps, how to give it more. Each
+// poll is the engine's the visitor stands under, under its budgets.
 
 /** What polling gave: the page, and whether the poll ran without a fault. */
 export interface InspectedView {
@@ -117,6 +118,14 @@ function placeWritten(place: SeenPlace, world: InstanceId): string[] {
   ];
 }
 
+/**
+ * What to write where a poll ran out of `pollSteps`. The engine stops at the first step past the
+ * budget, so how many the poll would have needed is not known; the example doubles the budget.
+ */
+function raiseWords(steps: number): string {
+  return `A poll stops at its first step past ${steps}, so how many this one needs is not known: give it more with --poll-steps, as in \`--poll-steps ${Math.max(steps * 2, 1)}\`.\n`;
+}
+
 /** `sections` under where the visitor stands, then the fault where the poll faulted. */
 function pageOf(
   standing: Standing,
@@ -127,7 +136,9 @@ function pageOf(
   const page = [`standing in ${pathOf(world, standing.place)}\n`, ...sections];
   if (fault !== null) {
     const against = fault.object === null ? '' : `, against ${pathOf(world, fault.object)}`;
-    page.push(`the poll faulted${against}, ${fault.name}: ${fault.detail}\n`);
+    const ranOut = fault.name === 'BudgetExhausted' && fault.detail.startsWith('pollSteps:');
+    const raise = ranOut ? raiseWords(standing.host.budgets.pollSteps) : '';
+    page.push(`the poll faulted${against}, ${fault.name}: ${fault.detail}\n${raise}`);
   }
   return { ok: fault === null, page: page.join('\n') };
 }

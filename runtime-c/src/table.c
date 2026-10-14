@@ -10,8 +10,8 @@
 
 #include <string.h>
 
-#define HEAD_WORDS 11
-#define HEAD_BYTES (4 + HEAD_WORDS * 4)
+#define HEAD_WORDS 10
+#define HEAD_BYTES 48 /* the magic and the counts, padded to eight */
 #define NODE_BYTES 12
 
 static size_t padded(size_t bytes) { return (bytes + 7u) & ~(size_t)7u; }
@@ -29,7 +29,7 @@ static uint32_t word(const unsigned char *at) {
 static sprout_status locate(const unsigned char *bytes, size_t length, sprout_table *t, const char **why) {
   uint32_t counts[HEAD_WORDS];
   size_t at, i;
-  if (length < HEAD_BYTES || memcmp(bytes, SPROUT_TABLE_MAGIC, 4) != 0) return refuse(why, "it does not begin with `TBL3`");
+  if (length < HEAD_BYTES || memcmp(bytes, SPROUT_TABLE_MAGIC, 4) != 0) return refuse(why, "it does not begin with `TBL4`");
   for (i = 0; i < HEAD_WORDS; i++) counts[i] = word(bytes + 4 + i * 4);
   memset(t, 0, sizeof *t);
   t->node_count = counts[0];
@@ -41,14 +41,13 @@ static sprout_status locate(const unsigned char *bytes, size_t length, sprout_ta
   t->string_count = counts[6];
   t->string_bytes_length = counts[7];
   t->double_count = counts[8];
-  t->place_count = counts[9];
-  t->shape_count = counts[10];
+  t->shape_count = counts[9];
   if (t->entry_count > t->node_count || t->runs[0] + t->runs[1] + t->runs[2] != t->entry_count)
     return refuse(why, "its counts do not agree");
   if (t->shape_count > 65535) return refuse(why, "it holds more shapes than a node names");
   /* Each section's size is bounded so the sum cannot wrap on a 32-bit host. */
   if (t->node_count > length / NODE_BYTES || t->child_count > length / 4 || t->string_count > length / 4 ||
-      t->string_bytes_length > length || t->double_count > length / 8 || t->place_count > length / 8)
+      t->string_bytes_length > length || t->double_count > length / 8)
     return refuse(why, "it ends before its sections do");
   at = HEAD_BYTES;
   t->nodes = (const sprout_table_node *)(bytes + at);
@@ -61,8 +60,6 @@ static sprout_status locate(const unsigned char *bytes, size_t length, sprout_ta
   at += padded(t->string_bytes_length);
   t->doubles = (const double *)(bytes + at);
   at += t->double_count * 8;
-  t->places = (const sprout_table_place *)(bytes + at);
-  at += t->place_count * 8;
   t->shape_offsets = (const uint32_t *)(bytes + at);
   at += padded((t->shape_count + 1) * 4);
   if (at > length) return refuse(why, "it ends before its sections do");
@@ -131,7 +128,6 @@ sprout_status sprout_table_map(const unsigned char *bytes, size_t length, sprout
         break;
       case SPROUT_TABLE_PLACE:
         if (entry) return refuse(why, "an entry is not an object, an array, a map or a set");
-        if (n->first >= t->place_count) return refuse(why, "it names a place it does not hold");
         break;
       case SPROUT_TABLE_NULL:
       case SPROUT_TABLE_BOOLEAN:
