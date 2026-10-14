@@ -1,4 +1,4 @@
-/* Whole files over the Playdate's filesystem; see files.h. */
+/* Files over the Playdate's filesystem; see files.h. */
 #include "files.h"
 
 #include <stdint.h>
@@ -133,6 +133,37 @@ static void *write_thunk(void *ctx) {
 static void *list_thunk(void *ctx) {
   file_call *c = (file_call *)ctx;
   return (void *)(intptr_t)(c->pd->file->listfiles(c->path, c->found, c->found_ctx, 0) == 0);
+}
+
+static void *open_thunk(void *ctx) {
+  file_call *c = (file_call *)ctx;
+  char temp[TEMP_PATH];
+  SDFile *file = c->pd->file->open(c->path, kFileRead | kFileReadData);
+  if (file != NULL || !temp_path_of(c->path, temp)) return file;
+  return c->pd->file->open(temp, kFileRead | kFileReadData);
+}
+
+/* A read of a piece: the file, where it goes, and how much is asked. */
+typedef struct piece_read {
+  PlaydateAPI *pd;
+  SDFile *file;
+  void *buffer;
+  size_t bytes;
+} piece_read;
+
+static void *piece_thunk(void *ctx) {
+  piece_read *c = (piece_read *)ctx;
+  return (void *)(intptr_t)c->pd->file->read(c->file, c->buffer, (unsigned)c->bytes);
+}
+
+SDFile *player_file_open(PlaydateAPI *pd, const char *path) {
+  file_call c = {pd, path, NULL, NULL, 0, NULL, NULL, NULL};
+  return (SDFile *)player_on_main_stack(open_thunk, &c);
+}
+
+int player_file_read(PlaydateAPI *pd, SDFile *file, void *buffer, size_t bytes) {
+  piece_read c = {pd, file, buffer, bytes};
+  return (int)(intptr_t)player_on_main_stack(piece_thunk, &c);
 }
 
 char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length) {

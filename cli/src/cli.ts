@@ -60,10 +60,11 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
-  sprout view [dir] [--at place] [--as name] [--scene | --verb name]
+  sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--poll-steps n]
                                       what a visitor standing there is shown and could type; --scene the
                                       scene, which lists the verbs in place of the readings; --verb one
-                                      verb's readings, by its qualified name (sprout.take)
+                                      verb's readings, by its qualified name (sprout.take); --poll-steps the
+                                      steps the poll may take, ${DEFAULT_LIMITS.budgets.pollSteps} without it
   sprout play dir script.json [--write] [--report file.json]
                                       (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,
@@ -197,7 +198,7 @@ function writeReached(world: PlayableWorld, runs: readonly PlayedRun[], file: st
 /** The flags each command that runs a world takes; any other is refused. */
 const TAKES: Readonly<Record<string, readonly string[]>> = {
   parse: ['at', 'as'],
-  view: ['at', 'as', 'scene', 'verb'],
+  view: ['at', 'as', 'scene', 'verb', 'poll-steps'],
   play: ['write', 'report', 'at', 'as', 'seed', 'debug', 'record'],
   test: ['report'],
   mcp: ['http', 'seed', 'record', 'turn-cap', 'advance-per-turn'],
@@ -221,6 +222,16 @@ function standing(flags: Parsed['flags']): StandOptions {
   if (at === true) throw new Error('--at wants a place after it, as the world names it: --at hall');
   if (as === true) throw new Error('--as wants a nickname after it: --as Marta');
   return { ...(at === undefined ? {} : { at }), ...(as === undefined ? {} : { nickname: as }) };
+}
+
+/** The steps `--poll-steps` lets a poll take in place of the host's default, or nothing where it is not given. */
+function pollBudget(flags: Parsed['flags']): Pick<StandOptions, 'budgets'> {
+  const steps = flags['poll-steps'];
+  if (steps === undefined) return {};
+  if (steps === true || !/^\d+$/.test(steps) || !Number.isSafeInteger(Number(steps))) {
+    throw new Error('--poll-steps wants a whole number after it, as in `--poll-steps 200`.');
+  }
+  return { budgets: { pollSteps: Number(steps) } };
 }
 
 const defaultIo = (): Io => ({
@@ -295,7 +306,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           );
         if (verb !== undefined && flags['scene'] !== undefined)
           throw new Error('Write one of --scene and --verb: each prints a poll of its own.');
-        const stood = standIn(checked, standing(flags));
+        const stood = standIn(checked, { ...standing(flags), ...pollBudget(flags) });
         const inspected =
           verb !== undefined
             ? inspectReadings(stood, verb)

@@ -87,8 +87,11 @@ the layout is hole 462.
   (`bundle/cartridge-table.ts`, `runtime-c/src/table.h`): the three runs of
   entries (passages; statements and expressions; everything else) as
   twelve-byte nodes, one pool of child indexes, one run of strings, the
-  doubles, the places and the shapes objects share, with one node per
-  distinct scalar after the entries. The runtime inflates the body into one
+  doubles and the shapes objects share, with one node per distinct scalar
+  after the entries, a place among them holding its file, line and column.
+  An identifier is written as its text and an object path as its steps
+  joined by dots; only a name the name table binds stays an entry, with no
+  place (`bundle/cartridge-names.ts`). The runtime inflates the body into one
   block and reads the table where it lies, so a shared object is one node
   and nothing is built from it. The preamble's cells refer to entries by
   index.
@@ -168,12 +171,20 @@ still takes the visitor out and a faulted wake is consumed (hole 499).
 **Memory.** Every allocation comes from the host's `alloc`, in pages of the
 host's size. A turn's arena is dropped whole at its end, and dropping it
 drops the draft. The Playdate host gives it `system->realloc` and a 32 KB
-page. A loaded world is its graph and catalogue alone: the body is read as
-a stream, an entry at a time, into scratch that is released as it goes, so a
-load's peak is about the loaded world itself, and the
+page. A loaded world is its body's block, with the table read where it
+lies, and its catalogue. The host need not hold the cartridge either:
+`sprout_load_begin` reads it from a `sprout_source`, front to back, 8 KB at a
+time into the load's scratch, so a load's peak is the loaded world and its
+scratch (the caverns: 3.69 MB at the peak and 3.36 MB loaded, on x86-64 with
+32 KB pages), and the
 graph's nodes are small (a union for the payload, 32 bytes on a 64-bit host
 and 20 on the console) with every distinct scalar cell and field name held
-once, so a word the table writes a thousand times is one node.
+once, so a word the table writes a thousand times is one node. The
+catalogue holds one record for each thing the graph shares (a kind, a
+property, a group of plays) and keeps the name table and the option slots
+by entry index for only the entries they name: on `underground_caverns`
+it is about 0.35 MB on the console (0.63 MB of a 64-bit host's arena), and
+its build adds about 0.13 MB of scratch.
 
 **Determinism.** Nothing a turn does reads the clock, the filesystem or
 the network. The only time is the `elapsed` the host passes. Every draw
@@ -554,8 +565,13 @@ header and caps, and then `sprout.step` once a frame, each inflating 32 KB
 of the body into the block the world is read from, behind
 `Loading Underground Caverns... 37%` with a bar, until the step that is
 done maps the table, builds the catalogue and brings the world's words, and
-the nickname picker follows. The caverns take about 150 steps. A step that fails
-says why on the shelf, as a refused open does.
+the nickname picker follows. The open reads the file whole for the peek and
+lets it go; the load then reads it again with `pd->file->read`, a piece as
+the inflater asks, on the main stack, so the cartridge is never whole in
+memory beside the world being built (on the console that is the file's
+0.98 MB off the load's peak for the caverns). The caverns' 2.7 MB body takes
+about 83 steps. A step that fails, a read of the file among them, says why
+on the shelf, as a refused open does.
 
 ### The shelf
 
@@ -692,7 +708,7 @@ Not yet checked:
   guesses);
 - the budgets, tuned on hardware (the Simulator is far faster);
 - the memory and the time of a big world on a console's 16 MB and 168 MHz:
-  `underground_caverns` packs to 1.8 MB, its stored world is 480 KB, and
+  `underground_caverns` packs to 0.98 MB, its stored world is 480 KB, and
   its fullest room polls 344,254 steps into a chip tree of 12,153 readings
   that stays in the session and is read a level at a time; it plays whole
   through `sproutc` and the Simulator;

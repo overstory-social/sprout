@@ -377,8 +377,44 @@ static void an_answer_lives_until_the_next_call(void) {
   end();
 }
 
+static void a_cartridge_that_cannot_be_read_part_way_is_told_in_words(void) {
+  player_session *s;
+  player_opening opened;
+  begin("unreadable");
+  s = session_new();
+  opened = player_open(s, "chip-tree.sproutworld");
+  CHECK(opened.ok, "%s", opened.reason);
+  fake->fail_reads = 1;
+  while (opened.ok && !opened.done) opened = player_step(s);
+  fake->fail_reads = 0;
+  CHECK(!opened.ok && strcmp(opened.reason, "This cartridge cannot be read: its file could not be read to the end.") == 0,
+        "%s", opened.reason ? opened.reason : "(opened)");
+  opened = player_step(s);
+  CHECK(!opened.ok && strcmp(opened.reason, "No world is being opened.") == 0, "the failed load is let go");
+  opened = player_open_whole(s, "chip-tree.sproutworld");
+  CHECK(opened.ok && opened.done, "it opens once the file reads again: %s", opened.reason ? opened.reason : "");
+  end();
+}
+
+static void the_load_reads_the_file_a_piece_at_a_time(void) {
+  player_session *s;
+  player_opening opened;
+  begin("pieces");
+  s = session_new();
+  opened = player_open(s, "chip-tree.sproutworld");
+  CHECK(opened.ok, "%s", opened.reason);
+  fake->reads = 0;
+  fake->read_largest = 0;
+  while (opened.ok && !opened.done) opened = player_step(s);
+  CHECK(opened.ok && opened.done, "%s", opened.reason ? opened.reason : "");
+  CHECK(fake->reads > 0 && fake->read_largest <= 32768, "%zu reads, the largest %zu bytes", fake->reads, fake->read_largest);
+  end();
+}
+
 int main(void) {
   test_program("session");
+  a_cartridge_that_cannot_be_read_part_way_is_told_in_words();
+  the_load_reads_the_file_a_piece_at_a_time();
   the_shelf_asks_whether_each_cartridge_can_be_shelved();
   opening_says_the_hash_and_the_words_a_nickname_may_not_be();
   nothing_open_says_so_in_words();

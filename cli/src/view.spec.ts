@@ -2,18 +2,16 @@ import { applyChanges } from '@overstory/sprout/core';
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
-import { engineFor, standIn, type Standing } from '@overstory/sprout-player';
+import { standIn, type Standing } from '@overstory/sprout-player';
 import { LANE, worldFolder } from '@overstory/sprout-player/fixtures';
 import { inspectReadings, inspectScene, inspectView } from './view.js';
 
 const lane = checkWorld(worldFolder('lane', LANE)).bundle!;
 
 const at = (place?: string): Standing => standIn(lane, place === undefined ? {} : { at: place });
-/** `standing`, its polls held to two steps. */
-const starved = (standing: Standing): Standing => {
-  const host = { ...standing.host, budgets: { ...standing.host.budgets, pollSteps: 2 } };
-  return { ...standing, host, engine: engineFor(lane, host) };
-};
+/** A visitor standing at `place`, their polls held to two steps. */
+const starved = (place?: string): Standing =>
+  standIn(lane, { ...(place === undefined ? {} : { at: place }), budgets: { pollSteps: 2 } });
 
 describe('inspectView', () => {
   it('shows the description, the ways out, who else is there, what is carried and every reading', () => {
@@ -117,7 +115,7 @@ kind Rowboat is sprout.Place { as target for take { do { } } }
   });
 
   it('shows the world’s `unseen`, keeping the parts derived first, then the fault the host would log', () => {
-    const inspected = inspectView(starved(at()));
+    const inspected = inspectView(starved());
     expect(inspected.ok).toBe(false);
     expect(inspected.page).toBe(`standing in yard
 
@@ -137,6 +135,7 @@ what they could type
   nothing
 
 the poll faulted, against yard, BudgetExhausted: pollSteps: a poll turn may take 2 steps.
+A poll stops at its first step past 2, so how many this one needs is not known: give it more with --poll-steps, as in \`--poll-steps 4\`.
 `);
   });
 });
@@ -162,11 +161,11 @@ describe('inspectScene', () => {
   });
 
   it('shows the world’s `unseen` and the fault where the scene’s poll runs out', () => {
-    const inspected = inspectScene(starved(at()));
+    const inspected = inspectScene(starved());
     expect(inspected.ok).toBe(false);
     expect(inspected.page).toContain('\ndescription\n  Something here is too much to take in.\n');
     expect(inspected.page).toMatch(
-      /\nthe poll faulted, against yard, BudgetExhausted: pollSteps: a poll turn may take 2 steps\.\n$/,
+      /\nthe poll faulted, against yard, BudgetExhausted: pollSteps: a poll turn may take 2 steps\.\nA poll stops at its first step past 2, .*`--poll-steps 4`\.\n$/,
     );
   });
 });
@@ -190,11 +189,10 @@ describe('inspectReadings', () => {
   });
 
   it('says `nothing` for a verb the visitor can make no reading of, and faults with the budget', () => {
-    const standing = at('shed');
-    expect(inspectReadings(standing, 'sprout.take').page).toBe(
+    expect(inspectReadings(at('shed'), 'sprout.take').page).toBe(
       'standing in shed\n\nwhat they could type with sprout.take\n  nothing\n',
     );
-    const inspected = inspectReadings(starved(standing), 'lane.pry');
+    const inspected = inspectReadings(starved('shed'), 'lane.pry');
     expect(inspected.ok).toBe(false);
     expect(inspected.page).toMatch(
       /^standing in shed\n\nwhat they could type with lane\.pry\n {2}nothing\n\nthe poll faulted, against shed, BudgetExhausted: /,

@@ -337,7 +337,10 @@ writing one:
   understands a line — which verb, which thing — and whether it would be
   refused, without actually doing it.
 
-Both take `--at` and `--as` like `play` does.
+Both take `--at` and `--as` like `play` does. A crowded room can offer
+so many commands that listing them all runs past the steps a poll may
+take, 10,000, and `view` then says the poll faulted; `--poll-steps 50000`
+lets it take more.
 
 ## Which engine runs the world
 

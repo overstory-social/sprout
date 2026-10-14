@@ -108,11 +108,11 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
   sprout_evaluated value;
   sprout_str words;
   char digits[32];
-  size_t length, at;
+  size_t length;
   /* A member the checker resolved as a dotted path's last step is the object it names. */
-  if (expr_kind_of(frame->graph, expr) == EXPR_MEMBER && strcmp(expr_ident(frame->graph, expr, "member"), "count") != 0 &&
+  if (expr_kind_of(frame->graph, expr) == EXPR_MEMBER && strcmp(sprout_node_name(frame->graph, expr, "member"), "count") != 0 &&
       sprout_world_bound(frame->world, expr) == NULL)
-    return passage_of(reading, sprout_node_get(frame->graph, expr, "receiver"), expr_ident(frame->graph, expr, "member"), frame, out);
+    return passage_of(reading, sprout_node_get(frame->graph, expr, "receiver"), sprout_node_name(frame->graph, expr, "member"), frame, out);
   EXPR_NEED(sprout_eval(frame, expr, &value));
   switch (value.binds) {
     case SPROUT_BINDS_OBJECT:
@@ -136,8 +136,7 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
       return put_words(reading, out, PROSE_WORDS, words.bytes, length);
     case SPROUT_STRING:
       words = (sprout_str){value.value.as.string.bytes, value.value.as.string.length};
-      at = sprout_graph_index(&frame->world->graph, piece);
-      if (at != SPROUT_NOT_AN_ENTRY && frame->world->option_slot[at] &&
+      if (sprout_world_option_slot(frame->world, piece) &&
           !sprout_humanised(frame->turn, words, &words))
         return SPROUT_EVAL_NO_MEMORY;
       return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
@@ -234,7 +233,7 @@ static sprout_eval_status walk(const sprout_node *block, const sprout_frame *fra
 /* A `{for}`: its body once for each thing or element walked, each iteration a step. */
 static sprout_eval_status loop(const prose_reading *reading, const sprout_node *block, const sprout_frame *frame,
                                prose_pieces *out) {
-  const char *variable = expr_ident(frame->graph, block, "variable");
+  const char *variable = sprout_node_name(frame->graph, block, "variable");
   sprout_evaluated *walked = NULL;
   size_t count = 0, i;
   EXPR_NEED(walk(block, frame, &walked, &count));

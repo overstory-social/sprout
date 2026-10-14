@@ -32,7 +32,7 @@ static const sprout_play_group *group_for(const sprout_kind_def *kind, const cha
                                           const char *verb) {
   size_t i;
   for (i = 0; i < kind->play_group_count; i++)
-    if (key_is(kind->plays[i].key, role, library, verb)) return &kind->plays[i];
+    if (key_is(kind->plays[i]->key, role, library, verb)) return kind->plays[i];
   return NULL;
 }
 

@@ -131,7 +131,7 @@ script, reading each typed line as the command turns it runs; `--trace` writes w
 the Playdate's sentence builder needs; `--profile` writes each step's bytes held and peak),
 `sproutc view <cartridge> --state f [--visit k] [--poll-steps n] [--json | --scene | --verb name]` (`--scene` prints the
 scene, which lists the verbs in place of the readings, and `--verb` one verb's readings, by its qualified name, as
-`sprout view --scene` and `--verb` do),
+`sprout view --scene`, `--verb` and `--poll-steps` do),
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each
 check holds the C runtime to.

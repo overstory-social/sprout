@@ -17,7 +17,7 @@
   "\"libraries\":[{\"name\":\"sprout\",\"version\":\"0.1.0\",\"sha\":\"ff00\"}]}}"
 
 /* A table of no nodes: its counts, then the one string offset and the one shape offset, each padded. */
-static const unsigned char FIXTURE_EMPTY_TABLE[64] = {'T', 'B', 'L', '3'};
+static const unsigned char FIXTURE_EMPTY_TABLE[64] = {'T', 'B', 'L', '4'};
 
 /* The sixteen bytes, then `json` as the preamble (padded to eight) and a table of no nodes, as one stored gzip member. */
 static inline unsigned char *build_cartridge(const char *json, unsigned format, unsigned level,

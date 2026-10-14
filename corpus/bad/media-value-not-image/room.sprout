@@ -1,0 +1,21 @@
+// A value that is not an extension's, given where one is wanted outside
+// the extension's own statement, is answered with a property that holds one.
+import * as sprout from 'sprout'
+
+extension media 1
+
+message :picture_shown with media.Image
+
+kind Room is sprout.Place {
+  :picture media.Image default "cellar.png"
+  :caption "a damp cellar"
+  on :picture_shown (_, image) { media.show(image) }
+  describe {
+    text "A damp cellar."
+    media.show(self.get(:picture))
+  }
+  on :tick {
+    broadcast :picture_shown with 3
+    send self :picture_shown with self.get(:caption)
+  }
+}

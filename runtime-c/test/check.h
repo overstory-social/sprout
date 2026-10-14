@@ -103,6 +103,46 @@ static inline sprout_host test_host(test_heap *heap) {
   return host;
 }
 
+/*
+ * A source over bytes held in memory, as a host reading a file gives them: at
+ * most `piece` bytes a read (all it is asked for when 0), and every read past
+ * `fail_at` bytes refused when that is not negative.
+ */
+typedef struct test_source {
+  const unsigned char *bytes;
+  size_t length, at, piece;
+  long fail_at;
+  long reads;
+} test_source;
+
+static inline bool test_source_read(void *ctx, unsigned char *buffer, size_t bytes, size_t *got) {
+  test_source *t = (test_source *)ctx;
+  size_t n = t->length - t->at;
+  t->reads++;
+  if (t->fail_at >= 0 && t->at >= (size_t)t->fail_at) return false;
+  if (n > bytes) n = bytes;
+  if (t->piece > 0 && n > t->piece) n = t->piece;
+  if (t->fail_at >= 0 && t->at + n > (size_t)t->fail_at) n = (size_t)t->fail_at - t->at;
+  memcpy(buffer, t->bytes + t->at, n);
+  t->at += n;
+  *got = n;
+  return true;
+}
+
+/* The source of `length` bytes at `bytes`, read `piece` at a time, whose state is `t`. */
+static inline sprout_source test_source_of(test_source *t, const void *bytes, size_t length, size_t piece) {
+  sprout_source source;
+  t->bytes = (const unsigned char *)bytes;
+  t->length = length;
+  t->at = 0;
+  t->piece = piece;
+  t->fail_at = -1;
+  t->reads = 0;
+  source.ctx = t;
+  source.read = test_source_read;
+  return source;
+}
+
 /* A golden file from corpus/goldens, malloc'd and NUL-terminated; the test aborts if it is missing. */
 static inline char *test_golden(const char *name, size_t *length) {
   char path[1024];

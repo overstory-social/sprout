@@ -234,7 +234,99 @@ static void the_member_reads_the_same_a_few_bytes_at_a_time(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+static void a_member_from_a_source_reads_the_same_in_any_pieces(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  size_t gz_length, json_length, piece_bytes;
+  unsigned char *gz = (unsigned char *)test_golden("stored-canon.json.gz", &gz_length);
+  char *json = test_golden("stored-canon.json", &json_length);
+  sprout_arena_init(&arena, &host);
+  for (piece_bytes = 1; piece_bytes <= 9; piece_bytes += 4) {
+    sprout_inflater *s = (sprout_inflater *)sprout_arena_take(&arena, sizeof *s);
+    unsigned char *piece = (unsigned char *)sprout_arena_take(&arena, piece_bytes);
+    unsigned char out[5];
+    test_source t;
+    sprout_source source = test_source_of(&t, gz, gz_length, 0);
+    size_t at = 0, got = 0;
+    const char *why = NULL;
+    CHECK_INT(sprout_inflate_begin_source(s, &source, piece, piece_bytes, &why), SPROUT_OK);
+    for (;;) {
+      CHECK_INT(sprout_inflate_next(s, out, sizeof out, &got, &why), SPROUT_OK);
+      if (got == 0) break;
+      CHECK(at + got <= json_length && memcmp(out, json + at, got) == 0);
+      at += got;
+    }
+    CHECK_INT(at, json_length);
+    CHECK(sprout_inflate_done(s));
+    CHECK_INT(t.at, gz_length);
+  }
+  /* The stored vector, whose block is copied a piece at a time. */
+  {
+    sprout_inflater *s = (sprout_inflater *)sprout_arena_take(&arena, sizeof *s);
+    unsigned char piece[3], out[64];
+    test_source t;
+    sprout_source source = test_source_of(&t, GZ_STORED, sizeof GZ_STORED, 0);
+    size_t at = 0, got = 0;
+    const char *why = NULL;
+    char expected[1024];
+    size_t expected_length = sample(expected);
+    CHECK_INT(sprout_inflate_begin_source(s, &source, piece, sizeof piece, &why), SPROUT_OK);
+    do {
+      CHECK_INT(sprout_inflate_next(s, out, sizeof out, &got, &why), SPROUT_OK);
+      CHECK(at + got <= expected_length && memcmp(out, expected + at, got) == 0);
+      at += got;
+    } while (got > 0);
+    CHECK_INT(at, expected_length);
+    CHECK(sprout_inflate_done(s));
+  }
+  sprout_arena_reset(&arena);
+  free(gz);
+  free(json);
+  CHECK_INT(heap.pages, 0);
+}
+
+/* Why the member in the first `length` bytes of `gz`, read from a source that fails at `fail_at` (unless negative), is refused; NULL when it is not. */
+static const char *source_refusal(const unsigned char *gz, size_t length, long fail_at) {
+  static sprout_inflater s;
+  unsigned char piece[4], out[64];
+  test_source t;
+  sprout_source source = test_source_of(&t, gz, length, 0);
+  size_t got = 0;
+  const char *why = NULL;
+  t.fail_at = fail_at;
+  if (sprout_inflate_begin_source(&s, &source, piece, sizeof piece, &why) != SPROUT_OK) return why;
+  do {
+    if (sprout_inflate_next(&s, out, sizeof out, &got, &why) != SPROUT_OK) return why;
+  } while (got > 0);
+  return NULL;
+}
+
+static void a_member_from_a_source_is_refused_in_words(void) {
+  unsigned char copy[sizeof GZ_STORED + 2];
+  size_t cut;
+  CHECK_STR(source_refusal(GZ_DYNAMIC, sizeof GZ_DYNAMIC, 30), "its file could not be read to the end");
+  CHECK_STR(source_refusal(GZ_DYNAMIC, sizeof GZ_DYNAMIC, 0), "its file could not be read to the end");
+  CHECK_STR(source_refusal(GZ_DYNAMIC, sizeof GZ_DYNAMIC - 3, -1), "the compressed data ends early");
+  memcpy(copy, GZ_STORED, sizeof GZ_STORED);
+  copy[sizeof GZ_STORED] = 'x';
+  copy[sizeof GZ_STORED + 1] = 'y';
+  CHECK_STR(source_refusal(copy, sizeof copy, -1), "the compressed data goes on past its end");
+  copy[sizeof GZ_STORED - 4] = 5; /* ISIZE */
+  copy[sizeof GZ_STORED - 3] = 0;
+  CHECK_STR(source_refusal(copy, sizeof GZ_STORED, -1), "the compressed data is longer than it says");
+  memcpy(copy, GZ_STORED, sizeof GZ_STORED);
+  copy[40] ^= 0x01;
+  CHECK_STR(source_refusal(copy, sizeof GZ_STORED, -1), "the compressed data does not match its checksum");
+  copy[40] ^= 0x01;
+  copy[0] = 0;
+  CHECK_STR(source_refusal(copy, sizeof GZ_STORED, -1), "the data is not gzip: it does not begin with its magic number");
+  for (cut = 0; cut < sizeof GZ_DYNAMIC; cut++) CHECK(source_refusal(GZ_DYNAMIC, cut, -1) != NULL);
+}
+
 int main(void) {
+  RUN(a_member_from_a_source_reads_the_same_in_any_pieces);
+  RUN(a_member_from_a_source_is_refused_in_words);
   RUN(the_member_reads_the_same_a_few_bytes_at_a_time);
   RUN(a_dynamic_block_inflates);
   RUN(a_fixed_block_inflates);
