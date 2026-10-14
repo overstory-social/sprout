@@ -620,10 +620,9 @@ typedef struct sprout_turn_input {
   size_t text_length;
   const sprout_reading *planned; /* COMMAND: a later turn of a line, the reading an earlier turn planned for it, or NULL */
   const sprout_reread *reread;   /* COMMAND: with `planned`, the item of a run read afresh, or NULL */
-  const char *place;             /* TICK: the place ticked, by id; its turn is seeded from the host's seed and the place's path */
+  const char *place;             /* TICK: the place ticked, by id */
   const char *object;            /* WAKE: the object woken, by id */
   uint64_t serial;               /* WAKE: the serial the wake was asked under */
-  uint64_t nth;                  /* WAKE: how many times this object has woken in this step of time, from 0 */
 } sprout_turn_input;
 
 /* What a turn came to. */
@@ -906,7 +905,8 @@ void sprout_wakes_free(sprout_wakes *wakes);
 
 /*
  * How the world's body writes `id`: its path under the world for a declared object, and the id itself for
- * anything minted. This is what a tick's or a wake's seed is made from, and how a host names an object in its own log.
+ * anything minted. This is what a host makes a tick's or a wake's seed from (seeds.h), and how it names an object in
+ * its own log.
  */
 sprout_str sprout_path_of(const sprout_world *world, sprout_str id);
 #endif

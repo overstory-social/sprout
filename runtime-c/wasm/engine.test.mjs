@@ -1,8 +1,9 @@
-// The WebAssembly engine (engine.c, driven by engine.mjs) checked against the TypeScript runtime, and
+// The WebAssembly engine (engine/, driven by @overstory/sprout-engine-wasm's WasmInstance) checked against the TypeScript runtime, and
 // libc.c against the C standard (libc.test.c). Every corpus script is played by the TypeScript runtime
 // (scripts/resolve-script.mjs) and then through the engine: arrivals, departures, ticks and wakes from the
 // turns the TypeScript runtime logged, and each typed line as the engine reads it, the line handing out each
-// command turn it runs (`line`, `lineNext`). Each step's lines, by reader, and the stored world after it must
+// command turn it runs (`line`, `lineNext`), each tick and wake under the seed the TypeScript runtime logged for it.
+// Each step's lines, by reader, and the stored world after it must
 // be what the TypeScript runtime left, and each turn must give what the TypeScript runtime's did: its effects,
 // fault and who it cut short, whose views it made stale, what the store writes, and the entry core's log keeps
 // at play depth, as core's builders make it, a command's with its words, the step a line planned and its draw.
@@ -31,11 +32,20 @@ import {
   pollScene,
   renderEffects,
 } from '@overstory/sprout/lang';
+import { WasmInstance } from '@overstory/sprout-engine-wasm';
 import { catalogueFor, INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
 
 import { loggedEntryOf, packWorld } from '../../scripts/replay-runtime-c.mjs';
 import { resolveFile } from '../../scripts/resolve-script.mjs';
-import { WasmEngine } from './engine.mjs';
+
+/** A fresh instance of the engine at `wasm`, with `cartridge` loaded and a new state for `worldId`, under `budgets`. */
+function opened(wasm, cartridge, worldId, budgets = {}) {
+  const engine = new WasmInstance(new WebAssembly.Module(readFileSync(wasm)));
+  engine.load(cartridge);
+  engine.budgets({ ...DEFAULT_LIMITS.budgets, ...budgets }, DEFAULT_LIMITS.caps.listElements);
+  engine.openEmpty(worldId);
+  return engine;
+}
 
 /**
  * The corpus worlds whose scripts the engine plays, sorted: every one with a script. A world that comes or
@@ -100,6 +110,9 @@ const EXPECTED_CHECKS = ['libc.c', 'edges', 'closed arrival', 'debug depth'];
 
 const visitOf = (nickname) => `visit:${nickname}`;
 
+/** Seed 0 at the instant 0, for the checks that run a turn for what it says rather than what it draws. */
+const AT = { seed: 0, now: 0 };
+
 /** An engine's line as the readings file writes one. */
 function said([visit, kind, words]) {
   return { reader: visit.startsWith('visit:') ? visit.slice(6) : visit, kind, words };
@@ -146,43 +159,31 @@ function playStep(engine, step) {
     for (
       let command = engine.line(visit, step.typed);
       command !== null;
-      command = engine.lineNext()
+      command = engine.lineNext(command.line)
     ) {
       const seed = (step.seed + ran.length) % 2 ** 32;
-      const outcome = engine.command(visit, command, seed, step.atSeconds);
+      const outcome = engine.command(command, { seed, now: step.atSeconds });
       ran.push({ want: step.after?.turns[ran.length], outcome });
     }
     return ran;
   }
-  const woke = new Map();
   for (const want of step.after?.turns ?? []) {
-    const at = want.seconds;
+    const at = { seed: want.seed, now: want.seconds };
     let outcome;
-    if (want.kind === 'maintenance') outcome = engine.maintenance(want.seed, at);
-    else if (want.kind === 'arrival')
-      outcome = engine.arrive(want.who, want.nickname, want.seed, at);
-    else if (want.kind === 'departure') outcome = engine.depart(want.who, want.seed, at);
-    else if (want.kind === 'tick') outcome = engine.tick(want.who, step.seed, at);
-    else {
-      const nth = woke.get(want.who) ?? 0;
-      woke.set(want.who, nth + 1);
-      outcome = engine.wake(want.who, want.wake, nth, step.seed, at);
-    }
+    if (want.kind === 'maintenance') outcome = engine.maintenance(at);
+    else if (want.kind === 'arrival') outcome = engine.arrive(want.who, want.nickname, at);
+    else if (want.kind === 'departure') outcome = engine.depart(want.who, at);
+    else if (want.kind === 'tick') outcome = engine.tick(want.who, at);
+    else outcome = engine.wake(want.who, want.wake, at);
     ran.push({ want, outcome });
   }
   return ran;
 }
 
-/** `value` with the field `name` left out. */
-function without(value, name) {
-  const { [name]: _left, ...rest } = value;
-  return rest;
-}
-
 /**
  * The first way the engine's polls of every visitor in the stored world `stored` differ from the TypeScript
- * runtime's under `host`, in words; null where they agree. The scene is compared but its verbs, then its verbs
- * by qualified name (the engine lists no phrases), then each verb's readings.
+ * runtime's under `host`, in words; null where they agree: the scene, its verbs with their phrases among it, then
+ * each verb's readings.
  */
 function pollsDiffer(engine, host, stored) {
   const { state } = loadWorld(stored, host.catalogue);
@@ -192,14 +193,11 @@ function pollsDiffer(engine, host, stored) {
     .sort();
   for (const visit of present) {
     const want = pollScene(state, host, visit).scene;
-    const got = engine.scene(visit);
-    if (!isDeepStrictEqual(without(got.view, 'readings'), without(want, 'verbs'))) {
-      return `${visit}'s scene is ${JSON.stringify(without(got.view, 'readings'))} where the TypeScript runtime's is ${JSON.stringify(without(want, 'verbs'))}`;
+    const got = engine.scene(visit).scene;
+    if (!isDeepStrictEqual(got, want)) {
+      return `${visit}'s scene is ${JSON.stringify(got)} where the TypeScript runtime's is ${JSON.stringify(want)}`;
     }
     const verbs = want.verbs.map((one) => one.verb);
-    if (!isDeepStrictEqual(got.verbs, verbs)) {
-      return `${visit}'s scene lists the verbs ${got.verbs.join(', ')} where the TypeScript runtime's lists ${verbs.join(', ')}`;
-    }
     for (const verb of verbs) {
       const readings = pollReadings(state, host, visit, verb).readings;
       const given = engine.readings(visit, verb).readings;
@@ -213,7 +211,7 @@ function pollsDiffer(engine, host, stored) {
 
 /** Plays `readings` through a fresh engine; the first difference from the TypeScript runtime, or null. */
 async function playReadings(wasm, cartridge, worldId, readings, host) {
-  const engine = await WasmEngine.open(wasm, cartridge, worldId);
+  const engine = opened(wasm, cartridge, worldId, readings.budgets);
   for (const step of readings.steps) {
     const lines = [];
     const ran = playStep(engine, step);
@@ -253,7 +251,7 @@ async function libcFailures(out) {
 /** The export layer's edges, over one packed world; each problem in words. */
 async function edges(wasm, cartridge, worldId) {
   const problems = [];
-  const engine = await WasmEngine.open(wasm, cartridge, worldId);
+  const engine = opened(wasm, cartridge, worldId);
   const expectThrow = (what, run, words) => {
     try {
       run();
@@ -272,35 +270,41 @@ async function edges(wasm, cartridge, worldId) {
   );
   expectThrow(
     'a command with neither words nor a verb',
-    () => engine.command('visit:nobody', { fillers: [], typed: '' }, 0, 0),
+    () => engine.command({ visit: 'visit:nobody', fillers: [], typed: '' }, AT),
     /names its visit and the words typed/,
   );
   expectThrow(
     'a typed command for nobody here',
-    () => engine.command('visit:nobody', { text: 'look' }, 0, 0),
+    () => engine.command({ visit: 'visit:nobody', text: 'look' }, AT),
     /never visited/,
   );
   expectThrow(
     'a planned step that is not a reading',
-    () => engine.command('visit:nobody', { text: 'look', planned: { verb: 'sprout.look' } }, 0, 0),
+    () =>
+      engine.command({ visit: 'visit:nobody', text: 'look', planned: { verb: 'sprout.look' } }, AT),
     /names its verb and who performs it/,
   );
   expectThrow(
     'a command for nobody here',
-    () => engine.command('visit:nobody', { verb: 'sprout.look', fillers: [], typed: 'look' }, 0, 0),
+    () =>
+      engine.command(
+        { visit: 'visit:nobody', verb: 'sprout.look', fillers: [], typed: 'look' },
+        AT,
+      ),
     /No visitor/,
   );
   expectThrow('a scene for nobody here', () => engine.scene('visit:nobody'), /\S/);
   const held = engine.memory().held;
-  for (let again = 0; again < 3; again++) {
-    const [length] = engine.put([new TextEncoder().encode(worldId)]);
-    engine.call('sw_open', 0, length);
-  }
+  for (let again = 0; again < 3; again++) engine.openEmpty(worldId);
   if (engine.memory().held > held)
     problems.push(`opening again holds ${engine.memory().held - held} more bytes`);
   expectThrow(
     'a visit with a NUL in it',
-    () => engine.command('v0\u0000junk', { verb: 'sprout.look', fillers: [], typed: 'look' }, 0, 0),
+    () =>
+      engine.command(
+        { visit: 'v0\u0000junk', verb: 'sprout.look', fillers: [], typed: 'look' },
+        AT,
+      ),
     /names its visit, verb/,
   );
   expectThrow(
@@ -325,25 +329,23 @@ async function edges(wasm, cartridge, worldId) {
     /through sw_input/,
   );
   // Someone in the world, then a cartridge that is not one: the world and its state stay as they were.
-  engine.maintenance(0, 0);
-  engine.arrive('visit:Marta', 'Marta', 0, 0);
+  engine.maintenance(AT);
+  engine.arrive('visit:Marta', 'Marta', AT);
   expectThrow(
     'a cartridge that is not one',
     () => engine.call('sw_load', ...engine.put([new TextEncoder().encode('nonsense')])),
     /^(?![\s\S]*Load a cartridge)[\s\S]*\S/,
   );
   try {
-    if (engine.scene('visit:Marta').verbs.length === 0)
+    if (engine.scene('visit:Marta').scene.verbs.length === 0)
       problems.push('after a refused load Marta is offered nothing');
   } catch (err) {
     problems.push(`after a refused load the world is gone: ${err.message}`);
   }
   // A reading built from chips runs as it is, and a line hands out its next command only once the last one ran.
   const chosen = engine.command(
-    'visit:Marta',
-    { verb: 'sprout.look', fillers: [], typed: 'look' },
-    0,
-    0,
+    { visit: 'visit:Marta', verb: 'sprout.look', fillers: [], typed: 'look' },
+    AT,
   );
   if (!chosen.changed || chosen.lines.length === 0)
     problems.push('a reading built from chips told nothing');
@@ -353,23 +355,31 @@ async function edges(wasm, cartridge, worldId) {
   if (first?.text !== 'look') problems.push(`a line began with ${JSON.stringify(first)}`);
   expectThrow(
     'the next command before the last ran',
-    () => engine.lineNext(),
+    () => engine.lineNext(first.line),
     /before asking for the next/,
   );
-  engine.command('visit:Marta', first, 0, 0);
-  if (engine.lineNext()?.text !== 'look') problems.push('a line of two commands handed out one');
+  // Another visitor's command between two of a line's is not the line's: the line still waits on its own.
+  engine.command({ visit: 'visit:Marta', text: 'look' }, AT);
+  expectThrow(
+    'the next command after another visitor’s turn',
+    () => engine.lineNext(first.line),
+    /before asking for the next/,
+  );
+  engine.command(first, AT);
+  if (engine.lineNext(first.line)?.text !== 'look')
+    problems.push('a line of two commands handed out one');
+  expectThrow('a line’s command run twice', () => engine.command(first, AT), /handed out once/);
   return problems;
 }
 
 /** A world whose arrival place is gone admits no one, and says so in words for the person. */
 async function closedArrival(wasm, cartridge, worldId, arrivalPlace) {
-  const engine = await WasmEngine.open(wasm, cartridge, worldId);
+  const engine = opened(wasm, cartridge, worldId);
   const stored = JSON.parse(engine.save());
   stored.instances = stored.instances.filter((one) => one.id !== arrivalPlace);
   stored.tombstones = [...stored.tombstones, arrivalPlace].sort();
-  const [length] = engine.put([new TextEncoder().encode(JSON.stringify(stored))]);
-  engine.call('sw_open', length, 0);
-  const outcome = engine.arrive('visit:Marta', 'Marta', 0, 0);
+  engine.open(JSON.stringify(stored));
+  const outcome = engine.arrive('visit:Marta', 'Marta', AT);
   if (outcome.result !== 'closed')
     return [`an arrival to a world with no arrival place came to ${outcome.result}`];
   if (typeof outcome.words !== 'string' || outcome.words === '')
@@ -383,10 +393,10 @@ async function closedArrival(wasm, cartridge, worldId, arrivalPlace) {
  */
 async function debugDepth(wasm, cartridge, worldId) {
   const arrive = async (depth) => {
-    const engine = await WasmEngine.open(wasm, cartridge, worldId);
+    const engine = opened(wasm, cartridge, worldId);
     engine.logDepth(depth);
-    engine.maintenance(0, 0);
-    return engine.arrive('visit:Marta', 'Marta', 0, 0);
+    engine.maintenance(AT);
+    return engine.arrive('visit:Marta', 'Marta', AT);
   };
   const played = await arrive('play');
   const debugged = await arrive('debug');

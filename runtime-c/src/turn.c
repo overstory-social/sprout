@@ -7,7 +7,6 @@
 
 #include <string.h>
 
-#include "seeds.h"
 
 static turn_held *held_of(const sprout_outcome *outcome) { return (turn_held *)outcome->held; }
 
@@ -311,11 +310,6 @@ sprout_str sprout_path_of(const sprout_world *world, sprout_str id) {
   id.bytes += n + 1;
   id.length -= n + 1;
   return id;
-}
-
-uint64_t turn_seed_under(const sprout_world *world, uint64_t seed, sprout_str id, uint64_t nth) {
-  sprout_str path = sprout_path_of(world, id);
-  return sprout_turn_seed(seed, path.bytes, path.length, nth);
 }
 
 sprout_status sprout_run_turn(sprout_world *world, sprout_state *state, const sprout_host *host,

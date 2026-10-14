@@ -14,13 +14,13 @@ sources=$(ls src/*.c src/*/*.c)
 warn="-std=c11 -O2 -mbulk-memory -Wall -Wextra -Werror -pedantic -Iinclude -Isrc"
 
 # shellcheck disable=SC2086
-clang --target=wasm32 $warn -ffreestanding -nostdlib -nostdlibinc -isystem wasm/libc \
-  -isystem "$(clang -print-resource-dir)/include" $sources wasm/libc.c wasm/engine.c \
+clang --target=wasm32 $warn -ffreestanding -nostdlib -nostdlibinc -isystem wasm/libc -Iwasm/engine \
+  -isystem "$(clang -print-resource-dir)/include" $sources wasm/libc.c wasm/engine/*.c \
   -Wl,--no-entry -Wl,--stack-first -Wl,-z,stack-size=1048576 -o "$out/engine.wasm"
 echo "built $out/engine.wasm"
 
 # shellcheck disable=SC2086
-clang --target=wasm32 $warn -ffreestanding -nostdlib -nostdlibinc -isystem wasm/libc \
+clang --target=wasm32 $warn -ffreestanding -nostdlib -nostdlibinc -isystem wasm/libc -Iwasm/engine \
   -isystem "$(clang -print-resource-dir)/include" wasm/libc.c wasm/libc.test.c \
   -Wl,--no-entry -Wl,--stack-first -o "$out/libc.test.wasm"
 echo "built $out/libc.test.wasm"

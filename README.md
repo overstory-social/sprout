@@ -68,9 +68,10 @@ sprout/lang/src
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling, the generated skill
   runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, nickname admission, the engine verbs' answers, an extension's values and statements run, a turn's effects, and a visitor's view
   prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
-sprout/core/src   the store port, its records, the memory store, the conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
+sprout/core/src   the store port, its records, the memory store, the conformance suite, the engine interface and its conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
 sprout/store-sql  sprout/store-document   the two store adapters
 player/src        play (a script through real turns, and its transcript), test (an author's own tests of their world), and standing a visitor in a world
+engine-wasm/src   the C engine built for WebAssembly as one world's engine for core, its live state kept in the instance, and the corpus played through both engines
 repl/src          play interactively, one typed line at a time under one visitor's prompt
 mcp/src           a world as tools for an agent: a session of visitors on the player's stage, its tools, over stdio or HTTP
 server/src        the reference host: its config, the worlds it serves and redeploys, the protocol's connections, and its clock
@@ -78,7 +79,7 @@ tui/src           the terminal client: a session with a server, its screen (Ink)
 cli/src           the `sprout` command: scaffold and check, the inspectors parse (what a world accepts) and view (what a visitor is offered), skill, and play and test through the player and the REPL
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
-runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm`, one world per instance driven from JavaScript (`engine.mjs`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
+runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm` from the modules of `engine/`, one world per instance driven from JavaScript (`@overstory/sprout-engine-wasm`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
 sprout-player/    the Playdate app, pure C over the C runtime: the session, the host adapter (`src/host`) and the screens (`src/ui`: shelf, reader, crank sentence builder, nickname picker, pictures, downloads); built by CMake against the Playdate SDK, with C tests over a fake `PlaydateAPI`
 scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the corpus replay, the view comparison, the WebAssembly engine, the player), `fuzz-runtime.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints

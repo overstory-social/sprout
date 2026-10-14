@@ -9,9 +9,11 @@ import { StoredVisitorSchema } from '@overstory/sprout/lang';
 import { VisitorExport, VisitorInWorld } from './records.js';
 
 // Core imports the language, zod and itself — never a host, a database
-// driver, a clock library or a test framework. The store is a port; an
-// adapter fills it from outside. A runtime package never carries a test
-// runner, so `conformance.ts` may not import vitest either.
+// driver, a clock library or a test framework, and never an engine other
+// than the TypeScript runtime: the WebAssembly engine and runtime-c reach
+// core only as an `Engine` a host names. The store is a port; an adapter
+// fills it from outside. A runtime package never carries a test runner,
+// so neither conformance suite may import vitest either.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['zod', '@overstory/sprout/lang'];
@@ -24,6 +26,17 @@ describe('@overstory/sprout/core imports nothing but the language, zod and itsel
     .map((e) => relative(SRC, join(e.parentPath, e.name)));
   it('has files to check', () => expect(files.length).toBeGreaterThan(4));
   it('walks into subdirectories', () => expect(files).toContain(join('log', 'entry.ts')));
+
+  it('names neither the WebAssembly engine nor runtime-c anywhere it imports from', () => {
+    for (const file of files) {
+      const text = readFileSync(join(SRC, file), 'utf8');
+      const specifiers = [...text.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]!);
+      expect(
+        specifiers.filter((s) => /engine-wasm|runtime-c/.test(s)),
+        file,
+      ).toEqual([]);
+    }
+  });
   for (const file of files) {
     it(file, () => {
       const text = readFileSync(join(SRC, file), 'utf8');
@@ -33,6 +46,13 @@ describe('@overstory/sprout/core imports nothing but the language, zod and itsel
         (s) => !s.startsWith('./') && !s.startsWith('../') && !allowed.includes(s),
       );
       expect(foreign).toEqual([]);
+      // A relative import stays inside src/, so nothing reaches runtime-c or another package's sources.
+      const outside = specifiers.filter(
+        (s) =>
+          (s.startsWith('./') || s.startsWith('../')) &&
+          relative(SRC, join(SRC, dirname(file), s)).startsWith('..'),
+      );
+      expect(outside).toEqual([]);
     });
   }
 

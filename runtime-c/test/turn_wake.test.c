@@ -32,8 +32,10 @@ static void a_wake_is_delivered_with_the_seconds_since_it_was_asked_and_is_consu
   tw_arrive(&w, "v-marta", "Marta", 1000, &out);
   sprout_outcome_free(&out);
   serial = light(&w, "porch.fuse", 1000);
-  CHECK_INT(tw_run(&w, wake_of("turn_faults.porch.fuse", serial, 1065), 0, &out), SPROUT_OK);
+  CHECK_INT(tw_run(&w, wake_of("turn_faults.porch.fuse", serial, 1065), 4242, &out), SPROUT_OK);
   CHECK_INT(out.result, SPROUT_RESULT_DONE);
+  /* The turn draws from the seed the host handed it, and logs that seed. */
+  CHECK_INT(out.log.seed, 4242);
   CHECK(out.committed && out.state_changed);
   CHECK(tw_told(&out, "v-marta", "The fuse burns down."));
   CHECK_INT(out.elapsed, 65);

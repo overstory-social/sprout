@@ -39,6 +39,7 @@ left out takes the spec's default. An error names the line and the key.
 listen = "127.0.0.1:4700"
 log_level = "info"            # error | warning | info | debug
 log_depth = "play"            # play | debug
+engine = "ts"                 # ts | wasm
 tick_seconds = 5
 wakes_while_empty = false
 
@@ -65,6 +66,7 @@ blessed_libraries = ["sha256:…"]
 | `listen` | the address and port | `127.0.0.1:4700` |
 | `log_level` | the lowest level the server writes to its own log, on stdout; each client chooses its own with `levels` | `info` |
 | `log_depth` | what of each turn a world's log keeps: `play`, its effects as their count and digest, or `debug`, every effect whole (the spec's The log › Depth) | `play` |
+| `engine` | which engine runs each world's turns and polls: `ts`, the TypeScript runtime, or `wasm`, the C runtime built for WebAssembly (`@overstory/sprout-engine-wasm`), where the server refuses to start if that package was built without its `engine.wasm` | `ts` |
 | `tick_seconds` | how often each occupied place is ticked | 5 |
 | `wakes_while_empty` | whether wakes run while nobody is in a world, which the spec leaves to the host | `false` |
 | `[store]` | where state and the log are kept; a `memory` store keeps the newest `keep_log` entries of each world's log | `memory`, keeping 2,000 |

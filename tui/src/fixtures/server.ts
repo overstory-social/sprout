@@ -24,6 +24,7 @@ export function serving(name = 'sequences'): Promise<RunningServer> {
       port: 0,
       logLevel: 'error',
       logDepth: 'play',
+      engine: 'ts',
       keepLog: 2_000,
       tickSeconds: 3600,
       wakesWhileEmpty: false,

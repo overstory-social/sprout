@@ -19,6 +19,7 @@ describe('the server’s config', () => {
         port: 4700,
         logLevel: 'info',
         logDepth: 'play',
+        engine: 'ts',
         keepLog: 2_000,
         tickSeconds: 5,
         wakesWhileEmpty: false,
@@ -35,6 +36,7 @@ describe('the server’s config', () => {
         'listen = "0.0.0.0:5000"',
         'log_level = "debug"',
         'log_depth = "debug"',
+        'engine = "wasm"',
         'tick_seconds = 2',
         'wakes_while_empty = true',
         '[store]',
@@ -53,6 +55,7 @@ describe('the server’s config', () => {
       port: 5000,
       logLevel: 'debug',
       logDepth: 'debug',
+      engine: 'wasm',
       keepLog: 500,
       tickSeconds: 2,
       wakesWhileEmpty: true,
@@ -86,6 +89,12 @@ describe('the server’s config', () => {
       problems('[[worlds]]\npath = "w"\n[extensions]\nmedia = { major = 1, module = "./m.js" }\n'),
     ).toEqual([
       '/srv/sprout/server.toml: `extensions` installs extensions, which this build of the server does not load yet.',
+    ]);
+  });
+
+  it('names the engine `ts` or `wasm`, and refuses any other by its line', () => {
+    expect(problems('engine = "lua"\n[[worlds]]\npath = "w"\n')).toEqual([
+      expect.stringMatching(/^\/srv\/sprout\/server\.toml:1: `engine` /),
     ]);
   });
 
