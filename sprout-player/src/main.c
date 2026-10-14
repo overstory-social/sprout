@@ -1,6 +1,6 @@
 /*
  * sprout-player's entry point. The app is C (ui/app.h): at kEventInit the update callback is set,
- * which tells the system the game is pure C, and the system's lock, low-power, unlock and
+ * which tells the system the game is pure C, and the system's lock, low-power, unlock, pause and
  * terminate events are handed to the app.
  */
 #include "pd_api.h"
@@ -27,6 +27,8 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     player_app_sleep(app);
   } else if (event == kEventUnlock) {
     player_app_wake(app);
+  } else if (event == kEventPause) {
+    player_app_pause(app);
   } else if (event == kEventTerminate) {
     player_app_free(app);
     app = NULL;

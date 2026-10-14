@@ -44,11 +44,19 @@ static void joined(char *out, size_t size, const char *folder, const char *path)
   snprintf(out, size, "%s/%s", folder, path);
 }
 
+/* Adds a line to the file log, while there is room for it. */
+static void log_file(const char *verb, const char *a, const char *b) {
+  size_t used = strlen(current->file_log);
+  snprintf(current->file_log + used, sizeof current->file_log - used, "%s %s%s%s\n", verb, a, b != NULL ? " " : "",
+           b != NULL ? b : "");
+}
+
 static SDFile *fake_open(const char *path, FileOptions mode) {
   char full[1100];
   FILE *file = NULL;
   if (mode & kFileWrite) {
     if (current->fail_writes) return NULL;
+    log_file("write", path, NULL);
     joined(full, sizeof full, current->data, path);
     return fopen(full, "wb");
   }
@@ -81,6 +89,7 @@ static int fake_mkdir(const char *path) {
 
 static int fake_unlink(const char *path, int recursive) {
   char full[1100], command[1200];
+  log_file("unlink", path, NULL);
   joined(full, sizeof full, current->data, path);
   if (unlink(full) == 0) return 0;
   if (!recursive || strchr(full, '\'') != NULL) return -1;
@@ -90,6 +99,7 @@ static int fake_unlink(const char *path, int recursive) {
 
 static int fake_rename(const char *from, const char *to) {
   char a[1100], b[1100];
+  log_file("rename", from, to);
   joined(a, sizeof a, current->data, from);
   joined(b, sizeof b, current->data, to);
   return rename(a, b);
@@ -559,21 +569,46 @@ static float fake_crank_change(void) { return current->crank; }
 static int fake_crank_docked(void) { return current->docked; }
 
 static PDMenuItem *fake_add_menu_item(const char *title, PDMenuItemCallbackFunction *callback, void *userdata) {
-  if (current->menu_title[0] != '\0') return NULL;
-  snprintf(current->menu_title, sizeof current->menu_title, "%s", title);
-  current->menu_callback = callback;
-  current->menu_ctx = userdata;
-  return (PDMenuItem *)current->menu_title;
+  int i;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++) {
+    fake_menu_item *item = &current->menu[i];
+    if (item->title[0] != '\0') continue;
+    snprintf(item->title, sizeof item->title, "%s", title);
+    item->callback = callback;
+    item->ctx = userdata;
+    return (PDMenuItem *)item;
+  }
+  return NULL;
 }
 
 static void fake_remove_menu_item(PDMenuItem *item) {
-  if (item == (PDMenuItem *)current->menu_title) current->menu_title[0] = '\0';
+  int i;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++)
+    if (item == (PDMenuItem *)&current->menu[i]) current->menu[i].title[0] = '\0';
+}
+
+static const fake_menu_item *menu_item(const fake_playdate *fake, const char *title) {
+  int i;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++)
+    if (fake->menu[i].title[0] != '\0' && strcmp(fake->menu[i].title, title) == 0) return &fake->menu[i];
+  return NULL;
 }
 
 int fake_menu(fake_playdate *fake, const char *title) {
-  if (fake->menu_title[0] == '\0' || strcmp(fake->menu_title, title) != 0) return 0;
-  fake->menu_callback(fake->menu_ctx);
+  const fake_menu_item *item = menu_item(fake, title);
+  if (item == NULL) return 0;
+  item->callback(item->ctx);
   return 1;
+}
+
+int fake_menu_holds(const fake_playdate *fake, const char *title) {
+  return menu_item(fake, title) != NULL;
+}
+
+int fake_menu_count(const fake_playdate *fake) {
+  int i, count = 0;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++) count += fake->menu[i].title[0] != '\0';
+  return count;
 }
 
 static void fake_set_update(PDCallbackFunction *update, void *userdata) {

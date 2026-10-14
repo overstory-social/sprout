@@ -261,7 +261,7 @@ turns told) and takes a reading as the runtime's struct. The Playdate's side
 of the host contract, its files, its network and the stack a frame runs on
 are `src/host/`; the screens are `src/ui/`. `main.c` sets the update
 callback at `kEventInit`, which tells the system the game is pure C, and
-hands the app the lock, low-power, unlock and terminate events; the pdx
+hands the app the lock, low-power, unlock, pause and terminate events; the pdx
 carries no script, only `pdxinfo`, the fonts, the shipped worlds and the
 binaries `pdc` packages from `Source/`. Each frame runs on the player's own
 stack (`src/host/stack.h`), since a turn may run in it, and the file calls
@@ -293,7 +293,14 @@ until a save of it succeeds. The shelf's cues go through `player_cue` like
 every screen's. "leave world" in the system menu, chosen while a reader is
 open, leaves the world as B on the nickname screen does: the visitor leaves,
 the save is written and the app goes back to the shelf; chosen elsewhere it
-does nothing. The signed index is read by `src/signed_index.h`, over the
+does nothing. "start over" beside it, chosen while a reader is open, puts a
+question over the screen on show, which waits under it: "Start this world
+over?" and "All you did here will be forgotten.", with A to start over and B
+to go back to the screen as it was. A removes the world's save and log under
+`saves/` (and any `.tmp` a write cut short left beside them), lets the state
+go while the world stays read, and shows the nickname screen for a fresh
+arrival, with no loading line between; no departure runs, since nothing of
+the world is kept to depart from. Chosen elsewhere it does nothing. The signed index is read by `src/signed_index.h`, over the
 canonical text of `src/canonical.h`, which orders an object's names as the
 signer's JavaScript sort does, by UTF-16 code unit, and writes an empty
 object as `{}`, as the signer does.
@@ -443,7 +450,10 @@ under `Source/fonts/`.
 The console has no keyboard, so a visitor picks from a pool of plain words
 (Alder, Aster, Birch, …) filtered by the cartridge's word set, folded as the
 TypeScript host folds (lower case, split on white space), and by who is
-present. A returning visitor is offered their last name first. The engine's
+present. A returning visitor is offered their last name first. The device
+keeps no list of names apart from the saves: the last name is the visitor's
+record in the world's save, and starting a world over carries it across to
+the fresh nickname screen, so it is still offered first. The engine's
 own admission, `sprout_admit`, is the authority: it also refuses a reserved
 word.
 
@@ -452,12 +462,35 @@ word.
 A world is saved after every committed turn: `saves/<bundle hash>.json` is
 the stored world, byte for byte what `sproutc` reads and writes, and
 `saves/<bundle hash>.log` is the last 32 log entries and the clamp's
-seconds. A bundle with another hash is a redeploy and starts afresh, with
-the old save unused. A save that will not read is set aside as `.damaged`
-and the world starts again, in words. A save that cannot be written stops
-play with the words on the screen, the world is let go, and the shelf greys
-it with the reason until a save of it succeeds: a move that is not kept is
-not played.
+seconds.
+
+A bundle with another hash is a redeploy and starts afresh, with the old
+save unused. A save that will not read is set aside as `.damaged` and the
+world starts again, in words. A save that cannot be written, at the turn or
+at any slice, stops play with the words on the screen, the world is let go,
+and the shelf greys it with the reason until a save of it succeeds: a move
+that is not kept is not played. "start over" in the system menu removes a
+world's save and log, so its next arrival is a fresh one.
+
+When the state is on disk: the log is written at the end of the turn, before
+its reply shows; the state is written over the frames that follow, while the
+visitor reads and builds the next sentence. The first frame after the turn
+makes the state's bytes (`sprout_state_write`, about 4 ms for the caverns'
+480 KB on a desktop) and opens `<hash>.json.part`; each frame after writes
+16 KB of them (`PLAYER_SAVE_SLICE`, about 30 frames for the caverns); the
+last closes the part, renames it to `<hash>.json.tmp`, removes the old save
+and renames the `.tmp` over it. The rename after an unlink is the pattern the
+whole-file writes already use, since the SDK does not say that `rename`
+replaces a file; a read that finds no save reads the `.tmp`, so a save cut
+short at any point leaves the last whole state readable, and a half-written
+`.part` is never read. The state does not change under the writer: a turn
+asked before the save is done (a command, a tick, an arrival, a departure)
+first writes the rest of it in that frame, then runs. Leaving the world,
+"start over" (which drops the save rather than finishing it), opening the
+system menu (`kEventPause`), locking the device and its low-power sleep all
+write what is owed first, so the state is on disk whenever the app could be
+ended. The bytes being written are held in an arena of their own until the
+last slice, about the size of the state.
 
 One visit per world, keyed by the world alone, with no token. A world left
 open (the battery, a kill) is put away by a departure that tells nothing
@@ -644,7 +677,11 @@ Not yet checked:
   `Content-Length`, and whether the network calls need the main stack as
   the file calls do, are unchecked (they are put there to be safe);
 - that a console waking from low-power sleep sends `kEventUnlock`;
-- the time a picture takes to load on a console.
+- the time a picture takes to load on a console;
+- "start over" in the system menu and its question, which the C tests drive
+  over the fake;
+- the time the save's first frame (making the bytes) and its 16 KB slices
+  take on a console, and whether the slice size is right.
 
 ## Verified SDK facts (SDK 3.1.2)
 
