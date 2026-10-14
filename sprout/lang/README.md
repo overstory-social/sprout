@@ -7,11 +7,11 @@ nothing else (`src/boundary.spec.ts` holds that line).
 
 The language is described whole in
 [`docs/design/sprout-design-spec.md`](../../docs/design/sprout-design-spec.md);
-this package implements it one backlog item at a time, and the spec is the
-authority where they disagree. What compiles today: enum, message and world
-declarations, properties and `remembers` blocks, and the expression language
-with its checker. Kinds, objects, verbs, bodies and prose are the items
-after B12.
+this package implements it, and the spec is the authority where they
+disagree. The whole language compiles here: enums, kinds, objects,
+properties, messages, verbs and their phrases, bodies and prose, into a
+bundle and its cartridge. Running a world is the engine's, `runtime-c/`,
+which every host reaches through `host/`.
 
 ## Using it
 
