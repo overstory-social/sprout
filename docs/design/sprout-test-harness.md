@@ -367,8 +367,9 @@ variable is not set).
   the host folds, a name the engine refuses told in its words), and
   `pictures.test.c` the pictures.
 - **The listed plays of the shipped worlds.** Each graduated world may list
-  plays in `sprout-player/worlds.json` (the studio's `underground_caverns`
-  lists the whole of Zork, `tests/walkthrough.json`); the player step plays
+  plays in `sprout-player/worlds.json` (the studio's `underground_caverns`,
+  pinned in `sprout-player/worlds/`, lists the whole of Zork,
+  `tests/walkthrough.json`); the player step plays
   each through `sproutc play --offered --poll-steps` under the app's own poll
   budget, which polls the view before every command turn and fails where the
   reading the runtime reads the turn as is not among what it offers, a set
