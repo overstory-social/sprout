@@ -427,7 +427,27 @@ the reading with it left out and filled by each thing that fits: after the
 target the wheel offers the sword beside "that's all". A set role is
 joined from the singletons the view offers:
 after the first member the wheel offers the others and "that's all", and
-the roles after it are offered under the first member. A finished reading
+the roles after it are offered under the first member. Where the parser
+would read `all` for a role (Parsing › Sequences, again and all), the wheel
+offers "everything" first, before the things themselves, so it is found
+without cranking (`src/ui/everything.h`): on a level whose role binds things,
+when two or more of them can be done; a greyed thing, the visitor's own place
+and the people the view lists as here are left out, and with one thing or
+none it is not offered. For a set role it joins them all at once, at most as
+many as the host lets a set role bind, and the sentence goes on to its next
+role or "that's all". For a role that takes one thing the sentence goes on
+under the first of them, and once confirmed it runs one turn for each thing,
+in the level's order, leaving out any whose reading with the rest of the
+sentence the view does not offer or refuses, at most as many as a set role may
+bind: each turn goes through `player_turn` as a built sentence does, one after
+another from the builder (the runtime's line of turns hands out only what a
+typed line plans, and the Playdate has no parser), is told in the reader as
+its own sentence (`> take -> a lamp`, then its answer), and is logged with
+the whole sentence as its words, as each turn of a line of `all` is logged
+with the line; the first that does not let a line go on, a refusal or a fault,
+ends it, and what ran before stays done. Only one role in a sentence takes one
+thing as "everything". The sentence so far reads "everything" where it was
+picked. A finished reading
 lists the roles a thing fills in the tree's order and then its value roles,
 which is the order the TypeScript parser binds them in
 (`corpus/good/value-first` pins it). The view offers readings and not

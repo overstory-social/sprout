@@ -66,6 +66,7 @@ typedef struct player_told {
   bool ok;
   bool admitted;             /* admit: the visitor arrived */
   bool committed;            /* turn: the command committed */
+  bool goes_on;              /* turn: a line of turns goes on past it, as nothing refused its actor */
   bool ran;                  /* tick: some turn did more than idle */
   bool saved;
   sprout_turn_result result; /* turn: how it ended; SPROUT_RESULT_REFUSED where it was not run */

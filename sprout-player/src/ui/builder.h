@@ -4,8 +4,9 @@
  * one in its window, and the selected choice's refusal or the keys at the bottom. The crank turns
  * the drum and up and down step it; A picks, and on the whole sentence runs it; B steps back, and at
  * the verbs closes the builder. A run sentence is told in the reader, led by the sentence as typed,
- * and the pictures its turn asked for are shown (pictures.h) once the builder has closed. Its
- * cues sound through `player_cue`.
+ * and the pictures its turn asked for are shown (pictures.h) once the builder has closed; one with
+ * `everything` for a role that takes one thing is a turn for each thing, each told as its own
+ * sentence, until one ends the line. Its cues sound through `player_cue`.
  *
  * The reader lends itself to the builder while it is up (reader.h); the builder hands it back when
  * it closes, or frees it if the app ends first. The sentence so far fits the screen whatever its

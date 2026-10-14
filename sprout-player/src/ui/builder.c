@@ -116,7 +116,7 @@ bool player_builder_open(player_app *app, player_reader *reader) {
   if (b == NULL) return tell_reader(reader, "The player ran out of memory building a sentence.");
   memset(b, 0, sizeof *b);
   gallery_init(&b->pictures, app->pd);
-  if (!sentence_begin(&b->sentence, app->pd, app->session, &words)) {
+  if (!sentence_begin(&b->sentence, app->pd, app->session, view, &words)) {
     player_free(app->pd, b);
     return tell_reader(reader, words);
   }
@@ -134,24 +134,48 @@ static void close_builder(player_app *app, player_builder *b) {
   b->reader = NULL;
 }
 
-/* Runs the sentence confirmed: the reader is told it as typed and then what the turn told, and takes over. */
-static void run(player_app *app, player_builder *b) {
+/*
+ * One turn of the sentence: the reader is told `phrase` as typed and then what the turn told; `text`, where not
+ * NULL, is the line the log keeps for it. `*goes_on` whether a line of turns goes on past it. False where play
+ * stopped, as the save failed.
+ */
+static bool take_turn(player_app *app, player_builder *b, const sprout_reading *reading, const char *phrase,
+                      const char *text, bool *kept, bool *goes_on) {
   transcript *t = &b->reader->lines;
-  const char *phrase = sentence_phrase(&b->sentence);
-  sprout_reading reading;
   player_told told;
-  bool kept;
-  sentence_reading(&b->sentence, &reading);
-  kept = transcript_push(t, "typed", phrase, strlen(phrase));
-  told = player_turn(app->session, &reading, NULL);
+  *kept = transcript_push(t, "typed", phrase, strlen(phrase)) && *kept;
+  told = player_turn(app->session, reading, text);
   if (told.ok && !told.saved) {
     player_shelf_unsaved(app);
-    return;
+    return false;
   }
   if (!told.ok)
-    kept = transcript_push(t, "notice", told.words, strlen(told.words)) && kept;
+    *kept = transcript_push(t, "notice", told.words, strlen(told.words)) && *kept;
   else
-    kept = transcript_tell(t, &told.lines) && images_take_told(&b->pictures, app->assets, &told.lines) && kept;
+    *kept = transcript_tell(t, &told.lines) && images_take_told(&b->pictures, app->assets, &told.lines) && *kept;
+  *goes_on = told.ok && told.result == SPROUT_RESULT_DONE && told.goes_on;
+  return true;
+}
+
+/*
+ * Runs the sentence confirmed and the reader takes over. A sentence with `everything` for a role that takes one
+ * thing is a turn for each of its things, each told as its own sentence and logged under the whole one, until one
+ * does not let the line go on (the spec's Parsing › Sequences, again and all).
+ */
+static void run(player_app *app, player_builder *b) {
+  transcript *t = &b->reader->lines;
+  size_t turns = sentence_each_count(&b->sentence), k;
+  sprout_reading reading;
+  const char *phrase;
+  bool kept = true, goes_on = true;
+  if (turns == 0) {
+    sentence_reading(&b->sentence, &reading);
+    if (!take_turn(app, b, &reading, sentence_phrase(&b->sentence), NULL, &kept, &goes_on)) return;
+  }
+  for (k = 0; k < turns && goes_on; k++) {
+    sentence_each(&b->sentence, k, &reading, &phrase);
+    if (!take_turn(app, b, &reading, phrase, sentence_phrase(&b->sentence), &kept, &goes_on)) return;
+  }
   kept = player_reader_look(app, b->reader, NULL) && kept;
   transcript_scroll(t, -(long)t->offset);
   if (!kept) {

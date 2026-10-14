@@ -147,6 +147,7 @@ player_told player_turn(player_session *session, const sprout_reading *reading, 
     told_add(arena, &answer.lines, PLAYER_VISIT, "notice", answer.words);
   } else {
     answer.committed = outcome.committed;
+    answer.goes_on = outcome.goes_on;
     answer.result = outcome.result;
     told_collect(arena, &answer.lines, &outcome, PLAYER_VISIT);
   }
