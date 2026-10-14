@@ -70,7 +70,7 @@ sprout/lang/src
   prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
 sprout/core/src   the store port, its records, the memory store, the conformance suite, the engine interface and its conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
 sprout/store-sql  sprout/store-document   the two store adapters
-player/src        play (a script through real turns, and its transcript), test (an author's own tests of their world), and standing a visitor in a world
+player/src        play (a script through real turns on an engine, and its transcript), test (an author's own tests of their world), and standing a visitor in a world; which engine a tool runs
 engine-wasm/src   the C engine built for WebAssembly as one world's engine for core, its live state kept in the instance, and the corpus played through both engines
 repl/src          play interactively, one typed line at a time under one visitor's prompt
 mcp/src           a world as tools for an agent: a session of visitors on the player's stage, its tools, over stdio or HTTP

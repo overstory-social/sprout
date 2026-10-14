@@ -1,9 +1,6 @@
 import {
-  initialState,
-  isPlace,
   locationOf,
   nodesOf,
-  readerOf,
   type Bundle,
   type InstanceId,
   type KindRef,
@@ -11,8 +8,9 @@ import {
   type WrittenAt,
 } from '@overstory/sprout/lang';
 
+import { catalogueFor } from './engine.js';
 import type { PlayedStep, Traced } from './play.js';
-import { catalogueFor, pathOf } from './stand.js';
+import { pathOf } from './stand.js';
 
 // What a playthrough reached, and the prose nobody saw (`sprout play
 // --report`, `sprout test --report`): metrics computed from the engine and
@@ -27,7 +25,10 @@ import { catalogueFor, pathOf } from './stand.js';
 // never. A one-line passage, a string given to `say`, `tell`, `text` or
 // `refuse`, is known by where it stands. A turn that faulted is reported
 // in full and reaches only the words it told of the fault, since what it
-// did was undone.
+// did was undone. Which handlers ran, and which lines the parser answered
+// or the consent pass refused, are the engine's account of each turn
+// (core's `Step.account`); where the engine gives none, those parts of the
+// report are null.
 
 /** One script played, by the name its steps are reported under. */
 export interface PlayedRun {
@@ -76,24 +77,26 @@ export interface Report {
   readonly seeds: readonly number[];
   /** Command turns each visitor typed, by nickname. */
   readonly turns: Readonly<Record<string, number>>;
+  /** What became of the lines typed; each part but `typed` null where the engine gave no account of a turn. */
   readonly reading: {
     /** Lines typed. */
     readonly typed: number;
     /** Lines the parser answered in place of reading them: `unknown`, `not_here` and the rest. */
-    readonly unread: readonly Misread[];
+    readonly unread: readonly Misread[] | null;
     /** Lines read, and refused in the consent pass. */
-    readonly refused: readonly Misread[];
+    readonly refused: readonly Misread[] | null;
     /** Unread lines as a share of those typed, to two places; 0 where none were typed. */
-    readonly unreadRate: number;
+    readonly unreadRate: number | null;
     /** Refused lines as a share of those typed, likewise. */
-    readonly refusedRate: number;
+    readonly refusedRate: number | null;
   };
   readonly faults: readonly ReportedFault[];
   readonly reach: {
     readonly places: Reach;
     readonly objects: Reach;
     readonly verbs: Reach;
-    readonly handlers: Reach;
+    /** Null where the engine gave no account of a turn, so which handlers ran is not known. */
+    readonly handlers: Reach | null;
     readonly passages: Reach;
   };
   readonly repetition: readonly Repeated[];
@@ -124,15 +127,14 @@ function declaredIn(bundle: Bundle): Declared {
   const own = new Set(bundle.manifest.files);
   const ownAt = (at: { readonly source: { readonly name: string } }) => own.has(at.source.name);
   const catalogue = catalogueFor(bundle);
-  const reader = readerOf(initialState(catalogue));
   const { world } = catalogue;
 
   const places = new Map<string, string>();
   const objects = new Map<string, string>();
   const entries = [...catalogue.declared.values()].sort((a, b) => a.rank - b.rank);
-  for (const { id } of entries) {
+  for (const { id, kind } of entries) {
     if (id === world) continue;
-    (isPlace(reader, id) ? places : objects).set(id, pathOf(world, id));
+    (kind?.containsActors === true ? places : objects).set(id, pathOf(world, id));
   }
 
   const verbs = new Map<string, string>();
@@ -189,8 +191,8 @@ function reachOf(declared: ReadonlyMap<string, string>, reached: ReadonlySet<str
 /** Everything each reading filled a role with, one id apiece. */
 function filled(turn: Traced): InstanceId[] {
   if (turn.reading === null) return [];
-  return [...turn.reading.bindings.values()].flatMap((bound) =>
-    'object' in bound ? [bound.object] : 'set' in bound ? [...bound.set] : [],
+  return turn.reading.bindings.flatMap((filler) =>
+    filler.binds === 'object' ? [filler.id] : filler.binds === 'set' ? [...filler.ids] : [],
   );
 }
 
@@ -237,6 +239,7 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
     passages: new Set<string>(),
   };
   let typed = 0;
+  let accounted = true;
 
   for (const { name, played } of runs) {
     played.forEach(({ step, turns: ran }, i) => {
@@ -245,10 +248,9 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
       for (const turn of ran) {
         for (const place of turn.standing) reached.places.add(place);
         for (const id of filled(turn)) reached.objects.add(id);
-        if (turn.reading !== null) {
-          reached.verbs.add(`${turn.reading.verb.library}.${turn.reading.verb.name}`);
-        }
-        for (const one of turn.ran) reached.handlers.add(one.at);
+        if (turn.reading !== null) reached.verbs.add(turn.reading.verb);
+        if (turn.account === null) accounted &&= !ranAnything(turn);
+        else for (const one of turn.account.ran) reached.handlers.add(one.at);
         for (const effect of turn.effects) {
           for (const written of effect.written) reached.passages.add(keyOf(written));
         }
@@ -269,9 +271,10 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
       if (first === undefined) return;
       const said = toActor(first);
       const misread = { at, as: step.as, typed: step.type, said };
-      if (first.answered !== null && first.answered !== 'nothing_happens') {
-        unread.push({ ...misread, line: first.answered });
-      } else if (first.refused) refused.push({ ...misread, line: null });
+      const answered = first.account?.answered ?? null;
+      if (answered !== null && answered !== 'nothing_happens') {
+        unread.push({ ...misread, line: answered });
+      } else if (first.account?.refused === true) refused.push({ ...misread, line: null });
     });
   }
 
@@ -281,21 +284,29 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
     turns,
     reading: {
       typed,
-      unread,
-      refused,
-      unreadRate: share(unread.length, typed),
-      refusedRate: share(refused.length, typed),
+      unread: accounted ? unread : null,
+      refused: accounted ? refused : null,
+      unreadRate: accounted ? share(unread.length, typed) : null,
+      refusedRate: accounted ? share(refused.length, typed) : null,
     },
     faults,
     reach: {
       places: reachOf(declared.places, reached.places),
       objects: reachOf(declared.objects, reached.objects),
       verbs: reachOf(declared.verbs, reached.verbs),
-      handlers: reachOf(declared.handlers, reached.handlers),
+      handlers: accounted ? reachOf(declared.handlers, reached.handlers) : null,
       passages: reachOf(declared.passages, reached.passages),
     },
     repetition: [...repeats(lines, 'line'), ...repeats(answers, 'answer')],
   };
+}
+
+/**
+ * Whether a turn with no account may have run something: every turn but a
+ * closed arrival, which ran nothing and so has nothing to account for.
+ */
+function ranAnything(turn: Traced): boolean {
+  return turn.logged.outcome !== 'closed';
 }
 
 /** `part` of `whole`, to two places; 0 of nothing. */

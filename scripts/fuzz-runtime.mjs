@@ -26,8 +26,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DEFAULT_LIMITS, pollView, saveWorld } from '@overstory/sprout/lang';
-import { expectationsOf, freshStage, playStep, writeScript } from '@overstory/sprout-player';
+import { DEFAULT_LIMITS, saveWorld } from '@overstory/sprout/lang';
+import { loaded, tsEngine } from '@overstory/sprout/core';
+import {
+  expectationsOf,
+  freshStage,
+  isPresent,
+  playStep,
+  writeScript,
+} from '@overstory/sprout-player';
 
 import { comparePolls, packWorld, playAndCompare } from './replay-runtime-c.mjs';
 import { playableWorld } from './resolve-script.mjs';
@@ -77,26 +84,21 @@ function argsOf(argv) {
   return { world: positional[0], flags };
 }
 
-/** Whether `nickname` stands in the world under `stage` now. */
-function present(stage, nickname) {
-  const visit = stage.visits.get(nickname);
-  const record = visit === undefined ? undefined : stage.state.visitors.get(visit);
-  return record !== undefined && Boolean(stage.state.instances.get(record.instance)?.container);
-}
-
 /**
  * The first way `sproutc`'s polls of each visitor in the world under `stage` differ from the TypeScript
  * runtime's, both under the host's default budgets, which `sproutc view` polls under; null where they agree.
  */
 function pollsDiffer(sproutc, cartridge, stage, scratch) {
   const stored = join(scratch, 'end.json');
-  writeFileSync(stored, JSON.stringify(saveWorld(stage.state)));
+  writeFileSync(stored, JSON.stringify(saveWorld(loaded(stage.stored, stage.host))));
   const host = { ...stage.host, budgets: DEFAULT_LIMITS.budgets };
-  for (const nickname of NICKNAMES.filter((one) => present(stage, one))) {
+  const engine = tsEngine(host);
+  for (const nickname of NICKNAMES.filter((one) => isPresent(stage, one))) {
     const visit = stage.visits.get(nickname);
-    const place = stage.state.instances.get(stage.state.visitors.get(visit).instance).container;
+    const place = engine.standing(stage.stored, visit).place.id;
     const { differs } = comparePolls(sproutc, cartridge, stored, {
-      state: stage.state,
+      stored: stage.stored,
+      engine,
       host,
       visit,
       place,
@@ -152,8 +154,8 @@ export function perturbed(reading, other, random) {
 
 /** The step to take next: what a visitor's view offers, or a host event. */
 export function nextStep(stage, random) {
-  const here = NICKNAMES.filter((nickname) => present(stage, nickname));
-  const away = NICKNAMES.filter((nickname) => !present(stage, nickname));
+  const here = NICKNAMES.filter((nickname) => isPresent(stage, nickname));
+  const away = NICKNAMES.filter((nickname) => !isPresent(stage, nickname));
   const roll = random.below(100);
   if (here.length === 0) return { arrive: random.pick(NICKNAMES) };
   if (roll < 4) return { seed: random.below(4294967296) };
@@ -164,7 +166,7 @@ export function nextStep(stage, random) {
   if (roll < 27 && away.length > 0) return { arrive: random.pick(away) };
   const nickname = random.pick(here);
   if (roll < 34) return { as: nickname, type: random.pick(UNPARSED) };
-  const { view } = pollView(stage.state, stage.host, stage.visits.get(nickname));
+  const { view } = stage.engine.view(stage.stored, stage.visits.get(nickname));
   // A reading with a slot to fill (`…`) wants a value the view lists as options; the fuzzer leaves those.
   const typable = view.readings.filter((reading) => !reading.typed.includes('…'));
   const refused = typable.filter((reading) => reading.refused !== null);
@@ -191,7 +193,7 @@ export function fuzzWorld(
     const script = join(scratch, 'play.json');
     packWorld(world, cartridge);
     const random = generator(seed);
-    const stage = freshStage(playableWorld(world), budgets);
+    const stage = freshStage(playableWorld(world), 'ts', budgets);
     const made = [];
     let typed = 0;
     const play = (step) => {

@@ -20,8 +20,10 @@ import {
   type RenderContext,
   type ResolvedRole,
   type ResolvedVerb,
+  type WorldState,
 } from '@overstory/sprout/lang';
 
+import { loaded } from '@overstory/sprout/core';
 import { pathOf, type Standing } from '@overstory/sprout-player';
 
 // `sprout parse`: what a world accepts. With no line, every phrase a
@@ -31,7 +33,8 @@ import { pathOf, type Standing } from '@overstory/sprout-player';
 // of it: the reading chosen, each role and what fills it, the draw where
 // it tied with others, and its consent pass's answer, or the world's
 // answer where it is not understood. The line is read exactly as a command turn reads it,
-// and the reading is never run, so nothing in the world changes.
+// and the reading is never run, so nothing in the world changes. What it reads is the
+// TypeScript parser's, over the TypeScript runtime's reading of the stored state.
 
 /** A role as a verb declares it: its name, what fills it, `many` and `optional`. */
 function roleWritten(role: ResolvedRole): string {
@@ -124,9 +127,8 @@ function spoken(line: Line, context: Reading): string {
   return indented(paragraphs.length > 0 ? paragraphs : ['(it renders nothing)']);
 }
 
-/** What `line` makes, typed by the visitor `standing` holds, as a page. */
-function readLine(line: string, standing: Standing, turn: PollTurn): string {
-  const { state } = standing;
+/** What `line` makes, typed by the visitor `standing` holds in `state`, as a page. */
+function readLine(line: string, standing: Standing, state: WorldState, turn: PollTurn): string {
   const { actor } = standing;
   const nicknames = nicknamesIn(state);
   const render: RenderContext = { ...turn, nicknames, draws: null, actor };
@@ -228,9 +230,10 @@ export function parseLine(line: string, standing: Standing): ParsedLine {
 
 /** One command, read against the world as it stands. */
 function parsedCommand(line: string, standing: Standing): ParsedLine {
-  const { state, host, place } = standing;
+  const { host, place } = standing;
+  const state = loaded(standing.stored, host);
   const where = `in ${pathOf(state.world, place)}, "${line}"`;
-  const polled = pollTurn(state, host, (turn) => readLine(line, standing, turn), 'command');
+  const polled = pollTurn(state, host, (turn) => readLine(line, standing, state, turn), 'command');
   if (!polled.faulted) return { ok: true, page: `${where} ${polled.view}` };
   const { fault } = polled;
   return {

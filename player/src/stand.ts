@@ -1,42 +1,36 @@
 import {
-  arrivalTurn,
-  catalogueOf,
   declaredPathOf,
-  DEFAULT_LIMITS,
-  Draft,
-  initialState,
-  isPlace,
-  newInstance,
-  nicknameRefusal,
-  readerOf,
-  renderEffects,
+  mintedId,
   visitKey,
-  type Bundle,
   type Catalogue,
+  type CommandHost,
   type InstanceId,
-  type TurnHost,
   type VisitKey,
-  type WorldState,
 } from '@overstory/sprout/lang';
+import { applyChanges, emptyState, type Engine, type StoredState } from '@overstory/sprout/core';
+
+import { engineFor, hostFor, type EngineName, type PlayableWorld } from './engine.js';
 
 // One visitor standing in a freshly loaded world, for the inspectors to
-// look through (`sprout parse` and `sprout view`). The world is as it
-// loads, nothing yet having happened in it, under the host's default
-// limits and no clock. The visitor comes in by an arrival turn, as a host
-// admits anyone (the spec's The host contract › Admission and identity):
-// at the place visitors arrive at, or, named with `--at`, at another
-// place as a returning visitor comes back to where they last stood, so
-// that place's `accept` is asked as it would be. `seatReturning` is the
-// shared machinery for that, reused by `sprout play`'s interactive
-// admission over a world already running its own turns.
+// look through (`sprout parse` and `sprout view`), on the engine the caller
+// names. The world is as it loads, nothing yet having happened in it,
+// under the host's default limits and no clock. The visitor comes in by an
+// arrival turn, as a host admits anyone (the spec's The host contract ›
+// Admission and identity): at the place visitors arrive at, or, named with
+// `--at`, at another place as a returning visitor comes back to where they
+// last stood, so that place's `accept` is asked as it would be.
+// `seatReturning` is the shared machinery for that, reused by `sprout
+// play`'s interactive admission over a world already running its own
+// turns.
 
 /** The visitor's nickname where none is given. */
 export const INSPECTOR = 'Inspector';
 
-/** A visitor standing somewhere in a world, and what it is run under. */
+/** A visitor standing somewhere in a world: the world as a store would hold it, the engine and host it runs under, and who and where they are. */
 export interface Standing {
-  readonly state: WorldState;
-  readonly host: TurnHost;
+  readonly stored: StoredState;
+  readonly engine: Engine;
+  readonly host: CommandHost;
   readonly visit: VisitKey;
   readonly actor: InstanceId;
   readonly place: InstanceId;
@@ -54,34 +48,32 @@ export function pathOf(world: InstanceId, id: InstanceId): string {
   return path === null || path.length === 0 ? id : path.join('.');
 }
 
-/** A world to play: compiled from source, or loaded from a cartridge. */
-export type PlayableWorld = Bundle | Catalogue;
-
-/** What `world` says about instances: a bundle's, read under the host's default caps; a cartridge's, as it was loaded. */
-export function catalogueFor(world: PlayableWorld): Catalogue {
-  return 'declared' in world ? world : catalogueOf(world, DEFAULT_LIMITS.caps);
-}
-
 /**
- * A visitor admitted to `playable`, standing where `options.at`
- * names or where visitors arrive. Anything that keeps them from standing
- * there is thrown, in words that say what to write instead.
+ * A visitor admitted to `playable` on the engine `engine` names, standing
+ * where `options.at` names or where visitors arrive. Anything that keeps
+ * them from standing there is thrown, in words that say what to write
+ * instead.
  */
-export function standIn(playable: PlayableWorld, options: StandOptions = {}): Standing {
-  const catalogue = catalogueFor(playable);
-  const host: TurnHost = { catalogue, budgets: DEFAULT_LIMITS.budgets, render: renderEffects };
-  const loaded = initialState(catalogue);
+export function standIn(
+  playable: PlayableWorld,
+  engine: EngineName,
+  options: StandOptions = {},
+): Standing {
+  const host = hostFor(playable);
+  const running = engineFor(engine, playable, host);
+  const { catalogue } = host;
   const world = catalogue.world;
   const visit = visitKey('inspector');
   const nickname = options.nickname ?? INSPECTOR;
 
-  const unadmitted = nicknameRefusal(loaded, catalogue, host.budgets, visit, nickname);
+  const unadmitted = running.nicknameRefusal(emptyState(), visit, nickname);
   if (unadmitted !== null) {
     throw new Error(`${unadmitted.words} Give one with --as.`);
   }
-  const { before, wanted } = seatReturning(loaded, catalogue, options.at, visit, nickname);
+  const { before, wanted } = seatReturning(emptyState(), catalogue, options.at, visit, nickname);
 
-  const arrived = arrivalTurn(before, host, { visit, nickname, seed: 0, mayHold: null, now: 0 });
+  const step = running.arrival(before, { visit, nickname, seed: 0, mayHold: null, now: 0 });
+  const arrived = step.turn;
   if (!arrived.committed) {
     if ('closed' in arrived) {
       throw new Error(
@@ -95,44 +87,61 @@ export function standIn(playable: PlayableWorld, options: StandOptions = {}): St
     const { fault } = arrived;
     throw new Error(`A visitor's arrival faulted, ${fault.name}: ${fault.detail}`);
   }
-  const { state } = arrived;
-  const actor = arrived.value.instance;
-  const place = arrived.value.entered.place;
+  const stored = step.changes === null ? before : applyChanges(before, step.changes);
+  running.landed?.(stored);
+  const standing = running.standing(stored, visit);
+  const actor = stored.visitors.find((one) => one.visit === visit)?.instance as InstanceId;
+  if (standing === null) throw new Error('A visitor was admitted and stands nowhere.');
+  const place = standing.place.id;
   if (wanted !== null && place !== wanted) {
     throw seatingMismatch(world, options.at!, place);
   }
-  return { state, host, visit, actor, place };
+  return { stored, engine: running, host, visit, actor, place };
 }
 
 /**
- * `loaded`, with `nickname` seated as a returning visitor to `at`'s
- * place, so their arrival asks that place's `accept` and crowd bound as
- * a returning visitor's would; unchanged, with no place wanted, where
- * `at` is undefined. Thrown, listing every place, where `at` names none.
+ * `stored`, with `nickname` seated as a returning visitor to `at`'s place,
+ * so their arrival asks that place's `accept` and crowd bound as a
+ * returning visitor's would; unchanged, with no place wanted, where `at`
+ * is undefined. The visitor's record is written as a store keeps one, its
+ * instance at its kind's defaults, which every engine reads in place of
+ * a property it is not given. Thrown, listing every place, where `at`
+ * names none.
  */
 export function seatReturning(
-  loaded: WorldState,
+  stored: StoredState,
   catalogue: Catalogue,
   at: string | undefined,
   visit: VisitKey,
   nickname: string,
-): { before: WorldState; wanted: InstanceId | null } {
-  if (at === undefined) return { before: loaded, wanted: null };
-  const wanted = placeNamed(loaded, catalogue, at);
-  const draft = new Draft(loaded);
-  const instance = draft.mint();
-  const kind = catalogue.visitorKind;
-  if (kind === null) throw new Error('This world has nothing for a visitor to be made of.');
-  draft.add(newInstance(instance, { from: 'visitor' }, kind, null, null, catalogue.caps));
-  draft.putVisitor({
-    visit,
-    nickname,
-    instance,
-    lastPlace: wanted,
-    referents: [],
-    lastReading: null,
+): { before: StoredState; wanted: InstanceId | null } {
+  if (at === undefined) return { before: stored, wanted: null };
+  const wanted = placeNamed(stored, catalogue, at);
+  if (catalogue.visitorKind === null) {
+    throw new Error('This world has nothing for a visitor to be made of.');
+  }
+  const serial = stored.serial + 1;
+  const instance = mintedId(catalogue.world, serial);
+  const before = applyChanges(stored, {
+    serial,
+    upsert: [
+      {
+        id: instance,
+        made: { from: 'visitor' },
+        container: null,
+        arrival: null,
+        properties: {},
+        links: {},
+        wakes: [],
+        memory: {},
+        lastTick: null,
+      },
+    ],
+    remove: [],
+    tombstones: [],
+    visitors: [{ visit, nickname, instance, lastPlace: wanted, referents: [], lastReading: null }],
   });
-  return { before: draft.commit().state, wanted };
+  return { before, wanted };
 }
 
 /** Thrown where `--at <at>` did not seat a visitor at `wanted`, but at `place` instead. */
@@ -143,14 +152,22 @@ export function seatingMismatch(world: InstanceId, at: string, place: InstanceId
   );
 }
 
-/** The declared place `written` names, as a path under the world; thrown, listing every place in declared order, where it names none. */
-function placeNamed(state: WorldState, catalogue: Catalogue, written: string): InstanceId {
-  const reader = readerOf(state);
+/**
+ * The declared place `written` names, as a path under the world: a
+ * declared object whose kind holds people, never destroyed. Thrown,
+ * listing every place in declared order, where it names none.
+ */
+function placeNamed(stored: StoredState, catalogue: Catalogue, written: string): InstanceId {
   const { world } = catalogue;
   const places = [...catalogue.declared.values()]
     .sort((a, b) => a.rank - b.rank)
-    .map((entry) => entry.id)
-    .filter((id) => isPlace(reader, id));
+    .filter(
+      (entry) =>
+        entry.id !== world &&
+        entry.kind?.containsActors === true &&
+        !stored.tombstones.includes(entry.id),
+    )
+    .map((entry) => entry.id);
   const found = places.find((id) => pathOf(world, id) === written);
   if (found !== undefined) return found;
   const names = places.map((id) => pathOf(world, id)).join(', ');

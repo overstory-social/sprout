@@ -4,7 +4,7 @@
 # checks a corpus world the same way, and inspects the new world and a corpus world: the grammar a
 # world accepts, a line read where a visitor stands, and that visitor's
 # view. It checks the worked microworld and plays each of its golden
-# transcripts, which must print exactly what they hold; runs its own tests,
+# transcripts on each engine, which must print exactly what they hold; runs its own tests,
 # which must pass, and its transcripts as tests, which must pass too, with a
 # report of what they reached between them; and
 # runs a test that must fail, printing what the world said. It plays the
@@ -49,9 +49,11 @@ npx sprout parse "$grammar" "take metal"
 npx sprout view "$grammar" --at cellar
 npx sprout check "$shop"
 for transcript in "$shop"/transcripts/*.json; do
-  npx sprout play "$shop" "$transcript" > played.json
-  diff -u "$transcript" played.json
-  echo "played $(basename "$transcript") as written"
+  for engine in wasm ts; do
+    npx sprout play "$shop" "$transcript" --engine "$engine" > played.json
+    diff -u "$transcript" played.json
+    echo "played $(basename "$transcript") as written on the $engine engine"
+  done
 done
 npx sprout test "$shop"
 npx sprout test "$shop" "$shop"/transcripts/*.json --report reached.json | tail -2

@@ -22,6 +22,8 @@ import {
   PAT,
   played,
   seeded,
+  STAIR,
+  STAIR_CELLAR,
   storedIn,
   TALLY,
   type EngineCase,
@@ -59,6 +61,26 @@ export const admissionCases: EngineCase[] = [
       const { record, container } = await whereIs(store, MARTA);
       equal(container, null, 'where they are in the tree');
       equal(record?.lastPlace, HALL, 'where they last stood');
+    },
+  },
+  {
+    name: 'a departure that faults goes quietly',
+    proves:
+      'a departure that faults is abandoned, and the visitor goes away quietly in a turn of its own, told what that said',
+    async run(make) {
+      const store = await seeded(STAIR, [[MARTA, STAIR_CELLAR, 'Marta']]);
+      const turn = await runDeparture(store, 'w', played(make, STAIR), { visit: MARTA, ...at(0) });
+      ok(!turn.committed, 'the departure faults');
+      match(turn.fault, { name: 'IntegerOverflow' }, 'its fault');
+      equal(
+        turn.quietly.effects.map((effect) => [effect.visit, effect.kind, [...effect.paragraphs]]),
+        [[MARTA, 'notice', ['You leave, and take what you carry with you.']]],
+        'what going quietly told them',
+      );
+      equal(turn.quietly.cutShort, [], 'who it cut short');
+      const { record, container } = await whereIs(store, MARTA);
+      equal(container, null, 'where they are in the tree');
+      equal(record?.lastPlace, STAIR_CELLAR, 'where they last stood');
     },
   },
   {
