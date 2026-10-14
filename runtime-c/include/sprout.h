@@ -125,18 +125,35 @@ sprout_status sprout_load_explained(const sprout_host *host, const char *cartrid
 
 /*
  * A load in progress, so a host may read a big cartridge a little at a time
- * across its frames rather than in one call. The cartridge's bytes must stay
- * where they are until the load is finished or abandoned.
+ * across its frames rather than in one call.
  */
 typedef struct sprout_loading sprout_loading;
 
-/* Begins a load: the header checked as sprout_load checks it, nothing of the body read yet. */
-sprout_status sprout_load_begin(const sprout_host *host, const char *cartridge, size_t length,
-                                sprout_loading **loading, sprout_refusal *refusal);
+/*
+ * Where a load reads a cartridge from, front to back, so the host need never
+ * hold it whole: `read` puts its next bytes, up to `bytes` of them, in
+ * `buffer` and sets `*got`, which is 0 only at the cartridge's end; false when
+ * the host could not read them, which refuses the load in words. It is called
+ * from sprout_load_begin and sprout_load_step, and `ctx` must stay valid until
+ * the load is finished or abandoned.
+ */
+typedef struct sprout_source {
+  void *ctx;
+  bool (*read)(void *ctx, unsigned char *buffer, size_t bytes, size_t *got);
+} sprout_source;
 
 /*
- * Reads on, at most `budget` units of work (an entry of the table or one of the
- * small sections is a unit): `*done` once the world is ready. Any status but
+ * Begins a load from `source` (copied): the header read and checked as
+ * sprout_load checks it, nothing of the body inflated yet. A host holding the
+ * cartridge whole loads it with sprout_load_explained.
+ */
+sprout_status sprout_load_begin(const sprout_host *host, const sprout_source *source, sprout_loading **loading,
+                                sprout_refusal *refusal);
+
+/*
+ * Reads on: at most `budget` more bytes of the body inflated, the source read
+ * as far as they need, and the world built from the body once it is whole;
+ * `*done` once the world is ready. Any status but
  * SPROUT_OK has ended the load, freed it, and written `refusal` as
  * sprout_load_explained writes it.
  */

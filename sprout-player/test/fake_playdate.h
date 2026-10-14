@@ -117,6 +117,10 @@ typedef struct fake_playdate {
   size_t largest; /* the largest single block asked of the allocator */
   /* when set, every file opened for writing fails to open, as on a full disk */
   int fail_writes;
+  /* when set, every read of an open file fails, as of a card gone bad */
+  int fail_reads;
+  /* the reads of open files made, and the most bytes one asked for; a test empties them to watch from a moment on */
+  size_t reads, read_largest;
   /* the screen: the frame (a set bit is black), the text drawn since it was cleared, the font loaded */
   uint8_t frame[LCD_ROWS * LCD_ROWSIZE];
   fake_run runs[FAKE_RUNS];

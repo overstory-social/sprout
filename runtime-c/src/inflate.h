@@ -5,7 +5,9 @@
  * length, and says in words what was wrong with a stream it refuses. The
  * decoder is resumable: it gives its output a buffer at a time, keeping the
  * last 32 KB in a window of its own, so a body is never whole in memory
- * unless the caller wants it so.
+ * unless the caller wants it so. Its input is a member held whole, or one a
+ * source gives a piece at a time, pulled whenever the decoder has used the
+ * last, so the compressed bytes need not be whole in memory either.
  */
 #ifndef SPROUT_INFLATE_H
 #define SPROUT_INFLATE_H
@@ -20,10 +22,13 @@ typedef struct sprout_huffman {
   unsigned short symbol[288];
 } sprout_huffman;
 
-/* An inflate in progress over a gzip member held whole in memory. The fields are the decoder's own. */
+/* An inflate in progress. The fields are the decoder's own. */
 typedef struct sprout_inflater {
-  const unsigned char *in;
+  const unsigned char *in; /* the member held whole, or the source's last piece */
   size_t in_length, in_at;
+  sprout_source source;   /* where the next piece comes from; no `read` for a member held whole */
+  unsigned char *piece;
+  size_t piece_bytes;
   unsigned long bit_buffer;
   int bit_count;
   int state;
@@ -33,7 +38,7 @@ typedef struct sprout_inflater {
   sprout_huffman lit, dist;
   unsigned char window[SPROUT_INFLATE_WINDOW];
   size_t total;
-  uint32_t crc, crc_said, size_said;
+  uint32_t crc, size_said; /* size_said: the trailer's ISIZE for a member held whole, unknown for a source's */
   uint32_t crc_table[256];
   const char *why;
 } sprout_inflater;
@@ -44,6 +49,15 @@ typedef struct sprout_inflater {
  */
 sprout_status sprout_inflate_begin(sprout_inflater *s, const unsigned char *bytes, size_t length,
                                    const char **why);
+
+/*
+ * Begins reading a gzip member from `source`, a piece of up to `piece_bytes`
+ * at a time into `piece`, which must outlive the inflate. The member's size
+ * is known only from its trailer, which is checked at its end. A source that
+ * fails is refused as a damaged stream is, with `why` saying so.
+ */
+sprout_status sprout_inflate_begin_source(sprout_inflater *s, const sprout_source *source, unsigned char *piece,
+                                          size_t piece_bytes, const char **why);
 
 /*
  * The next bytes of the member, up to `cap` of them, into `out`; `*got` is how

@@ -3,7 +3,8 @@
  * language's cartridge reader uses when it is not one, was made for another format or
  * a newer language level, or is damaged; a host that runs out of memory part
  * way is told so and left holding nothing; a load steps across calls by
- * bytes, can be abandoned, and a peek inflates only as far as the preamble.
+ * bytes, reading its source a piece at a time, can be abandoned, and a peek
+ * inflates only as far as the preamble.
  */
 #include "load.h"
 #include "corpus.h"
@@ -203,7 +204,9 @@ static void a_load_steps_across_calls_by_bytes_and_tells_its_progress(void) {
   sprout_refusal why;
   sprout_world *world, *whole;
   bool done = false;
-  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  test_source t;
+  sprout_source source = test_source_of(&t, bytes, length, 0);
+  CHECK_INT(sprout_load_begin(&host, &source, &loading, &why), SPROUT_OK);
   sprout_load_progress(loading, &read, &counted);
   CHECK_INT(read, 0);
   CHECK(counted > 10000);
@@ -239,14 +242,17 @@ static void a_load_abandoned_part_way_leaves_nothing(void) {
   sprout_loading *loading = NULL;
   sprout_refusal why;
   bool done = false;
-  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  test_source t;
+  sprout_source source = test_source_of(&t, bytes, length, 0);
+  CHECK_INT(sprout_load_begin(&host, &source, &loading, &why), SPROUT_OK);
   CHECK_INT(sprout_load_step(loading, 40, &done, &why), SPROUT_OK);
   CHECK(!done);
   sprout_load_abandon(loading);
   CHECK_INT(heap.pages, 0);
   /* A step that fails has freed the load itself. */
   bytes[length / 2] ^= 0x55;
-  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  source = test_source_of(&t, bytes, length, 0);
+  CHECK_INT(sprout_load_begin(&host, &source, &loading, &why), SPROUT_OK);
   CHECK(sprout_load_step(loading, (size_t)-1, &done, &why) == SPROUT_BAD_INPUT);
   CHECK(strncmp(why.text, "This cartridge cannot be read: ", 31) == 0);
   CHECK_INT(heap.pages, 0);
@@ -262,6 +268,8 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   sprout_loading *loading = NULL;
   sprout_refusal why;
   long before;
+  test_source t;
+  sprout_source source = test_source_of(&t, bytes, length, 0);
   CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
   CHECK(world != NULL && sprout_world_peeked(world));
   CHECK_STR(world->header.name, "printers_shop");
@@ -274,7 +282,7 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   sprout_world_free(world);
   CHECK_INT(heap.pages, 0);
   /* The table is never reached: a cartridge whose table is damaged still peeks. */
-  CHECK_INT(sprout_load_begin(&host, bytes, length, &loading, &why), SPROUT_OK);
+  CHECK_INT(sprout_load_begin(&host, &source, &loading, &why), SPROUT_OK);
   sprout_load_progress(loading, &read, &counted);
   CHECK(counted > 20000);
   sprout_load_abandon(loading);
@@ -305,9 +313,11 @@ static void a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing(v
     sprout_refusal why;
     sprout_status status;
     bool done = false;
+    test_source t;
+    sprout_source source = test_source_of(&t, bytes, length, 0);
     host.page_bytes = 8192;
     heap.refuse_after = pages;
-    status = sprout_load_begin(&host, bytes, length, &loading, &why);
+    status = sprout_load_begin(&host, &source, &loading, &why);
     while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 5000, &done, &why);
     if (status == SPROUT_OK) {
       sprout_world *world = sprout_load_finish(loading);
@@ -322,7 +332,109 @@ static void a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing(v
   free(bytes);
 }
 
+/* Loads the cartridge from a source giving `piece` bytes a read, stepping `budget` at a time. */
+static sprout_world *load_in_pieces(const sprout_host *host, const char *bytes, size_t length, size_t piece,
+                                    size_t budget, test_source *t) {
+  sprout_source source = test_source_of(t, bytes, length, piece);
+  sprout_loading *loading = NULL;
+  sprout_refusal why;
+  sprout_status status;
+  bool done = false;
+  status = sprout_load_begin(host, &source, &loading, &why);
+  while (status == SPROUT_OK && !done) status = sprout_load_step(loading, budget, &done, &why);
+  CHECK_INT(status, SPROUT_OK);
+  return status == SPROUT_OK ? sprout_load_finish(loading) : NULL;
+}
+
+static void a_load_fed_in_pieces_smaller_than_an_entry_builds_the_world_a_whole_load_does(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length, i;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  sprout_world *whole = NULL;
+  sprout_refusal why;
+  static const size_t pieces[] = {1, 7, 100, 4093};
+  CHECK_INT(sprout_load_explained(&host, bytes, length, &whole, &why), SPROUT_OK);
+  for (i = 0; i < sizeof pieces / sizeof pieces[0]; i++) {
+    test_source t;
+    sprout_world *world = load_in_pieces(&host, bytes, length, pieces[i], 3000, &t);
+    CHECK(world != NULL);
+    if (world == NULL) continue;
+    /* Every byte was read, no more than a piece at a time. */
+    CHECK_INT(t.at, length);
+    CHECK(t.reads >= (long)(length / pieces[i]));
+    CHECK_INT(world->graph.count, whole->graph.count);
+    CHECK_INT(world->word_count, whole->word_count);
+    CHECK_STR(world->header.hash, whole->header.hash);
+    sprout_world_free(world);
+  }
+  sprout_world_free(whole);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+}
+
+static void a_source_that_fails_part_way_refuses_the_load_in_words_and_holds_nothing(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length, i;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  long fails[6];
+  fails[0] = 0, fails[1] = 9, fails[2] = 20, fails[3] = 300, fails[4] = (long)length / 2, fails[5] = (long)length - 1;
+  for (i = 0; i < 6; i++) {
+    test_source t;
+    sprout_source source = test_source_of(&t, bytes, length, 500);
+    sprout_loading *loading = NULL;
+    sprout_refusal why;
+    sprout_status status;
+    bool done = false;
+    t.fail_at = fails[i];
+    status = sprout_load_begin(&host, &source, &loading, &why);
+    while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 4096, &done, &why);
+    CHECK_INT(status, SPROUT_BAD_INPUT);
+    CHECK_STR(why.text, "This cartridge cannot be read: its file could not be read to the end.");
+    CHECK_INT(heap.pages, 0);
+  }
+  free(bytes);
+}
+
+static void a_source_that_ends_early_or_runs_on_is_refused(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length;
+  char *bytes = corpus_cartridge("printers_shop", &length);
+  char *longer = (char *)malloc(length + 3);
+  test_source t;
+  sprout_source source;
+  sprout_loading *loading = NULL;
+  sprout_refusal why;
+  sprout_status status;
+  bool done = false;
+  source = test_source_of(&t, bytes, length - 5, 64);
+  status = sprout_load_begin(&host, &source, &loading, &why);
+  while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 4096, &done, &why);
+  CHECK_INT(status, SPROUT_BAD_INPUT);
+  CHECK_STR(why.text, "This cartridge cannot be read: the compressed data ends early.");
+  memcpy(longer, bytes, length);
+  memcpy(longer + length, "abc", 3);
+  done = false;
+  source = test_source_of(&t, longer, length + 3, 64);
+  status = sprout_load_begin(&host, &source, &loading, &why);
+  while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 4096, &done, &why);
+  CHECK_INT(status, SPROUT_BAD_INPUT);
+  CHECK_STR(why.text, "This cartridge cannot be read: the compressed data goes on past its end.");
+  /* Too short to hold a header at all. */
+  source = test_source_of(&t, bytes, 9, 64);
+  CHECK_INT(sprout_load_begin(&host, &source, &loading, &why), SPROUT_BAD_INPUT);
+  CHECK(strncmp(why.text, "This is not a Sprout cartridge", 30) == 0);
+  CHECK_INT(heap.pages, 0);
+  free(longer);
+  free(bytes);
+}
+
 int main(void) {
+  RUN(a_load_fed_in_pieces_smaller_than_an_entry_builds_the_world_a_whole_load_does);
+  RUN(a_source_that_fails_part_way_refuses_the_load_in_words_and_holds_nothing);
+  RUN(a_source_that_ends_early_or_runs_on_is_refused);
   RUN(a_load_steps_across_calls_by_bytes_and_tells_its_progress);
   RUN(a_stepping_load_that_runs_out_of_memory_at_any_point_holds_nothing);
   RUN(a_load_abandoned_part_way_leaves_nothing);
