@@ -45,19 +45,18 @@ const NEVER = [
   'newInstance',
   'isPlace',
   'standsInPlace',
+  'renderActed',
 ];
 
 /**
  * What reads the TypeScript runtime beside the engine, and the files it is
- * for: the TypeScript engine itself; the readings file, which is that
- * runtime's record and writes its stored worlds whole; and `acted`, which
- * no engine renders for a host.
+ * for: the TypeScript engine itself; and the readings file, which is that
+ * runtime's record and writes its stored worlds whole.
  */
 const ONLY_IN: Readonly<Record<string, readonly string[]>> = {
   tsEngine: ['engine.ts'],
-  loaded: ['play.ts', 'readings.ts'],
+  loaded: ['readings.ts'],
   saveWorld: ['readings.ts'],
-  renderActed: ['play.ts'],
 };
 
 function sources(dir: string): string[] {

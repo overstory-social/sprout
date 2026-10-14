@@ -37,11 +37,12 @@ import { tickEntry } from './log/tick.js';
 import { wakeEntry } from './log/wake.js';
 import type { StoredState } from './records.js';
 
-// One write turn over a world's stored state, as the language runs it
-// (the spec's The runtime › Turns, The log): what it did, what the store
-// writes, and the entry the log appends, so that running a turn against a
-// store (`turns.ts`) and replaying it from the log (`log/replay.ts`) are
-// the same function of the same inputs. A turn that ran nothing, a tick
+// One write turn over a world's stored state, as the TypeScript runtime
+// runs it for its engine (`engine.ts`; the spec's The runtime › Turns,
+// The log): what it did, what the store writes, and the entry the log
+// appends, so that running a turn against a store (`turns.ts`) and
+// replaying it from the log (`log/replay.ts`) hand the engine the same
+// inputs and get the same step. A turn that ran nothing, a tick
 // whose place is empty, a wake no longer pending or an arrival to a world
 // that admits no one, writes nothing and has no entry.
 

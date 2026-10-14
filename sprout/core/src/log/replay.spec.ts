@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS, dueWakes } from '@overstory/sprout/lang';
 
 import { ConversationPace, runConversation } from '../conversation.js';
+import { tsEngine } from '../engine.js';
 import { command, GAUGE, HALL, MARTA, tally } from '../fixtures/tally.js';
 import { memoryStore } from '../memory-store.js';
 import type { MicroworldRecord } from '../records.js';
@@ -21,7 +22,7 @@ import { runView } from '../views.js';
 import type { LogDepth } from './depth.js';
 import { wholeLog, type Logged } from './entry.js';
 import { publishWorld } from './publish.js';
-import { replayLog, type ReplayHosts } from './replay.js';
+import { replayLog, type ReplayBundle, type ReplayBundles } from './replay.js';
 
 const first = tally();
 const second = tally('Clack.');
@@ -38,10 +39,16 @@ const record: MicroworldRecord = {
   loadedAt: new Date('2026-09-18T12:00:00Z'),
 };
 
-/** The host for the bundle a segment names, as the host keeps its bundles by hash. */
-const hosts: ReplayHosts = (opening) => {
-  if (opening.bundle === first.bundle.hash) return first.host;
-  if (opening.bundle === second.bundle.hash) return second.host;
+/** `host`'s bundle on the TypeScript runtime's engine. */
+const onEngine = (host: typeof first.host): ReplayBundle => ({
+  catalogue: host.catalogue,
+  engine: (budgets) => tsEngine({ ...host, budgets }),
+});
+
+/** The bundle a segment names, as the host keeps its bundles by hash. */
+const bundles: ReplayBundles = (opening) => {
+  if (opening.bundle === first.bundle.hash) return onEngine(first.host);
+  if (opening.bundle === second.bundle.hash) return onEngine(second.host);
   throw new Error(`no bundle ${opening.bundle}`);
 };
 
@@ -113,7 +120,7 @@ describe('replaying the log', () => {
     expect(log.map(({ entry }) => entry.kind)).toEqual(
       expect.arrayContaining(['said', 'poll-fault']),
     );
-    const replayed = replayLog(log, hosts);
+    const replayed = replayLog(log, bundles);
     expect(replayed.diverged).toEqual([]);
     expect(replayed.turns).toBe(turnsIn(log));
     expect(replayed.state).toEqual(await store.read('w', (tx) => tx.state()));
@@ -125,12 +132,12 @@ describe('replaying the log', () => {
       ({ entry }) => entry.kind === 'command' && entry.fault?.name === 'BudgetExhausted',
     );
     expect(starved?.entry).toMatchObject({ budgets: { steps: 1 } });
-    expect(replayLog(log, hosts).diverged).toEqual([]);
+    expect(replayLog(log, bundles).diverged).toEqual([]);
   });
 
   it('diverges where a segment is read against a bundle other than the one that produced it', async () => {
     const log = await wholeLog(await played(), 'w', 100);
-    const { diverged } = replayLog(log, () => first.host);
+    const { diverged } = replayLog(log, () => onEngine(first.host));
     const clacked = log.filter(
       ({ entry }) => entry.kind === 'command' && entry.effects[0]?.paragraphs[0] === 'Clack.',
     );
@@ -147,7 +154,7 @@ describe('replaying the log', () => {
     const altered: Logged[] = log.map((one) =>
       one.seq === target.seq ? { seq: one.seq, entry: { ...target.entry, effects: said } } : one,
     );
-    expect(replayLog(altered, hosts).diverged.map((d) => d.seq)).toEqual([target.seq]);
+    expect(replayLog(altered, bundles).diverged.map((d) => d.seq)).toEqual([target.seq]);
   });
 
   it('diverges, and runs nothing, where a turn cannot run again over what the log says came before', async () => {
@@ -155,7 +162,7 @@ describe('replaying the log', () => {
     const arrived = log.find(({ entry }) => entry.kind === 'arrival')!;
     const { diverged } = replayLog(
       log.filter((one) => one.seq !== arrived.seq),
-      hosts,
+      bundles,
     );
     expect(diverged.length).toBeGreaterThan(0);
     expect(diverged[0]).toMatchObject({ logged: { kind: 'command' }, replayed: null });
@@ -163,7 +170,7 @@ describe('replaying the log', () => {
 
   it('refuses a turn logged before any publish', async () => {
     const log = await wholeLog(await played(), 'w', 100);
-    expect(() => replayLog(log.slice(1), hosts)).toThrow(
+    expect(() => replayLog(log.slice(1), bundles)).toThrow(
       /entry 2, of kind `maintenance`, comes before any publish/,
     );
   });
@@ -174,9 +181,9 @@ describe('replaying the log', () => {
       expect(log.filter(({ entry }) => entry.kind === kind)).toHaveLength(1);
       const without = replayLog(
         log.filter(({ entry }) => entry.kind !== kind),
-        hosts,
+        bundles,
       );
-      expect(without).toEqual(replayLog(log, hosts));
+      expect(without).toEqual(replayLog(log, bundles));
       expect(without.state.instances.find((i) => i.id === GAUGE)).toBeDefined();
     }
   });
@@ -192,7 +199,7 @@ describe('replaying the log', () => {
       expect(entry.digest).toMatchObject({ sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
     }
     expect(said.some(({ entry }) => 'digest' in entry && entry.digest!.count > 0)).toBe(true);
-    const replayed = replayLog(log, hosts);
+    const replayed = replayLog(log, bundles);
     expect(replayed.diverged).toEqual([]);
     expect(replayed.state).toEqual(await store.read('w', (tx) => tx.state()));
   });
@@ -210,7 +217,7 @@ describe('replaying the log', () => {
       const altered: Logged[] = log.map((one) =>
         one.seq === target.seq ? { seq: one.seq, entry: { ...target.entry, digest } } : one,
       );
-      expect(replayLog(altered, hosts).diverged.map((d) => d.seq)).toEqual([target.seq]);
+      expect(replayLog(altered, bundles).diverged.map((d) => d.seq)).toEqual([target.seq]);
     }
   });
 });
