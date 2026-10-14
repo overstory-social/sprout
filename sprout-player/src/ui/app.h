@@ -40,10 +40,18 @@ struct player_app {
   bool reading;           /* a reader is open: the visitor is in the world */
   bool leave_asked;       /* the system menu's "leave world" was chosen since the last frame */
   PDMenuItem *leave_item; /* that item, or NULL where the system could not add it */
+  bool restart_asked;     /* the system menu's "start over" was chosen since the last frame */
+  bool restart_question;  /* the question whether to start over is on screen, over the screen on show */
+  PDMenuItem *restart_item;
 };
 
+/* The question "start over" asks, the words under it, and its keys. */
+#define PLAYER_RESTART_QUESTION "Start this world over?"
+#define PLAYER_RESTART_WARNING "All you did here will be forgotten."
+#define PLAYER_RESTART_KEYS "A: start over   B: go back"
+
 /*
- * The app over `pd`, on the shelf, with "leave world" in the system menu; NULL, with the words in
+ * The app over `pd`, on the shelf, with "leave world" and "start over" in the system menu; NULL, with the words in
  * `*why`, when it cannot start. Called at kEventInit, on the main stack, since it loads the font;
  * the shelf is listed in the first frame.
  */
@@ -76,8 +84,11 @@ int player_app_update(void *app);
 /*
  * One frame with `input`: the screen's update, a screen change, the frame cleared, the screen drawn.
  * Where "leave world" was chosen while a reader is open, the visitor leaves in place of the update
- * and the app goes back to the shelf (or says the save could not be written); chosen elsewhere it
- * does nothing.
+ * and the app goes back to the shelf (or says the save could not be written). Where "start over"
+ * was chosen while a reader is open, its question is put over the screen on show, which is neither
+ * updated nor drawn while it is up: A starts the world over (`player_start_over`) and goes to the
+ * nickname screen for a fresh arrival, B goes back to the screen as it was. Chosen elsewhere,
+ * either item does nothing.
  */
 void player_app_frame(player_app *app, const player_input *input);
 

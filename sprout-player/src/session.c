@@ -412,6 +412,43 @@ player_loaded player_load(player_session *session) {
   return answer;
 }
 
+/* Removes the file at `path` and the `.tmp` beside it that a write cut short may have left. */
+static void remove_save_file(player_session *session, const char *path) {
+  char temp[PATH_BYTES + 8];
+  text_buffer out;
+  text_begin(&out, temp, sizeof temp);
+  text_add(&out, path);
+  text_add(&out, ".tmp");
+  player_file_remove(session->pd, path);
+  player_file_remove(session->pd, temp);
+}
+
+player_restart player_start_over(player_session *session) {
+  player_restart answer;
+  const sprout_stored_visitor *visitor;
+  memset(&answer, 0, sizeof answer);
+  session_answer(session);
+  if (session->world == NULL || session->state == NULL) {
+    answer.reason = "No world is open.";
+    return answer;
+  }
+  visitor = session_visitor(session);
+  if (visitor != NULL) answer.nickname = kept_str(session, visitor->nickname);
+  session_drop_view(session);
+  sprout_state_free(session->state);
+  session->state = NULL;
+  session->dirty = false;
+  session->host.last_seconds = 0;
+  savelog_clear(session);
+  remove_save_file(session, session->state_path);
+  remove_save_file(session, session->log_path);
+  answer.ok = true;
+  answer.name = session->title;
+  answer.word_count = session->world->word_count;
+  answer.words = session->world->words;
+  return answer;
+}
+
 player_told player_close(player_session *session) {
   player_told answer;
   sprout_outcome outcome;
