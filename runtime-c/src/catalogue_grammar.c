@@ -50,18 +50,15 @@ sprout_status cat_read_phrases(loader *l, const sprout_node *list, size_t *count
 sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **out) {
   sprout_verb *verb;
   const sprout_node *roles;
-  size_t i, at;
+  size_t i;
   *out = NULL;
-  at = sprout_graph_index(l->graph, node);
-  if (node == NULL || node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY)
+  if (node == NULL || node->kind != SPROUT_NODE_OBJECT || sprout_graph_index(l->graph, node) == SPROUT_NOT_AN_ENTRY)
     return cat_shaped(l, "a verb");
-  if (l->read[at] != NULL) {
-    *out = (sprout_verb *)l->read[at];
-    return SPROUT_OK;
-  }
+  *out = (sprout_verb *)cat_read_as(l, node);
+  if (*out != NULL) return SPROUT_OK;
   verb = (sprout_verb *)cat_array(l, 1, sizeof *verb);
   MEMORY(verb);
-  l->read[at] = verb;
+  NEED(cat_keep(l, node, verb));
   verb->library = cat_text(l->graph, node, "library");
   verb->name = cat_text(l->graph, node, "name");
   if (verb->library == NULL || verb->name == NULL) return cat_shaped(l, "a verb");

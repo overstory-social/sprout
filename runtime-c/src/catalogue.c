@@ -213,14 +213,6 @@ sprout_status sprout_catalogue_peek(sprout_world *world, const sprout_json *root
   return SPROUT_OK;
 }
 
-/* Zeroed room in the load's scratch for one pointer an entry: a cache the load alone reads. */
-static void *cache_of(sprout_arena *scratch, size_t entries) {
-  size_t bytes = (entries == 0 ? 1 : entries) * sizeof(void *);
-  void *room = sprout_arena_take(scratch, bytes);
-  if (room != NULL) memset(room, 0, bytes);
-  return room;
-}
-
 sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *root, sprout_arena *scratch,
                                      char *error, size_t capacity) {
   loader load, *l = &load;
@@ -233,8 +225,7 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   load.arena = &world->arena;
   load.error = error;
   load.capacity = capacity;
-  load.read = (void **)cache_of(scratch, world->graph.count);
-  MEMORY(load.read);
+  load.scratch = scratch;
 
   NEED(read_header(l, section(root, "header")));
   NEED(read_caps(l, section(root, "caps")));

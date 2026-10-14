@@ -1,7 +1,7 @@
 /*
  * The shared machinery of the catalogue readers: the arena allocation that
- * reports no memory, the refusal sentence, and the small readers of strings
- * and flags out of graph nodes.
+ * reports no memory, the refusal sentence, what each entry was read as, and
+ * the small readers of strings and flags out of graph nodes.
  */
 #include <string.h>
 
@@ -32,6 +32,16 @@ void *cat_array(loader *l, size_t count, size_t size) {
 sprout_status cat_shaped(loader *l, const char *where) {
   return cat_fail(l, "This cartridge is not shaped as a cartridge is at `", where,
               "`: it is not what a cartridge holds there.");
+}
+
+void *cat_read_as(const loader *l, const sprout_node *node) {
+  size_t at = sprout_graph_index(l->graph, node);
+  return at == SPROUT_NOT_AN_ENTRY ? NULL : (void *)sprout_entry_map_get(&l->read, at);
+}
+
+sprout_status cat_keep(loader *l, const sprout_node *node, void *read) {
+  size_t at = sprout_graph_index(l->graph, node);
+  return at == SPROUT_NOT_AN_ENTRY ? SPROUT_OK : sprout_entry_map_put(&l->read, l->scratch, at, read);
 }
 
 bool cat_is_array(const sprout_node *node) {

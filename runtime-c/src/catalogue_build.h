@@ -12,14 +12,15 @@ typedef struct loader {
   sprout_world *world;
   const sprout_graph *graph; /* the world's, which every node read here belongs to */
   sprout_arena *arena;
+  sprout_arena *scratch; /* what the load alone reads, released after it */
   char *error;
   size_t capacity;
   /*
-   * What each graph entry was read as, by its index: a kind, a verb, a type, or the array a kind's
-   * properties, passages, plays or one group of plays became. An entry is only ever one of these, and
-   * the compiler shares what kinds inherit, so each is read once.
+   * What each graph entry the build reads was read as, by its index: a kind, a verb, a type, or the
+   * array a kind's properties, passages, plays or one group of plays became. An entry is only ever one
+   * of these, and the compiler shares what kinds inherit, so each is read once. It lives in `scratch`.
    */
-  void **read;
+  sprout_entry_map read;
 } loader;
 
 #define NEED(expr)                        \
@@ -35,6 +36,10 @@ typedef struct loader {
 
 /* Writes the sentence a, b, c to the load's error and returns SPROUT_BAD_INPUT. */
 sprout_status cat_fail(loader *l, const char *a, const char *b, const char *c);
+/* What the entry `node` was read as, or NULL when it was not, or `node` is not an entry. */
+void *cat_read_as(const loader *l, const sprout_node *node);
+/* Records what the entry `node` was read as; a node that is not an entry is not recorded. */
+sprout_status cat_keep(loader *l, const sprout_node *node, void *read);
 /* A refusal naming the place in the cartridge that is not shaped as a cartridge is. */
 sprout_status cat_shaped(loader *l, const char *where);
 /* Zeroed room for `count` things of `size`, or NULL when the host refuses a page. */
@@ -67,7 +72,7 @@ sprout_status sprout_catalogue_peek(sprout_world *world, const sprout_json *root
 
 /*
  * Fills `world` from the cartridge's JSON, whose graph is already read into world->graph. What the
- * load alone needs (its caches by entry) is taken from `scratch`, which the caller resets afterwards.
+ * load alone needs (what each entry was read as) is taken from `scratch`, which the caller resets afterwards.
  */
 sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *root, sprout_arena *scratch,
                                      char *error, size_t capacity);
