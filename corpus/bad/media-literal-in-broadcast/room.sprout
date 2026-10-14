@@ -1,0 +1,23 @@
+// An extension's literal is written as a property's default or in the
+// extension's own statement: a message's argument and a comparison take
+// a value that holds one.
+import * as sprout from 'sprout'
+
+extension media 1
+
+message :picture_shown with media.Image
+
+kind Room is sprout.Place {
+  :picture media.Image default "cellar.png"
+  on :picture_shown (_, image) {
+    if (image == "cellar.png") { tell "The cellar again." }
+    media.show(image)
+  }
+  describe {
+    text "A damp cellar."
+    media.show(self.get(:picture))
+  }
+  on :tick {
+    broadcast :picture_shown with "cellar.png"
+  }
+}

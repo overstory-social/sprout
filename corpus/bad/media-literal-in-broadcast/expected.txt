@@ -1,0 +1,7 @@
+room.sprout:13:18  This holds `media.Image`, and "cellar.png" is text in quotes.
+                   Text in quotes is a `media.Image` only as a property's default or in a `media` statement: declare `:image media.Image default "cellar.png"` and write `self.get(:image)` here, or write "cellar.png" in the `media` statement that uses it.
+
+room.sprout:21:35  `:picture_shown` carries `media.Image`, and "cellar.png" is text in quotes.
+                   Text in quotes is a `media.Image` only as a property's default or in a `media` statement: declare `:image media.Image default "cellar.png"` and write `self.get(:image)` here, or write "cellar.png" in the `media` statement that uses it.
+
+refused: 2 problems
