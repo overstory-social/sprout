@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { writeHeapSnapshot } from 'node:v8';
 
+import { loaded } from '@overstory/sprout/core';
 import { saveWorld } from '@overstory/sprout/lang';
 import { freshStage, playStep, readScript } from '@overstory/sprout-player';
 
@@ -71,7 +72,7 @@ function main() {
     console.error('profile-runtime: run node with --expose-gc for heap figures.');
   const playable = playableWorld(world);
   const base = heapNow();
-  let stage = freshStage(playable);
+  let stage = freshStage(playable, 'ts');
   const random = generator(Number(flags.seed));
   const script =
     flags.script === undefined
@@ -93,7 +94,7 @@ function main() {
     slowest = Math.max(slowest, took);
     for (const traced of stage.turns) {
       turns++;
-      handlers += traced.ran.length;
+      handlers += traced.account?.ran.length ?? 0;
     }
     stage.turns.length = 0;
     at++;
@@ -104,14 +105,15 @@ function main() {
   }
   const sample = () => {
     const heap = heapNow();
-    const stored = JSON.stringify(saveWorld(stage.state)).length;
+    const state = loaded(stage.stored, stage.host);
+    const stored = JSON.stringify(saveWorld(state)).length;
     const row = {
       step: at,
       turns,
       handlers,
       heap: heap - base,
-      instances: stage.state.instances.size,
-      visitors: stage.state.visitors.size,
+      instances: state.instances.size,
+      visitors: state.visitors.size,
       stored,
       msPerStep: spent / Math.max(1, Number(flags.sample)),
       slowest,
@@ -130,7 +132,7 @@ function main() {
       const step = script.steps[i % script.steps.length];
       if (i > 0 && i % script.steps.length === 0) {
         // Each pass of a script starts afresh, world, clock and seed, as a new play would: what grows across passes leaked.
-        stage = freshStage(playable);
+        stage = freshStage(playable, 'ts');
       }
       try {
         play(step);

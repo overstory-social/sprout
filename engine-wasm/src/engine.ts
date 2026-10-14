@@ -79,9 +79,12 @@ function notesOf(told: Told): CommandNotes {
   };
 }
 
-/** `turn`, with what `told` says the store writes and the log keeps. */
+/**
+ * `turn`, with what `told` says the store writes and the log keeps. Runtime-c
+ * does not say what a turn ran, so there is no account until it does (#665).
+ */
 function stepOf<T>(told: Told, turn: T): Step<T> {
-  return { turn, changes: told.changes, entry: told.entry };
+  return { turn, changes: told.changes, entry: told.entry, account: null };
 }
 
 /** The WebAssembly engine as one world's engine, under `host`'s budgets. */
@@ -241,7 +244,11 @@ export function wasmEngine(host: WasmEngineHost): Engine {
       );
       if (told.result === 'done') return stepOf<GivenDeparture>(told, committed(told));
       if (told.result === 'faulted')
-        return stepOf<GivenDeparture>(told, { committed: false, fault: faultOf(told) });
+        return stepOf<GivenDeparture>(told, {
+          committed: false,
+          fault: faultOf(told),
+          quietly: { effects: told.effects, cutShort: told.cutShort },
+        });
       throw unexpected(told, 'departure');
     },
 

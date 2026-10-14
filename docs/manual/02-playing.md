@@ -338,3 +338,12 @@ writing one:
   refused, without actually doing it.
 
 Both take `--at` and `--as` like `play` does.
+
+## Which engine runs the world
+
+`play`, `test` and `view` run the world on one of two engines that play
+it alike: the C runtime built for WebAssembly (`--engine wasm`), which is
+what a server and the Playdate run, and the TypeScript runtime
+(`--engine ts`). Without `--engine` they use the WebAssembly one when it
+was built with your install, and otherwise the TypeScript one, saying so
+in one line first.

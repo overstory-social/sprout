@@ -28,10 +28,12 @@ export function readingsPath(script) {
 /** The world `path` names, to play: a cartridge loaded, or a folder compiled as `sprout check` does. */
 export function playableWorld(path) {
   if (path.endsWith(CARTRIDGE_EXTENSION)) {
-    return loadCartridge(readFileSync(path), {
+    const cartridge = readFileSync(path);
+    const catalogue = loadCartridge(cartridge, {
       caps: DEFAULT_LIMITS.caps,
       installed: INSTALLED_EXTENSIONS,
     });
+    return { catalogue, cartridge };
   }
   const checked = checkWorld(path);
   if (checked.bundle === null) throw new Error(formatCheck(checked));

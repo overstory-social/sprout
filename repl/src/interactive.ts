@@ -17,6 +17,7 @@ import {
   plays,
   typedStep,
   writeScript,
+  type EngineName,
   type Made,
   type PlayableWorld,
   type StandOptions,
@@ -54,8 +55,9 @@ export interface Io {
   stdin?: NodeJS.ReadableStream;
 }
 
-/** Where and as whom a session stands, whether it prints everything, where to record it as a script, and the seed its stream of turn seeds begins from (0 where none is given). */
+/** Where and as whom a session stands, the engine it runs on, whether it prints everything, where to record it as a script, and the seed its stream of turn seeds begins from (0 where none is given). */
 export interface SessionOptions extends StandOptions {
+  readonly engine: EngineName;
   readonly debug?: boolean;
   readonly record?: string;
   readonly seed?: number;
@@ -95,7 +97,7 @@ export async function playInteractively(
       ),
     );
   }
-  const stage = freshStage(world);
+  const stage = freshStage(world, options.engine);
   const debug = options.debug === true;
   const recorded: Step[] = [];
   const keep = (step: Step | null, made: readonly Made[] | null) => {

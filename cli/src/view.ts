@@ -1,7 +1,4 @@
 import {
-  pollReadings,
-  pollScene,
-  pollView,
   type CommandExit,
   type Fault,
   type InstanceId,
@@ -22,7 +19,7 @@ import { pathOf, type Standing } from '@overstory/sprout-player';
 // each value role. `--scene` polls the scene instead, which lists the verbs
 // in place of the readings, and `--verb` one verb's readings. A poll that
 // faults is shown as the visitor would see it, then the fault the host
-// would log.
+// would log. Each poll is the engine's the visitor stands under.
 
 /** What polling gave: the page, and whether the poll ran without a fault. */
 export interface InspectedView {
@@ -126,7 +123,7 @@ function pageOf(
   sections: readonly string[],
   fault: Fault | null,
 ): InspectedView {
-  const world = standing.state.world;
+  const world = standing.host.catalogue.world;
   const page = [`standing in ${pathOf(world, standing.place)}\n`, ...sections];
   if (fault !== null) {
     const against = fault.object === null ? '' : `, against ${pathOf(world, fault.object)}`;
@@ -137,8 +134,8 @@ function pageOf(
 
 /** The view of the visitor `standing` holds, polled from where they stand, as a page. */
 export function inspectView(standing: Standing): InspectedView {
-  const world = standing.state.world;
-  const { view, fault } = pollView(standing.state, standing.host, standing.visit);
+  const world = standing.host.catalogue.world;
+  const { view, fault } = standing.engine.view(standing.stored, standing.visit);
   return pageOf(
     standing,
     [
@@ -155,8 +152,8 @@ export function inspectView(standing: Standing): InspectedView {
 
 /** The scene of the visitor `standing` holds: the view's page with the verbs it lists in place of the readings. */
 export function inspectScene(standing: Standing): InspectedView {
-  const world = standing.state.world;
-  const { scene, fault } = pollScene(standing.state, standing.host, standing.visit);
+  const world = standing.host.catalogue.world;
+  const { scene, fault } = standing.engine.scene(standing.stored, standing.visit);
   return pageOf(
     standing,
     [
@@ -173,8 +170,8 @@ export function inspectScene(standing: Standing): InspectedView {
 
 /** The readings of `verb`, by its qualified name, that the visitor `standing` holds could make, as a page. */
 export function inspectReadings(standing: Standing, verb: string): InspectedView {
-  const world = standing.state.world;
-  const { readings, fault } = pollReadings(standing.state, standing.host, standing.visit, verb);
+  const world = standing.host.catalogue.world;
+  const { readings, fault } = standing.engine.readings(standing.stored, standing.visit, verb);
   return pageOf(
     standing,
     [

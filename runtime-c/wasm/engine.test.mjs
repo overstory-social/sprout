@@ -33,7 +33,7 @@ import {
   renderEffects,
 } from '@overstory/sprout/lang';
 import { WasmInstance } from '@overstory/sprout-engine-wasm';
-import { catalogueFor, INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
+import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
 
 import { loggedEntryOf, packWorld } from '../../scripts/replay-runtime-c.mjs';
 import { resolveFile } from '../../scripts/resolve-script.mjs';
@@ -442,7 +442,7 @@ export async function testEngine(out, corpus = 'corpus/good') {
       const worldId = loaded.world;
       // The engine polls under the host's default budgets, as the corpus scripts are played.
       const host = {
-        catalogue: catalogueFor(loaded),
+        catalogue: loaded,
         budgets: DEFAULT_LIMITS.budgets,
         render: renderEffects,
       };

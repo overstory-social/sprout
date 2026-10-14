@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BudgetExhausted, storedId, type Parsed, type Parser } from '@overstory/sprout/lang';
+import { tsEngine } from '@overstory/sprout/core';
 
 import { bundleOf, KILN_YARD, LANE } from './fixtures/worlds.js';
 import { faultedParseOf, fillerOf, handedOf, parseRecordOf, readReadingOf } from './parsed.js';
@@ -12,7 +13,7 @@ function parsesOf(
   world: Record<string, string>,
   lines: readonly string[],
 ): { parsed: Parsed; draws: number[] }[] {
-  const stage = freshStage(bundleOf(name, world));
+  const stage = freshStage(bundleOf(name, world), 'ts');
   const recorded: { parsed: Parsed; draws: number[] }[] = [];
   const parse: Parser = (text, actor, context) => {
     const draws: number[] = [];
@@ -23,7 +24,8 @@ function parsesOf(
     recorded.push({ parsed, draws });
     return parsed;
   };
-  const watched = { ...stage, host: { ...stage.host, parse } };
+  const host = { ...stage.host, parse };
+  const watched = { ...stage, host, engine: tsEngine(host) };
   arrive(watched, 'Marta');
   lines.forEach((line, i) => playStep(watched, { as: 'Marta', type: line }, `line ${i + 1}`));
   return recorded;

@@ -29,7 +29,8 @@
     "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
   },
   "dependencies": {
-    "@overstory/sprout": "0.1.0"
+    "@overstory/sprout": "0.1.0",
+    "@overstory/sprout-engine-wasm": "0.1.0"
   },
   "repository": {
     "type": "git",

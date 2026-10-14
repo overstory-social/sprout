@@ -15,9 +15,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { pollView } from '@overstory/sprout/lang';
 import {
   freshStage,
+  isPresent,
   playStep,
   readScript,
   resolveScript,
@@ -57,22 +57,16 @@ function generator(seed) {
   };
 }
 
-function present(stage) {
-  const visit = stage.visits.get(VISITOR);
-  const record = visit === undefined ? undefined : stage.state.visitors.get(visit);
-  return record !== undefined && Boolean(stage.state.instances.get(record.instance)?.container);
-}
-
 /** The next step of a one-visitor play: what the view offers, mostly, and now and then the host's events. */
 function nextStep(stage, random) {
-  if (!present(stage)) return { arrive: VISITOR };
+  if (!isPresent(stage, VISITOR)) return { arrive: VISITOR };
   const roll = random.below(100);
   if (roll < 5) return { tick: true };
   if (roll < 9) return { advance: `${1 + random.below(90)} minutes` };
   if (roll < 10) return { advance: `${1 + random.below(30)} hours` };
   if (roll < 11) return { leave: VISITOR };
   if (roll < 16) return { as: VISITOR, type: random.pick(UNPARSED) };
-  const { view } = pollView(stage.state, stage.host, stage.visits.get(VISITOR));
+  const { view } = stage.engine.view(stage.stored, stage.visits.get(VISITOR));
   const typable = view.readings.filter((reading) => !reading.typed.includes('…'));
   if (typable.length === 0) return { as: VISITOR, type: random.pick(UNPARSED) };
   return { as: VISITOR, type: random.pick(typable).typed };
@@ -81,7 +75,7 @@ function nextStep(stage, random) {
 /** A random play of `steps` steps over `playable`, as a script. */
 function randomScript(playable, steps, seed) {
   const random = generator(seed);
-  const stage = freshStage(playable);
+  const stage = freshStage(playable, 'ts');
   const made = [{ seed: random.below(4294967296) }, { arrive: VISITOR }];
   for (const step of made) playStep(stage, step, 'profile');
   for (let i = 0; i < steps; i++) {

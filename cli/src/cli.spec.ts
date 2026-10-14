@@ -25,6 +25,7 @@ import {
   writeScript,
 } from '@overstory/sprout-player';
 import {
+  ENGINES_BUILT,
   KILN_YARD,
   LANE,
   scriptOf,
@@ -54,7 +55,7 @@ describe('parseArgs', () => {
 
 /** What a session of `lines` prints with --debug in the world at `dir`: the transcript of that script played. */
 const transcript = (dir: string, lines: string) =>
-  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json'));
+  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json', 'ts'));
 
 /** `lines` as a session begun at seed 0 seeds them: `@seed 0` first, then the stream's next before every line that plays. */
 const seeded = (lines: string): string => {
@@ -245,10 +246,11 @@ describe('main', () => {
     const report = join(folder, 'reached.json');
     writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
     const io = captured();
-    expect(main(['play', dir, script, '--report', report], io)).toBe(0);
+    expect(main(['play', dir, script, '--report', report, '--engine', 'ts'], io)).toBe(0);
     const plain = captured();
     main(['play', dir, script], plain);
     expect(io.out()).toBe(plain.out());
+    expect(io.err()).toBe('');
     const reached = JSON.parse(readFileSync(report, 'utf8'));
     expect(reached.scripts).toEqual(['walk.json']);
     expect(reached.reach.places.reached).toEqual(['yard', 'shed']);
@@ -258,6 +260,52 @@ describe('main', () => {
     const saved = captured();
     expect(main(['play', dir, script, '--write', '--report', report], saved)).toBe(0);
     expect(saved.out()).toBe(`wrote ${script}\nwrote ${report}\n`);
+  });
+
+  it.runIf(ENGINES_BUILT.includes('wasm'))(
+    'play --report on the WebAssembly engine leaves what it gives no account of null, and says so',
+    () => {
+      const dir = worldFolder('lane', LANE);
+      const folder = mkdtempSync(join(tmpdir(), 'sprout-play-'));
+      const script = join(folder, 'walk.json');
+      const report = join(folder, 'reached.json');
+      writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
+      const io = captured();
+      expect(main(['play', dir, script, '--report', report, '--engine', 'wasm'], io)).toBe(0);
+      expect(io.err()).toBe(
+        'sprout: this engine does not say which handlers a turn ran or what answered a line, so the report leaves them null; --engine ts reports them\n',
+      );
+      const reached = JSON.parse(readFileSync(report, 'utf8'));
+      expect(reached.reach.places.reached).toEqual(['yard', 'shed']);
+      expect(reached.reach.handlers).toBeNull();
+      expect(reached.reading.unread).toBeNull();
+    },
+  );
+
+  it('plays, tests and views on the engine --engine names, each printing the same pages', () => {
+    const dir = worldFolder('lane', LANE);
+    const folder = mkdtempSync(join(tmpdir(), 'sprout-engine-'));
+    const script = join(folder, 'walk.json');
+    writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> pry crate')));
+    const pages = ENGINES_BUILT.map((engine) =>
+      [
+        ['play', dir, script],
+        ['test', dir, script],
+        ['view', dir, '--at', 'shed'],
+      ].map((argv) => {
+        const io = captured();
+        main([...argv, '--engine', engine], io);
+        expect(io.err()).toBe('');
+        return io.out();
+      }),
+    );
+    for (const page of pages) expect(page).toEqual(pages[0]);
+    const bad = captured();
+    expect(main(['view', dir, '--engine', 'rust'], bad)).toBe(1);
+    expect(bad.err()).toBe('sprout: --engine wants ts or wasm: --engine ts\n');
+    const bare = captured();
+    expect(main(['view', dir, '--engine'], bare)).toBe(1);
+    expect(bare.err()).toBe('sprout: --engine wants ts or wasm after it: --engine ts\n');
   });
 
   it('play --report wants a file, and a script to have been played', async () => {

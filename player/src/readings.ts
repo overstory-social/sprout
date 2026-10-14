@@ -1,6 +1,7 @@
 import {
   saveWorld,
   SEED_MAX,
+  type Catalogue,
   type InstanceId,
   type Fault,
   type Plain,
@@ -9,9 +10,11 @@ import {
   type StoredWorld,
   type WrittenAt,
 } from '@overstory/sprout/lang';
+import { loaded, type StoredState } from '@overstory/sprout/core';
 
+import type { PlayableWorld } from './engine.js';
 import {
-  fillerOf,
+  readReadingOf,
   type Handed,
   type ParseRecord,
   type ReadFiller,
@@ -20,12 +23,15 @@ import {
 } from './parsed.js';
 import { freshStage, playStep, type Stage, type Traced } from './play.js';
 import { lineOf, secondsOf, type Script, type Step } from './script.js';
-import type { PlayableWorld } from './stand.js';
 
-// A script played once by the TypeScript runtime, for another runtime to
+// A script played once on the TypeScript engine, for another runtime to
 // play and be compared with: each step with what it left behind it (the
 // lines readers read, the entry the log keeps of each turn, the stored
-// world), and each typed line with the command turns it ran. Each turn
+// world), and each typed line with the command turns it ran. The file is
+// the TypeScript runtime's record by design, so it is always resolved on
+// that engine, whose parser is the host's and says what it read, and its
+// stored worlds are written whole, as that runtime reads the stored state,
+// every declared object among them. Each turn
 // keeps the reading the TypeScript parser resolved for it, in the world as
 // the script has made it by then: the verb by its qualified name, who
 // acted, and what fills each role, by id only (the spec's The runtime ›
@@ -192,18 +198,28 @@ export interface Readings {
   readonly steps: readonly ReadStep[];
 }
 
-/** What fills each role: the roles the reading binds in the order it binds them, then the rest, unbound. */
-function fillersOf(reading: NonNullable<Traced['reading']>): ReadFiller[] {
-  const names = reading.verb.roles.map((role) => role.name);
-  const bound = [...reading.bindings.keys()];
-  const order = [...bound, ...names.filter((name) => !bound.includes(name))];
-  return order.map((name) => fillerOf(name, reading.bindings.get(name)));
+/** What fills each role: the roles the reading binds in the order it binds them, then the rest of its verb's, unbound. */
+function fillersOf(reading: ReadReading, catalogue: Catalogue): ReadFiller[] {
+  const at = reading.verb.lastIndexOf('.');
+  const verb = catalogue.verbs.qualified(reading.verb.slice(0, at), reading.verb.slice(at + 1));
+  const bound = reading.bindings.map((filler) => filler.role);
+  const unbound = (verb?.roles ?? [])
+    .map((role) => role.name)
+    .filter((name) => !bound.includes(name))
+    .map((role): ReadFiller => ({ role, binds: 'unbound' }));
+  return [...reading.bindings, ...unbound];
+}
+
+/** `stored` whole, as the TypeScript runtime reads it under `stage`'s host. */
+function wholeWorld(stage: Stage, stored: StoredState): StoredWorld {
+  return saveWorld(loaded(stored, stage.host));
 }
 
 /** What `traced` told the readers, one line to each paragraph, by nickname. */
 function saysOf(stage: Stage, traced: Traced): Said[] {
   return traced.effects.flatMap((effect) => {
-    const reader = stage.state.visitors.get(effect.visit)?.nickname ?? effect.visit;
+    const reader =
+      stage.stored.visitors.find((one) => one.visit === effect.visit)?.nickname ?? effect.visit;
     return effect.paragraphs.map((words) => ({ reader, kind: effect.kind, words }));
   });
 }
@@ -263,36 +279,36 @@ function entryOf(traced: Traced): TurnEntry {
 }
 
 /** What a parser compares with: absent where the turn has none, so a file keeps only what a turn had. */
-function parseFactsOf(traced: Traced, worlds: boolean): ParseFacts {
+function parseFactsOf(stage: Stage, traced: Traced, worlds: boolean): ParseFacts {
   return {
     ...(traced.parsed === null ? {} : { parsed: traced.parsed }),
     ...(traced.handed === null ? {} : { handed: traced.handed }),
-    ...(traced.before === null || !worlds ? {} : { before: saveWorld(traced.before) }),
+    ...(traced.before === null || !worlds ? {} : { before: wholeWorld(stage, traced.before) }),
   };
 }
 
 function turnOf(stage: Stage, traced: Traced, seed: number, worlds: boolean): ReadTurn {
   const typed = traced.typed ?? '';
   // A turn that faulted performed no reading, but the parser made one, and the other runtime runs it.
-  const reading = traced.reading ?? traced.read;
+  const reading = traced.reading ?? (traced.read === null ? null : readReadingOf(traced.read));
   const echo = {
     says: saysOf(stage, traced),
     expect: entryOf(traced),
-    ...parseFactsOf(traced, worlds),
+    ...parseFactsOf(stage, traced, worlds),
   };
   if (reading !== null) {
     return {
       typed,
       seed,
       skip: false,
-      verb: `${reading.verb.library}.${reading.verb.name}`,
+      verb: reading.verb,
       actor: reading.actor,
-      fillers: fillersOf(reading),
-      refused: traced.refused,
+      fillers: fillersOf(reading, stage.host.catalogue),
+      refused: traced.account?.refused ?? false,
       ...echo,
     };
   }
-  return { typed, seed, skip: true, why: traced.answered ?? 'faulted', ...echo };
+  return { typed, seed, skip: true, why: traced.account?.answered ?? 'faulted', ...echo };
 }
 
 function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
@@ -306,9 +322,9 @@ function factsOf(step: Step, turns: readonly ReadTurn[]): Facts {
 }
 
 /**
- * `script` played over a freshly loaded `world`, each typed line as the
- * readings the parser made of it; thrown, naming the step, where a step
- * cannot be played.
+ * `script` played over a freshly loaded `world` on the TypeScript engine,
+ * each typed line as the readings its parser made of it; thrown, naming
+ * the step, where a step cannot be played.
  */
 export function resolveScript(
   world: PlayableWorld,
@@ -317,7 +333,7 @@ export function resolveScript(
   budgets: Partial<RuntimeBudgets> = {},
   { worlds = true }: { readonly worlds?: boolean } = {},
 ): Readings {
-  const stage = freshStage(world, budgets);
+  const stage = freshStage(world, 'ts', budgets);
   const steps = script.steps.map((step, i): ReadStep => {
     const begins = { index: i, line: lineOf(step), atSeconds: stage.now, seed: stage.seed };
     const from = stage.turns.length;
@@ -331,7 +347,7 @@ export function resolveScript(
       says: ran.flatMap((traced) => saysOf(stage, traced)),
       // A world that admits no one runs no turn, and so has no entry.
       turns: ran.filter((traced) => traced.logged.outcome !== 'closed').map(entryOf),
-      ...(worlds ? { world: saveWorld(stage.state) } : {}),
+      ...(worlds ? { world: wholeWorld(stage, stage.stored) } : {}),
     };
     return { ...begins, ...factsOf(step, turns), after };
   });

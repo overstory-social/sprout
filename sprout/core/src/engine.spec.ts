@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { visitKey, type TurnHost } from '@overstory/sprout/lang';
+import { visitKey, type CommandTurn, type TurnHost } from '@overstory/sprout/lang';
 
 import { ConversationPace, runConversation } from './conversation.js';
 import { engineOf, tsEngine, type Engine } from './engine.js';
 import { questionCases } from './engine-conformance/questions.js';
 import { command, MARTA, seeded, tally } from './fixtures/tally.js';
 import { emptyState } from './records.js';
+import { applyChanges } from './state.js';
+import { loaded } from './steps.js';
 import type { SproutStore } from './store.js';
 import { Ticker } from './ticks.js';
 import {
@@ -91,5 +93,22 @@ describe('the TypeScript runtime as an engine', () => {
     expect(() =>
       tsEngine(unparsed as TurnHost).command(emptyState(), command('bump counter')),
     ).toThrow(/no parser/);
+  });
+
+  it('runs the next turn on the world the last one left, once core hands back what it landed as', async () => {
+    const engine = tsEngine(host);
+    const before = await stored(await seeded(host));
+    const step = engine.command(before, command('bump counter'));
+    // The TypeScript engine's turn is the language's own.
+    const turn = step.turn as CommandTurn;
+    if (!turn.committed) throw new Error('the bump faulted');
+    const landed = applyChanges(before, step.changes!);
+    engine.landed!(landed);
+    expect(loaded(landed, host)).toBe(turn.state);
+    // Once it has, a stored state no turn landed as is read afresh.
+    const other = applyChanges(before, step.changes!);
+    engine.landed!(other);
+    expect(loaded(other, host)).not.toBe(turn.state);
+    expect(loaded(other, host).serial).toBe(turn.state.serial);
   });
 });
