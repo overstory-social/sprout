@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { visitKey, type TurnHost } from '@overstory/sprout/lang';
 
 import { ConversationPace, runConversation } from './conversation.js';
-import { engineOf, tsEngine, type Engine, type GivenCommand } from './engine.js';
-import { command, COUNTER, GAUGE, HALL, MARTA, seeded, tally } from './fixtures/tally.js';
+import { engineOf, tsEngine, type Engine } from './engine.js';
+import { questionCases } from './engine-conformance/questions.js';
+import { command, MARTA, seeded, tally } from './fixtures/tally.js';
 import { emptyState } from './records.js';
 import type { SproutStore } from './store.js';
 import { Ticker } from './ticks.js';
@@ -76,49 +77,15 @@ describe('the engine a host runs', () => {
   });
 });
 
+describe('the engine conformance suite’s engine, under the TypeScript runtime', () => {
+  for (const one of questionCases) {
+    it(`${one.name} — ${one.proves}`, async () => {
+      await one.run(({ host: made }) => tsEngine(made));
+    });
+  }
+});
+
 describe('the TypeScript runtime as an engine', () => {
-  it('gives each turn its effects and whose views it made stale', async () => {
-    const store = await seeded(host);
-    const turn = tsEngine(host).command(await stored(store), command('bump counter')).turn;
-    expect(turn.committed && turn.stale).toEqual([MARTA]);
-    expect(turn.effects.map((one) => one.paragraphs)).toEqual([['Click.']]);
-  });
-
-  it('runs a line’s commands one at a time, each told the turn before it, and then says it is done', async () => {
-    const store = await seeded(host);
-    const turns = await runCommandLine(store, 'w', host, command('twice counter'), () => 11);
-    expect(turns.map((one) => one.committed)).toEqual([true, true]);
-    const line = tsEngine(host).line(command('bump counter'), () => 11);
-    const first = line.next(null);
-    expect(first?.text).toBe('bump counter');
-    const turn: GivenCommand = await runCommand(store, 'w', host, first!);
-    expect(line.next(turn)).toBeNull();
-  });
-
-  it('names where a visitor stands and what else is there, as they read it', async () => {
-    const store = await seeded(host);
-    const standing = tsEngine(host).standing(await stored(store), MARTA);
-    expect(standing).toEqual({
-      place: { id: HALL, name: 'a hall' },
-      here: [
-        { id: COUNTER, name: 'a counter' },
-        { id: GAUGE, name: 'a gauge' },
-      ],
-    });
-    expect(tsEngine(host).standing(await stored(store), visitKey('v-nobody'))).toBeNull();
-  });
-
-  it('answers the host’s questions of the committed world between turns', async () => {
-    const store = await seeded(host);
-    const engine = tsEngine(host);
-    expect(engine.occupiedPlaces(await stored(store))).toEqual([HALL]);
-    expect(engine.dueWakes(await stored(store), 0)).toEqual([]);
-    expect(engine.hearers(await stored(store), MARTA)).toEqual({ place: HALL, to: [MARTA] });
-    expect(engine.nicknameRefusal(await stored(store), visitKey('v-ines'), 'Marta')).toMatchObject({
-      reason: 'held',
-    });
-  });
-
   it('runs no command for a host without a parser', () => {
     const { parse: _parse, ...unparsed } = host;
     expect(() =>

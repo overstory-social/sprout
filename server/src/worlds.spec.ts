@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { memoryStore, readLog } from '@overstory/sprout/core';
+import { engineBuilt, NOT_BUILT } from '@overstory/sprout-engine-wasm';
 import { compileBundle, emitCartridge, loadCartridge } from '@overstory/sprout/lang';
 import { readWorld } from '@overstory/sprout-player';
 
@@ -51,6 +52,25 @@ describe('a world the server serves', () => {
     expect(played.world.host.logDepth).toBe('play');
     expect(debugged.world.host.logDepth).toBe('debug');
   });
+
+  it('runs on the TypeScript engine where its config names `ts`', () => {
+    const compiled = compileWorld(corpusWorld('sequences'), configFor());
+    if ('refused' in compiled) throw new Error(compiled.refused);
+    // Core runs a host that names no engine on the TypeScript runtime's.
+    expect(compiled.world.host.engine).toBeUndefined();
+  });
+
+  it.runIf(engineBuilt())('runs on the WebAssembly engine where its config names `wasm`', () => {
+    const compiled = compileWorld(corpusWorld('sequences'), { ...configFor(), engine: 'wasm' });
+    if ('refused' in compiled) throw new Error(compiled.refused);
+    const engine = compiled.world.host.engine;
+    expect(engine?.landed).toBeTypeOf('function');
+  });
+
+  it.skipIf(engineBuilt())(
+    `runs on the WebAssembly engine where its config names \`wasm\` (skipped: ${NOT_BUILT})`,
+    () => {},
+  );
 
   it('is refused, in the compiler’s words, where the folder does not compile', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sprout-server-'));

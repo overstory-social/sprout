@@ -1,7 +1,7 @@
 /*
  * Tests for src/turn/tick.c: a tick runs a place's `on :tick` handler with the seconds since its last tick,
- * only while a visitor is there to hear it; time that runs backwards is refused with text, and a tick that
- * faults leaves the world as it was (the spec's The runtime > Turns).
+ * only while a visitor is there to hear it, under the seed the host hands it; time that runs backwards is
+ * refused with text, and a tick that faults leaves the world as it was (the spec's The runtime > Turns).
  */
 #include "turn_fixture.h"
 
@@ -26,6 +26,19 @@ static void a_tick_tells_the_visitors_there_and_hands_the_place_the_seconds_sinc
   sprout_outcome_free(&out);
   CHECK_INT(tw_run(&w, tick_of("turn_faults.porch", 1040), 0, &out), SPROUT_OK);
   CHECK_INT(out.elapsed, 30);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_tick_draws_from_the_seed_the_host_hands_it_and_logs_that_seed(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "turn-faults");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  CHECK_INT(tw_run(&w, tick_of("turn_faults.porch", 1010), 4242, &out), SPROUT_OK);
+  CHECK_INT(out.result, SPROUT_RESULT_DONE);
+  CHECK_INT(out.log.seed, 4242);
   sprout_outcome_free(&out);
   tw_close(&w);
 }
@@ -99,6 +112,7 @@ static void a_tick_that_faults_leaves_the_world_byte_for_byte_as_it_was(void) {
 
 int main(void) {
   RUN(a_tick_tells_the_visitors_there_and_hands_the_place_the_seconds_since_its_last);
+  RUN(a_tick_draws_from_the_seed_the_host_hands_it_and_logs_that_seed);
   RUN(a_place_nobody_stands_in_is_not_ticked);
   RUN(time_that_runs_backwards_and_things_that_are_not_places_are_refused_with_text);
   RUN(a_tick_that_faults_leaves_the_world_byte_for_byte_as_it_was);

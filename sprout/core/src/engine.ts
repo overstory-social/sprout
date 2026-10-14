@@ -153,6 +153,13 @@ export interface Engine {
   hearers(stored: StoredState, visit: VisitKey): Heard | null;
   /** Where `visit` stands and what is there, named for them; null where they are away or their place is gone. */
   standing(stored: StoredState, visit: VisitKey): Standing | null;
+  /**
+   * The stored state a write turn's commit landed, read back in the same
+   * transaction: an engine that keeps the world live notes it as the state
+   * its next turn may run on as it is. An engine that reads each stored
+   * state afresh has none.
+   */
+  landed?(stored: StoredState): void;
 }
 
 /** What a host names its engine by; the TypeScript runtime's where it names none. */
@@ -218,7 +225,7 @@ function standingIn(state: WorldState, visit: VisitKey): Standing | null {
   const visitor = state.visitors.get(visit);
   const place =
     visitor === undefined ? null : (state.instances.get(visitor.instance)?.container ?? null);
-  if (visitor === undefined || place === null) return null;
+  if (visitor === undefined || place === null || !state.instances.has(place)) return null;
   const reader = readerOf(state);
   const naming = { state: reader, nicknames: nicknamesIn(state) };
   const named = (id: InstanceId) => ({ id, name: objectWords(id, visitor.instance, naming) });

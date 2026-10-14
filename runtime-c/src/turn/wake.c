@@ -3,9 +3,8 @@
  * is delivered as a turn of its own: it comes off its object's list, the object is sent `:woke (elapsed)`, and
  * the queue drains from there. `elapsed` is the seconds since the wake was asked for, which may be more than
  * was asked. What the queue says is the turn's effects, then the place each person a handler moved arrived
- * in, as they read it; nobody acted, so they carry no actor. The seed is drawn from the host's seed, the
- * woken object's path and how many times it has woken in the step, so adding a clock leaves every other
- * object's draws as they were.
+ * in, as they read it; nobody acted, so they carry no actor. The turn draws from the seed the host hands it,
+ * as every turn does; a host gives each wake of a step a seed of its own (seeds.h).
  *
  * A wake that faults is consumed and logged, not retried: the turn is abandoned like every write turn, and
  * then the wake alone is taken off its object's list, so the object is not woken again unless it asks. Which
@@ -80,7 +79,7 @@ sprout_status turn_wake(sprout_world *world, sprout_state *state, const sprout_h
   elapsed = input->instant - pending.asked_at;
   if (elapsed > INTEGER_LIMIT)
     return turn_refuse(outcome, "more seconds have passed since the wake of `", input->object, "` was asked than `elapsed` can carry.");
-  seed = turn_seed_under(world, host->seed(host->ctx), object, input->nth);
+  seed = host->seed(host->ctx);
   status = turn_outcome_begin(host, outcome);
   if (status != SPROUT_OK) return status;
   outcome->elapsed = elapsed;

@@ -102,9 +102,6 @@ sprout_status turn_log(turn_run *run, sprout_outcome *outcome, const char *who, 
 /* Frees what the outcome holds and returns `status`, keeping the words a refusal wrote in the fault text. */
 sprout_status turn_abort(sprout_outcome *outcome, sprout_status status);
 
-/* The seed of the `nth` tick or wake turn a step runs for `id`, drawn from the step's `seed` and the path of `id`. */
-uint64_t turn_seed_under(const sprout_world *world, uint64_t seed, sprout_str id, uint64_t nth);
-
 /* The visit's record in the committed state, or NULL. */
 const sprout_stored_visitor *turn_visitor(const sprout_state *state, const char *visit);
 

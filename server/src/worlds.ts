@@ -16,6 +16,7 @@ import {
   type MicroworldRecord,
   type SproutStore,
 } from '@overstory/sprout/core';
+import { wasmEngine } from '@overstory/sprout-engine-wasm';
 import { INSTALLED_EXTENSIONS, readWorld } from '@overstory/sprout-player';
 
 import type { ServerConfig } from './config.js';
@@ -26,8 +27,8 @@ import type { ServerConfig } from './config.js';
 // which logs the publish with the bundle's hash. A world that is refused
 // is not served, and the words of its refusal are the host's to log.
 // What it serves is the catalogue its cartridge reads back, as any host
-// that loads a published world does; of the bundle it keeps only what the
-// published record and the log name.
+// that loads a published world does, run by the engine the config names;
+// of the bundle it keeps only what the published record and the log name.
 
 /** What the server keeps of a world's bundle once it has made its cartridge. */
 export type BundleStamp = Pick<Bundle, 'hash' | 'level' | 'extensions' | 'assets'>;
@@ -63,11 +64,13 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
     extensions: INSTALLED_EXTENSIONS,
   });
   if (bundle === null) return { refused: renderDiagnostics([...read.diagnostics, ...diagnostics]) };
-  const catalogue = loadCartridge(emitCartridge(bundle), {
+  const cartridge = emitCartridge(bundle);
+  const catalogue = loadCartridge(cartridge, {
     caps: config.limits.caps,
     installed: INSTALLED_EXTENSIONS,
   });
   const { hash, level, extensions, assets } = bundle;
+  const budgets = config.limits.budgets;
   return {
     world: {
       id: catalogue.world,
@@ -75,10 +78,13 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
       bundle: { hash, level, extensions, assets },
       host: {
         catalogue,
-        budgets: config.limits.budgets,
+        budgets,
         logDepth: config.logDepth,
         render: renderEffects,
         parse: parseCommand,
+        ...(config.engine === 'wasm'
+          ? { engine: wasmEngine({ cartridge, catalogue, budgets }) }
+          : {}),
       },
       files: [read.source.manifestFile, ...read.source.files].map((file) => ({
         name: file.name,

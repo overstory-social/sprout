@@ -7,6 +7,7 @@
  */
 #include <string.h>
 
+#include "seeds.h"
 #include "session_internal.h"
 
 #define WAKES_PER_TICK 64
@@ -14,16 +15,30 @@
 
 /* ---- running a turn ---- */
 
-sprout_status turns_run(player_session *session, sprout_turn_input *input, sprout_outcome *outcome) {
+/*
+ * Runs one turn under a seed drawn now; a tick or a wake, for `thing` its `nth` this call, takes its own from
+ * that seed and the thing's path, as every host makes one (seeds.h), so adding a clock leaves every other
+ * object's draws as they were.
+ */
+static sprout_status run_for(player_session *session, sprout_turn_input *input, const char *thing, uint64_t nth,
+                             sprout_outcome *outcome) {
   sprout_status status;
   input->instant = player_host_seconds(&session->host);
   player_host_begin_step(&session->host);
+  if (thing != NULL) {
+    sprout_str path = sprout_path_of(session->world, (sprout_str){thing, strlen(thing)});
+    session->host.step_seed = sprout_turn_seed(session->host.step_seed, path.bytes, path.length, nth);
+  }
   memset(outcome, 0, sizeof *outcome);
   status = sprout_run_turn(session->world, session->state, &session->host.record, input, outcome);
   if (status != SPROUT_OK) return status;
   savelog_turn(session, input, outcome);
   if (outcome->committed || outcome->state_changed) session->dirty = true;
   return status;
+}
+
+sprout_status turns_run(player_session *session, sprout_turn_input *input, sprout_outcome *outcome) {
+  return run_for(session, input, NULL, 0, outcome);
 }
 
 bool turns_depart(player_session *session, sprout_outcome *outcome) {
@@ -195,8 +210,7 @@ static bool wake_due(player_session *session, sprout_arena *arena, told_list *li
     input.serial = due.wakes[0].serial;
     sprout_wakes_free(&due);
     if (object == NULL) break;
-    input.nth = woken_count(arena, table, &kept, object);
-    if (turns_run(session, &input, &outcome) == SPROUT_OK) {
+    if (run_for(session, &input, object, woken_count(arena, table, &kept, object), &outcome) == SPROUT_OK) {
       ran = ran || outcome.result != SPROUT_RESULT_IDLE;
       told_collect(arena, lines, &outcome, PLAYER_VISIT);
     }
@@ -219,7 +233,7 @@ static bool tick_places(player_session *session, sprout_arena *arena, told_list 
     memset(&input, 0, sizeof input);
     input.kind = SPROUT_TURN_TICK;
     input.place = place;
-    if (turns_run(session, &input, &outcome) == SPROUT_OK) {
+    if (run_for(session, &input, place, 0, &outcome) == SPROUT_OK) {
       ran = ran || outcome.result != SPROUT_RESULT_IDLE;
       told_collect(arena, lines, &outcome, PLAYER_VISIT);
     }

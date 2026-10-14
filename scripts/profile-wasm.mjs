@@ -1,4 +1,4 @@
-// Profiles a world run by the C runtime compiled to WebAssembly (runtime-c/wasm/engine.c), the way
+// Profiles a world run by the C runtime compiled to WebAssembly (runtime-c/wasm/engine/), the way
 // scripts/profile-store.mjs profiles the TypeScript runtime as the server runs it: many visitors
 // admitted, then each step one visitor chooses a verb of their scene, its readings are polled, and one
 // of them is run as a command, after which every visitor's scene is polled again. The state stays
@@ -11,13 +11,13 @@
 //   node --expose-gc scripts/profile-wasm.mjs <engine.wasm> <world folder> [--turns 1000]
 //        [--visitors 8] [--seed 1] [--sample 100] [--json out.json]
 
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
 import { DEFAULT_LIMITS, emitCartridge, loadCartridge } from '@overstory/sprout/lang';
+import { WasmInstance } from '@overstory/sprout-engine-wasm';
 import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
 
-import { WasmEngine } from '../runtime-c/wasm/engine.mjs';
 import { playableWorld } from './resolve-script.mjs';
 
 function argsOf(argv) {
@@ -67,7 +67,9 @@ async function main() {
     installed: INSTALLED_EXTENSIONS,
   }).world;
   let started = performance.now();
-  const engine = await WasmEngine.open(wasm, cartridge, worldId);
+  const engine = new WasmInstance(new WebAssembly.Module(readFileSync(wasm)));
+  engine.load(cartridge);
+  engine.openEmpty(worldId);
   const loadMs = performance.now() - started;
   const loaded = engine.memory();
   console.log(
@@ -82,10 +84,11 @@ async function main() {
   const visits = [];
   for (let i = 0; i < Number(flags.visitors); i++) {
     const visit = `visit-${i}`;
-    engine.arrive(visit, `V${i}`, seed(), now);
+    engine.arrive(visit, `V${i}`, { seed: seed(), now });
     visits.push(visit);
   }
-  const scenes = new Map(visits.map((visit) => [visit, engine.scene(visit)]));
+  const verbsOf = (visit) => engine.scene(visit).scene.verbs.map((one) => one.verb);
+  const scenes = new Map(visits.map((visit) => [visit, verbsOf(visit)]));
   const base = heapNow();
 
   const samples = [];
@@ -132,7 +135,7 @@ async function main() {
   for (let turn = 1; turn <= Number(flags.turns); turn++) {
     now += 5;
     const visit = random.pick(visits);
-    const { verbs } = scenes.get(visit);
+    const verbs = scenes.get(visit);
     if (verbs.length > 0) {
       started = performance.now();
       const { readings } = engine.readings(visit, random.pick(verbs));
@@ -140,12 +143,12 @@ async function main() {
       const typable = readings.filter((reading) => !reading.typed.includes('…'));
       if (typable.length > 0) {
         started = performance.now();
-        const outcome = engine.command(visit, random.pick(typable), seed(), now);
+        const outcome = engine.command({ visit, ...random.pick(typable) }, { seed: seed(), now });
         spentTurns += performance.now() - started;
         ran++;
         if (outcome.fault !== null) faulted++;
         started = performance.now();
-        for (const v of visits) scenes.set(v, engine.scene(v));
+        for (const v of visits) scenes.set(v, verbsOf(v));
         spentScenes += performance.now() - started;
         scened += visits.length;
       }

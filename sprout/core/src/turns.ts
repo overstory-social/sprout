@@ -16,6 +16,7 @@ import {
 
 import {
   engineOf,
+  type Engine,
   type EngineHost,
   type GivenArrival,
   type GivenCommand,
@@ -49,10 +50,15 @@ export interface LogHost extends EngineHost {
   readonly logDepth?: LogDepth;
 }
 
-/** Land `step` in `tx`: its changes where it writes, and its entry, at `host`'s depth, where it ran. */
-async function landed<T>(tx: StoreTx, step: Step<T>, host: LogHost): Promise<T> {
+/**
+ * Land `step` in `tx`: its changes where it writes, and its entry, at
+ * `host`'s depth, where it ran; then hand `engine` the stored state it
+ * landed, where it keeps the world live.
+ */
+async function landed<T>(tx: StoreTx, engine: Engine, step: Step<T>, host: LogHost): Promise<T> {
   if (step.changes !== null) await tx.putState(step.changes);
   if (step.entry !== null) await tx.appendLog(atDepth(step.entry, host.logDepth ?? 'play'));
+  if (engine.landed !== undefined) engine.landed(await tx.state());
   return step.turn;
 }
 
@@ -65,7 +71,7 @@ export function runCommand(
 ): Promise<GivenCommand> {
   const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, engine.command(await tx.state(), command), host),
+    landed(tx, engine, engine.command(await tx.state(), command), host),
   );
 }
 
@@ -107,7 +113,7 @@ export function runTick(
 ): Promise<GivenTick> {
   const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, engine.tick(await tx.state(), tick), host),
+    landed(tx, engine, engine.tick(await tx.state(), tick), host),
   );
 }
 
@@ -124,7 +130,7 @@ export function runWake(
 ): Promise<GivenWake> {
   const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, engine.wake(await tx.state(), wake), host),
+    landed(tx, engine, engine.wake(await tx.state(), wake), host),
   );
 }
 
@@ -141,7 +147,7 @@ export function runMaintenance(
 ): Promise<GivenCommitted> {
   const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, engine.maintenance(await tx.state(), inputs), host),
+    landed(tx, engine, engine.maintenance(await tx.state(), inputs), host),
   );
 }
 
@@ -222,7 +228,7 @@ export function runArrivalTurn(
       const stored = await tx.state();
       const taken = engine.nicknameRefusal(stored, arrival.visit, arrival.nickname);
       if (taken !== null) return { committed: false, nicknameRefused: taken };
-      return landed(tx, engine.arrival(stored, arrival), host);
+      return landed(tx, engine, engine.arrival(stored, arrival), host);
     },
   );
 }
@@ -239,7 +245,7 @@ export function runDeparture(
 ): Promise<GivenDeparture> {
   const engine = engineOf(host);
   return store.transaction(microworldId, async (tx) =>
-    landed(tx, engine.departure(await tx.state(), departure), host),
+    landed(tx, engine, engine.departure(await tx.state(), departure), host),
   );
 }
 

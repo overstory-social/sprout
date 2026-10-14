@@ -7,6 +7,7 @@
 #include "json.h"
 #include "logged.h"
 #include "reading_json.h"
+#include "seeds.h"
 #include "state.h"
 
 /* What a step has told so far: the lines readers read and the entries of the turns that ran, as JSON text. */
@@ -256,6 +257,12 @@ static bool run(play *p, sprout_turn_input *input, uint64_t seed, sprout_outcome
   return tell(p, outcome);
 }
 
+/* The seed of the `nth` turn the step under `seed` runs for `id`, as every host makes a tick's or a wake's (seeds.h). */
+static uint64_t seed_for(const play *p, uint64_t seed, const char *id, uint64_t nth) {
+  sprout_str path = sprout_path_of(p->world, (sprout_str){id, strlen(id)});
+  return sprout_turn_seed(seed, path.bytes, path.length, nth);
+}
+
 static bool run_and_free(play *p, sprout_turn_input *input, uint64_t seed) {
   sprout_outcome outcome;
   bool ok = run(p, input, seed, &outcome);
@@ -329,7 +336,7 @@ static bool tick(play *p, const sproutc_step *step) {
     memset(&input, 0, sizeof input);
     input.kind = SPROUT_TURN_TICK;
     input.place = place;
-    ok = run_and_free(p, &input, step->seed);
+    ok = run_and_free(p, &input, seed_for(p, step->seed, place, 0));
   }
   sprout_places_free(&places);
   return ok;
@@ -384,8 +391,7 @@ static bool advance(play *p, const sproutc_step *step) {
       entry->object = (char *)input.object;
       entry->count = 0;
     }
-    input.nth = entry->count++;
-    ok = run(p, &input, step->seed, &outcome);
+    ok = run(p, &input, seed_for(p, step->seed, input.object, entry->count++), &outcome);
     sprout_outcome_free(&outcome);
     if (!ok) return false;
   }

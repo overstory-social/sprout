@@ -1,0 +1,43 @@
+{
+  "name": "@overstory/sprout-engine-wasm",
+  "version": "0.1.0",
+  "description": "Sprout's C engine built for WebAssembly, as one world's engine for a host on @overstory/sprout/core: every turn, poll and question run in an instance that keeps the world live.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "engine.wasm",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p . && node build-wasm.mjs",
+    "build:watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "typecheck:spec": "tsc -p tsconfig.spec.json --noEmit"
+  },
+  "dependencies": {
+    "@overstory/sprout": "0.1.0",
+    "zod": "^4.4.2"
+  },
+  "devDependencies": {
+    "@overstory/sprout-player": "0.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overstory-social/sprout.git",
+    "directory": "engine-wasm"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

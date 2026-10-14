@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { WebSocketServer, type WebSocket } from 'ws';
 
 import { memoryStore, PROTOCOL, type SproutStore } from '@overstory/sprout/core';
+import { engineBuilt, NOT_BUILT } from '@overstory/sprout-engine-wasm';
 
 import { startClock } from './clock.js';
 import type { ServerConfig } from './config.js';
@@ -50,6 +51,8 @@ export interface RunningServer {
 /** Start the server: its worlds published, its socket listening, its clock running. */
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const { config, log } = options;
+  // A server told to run the WebAssembly engine without one does not start at all.
+  if (config.engine === 'wasm' && !engineBuilt()) throw new Error(NOT_BUILT);
   const clock = options.clock ?? REAL_CLOCK;
   const store = options.store ?? memoryStore({ keepLog: config.keepLog });
   const worlds = new Map<string, WorldRun>();

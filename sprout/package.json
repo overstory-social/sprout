@@ -38,6 +38,10 @@
       "types": "./core/dist/conformance.d.ts",
       "default": "./core/dist/conformance.js"
     },
+    "./engine-conformance": {
+      "types": "./core/dist/engine-conformance/index.d.ts",
+      "default": "./core/dist/engine-conformance/index.js"
+    },
     "./store-sql": {
       "types": "./store-sql/dist/index.d.ts",
       "default": "./store-sql/dist/index.js"

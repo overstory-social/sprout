@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 
 import { PROTOCOL, ServerMessage } from '@overstory/sprout/core';
+import { engineBuilt, NOT_BUILT } from '@overstory/sprout-engine-wasm';
 
+import type { ServerConfig } from './config.js';
 import { configFor, corpusWorld, keptLog, manualClock } from './fixtures/server.js';
 import { startServer, type RunningServer } from './server.js';
 
@@ -71,9 +73,9 @@ afterEach(async () => {
 const TOKEN_MARTA = 'marta-token-0123456789';
 const TOKEN_INES = 'ines-token-0123456789';
 
-async function serve() {
+async function serve(engine: ServerConfig['engine'] = 'ts') {
   running = await startServer({
-    config: configFor(corpusWorld('sequences')),
+    config: { ...configFor(corpusWorld('sequences')), engine },
     log: keptLog(),
     clock: manualClock(),
     seed: () => 7,
@@ -92,49 +94,65 @@ async function admitted(port: number, token: string, nickname: string): Promise<
   return client;
 }
 
-describe('the server, over a real socket', () => {
-  it('welcomes a client with the worlds it serves, admits it, and runs what it types', async () => {
-    const { port } = await serve();
-    const marta = await Client.open(port);
-    marta.send({ t: 'hello', protocol: PROTOCOL, client: 'spec', token: TOKEN_MARTA, renders: [] });
-    expect(await marta.take('welcome')).toEqual({
-      t: 'welcome',
-      server: 'sprout-server',
-      worlds: [{ world: 'sequences', granted: [], declined: [] }],
-    });
-    marta.send({ t: 'admit', world: 'sequences', nickname: 'Marta' });
-    expect(await marta.take('admitted')).toEqual({
-      t: 'admitted',
-      world: 'sequences',
-      nickname: 'Marta',
-      returning: false,
-    });
-    expect(await marta.words(null)).toEqual(['There is nothing special about the cellar.']);
-    const status = await marta.take('status');
-    expect(status).toMatchObject({ place: 'the cellar', exits: [] });
-    expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin']);
-    const verbs = (await marta.take('verbs')).verbs.map((one) => one.verb);
-    expect(verbs).toContain('sprout.take');
-    marta.send({ t: 'readings', seq: 7, verb: 'sprout.take' });
-    const asked = await marta.take('readings', (one) => one.seq === 7);
-    expect(asked.readings.map((one) => one.typed)).toContain('take key');
-    marta.send({ t: 'command', seq: 1, line: 'take key then take coin' });
-    const [first, second] = [
-      await marta.take('effects', (one) => one.seq === 1),
-      await marta.take('effects', (one) => one.seq === 1),
-    ];
-    // Each turn the line ran, in order, the last of them marked.
-    expect([first.last, second.last]).toEqual([false, true]);
-    expect(
-      [first, second].map((one) =>
-        one.effects.flatMap((effect) => (effect.as === 'words' ? effect.paragraphs : [])),
-      ),
-    ).toEqual([['You take a key.'], ['You take a coin.']]);
-    marta.send({ t: 'poll', seq: 2 });
-    expect(
-      (await marta.take('view', (one) => one.seq === 2)).view.carried.map((one) => one.name),
-    ).toEqual(['a key', 'a coin']);
+/** A client welcomed, admitted and running what it types, on the server serving `sequences` on `engine`. */
+async function welcomesAndRuns(engine: ServerConfig['engine']): Promise<void> {
+  const { port } = await serve(engine);
+  const marta = await Client.open(port);
+  marta.send({ t: 'hello', protocol: PROTOCOL, client: 'spec', token: TOKEN_MARTA, renders: [] });
+  expect(await marta.take('welcome')).toEqual({
+    t: 'welcome',
+    server: 'sprout-server',
+    worlds: [{ world: 'sequences', granted: [], declined: [] }],
   });
+  marta.send({ t: 'admit', world: 'sequences', nickname: 'Marta' });
+  expect(await marta.take('admitted')).toEqual({
+    t: 'admitted',
+    world: 'sequences',
+    nickname: 'Marta',
+    returning: false,
+  });
+  expect(await marta.words(null)).toEqual(['There is nothing special about the cellar.']);
+  const status = await marta.take('status');
+  expect(status).toMatchObject({ place: 'the cellar', exits: [] });
+  expect(status.here.map((one) => one.name)).toEqual(['a key', 'a coin']);
+  const verbs = (await marta.take('verbs')).verbs.map((one) => one.verb);
+  expect(verbs).toContain('sprout.take');
+  marta.send({ t: 'readings', seq: 7, verb: 'sprout.take' });
+  const asked = await marta.take('readings', (one) => one.seq === 7);
+  expect(asked.readings.map((one) => one.typed)).toContain('take key');
+  marta.send({ t: 'command', seq: 1, line: 'take key then take coin' });
+  const [first, second] = [
+    await marta.take('effects', (one) => one.seq === 1),
+    await marta.take('effects', (one) => one.seq === 1),
+  ];
+  // Each turn the line ran, in order, the last of them marked.
+  expect([first.last, second.last]).toEqual([false, true]);
+  expect(
+    [first, second].map((one) =>
+      one.effects.flatMap((effect) => (effect.as === 'words' ? effect.paragraphs : [])),
+    ),
+  ).toEqual([['You take a key.'], ['You take a coin.']]);
+  marta.send({ t: 'poll', seq: 2 });
+  expect(
+    (await marta.take('view', (one) => one.seq === 2)).view.carried.map((one) => one.name),
+  ).toEqual(['a key', 'a coin']);
+}
+
+describe('the server, over a real socket', () => {
+  it('welcomes a client with the worlds it serves, admits it, and runs what it types', () =>
+    welcomesAndRuns('ts'));
+
+  it.skipIf(!engineBuilt())(
+    `does the same on the \`wasm\` engine${engineBuilt() ? '' : ` (skipped: ${NOT_BUILT})`}`,
+    () => welcomesAndRuns('wasm'),
+  );
+
+  it.runIf(!engineBuilt())(
+    'refuses to start on the `wasm` engine without it, in words naming the package and the toolchain',
+    async () => {
+      await expect(serve('wasm')).rejects.toThrow(NOT_BUILT);
+    },
+  );
 
   it('tells everyone in the world what reaches them, and carries chat to those standing together', async () => {
     const { port } = await serve();

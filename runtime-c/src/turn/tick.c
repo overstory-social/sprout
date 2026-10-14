@@ -5,7 +5,8 @@
  * seconds since the last tick the place received, and the turn records the instant it ran as that place's
  * last tick; a place that was skipped folds the missed interval in. What the queue says is the turn's effects,
  * then the place each person a handler moved arrived in, as they read it; nobody acted, so they carry no
- * actor. The seed is drawn from the host's seed and the place's path, so two places never draw alike.
+ * actor. The turn draws from the seed the host hands it, as every turn does; a host that ticks several places
+ * in one step gives each a seed of its own (seeds.h).
  *
  * A tick that faults is dropped: abandoned like every write turn, so its place's last tick stays where it
  * was and the next tick's `elapsed` covers it, and nobody in the world is told, since nobody acted. How
@@ -42,7 +43,7 @@ sprout_status turn_tick(sprout_world *world, sprout_state *state, const sprout_h
     if (elapsed > INTEGER_LIMIT)
       return turn_refuse(outcome, "more seconds have passed since the last tick of `", input->place, "` than `elapsed` can carry.");
   }
-  seed = turn_seed_under(world, host->seed(host->ctx), place, 0);
+  seed = host->seed(host->ctx);
   status = turn_outcome_begin(host, outcome);
   if (status != SPROUT_OK) return status;
   status = turn_open(&run, world, state, host, SPROUT_TURN_TICK, seed, input->instant, NULL, NULL);

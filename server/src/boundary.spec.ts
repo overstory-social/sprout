@@ -5,14 +5,16 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // The server imports the language and core, the player's folder reading,
-// the two packages its design names, `ws` and `smol-toml`, zod and node:*,
-// and nothing of any client.
+// the WebAssembly engine its `engine` config may name, the two packages
+// its design names, `ws` and `smol-toml`, zod and node:*, and nothing of
+// any client.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = [
   '@overstory/sprout/lang',
   '@overstory/sprout/core',
   '@overstory/sprout-player',
+  '@overstory/sprout-engine-wasm',
   'ws',
   'smol-toml',
   'zod',
