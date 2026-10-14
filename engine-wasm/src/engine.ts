@@ -3,6 +3,7 @@ import {
   type Catalogue,
   type Command,
   type InstanceId,
+  type Reading,
   type RuntimeBudgets,
 } from '@overstory/sprout/lang';
 import type {
@@ -89,6 +90,40 @@ function idleStep<T>(told: Told, turn: T): Step<T> {
   return { turn, changes: told.changes, entry: told.entry, account: null };
 }
 
+/** `reading` as the engine takes a planned step: its verb by qualified name, who performs it, and each role it binds. */
+function plannedOf(reading: Reading): object {
+  const bindings = [...reading.bindings].map(([role, bound]) => {
+    if ('object' in bound) return { role, binds: 'object', id: bound.object };
+    if ('set' in bound) return { role, binds: 'set', ids: bound.set };
+    if ('exit' in bound) return { role, binds: 'exit', ...bound.exit };
+    if (typeof bound.value === 'string' || typeof bound.value === 'number')
+      return { role, binds: 'value', value: bound.value };
+    throw new Error(`A planned step binds \`${role}\` to a value no role takes.`);
+  });
+  return {
+    verb: `${reading.verb.library}.${reading.verb.name}`,
+    actor: reading.actor,
+    bindings,
+  };
+}
+
+/**
+ * What the engine is handed to run `command`: the command a line of its
+ * own handed out, as it handed it out; a planned step it did not plan, as
+ * a replay hands one over from the log, with the item it re-reads; or the
+ * words typed.
+ */
+function commandFor(command: Command, handed: LineCommand | undefined): object {
+  if (handed !== undefined) return handed;
+  if (command.planned === undefined) return { visit: command.visit, text: command.text };
+  return {
+    visit: command.visit,
+    text: command.text,
+    planned: plannedOf(command.planned),
+    reread: command.reread ?? null,
+  };
+}
+
 /** The WebAssembly engine as one world's engine, under `host`'s budgets. */
 export function wasmEngine(host: WasmEngineHost): Engine {
   const instance = new WasmInstance(host.module ?? shippedModule());
@@ -131,17 +166,9 @@ export function wasmEngine(host: WasmEngineHost): Engine {
 
     command: (stored, command) => {
       const handed = handedOut.get(command);
-      if (handed === undefined && (command.planned !== undefined || command.reread !== undefined)) {
-        throw new Error(
-          'A step a line planned is run by the engine whose line planned it, and this one did not.',
-        );
-      }
       const told = turn(stored, command.mayHold, () => {
         try {
-          return instance.command(
-            handed ?? { visit: command.visit, text: command.text },
-            at(command),
-          );
+          return instance.command(commandFor(command, handed), at(command));
         } catch (err) {
           // A line whose command could not run is over, and core asks it for nothing more.
           if (handed !== undefined) instance.lineEnd(handed.line);
@@ -289,6 +316,10 @@ export function wasmEngine(host: WasmEngineHost): Engine {
     parse: (stored, visit, line) => {
       onto(stored);
       return instance.parse(visit, line);
+    },
+    acted: (stored, reader, actor, typed) => {
+      onto(stored);
+      return instance.acted(reader, actor, typed);
     },
   };
 }
