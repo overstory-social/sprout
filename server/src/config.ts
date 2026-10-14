@@ -43,7 +43,6 @@ const Schema = z
       .default('127.0.0.1:4700'),
     log_level: z.enum(['error', 'warning', 'info', 'debug']).default('info'),
     log_depth: z.enum(['play', 'debug']).default('play'),
-    engine: z.enum(['ts', 'wasm']).default('ts'),
     tick_seconds: z.number().int().positive().default(5),
     wakes_while_empty: z.boolean().default(false),
     store: Store.default({ kind: 'memory', keep_log: 2_000 }),
@@ -69,8 +68,6 @@ export interface ServerConfig {
   readonly logLevel: Exclude<Level, 'prose'>;
   /** What of each turn the world's log keeps (the spec's The log › Depth). */
   readonly logDepth: LogDepth;
-  /** Which engine runs each world: the TypeScript runtime, or the C runtime built for WebAssembly. */
-  readonly engine: 'ts' | 'wasm';
   /** How many of each world's newest log entries the memory store keeps. */
   readonly keepLog: number;
   readonly tickSeconds: number;
@@ -99,10 +96,19 @@ export function readConfig(text: string, path: string): ReadConfig {
   const checked = Schema.safeParse(raw);
   if (!checked.success) {
     return {
-      problems: checked.error.issues.map((issue) => {
+      problems: checked.error.issues.flatMap((issue) => {
+        if (issue.code === 'unrecognized_keys') {
+          return issue.keys.map((name) => {
+            const key = [...issue.path, name];
+            const line = lineOf(text, key);
+            return `${path}${line === null ? '' : `:${line}`}: \`${key.join('.')}\` is not a key the config takes.`;
+          });
+        }
         const key = issue.path.join('.');
         const line = lineOf(text, issue.path);
-        return `${path}${line === null ? '' : `:${line}`}: \`${key || 'the config'}\` ${issue.message}.`;
+        return [
+          `${path}${line === null ? '' : `:${line}`}: \`${key || 'the config'}\` ${issue.message}.`,
+        ];
       }),
     };
   }
@@ -133,7 +139,6 @@ export function readConfig(text: string, path: string): ReadConfig {
       port: Number(port),
       logLevel: read.log_level,
       logDepth: read.log_depth,
-      engine: read.engine,
       keepLog: read.store.keep_log,
       tickSeconds: read.tick_seconds,
       wakesWhileEmpty: read.wakes_while_empty,

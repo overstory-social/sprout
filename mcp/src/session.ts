@@ -9,32 +9,31 @@ import {
   playStep,
   plays,
   readScript,
+  toolEngine,
   writeScript,
-  type EngineName,
   type Made,
   type Stage,
   type Step,
 } from '@overstory/sprout-player';
 
-// One world, freshly loaded on the player's stage, played by agents as
-// visitors and only as visitors (`sprout mcp`). What a visitor is given is
-// what a person playing reads (the spec's The runtime › Levels): the prose
-// written to them, one paragraph to a line, and a fault by its name; lines
-// another visitor's turn wrote to them wait in their inbox until their
-// next call. Nothing given names a file, a path, a declaration or a
-// fault's detail. The host's side is set when the session opens and is
-// never a visitor's to see: the seed, the file the session is recorded
-// to as a script, each visitor's turn cap, and how far each command moves
-// time, as a round of the reference host's clock does: a tick of every
-// occupied place, then time advanced and every wake due delivered. Every
-// turn draws from a seed of its own, the next of a stream begun from the
-// session's seed, and is recorded beside it (the spec's Chance › The
-// seed), so a recording replays every draw.
+// One world, freshly loaded on the player's stage on the WebAssembly
+// engine, played by agents as visitors and only as visitors (`sprout
+// mcp`); a session is refused in words where that engine is not built.
+// What a visitor is given is what a person playing reads (the spec's The
+// runtime › Levels): the prose written to them, one paragraph to a line,
+// and a fault by its name; lines another visitor's turn wrote to them wait
+// in their inbox until their next call. Nothing given names a file, a
+// path, a declaration or a fault's detail. The host's side is set when the
+// session opens and is never a visitor's to see: the seed, the file the
+// session is recorded to as a script, each visitor's turn cap, and how far
+// each command moves time, as a round of the reference host's clock does:
+// a tick of every occupied place, then time advanced and every wake due
+// delivered. Every turn draws from a seed of its own, the next of a stream
+// begun from the session's seed, and is recorded beside it (the spec's
+// Chance › The seed), so a recording replays every draw.
 
 /** What the host sets when a session opens. */
 export interface SessionOptions {
-  /** The engine the world runs on; the TypeScript one where none is named, as `sprout mcp` always names one. */
-  readonly engine?: EngineName;
   /** The seed the session's stream of turn seeds begins from, recorded as its first step; 0 where not given. */
   readonly seed?: number;
   /** Where the session is written as a script after every step, each step expecting all it made. */
@@ -135,7 +134,7 @@ function freshSession(
   seed: number,
 ): Session {
   return {
-    stage: freshStage(bundle, options.engine ?? 'ts'),
+    stage: freshStage(bundle, toolEngine()),
     options,
     warn,
     inboxes: new Map(),

@@ -1,9 +1,9 @@
 import { emitCartridge, loadCartridge, DEFAULT_LIMITS, visitKey } from '@overstory/sprout/lang';
 import { emptyState } from '@overstory/sprout/core';
 import { NOT_BUILT } from '@overstory/sprout-engine-wasm';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { catalogueFor, chooseEngine, engineFor, hostFor } from './engine.js';
+import { catalogueFor, engineFor, hostFor, toolEngine } from './engine.js';
 import { ENGINES_BUILT } from './fixtures/play.js';
 import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 
@@ -16,35 +16,19 @@ vi.mock(import('@overstory/sprout-engine-wasm'), async (actual) => {
 
 const bundle = bundleOf('kiln_yard', KILN_YARD);
 
-describe('chooseEngine', () => {
-  beforeEach(() => {
-    counts.built = true;
-  });
+describe('toolEngine', () => {
   afterEach(() => {
     counts.built = null;
   });
 
-  it('runs the engine asked for, saying nothing', () => {
-    expect(chooseEngine('ts')).toEqual({ name: 'ts', note: null });
-    expect(chooseEngine('wasm')).toEqual({ name: 'wasm', note: null });
+  it('is the WebAssembly engine where it is built', () => {
+    counts.built = true;
+    expect(toolEngine()).toBe('wasm');
   });
 
-  it('runs the WebAssembly engine where none is asked for and it is built', () => {
-    expect(chooseEngine()).toEqual({ name: 'wasm', note: null });
-  });
-
-  it('runs the TypeScript engine where none is asked for and the other is not built, and says why', () => {
+  it('is refused in words where the WebAssembly engine is not built', () => {
     counts.built = false;
-    expect(chooseEngine()).toEqual({
-      name: 'ts',
-      note: `running on the TypeScript engine: ${NOT_BUILT}`,
-    });
-  });
-
-  it('refuses the WebAssembly engine asked for where it is not built, and an engine there is not', () => {
-    counts.built = false;
-    expect(() => chooseEngine('wasm')).toThrow(NOT_BUILT);
-    expect(() => chooseEngine('rust')).toThrow('--engine wants ts or wasm: --engine ts');
+    expect(() => toolEngine()).toThrow(NOT_BUILT);
   });
 });
 

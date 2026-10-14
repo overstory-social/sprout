@@ -27,7 +27,7 @@ import type { ServerConfig } from './config.js';
 // which logs the publish with the bundle's hash. A world that is refused
 // is not served, and the words of its refusal are the host's to log.
 // What it serves is the catalogue its cartridge reads back, as any host
-// that loads a published world does, run by the engine the config names;
+// that loads a published world does, run on the WebAssembly engine;
 // of the bundle it keeps only what the published record and the log name.
 
 /** What the server keeps of a world's bundle once it has made its cartridge. */
@@ -82,9 +82,7 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
         logDepth: config.logDepth,
         render: renderEffects,
         parse: parseCommand,
-        ...(config.engine === 'wasm'
-          ? { engine: wasmEngine({ cartridge, catalogue, budgets }) }
-          : {}),
+        engine: wasmEngine({ cartridge, catalogue, budgets }),
       },
       files: [read.source.manifestFile, ...read.source.files].map((file) => ({
         name: file.name,
