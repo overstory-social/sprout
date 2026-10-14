@@ -37,7 +37,7 @@ sprout_eval_status stmt_evaluated_at(const sprout_frame *frame, const sprout_nod
 sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out);
 /* A `send`'s target: a binding, or what the name reaches whatever its range; *found is false where it reaches nothing. */
 sprout_eval_status stmt_target_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out, bool *found);
-/* The path as written, `kiln.shelf`, in the turn arena. */
+/* The path as written, `kiln.shelf`. */
 sprout_eval_status stmt_written(const sprout_frame *frame, const sprout_node *path, const char **out);
 
 /* ---- guards of a run ---- */

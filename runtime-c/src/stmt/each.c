@@ -47,7 +47,7 @@ sprout_eval_status stmt_each_walked(const sprout_frame *frame, const sprout_node
 
 sprout_eval_status stmt_each(sprout_run *run, const sprout_frame *frame, const sprout_node *statement,
                              sprout_ended *ended) {
-  const char *variable = expr_ident(frame->graph, statement, "variable");
+  const char *variable = sprout_node_name(frame->graph, statement, "variable");
   const sprout_str *ids;
   size_t count, i;
   EXPR_NEED(stmt_each_walked(frame, statement, &ids, &count));

@@ -78,9 +78,9 @@ static void a_damaged_table_is_refused_in_words(void) {
   memcpy(copy, body, length);
 
   CHECK_INT(sprout_table_map(copy + at, 8, &table, &why), SPROUT_BAD_INPUT);
-  CHECK_STR(why, "it does not begin with `TBL3`");
+  CHECK_STR(why, "it does not begin with `TBL4`");
   CHECK_INT(sprout_table_map(copy + at + 8, length - at - 8, &table, &why), SPROUT_BAD_INPUT);
-  CHECK_STR(why, "it does not begin with `TBL3`");
+  CHECK_STR(why, "it does not begin with `TBL4`");
   CHECK_INT(sprout_table_map(copy + at + 4, length - at - 4, &table, &why), SPROUT_BAD_INPUT);
   CHECK_STR(why, "it does not begin on an eight-byte boundary");
   CHECK_INT(sprout_table_map(copy + at, length - at - 64, &table, &why), SPROUT_BAD_INPUT);

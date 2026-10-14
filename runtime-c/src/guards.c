@@ -53,7 +53,7 @@ sprout_eval_status sprout_guard_run(sprout_exec *x, const sprout_node *guard, sp
   frame.bindings = bound;
   for (i = 0; i < parameter_count; i++) {
     const sprout_node *given = sprout_item(&x->world->graph, written, i);
-    const char *parameter = given->kind == SPROUT_NODE_NULL ? "_" : sprout_node_text(&x->world->graph, given, "text");
+    const char *parameter = given->kind == SPROUT_NODE_NULL ? "_" : sprout_name(&x->world->graph, given);
     if (parameter == NULL || strcmp(parameter, "_") == 0) continue;
     bound = sprout_bind(&frame, parameter, sprout_evaluated_object(parameters[i]));
     if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;

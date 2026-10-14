@@ -110,9 +110,9 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
   char digits[32];
   size_t length, at;
   /* A member the checker resolved as a dotted path's last step is the object it names. */
-  if (expr_kind_of(frame->graph, expr) == EXPR_MEMBER && strcmp(expr_ident(frame->graph, expr, "member"), "count") != 0 &&
+  if (expr_kind_of(frame->graph, expr) == EXPR_MEMBER && strcmp(sprout_node_name(frame->graph, expr, "member"), "count") != 0 &&
       sprout_world_bound(frame->world, expr) == NULL)
-    return passage_of(reading, sprout_node_get(frame->graph, expr, "receiver"), expr_ident(frame->graph, expr, "member"), frame, out);
+    return passage_of(reading, sprout_node_get(frame->graph, expr, "receiver"), sprout_node_name(frame->graph, expr, "member"), frame, out);
   EXPR_NEED(sprout_eval(frame, expr, &value));
   switch (value.binds) {
     case SPROUT_BINDS_OBJECT:
@@ -234,7 +234,7 @@ static sprout_eval_status walk(const sprout_node *block, const sprout_frame *fra
 /* A `{for}`: its body once for each thing or element walked, each iteration a step. */
 static sprout_eval_status loop(const prose_reading *reading, const sprout_node *block, const sprout_frame *frame,
                                prose_pieces *out) {
-  const char *variable = expr_ident(frame->graph, block, "variable");
+  const char *variable = sprout_node_name(frame->graph, block, "variable");
   sprout_evaluated *walked = NULL;
   size_t count = 0, i;
   EXPR_NEED(walk(block, frame, &walked, &count));

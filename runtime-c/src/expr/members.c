@@ -10,7 +10,7 @@
 
 sprout_eval_status expr_member(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *receiver,
                                sprout_evaluated *out) {
-  const char *member = expr_ident(frame->graph, expr, "member");
+  const char *member = sprout_node_name(frame->graph, expr, "member");
   sprout_str container;
   const sprout_list *list;
   if (member == NULL || strcmp(member, "count") != 0) return expr_unchecked(frame, "a reading other than `count`");
@@ -40,7 +40,7 @@ sprout_eval_status expr_member(const sprout_frame *frame, const sprout_node *exp
 static sprout_eval_status property_named(const sprout_frame *frame, const sprout_node *written, const char **name) {
   EXPR_NEED(expr_spend(frame));
   if (expr_kind_of(frame->graph, written) != EXPR_SYMBOL) return expr_unchecked(frame, "a property named without a colon");
-  *name = expr_ident(frame->graph, written, "name");
+  *name = sprout_node_name(frame->graph, written, "name");
   return SPROUT_EVAL_OK;
 }
 
@@ -53,7 +53,7 @@ static sprout_eval_status kind_named(const sprout_frame *frame, const sprout_nod
   if (*kind == NULL) {
     expr_text text = expr_text_begin(frame);
     expr_put(&text, "the kind `");
-    expr_put(&text, expr_ident(frame->graph, written, "name"));
+    expr_put(&text, sprout_node_name(frame->graph, written, "name"));
     expr_put(&text, "`, which is not declared, reached the evaluator, which the checker refuses.");
     frame->fault->name = "Error";
     return SPROUT_EVAL_ENGINE;
@@ -89,7 +89,7 @@ static sprout_eval_status sees(const sprout_frame *frame, const sprout_node *exp
 
 sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *receiver,
                                 sprout_evaluated *out) {
-  const char *method = expr_ident(frame->graph, expr, "method");
+  const char *method = sprout_node_name(frame->graph, expr, "method");
   const sprout_node *argument;
   const sprout_stored_instance *instance;
   const sprout_kind_def *kind;

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { emitCartridge, readCartridge } from '../bundle/cartridge.js';
+import { cartridgeOf, emitCartridge, readCartridge } from '../bundle/cartridge.js';
 import { type Bundle } from '../bundle/bundle.js';
 import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { MANIFEST_FILE } from '../bundle/manifest.js';
@@ -146,4 +146,25 @@ verb peer { role target  "Peer\u00a0AT [target],  ÉMILE   now" }
       if (name === 'unicode') expect(written).toContain(', émile now');
     }
   }, 60_000);
+});
+
+describe('a cartridge writes its names as text', () => {
+  it('writes no identifier or path as an entry but those the name table binds, in any corpus world', () => {
+    for (const name of WORLDS) {
+      const cartridge = cartridgeOf(compiled(name));
+      const entries = [
+        ...cartridge.prose.entries,
+        ...cartridge.bodies.entries,
+        ...cartridge.table.entries,
+      ];
+      const names = entries[(cartridge.bodies.names as [number])[0]]!;
+      const keys = new Set('m' in names ? names.m.map(([key]) => (key as [number])[0]) : []);
+      const loose = entries.flatMap((entry, i) =>
+        'o' in entry && (entry.o['kind'] === 'ident' || entry.o['kind'] === 'path') && !keys.has(i)
+          ? [entry.o]
+          : [],
+      );
+      expect(loose, name).toEqual([]);
+    }
+  }, 120_000);
 });

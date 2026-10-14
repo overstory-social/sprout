@@ -22,8 +22,8 @@ static const sprout_extension_pin *pinned(const sprout_world *world, const char 
 
 sprout_eval_status stmt_extension_said(const sprout_frame *frame, const sprout_node *statement, sprout_speech *said,
                                        bool *recorded) {
-  const char *extension = expr_ident(frame->graph, statement, "extension");
-  const char *name = expr_ident(frame->graph, statement, "name");
+  const char *extension = sprout_node_name(frame->graph, statement, "extension");
+  const char *name = sprout_node_name(frame->graph, statement, "name");
   const sprout_node *arguments = sprout_node_get(frame->graph, statement, "arguments");
   const sprout_extension_pin *pin = pinned(frame->world, extension);
   sprout_value *values;

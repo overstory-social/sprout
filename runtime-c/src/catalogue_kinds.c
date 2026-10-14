@@ -90,7 +90,7 @@ static sprout_status read_literal(loader *l, const sprout_node *node, sprout_lit
     out->text = sprout_text(l->graph, value);
   } else if (strcmp(kind, "option-literal") == 0) {
     out->kind = SPROUT_LITERAL_OPTION;
-    out->text = cat_text(l->graph, sprout_node_get(l->graph, node, "name"), "text");
+    out->text = sprout_node_name(l->graph, node, "name");
     if (out->text == NULL) return cat_shaped(l, "an option default");
   } else if (strcmp(kind, "list-literal") == 0) {
     const sprout_node *elements = sprout_node_get(l->graph, node, "elements");

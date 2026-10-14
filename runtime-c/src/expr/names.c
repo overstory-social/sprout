@@ -292,12 +292,12 @@ sprout_eval_status expr_narrowed(const sprout_frame *frame, const sprout_node *o
   const sprout_binding *bound;
   sprout_str reached;
   *out = *frame;
-  if (expr_kind_of(frame->graph, operand) != EXPR_CALL || strcmp(expr_ident(frame->graph, operand, "method"), "is") != 0) return SPROUT_EVAL_OK;
+  if (expr_kind_of(frame->graph, operand) != EXPR_CALL || strcmp(sprout_node_name(frame->graph, operand, "method"), "is") != 0) return SPROUT_EVAL_OK;
   if (expr_argument_count(frame->graph, operand) != 1) return SPROUT_EVAL_OK;
   receiver = sprout_node_get(frame->graph, operand, "receiver");
   /* A name, or a dotted path, which is bound by its text as written. */
   if (expr_kind_of(frame->graph, receiver) == EXPR_BINDING) {
-    written = expr_ident(frame->graph, receiver, "name");
+    written = sprout_node_name(frame->graph, receiver, "name");
     key = sprout_node_get(frame->graph, receiver, "name");
   } else if (expr_kind_of(frame->graph, receiver) == EXPR_MEMBER) {
     EXPR_NEED(expr_written_members(frame, receiver, &written));

@@ -51,7 +51,7 @@ static sprout_eval_status run_each(described *d, const sprout_frame *scope, cons
   for (i = 0; i < count; i++) {
     sprout_frame inner = *scope;
     EXPR_NEED(expr_spend(scope));
-    EXPR_NEED(bound_with(&inner, expr_ident(scope->graph, statement, "variable"), sprout_evaluated_object(ids[i])));
+    EXPR_NEED(bound_with(&inner, sprout_node_name(scope->graph, statement, "variable"), sprout_evaluated_object(ids[i])));
     EXPR_NEED(run_block(d, &inner, sprout_node_get(scope->graph, statement, "body")));
   }
   return SPROUT_EVAL_OK;
@@ -93,7 +93,7 @@ static sprout_eval_status run_statement(described *d, sprout_frame *scope, const
     sprout_evaluated bound;
     if (sprout_node_is(scope->graph, sprout_node_get(scope->graph, value, "kind"), "spawn")) return expr_unchecked(scope, "`spawn` in a `describe`");
     EXPR_NEED(sprout_eval(scope, value, &bound));
-    return bound_with(scope, expr_ident(scope->graph, statement, "name"), bound);
+    return bound_with(scope, sprout_node_name(scope->graph, statement, "name"), bound);
   }
   if (strcmp(kind, "if") == 0) return run_if(d, scope, statement);
   if (strcmp(kind, "each") == 0) return run_each(d, scope, statement);

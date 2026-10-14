@@ -36,7 +36,7 @@ static sprout_eval_status walk(const sprout_frame *frame, const sprout_node *exp
 
 /* A name the frame binds, or the object the name table says it reaches in range of `self`. */
 static sprout_eval_status ident_leaf(const sprout_frame *frame, const sprout_node *ident, sprout_evaluated *out) {
-  const char *name = ident == NULL || ident->kind != SPROUT_NODE_OBJECT ? NULL : sprout_node_text(frame->graph, ident, "text");
+  const char *name = sprout_name(frame->graph, ident);
   const sprout_binding *bound;
   const sprout_node *named;
   sprout_str reached;
@@ -117,14 +117,14 @@ static sprout_eval_status leaf(const sprout_frame *frame, const sprout_node *exp
       return text_leaf(frame, sprout_text(frame->graph, value), sprout_text_length(frame->graph, value), out);
     case EXPR_SYMBOL:
       /* An option, compared or looked for: its bare name, as a value holds it. */
-      name = expr_ident(frame->graph, expr, "name");
+      name = sprout_node_name(frame->graph, expr, "name");
       if (name == NULL) break;
       return text_leaf(frame, name, strlen(name), out);
     case EXPR_BINDING:
       return name_leaf(frame, expr, out);
     case EXPR_BOUND:
       /* A tool the reading left out, or a value outside what this role-player hears, is not in the frame. */
-      name = expr_ident(frame->graph, expr, "name");
+      name = sprout_node_name(frame->graph, expr, "name");
       if (name == NULL) break;
       *out = sprout_evaluated_value(sprout_bool(expr_binding(frame, name) != NULL));
       return SPROUT_EVAL_OK;

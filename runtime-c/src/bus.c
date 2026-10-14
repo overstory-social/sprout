@@ -207,7 +207,7 @@ static sprout_eval_status frame_for(sprout_exec *x, const sprout_send *send, con
   for (i = 0; parameters != NULL && i < parameters->count && i < given; i++) {
     const sprout_binding *bound;
     const sprout_node *parameter = sprout_item(&x->world->graph, parameters, i);
-    const char *name = parameter->kind == SPROUT_NODE_NULL ? NULL : sprout_node_text(&x->world->graph, parameter, "text");
+    const char *name = sprout_name(&x->world->graph, parameter);
     if (name == NULL || strcmp(name, "_") == 0) continue;
     bound = sprout_bind(out, name, values[i]);
     if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;

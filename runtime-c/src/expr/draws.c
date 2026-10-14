@@ -7,7 +7,7 @@
 #include "expr.h"
 
 sprout_eval_status expr_drawn(const sprout_frame *frame, const sprout_node *expr, sprout_evaluated *out) {
-  const char *name = expr_ident(frame->graph, expr, "name");
+  const char *name = sprout_node_name(frame->graph, expr, "name");
   const sprout_node *written = expr_argument_count(frame->graph, expr) == 1 ? expr_argument(frame->graph, expr, 0) : NULL;
   const sprout_node *number = sprout_node_get(frame->graph, written, "value");
   uint32_t drawn;

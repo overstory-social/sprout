@@ -257,7 +257,7 @@ static sprout_eval_status declared_as(const sprout_frame *frame, const sprout_st
 /* `adjust` through a name other than `self` is memory's, as the checker reads it. */
 static bool remembers_through(const sprout_graph *graph, const sprout_node *call) {
   const sprout_node *receiver = sprout_node_get(graph, call, "receiver");
-  const char *name = expr_ident(graph, receiver, "name");
+  const char *name = sprout_node_name(graph, receiver, "name");
   return expr_kind_of(graph, receiver) == EXPR_BINDING && name != NULL && strcmp(name, "self") != 0;
 }
 
@@ -295,11 +295,11 @@ sprout_eval_status stmt_write(sprout_run *run, const sprout_frame *frame, const 
   name_node = expr_argument(frame->graph, call, 0);
   if (expr_kind_of(frame->graph, name_node) != EXPR_SYMBOL)
     return expr_unchecked(frame, "a property named without a colon");
-  name = expr_ident(frame->graph, name_node, "name");
+  name = sprout_node_name(frame->graph, name_node, "name");
   value_node = expr_argument(frame->graph, call, 1);
   EXPR_NEED(sprout_eval(frame, value_node, &value_evaluated));
   EXPR_NEED(expr_as_value(frame, &value_evaluated, &value));
-  method = expr_ident(frame->graph, call, "method");
+  method = sprout_node_name(frame->graph, call, "method");
   self = sprout_draft_instance(frame->draft, frame->self);
   if (self == NULL) {
     expr_text text = expr_text_begin(frame);

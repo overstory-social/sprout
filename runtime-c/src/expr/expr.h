@@ -65,8 +65,6 @@ typedef enum expr_kind {
 } expr_kind;
 
 expr_kind expr_kind_of(const sprout_graph *graph, const sprout_node *node);
-/* The text of the identifier a node holds in `field`, or NULL. */
-const char *expr_ident(const sprout_graph *graph, const sprout_node *node, const char *field);
 /* Whether `node` is `a && b`. */
 bool expr_is_and(const sprout_graph *graph, const sprout_node *node);
 /* A call's arguments. */
