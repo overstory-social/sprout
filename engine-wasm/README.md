@@ -22,11 +22,11 @@ does.
 ## The module
 
 The package ships `engine.wasm`, which its build makes with
-`runtime-c/wasm/build.sh` where clang with the wasm32 target and wasm-ld
-are found (wasi-sdk has both). Where they are not, the build says so in
-one line and the package has no `engine.wasm`: `engineBuilt()` is false,
-`wasmEngine` refuses in `NOT_BUILT`'s words, and the package's specs that
-need it are skipped under those words.
+`runtime-c/wasm/build.sh`. That needs clang with the wasm32 target and
+wasm-ld (wasi-sdk has both); without them the build fails with one error
+that names what is missing and how to install it, and leaves no
+`engine.wasm`. A package without it has `engineBuilt()` false, and
+`wasmEngine` refuses in `NOT_BUILT`'s words.
 
 ## Its live state
 

@@ -5,6 +5,6 @@
     "noUnusedLocals": false,
     "rootDir": ".."
   },
-  "include": ["src"],
+  "include": ["src", "build-wasm.spec.ts"],
   "exclude": []
 }
