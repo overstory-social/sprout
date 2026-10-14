@@ -3,11 +3,16 @@ import {
   mintedId,
   visitKey,
   type Catalogue,
-  type CommandHost,
   type InstanceId,
   type VisitKey,
 } from '@overstory/sprout/lang';
-import { applyChanges, emptyState, type Engine, type StoredState } from '@overstory/sprout/core';
+import {
+  applyChanges,
+  emptyState,
+  type Engine,
+  type StoredState,
+  type WorldHost,
+} from '@overstory/sprout/core';
 
 import { engineFor, hostFor, type PlayableWorld } from './engine.js';
 
@@ -29,7 +34,7 @@ export const INSPECTOR = 'Inspector';
 export interface Standing {
   readonly stored: StoredState;
   readonly engine: Engine;
-  readonly host: CommandHost;
+  readonly host: WorldHost;
   readonly visit: VisitKey;
   readonly actor: InstanceId;
   readonly place: InstanceId;

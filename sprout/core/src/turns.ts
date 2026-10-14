@@ -5,47 +5,44 @@ import {
   NOT_ADMITTING,
   type Arrival,
   type Command,
-  type CommandHost,
   type Departure,
   type NicknameRefused,
   type Tick,
-  type TurnHost,
   type Wake,
   type WriteInputs,
 } from '@overstory/sprout/lang';
 
-import {
-  engineOf,
-  type Engine,
-  type EngineHost,
-  type GivenArrival,
-  type GivenCommand,
-  type GivenCommitted,
-  type GivenDeparture,
-  type GivenTick,
-  type GivenWake,
+import type {
+  Engine,
+  EngineHost,
+  GivenArrival,
+  GivenCommand,
+  GivenCommitted,
+  GivenDeparture,
+  GivenTick,
+  GivenWake,
+  Step,
 } from './engine.js';
 import type { StoredState } from './records.js';
-import type { Step } from './steps.js';
 import { atDepth, type LogDepth } from './log/depth.js';
 import type { SproutStore, StoreTx } from './store.js';
 
 // A world's turns run against its store (the spec's The runtime › Turns;
 // The host contract › Storage). A write turn runs inside the store's
 // transaction, under the world's write lock, so write turns on one world
-// are serialized: it reads the stored state, runs as the language's turn
+// are serialized: it reads the stored state, runs as the engine's turn
 // over it, and writes the change set only where the turn committed, so a
 // fault writes nothing of the world. Each write turn that ran appends its
 // entry to the log in the same transaction, a faulted one included, so a
-// turn and its record land together; what each writes and logs is
-// `steps.ts`'s, which a replay runs too. A poll reads a snapshot and takes
+// turn and its record land together; what each writes and logs is the
+// engine's step, which a replay asks for again. A poll reads a snapshot and takes
 // no lock. Each is safe to run twice, as the port's re-run rule asks,
 // since a turn is a function of the state it read and its inputs. When to
 // tick is `ticks.ts`'s, and when to deliver a wake, live or as catch-up,
 // is the host's (Time › Absence). Each turn is the engine's the host names
-// (`engine.ts`), the TypeScript runtime's where it names none.
+// (`engine.ts`).
 
-/** What a host adds to the language's to run a world's turns on a store: the depth it keeps the log at, play where it names none, and its engine. */
+/** What a host adds to run a world's turns on a store: the depth it keeps the log at, play where it names none. */
 export interface LogHost extends EngineHost {
   readonly logDepth?: LogDepth;
 }
@@ -66,10 +63,10 @@ async function landed<T>(tx: StoreTx, engine: Engine, step: Step<T>, host: LogHo
 export function runCommand(
   store: SproutStore,
   microworldId: string,
-  host: CommandHost & LogHost,
+  host: LogHost,
   command: Command,
 ): Promise<GivenCommand> {
-  const engine = engineOf(host);
+  const engine = host.engine;
   return store.transaction(microworldId, async (tx) =>
     landed(tx, engine, engine.command(await tx.state(), command), host),
   );
@@ -86,12 +83,12 @@ export function runCommand(
 export async function runCommandLine(
   store: SproutStore,
   microworldId: string,
-  host: CommandHost & LogHost,
+  host: LogHost,
   command: Command,
   seed: () => number,
 ): Promise<GivenCommand[]> {
   const turns: GivenCommand[] = [];
-  const line = engineOf(host).line(command, seed);
+  const line = host.engine.line(command, seed);
   for (let next = line.next(null); next !== null;) {
     const turn = await runCommand(store, microworldId, host, next);
     turns.push(turn);
@@ -108,10 +105,10 @@ export async function runCommandLine(
 export function runTick(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & LogHost,
+  host: LogHost,
   tick: Tick,
 ): Promise<GivenTick> {
-  const engine = engineOf(host);
+  const engine = host.engine;
   return store.transaction(microworldId, async (tx) =>
     landed(tx, engine, engine.tick(await tx.state(), tick), host),
   );
@@ -125,10 +122,10 @@ export function runTick(
 export function runWake(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & LogHost,
+  host: LogHost,
   wake: Wake,
 ): Promise<GivenWake> {
-  const engine = engineOf(host);
+  const engine = host.engine;
   return store.transaction(microworldId, async (tx) =>
     landed(tx, engine, engine.wake(await tx.state(), wake), host),
   );
@@ -142,10 +139,10 @@ export function runWake(
 export function runMaintenance(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & LogHost,
+  host: LogHost,
   inputs: WriteInputs,
 ): Promise<GivenCommitted> {
-  const engine = engineOf(host);
+  const engine = host.engine;
   return store.transaction(microworldId, async (tx) =>
     landed(tx, engine, engine.maintenance(await tx.state(), inputs), host),
   );
@@ -180,7 +177,7 @@ export interface Admission {
 export async function runArrival(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & LogHost,
+  host: LogHost,
   catchUp: WriteInputs,
   arrival: Arrival,
   nicknames: NicknameHost,
@@ -192,7 +189,7 @@ export async function runArrival(
       arrived: { committed: false, closed: { reason, words: NOT_ADMITTING } },
     };
   }
-  const engine = engineOf(host);
+  const engine = host.engine;
   const before = await store.read(microworldId, async (tx) =>
     engine.nicknameRefusal(await tx.state(), arrival.visit, arrival.nickname),
   );
@@ -218,10 +215,10 @@ export async function runArrival(
 export function runArrivalTurn(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & LogHost,
+  host: LogHost,
   arrival: Arrival,
 ): Promise<GivenArrival | NicknameRefusedTurn> {
-  const engine = engineOf(host);
+  const engine = host.engine;
   return store.transaction(
     microworldId,
     async (tx): Promise<GivenArrival | NicknameRefusedTurn> => {
@@ -240,10 +237,10 @@ export function runArrivalTurn(
 export function runDeparture(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & LogHost,
+  host: LogHost,
   departure: Departure,
 ): Promise<GivenDeparture> {
-  const engine = engineOf(host);
+  const engine = host.engine;
   return store.transaction(microworldId, async (tx) =>
     landed(tx, engine, engine.departure(await tx.state(), departure), host),
   );

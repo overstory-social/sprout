@@ -4,41 +4,24 @@ import { visitKey, type VisitKey } from '@overstory/sprout/lang';
 
 import {
   ConversationPace,
-  hearers,
   keptSaying,
   runConversation,
   sayingRefusal,
   type ConversationHost,
   type ConversationRules,
 } from './conversation.js';
-import { HALL, MARTA, seeded as seededTally, tally } from './fixtures/tally.js';
+import { HALL, hallHost, hallWith, INES, MARTA } from './fixtures/hall.js';
 import type { SproutStore } from './store.js';
-import { runArrival, runDeparture, type NicknameHost } from './turns.js';
-import { committedState } from './fixtures/committed.js';
+import { runDeparture } from './turns.js';
 
-const { host } = tally();
-const INES = visitKey('v-ines');
-const OPEN_NICKNAMES: NicknameHost = { moderate: () => true };
+const host = hallHost();
 const UNBOUNDED: ConversationRules = { characters: null, pace: null };
 /** A host that caps nothing and whose moderation declines nothing. */
 const OPEN: ConversationHost = { rules: UNBOUNDED, moderate: () => true };
 
-/** The tally with Marta in the hall, and Ines too unless `alone`. */
-async function hall(alone = false): Promise<SproutStore> {
-  const store = await seededTally(host);
-  if (!alone) {
-    const at = { now: 0, seed: 1, mayHold: null };
-    await runArrival(
-      store,
-      'w',
-      host,
-      at,
-      { visit: INES, nickname: 'Ines', ...at },
-      OPEN_NICKNAMES,
-    );
-  }
-  return store;
-}
+/** The hall with Marta in it, and Ines too unless `alone`. */
+const hall = (alone = false): Promise<SproutStore> =>
+  alone ? hallWith([MARTA, 'Marta']) : hallWith([MARTA, 'Marta'], [INES, 'Ines']);
 
 const say = (text: string, at = 0, visit: VisitKey = MARTA) => ({ visit, text, at });
 const stored = (store: SproutStore) =>
@@ -74,23 +57,6 @@ describe('what may be said, whoever hears it', () => {
       words: 'That is 6 characters, and one thing said here may have at most 5: say it in fewer.',
     });
     expect(sayingRefusal(UNBOUNDED, 'x'.repeat(100_000))).toBeNull();
-  });
-});
-
-describe('who hears it', () => {
-  it('is everyone standing directly in the place, the speaker among them, in contents order', async () => {
-    const state = await committedState(await hall(), 'w', host);
-    expect(hearers(state, MARTA)).toEqual({ place: HALL, to: [MARTA, INES] });
-    expect(hearers(state, INES)).toEqual({ place: HALL, to: [MARTA, INES] });
-  });
-
-  it('is nobody for one who is away or never came', async () => {
-    const store = await hall();
-    await runDeparture(store, 'w', host, { visit: INES, now: 1, seed: 1, mayHold: null });
-    const state = await committedState(store, 'w', host);
-    expect(hearers(state, INES)).toBeNull();
-    expect(hearers(state, MARTA)).toEqual({ place: HALL, to: [MARTA] });
-    expect(hearers(state, visitKey('v-nobody'))).toBeNull();
   });
 });
 
@@ -335,15 +301,6 @@ describe('saying something against a store', () => {
     await expect(runConversation(store, 'w', host, OPEN, pace, say('hi', 1.5))).rejects.toThrow(
       'whole seconds',
     );
-  });
-
-  it('counts a visitor whose instance the engine cannot read now as away, as it finds them', async () => {
-    const store = await hall();
-    // A republish whose visitors' kind is gone leaves Marta's instance dormant: stored, and read as no one.
-    const unread = { ...host, catalogue: { ...host.catalogue, visitorKind: null } };
-    await expect(
-      runConversation(store, 'w', unread, OPEN, new ConversationPace(), say('hi')),
-    ).rejects.toThrow('`v-marta` is not in this world, so has nobody to talk to.');
   });
 
   it('never ends with nothing to tell the speaker: every refusal has words', async () => {

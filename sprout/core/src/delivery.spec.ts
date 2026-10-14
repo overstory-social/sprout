@@ -5,20 +5,17 @@ import { visitKey, type Effect, type InstanceId, type VisitKey } from '@overstor
 import { negotiate, TEXT_ONLY, type ClientCapabilities } from './capabilities.js';
 import { deliver, deliverWords, deliveryOf, sendView } from './delivery.js';
 import {
+  COLD,
   HALL,
+  HALL_VIEW,
   INES,
   LANTERN,
   MARTA,
-  showroom,
+  PROJECTED,
   showroomCatalogue,
-  showroomHost,
-  typed,
 } from './fixtures/showroom.js';
-import { runCommand } from './turns.js';
-import { runView } from './views.js';
 
 const catalogue = showroomCatalogue();
-const host = showroomHost(catalogue);
 
 /** A client granted `slides.show`, as a graphical one would ask to be. */
 function slideClient(): ClientCapabilities {
@@ -30,19 +27,9 @@ function slideClient(): ClientCapabilities {
   return negotiation.capabilities;
 }
 
-/** Light the lantern and project it as Marta, and give back the projection's effects. */
-async function projected(): Promise<readonly Effect[]> {
-  const store = await showroom(catalogue);
-  const lit = await runCommand(store, 'w', host, typed(MARTA, 'light lantern'));
-  if (!lit.committed) throw new Error(lit.fault.detail);
-  const turn = await runCommand(store, 'w', host, typed(MARTA, 'project lantern'));
-  if (!turn.committed) throw new Error(turn.fault.detail);
-  return turn.effects;
-}
-
 describe('a turn’s effects, as one client is sent them', () => {
-  it('sends a granted statement’s payload, and every prose effect as words, in order', async () => {
-    const sent = deliver(await projected(), MARTA, slideClient());
+  it('sends a granted statement’s payload, and every prose effect as words, in order', () => {
+    const sent = deliver(PROJECTED, MARTA, slideClient());
     expect(sent.map((one) => [one.kind, one.as])).toEqual([
       ['said', 'words'],
       ['extension', 'payload'],
@@ -60,8 +47,8 @@ describe('a turn’s effects, as one client is sent them', () => {
     expect(sent[1]).not.toHaveProperty('paragraphs');
   });
 
-  it('sends a client that was granted nothing each extension’s effect as its transcript line', async () => {
-    const effects = await projected();
+  it('sends a client that was granted nothing each extension’s effect as its transcript line', () => {
+    const effects = PROJECTED;
     const sent = deliver(effects, MARTA, TEXT_ONLY);
     expect(sent.map((one) => [one.kind, one.as])).toEqual([
       ['said', 'words'],
@@ -75,27 +62,23 @@ describe('a turn’s effects, as one client is sent them', () => {
     expect(deliverWords(effects, MARTA)).toEqual(sent);
   });
 
-  it('sends a visitor only what they read', async () => {
-    const effects = await projected();
+  it('sends a visitor only what they read', () => {
+    const effects = PROJECTED;
     const toInes = deliver(effects, INES, slideClient());
     // Ines is in the hall but the projection spoke only to Marta.
     expect(toInes).toEqual([]);
   });
 
-  it('sends a refusal as words', async () => {
-    const store = await showroom(catalogue);
-    const turn = await runCommand(store, 'w', host, typed(MARTA, 'project lantern'));
-    if (!turn.committed) throw new Error(turn.fault.detail);
-    expect(deliver(turn.effects, MARTA, slideClient())).toMatchObject([
+  it('sends a refusal as words', () => {
+    expect(deliver(COLD, MARTA, slideClient())).toMatchObject([
       { kind: 'refused', as: 'words', paragraphs: ['The lantern is cold.'] },
     ]);
   });
 });
 
 describe('a view, as one client is sent it', () => {
-  it('sends what its description recorded as a payload or as its transcript, the rest as it is', async () => {
-    const store = await showroom(catalogue);
-    const { view } = await runView(store, 'w', host, MARTA, 0);
+  it('sends what its description recorded as a payload or as its transcript, the rest as it is', () => {
+    const view = HALL_VIEW;
     const shown = sendView(view, slideClient());
     expect(shown.description).toEqual(['A dark hall with a sheet hung at one end.']);
     expect(shown.effects).toEqual([

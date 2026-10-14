@@ -1,18 +1,13 @@
-// The bench the carried-role and wildcard specs are written about: a shop
-// whose chest is locked, a brass key and a torch that must be held
-// (`sprout.RequiresHeld`), a book that need not be, an open pouch and a
-// shut satchel for a case to put in a visitor's hands, an open crate on
-// the floor holding a spare key, a gauge that guards every verb it is a
-// tool in and then `prop` alone, and a cat who acts. `prop` is the world's
-// verb whose tool is carried; `put` and `unlock` are the library's. Spec
-// support: the package build leaves it out.
+// The bench: a shop whose chest is locked, a brass key and a torch that
+// must be held (`sprout.RequiresHeld`), a book that need not be, an open
+// pouch and a shut satchel for a case to put in a visitor's hands, an open
+// crate on the floor holding a spare key, a gauge that guards every verb
+// it is a tool in and then `prop` alone, and a cat who acts. `prop` is the
+// world's verb whose tool is carried; `put` and `unlock` are the
+// library's. Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
 import { compiledWorld } from './bundle.js';
-import { commandContext, type Study } from './parser.js';
-import { turn } from './reading.js';
-import { declaredId, type InstanceId } from '../runtime/ids.js';
-import { readCommand, type CommandOutcome } from '../runtime/parser.js';
 
 /** A single quote, as an import's specifier is written between them. */
 const Q = "'";
@@ -100,34 +95,3 @@ export function benchFiles(extras: BenchExtras = {}): Record<string, string> {
 }
 
 export const BENCH: Bundle = compiledWorld('bench', benchFiles());
-
-const IN = (...path: string[]): InstanceId => declaredId('bench', ['shop', ...path]);
-export const SHOP = IN();
-export const CHEST = IN('chest');
-export const BRASS_KEY = IN('brass_key');
-export const TORCH = IN('torch');
-export const BOOK = IN('book');
-export const POUCH = IN('pouch');
-export const SATCHEL = IN('satchel');
-export const CRATE = IN('crate');
-export const SPARE_KEY = IN('crate', 'spare_key');
-export const GAUGE = IN('gauge');
-export const SHELF = IN('shelf');
-export const CAT = IN('cat');
-
-/**
- * A bench with one visitor, Marta, in the shop, and each of `held` moved
- * to where the case says: `[thing, container]`, a container of `null`
- * meaning Marta herself.
- */
-export function bench(held: readonly (readonly [InstanceId, InstanceId | null])[] = []): Study {
-  const one = turn(BENCH, [SHOP]);
-  const marta = one.people[0]!;
-  for (const [thing, into] of held) one.draft.place(thing, into ?? marta);
-  return { ...one, nicknames: new Map([[marta, 'Marta']]) };
-}
-
-/** `line`, as Marta typed it, with no exits. */
-export function typedAtBench(one: Study, line: string): CommandOutcome {
-  return readCommand(line, one.people[0]!, commandContext(one, []));
-}

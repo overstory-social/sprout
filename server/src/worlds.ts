@@ -2,11 +2,8 @@ import {
   compileBundle,
   emitCartridge,
   loadCartridge,
-  parseCommand,
   renderDiagnostics,
-  renderEffects,
   type Bundle,
-  type CommandHost,
   type HostSeconds,
 } from '@overstory/sprout/lang';
 import {
@@ -39,7 +36,7 @@ export interface ServedWorld {
   readonly id: string;
   readonly dir: string;
   readonly bundle: BundleStamp;
-  readonly host: CommandHost & LogHost;
+  readonly host: LogHost;
   /** The files it was compiled from, which its published record keeps. */
   readonly files: readonly { readonly name: string; readonly source: string }[];
 }
@@ -80,8 +77,6 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
         catalogue,
         budgets,
         logDepth: config.logDepth,
-        render: renderEffects,
-        parse: parseCommand,
         engine: wasmEngine({ cartridge, catalogue, budgets }),
       },
       files: [read.source.manifestFile, ...read.source.files].map((file) => ({

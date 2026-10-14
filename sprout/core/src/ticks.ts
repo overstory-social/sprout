@@ -1,11 +1,6 @@
-import {
-  type HostSeconds,
-  type InstanceId,
-  type TurnHost,
-  type WriteInputs,
-} from '@overstory/sprout/lang';
+import { type HostSeconds, type InstanceId, type WriteInputs } from '@overstory/sprout/lang';
 
-import { engineOf, type EngineHost, type GivenTick } from './engine.js';
+import { type EngineHost, type GivenTick } from './engine.js';
 import type { SproutStore } from './store.js';
 import { committedStored, runTick } from './turns.js';
 
@@ -35,11 +30,11 @@ export class Ticker {
   async round(
     store: SproutStore,
     microworldId: string,
-    host: TurnHost & EngineHost,
+    host: EngineHost,
     now: HostSeconds,
     inputs: (place: InstanceId) => Omit<WriteInputs, 'now'>,
   ): Promise<Ticking[]> {
-    const places = engineOf(host).occupiedPlaces(await committedStored(store, microworldId));
+    const places = host.engine.occupiedPlaces(await committedStored(store, microworldId));
     const waiting = this.waitingIn(microworldId);
     return Promise.all(
       places.map(async (place): Promise<Ticking> => {

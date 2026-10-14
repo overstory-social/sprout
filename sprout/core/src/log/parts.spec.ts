@@ -2,44 +2,23 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_LIMITS, SEED_MAX, type Effect, type Fault } from '@overstory/sprout/lang';
 
-import { COUNTER, MARTA, tally } from '../fixtures/tally.js';
-import {
-  inputsOf,
-  LoggedEffect,
-  loggedEffects,
-  loggedFault,
-  TurnInputs,
-  writeInputsOf,
-} from './parts.js';
-
-const { host } = tally();
+import { COUNTER, MARTA } from '../fixtures/tally.js';
+import { LoggedEffect, loggedEffects, loggedFault, TurnInputs, writeInputsOf } from './parts.js';
 
 describe('a turn’s inputs as the log keeps them', () => {
-  it('keeps the seed, the bound, the instant and every budget the host ran the turn under', () => {
-    const tight = { ...host, budgets: { ...DEFAULT_LIMITS.budgets, steps: 12, wallClockMs: 900 } };
-    const inputs = { seed: SEED_MAX, mayHold: 40, now: 3_000_000_000 };
-    const kept = inputsOf(inputs, tight);
-    expect(kept).toEqual({
-      ...inputs,
-      budgets: { ...DEFAULT_LIMITS.budgets, steps: 12, wallClockMs: 900 },
-    });
-    expect(TurnInputs.parse(JSON.parse(JSON.stringify(kept)))).toEqual(kept);
-    expect(writeInputsOf(kept)).toEqual(inputs);
-  });
+  const kept = { seed: SEED_MAX, mayHold: 40, now: 3_000_000_000, budgets: DEFAULT_LIMITS.budgets };
 
-  it('keeps the budgets and nothing else the host’s object carries', () => {
-    const wider = { ...host, budgets: { ...DEFAULT_LIMITS.budgets, somethingElse: 1 } };
-    expect(Object.keys(inputsOf({ seed: 0, mayHold: null, now: 0 }, wider).budgets)).toEqual(
-      Object.keys(DEFAULT_LIMITS.budgets),
-    );
+  it('keeps the seed, the bound, the instant and every budget, and hands back the inputs a turn takes', () => {
+    expect(TurnInputs.parse(JSON.parse(JSON.stringify(kept)))).toEqual(kept);
+    expect(writeInputsOf(kept)).toEqual({ seed: SEED_MAX, mayHold: 40, now: 3_000_000_000 });
   });
 
   it('refuses a seed outside the generator’s range and an instant that is not whole seconds', () => {
-    const good = inputsOf({ seed: 0, mayHold: null, now: 0 }, host);
-    expect(TurnInputs.safeParse({ ...good, seed: SEED_MAX + 1 }).success).toBe(false);
-    expect(TurnInputs.safeParse({ ...good, seed: -1 }).success).toBe(false);
-    expect(TurnInputs.safeParse({ ...good, now: 1.5 }).success).toBe(false);
-    expect(TurnInputs.safeParse({ ...good, mayHold: -1 }).success).toBe(false);
+    expect(TurnInputs.safeParse({ ...kept, seed: SEED_MAX + 1 }).success).toBe(false);
+    expect(TurnInputs.safeParse({ ...kept, seed: -1 }).success).toBe(false);
+    expect(TurnInputs.safeParse({ ...kept, now: 1.5 }).success).toBe(false);
+    expect(TurnInputs.safeParse({ ...kept, mayHold: -1 }).success).toBe(false);
+    expect(TurnInputs.safeParse({ ...kept, budgets: { steps: 1 } }).success).toBe(false);
   });
 });
 

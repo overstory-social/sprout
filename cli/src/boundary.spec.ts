@@ -2,8 +2,6 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import * as core from '@overstory/sprout/core';
-import * as lang from '@overstory/sprout/lang';
 import { describe, expect, it } from 'vitest';
 
 // The CLI imports the Sprout packages and node:*, and nothing of any host
@@ -11,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 // only when the command that needs one runs, and only where it is
 // installed, as optional peers, so a CLI install need not carry Ink, `ws`
 // or the MCP SDK. It plays and views a world through the player, on an
-// engine, so it never imports the language's turns, polls, parser or state.
+// engine.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = [
@@ -21,45 +19,6 @@ const ALLOWED = [
   '@overstory/sprout-repl',
 ];
 
-/** The language's turns, polls, parser and state, which only an engine runs. */
-const NEVER = [
-  'commandTurn',
-  'runLine',
-  'commandsOfLine',
-  'tickTurn',
-  'wakeTurn',
-  'maintenanceTurn',
-  'arrivalTurn',
-  'departureTurn',
-  'writeTurn',
-  'dueWakes',
-  'occupiedPlaces',
-  'nicknameRefusal',
-  'pollView',
-  'pollScene',
-  'pollReadings',
-  'initialState',
-  'loadWorld',
-  'readerOf',
-  'Draft',
-  'newInstance',
-  'tsEngine',
-  'loaded',
-  'pollTurn',
-  'parseCommand',
-  'consentPass',
-  'planIntent',
-];
-
-/** The values `text` imports by name from `from`. */
-function valuesFrom(text: string, from: string): string[] {
-  return [...text.matchAll(/import\s*\{([^}]*)\}\s*from\s*'([^']+)'/g)]
-    .filter((m) => m[2] === from)
-    .flatMap((m) => m[1]!.split(','))
-    .map((name) => name.trim())
-    .filter((name) => name !== '' && !name.startsWith('type '))
-    .map((name) => name.split(/\s+as\s+/)[0]!);
-}
 /** The packages the CLI may load only by `import()`, where they are installed. */
 const OPTIONAL_PEERS = [
   '@overstory/sprout-tui',
@@ -105,29 +64,6 @@ describe('@overstory/sprout-cli imports the Sprout packages and node:* only', ()
           !allowed.includes(s),
       );
       expect(foreign).toEqual([]);
-    });
-  }
-});
-
-describe('@overstory/sprout-cli runs a world only through an engine', () => {
-  it('names only what the language and core export', () => {
-    expect(NEVER.filter((name) => !(name in lang) && !(name in core))).toEqual([]);
-  });
-  for (const file of sources(SRC).filter((one) => !one.endsWith('.spec.ts'))) {
-    it(relative(SRC, file), () => {
-      const text = readFileSync(file, 'utf8');
-      const named = [
-        ...valuesFrom(text, '@overstory/sprout/lang'),
-        ...valuesFrom(text, '@overstory/sprout/core'),
-      ];
-      // Every value is imported by name, so the names above are all it imports of either.
-      const whole = [
-        ...text.matchAll(
-          /(?:import\s*\*|export\s*(?:\*|\{[^}]*\}))[^;']*'(@overstory\/sprout\/(?:lang|core))'/g,
-        ),
-      ].map((m) => m[0]);
-      expect(whole).toEqual([]);
-      expect(named.filter((name) => NEVER.includes(name))).toEqual([]);
     });
   }
 });

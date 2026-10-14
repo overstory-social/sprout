@@ -8,7 +8,7 @@ import { bundleOf, KILN_YARD } from './fixtures/worlds.js';
 const bundle = bundleOf('kiln_yard', KILN_YARD);
 
 describe('hostFor', () => {
-  it('runs under the host’s default budgets, less those given, and the language’s parser', () => {
+  it('runs under the host’s default budgets, less those given', () => {
     const host = hostFor(bundle, { output: 12 });
     expect(host.budgets).toEqual({ ...DEFAULT_LIMITS.budgets, output: 12 });
     expect(host.catalogue.world).toBe('kiln_yard');

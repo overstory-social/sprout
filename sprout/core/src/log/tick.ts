@@ -1,25 +1,8 @@
 import { z } from 'zod';
 
-import {
-  storedId,
-  type Committed,
-  type Faulted,
-  type Tick,
-  type Ticked,
-  type TurnHost,
-} from '@overstory/sprout/lang';
+import { storedId, type Tick } from '@overstory/sprout/lang';
 
-import {
-  inputsOf,
-  LoggedCut,
-  LoggedEffect,
-  loggedCuts,
-  LoggedFault,
-  loggedEffects,
-  loggedFault,
-  TurnInputs,
-  writeInputsOf,
-} from './parts.js';
+import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A tick in the log (the spec's The runtime › The log; Time › Ticks): the
@@ -43,23 +26,6 @@ export const TickEntry = TurnInputs.extend({
   cutShort: z.array(LoggedCut),
 });
 export type TickEntry = z.infer<typeof TickEntry>;
-
-/** What the log keeps of `tick`, run by `host` as `turn`. */
-export function tickEntry(
-  tick: Tick,
-  host: TurnHost,
-  turn: Committed<Ticked> | Faulted,
-): TickEntry {
-  return {
-    kind: 'tick',
-    level: 'info',
-    ...inputsOf(tick, host),
-    place: tick.place,
-    fault: turn.committed ? null : loggedFault(turn.fault),
-    effects: turn.committed ? loggedEffects(turn.effects) : [],
-    cutShort: turn.committed ? loggedCuts(turn.cutShort) : [],
-  };
-}
 
 /** The tick `entry` records, in `world`. */
 export function tickOf(world: string, entry: TickEntry): Tick {

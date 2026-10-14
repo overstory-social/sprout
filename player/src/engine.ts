@@ -2,14 +2,11 @@ import {
   catalogueOf,
   DEFAULT_LIMITS,
   emitCartridge,
-  parseCommand,
-  renderEffects,
   type Bundle,
   type Catalogue,
-  type CommandHost,
   type RuntimeBudgets,
 } from '@overstory/sprout/lang';
-import type { Engine } from '@overstory/sprout/core';
+import type { Engine, WorldHost } from '@overstory/sprout/core';
 import { wasmEngine } from '@overstory/sprout-engine-wasm';
 
 // The engine the player and the inspectors run a world on, through core's
@@ -32,17 +29,15 @@ export function catalogueFor(world: PlayableWorld): Catalogue {
 }
 
 /** A host for `world` under the host's default budgets less any `budgets` given. */
-export function hostFor(world: PlayableWorld, budgets: Partial<RuntimeBudgets> = {}): CommandHost {
+export function hostFor(world: PlayableWorld, budgets: Partial<RuntimeBudgets> = {}): WorldHost {
   return {
     catalogue: catalogueFor(world),
     budgets: { ...DEFAULT_LIMITS.budgets, ...budgets },
-    render: renderEffects,
-    parse: parseCommand,
   };
 }
 
 /** The engine running `world` for `host`. */
-export function engineFor(world: PlayableWorld, host: CommandHost): Engine {
+export function engineFor(world: PlayableWorld, host: WorldHost): Engine {
   const cartridge = 'cartridge' in world ? world.cartridge : emitCartridge(world);
   return wasmEngine({ cartridge, catalogue: host.catalogue, budgets: host.budgets });
 }

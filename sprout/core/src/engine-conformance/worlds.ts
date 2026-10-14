@@ -7,12 +7,9 @@ import {
   loadCartridge,
   mintedId,
   neededImports,
-  parseCommand,
-  renderEffects,
   SourceFile,
   STANDARD_LIBRARY,
   visitKey,
-  type CommandHost,
   type InstanceId,
   type Manifest,
   type RuntimeBudgets,
@@ -21,7 +18,7 @@ import {
   type VisitKey,
 } from '@overstory/sprout/lang';
 
-import type { Engine } from '../engine.js';
+import type { Engine, WorldHost } from '../engine.js';
 import { memoryStore } from '../memory-store.js';
 import type { StoredState } from '../records.js';
 import type { SproutStore } from '../store.js';
@@ -36,7 +33,7 @@ import type { LogHost } from '../turns.js';
 
 /** One world as an engine is made for it: the host's terms, and its cartridge. */
 export interface EngineWorld {
-  readonly host: CommandHost;
+  readonly host: WorldHost;
   readonly cartridge: Uint8Array;
 }
 
@@ -93,8 +90,6 @@ function compiled(name: string, files: Readonly<Record<string, string>>): Engine
     host: {
       catalogue,
       budgets: DEFAULT_LIMITS.budgets,
-      parse: parseCommand,
-      render: renderEffects,
     },
   };
 }
@@ -291,7 +286,7 @@ export function played(
   make: MakeEngine,
   world: EngineWorld,
   change: { readonly budgets?: Partial<RuntimeBudgets>; readonly logDepth?: 'play' | 'debug' } = {},
-): CommandHost & LogHost {
+): LogHost {
   const host = { ...world.host, budgets: { ...world.host.budgets, ...change.budgets } };
   return {
     ...host,

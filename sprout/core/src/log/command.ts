@@ -7,22 +7,10 @@ import {
   type Bound,
   type Catalogue,
   type Command,
-  type CommandTurn,
   type Reading,
-  type TurnHost,
 } from '@overstory/sprout/lang';
 
-import {
-  inputsOf,
-  LoggedCut,
-  LoggedEffect,
-  loggedCuts,
-  LoggedFault,
-  loggedEffects,
-  loggedFault,
-  TurnInputs,
-  writeInputsOf,
-} from './parts.js';
+import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A command in the log (the spec's The runtime › The log, Faults; Parsing
@@ -91,56 +79,6 @@ export const CommandEntry = TurnInputs.extend({
   cutShort: z.array(LoggedCut),
 });
 export type CommandEntry = z.infer<typeof CommandEntry>;
-
-/** What the log keeps of `command`, run by `host` as `turn`. */
-export function commandEntry(command: Command, host: TurnHost, turn: CommandTurn): CommandEntry {
-  return {
-    kind: 'command',
-    level: 'info',
-    ...inputsOf(command, host),
-    visit: command.visit,
-    text: command.text,
-    planned: command.planned === undefined ? null : loggedReading(command.planned),
-    reread:
-      command.reread === undefined
-        ? null
-        : {
-            ...command.reread,
-            values: command.reread.values.map((one) => ({ ...one })),
-            referents: [...command.reread.referents],
-          },
-    fault: turn.committed ? null : loggedFault(turn.fault),
-    effects: loggedEffects(turn.effects),
-    drawn: drawnOf(turn),
-    cutShort: turn.committed ? loggedCuts(turn.cutShort) : [],
-  };
-}
-
-/** The draw a committed turn's reading was, as the log keeps it. */
-function drawnOf(turn: CommandTurn): CommandEntry['drawn'] {
-  if (!turn.committed || !('drawn' in turn.value) || turn.value.drawn === null) return null;
-  return { level: 'warning', among: turn.value.drawn.among };
-}
-
-/** A planned step as the log keeps it; a value is only ever a symbol's option or an integer. */
-function loggedReading(reading: Reading): LoggedReading {
-  const bindings = [...reading.bindings].map(
-    ([role, bound]): [string, z.infer<typeof LoggedBound>] => {
-      if ('object' in bound) return [role, { object: bound.object }];
-      if ('set' in bound) return [role, { set: [...bound.set] }];
-      if ('exit' in bound) return [role, { exit: { ...bound.exit } }];
-      if (typeof bound.value === 'string' || typeof bound.value === 'number') {
-        return [role, { value: bound.value }];
-      }
-      throw new Error(`a planned step binds \`${role}\` to a value no role takes.`);
-    },
-  );
-  return {
-    verb: { library: reading.verb.library, name: reading.verb.name },
-    actor: reading.actor,
-    bindings,
-  };
-}
 
 /**
  * The command `entry` records, as the host handed it over, a planned step

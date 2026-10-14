@@ -1,4 +1,4 @@
-// What the runtime's specs load a world from: a real bundle, compiled
+// What the specs load a world from: a real bundle, compiled
 // through `compileBundle` from the files given, under a manifest naming
 // exactly them and pinning the standard library, which travels with it
 // blessed, as a host starts from. A case writes its world in as few files

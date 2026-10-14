@@ -1,7 +1,6 @@
 import {
   contentAt,
   type Catalogue,
-  type CommandHost,
   type Effect,
   type Fault,
   type HostSeconds,
@@ -10,7 +9,7 @@ import {
   type StoredInstance,
   type VisitKey,
 } from '@overstory/sprout/lang';
-import type { Account, Engine, StoredState } from '@overstory/sprout/core';
+import type { Account, Engine, StoredState, WorldHost } from '@overstory/sprout/core';
 
 import type { TurnReading } from './reading.js';
 import type { Step } from '../script.js';
@@ -78,7 +77,7 @@ export interface Traced {
  * nickname's visit, and every turn run.
  */
 export interface Stage {
-  readonly host: CommandHost;
+  readonly host: WorldHost;
   readonly engine: Engine;
   stored: StoredState;
   now: HostSeconds;

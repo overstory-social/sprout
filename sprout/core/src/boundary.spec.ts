@@ -4,15 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import * as lang from '@overstory/sprout/lang';
 import { StoredVisitorSchema } from '@overstory/sprout/lang';
 
 import { VisitorExport, VisitorInWorld } from './records.js';
 
 // Core imports the language, zod and itself — never a host, a database
-// driver, a clock library or a test framework, and never an engine other
-// than the TypeScript runtime: the WebAssembly engine and runtime-c reach
-// core only as an `Engine` a host names. The store is a port; an adapter
+// driver, a clock library, a test framework or an engine: the WebAssembly
+// engine and runtime-c reach core only as an `Engine` a host names. The store is a port; an adapter
 // fills it from outside. A runtime package never carries a test runner,
 // so neither conformance suite may import vitest either.
 
@@ -73,59 +71,4 @@ describe('@overstory/sprout/core imports nothing but the language, zod and itsel
     for (const word of ['email', 'avatar', 'profile', 'handle', 'account', 'user'])
       expect(text).not.toContain(word);
   });
-});
-
-/** The language's turns, polls and state, which only an engine runs. */
-const RUNTIME = [
-  'commandTurn',
-  'tickTurn',
-  'wakeTurn',
-  'maintenanceTurn',
-  'arrivalTurn',
-  'departureTurn',
-  'pollView',
-  'pollScene',
-  'pollReadings',
-  'pollTurn',
-  'renderActed',
-  'initialState',
-  'loadWorld',
-  'Draft',
-  'newInstance',
-  'storedChanges',
-];
-
-/** The values `text` imports by name from `from`. */
-function valuesFrom(text: string, from: string): string[] {
-  return [...text.matchAll(/import\s*\{([^}]*)\}\s*from\s*'([^']+)'/g)]
-    .filter((m) => m[2] === from)
-    .flatMap((m) => m[1]!.split(','))
-    .map((name) => name.trim())
-    .filter((name) => name !== '' && !name.startsWith('type '))
-    .map((name) => name.split(/\s+as\s+/)[0]!);
-}
-
-describe('a replay and the engine conformance suite run a world only through an engine', () => {
-  const files = [
-    join('log', 'replay.ts'),
-    ...readdirSync(join(SRC, 'engine-conformance'))
-      .filter((name) => name.endsWith('.ts') && !name.endsWith('.spec.ts'))
-      .map((name) => join('engine-conformance', name)),
-  ];
-  it('names only what the language exports', () => {
-    expect(RUNTIME.filter((name) => !(name in lang))).toEqual([]);
-  });
-  for (const file of files) {
-    it(file, () => {
-      const text = readFileSync(join(SRC, file), 'utf8');
-      expect(
-        valuesFrom(text, '@overstory/sprout/lang').filter((name) => RUNTIME.includes(name)),
-      ).toEqual([]);
-      // The TypeScript runtime's steps, and its engine, are reached only as an `Engine` a caller makes.
-      const own = [...text.matchAll(/import\s+(type\s+)?\{[^}]*\}\s*from\s*'([^']+)'/g)]
-        .filter((m) => m[1] === undefined && /\/(steps|engine)\.js$/.test(m[2]!))
-        .map((m) => m[2]);
-      expect(own).toEqual([]);
-    });
-  }
 });

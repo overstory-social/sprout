@@ -1,15 +1,12 @@
 // @overstory/sprout/lang — the Sprout language: where a thing was written
 // and what the compiler says about it, the syntax and its parser, the
 // declarations and their types, what an extension a host installs is,
-// the checker, the closed bundle a microworld compiles to, and the
-// runtime's meter, values, range, ids,
-// state, stored and live, the evaluator a guard runs on, the move
-// through consent, the queue, the turns they all run in and the effects
-// they give, and the parser that reads a typed command; and prose,
-// rendered for each reader, the view a poll gives a visitor among it. It
-// imports zod and nothing else (boundary.spec.ts holds that line), so a
-// host plugs it in and the language never learns whose world it is
-// running in.
+// the checker, and the closed bundle a microworld compiles to and its
+// cartridge; and what a host and its engine exchange: ids, the stored
+// state, the catalogue a cartridge loads as, each turn's inputs, and the
+// effects, faults and views an engine gives. It imports zod and nothing
+// else (boundary.spec.ts holds that line), so a host plugs it in and the
+// language never learns whose world it is running in.
 
 export * from './source/source.js';
 export * from './source/nodes.js';
@@ -66,65 +63,16 @@ export type { Cartridge } from './bundle/cartridge-schema.js';
 export type { RecordedCaps } from './bundle/compile/recorded.js';
 export { generateSkill, type SkillOptions } from './bundle/skill/skill.js';
 
-export * from './runtime/budget.js';
-export * from './runtime/lists.js';
-export * from './runtime/range.js';
-export * from './runtime/ids.js';
-export * from './runtime/values.js';
-export * from './runtime/stored.js';
-export * from './runtime/catalogue.js';
-export * from './runtime/cartridge.js';
-export * from './runtime/state.js';
-export * from './runtime/load.js';
-export * from './runtime/memory.js';
-export * from './runtime/draft.js';
-export * from './runtime/live.js';
-export * from './runtime/lifecycle.js';
-export * from './runtime/evaluate.js';
-export * from './runtime/body.js';
-export * from './runtime/guards.js';
-export * from './runtime/move.js';
-export * from './runtime/audience.js';
-export * from './runtime/reading.js';
-export * from './runtime/describe.js';
-export * from './runtime/offers.js';
-export * from './runtime/options.js';
-export * from './runtime/view.js';
-export * from './runtime/engine-verbs.js';
-export * from './runtime/bus.js';
-export * from './runtime/faults.js';
-export * from './runtime/extension-fault.js';
-export * from './runtime/extension-values.js';
-export * from './runtime/extension-statements.js';
-export * from './runtime/draws.js';
-export * from './runtime/effects.js';
-export * from './runtime/levels.js';
-export * from './runtime/turn.js';
-export * from './runtime/command.js';
-export * from './runtime/line.js';
-export * from './runtime/intents.js';
-export * from './runtime/parser.js';
-export type { Address } from './runtime/parser/address.js';
-export type { Answer, AnswerName } from './runtime/parser/answers.js';
-export type { Drawn } from './runtime/parser/rank.js';
-export type { CommandExit } from './runtime/parser/exits.js';
-export * from './runtime/time.js';
-export * from './runtime/tick.js';
-export * from './runtime/wakes.js';
-export * from './runtime/wake.js';
-export * from './runtime/maintenance.js';
-export * from './runtime/arrival.js';
-export * from './runtime/nickname.js';
-export * from './runtime/departure.js';
-
-export * from './prose/names.js';
-export * from './prose/reflow.js';
-export * from './prose/render.js';
-export * from './prose/speech.js';
-export * from './prose/line-draws.js';
-export * from './prose/heard.js';
-export * from './prose/describe.js';
-export * from './prose/effects.js';
-export * from './prose/chips.js';
-export * from './prose/view.js';
-export * from './prose/acted.js';
+export * from './host/ids.js';
+export * from './host/time.js';
+export * from './host/levels.js';
+export * from './host/draws.js';
+export * from './host/stored.js';
+export * from './host/phrases.js';
+export * from './host/catalogue.js';
+export * from './host/cartridge.js';
+export * from './host/turns.js';
+export * from './host/faults.js';
+export * from './host/effects.js';
+export * from './host/nickname.js';
+export * from './host/view.js';

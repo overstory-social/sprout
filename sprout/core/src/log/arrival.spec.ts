@@ -1,72 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import { arrivalTurn, visitKey, type Effect } from '@overstory/sprout/lang';
+import { FAULTED, INPUTS, roundTrip, SAID } from '../fixtures/entries.js';
+import { ArrivalEntry, arrivalOf } from './arrival.js';
 
-import { COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
-import { committedState } from '../fixtures/committed.js';
-import { ArrivalEntry, arrivalEntry, arrivalOf, type RanArrival } from './arrival.js';
-
-const { host } = tally();
-const INES = visitKey('v-ines');
-const arrival = { visit: INES, nickname: 'Ines', now: 40, seed: 9, mayHold: 30 };
-const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false, extension: null };
+const admitted = {
+  kind: 'arrival',
+  ...INPUTS,
+  visit: 'v-ines',
+  nickname: 'Ines',
+  outcome: 'admitted',
+  fault: null,
+  effects: [SAID],
+  cutShort: [],
+} as const;
 
 describe('a visitor’s entry in the log', () => {
-  it('keeps the visit, the nickname they came with, its inputs and what it said', async () => {
-    const state = await committedState(await seeded(host), 'w', host);
-    const turn = arrivalTurn(state, host, arrival);
-    if (!turn.committed) throw new Error('Ines was not admitted');
-    const entry = arrivalEntry(arrival, host, turn);
-    expect(entry).toMatchObject({
-      kind: 'arrival',
-      visit: INES,
+  it('keeps the visit, the nickname they came with, its inputs and what it said', () => {
+    expect(ArrivalEntry.parse(roundTrip(admitted))).toEqual(admitted);
+  });
+
+  it('keeps a refusal, or a fault, by its outcome', () => {
+    for (const outcome of ['refused', 'faulted'] as const) {
+      const entry = { ...admitted, outcome, fault: outcome === 'faulted' ? FAULTED : null };
+      expect(ArrivalEntry.parse(roundTrip(entry))).toEqual(entry);
+    }
+    expect(ArrivalEntry.safeParse({ ...admitted, outcome: 'closed' }).success).toBe(false);
+  });
+
+  it('hands back the arrival as the host handed it over', () => {
+    expect(arrivalOf(ArrivalEntry.parse(admitted))).toEqual({
+      visit: 'v-ines',
       nickname: 'Ines',
-      now: 40,
-      seed: 9,
-      mayHold: 30,
-      outcome: 'admitted',
-      fault: null,
-    });
-    expect(entry.effects.map((e) => [e.kind, e.visit])).toContainEqual(['described', INES]);
-    expect(ArrivalEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
-    expect(arrivalOf(entry)).toEqual(arrival);
-    // Each reader the turn cut short is kept, in order, as a warning.
-    const cut = { ...turn, cutShort: [COUNTER, HALL] };
-    expect(arrivalEntry(arrival, host, cut).cutShort).toEqual([
-      { level: 'warning', to: COUNTER },
-      { level: 'warning', to: HALL },
-    ]);
-  });
-
-  it('keeps a refusal and the words it said', () => {
-    const said: Effect = {
-      kind: 'refused',
-      from: HALL,
-      actor: null,
-      to: HALL,
-      visit: INES,
-      paragraphs: ['Not you.'],
-      written: [],
-    };
-    const refused = {
-      committed: false,
-      refused: {},
-      seen: {},
-      effects: [said],
-    } as unknown as RanArrival;
-    expect(arrivalEntry(arrival, host, refused)).toMatchObject({
-      outcome: 'refused',
-      fault: null,
-      effects: [{ kind: 'refused', paragraphs: ['Not you.'] }],
-    });
-  });
-
-  it('keeps a fault, and nothing said in the world', () => {
-    const faulted: RanArrival = { committed: false, fault, words: 'Something went wrong.' };
-    expect(arrivalEntry(arrival, host, faulted)).toMatchObject({
-      outcome: 'faulted',
-      fault,
-      effects: [],
+      seed: 3,
+      mayHold: null,
+      now: 9,
     });
   });
 });
