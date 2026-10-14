@@ -45,7 +45,9 @@ import { wasmEngine } from '../engine.js';
 // over a memory store of each engine's own, the two given the same inputs,
 // and after each step what a host reads compared: every turn's given and
 // its account, the log's entries at debug depth, the stored world, and
-// every poll and question a host asks of it. The driver is the same for both engines, so
+// every poll and question a host asks of it; before a typed line runs,
+// each engine's reading of it (`Engine.parse`, what `sprout parse` prints)
+// is compared too. The driver is the same for both engines, so
 // how it plays a script (its seeds, when wakes fall due) is its own and
 // needs no other host's agreement.
 
@@ -178,16 +180,21 @@ async function attempt<T>(run: () => Promise<T>): Promise<T | { readonly threw: 
   }
 }
 
+/** What `run` gives, or that it threw. */
+function tried<T>(run: () => T): T | { readonly threw: true } {
+  try {
+    return run();
+  } catch {
+    return { threw: true };
+  }
+}
+
+/** The visit a script's nickname plays under. */
+const visitOf = (nickname: string) => visitKey(`visit:${nickname}`);
+
 /** Each engine's answers to every poll and question a host asks of `stored` at `now`. */
 function asked(engine: Engine, stored: StoredState, now: number): unknown {
   const visits = stored.visitors.map((one) => one.visit as VisitKey);
-  const tried = <T>(run: () => T): T | { threw: true } => {
-    try {
-      return run();
-    } catch {
-      return { threw: true };
-    }
-  };
   return {
     occupied: engine.occupiedPlaces(stored),
     due: engine.dueWakes(stored, now),
@@ -256,6 +263,18 @@ export async function playBoth(
     if ('seed' in step) seed = step.seed;
     if (!plays(step)) continue;
     const stepSeed = seed++;
+    const where = `step ${index + 1}`;
+    if ('as' in step) {
+      const read = async (which: 'ts' | 'wasm') => {
+        const stored = await pair.stores[which].read('w', (tx) => tx.state());
+        return tried(() => pair[which].engine!.parse(stored, visitOf(step.as), step.type));
+      };
+      const misread = differs(`${where}'s line read`, await read('ts'), await read('wasm'));
+      if (misread !== null) {
+        problems.push(misread);
+        break;
+      }
+    }
     const turns = { ts: [] as unknown[], wasm: [] as unknown[] };
     for (const which of ['ts', 'wasm'] as const) {
       turns[which] = await playStep(
@@ -268,7 +287,6 @@ export async function playBoth(
       );
     }
     if ('advance' in step) now += secondsOf(step.advance) ?? 0;
-    const where = `step ${index + 1}`;
     const storedTs = await pair.stores.ts.read('w', (tx) => tx.state());
     const storedWasm = await pair.stores.wasm.read('w', (tx) => tx.state());
     const found =
@@ -303,7 +321,6 @@ async function playStep(
   now: number,
 ): Promise<unknown[]> {
   const at = { seed, mayHold: null, now };
-  const visitOf = (nickname: string) => visitKey(`visit:${nickname}`);
   if ('arrive' in step) {
     const admitted = await attempt(() =>
       runArrival(

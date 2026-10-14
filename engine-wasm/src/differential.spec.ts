@@ -11,7 +11,8 @@ import { engineBuilt, NOT_BUILT } from './wasm.js';
 // world played step by step through core over the TypeScript engine and
 // the WebAssembly engine alike, and after each step every turn's given,
 // the log at debug depth, the stored world and every poll and question
-// compared (fixtures/differential.ts). Every world plays alike; one that
+// compared, and each typed line as each engine reads it before it runs
+// (fixtures/differential.ts). Every world plays alike; one that
 // does not fails, naming the first step where the two differ.
 
 const CORPUS = fileURLToPath(new URL('../../corpus/good', import.meta.url));

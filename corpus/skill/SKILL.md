@@ -130,7 +130,7 @@ sprout — a Sprout microworld on the command line
                                       runtime loads in place of the source; without -o, <name>.sproutworld;
                                       the image files it names are copied into <file>.assets/
   sprout parse [dir]                  every phrase the world accepts
-  sprout parse dir "line" [--at place] [--as name]
+  sprout parse dir "line" [--at place] [--as name] [--engine ts|wasm]
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--engine ts|wasm]
                                       what a visitor standing there is shown and could type; --scene the
@@ -154,9 +154,9 @@ sprout — a Sprout microworld on the command line
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
-                                      view, play, test and mcp run the world on the TypeScript engine (ts) or the
-                                      C engine built for WebAssembly (wasm): wasm where it is built, and ts,
-                                      said on stderr, where it is not, unless --engine names one
+                                      parse, view, play, test and mcp run the world on the TypeScript engine (ts)
+                                      or the C engine built for WebAssembly (wasm): wasm where it is built, and
+                                      ts, said on stderr, where it is not, unless --engine names one
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]

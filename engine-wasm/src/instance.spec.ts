@@ -88,6 +88,23 @@ describe.skipIf(!engineBuilt())('an instance of the engine', () => {
     expect(instance.dueWakes(0)).toEqual([]);
   });
 
+  it('reads a typed line over the live state, each command its own, and runs none of it', () => {
+    const instance = tally();
+    const saved = instance.save();
+    const read = instance.parse(visitKey('v-marta'), 'bump counter then frobnicate');
+    expect(read.map((one) => one.text)).toEqual(['bump counter', 'frobnicate']);
+    expect(read[0]).toMatchObject({
+      reading: {
+        verb: 'tally.bump',
+        roles: [{ name: 'target', filler: { object: { name: 'a counter' } } }],
+      },
+      refused: null,
+    });
+    expect(read[1]).toMatchObject({ answered: { passage: 'unknown' } });
+    expect(instance.save()).toBe(saved);
+    expect(() => instance.parse(visitKey('v-nobody'), 'look')).toThrow(/never visited/);
+  });
+
   it('refuses what it cannot read, in words', () => {
     const instance = tally();
     expect(() => instance.command({ visit: 'v-marta' }, { seed: 0, now: 0 })).toThrow(

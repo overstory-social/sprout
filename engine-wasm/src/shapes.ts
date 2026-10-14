@@ -18,7 +18,14 @@ import {
   type StoredChanges,
   type WrittenAt,
 } from '@overstory/sprout/lang';
-import { LogEntry, type Account, type TurnEntry } from '@overstory/sprout/core';
+import {
+  LogEntry,
+  type Account,
+  type ParsedCommand,
+  type ParsedFiller,
+  type ParsedReading,
+  type TurnEntry,
+} from '@overstory/sprout/core';
 
 // What the WebAssembly engine answers, read as the language's shapes (the
 // runtime-c/wasm/engine/ exports): every answer is JSON, checked here once
@@ -260,6 +267,61 @@ export const DueWakesSchema: z.ZodType<DueWake[], unknown> = z.array(
 export const HearersSchema = z.object({ place: Id, to: z.array(Visit) }).nullable();
 
 export const StandingSchema = z.object({ place: Thing, here: z.array(Thing) }).nullable();
+
+const ParsedFillerSchema: z.ZodType<ParsedFiller, unknown> = z.union([
+  z.object({ object: Thing }),
+  z.object({ set: z.array(Thing) }),
+  z.object({ exit: z.object({ direction: z.string().nullable(), label: z.string(), to: Id }) }),
+  z.object({ value: z.union([z.string(), z.number()]), symbol: z.boolean() }),
+]);
+
+const ParsedReadingSchema: z.ZodType<ParsedReading, unknown> = z.object({
+  verb: z.string().min(1),
+  roles: z.array(z.object({ name: z.string().min(1), filler: ParsedFillerSchema.nullable() })),
+});
+
+const DrawnSchema = z
+  .object({ among: z.number().int().min(2), meant: z.array(z.string()).nullable() })
+  .nullable();
+
+/** What a typed line would make, each command it holds read and never run (engine/parsing.c). */
+export const ParsedSchema: z.ZodType<ParsedCommand[], unknown> = z.array(
+  z.union([
+    z.object({
+      text: z.string(),
+      faulted: z.object({ name: z.string().min(1), detail: z.string() }),
+    }),
+    z.object({
+      text: z.string(),
+      answered: z.object({
+        passage: z.string().min(1).nullable(),
+        paragraphs: z.array(z.string()),
+      }),
+    }),
+    z.object({
+      text: z.string(),
+      reading: ParsedReadingSchema,
+      drawn: DrawnSchema,
+      refused: z
+        .object({
+          by: Thing.nullable(),
+          role: z.string().min(1),
+          origin: z.string().min(1).nullable(),
+          paragraphs: z.array(z.string()),
+        })
+        .nullable(),
+    }),
+    z.object({
+      text: z.string(),
+      intent: z.object({
+        name: z.string().min(1),
+        slots: z.array(z.object({ name: z.string().min(1), thing: Thing.nullable() })),
+      }),
+      drawn: DrawnSchema,
+      steps: z.array(ParsedReadingSchema),
+    }),
+  ]),
+);
 
 /** `text` read as JSON and checked against `schema`, or an error naming what the engine answered. */
 export function read<T>(schema: z.ZodType<T, unknown>, text: string, what: string): T {

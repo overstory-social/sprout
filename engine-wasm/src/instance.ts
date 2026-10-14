@@ -7,6 +7,7 @@ import {
   HearersSchema,
   LineCommandSchema,
   NicknameSchema,
+  ParsedSchema,
   PlacesSchema,
   ReadingsSchema,
   SceneSchema,
@@ -236,6 +237,15 @@ export class WasmInstance {
       StandingSchema,
       this.call('sw_standing', ...this.strings(visit)),
       'where one stands',
+    );
+  }
+
+  /** What `text`, typed by `visit`, would make: each command it holds, read over the live state and never run. */
+  parse(visit: VisitKey, text: string) {
+    return read(
+      ParsedSchema,
+      this.call('sw_parse', ...this.strings(JSON.stringify({ visit, text }))),
+      'a line read',
     );
   }
 
