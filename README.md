@@ -183,8 +183,11 @@ account at play.date, which the console then fetches over Wi-Fi.
 A cartridge made by `sprout pack` and copied into the app's Data folder (in the Simulator,
 `$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The pdx
 carries the graduated worlds listed in `sprout-player/worlds.json`, today the worked microworld
-`printers_shop` and the studio's finished `underground_caverns`, reached by path in a
-`sprout-studio` checkout beside this one; a world may list `plays`, scripts under its folder the
+`printers_shop` and the studio's finished `underground_caverns`, a snapshot pinned in
+`sprout-player/worlds/underground_caverns/` whose `source.json` names the studio commit it was
+copied at (new content lands in sprout-studio; to release it into the Playdate build, run
+`node scripts/sync-world.mjs underground_caverns <path to a sprout-studio checkout>` by hand and
+read the diff; the build never reads outside this repository); a world may list `plays`, scripts under its folder the
 build plays through `sproutc` with the view polled first under the app's poll budget, so the pdx
 never ships a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
 shelf's last row fetches more from a signed index

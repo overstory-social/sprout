@@ -1,0 +1,758 @@
+// The Dome and what lies under it, as dungeon.zil joins them: the Dome
+// Room and its railing, the Torch Room with the ivory torch on its
+// pedestal, the Temple with its brass bell and its prayer, the Altar with
+// the black book and the candles, and the Egyptian Room with the gold
+// coffin of Ramses II and the sceptre inside it. The rope from the Attic,
+// tied to the railing, is the only way down (ROPE-FUNCTION, DOME-ROOM-FCN,
+// TORCH-ROOM-FCN), and there is no way back up it; the way out is to pray
+// at the Altar (V-PRAY), which leads up to the Forest. The hole in the
+// Altar's floor leads down to the Cave above Hades (v8), and refuses the
+// coffin, as Zork's COFFIN-CURE does. The bell, the book and the candles
+// are for the exorcism at the gates of Hell (hades.sprout).
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Flame, Tieable, Switchable} from 'thing'
+import {Light} from 'lamp'
+import {Box} from 'box'
+import {Treasure, Readable, Water, Sharp} from 'items'
+import {RainbowFoot, RainbowTop, RainbowEnd} from 'river'
+import {Matchbook} from 'dam'
+import {Room, DarkRoom} from 'room'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {open, close, look_in, read, climb_over, leap_at, through, climb_up, climb_down, tie, untie, ring, burn, turn, tally, lamp_on, lamp_off, wave, raise, take, kiss, listen, smell, rub, rub_with, :travel, :cool, :dome_rope, :consume, :snuffed, :open_gate, :gate_open, :close_gate, :die, :relight, :candle_burn, :let_go, :rainbow, :light, :blow_out} from 'verbs'
+import {engravings_cave} from 'east'
+import {HadesGate} from 'hades'
+import {BelowAltar, tiny_cave} from 'mirror'
+
+// The rooms the rope and the coffin and the prayer care about.
+kind DomeRoom is DarkRoom { :roped false }
+kind AltarRoom is Room { }
+kind TempleRoom is Room { }
+
+object dome_room is DomeRoom in underground_caverns {
+  :tour 38
+  grammar {
+    name "Dome Room"
+    exit west "west" -> engravings_cave
+    exit down "rope" -> torch_room when (self.get(:roped))
+    exit down "rope" refuse "You cannot go down without fracturing many bones."
+  }
+  passage body {
+    You are at the periphery of a large dome, which forms the ceiling of another room below. Protecting you from a precipitous drop is a wooden railing which circles the dome.{if self.get(:roped)}
+
+    Hanging down from the railing is a rope which ends about ten feet from the floor below.{/if}
+  }
+  on :dome_rope (from, value) { self.set(:roped, value) }
+
+  // The rope, dropped here and tied to nothing, goes over the railing to
+  // the floor below, through the world's gate (ROPE-FUNCTION's DROP; the
+  // visitor's `drop` marks it as going over).
+  on :entered (item, from) {
+    // DOME-ROOM-FCN's M-ENTER: the dead are drawn over the railing and down.
+    if (item.is(Adventurer)) {
+      if (item.get(:dead)) {
+        tell item "As you enter the dome you feel a strong pull as if from a wind drawing you over the railing and down."
+        send item :travel with :torch_room
+      }
+    }
+    if (item.is(Rope) && from.is(Adventurer)) {
+      if (item.get(:over) && !item.get(:tied)) { send underground_caverns :open_gate }
+    }
+  }
+  on :gate_open {
+    each r: Rope in self { if (r.get(:over) && !r.get(:tied)) { move r to torch_room } }
+    send underground_caverns :close_gate
+  }
+
+  object railing is Railing {
+    passage view { The railing is of dark, polished wood, waist-high, running all the way round the edge of the dome. Beyond it is a precipitous drop to the floor of a room below, a good twenty feet down. The railing is very solid, its posts as thick as a wrist and sunk deep in the stone, the sort of thing a careful person makes something fast to before trusting the drop. It is the most reassuring thing you have seen in some time. }
+    passage below { You lean over the railing. The dome falls away beneath you to the floor of a room below, a good twenty feet down: too far to drop, and nothing between you and it but air.{if dome_room.get(:roped)} The rope hangs into it from the rail and ends some ten feet short of the floor.{/if} }
+  }
+  object dome is Dome {
+    grammar { nouns "drop", "room" }
+    passage view { The dome curves away beneath you, a great bowl of smooth stone with the railing round its rim. It is the ceiling of a room below, seen, unusually, from above. }
+  }
+}
+
+object torch_room is DarkRoom in underground_caverns {
+  :tour 39
+  grammar {
+    name "Torch Room"
+    exit up    "rope"      refuse "You cannot reach the rope."
+    exit south "south"     -> temple
+    exit down  "staircase" -> temple
+  }
+  :roped false
+  // Lit by the torch on its pedestal until somebody takes it away.
+  :alight true
+  passage body {
+    This is a large room with a prominent doorway leading to a down staircase. Above you is a large dome. Up around the edge of the dome (20 feet up) is a wooden railing. In the center of the room sits a white marble pedestal.{if self.get(:roped)}
+
+    A piece of rope descends from the railing above, ending some five feet above your head.{/if}
+  }
+  on :dome_rope (from, value) { self.set(:roped, value) }
+
+  object pedestal is Pedestal {
+    object torch is Torch
+  }
+  // The dome overhead, and the end of the rope hanging from its railing,
+  // which is there to be seen only while the rope is tied.
+  object dome is Dome {
+    contains
+    :roped false
+    pass any (self.get(:roped))
+    on :dome_rope (from, value) { self.set(:roped, value) }
+    passage view { The dome is high overhead, a great bowl of stone with a wooden railing round its rim, twenty feet up. {if self.get(:roped)}A rope hangs from the railing, ending some five feet above your head.{else}Nothing hangs from it.{/if} }
+    object rope_end is Scenery {
+      grammar { name "rope"  nouns "end"  adjectives "hanging", "dangling" }
+      passage short { rope }
+      passage no_take { You cannot reach the rope. }
+      describe { text "The end of the rope hangs from the railing far above, swaying a little, some five feet above your head: just out of reach, the way ropes are when it matters." }
+      without as target for climb_up from Thing
+      as target for climb_up { do { say "You cannot reach the rope." } }
+      without as target for climb_down from Thing
+      as target for climb_down { do { say "You cannot reach the rope." } }
+    }
+  }
+  object railing is Railing {
+    passage view { Twenty feet overhead a wooden railing runs round the rim of the dome, well out of reach. }
+  }
+  object doorway is Scenery {
+    grammar { name "doorway"  nouns "door", "arch", "opening"  adjectives "prominent", "down" }
+    passage short { doorway }
+    describe { text "The doorway is tall and plain and rather grand, the kind of doorway that expects processions. Through it a staircase goes down." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "staircase" }
+    passage view { Through the doorway a broad staircase goes down, its steps shallow and many, made for walking slowly and with dignity. }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down { do { send actor :travel with :temple  say "" } }
+  }
+}
+
+object temple is TempleRoom in underground_caverns {
+  grammar {
+    name "Temple"
+    exit down  "staircase" -> egyptian_room
+    exit east  "east"      -> egyptian_room
+    exit north "pillars"   -> torch_room
+    exit out   "out"       -> torch_room
+    exit up    "up"        -> torch_room
+    exit south "south"     -> altar
+  }
+  :walls 5
+  passage body {
+    This is the north end of a large temple. On the east wall is an ancient inscription, probably a prayer in a long-forgotten language. Below the prayer is a staircase leading down. The west wall is solid granite. The exit to the north end of the room is through huge marble pillars.
+  }
+
+  object bell is Bell
+  object prayer is Scenery {
+    grammar { name "prayer"  nouns "inscription", "script", "writing", "verse"  adjectives "ancient", "old", "east" }
+    passage short { prayer }
+    passage words {
+      The prayer is inscribed in an ancient script, rarely used today. It seems to be a philippic against small insects, absent-mindedness, and the picking up and dropping of small objects. The final verse consigns trespassers to the land of the dead. All evidence indicates that the beliefs of the ancient Zorkers were obscure.
+    }
+    describe { text "The inscription is cut deep into the east wall, in an ancient script, rarely used today. It is probably a prayer. Read, it may say so." }
+    without as target for read from Thing
+    as target for read { do { say words } }
+  }
+  object pillars is Scenery {
+    grammar { name "marble pillars"  nouns "pillar", "pillars", "columns", "column", "exit"  adjectives "huge", "marble", "north" }
+    passage short { marble pillars }
+    describe { text "The pillars are huge, white marble, fluted and tall, and stand in a row across the north end of the temple, between which the way out lies. They have the air of holding up a great deal more than a ceiling." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "staircase" }
+    passage view { Below the prayer a staircase goes down, steep and narrow, into the dark. A smell of old spice comes up it. }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down { do { send actor :travel with :egypt  say "" } }
+  }
+  object granite is Scenery {
+    grammar { name "granite"  adjectives "solid", "west" }
+    passage short { granite }
+    describe { text "The west wall is a single face of solid granite, grey and flecked and polished smooth, with nothing on it at all. Whoever built the temple put everything they had to say on the other wall." }
+  }
+  object hall is TempleHall {
+    passage view { The temple is large and dim and very quiet, the north end of a long hall whose far end, to the south, holds an altar. The air smells of cold stone and old incense. Whatever was worshipped here has not been in for some time. }
+  }
+}
+
+object altar is AltarRoom in underground_caverns {
+  grammar {
+    name "Altar"
+    exit north "north" -> temple
+    exit down  "hole"  -> tiny_cave
+  }
+  passage body {
+    This is the south end of a large temple. In front of you is what appears to be an altar. In one corner is a small hole in the floor which leads into darkness. You probably could not get back up it.
+  }
+
+  object stone is AltarStone {
+    object book is BlackBook
+    object candles is Candles
+  }
+  object hole is Scenery {
+    grammar { name "small hole"  nouns "hole", "corner", "darkness"  adjectives "small", "dark" }
+    passage short { small hole }
+    describe { text "The hole in the corner of the floor is small and round and goes straight down into darkness. A cold draught comes up out of it, and with it a faint sound, like a great many people sighing a very long way off. It is wide enough for a body, though not for much of a coffin, and you probably could not get back up it." }
+    passage down { {if actor.is(Adventurer)}{if actor.get(:coffins) > 0}You haven't a prayer of getting the coffin down there.{/if}{/if} }
+    without as target for look_in from Thing
+    as target for look_in { do { say "It is dark down there, and a long way down, and something further down still is sighing." } }
+    // Down the hole by name, or into it, or through it: the way down, which
+    // will not take the coffin (COFFIN-CURE).
+    without as target for climb_down from Thing
+    as target for climb_down { do { if (actor.is(Adventurer)) { if (actor.get(:coffins) > 0) { say down } else { send actor :travel with :tiny_cave  say "" } } } }
+    without as target for through from Thing
+    as target for through { do { if (actor.is(Adventurer)) { if (actor.get(:coffins) > 0) { say down } else { send actor :travel with :tiny_cave  say "" } } } }
+    without as target for leap_at from Thing
+    as target for leap_at { do { if (actor.is(Adventurer)) { if (actor.get(:coffins) > 0) { say down } else { send actor :travel with :tiny_cave  say "" } } } }
+  }
+  object hall is TempleHall {
+    passage view { This end of the temple is plainer than the other, as though everything worth the effort had been saved for the altar. Your footsteps come back to you from the north end a moment late. }
+  }
+}
+
+object egyptian_room is DarkRoom in underground_caverns {
+  :tour 37
+  grammar {
+    name "Egyptian Room"
+    exit west "west"      -> temple
+    exit up   "staircase" -> temple
+  }
+  passage body {
+    This is a room which looks like an Egyptian tomb. There is an ascending staircase to the west.
+  }
+  object coffin is Coffin {
+    object sceptre is Sceptre
+  }
+  object tomb is Scenery {
+    grammar { name "tomb"  nouns "room", "walls", "paintings", "hieroglyphs", "hieroglyphics", "figures"  adjectives "egyptian", "painted" }
+    passage short { tomb }
+    describe { text "The walls are painted from floor to ceiling with figures in profile, walking in solemn single file toward the west, carrying jars, birds, sheaves of wheat and one another. All of them are in a great hurry to get somewhere, and none of them has moved in three thousand years. Somebody important was buried here, and somebody else has been tidying up after him." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "staircase"  adjectives "ascending" }
+    passage view { The staircase climbs west out of the tomb, steep and narrow, toward the temple above. }
+    as target for climb_up   { do { send actor :travel with :temple  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+}
+
+// The rope from the Attic. Tied to the Dome's railing it hangs down into
+// the Torch Room and may be climbed down, and not taken; let go of in the
+// Dome untied, it goes over the edge (ROPE-FUNCTION).
+kind Rope is Portable, Tieable {
+  grammar { name "rope"  nouns "hemp", "coil"  adjectives "large" }
+  :sacred true
+  :has_fdesc true
+  :size 10
+  :tied false
+  // Let go of at the Dome's rail, on its way over the edge.
+  :over false
+  on :let_go { self.set(:over, true) }
+  on :moved (from, to) { if (!from.is(Adventurer)) { self.set(:over, false) } }
+  passage short { rope }
+  passage fdesc { A large coil of rope is lying in the corner. }
+  describe {
+    if (self.get(:tied)) { text "The rope is tied fast to the wooden railing and hangs down over it into the room below, ending about ten feet from the floor. The knot looks good. You tied it, so you would know." }
+    else { text "It is a good length of stout hemp rope, coiled with more care than anything else in the attic was put away. Someone expected to need it." }
+  }
+  without as target for tie from Tieable
+  as target for tie {
+    do {
+      if (bound tool) {
+        if (tool.is(Railing)) {
+          if (!here.is(DomeRoom)) { say "You can't reach the railing from here." }
+          else if (self.get(:tied)) { say "The rope is already tied to it." }
+          else {
+            self.set(:tied, true)
+            self.set(:ndesc, true)
+            say "The rope drops over the side and comes within ten feet of the floor."
+            broadcast :dome_rope with true
+          }
+        } else if (tool.is(Thing)) { say "You can't tie the rope to that." }
+        else { say "You can't tie anything to yourself." }
+      } else { say "You'll have to say what to tie the rope to." }
+    }
+  }
+  as target for untie {
+    do {
+      if (self.get(:tied)) {
+        self.set(:tied, false)
+        self.set(:ndesc, false)
+        say "The rope is now untied."
+        broadcast :dome_rope with false
+      } else { say "It is not tied to anything." }
+    }
+  }
+  without as target for climb_down from Thing
+  as target for climb_down {
+    do {
+      if (self.get(:tied) && here.is(DomeRoom)) { send actor :travel with :torch_room  say "" }
+      else { say "You can't do that!" }
+    }
+  }
+  without as target for climb_up from Thing
+  as target for climb_up {
+    do {
+      if (self.get(:tied)) { say "The rope goes down from here, and so would you." }
+      else { say "You can't do that!" }
+    }
+  }
+}
+
+// The Dome's wooden railing, from beside it or from twenty feet below.
+kind Railing is Scenery {
+  grammar { name "wooden railing"  nouns "railing", "rail", "banister"  adjectives "wooden" }
+  passage short { wooden railing }
+  passage view default { It is a wooden railing. }
+  passage below default { The railing is twenty feet over your head, and so is everything beyond it. }
+  describe { text view }
+  without as target for look_in from Thing
+  as target for look_in { do { say below } }
+  // Over the Dome's rail is Zork's leap, and its end (DOME-ROOM-FCN).
+  without as target for climb_over from Thing
+  as target for climb_over {
+    do {
+      if (here.is(DomeRoom)) {
+        say "I'm afraid that the leap you attempted has done you in."
+        if (actor.is(Adventurer)) { send actor :die }
+      } else { say "The railing is twenty feet over your head." }
+    }
+  }
+  without as target for leap_at from Thing
+  as target for leap_at {
+    do {
+      if (here.is(DomeRoom)) {
+        say "I'm afraid that the leap you attempted has done you in."
+        if (actor.is(Adventurer)) { send actor :die }
+      } else { say "The railing is twenty feet over your head." }
+    }
+  }
+}
+
+// The dome, from its rim or from the floor beneath it.
+kind Dome is Scenery {
+  grammar { name "dome"  nouns "ceiling", "bowl"  adjectives "large", "stone" }
+  passage short { dome }
+  passage view default { It is a large dome. }
+  describe { text view }
+  without as target for kiss from Thing
+  as target for kiss { do { say "No." } }
+}
+
+// Either end of the temple, which is one long hall.
+kind TempleHall is Scenery {
+  grammar { name "temple"  nouns "hall", "sanctuary"  adjectives "large" }
+  passage short { temple }
+  passage view default { It is a large temple. }
+  describe { text view }
+}
+
+// The white marble pedestal in the Torch Room: something to set a torch on,
+// and nothing more (Zork's DUMB-CONTAINER).
+kind Pedestal is Box {
+  grammar { name "pedestal"  nouns "plinth", "stand"  adjectives "white", "marble" }
+  :open true
+  :surface true
+  :ndesc true
+  :capacity 30
+  passage short { pedestal }
+  passage examined {
+    It is a white marble pedestal, waist-high and carved round its foot with a frieze of figures carrying torches in procession, every one of them facing the middle of the room. It has been made for one thing to stand on it, and to be looked at.
+
+    {self.look_inside}
+  }
+  without as target for open from Box
+  without as target for close from Box
+  without as target for look_in from Box
+  as target for open    { do { say "You can't do that." } }
+  as target for close   { do { say "You can't do that." } }
+  as target for look_in { do { say "You can't do that." } }
+}
+
+// The altar at the south end of the temple: a surface, holding the black
+// book and the candles.
+kind AltarStone is Box {
+  grammar { name "altar"  nouns "slab", "table"  adjectives "stone" }
+  :open true
+  :surface true
+  :ndesc true
+  :capacity 50
+  passage short { altar }
+  passage examined {
+    The altar is a single slab of dark stone, long enough to lie down on, which is a thought you put away at once. Its top is worn smooth in the middle and scorched black at either end, where candles have stood and burned for a very long time.
+
+    {self.look_inside}
+  }
+  without as target for close from Box
+  as target for close { do { say "You cannot close that." } }
+}
+
+// The ivory torch: a treasure, and a light that does not go out. It burns
+// what will burn, and it vaporizes the candles (TORCH-OBJECT).
+kind Torch is Treasure, Flame {
+  grammar { name "torch"  nouns "ivory", "treasure"  adjectives "flaming", "ivory" }
+  :lit true
+  :has_fdesc true
+  :size 20
+  :value 14
+  :tvalue 6
+  passage short { torch }
+  passage fdesc { Sitting on the pedestal is a flaming torch, made of ivory. }
+  passage ldesc { There is a torch here (providing light). }
+  describe {
+    text "It is a torch of old ivory, yellowed and carved along its length with a procession of tiny figures, every one of them carrying a tiny torch. The flame at its head burns steadily, without smoke and without visible fuel, and shows no sign of ever having been lit or of ever going out. Left anywhere, you suspect, it would go on lighting the place whether or not anyone was there to see by it. The torch is burning."
+  }
+  without as target for lamp_on from Switchable
+  as target for lamp_on { do { say "It is already on." } }
+  without as target for lamp_off from Switchable
+  as target for lamp_off { do { say "You nearly burn your hand trying to extinguish the flame." } }
+}
+
+// The candles on the altar: lit, and burning down once somebody has
+// disturbed them, as Zork's I-CANDLES has them; put out, there is nothing
+// down here to light them again but the torch, which is too much for them.
+kind Candles is Flame {
+  grammar { name "pair of candles"  nouns "candles", "candle", "pair", "wax"  adjectives "burning", "two" }
+  :lit true
+  :has_fdesc true
+  :size 10
+  // How far they have burned down: 0 not yet started, 1 to 3 shorter and
+  // shorter, 4 burned out.
+  :stage 0 min 0 max 4
+  :started false
+  // Scratch, for putting them out: how many other lights are left.
+  :others 0 min 0 max 50
+  passage short { pair of candles }
+  passage fdesc { On the two ends of the altar are burning candles. }
+  passage ldesc { There is a pair of candles here{if self.get(:lit)} (providing light){/if}. }
+  describe {
+    text "They are two tall candles of yellow wax, {if self.get(:stage) == 0}hardly burned at all{else if self.get(:stage) == 1}burned down a fair way{else if self.get(:stage) == 2}burned down to stubs{else}burned down to almost nothing{/if}. {if self.get(:lit)}The candles are burning.{else}The candles are out.{/if}"
+  }
+
+  // Blown out by the draught in the Tiny Cave (CAVE2-ROOM), in hand.
+  on :blow_out {
+    if (self.get(:lit)) {
+      self.set(:lit, false)
+      cancel wakes
+      broadcast :snuffed
+    }
+  }
+  // Disturbed for the first time, they start to burn down.
+  on :moved (from, to) {
+    if (!self.get(:started) && self.get(:lit)) {
+      self.set(:started, true)
+      wake in 20 minutes
+    }
+  }
+  // What they say as they burn down is told by whoever holds them, or
+  // whoever stands by them: a held thing's own `tell` goes no further than
+  // the pocket it is in (friction 73).
+  on :woke (elapsed) {
+    if (self.get(:lit)) {
+      self.adjust(:stage, 1)
+      if (self.get(:stage) == 1) { wake in 10 minutes }
+      else if (self.get(:stage) == 2) { wake in 5 minutes }
+      else if (self.get(:stage) == 3) { wake in 150 seconds }
+      else { self.set(:lit, false) }
+      broadcast :candle_burn with self.get(:stage)
+      if (self.get(:stage) >= 4) { broadcast :snuffed }
+    }
+  }
+
+  without as target for lamp_on from Switchable
+  as target for lamp_on {
+    do {
+      // Lit already with the match in hand, by the lighter's own part.
+      if (actor.is(Adventurer) && actor.get(:kindled)) { }
+      else if (self.get(:stage) >= 4) { say "Alas, there's not much left of the candles. Certainly not enough to burn." }
+      else if (self.get(:lit)) { say "The candles are already lit." }
+      else { say "You should say what to light them with." }
+    }
+  }
+  without as target for lamp_off from Switchable
+  as target for lamp_off {
+    do {
+      if (self.get(:lit)) {
+        self.set(:lit, false)
+        cancel wakes
+        // Zork's line for a room gone dark: only if no other light is left,
+        // counted as the lamp counts it (lamp.sprout).
+        self.set(:others, 0)
+        if (here.is(DarkRoom)) {
+          if (actor.holds(self)) {
+            if (actor.is(Adventurer) && actor.get(:light) > 1) { self.set(:others, 1) }
+            if (here.get(:floor_lit) || here.get(:bearers) > 1) { self.set(:others, 1) }
+          } else {
+            each l: Light in here { if (l != self && l.get(:lit)) { self.adjust(:others, 1) } }
+            each b: Box in here {
+              if (b.get(:open)) { each l: Light in b { if (l != self && l.get(:lit)) { self.adjust(:others, 1) } } }
+            }
+            if (here.get(:bearers) > 0) { self.set(:others, 1) }
+          }
+        }
+        if (here.is(DarkRoom) && !here.get(:daylight) && self.get(:others) == 0) { say "The flame is extinguished. It's really dark in here...." }
+        else { say "The flame is extinguished." }
+        if (actor.holds(self)) { send actor :snuffed } else { send here :relight }
+      } else { say "The candles are not lighted." }
+    }
+  }
+  without as target for burn from Thing
+  as target for burn {
+    do {
+      if (self.get(:stage) >= 4) { say "Alas, there's not much left of the candles. Certainly not enough to burn." }
+      else if (bound tool) {
+        if (tool.is(Torch)) {
+          if (self.get(:lit)) { say "You realize, just in time, that the candles are already lighted." }
+          else {
+            say "The heat from the torch is so intense that the candles are vaporized."
+            send self :consume
+          }
+        } else if (tool.is(Matchbook)) {
+          if (!tool.get(:lit)) { say "You have to light them with something that's burning, you know." }
+          else if (self.get(:lit)) { say "The candles are already lit." }
+          else {
+            // CANDLES-FCN, lit by the match: they burn down from where they
+            // were.
+            self.set(:lit, true)
+            self.set(:started, true)
+            cancel wakes
+            if (self.get(:stage) == 0) { wake in 20 minutes }
+            else if (self.get(:stage) == 1) { wake in 10 minutes }
+            else if (self.get(:stage) == 2) { wake in 5 minutes }
+            else { wake in 150 seconds }
+            say "The candles are lit."
+            if (actor.holds(self)) { send actor :light with 1 } else { send here :relight }
+          }
+        } else if (tool.is(Flame)) { say "You have to light them with something that's burning, you know." }
+        else if (tool.is(Thing)) { say "With a {tool.short}??!?" }
+        else { say "With that??!?" }
+      } else { say "You should say what to light them with." }
+    }
+  }
+  without as target for tally from Thing
+  as target for tally { do { say "Let's see, how many objects in a pair? Don't tell me, I'll get it." } }
+}
+
+// The black book on the altar, open to page 569 and not to be closed. It
+// burns, and whoever burns it is answered (BLACK-BOOK).
+kind BlackBook is Readable {
+  grammar { name "black book"  nouns "book", "prayer", "page", "books", "commandment"  adjectives "large", "black" }
+  :has_fdesc true
+  :size 10
+  :burnable true
+  passage short { black book }
+  passage fdesc { On the altar is a large black book, open to page 569. }
+  passage words {
+    Commandment #12592
+
+    Oh ye who go about saying unto each: "Hello sailor":
+
+    Dost thou know the magnitude of thy sin before the gods?
+
+    Yea, verily, thou shalt be ground between two stones.
+
+    Shall the angry gods cast thy body into the whirlpool?
+
+    Surely, thy eye shall be put out with a sharp stick!
+
+    Even unto the ends of the earth shalt thou wander and
+
+    Unto the land of the dead shalt thou be sent at last.
+
+    Surely thou shalt repent of thy cunning.
+  }
+  describe {
+    text "It is a large book bound in black leather, heavy as a paving stone, its pages edged in tarnished gold. It lies open to page 569, and does not look as though it has ever been anything else."
+  }
+  // Read at the gates of Hell while the spirits cower before the candles,
+  // it is the end of them (LLD-ROOM's READ): the visitor's own part has
+  // told the room so.
+  passage begone { Each word of the prayer reverberates through the hall in a deafening confusion. As the last word fades, a voice, loud and commanding, speaks: "Begone, fiends!" A heart-stopping scream fills the cavern, and the spirits, sensing a greater power, flee through the walls. }
+  without as target for read from Readable
+  as target for read {
+    permit {
+      if (actor.is(Adventurer)) {
+        if (!actor.holds(self) && actor.get(:load) + self.get(:size) > 100) { refuse "(Taking the {self.short} first) {actor.too_heavy}" }
+      }
+      if (self.get(:sealed)) { refuse "You can't reach something that's inside a closed container." }
+    }
+    do {
+      if (!actor.holds(self)) {
+        move self to actor
+        say "(Taken)"
+      }
+      if (here.is(HadesGate) && here.get(:phase) == 2 && !here.get(:exorcised)) { say begone }
+      else { say words }
+    }
+  }
+  without as target for open from Thing
+  as target for open { do { say "The book is already open to page 569." } }
+  without as target for close from Thing
+  as target for close { do { say "As hard as you try, the book cannot be closed." } }
+  without as target for turn from Thing
+  as target for turn {
+    do { say "Beside page 569, there is only one other page with any legible printing on it. Most of it is unreadable, but the subject seems to be the banishment of evil. Apparently, certain noises, lights, and prayers are efficacious in this regard." }
+  }
+  without as target for burn from Thing
+  as target for burn {
+    do {
+      if (bound tool) {
+        if (tool.is(Flame)) {
+          if (tool.get(:lit)) {
+            say "A booming voice says \"Wrong, cretin!\" and you notice that you have turned into a pile of dust. How, I can't imagine."
+            send self :consume
+            if (actor.is(Adventurer)) { send actor :die }
+          } else { say "With a {tool.short}??!?" }
+        } else if (tool.is(Thing)) { say "With a {tool.short}??!?" }
+        else { say "With that??!?" }
+      } else { say "You didn't say with what!" }
+    }
+  }
+}
+
+// The gold coffin of Ramses II: a treasure, and a box with the sceptre in
+// it. It weighs 55 of the 100 a visitor can carry, as Zork's does, and it
+// will not go down the hole in the Altar's floor.
+kind Coffin is Box, Treasure {
+  grammar { name "gold coffin"  nouns "coffin", "casket", "treasure", "sarcophagus"  adjectives "solid", "gold", "golden" }
+  without as target for close from Thing
+  without as target for look_in from Thing
+  without as target for open from Thing
+  :size 55
+  :value 10
+  :tvalue 15
+  :sacred true
+  :capacity 35
+  passage short { gold coffin }
+  passage ldesc { The solid-gold coffin used for the burial of Ramses II is here. }
+  passage examined {
+    It is a coffin of solid gold, long and narrow and shaped to a man, with a face on the lid that is calm, handsome and very sure of its place in the world. Ramses II was buried in it, and has evidently been moved elsewhere since, which the face does not seem to know. It is magnificent, and it is enormously heavy.
+
+    {self.look_inside}
+  }
+}
+
+// The sceptre in the coffin: a treasure, a show of color when waved, and,
+// waved at Aragain Falls or the End of Rainbow, the thing that makes the
+// rainbow solid, or ordinary again (SCEPTRE-FUNCTION). Waved on the rainbow
+// itself, it is the end of the rainbow, and of the one standing on it. Its
+// point is sharp, which the magic boat does not care for.
+kind Sceptre is Treasure, Sharp {
+  grammar { name "sceptre"  nouns "scepter", "treasure"  adjectives "sharp", "egyptian", "ancient", "enameled", "ornamented" }
+  :has_fdesc true
+  :size 3
+  :value 4
+  :tvalue 6
+  passage short { sceptre }
+  passage fdesc { A sceptre, possibly that of ancient Egypt itself, is in the coffin. The sceptre is ornamented with colored enamel, and tapers to a sharp point. }
+  passage ldesc { An ornamented sceptre, tapering to a sharp point, is here. }
+  describe { text "The sceptre is a rod of gold as long as your forearm, ornamented with bands of colored enamel, blue and red and green, that seem to shift a little as you turn it. It tapers to a sharp point, which suggests that whoever held it was not always asked twice." }
+  passage solid { Suddenly, the rainbow appears to become solid and, I venture, walkable (I think the giveaway was the stairs and bannister). }
+  passage dazzle { A dazzling display of color briefly emanates from the sceptre. }
+  passage collapse { The structural integrity of the rainbow is severely compromised, leaving you hanging in midair, supported only by water vapor. Bye. }
+  as target for wave {
+    do {
+      if (here.is(RainbowFoot)) {
+        if (here.get(:solid)) {
+          say "The rainbow seems to have become somewhat run-of-the-mill."
+          broadcast :rainbow with false
+        } else {
+          say solid
+          if (here.is(RainbowEnd)) { if (!here.get(:pot_shown)) { say "A shimmering pot of gold appears at the end of the rainbow." } }
+          broadcast :rainbow with true
+        }
+      } else if (here.is(RainbowTop)) {
+        // The rainbow's own fall takes whoever is on it (river.sprout).
+        say collapse
+        broadcast :rainbow with false
+      } else { say dazzle }
+    }
+  }
+  without as target for raise from Thing
+  as target for raise {
+    do {
+      if (here.is(RainbowFoot)) {
+        if (here.get(:solid)) {
+          say "The rainbow seems to have become somewhat run-of-the-mill."
+          broadcast :rainbow with false
+        } else {
+          say solid
+          if (here.is(RainbowEnd)) { if (!here.get(:pot_shown)) { say "A shimmering pot of gold appears at the end of the rainbow." } }
+          broadcast :rainbow with true
+        }
+      } else if (here.is(RainbowTop)) {
+        // The rainbow's own fall takes whoever is on it (river.sprout).
+        say collapse
+        broadcast :rainbow with false
+      } else { say dazzle }
+    }
+  }
+}
+
+// The brass bell from the Temple (BELL, BELL-F). Rung at the gates of Hell
+// before the spirits are gone, it grows red hot and falls (HOT-BELL, which
+// here is the same bell, hot): it cannot be taken or rung, what burns is
+// consumed against it, and it cools in twenty moves (I-XBH), or at once
+// with water poured on it.
+kind Bell is Portable {
+  grammar { name "brass bell"  nouns "bell"  adjectives "small", "brass", "hot", "red" }
+  :hot false
+  passage short { {if self.get(:hot)}red hot brass bell{else}brass bell{/if} }
+  passage ldesc { {if self.get(:hot)}On the ground is a red hot bell.{else}There is a brass bell here.{/if} }
+  passage cooled { The bell appears to have cooled down. }
+  describe {
+    if (self.get(:hot)) { text "The bell glows a dull red from lip to handle, and the air above it shivers. The wooden handle has charred black. It ticks faintly as it cools, very slowly, in no hurry to be picked up." }
+    else { text "It is a small brass bell with a wooden handle, of the kind used to call the faithful, or the servants, or the dead; the temple does not say which. It is polished bright where a great many hands have held it." }
+  }
+  as target for ring {
+    do {
+      if (self.get(:hot)) {
+        if (bound tool) {
+          if (tool.is(Thing)) {
+            if (tool.get(:burnable)) { say "The {tool.short} burns and is consumed." }
+            else { say "The heat from the bell is too intense." }
+          } else { say "The bell is too hot to touch." }
+        } else { say "The bell is too hot to reach." }
+      } else if (here.is(HadesGate) && !here.get(:exorcised)) {
+        // The visitor's own part has dropped it and said so: it heats.
+        self.set(:hot, true)
+        self.set(:sacred, true)
+        cancel wakes
+        wake in 10 minutes
+      } else { say "Ding, dong." }
+    }
+  }
+  without as target for rub from Thing
+  as target for rub {
+    do {
+      if (self.get(:hot)) { say "The heat from the bell is too intense." }
+      else { say "Fiddling with the {self.short} {self.hacked}" }
+    }
+  }
+  without as target for rub_with from Thing
+  as target for rub_with {
+    do {
+      if (self.get(:hot)) {
+        if (tool.is(Thing)) {
+          if (tool.get(:burnable)) { say "The {tool.short} burns and is consumed." }
+          else { say "The heat from the bell is too intense." }
+        } else { say "The bell is too hot to touch." }
+      } else { say "Fiddling with the {self.short} {self.hacked}" }
+    }
+  }
+  // Cooled by water, or by time.
+  on :cool {
+    self.set(:hot, false)
+    self.set(:sacred, false)
+    cancel wakes
+  }
+  on :woke (elapsed) {
+    if (self.get(:hot)) {
+      self.set(:hot, false)
+      self.set(:sacred, false)
+      tell cooled
+    }
+  }
+}

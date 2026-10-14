@@ -1,0 +1,586 @@
+// Flood Control Dam #3, as 1dungeon.zil and 1actions.zil have it: the Dam
+// with its control panel, bolt and green bubble (DAM-ROOM-FCN, BOLT-F,
+// BUBBLE-F, DAM-FUNCTION), the Dam Lobby with its matchbook and guidebooks,
+// the Maintenance Room with its buttons, tools, tube of gunk and the leak
+// that floods it (BUTTON-F, TOOL-CHEST-FCN, I-MAINT-ROOM, LEAK-FUNCTION,
+// PUTTY-FCN, TUBE-FUNCTION), and the Dam Base below, where the boat is.
+//
+// The dam is global state on a clock (I-REMPTY and I-RFILL). The bolt keeps
+// it: turned with the wrench once the yellow button has freed it, it opens
+// or shuts the sluice gates, asks to be woken four minutes on (eight moves
+// at the host's half-minute a turn), and tells every room that cares, by a
+// `:tide` broadcast the world lets through. A room cannot read another's
+// state (friction 89), so each keeps its own copy (`Tidal`).
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Flame, Pluggable, Mechanism, Switchable} from 'thing'
+import {Box, Bag} from 'box'
+import {Readable, Rejecting, Sharp} from 'items'
+import {Room, DarkRoom, DamPicture} from 'room'
+import {Light} from 'lamp'
+import {Adventurer} from 'adventurer'
+import {Pile} from 'boat'
+import {River, Cliffs, WaterAbout, Riverside} from 'river'
+import {Stairs} from 'scenery'
+import {take, open, close, read, look_in, shift, raise, plug, put, turn, turn_with, oil, squeeze, tally, lamp_on, lamp_off, burn, attack, climb_up, climb_down, cross, leap_at, through, mung, kick, rub, search, Dest, :travel, :tide, :gate_flag, :lights, :flooded, :relight, :consume, :light, :snuffed, :match_out, :die, :boom} from 'verbs'
+import {GasRoom} from 'mine'
+import {deep_canyon} from 'east'
+import {reservoir_south} from 'reservoir'
+
+message :rise
+
+// A room that keeps its own note of the dam: 0 gates shut and the
+// reservoir full, 1 open and still full, 2 open and drained, 3 shut and
+// refilling (see the bolt).
+kind Tidal {
+  :tide 0 min 0 max 3
+  on :tide (from, value) { self.set(:tide, value) }
+}
+
+object dam_room is Room, Tidal, Riverside, DamPicture in underground_caverns {
+  :tour 44
+  grammar {
+    name "Dam"
+    exit south "south"    -> deep_canyon
+    exit down  "scramble" -> dam_base
+    exit east  "east"     -> dam_base
+    exit north "north"    -> dam_lobby
+    exit west  "west"     -> reservoir_south
+  }
+  // The green bubble, glowing while the bolt is free (GATE-FLAG).
+  :gate_flag false
+  on :gate_flag (from, value) { self.set(:gate_flag, value) }
+  passage body {
+    You are standing on the top of the Flood Control Dam #3, which was quite a tourist attraction in times far distant. There are paths to the north, south, and west, and a scramble down.
+
+    {if self.get(:tide) == 2}The water level behind the dam is low: The sluice gates have been opened. Water rushes through the dam and downstream.{else if self.get(:tide) == 1}The sluice gates are open, and water rushes through the dam. The water level behind the dam is still high.{else if self.get(:tide) == 3}The sluice gates are closed. The water level in the reservoir is quite low, but the level is rising quickly.{else}The sluice gates on the dam are closed. Behind the dam, there can be seen a wide reservoir. Water is pouring over the top of the now abandoned dam.{/if}
+
+    There is a control panel here, on which a large metal bolt is mounted. Directly above the bolt is a small green plastic bubble{if self.get(:gate_flag)} which is glowing serenely{/if}.
+  }
+
+  object dam is Scenery, Pluggable {
+    grammar { name "dam"  nouns "gate", "gates", "sluice", "sluices", "fcd", "structure"  adjectives "sluice", "flood", "control" }
+    passage short { dam }
+    passage examined { Flood Control Dam #3 is a great curved wall of grey concrete, 256 feet tall at the center by the guidebook's count, holding back the reservoir to the west with the air of something that has been asked to do this for a very long time and has not been thanked. {if dam_room.get(:tide) == 1 || dam_room.get(:tide) == 2}Below, the sluice gates stand open, and the river pours through them in a white, roaring rush.{else if dam_room.get(:tide) == 3}The sluice gates at its foot are shut, and the water behind it is a long way below the top, climbing back up the stained concrete as you watch.{else}The sluice gates at its foot are shut, and water spills in a thin, glassy sheet over the top of it.{/if} }
+    describe { text examined }
+    without as target for open from Thing
+    without as target for close from Thing
+    as target for open  { do { say "Sounds reasonable, but this isn't how." } }
+    as target for close { do { say "Sounds reasonable, but this isn't how." } }
+    without as target for plug from Pluggable
+    as target for plug {
+      do {
+        if (bound tool) {
+          if (tool.is(Thing)) { say "With a {tool.short}? Do you know how big this dam is? You could only stop a tiny leak with that." }
+          else { say "Are you the little Dutch boy, then? Sorry, this is a big dam." }
+        } else { say "Are you the little Dutch boy, then? Sorry, this is a big dam." }
+      }
+    }
+    without as target for climb_down from Thing
+    as target for climb_down { do { send actor :travel with :dam_base  say "" } }
+    without as target for cross from Thing
+    as target for cross { do { say "You are standing on it. The paths go north, south and west, and a scramble down." } }
+    without as target for leap_at from Thing
+    as target for leap_at { do { say "The dam is 256 feet tall at the center, and the guidebook does not say what is at the bottom of it besides rocks. You decline." } }
+  }
+  object panel is Scenery {
+    grammar { name "control panel"  nouns "panel", "controls"  adjectives "control" }
+    passage short { control panel }
+    describe { text "The control panel is a slab of grey steel set into the top of the dam, its paint long since weathered to the color of the concrete. On it is mounted a large metal bolt, and directly above the bolt a small green plastic bubble{if dam_room.get(:gate_flag)}, which is glowing serenely{/if}. Whatever else it once controlled has been unscrewed and taken away, leaving holes." }
+  }
+  object bolt is Scenery, Mechanism {
+    grammar { name "bolt"  nouns "nut"  adjectives "metal", "large" }
+    passage short { bolt }
+    // The bolt is the dam's clock: it keeps the gates and the water.
+    :tide 0 min 0 max 3
+    :free false
+    on :gate_flag (from, value) { self.set(:free, value) }
+    passage no_take { It is an integral part of the control panel. }
+    describe { text "It is a large metal bolt, a good two inches across the head, mounted on the control panel and connected by unseen machinery to the sluice gates below. Its flats are worn bright, the way bolts get when the only way to turn them is with a wrench. {if self.get(:free)}The bubble above it glows a serene green.{else}The bubble above it is dark.{/if}" }
+    without as target for shift from Thing
+    as target for shift { do { say "Your bare hands don't appear to be enough." } }
+    without as target for turn_with from Mechanism
+    as target for turn_with {
+      do {
+        if (tool.is(Wrench)) {
+          if (!self.get(:free)) { say "The bolt won't turn with your best effort." }
+          else if (self.get(:tide) == 1 || self.get(:tide) == 2) {
+            say "The sluice gates close and water starts to collect behind the dam."
+            cancel wakes
+            if (self.get(:tide) == 2) {
+              self.set(:tide, 3)
+              wake in 4 minutes
+            } else { self.set(:tide, 0) }
+            broadcast :tide with self.get(:tide)
+          } else {
+            say "The sluice gates open and water pours through the dam."
+            cancel wakes
+            if (self.get(:tide) == 3) { self.set(:tide, 2) }
+            else {
+              self.set(:tide, 1)
+              wake in 4 minutes
+            }
+            broadcast :tide with self.get(:tide)
+          }
+        } else if (tool.is(Thing)) { say "The bolt won't turn using the {tool.short}." }
+        else { say "Your bare hands don't appear to be enough." }
+      }
+    }
+    // I-REMPTY: the reservoir has drained; I-RFILL: it is full again.
+    on :woke (elapsed) {
+      if (self.get(:tide) == 1) {
+        self.set(:tide, 2)
+        broadcast :tide with 2
+      } else if (self.get(:tide) == 3) {
+        self.set(:tide, 0)
+        broadcast :tide with 0
+      }
+    }
+    without as target for oil from Mechanism
+    as target for oil { do { say "Hmm. It appears the tube contained glue, not oil. Turning the bolt won't get any easier...." } }
+  }
+  object bubble is Scenery {
+    grammar { name "green bubble"  nouns "bubble", "light", "lamp"  adjectives "small", "green", "plastic" }
+    passage short { green bubble }
+    :glowing false
+    on :gate_flag (from, value) { self.set(:glowing, value) }
+    passage no_take { It is an integral part of the control panel. }
+    describe { text "It is a small green plastic bubble, about the size of a hen's egg, set into the panel directly above the bolt. {if self.get(:glowing)}It is glowing serenely, the calm, untroubled green of a machine that is ready when you are.{else}It is dark, and has the patient look of something waiting to be told it may begin.{/if}" }
+    without as target for mung from Thing
+    as target for mung { do { say "The bubble is tougher than it looks. It is an integral part of the control panel, and intends to stay one." } }
+  }
+  object paths is Scenery {
+    grammar { name "paths"  nouns "path", "scramble", "walkway", "top"  adjectives "north", "south", "west" }
+    passage short { paths }
+    describe { text "Paths lead off the top of the dam to the north, toward a low building, to the south, toward the canyon, and to the west, along the shore of the reservoir. To the east a steep scramble goes down the face of the dam to its base, which is the kind of path that is only a path because people have used it as one." }
+    without as target for climb_down from Thing
+    as target for climb_down { do { send actor :travel with :dam_base  say "" } }
+  }
+  object reservoir_view is Scenery {
+    grammar { name "reservoir"  nouns "lake", "water"  adjectives "wide" }
+    passage short { reservoir }
+    describe {
+      if (dam_room.get(:tide) == 2) { text "Behind the dam, where the reservoir was, is a wide expanse of mud with a stream wandering across it, looking sheepish." }
+      else if (dam_room.get(:tide) == 3) { text "Behind the dam the reservoir is low, a broad stream between banks of mud, but the water is rising quickly." }
+      else if (dam_room.get(:tide) == 1) { text "Behind the dam a wide reservoir stretches away to the west, still flat and dark and very full, but it no longer comes over the top: it is running out through the open sluice gates below you instead, with a sound like a very large bath being let out." }
+      else { text "Behind the dam a wide reservoir stretches away to the west, flat and dark and very full. It comes right up to the top of the dam and goes over it." }
+    }
+  }
+}
+
+object dam_lobby is Room in underground_caverns {
+  :tour 45
+  grammar {
+    name "Dam Lobby"
+    exit south "south" -> dam_room
+    exit north "north" refuse "The room is full of water and cannot be entered." when (self.get(:flooded))
+    exit north "north" -> maintenance_room
+    exit east  "east"  refuse "The room is full of water and cannot be entered." when (self.get(:flooded))
+    exit east  "east"  -> maintenance_room
+  }
+  :flooded false
+  on :flooded { self.set(:flooded, true) }
+  passage body {
+    This room appears to have been the waiting room for groups touring the dam. There are open doorways here to the north and east marked "Private", and there is a path leading south over the top of the dam.
+  }
+  object guidebook is Readable {
+    grammar { name "tour guidebook"  nouns "guidebook", "guide", "book", "books", "guidebooks", "guides"  adjectives "tour", "guide" }
+    :has_fdesc true
+    :burnable true
+    passage short { tour guidebook }
+    passage fdesc { Some guidebooks entitled "Flood Control Dam #3" are on the reception desk. }
+    describe { text "It is a slim guidebook with a picture of the dam on its cover, taken on a sunny day by somebody who loved it. The title is \"Flood Control Dam #3\". There were a good many more of them on the desk once." }
+    passage words {
+      "	Flood Control Dam #3
+
+      FCD#3 was constructed in year 783 of the Great Underground Empire to harness the mighty Frigid River. This work was supported by a grant of 37 million zorkmids from your omnipotent local tyrant Lord Dimwit Flathead the Excessive. This impressive structure is composed of 370,000 cubic feet of concrete, is 256 feet tall at the center, and 193 feet wide at the top. The lake created behind the dam has a volume of 1.7 billion cubic feet, an area of 12 million square feet, and a shore line of 36 thousand feet.
+
+      The construction of FCD#3 took 112 days from ground breaking to the dedication. It required a work force of 384 slaves, 34 slave drivers, 12 engineers, 2 turtle doves, and a partridge in a pear tree. The work was managed by a command team composed of 2345 bureaucrats, 2347 secretaries (at least two of whom could type), 12,256 paper shufflers, 52,469 rubber stampers, 245,193 red tape processors, and nearly one million dead trees.
+
+      We will now point out some of the more interesting features of FCD#3 as we conduct you on a guided tour of the facilities:
+
+      1) You start your tour here in the Dam Lobby. You will notice on your right that....
+    }
+  }
+  object matchbook is Matchbook
+  object desk is Scenery {
+    grammar { name "reception desk"  nouns "desk", "counter"  adjectives "reception" }
+    passage short { reception desk }
+    describe { text "The reception desk is a long counter of varnished wood, rubbed pale along the front edge by the elbows of a great many tourists asking where the toilets were. There are rings in the varnish where stacks of guidebooks once stood, a great many more of them than there are now." }
+  }
+  object doorways is Scenery {
+    grammar { name "doorways"  nouns "doorway", "doors", "door", "sign", "signs"  adjectives "open", "private", "north", "east" }
+    passage short { doorways }
+    describe { text "There are two open doorways, one to the north and one to the east, each with a small brass plate on the lintel that says \"Private\". The doors that once hung in them are gone, which rather spoils the effect." }
+    without as target for read from Thing
+    as target for read { do { say "Each says \"Private\"." } }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "walkway", "top"  adjectives "south" }
+    passage short { path }
+    describe { text "The path leads south out of the lobby and over the top of the dam, between a low wall on one side and a long drop on the other." }
+  }
+}
+
+object maintenance_room is DarkRoom in underground_caverns {
+  :tour 46
+  grammar {
+    name "Maintenance Room"
+    exit south "south" -> dam_lobby
+    exit west  "west"  -> dam_lobby
+  }
+  // The lights within the room, the red button's.
+  on :lights { self.set(:daylight, !self.get(:daylight)) }
+  passage body {
+    This is what appears to have been the maintenance room for Flood Control Dam #3. Apparently, this room has been ransacked recently, for most of the valuable equipment is gone. On the wall in front of you is a group of buttons colored blue, yellow, brown, and red. There are doorways to the west and south.
+  }
+  object chests is ToolChests
+  object wrench is Wrench
+  object tube is Tube {
+    object putty is Putty
+  }
+  object screwdriver is Screwdriver
+
+  object buttons is Scenery {
+    grammar { name "group of buttons"  nouns "buttons", "button", "group", "panel", "switches"  adjectives "colored", "four" }
+    passage short { group of buttons }
+    describe { text "Four buttons are set in a row in the wall in front of you: blue, yellow, brown and red, each the size of a thumb and each labelled underneath in a script you cannot read. The yellow one is the most worn." }
+    without as target for read from Thing
+    as target for read { do { say "They're greek to you." } }
+    without as target for shift from Thing
+    as target for shift { do { say "You'll have to say which: blue, yellow, brown, or red." } }
+  }
+  object yellow_button is Button {
+    grammar { name "yellow"  adjectives "button" }
+    passage short { yellow button }
+    describe { text "It is a yellow button, worn pale in the middle by a great many thumbs. Under it is a label in a script you cannot read." }
+    as target for shift {
+      do {
+        say "Click."
+        broadcast :gate_flag with true
+      }
+    }
+  }
+  object brown_button is Button {
+    grammar { name "brown"  adjectives "button" }
+    passage short { brown button }
+    describe { text "It is a brown button, the color of strong tea. Under it is a label in a script you cannot read." }
+    as target for shift {
+      do {
+        say "Click."
+        broadcast :gate_flag with false
+      }
+    }
+  }
+  object red_button is Button {
+    grammar { name "red"  adjectives "button" }
+    passage short { red button }
+    describe { text "It is a red button. Under it is a label in a script you cannot read, though in your experience red buttons are not usually labelled \"Do Nothing\"." }
+    as target for shift {
+      do {
+        if (here.is(DarkRoom)) {
+          if (here.get(:daylight)) { say "The lights within the room shut off." }
+          else { say "The lights within the room come on." }
+        }
+        send here :lights
+      }
+    }
+  }
+  object blue_button is Button {
+    grammar { name "blue"  adjectives "button" }
+    passage short { blue button }
+    // Zork's WATER-LEVEL is no longer 0 once the leak has started: the
+    // button sticks for good.
+    :jammed false
+    describe { text "It is a blue button, cool and glossy and very much the most inviting of the four. Under it is a label in a script you cannot read.{if self.get(:jammed)} It is stuck fast.{/if}" }
+    as target for shift {
+      do {
+        if (self.get(:jammed)) { say "The blue button appears to be jammed." }
+        else {
+          self.set(:jammed, true)
+          say "There is a rumbling sound and a stream of water appears to burst from the east wall of the room (apparently, a leak has occurred in a pipe)."
+          spawn Leak in here
+        }
+      }
+    }
+  }
+  object equipment is Scenery {
+    grammar { name "equipment"  nouns "gear", "machinery", "fittings", "brackets", "holes"  adjectives "valuable", "missing" }
+    passage short { equipment }
+    describe { text "Whatever valuable equipment the room once held is gone. Empty brackets line the walls, and there are pale shapes on the floor where heavy things stood for years and then, recently, did not. Someone took everything worth taking and left the rest, with a thoroughness you have begun to recognize." }
+  }
+  object doorways is Scenery {
+    grammar { name "doorways"  nouns "doorway", "doors", "door"  adjectives "west", "south" }
+    passage short { doorways }
+    describe { text "There are doorways to the west and the south, both leading back to the lobby, as though the room could not decide which way it would rather you left." }
+  }
+}
+
+object dam_base is Room, Riverside in underground_caverns {
+  :reach dam_base
+  grammar {
+    name "Dam Base"
+    exit north "north" -> dam_room
+    exit up    "up"    -> dam_room
+  }
+  passage body {
+    You are at the base of Flood Control Dam #3, which looms above you and to the north. The river Frigid is flowing by here. Along the river are the White Cliffs which seem to form giant walls stretching from north to south along the shores of the river as it winds its way downstream.
+  }
+  object pile is Pile
+  object dam is Scenery {
+    grammar { name "dam"  nouns "wall", "gates", "concrete", "structure"  adjectives "flood", "control", "great" }
+    passage short { dam }
+    describe { text "The dam looms above you to the north, a great grey wall of concrete streaked dark where the water has run down it for years. {if dam_base.get(:tide) == 1 || dam_base.get(:tide) == 2}Water thunders out of the open sluice gates at its foot and goes off down the river in a hurry.{else if dam_base.get(:tide) == 3}The sluice gates are shut, and nothing comes over the top: the face of the dam is drying in patches, and only the old dark streaks say where the water used to run.{else}A thin sheet of water spills over the top and patters down the face of it.{/if}" }
+    without as target for climb_up from Thing
+    as target for climb_up { do { send actor :travel with :dam_room  say "" } }
+  }
+  :tide 0 min 0 max 3
+  on :tide (from, value) { self.set(:tide, value) }
+  object river is River
+  object cliffs is Cliffs
+  object water is WaterAbout
+}
+
+// The Maintenance Room's tools, as Zork has them: a wrench for the bolt, a
+// screwdriver for nothing in particular, and a tube of all-purpose gunk.
+kind Wrench is Portable {
+  grammar { name "wrench"  nouns "spanner", "tool", "tools"  adjectives "adjustable", "monkey" }
+  :size 10
+  passage short { wrench }
+  describe { text "It is a heavy adjustable wrench, a good foot long, with the jaws opened wide, as though it had last been used on something large. Its handle is stamped \"FCD#3 MAINT.\" in letters filled with old grease." }
+}
+
+kind Screwdriver is Portable {
+  grammar { name "screwdriver"  nouns "driver", "tool", "tools"  adjectives "screw" }
+  passage short { screwdriver }
+  describe { text "It is a flat-bladed screwdriver with a wooden handle, the kind that is in every toolbox in the world and never the one you want. Its tip has been used as a chisel, a lever and a paint-stirrer, and shows it." }
+}
+
+// The tube: it holds the gunk, gives it up when squeezed open, and takes
+// nothing in (TUBE-FUNCTION).
+kind Tube is Bag, Rejecting {
+  grammar { name "tube"  nouns "toothpaste", "paste"  adjectives "tooth" }
+  :open false
+  :capacity 7
+  passage short { tube }
+  passage ldesc { There is an object which looks like a tube of toothpaste here. }
+  passage label_words {
+    ---> Frobozz Magic Gunk Company <---
+              All-Purpose Gunk
+  }
+  passage examined {
+    It is a squat metal tube with a screw cap, very like a tube of toothpaste and printed, in confident red letters, with the words of its maker.
+
+    {self.look_inside}
+  }
+  without as target for read from Thing
+  as target for read { do { say label_words } }
+  as container for put { do { say "The tube refuses to accept anything." } }
+  without as target for squeeze from Thing
+  as target for squeeze {
+    do {
+      if (!self.get(:open)) { say "The tube is closed." }
+      else if (self.count(Putty) > 0) {
+        each p: Putty in self { move p to actor }
+        say "The viscous material oozes into your hand."
+      } else { say "The tube is apparently empty." }
+    }
+  }
+}
+
+// The gunk, which mends a leak and a punctured boat, and is not a
+// lubricant (PUTTY-FCN).
+kind Putty is Portable {
+  grammar { name "viscous material"  nouns "material", "gunk", "putty", "glue", "goo"  adjectives "viscous", "all-purpose" }
+  :size 6
+  passage short { viscous material }
+  describe { text "It is a viscous grey material, somewhere between toothpaste and chewing gum, that clings to everything it touches and smells faintly of the inside of a hardware store. It looks as though it would stop anything, given the chance." }
+  as item for put { permit { if (!container.is(Rejecting)) { refuse "The all-purpose gunk isn't a lubricant." } } }
+  as tool for oil { permit { refuse "The all-purpose gunk isn't a lubricant." } }
+}
+
+// The group of tool chests, so rusty that they crumble at a touch.
+kind ToolChests is Box, Rejecting {
+  grammar { name "group of tool chests"  nouns "chests", "chest", "toolchests", "toolchest", "group"  adjectives "tool", "rusty" }
+  :open true
+  :sacred true
+  passage short { group of tool chests }
+  passage ldesc { There is a group of tool chests here. }
+  passage crumble { The chests are so rusty and corroded that they crumble when you touch them. }
+  passage no_take { The chests are so rusty and corroded that they crumble when you touch them. }
+  passage examined { The chests are all empty. }
+  without as target for open from Box
+  as target for open { do { say crumble  send self :consume } }
+  without as target for close from Box
+  as target for close { do { say crumble  send self :consume } }
+  as target for take { do { send self :consume } }
+  as container for put { do { say crumble  send self :consume } }
+  without as target for look_in from Box
+  as target for look_in { do { say "The chests are all empty." } }
+}
+
+kind Button is Scenery {
+  without as target for read from Thing
+  as target for read { do { say "They're greek to you." } }
+  without as target for shift from Thing
+}
+
+// The leak in the Maintenance Room's east wall, from the moment the blue
+// button is pushed: the room fills a level every minute (every other move,
+// at the host's half-minute a turn; Zork's I-MAINT-ROOM rises every move),
+// and drowns whoever is in it when it is full. The gunk stops it.
+kind Leak is Box, Rejecting, Pluggable {
+  grammar { name "leak"  nouns "drip", "pipe", "spray", "burst"  adjectives "east" }
+  :ndesc true
+  // Zork's WATER-LEVEL: 1 to 13 rising, -1 stopped.
+  :level 1 min -1 max 20
+  passage short { leak }
+  passage examined {
+    {if self.get(:level) < 0}The leak in the pipe in the east wall has been plugged with a fat grey wad of gunk, which is holding, for now, by some miracle of Zorkian technology. The floor is still wet.{else}Water is bursting from a split in a pipe low on the east wall, in a fan of spray that is filling the room a good deal faster than seems fair. It is a small leak, as leaks go: small enough, perhaps, to be stopped with something.{/if}
+  }
+  on :spawned (from) { send self :rise }
+  on :woke (elapsed) { send self :rise }
+  on :rise {
+    if (self.get(:level) > 0) {
+      if (self.get(:level) <= 1) { tell "The water level here is now up to your ankles." }
+      else if (self.get(:level) <= 3) { tell "The water level here is now up to your shin." }
+      else if (self.get(:level) <= 5) { tell "The water level here is now up to your knees." }
+      else if (self.get(:level) <= 7) { tell "The water level here is now up to your hips." }
+      else if (self.get(:level) <= 9) { tell "The water level here is now up to your waist." }
+      else if (self.get(:level) <= 11) { tell "The water level here is now up to your chest." }
+      else { tell "The water level here is now up to your neck." }
+      self.adjust(:level, 2)
+      if (self.get(:level) >= 14) {
+        broadcast :flooded
+        each a: Adventurer in underground_caverns.maintenance_room {
+          tell a "I'm afraid you have done drowned yourself."
+          send a :die
+        }
+      } else { wake in 1 minutes }
+    }
+  }
+  without as target for plug from Pluggable
+  as target for plug {
+    do {
+      if (self.get(:level) <= 0) { say "This has no effect." }
+      else if (bound tool) {
+        if (tool.is(Putty)) {
+          self.set(:level, -1)
+          cancel wakes
+          say "By some miracle of Zorkian technology, you have managed to stop the leak in the dam."
+        } else if (tool.is(Thing)) { say "With a {tool.short}?" }
+        else { say "With your bare hands? The water goes straight through them." }
+      } else { say "With your bare hands? The water goes straight through them." }
+    }
+  }
+  as container for put {
+    do {
+      if (self.get(:level) <= 0) { say "This has no effect." }
+      else if (item.is(Putty)) {
+        self.set(:level, -1)
+        cancel wakes
+        say "By some miracle of Zorkian technology, you have managed to stop the leak in the dam."
+      } else if (item.is(Thing)) { say "With a {item.short}?" }
+    }
+  }
+  passage no_take { You can't take a leak. Not here, anyway. }
+}
+
+// The matchbook from the Dam Lobby: five matches, each burning a minute
+// (two moves at the host's half-minute; Zork's I-MATCH is two), as a light
+// and a flame (MATCH-FUNCTION). Zork's MATCH is MATCH, MATCHES and
+// MATCHBOOK, and not BOOK: "book" is the black book's alone, so a line that
+// names the book in the Egyptian Room never means the matchbook in hand.
+kind Matchbook is Readable, Flame {
+  grammar { name "matchbook"  nouns "match", "matches"  adjectives "match" }
+  :size 2
+  :has_fdesc true
+  // Zork's MATCH-COUNT: one more than the matches left.
+  :count 6 min 0 max 6
+  passage short { matchbook }
+  passage fdesc { There is a matchbook whose cover says "Visit Beautiful FCD#3" here. }
+  passage ldesc { There is a matchbook whose cover says "Visit Beautiful FCD#3" here. }
+  describe {
+    if (self.get(:lit)) { text "The match is burning." }
+    else { text "The matchbook isn't very interesting, except for what's written on it." }
+  }
+  passage words {
+    (Close cover before striking)
+
+    YOU too can make BIG MONEY in the exciting field of PAPER SHUFFLING!
+
+    Mr. Anderson of Muddle, Mass. says: "Before I took this course I was a lowly bit twiddler. Now with what I learned at GUE Tech I feel really important and can obfuscate and confuse with the best."
+
+    Dr. Blank had this to say: "Ten short days ago all I could look forward to was a dead-end job as a doctor. Now I have a promising future and make really big Zorkmids."
+
+    GUE Tech can't promise these fantastic results to everyone. But when you earn your degree from GUE Tech, your future will be brighter.
+  }
+  passage tally_line {{if self.get(:count) <= 1}You have no matches.{else if self.get(:count) == 2}You have 1 match.{else if self.get(:count) == 3}You have 2 matches.{else if self.get(:count) == 4}You have 3 matches.{else if self.get(:count) == 5}You have 4 matches.{else}You have 5 matches.{/if}}
+  without as target for lamp_on from Switchable
+  as target for lamp_on {
+    permit { if (self.get(:lit)) { refuse "A match is already burning." } }
+    do {
+      if (self.get(:count) > 0) { self.adjust(:count, -1) }
+      if (self.get(:count) <= 0) { say "I'm afraid that you have run out of matches." }
+      else {
+        let was_dark = here.is(DarkRoom) && !here.get(:alight)
+        self.set(:lit, true)
+        wake in 1 minutes
+        say "One of the matches starts to burn."
+        if (actor.holds(self)) { send actor :light with 1 } else { send here :relight }
+        if (was_dark && here.is(Room)) { say "{here.full}" }
+        // BOOM-ROOM: a match struck in the Gas Room.
+        if (here.is(GasRoom)) {
+          say "How sad for an aspiring adventurer to light a match in a room which reeks of gas. Fortunately, there is justice in the world."
+          send actor :boom
+        }
+      }
+    }
+  }
+  without as target for lamp_off from Switchable
+  as target for lamp_off {
+    do {
+      if (self.get(:lit)) {
+        self.set(:lit, false)
+        cancel wakes
+        say "The match is out."
+        if (actor.holds(self)) { send actor :snuffed } else { send here :relight }
+      } else { say "No match is burning." }
+    }
+  }
+  // STRIKE is Zork's word for lighting a match.
+  as target for attack {
+    do {
+      if (self.get(:lit)) { say "A match is already burning." }
+      else if (self.get(:count) <= 1) {
+        self.set(:count, 0)
+        say "I'm afraid that you have run out of matches."
+      } else {
+        self.adjust(:count, -1)
+        let was_dark = here.is(DarkRoom) && !here.get(:alight)
+        self.set(:lit, true)
+        wake in 1 minutes
+        say "One of the matches starts to burn."
+        if (actor.holds(self)) { send actor :light with 1 } else { send here :relight }
+        if (was_dark && here.is(Room)) { say "{here.full}" }
+        // BOOM-ROOM: a match struck in the Gas Room.
+        if (here.is(GasRoom)) {
+          say "How sad for an aspiring adventurer to light a match in a room which reeks of gas. Fortunately, there is justice in the world."
+          send actor :boom
+        }
+      }
+    }
+  }
+  without as target for burn from Thing
+  as target for burn { do { say "If you want to light a match, say so." } }
+  on :woke (elapsed) {
+    if (self.get(:lit)) {
+      self.set(:lit, false)
+      broadcast :match_out
+      broadcast :snuffed
+    }
+  }
+  without as target for tally from Thing
+  as target for tally { do { say tally_line } }
+  without as target for open from Thing
+  as target for open { do { say tally_line } }
+}

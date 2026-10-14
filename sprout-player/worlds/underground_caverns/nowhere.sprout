@@ -1,0 +1,12 @@
+// Where a third death ends a visitor's welcome: a place with no way out.
+import * as sprout from 'sprout'
+
+object land_of_the_living_dead is sprout.Place in underground_caverns {
+  grammar { name "Land of the Living Dead" article none }
+  describe { text remains }
+  passage remains {
+    Land of the Living Dead
+
+    Your remains lie here, where your fellow adventurers may gloat over them. There is no way out, and nothing further will happen to you in this game.
+  }
+}

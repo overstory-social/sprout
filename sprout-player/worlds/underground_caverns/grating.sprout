@@ -1,0 +1,234 @@
+// The pile of leaves in the Clearing, and the grating it hides. The grating
+// lies in the ground, which shows nothing of it until the leaves are moved.
+// It is one grating seen from two rooms, the Clearing above and the Grating
+// Room below, as Zork's GRATE is one object in LOCAL-GLOBALS; here each room
+// holds its own, and the two keep each other in step by messages the world
+// lets pass. It is locked with a skull-and-crossbones lock that only the
+// skeleton key opens, and only from below (GRATE-FUNCTION).
+import {Thing, Portable, Scenery, Lockable} from 'thing'
+import {open, close, unlock, lock, look_under, tally, shift, look_in, :reveal, :grate_open, :grate_unlock, :grate_revealed, :open_gate, :gate_open, :close_gate} from 'verbs'
+import {grating_clearing} from 'above_ground'
+import {grating_room} from 'maze'
+import {SkeletonKey} from 'remains'
+import {Adventurer} from 'adventurer'
+extension media 1
+
+kind Leaves is Portable {
+  :burnable true
+  grammar { name "pile of leaves"  nouns "leaves", "leaf", "pile" }
+  :size 25
+  :hiding true
+  passage short { pile of leaves }
+  passage ldesc { On the ground is a pile of leaves. }
+  describe { text "It is a pile of dead leaves, brown and damp, of the sort a forest produces without being asked. It is rather deeper than leaves usually lie, as though someone had swept them together on purpose." }
+
+  on :moved (from, to) { self.set(:hiding, false) }
+
+  without as target for shift from Portable
+  as target for shift {
+    do {
+      say "Done."
+      if (self.get(:hiding)) {
+        self.set(:hiding, false)
+        say "In disturbing the pile of leaves, a grating is revealed."
+        send grating_clearing :reveal
+      }
+    }
+  }
+
+  without as target for look_under from Thing
+  as target for look_under {
+    do {
+      if (self.get(:hiding)) {
+        say "Underneath the pile of leaves is a grating. As you release the leaves, the grating is once again concealed from view."
+      } else {
+        say "There is nothing but dust there."
+      }
+    }
+  }
+
+  without as target for tally from Thing
+  as target for tally { do { say "There are 69,105 leaves here." } }
+}
+
+// The ground under the Clearing: nothing in it can be seen or named until
+// it is uncovered. The grating's news passes through it all the same.
+kind Ground is Scenery {
+  contains
+  :revealed false
+  pass any (self.get(:revealed))
+  pass :grate_open (true)
+  pass :grate_unlock (true)
+  pass :grate_revealed (true)
+  grammar { name "ground"  nouns "dirt", "earth", "floor" }
+  passage short { ground }
+  describe {
+    if (self.get(:revealed)) { text "The ground of the clearing is packed earth, bare where the leaves lay, with a grating set firmly into it." }
+    else { text "The ground of the clearing is packed earth, soft with fallen leaves and quite unremarkable, as far as it is willing to let on." }
+  }
+  on :reveal (from) { self.set(:revealed, true) }
+}
+
+// The grating, from either side. Both sides know whether it is unlocked
+// (Zork's GRUNLOCK) and whether it is open; the side below knows too
+// whether the leaves still lie on it, for they fall when it opens.
+kind Grating is Scenery, Lockable {
+  grammar { name "grating"  nouns "grate", "bars"  adjectives "iron", "heavy" }
+  passage short { grating }
+  :door true
+  :unlocked false
+  :open false
+  :revealed false
+
+  on :grate_open (from, value)   { self.set(:open, value) }
+  on :grate_unlock (from, value) { self.set(:unlocked, value) }
+  on :grate_revealed (from)      { self.set(:revealed, true) }
+
+  passage dummy {{one of}Look around.{or}Too late for that.{or}Have your eyes checked.{/one of}}
+
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for unlock from Lockable
+  without as target for lock from Lockable
+  without as target for look_in from Thing
+  as target for look_in {
+    do {
+      if (self.get(:open)) { say "The grating is open, but I can't tell what's beyond it." }
+      else { say "The grating is closed." }
+    }
+  }
+  as target for close {
+    do {
+      if (!self.get(:unlocked)) { say "The grating is locked." }
+      else if (!self.get(:open)) { say dummy }
+      else {
+        self.set(:open, false)
+        say "The grating is closed."
+        broadcast :grate_open with false
+      }
+    }
+  }
+}
+
+// The grating from the Clearing: the lock is on the other side.
+kind GratingAbove is Grating {
+  passage view {
+    It is a heavy iron grating, set securely into the ground and rusted to the colour of the leaves that hid it. Below it is only darkness.
+
+    {if self.get(:open)}The grating is open.{else if self.get(:unlocked)}The grating is closed.{else}The grating is closed, and fastened from beneath: whatever lock holds it faces down into the dark, well out of reach of anyone up here.{/if}
+  }
+  describe {
+    text view
+    if (seen == :look) { media.show("pictures/grating.png", "the grating") }
+  }
+
+  as target for open {
+    do {
+      if (bound tool) {
+        if (tool.is(SkeletonKey)) { say "You can't reach the lock from here." }
+        else if (!self.get(:unlocked)) { say "The grating is locked." }
+        else if (self.get(:open)) { say dummy }
+        else {
+          self.set(:open, true)
+          say "The grating opens."
+          broadcast :grate_open with true
+        }
+      }
+      else if (!self.get(:unlocked)) { say "The grating is locked." }
+      else if (self.get(:open)) { say dummy }
+      else {
+        self.set(:open, true)
+        say "The grating opens."
+        broadcast :grate_open with true
+      }
+    }
+  }
+  as target for lock { do { say "You can't lock it from this side." } }
+  as target for unlock {
+    do {
+      if (bound tool) { say "You can't reach the lock from here." }
+      else {
+        say "The lock is on the underside of the grating. You can't reach it from here."
+      }
+    }
+  }
+}
+
+// The grating from the Grating Room: the lock is here, and the leaves are
+// on top. Opened for the first time while they still lie on it, they come
+// down on the one who opened it (GRATE-FUNCTION): the grating asks the
+// world to let it reach the Clearing, and brings them down.
+kind GratingBelow is Grating {
+  passage view {
+    The grating is set into the roof of the room, heavy iron bars rusted the colour of old leaves. {if self.get(:open)}It stands open, and sunlight and the smell of the forest come down through it.{else if self.get(:unlocked)}It is unlocked, and closed.{else}It is closed, and fastened with a skull-and-crossbones lock.{/if}
+  }
+  describe { text view }
+
+  passage opens { The grating opens to reveal trees above you. }
+  passage leaves_fall { A pile of leaves falls onto your head and to the ground. }
+
+  as target for open {
+    do {
+      if (bound tool) {
+        if (tool.is(SkeletonKey)) {
+          self.set(:unlocked, true)
+          say "The grate is unlocked."
+          broadcast :grate_unlock with true
+        }
+        else if (!self.get(:unlocked)) { say "The grating is locked." }
+        else if (self.get(:open)) { say dummy }
+        else {
+          self.set(:open, true)
+          say opens
+          if (!self.get(:revealed)) {
+            say leaves_fall
+            send underground_caverns :open_gate
+          }
+          broadcast :grate_open with true
+        }
+      }
+      else if (!self.get(:unlocked)) { say "The grating is locked." }
+      else if (self.get(:open)) { say dummy }
+      else {
+        self.set(:open, true)
+        say opens
+        if (!self.get(:revealed)) {
+          say leaves_fall
+          send underground_caverns :open_gate
+        }
+        broadcast :grate_open with true
+      }
+    }
+  }
+  as target for lock {
+    do {
+      self.set(:unlocked, false)
+      say "The grate is locked."
+      broadcast :grate_unlock with false
+    }
+  }
+  as target for unlock {
+    do {
+      if (bound tool) {
+        self.set(:unlocked, true)
+        say "The grate is unlocked."
+        broadcast :grate_unlock with true
+      } else if (actor.is(Adventurer) && actor.get(:keys) > 0) {
+        self.set(:unlocked, true)
+        say "(with the skeleton key)"
+        say "The grate is unlocked."
+        broadcast :grate_unlock with true
+      } else {
+        say "You'll need something to unlock it with."
+      }
+    }
+  }
+
+  // The leaves, brought down through the open gate.
+  on :gate_open {
+    self.set(:revealed, true)
+    each l: Leaves in underground_caverns.grating_clearing { move l to grating_room }
+    send grating_clearing :reveal
+    send underground_caverns :close_gate
+  }
+}

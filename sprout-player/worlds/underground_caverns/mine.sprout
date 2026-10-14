@@ -1,0 +1,811 @@
+// The coal mine (v7), as 1dungeon.zil and 1actions.zil have it: the Slide
+// Room and its slide down to the Cellar (SLIDE-FUNCTION, SLIDER), the Mine
+// Entrance, the Squeaky Room, the Bat Room and its vampire bat (BATS-ROOM,
+// BAT-D, BAT-F, FLY-ME), the Shaft Room and the basket on its chain
+// (BASKET-F), the Smelly Room, the Gas Room (BOOM-ROOM), the four rooms of
+// the coal mine proper, the Ladder Top and Bottom, the Dead End with its
+// coal, the Timber Room and the Drafty Room, too narrow to carry anything
+// through (NO-OBJS, EMPTY-HANDED, LIGHT-SHAFT), and the Machine Room
+// (MACHINE-ROOM-FCN, MACHINE-F, MSWITCH-FUNCTION, GUNK-FUNCTION). All dark.
+//
+// Four things here move or change what no room can reach, and each goes by
+// the world's gate: the bat carries a visitor off (the visitor goes, since
+// nobody can be carried; adventurer.sprout); the basket and its other end
+// change places between the Shaft Room and the Drafty Room; what is put in
+// the slide falls to the Cellar; and the machine turns its coal into a
+// diamond, or anything else into slag, by spawning.
+import * as sprout from 'sprout'
+import {Thing, Scenery, Portable, Flame, Lowerable, Mechanism, Switchable} from 'thing'
+import {Box} from 'box'
+import {Room, DarkRoom} from 'room'
+import {Light} from 'lamp'
+import {Stairs} from 'scenery'
+import {Treasure, Garlic} from 'items'
+import {Adventurer} from 'adventurer'
+import {Screwdriver} from 'dam'
+import {:bats, :gas, take, drop, put, open, close, look_in, search, raise, lower, shift, turn, turn_with, lamp_on, lamp_off, climb_up, climb_down, through, talk, greet, listen, smell, kick, rub, mung, eat, squeeze, read, look_under, give, throw, attack, burn, :travel, :open_gate, :gate_open, :close_gate, :consume, :relight, :scored} from 'verbs'
+import {examine} from 'sprout'
+import {cold_passage} from 'mirror'
+import {cellar} from 'cellar'
+
+message :cage with boolean
+message :run
+
+// The Timber Room and the Drafty Room, between which the passage is too
+// narrow for anything heavier than a clove of garlic (Zork's EMPTY-HANDED,
+// which the visitor's own `depart` reads: adventurer.sprout).
+kind Crawlspace { }
+// The Drafty Room, where the dead do not go (DEAD-FUNCTION).
+kind DraftyEnd { }
+// Where a flame in hand is the end of you (BOOM-ROOM).
+kind GasRoom { }
+// The Shaft Room, where lowering the basket can take the light with it.
+kind ShaftTop { }
+// The Smelly Room, where the gas below can be smelled.
+kind Reeking { }
+// The Squeaky Room and the Bat Room, where the bat can be heard.
+kind Squeaky { }
+
+// The slide (SLIDE-FUNCTION): down it is the Cellar, and whatever is put
+// into it goes there too (SLIDER), by the world's gate.
+kind Chute is Box, Scenery {
+  grammar { name "slide"  nouns "chute", "ramp"  adjectives "steep", "metal", "twisting" }
+  :open true
+  :capacity 10000
+  passage short { slide }
+  passage examined { The slide is a steep chute of riveted sheet metal, polished to a shine by everything that has gone down it, and it twists away out of sight into the dark below. It goes down a long way. It does not, by the look of it, come back up. }
+  passage no_take { The slide is riveted to the floor, and to the walls, and very probably to whatever is at the bottom. }
+  without as target for look_in from Box
+  without as target for look_in from Thing
+  without as target for open from Thing
+  without as target for close from Thing
+  as target for look_in { do { say "The slide twists away downward, out of sight. Whatever is at the bottom is a long way down." } }
+  without as target for close from Box
+  as target for close { do { say "You cannot close that." } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say "You tumble down the slide...."  send actor :travel with :cellar } }
+  without as target for climb_up from Thing
+  as target for climb_up { do { say "The slide is far too steep and smooth to climb. It is a one-way sort of arrangement." } }
+  without as target for through from Thing
+  as target for through { do { say "You tumble down the slide...."  send actor :travel with :cellar } }
+  on :entered (item, from) {
+    if (item.is(Thing)) { send underground_caverns :open_gate }
+  }
+  on :gate_open {
+    each t: Thing in self { move t to underground_caverns.cellar }
+    send underground_caverns :close_gate
+  }
+}
+
+object slide_room is DarkRoom in underground_caverns {
+  :tour 56
+  :walls 9
+  grammar {
+    name "Slide Room"
+    exit east  "east"  -> cold_passage
+    exit north "north" -> mine_entrance
+    exit down  "slide" -> cellar say "You tumble down the slide...."
+  }
+  passage body {
+    This is a small chamber, which appears to have been part of a coal mine. On the south wall of the chamber the letters "Granite Wall" are etched in the rock. To the east is a long passage, and there is a steep metal slide twisting downward. To the north is a small opening.
+  }
+  object slide is Chute
+  object letters is Scenery {
+    grammar { name "letters"  nouns "letter", "etching", "etchings", "words", "inscription", "writing"  adjectives "etched", "granite" }
+    passage short { letters }
+    passage only { It only SAYS "Granite Wall". }
+    describe { text "Someone has etched the words \"Granite Wall\" into the south wall, in careful capitals, as if to settle an argument. The wall they are etched on is ordinary dark rock, shot with seams of coal." }
+    without as target for read from Thing
+    as target for read { do { say only } }
+  }
+  object opening is Scenery {
+    grammar { name "small opening"  nouns "opening", "hole", "gap"  adjectives "small", "north" }
+    passage short { small opening }
+    describe { text "A small opening in the north wall, propped with old timbers, leads into what was once a working mine. A smell of coal and something less pleasant comes out of it." }
+  }
+  object chamber is Scenery {
+    grammar { name "small chamber"  nouns "chamber", "room", "mine", "workings"  adjectives "small", "coal" }
+    passage short { small chamber }
+    describe { text "It is a small chamber cut square out of the rock, with old pick marks on every face and the stubs of iron brackets where lamps once hung. It was part of a coal mine once, and has the air of a place that remembers being busy." }
+  }
+  object passage_east is Scenery {
+    grammar { name "long passage"  nouns "passage", "corridor"  adjectives "long", "east" }
+    passage short { long passage }
+    describe { text "The passage goes east, long and cold, back toward the mirrors." }
+  }
+}
+
+object mine_entrance is DarkRoom in underground_caverns {
+  :tour 57
+  grammar {
+    name "Mine Entrance"
+    exit south "south" -> slide_room
+    exit in    "shaft" -> squeaky_room
+    exit west  "west"  -> squeaky_room
+  }
+  passage body {
+    You are standing at the entrance of what might have been a coal mine. The shaft enters the west wall, and there is another exit on the south end of the room.
+  }
+  object shaft is Scenery {
+    grammar { name "shaft"  nouns "mine", "entrance", "tunnel"  adjectives "coal", "west", "mine" }
+    passage short { shaft }
+    describe { text "The mine shaft goes into the west wall, square-cut and shored with timbers that were new a long time ago. Over the mouth of it someone has nailed a board, and on the board someone else has painted, and then painted out, a word that might have been WELCOME." }
+    without as target for through from Thing
+    as target for through { do { say "Go west, if you mean it." } }
+  }
+}
+
+object squeaky_room is DarkRoom, Squeaky in underground_caverns {
+  :tour 58
+  grammar {
+    name "Squeaky Room"
+    exit north "north" -> bat_room
+    exit east  "east"  -> mine_entrance
+  }
+  passage body {
+    You are in a small room. Strange squeaky sounds may be heard coming from the passage at the north end. You may also escape to the east.
+  }
+  object sounds is Scenery {
+    grammar { name "squeaky sounds"  nouns "sounds", "sound", "squeaks", "squeak", "squeaking", "noise", "noises"  adjectives "squeaky", "strange" }
+    passage short { squeaky sounds }
+    describe { text "You cannot see a sound, but you can hear this one well enough: a thin, high squeaking from the passage to the north, now and then rising to something like a word." }
+    without as target for listen from Thing
+    as target for listen { do { say "From the north comes a high, thin squeaking, and every so often something that sounds remarkably like \"Fweep!\"" } }
+  }
+  object passage_north is Scenery {
+    grammar { name "passage"  nouns "passageway", "end"  adjectives "north" }
+    passage short { passage }
+    describe { text "The passage at the north end of the room is short and low, and the squeaking comes out of it. The floor of it is spattered with something you would rather not have stepped in, and have." }
+  }
+}
+
+// The vampire bat (BAT-F, BAT-D): on the ceiling, holding his nose, where
+// there is garlic in hand or on the floor; anywhere else, swooping. Who he
+// carries off, he carries off by their own feet (adventurer.sprout).
+kind Bat is Thing {
+  grammar { name "vampire bat"  nouns "bat", "vampire"  adjectives "vampire", "deranged", "large" }
+  passage short { bat }
+  passage calm { In the corner of the room on the ceiling is a large vampire bat who is obviously deranged and holding his nose. }
+  passage swoop { A large vampire bat, hanging from the ceiling, swoops down at you! }
+  passage no_take { You can't reach him; he's on the ceiling. }
+  describe { text "He is a large vampire bat, as bats go, and he goes: leathery, beady-eyed and plainly unwell in his mind. He has the look of something that has been underground too long and has come to an understanding with the dark. Just now he is clinging to the ceiling with his feet and holding his nose with both wings." }
+  without as target for talk from Thing
+  as target for talk { do { say "Fweep! Fweep! Fweep! Fweep! Fweep!" } }
+  without as target for greet from Thing
+  as target for greet { do { say "Fweep! Fweep! Fweep! Fweep! Fweep!" } }
+  without as target for listen from Thing
+  as target for listen { do { say "Fweep!" } }
+  without as target for smell from Thing
+  as target for smell { do { say "He smells of guano. He seems to think the same of you, or of something you have about you." } }
+  without as target for mung from Thing
+  as target for mung {
+    do {
+      if (here.count(Garlic) > 0) { say no_take }
+      else if (actor.is(Adventurer)) {
+        if (actor.get(:garlics) > 0) { say no_take }
+        else {
+          say "Fweep! Fweep! Fweep! The bat grabs you by the scruff of your neck and lifts you away...."
+          send actor :travel with :bat
+        }
+      }
+    }
+  }
+}
+
+object bat_room is DarkRoom, Squeaky in underground_caverns {
+  :tour 0
+  grammar {
+    name "Bat Room"
+    exit south "south" -> squeaky_room
+    exit east  "east"  -> shaft_room
+  }
+  passage body {
+    You are in a small room which has doors only to the east and south.
+  }
+  // BATS-ROOM's M-ENTER: whoever comes in without garlic in hand, and
+  // with none on the floor, is seen to by the bat (the visitor's part).
+  on :entered (item, from) {
+    if (item.is(Adventurer)) { send item :bats }
+  }
+  // Told as the bat carries a visitor off, the room is rendered once the
+  // turn is done, with the visitor already gone: so a room with nobody in it
+  // has the bat swooping.
+  object bat is Bat {
+    passage ldesc { {if bat_room.count(Garlic) > 0}{self.calm}{else if bat_room.count(Adventurer) == 0}{self.swoop}{else}{for p: Adventurer in bat_room}{if $first}{if p.get(:garlics) > 0}{self.calm}{else}{self.swoop}{/if}{/if}{/for}{/if} }
+  }
+  object jade is Jade
+  object doors is Scenery {
+    grammar { name "doors"  nouns "door", "doorway", "doorways"  adjectives "east", "south" }
+    passage short { doors }
+    describe { text "They are doorways rather than doors: two rough openings, one east and one south, with nothing in them to keep anything in or out. The bat seems to prefer it that way." }
+  }
+}
+
+kind Jade is Treasure {
+  grammar { name "jade figurine"  nouns "figurine", "jade", "statuette", "figure", "treasure"  adjectives "exquisite", "jade" }
+  :size 10
+  :value 5
+  :tvalue 5
+  passage short { jade figurine }
+  passage ldesc { There is an exquisite jade figurine here. }
+  describe { text "It is a figurine of green jade no longer than your hand, carved as a small, round-bellied person sitting cross-legged and smiling at something nobody else has noticed. The stone is cool and so smooth it seems wet. Whoever carved it had all the time in the world, and used it." }
+}
+
+kind Bracelet is Treasure {
+  grammar { name "sapphire-encrusted bracelet"  nouns "bracelet", "jewel", "sapphire", "sapphires", "treasure"  adjectives "sapphire", "sapphire-encrusted", "encrusted" }
+  :size 10
+  :value 5
+  :tvalue 5
+  passage short { sapphire-encrusted bracelet }
+  describe { text "It is a heavy bracelet of gold, crusted all round with sapphires the color of deep water. It is far too fine for a coal mine, and somebody must once have thought so too, and then had a reason to leave in a hurry." }
+}
+
+// The basket on its chain (BASKET-F), and the chain's other end. The
+// basket that holds things is the one at whichever end it has been sent to;
+// at the other end hangs only the chain's other end, which answers that
+// the basket is not there. Raised or lowered from either room, both go by
+// the world's gate and change ends, and the basket's load with it.
+kind Cage is Box {
+  grammar { name "basket"  nouns "cage", "dumbwaiter"  adjectives "wire" }
+  // Whether the basket is at the top of the shaft (Zork's CAGE-TOP).
+  :top true
+  // Which way it is going: 1 down, 2 up.
+  :errand 0 min 0 max 2
+  :open true
+  :capacity 50
+  passage short { basket }
+  passage dummy {{one of}Look around.{or}Too late for that.{or}Have your eyes checked.{/one of}}
+  on :cage (from, value) { self.set(:top, value) }
+  on :gate_open {
+    let up = self.get(:errand) == 2
+    self.set(:errand, 0)
+    if (up) {
+      move underground_caverns.shaft_room.basket to underground_caverns.shaft_room
+      move underground_caverns.lower_shaft.far_basket to underground_caverns.lower_shaft
+    } else {
+      move underground_caverns.shaft_room.basket to underground_caverns.lower_shaft
+      move underground_caverns.lower_shaft.far_basket to underground_caverns.shaft_room
+    }
+    send underground_caverns.shaft_room.basket :cage with up
+    send underground_caverns.lower_shaft.far_basket :cage with up
+    send underground_caverns :close_gate
+  }
+  without as target for close from Box
+  as target for close { do { say "You cannot close that." } }
+  without as target for open from Box
+  as target for open { do { say "It is already open." } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say "You wouldn't fit and would die if you could." } }
+  without as target for through from Thing
+  as target for through { do { say "You wouldn't fit and would die if you could." } }
+  without as target for shift from Thing
+  as target for shift { do { say "The basket swings a little on its chain, and comes back." } }
+}
+
+kind Basket is Cage, Lowerable {
+  // Scratch, for lowering: whether the light goes down with it.
+  :lamping false
+  :others 0 min 0 max 50
+  passage ldesc { At the end of the chain is a basket. }
+  passage no_take { The cage is securely fastened to the iron chain. }
+  passage view { It is a stout basket of iron straps and wire, about the size of a laundry basket and very much stronger, hanging from the end of the heavy iron chain. It is open at the top. }
+  passage examined { {self.view}{if self.count(Thing) > 0}
+
+    {self.look_inside}{/if} }
+  without as target for raise from Thing
+  as target for raise {
+    do {
+      if (self.get(:top)) { say dummy }
+      else {
+        say "The basket is raised to the top of the shaft."
+        self.set(:errand, 2)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+  without as target for lower from Lowerable
+  as target for lower {
+    do {
+      if (!self.get(:top)) { say dummy }
+      else {
+        say "The basket is lowered to the bottom of the shaft."
+        // Zork's "It is now pitch black.": the basket took the only light.
+        self.set(:lamping, false)
+        each l: Light in self { if (l.get(:lit)) { self.set(:lamping, true) } }
+        if (self.get(:lamping) && here.is(DarkRoom)) {
+          self.set(:others, 0)
+          each l: Light in here { if (l.get(:lit)) { self.adjust(:others, 1) } }
+          each b: Box in here {
+            if (b != self && b.get(:open)) { each l: Light in b { if (l.get(:lit)) { self.adjust(:others, 1) } } }
+          }
+          if (actor.is(Adventurer)) { if (actor.get(:light) > 0) { self.adjust(:others, 1) } }
+          if (!here.get(:daylight) && self.get(:others) == 0 && here.get(:bearers) == 0) { say "It is now pitch black." }
+        }
+        self.set(:errand, 1)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+}
+
+kind FarBasket is Cage, Lowerable {
+  :capacity 10000
+  passage ldesc { From the chain is suspended a basket. }
+  passage away { The basket is at the other end of the chain. }
+  passage no_take { The basket is at the other end of the chain. }
+  passage examined { The basket is at the other end of the chain. }
+  accept (item, from) { refuse "The basket is at the other end of the chain." }
+  without as target for look_in from Box
+  as target for look_in { do { say away } }
+  without as target for raise from Thing
+  as target for raise {
+    do {
+      if (self.get(:top)) { say dummy }
+      else {
+        say "The basket is raised to the top of the shaft."
+        self.set(:errand, 2)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+  without as target for lower from Lowerable
+  as target for lower {
+    do {
+      if (!self.get(:top)) { say dummy }
+      else {
+        say "The basket is lowered to the bottom of the shaft."
+        self.set(:errand, 1)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+}
+
+// Zork's CHAIN-PSEUDO, at both ends of the shaft.
+kind Chain is Scenery, Lowerable {
+  grammar { name "iron chain"  nouns "chain", "chains"  adjectives "heavy", "iron" }
+  passage short { iron chain }
+  passage no_take { The chain is secure. }
+  describe { text "The chain secures a basket within the shaft." }
+  without as target for shift from Thing
+  as target for shift { do { say "The chain is secure." } }
+  without as target for raise from Thing
+  as target for raise { do { say "Perhaps you should do that to the basket." } }
+  without as target for lower from Lowerable
+  as target for lower { do { say "Perhaps you should do that to the basket." } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say "The chain is greasy, the shaft is narrow, and the bottom is a long way down. You wouldn't fit and would die if you could." } }
+  without as target for climb_up from Thing
+  as target for climb_up { do { say "The chain is greasy, the shaft is narrow, and the top is a long way up. You wouldn't fit and would die if you could." } }
+}
+
+object shaft_room is DarkRoom, ShaftTop in underground_caverns {
+  :tour 59
+  grammar {
+    name "Shaft Room"
+    exit down  "shaft" refuse "You wouldn't fit and would die if you could."
+    exit west  "west"  -> bat_room
+    exit north "north" -> smelly_room
+  }
+  passage body {
+    This is a large room, in the middle of which is a small shaft descending through the floor into darkness below. To the west and the north are exits from this room. Constructed over the top of the shaft is a metal framework to which a heavy iron chain is attached.
+  }
+  object basket is Basket
+  object chain is Chain
+  object shaft is Scenery {
+    grammar { name "small shaft"  nouns "shaft", "hole", "pit"  adjectives "small", "narrow" }
+    passage short { small shaft }
+    describe { text "The shaft goes straight down through the floor, square and narrow, into a darkness your light does not reach the bottom of. A draught comes up it, smelling of coal. It is wide enough for the basket and not for you. Whatever is at the bottom is in the dark, and will want a light of its own to be seen by; a light that goes down in the basket stays down with it, and is not up here with you. Better, then, to send down a light you can spare than the one you see by: something that burns on its own, and has never been known to go out." }
+    without as target for climb_down from Thing
+    as target for climb_down { do { say "You wouldn't fit and would die if you could." } }
+    without as target for through from Thing
+    as target for through { do { say "You wouldn't fit and would die if you could." } }
+    without as target for look_in from Thing
+    as target for look_in { do { say "The shaft goes down into the dark further than your light can follow. The chain goes with it.{if shaft_room.count(Basket) > 0} The basket hangs at the top, at the end of it.{else} Somewhere at the bottom, at the end of it, is the basket.{/if} Down there it is as dark as it is anywhere, and nobody has left a light on." } }
+  }
+  object framework is Scenery {
+    grammar { name "metal framework"  nouns "framework", "frame", "winch", "pulley", "gantry"  adjectives "metal", "iron" }
+    passage short { metal framework }
+    describe { text "Over the shaft stands a framework of riveted iron girders, with a pulley at the top and a big crank-handled winch at the side, and over the pulley runs the heavy iron chain. The winch is greased, which is more than can be said for anything else down here." }
+    without as target for turn from Thing
+    as target for turn { do { say "Perhaps you should raise or lower the basket." } }
+  }
+}
+
+object smelly_room is DarkRoom, Reeking in underground_caverns {
+  :tour 60
+  grammar {
+    name "Smelly Room"
+    exit down  "staircase" -> gas_room
+    exit south "tunnel"    -> shaft_room
+  }
+  passage body {
+    This is a small nondescript room. However, from the direction of a small descending staircase a foul odor can be detected. To the south is a narrow tunnel.
+  }
+  object odor is Gas {
+    describe { text "You cannot see a smell, but this one makes up for it: it comes up the stairs from below, sour and heavy and faintly like rotten eggs." }
+  }
+  object stairs is Stairs {
+    grammar { adjectives "small", "descending" }
+    passage view { A small staircase cut in the rock goes down out of the room. The smell comes up it. }
+    as target for climb_down { do { send actor :travel with :gas_room  say "" } }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+  }
+  object tunnel is Scenery {
+    grammar { name "narrow tunnel"  nouns "tunnel", "passage"  adjectives "narrow", "south" }
+    passage short { narrow tunnel }
+    describe { text "A narrow tunnel leads south, toward the shaft." }
+  }
+}
+
+// Zork's GAS-PSEUDO: the gas, and its smell.
+kind Gas is Scenery {
+  grammar { name "gas"  nouns "odor", "odour", "smell", "stench", "air", "fumes"  adjectives "coal", "foul" }
+  passage short { gas }
+  without as target for smell from Thing
+  as target for smell { do { say "It smells like coal gas in here." } }
+}
+
+object gas_room is DarkRoom, GasRoom in underground_caverns {
+  :tour 0
+  grammar {
+    name "Gas Room"
+    exit up   "stairs" -> smelly_room
+    exit east "tunnel" -> mine_1
+  }
+  passage body {
+    This is a small room which smells strongly of coal gas. There is a short climb up some stairs and a narrow tunnel leading east.
+  }
+  // BOOM-ROOM: whoever comes in carrying a flame is told the rest.
+  on :entered (item, from) {
+    if (item.is(Adventurer)) { send item :gas }
+  }
+  object bracelet is Bracelet
+  object gas is Gas {
+    describe { text "The air is thick with gas you cannot see and can certainly smell. It is coal gas, the kind miners used to carry canaries to warn them of, and the kind that does not care for naked flames." }
+  }
+  object stairs is Stairs {
+    grammar { adjectives "short" }
+    passage view { A short climb up some stairs leads out of the gas. }
+    as target for climb_up   { do { send actor :travel with :smelly_room  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+  object tunnel is Scenery {
+    grammar { name "narrow tunnel"  nouns "tunnel", "passage"  adjectives "narrow", "east" }
+    passage short { narrow tunnel }
+    describe { text "A narrow tunnel leads east into the workings of the mine, low and black and propped here and there with timbers." }
+  }
+}
+
+// The coal mine proper: four rooms, all alike, three of them with a way
+// that leads back into themselves (MINE-1 to MINE-4).
+kind CoalMine is DarkRoom {
+  grammar { name "Coal Mine" }
+  passage body { This is a nondescript part of a coal mine. }
+  object workings is Workings
+}
+
+kind Workings is Scenery {
+  grammar { name "coal mine"  nouns "mine", "workings", "seam", "seams", "tunnels", "props", "timbers"  adjectives "coal", "nondescript" }
+  passage short { coal mine }
+  describe { text "Low tunnels of black rock, propped with timbers gone grey and soft with age, run off in several directions. The walls glitter with coal where the light catches them. Every part of the mine looks very much like every other part, which the people who dug it presumably found less amusing than you do." }
+}
+
+object mine_1 is CoalMine in underground_caverns {
+  :tour 61
+  grammar {
+    exit north     "north"     -> gas_room
+    exit east      "east"      -> mine_1
+    exit northeast "northeast" -> mine_2
+  }
+}
+
+object mine_2 is CoalMine in underground_caverns {
+  :tour 62
+  grammar {
+    exit north     "north"     -> mine_2
+    exit south     "south"     -> mine_1
+    exit southeast "southeast" -> mine_3
+  }
+}
+
+object mine_3 is CoalMine in underground_caverns {
+  :tour 63
+  grammar {
+    exit south     "south"     -> mine_3
+    exit southwest "southwest" -> mine_4
+    exit east      "east"      -> mine_2
+  }
+}
+
+object mine_4 is CoalMine in underground_caverns {
+  :tour 64
+  grammar {
+    exit north "north" -> mine_3
+    exit west  "west"  -> mine_4
+    exit down  "down"  -> ladder_top
+  }
+}
+
+// Zork's LADDER, at its top and its foot.
+kind Ladder is Scenery {
+  grammar { name "wooden ladder"  nouns "ladder"  adjectives "wooden", "rickety", "narrow" }
+  passage short { wooden ladder }
+  describe { text "It is a narrow wooden ladder, rickety and patched, its rungs worn hollow in the middle by boots. It goes between the two rooms and looks as though it has been meaning to stop for some time." }
+  without as target for climb_up from Thing
+  without as target for climb_down from Thing
+}
+
+object ladder_top is DarkRoom in underground_caverns {
+  :tour 65
+  grammar {
+    name "Ladder Top"
+    exit down "ladder"    -> ladder_bottom
+    exit up   "staircase" -> mine_4
+  }
+  passage body {
+    This is a very small room. In the corner is a rickety wooden ladder, leading downward. It might be safe to descend. There is also a staircase leading upward.
+  }
+  object ladder is Ladder {
+    as target for climb_down { do { send actor :travel with :ladder_bottom  say "" } }
+    as target for climb_up   { do { say "The ladder goes down from here, not up." } }
+  }
+  object stairs is Stairs {
+    grammar { adjectives "upward", "stone" }
+    passage view { A staircase cut in the rock leads upward, back into the mine. }
+    as target for climb_up   { do { send actor :travel with :mine_4  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+}
+
+object ladder_bottom is DarkRoom in underground_caverns {
+  :tour 66
+  grammar {
+    name "Ladder Bottom"
+    exit south "south"  -> coal_dead_end
+    exit west  "west"   -> timber_room
+    exit up    "ladder" -> ladder_top
+  }
+  passage body {
+    This is a rather wide room. On one side is the bottom of a narrow wooden ladder. To the west and the south are passages leaving the room.
+  }
+  object ladder is Ladder {
+    as target for climb_up   { do { send actor :travel with :ladder_top  say "" } }
+    as target for climb_down { do { say "You are at the bottom of it already." } }
+  }
+  object passages is Scenery {
+    grammar { name "passages"  nouns "passage", "passageways"  adjectives "west", "south" }
+    passage short { passages }
+    describe { text "One passage goes west, wide at first and narrowing. The other goes south, and does not look as though it goes far." }
+  }
+}
+
+object coal_dead_end is DarkRoom in underground_caverns {
+  :tour 67
+  grammar {
+    name "Dead End"
+    exit north "north" -> ladder_bottom
+  }
+  passage body { You have come to a dead end in the mine. }
+  object coal is Coal
+  object dead_end is Scenery {
+    grammar { name "dead end"  nouns "end", "face", "seam"  adjectives "dead", "coal" }
+    passage short { dead end }
+    describe { text "The tunnel stops at a face of black coal, where the last miner to work it put down his pick and, by the look of it, decided he had had enough. A little of what he dug is still lying here." }
+  }
+}
+
+kind Coal is Portable {
+  grammar { name "small pile of coal"  nouns "coal", "pile", "heap", "lumps"  adjectives "small" }
+  :size 20
+  :burnable true
+  passage short { small pile of coal }
+  describe { text "It is a small pile of coal, black and glittering and dirty in the way that only coal is dirty. A great deal of heat and pressure went into making it what it is. A great deal more, applied by somebody with the right equipment, might make something else of it." }
+}
+
+object timber_room is DarkRoom, Crawlspace in underground_caverns {
+  :tour 0
+  grammar {
+    name "Timber Room"
+    exit east "east" -> ladder_bottom
+    exit west "west" -> lower_shaft
+  }
+  passage body {
+    This is a long and narrow passage, which is cluttered with broken timbers. A wide passage comes from the east and turns at the west end of the room into a very narrow passageway. From the west comes a strong draft.
+  }
+  object timber is Timber
+  object draft is Draft
+  object passageway is Scenery {
+    grammar { name "very narrow passageway"  nouns "passageway", "passage", "crack", "gap"  adjectives "very", "narrow", "west" }
+    passage short { very narrow passageway }
+    describe { text "At the west end of the room the passage pinches into a slot between two timbers, barely wider than you are. You could get through it with nothing in your hands, or nothing much: what would go in a pocket. A lamp would stick, which is a pity, since the draught that comes through the slot comes out of the dark." }
+  }
+}
+
+kind Timber is Portable {
+  grammar { name "broken timber"  nouns "timber", "timbers", "beam", "beams", "pile", "wood"  adjectives "wooden", "broken" }
+  :size 50
+  passage short { broken timber }
+  describe { text "It is a length of old pit-prop, split along the grain and snapped at one end, heavy with damp. The mine is full of them; this is the one that came loose." }
+}
+
+kind Draft is Scenery {
+  grammar { name "draft"  nouns "draught", "wind", "breeze", "air"  adjectives "strong", "cold" }
+  passage short { draft }
+  describe { text "A strong, cold draft blows steadily out of the west, as if the rock itself were breathing out." }
+}
+
+object lower_shaft is DarkRoom, Crawlspace, DraftyEnd in underground_caverns {
+  :tour 0
+  // LIGHT-SHAFT: thirteen points for seeing this room lit, once.
+  :shaft_points 13 min 0 max 13
+  grammar {
+    name "Drafty Room"
+    exit south "south" -> machine_room
+    exit out   "out"   -> timber_room
+    exit east  "east"  -> timber_room
+  }
+  passage body {
+    This is a small drafty room in which is the bottom of a long shaft. To the south is a passageway and to the east a very narrow passage. In the shaft can be seen a heavy iron chain.
+  }
+  on :relight {
+    if (self.get(:alight) && self.get(:shaft_points) > 0) {
+      each a: Adventurer in self {
+        if (self.get(:shaft_points) > 0) {
+          send a :scored with self.get(:shaft_points)
+          self.set(:shaft_points, 0)
+        }
+      }
+    }
+  }
+  object far_basket is FarBasket
+  object chain is Chain
+  object draft is Draft
+  object passages is Scenery {
+    grammar { name "passages"  nouns "passage", "passageway", "passageways"  adjectives "south", "east", "very", "narrow" }
+    passage short { passages }
+    describe { text "A passageway leads south, wide enough to walk down with your arms full. The one to the east is the very narrow one you came by, which is not." }
+  }
+  object shaft is Scenery {
+    grammar { name "long shaft"  nouns "shaft", "bottom"  adjectives "long" }
+    passage short { long shaft }
+    describe { text "The shaft comes down through the ceiling from a long way above, and the chain comes down it, and here they both stop. Looking up, you can see nothing but dark and chain." }
+    without as target for climb_up from Thing
+    as target for climb_up { do { say "You wouldn't fit and would die if you could." } }
+  }
+}
+
+object machine_room is DarkRoom in underground_caverns {
+  :tour 68
+  grammar {
+    name "Machine Room"
+    exit north "north" -> lower_shaft
+  }
+  passage body {
+    This is a large, cold room whose sole exit is to the north. In one corner there is a machine which is reminiscent of a clothes dryer. On its face is a switch which is labelled "START". The switch does not appear to be manipulable by any human hand (unless the fingers are about 1/16 by 1/4 inch). On the front of the machine is a large lid, which is {if machine.get(:open)}open{else}closed{/if}.
+  }
+  object machine is Machine
+  object switch is Scenery, Mechanism {
+    grammar { name "switch"  nouns "start"  adjectives "start" }
+    passage short { switch }
+    describe { text "The switch is set into the face of the machine and labelled \"START\" in letters that have been polished by thumbs. It has no handle at all, only a narrow slot across its face, about 1/16 by 1/4 inch, of a shape that would suit the tip of a small flat tool." }
+    without as target for turn_with from Mechanism
+    as target for turn_with {
+      do {
+        if (tool.is(Screwdriver)) {
+          if (machine.get(:open)) { say "The machine doesn't seem to want to do anything." }
+          else {
+            say "The machine comes to life (figuratively) with a dazzling display of colored lights and bizarre noises. After a few moments, the excitement abates."
+            send machine :run
+          }
+        } else if (tool.is(Thing)) { say "It seems that a {tool.short} won't do." }
+        else { say "Your bare hands don't appear to be enough." }
+      }
+    }
+    without as target for shift from Thing
+    as target for shift { do { say "Your bare hands don't appear to be enough." } }
+  }
+}
+
+// The machine (MACHINE-F): a box with a lid, which turns coal into a
+// diamond and anything else into slag when its switch is turned with the
+// screwdriver and the lid is shut (MSWITCH-FUNCTION).
+kind Machine is Box, Scenery, Mechanism, Switchable {
+  grammar { name "machine"  nouns "lid", "dryer", "pdp10", "pdp-10", "drier"  adjectives "large", "clothes" }
+  :open false
+  :capacity 50
+  passage short { machine }
+  passage no_take { It is far too large to carry. }
+  passage dummy {{one of}Look around.{or}Too late for that.{or}Have your eyes checked.{/one of}}
+  passage view { It is a squat white machine of enameled steel, about the size and shape of a clothes dryer, with a large round lid on the front. It hums faintly, or remembers humming. On its face is a switch labelled "START". }
+  passage examined { {self.view}
+
+    {self.look_inside} }
+  without as target for open from Box
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for look_in from Thing
+  as target for open {
+    do {
+      if (self.get(:open)) { say dummy }
+      else {
+        self.set(:open, true)
+        if (self.count(Thing) > 0) { say "The lid opens, revealing {self.content_list}." }
+        else { say "The lid opens." }
+      }
+    }
+  }
+  without as target for close from Box
+  as target for close {
+    do {
+      if (self.get(:open)) {
+        self.set(:open, false)
+        say "The lid closes."
+      } else { say dummy }
+    }
+  }
+  without as target for lamp_on from Switchable
+  as target for lamp_on { do { say "It's not clear how to turn it on with your bare hands." } }
+  without as target for turn_with from Mechanism
+  as target for turn_with {
+    do {
+      if (tool.is(Screwdriver)) {
+        if (self.get(:open)) { say "The machine doesn't seem to want to do anything." }
+        else {
+          say "The machine comes to life (figuratively) with a dazzling display of colored lights and bizarre noises. After a few moments, the excitement abates."
+          send self :run
+        }
+      } else if (tool.is(Thing)) { say "It seems that a {tool.short} won't do." }
+      else { say "Your bare hands don't appear to be enough." }
+    }
+  }
+  on :run {
+    if (self.count(Coal) > 0) {
+      each c: Coal in self { send c :consume }
+      spawn Diamond in self
+    } else {
+      each t: Thing in self { send t :consume }
+      spawn Slag in self
+    }
+  }
+}
+
+kind Diamond is Treasure {
+  grammar { name "huge diamond"  nouns "diamond", "treasure", "gem", "jewel"  adjectives "huge", "enormous", "perfectly", "cut" }
+  :value 10
+  :tvalue 10
+  passage short { huge diamond }
+  passage ldesc { There is an enormous diamond (perfectly cut) here. }
+  describe { text "It is an enormous diamond, perfectly cut, the size of a hen's egg and twice as hard to come by. Light goes into it and comes out again in pieces, all of them brighter. It is still faintly warm, and it smells, very slightly, of coal." }
+}
+
+// GUNK-FUNCTION: whatever is done to the slag, it crumbles.
+kind Slag is Thing {
+  grammar { name "small piece of vitreous slag"  nouns "slag", "piece", "gunk"  adjectives "small", "vitreous" }
+  passage short { small piece of vitreous slag }
+  passage crumbles { The slag was rather insubstantial, and crumbles into dust at your touch. }
+  passage no_take { The slag was rather insubstantial, and crumbles into dust at your touch. }
+  describe { text crumbles }
+  as target for examine { do { destroy self } }
+  as target for take { do { destroy self } }
+  without as target for rub from Thing
+  as target for rub { do { say crumbles  destroy self } }
+  without as target for shift from Thing
+  as target for shift { do { say crumbles  destroy self } }
+  without as target for raise from Thing
+  as target for raise { do { say crumbles  destroy self } }
+  without as target for kick from Thing
+  as target for kick { do { say crumbles  destroy self } }
+  without as target for eat from Thing
+  as target for eat { do { say crumbles  destroy self } }
+  without as target for mung from Thing
+  as target for mung { do { say crumbles  destroy self } }
+  without as target for squeeze from Thing
+  as target for squeeze { do { say crumbles  destroy self } }
+  without as target for smell from Thing
+  as target for smell { do { say crumbles  destroy self } }
+  without as target for read from Thing
+  as target for read { do { say crumbles  destroy self } }
+  without as target for look_under from Thing
+  as target for look_under { do { say crumbles  destroy self } }
+}

@@ -1,0 +1,320 @@
+// Rooms. A room reads as Zork's do: its name, its description, then what is
+// in it, each in its own paragraph. A room worth points (the Kitchen, the
+// Cellar) pays them to whoever first walks in.
+//
+// A dark room is lit only while it sees a lit lamp, on its floor or in
+// somebody's hands; until then a visitor in it can name only what they
+// carry, and reads the world's `dark` line, the grue's warning, for its
+// description. What it keeps besides, `:alight`, is for the grue: a handler
+// cannot ask a place whether it is lit, so the room counts its own lamps
+// and tells each visitor in it whether it would be lit without them.
+import * as sprout from 'sprout'
+import {Thing, Scenery} from 'thing'
+import {Light} from 'lamp'
+import {Box} from 'box'
+import {Adventurer} from 'adventurer'
+import {Thief} from 'thief'
+import {read, listen, search, look_in, look_under, look_behind, Reach, :scored, :relight, :room_lit, :wall_look, :hush, :snuffed, :prowl, :survey, :where, :berth, :wreck} from 'verbs'
+import {MagicBoat, Wreck} from 'boat'
+extension media 1
+
+kind Room is sprout.Place {
+  grammar { article none }
+
+  :value 0 min 0 max 100
+  :glow 0 min 0 max 2
+  // The Cellar's: the trap door is open above and not yet barred, so the
+  // next to come down will hear it crash shut.
+  :crash false
+
+  // Zork's WALL, one of its GLOBAL-OBJECTS: the surrounding wall, in every
+  // room. Sprout has no object that is everywhere at once, so every room
+  // holds its own.
+  object wall is Wall
+  // Zork's GRUE, another of its GLOBAL-OBJECTS, held the same way: never
+  // here, always nearby.
+  object grue is Grue
+  // Which walls these are, for the wall to describe: plain, the Cellar's
+  // damp stone, the Troll Room's scarred rock, the Studio's paint, the
+  // Engravings Cave's carved rock, the Temple's granite, the Cyclops Room's
+  // bloodstains, the Treasure Room's granite, or the Slide Room's, which
+  // only says it is.
+  :walls 0 min 0 max 9
+
+  // The Loud Room's noise, until somebody says the word: every thing there
+  // answers whatever is done to it with an echo (thing.sprout).
+  :deafening false
+  on :hush { self.set(:deafening, false) }
+
+  // How many times each visitor has come in, up to twice: Zork's TOUCHBIT,
+  // kept per visitor.
+  remembers { :visits 0 min 0 max 2 }
+  // Whether any visitor has been here, which is what the thief asks of a
+  // room before he goes through it (Zork's TOUCHBIT, as I-THIEF reads it).
+  :visited false
+  // Where the room comes in the thief's round of the Empire, or 0 for a
+  // room he never enters (Zork's SACREDBIT, above ground, and the house).
+  :tour 0 min 0 max 80
+
+  // The thief comes and goes unseen, as Zork's INVISIBLE thief does: the
+  // engine's notice of an actor arriving and leaving says nothing of him.
+  passage arrives { {if item.is(Thief)}{else}{item} arrives{if bound from} from {from}{/if}.{/if} }
+  passage leaves  { {if item.is(Thief)}{else}{item} leaves{if bound to} for {to}{/if}.{/if} }
+
+  // A handler has no `here`, so the thief asks the room he is in to show
+  // itself, and works on it from its answer (thief.sprout).
+  on :prowl (from) { if (from.is(Thief)) { send from :survey } }
+
+  // Which reach of the river, the stream or the reservoir this is, for the
+  // magic boat (boat.sprout); `nowhere` for a room the water does not touch.
+  :reach Reach default nowhere
+  // A visitor getting out of a boat, who cannot name the room the boat is
+  // in, asks it: the room answers with itself.
+  on :where (from) { if (from.is(Adventurer)) { send from :berth } }
+  // Something sharp has got at the magic boat here: it is a punctured boat
+  // now, and what was in it is on the floor (RBOAT-FUNCTION, ROB).
+  on :wreck {
+    each b: MagicBoat in self {
+      each t: Thing in b { move t to self }
+      let w = spawn Wreck in self
+      move b to w
+    }
+  }
+  // The room seen from the magic boat, as Zork's DESCRIBE-ROOM shows it
+  // from a vehicle.
+  passage boat_view {
+    {self.title}, in the magic boat
+
+    {self.body}
+
+    {self.objects}
+  }
+
+  passage title default { {self} }
+  passage body default { {if false}.{/if} }
+  // Zork's PRINT-CONT: first what has a first description and has not been
+  // moved, then everything else.
+  passage objects {
+    {for t: Thing in self}{if !t.get(:ndesc) && t.get(:has_fdesc) && !t.get(:touched)}
+
+    {t.fdesc}{t.inside_lines}{/if}{/for}{for t: Thing in self}{if t.get(:ndesc) || !t.get(:has_fdesc) || t.get(:touched)}{if !t.get(:ndesc)}
+
+    {t.ldesc}{/if}{t.inside_lines}{/if}{/for}
+  }
+  passage full {
+    {self.title}
+
+    {self.body}
+
+    {self.objects}
+  }
+  passage brief default {
+    {self.title}
+
+    {self.objects}
+  }
+
+  // Zork's DESCRIBE-ROOM: the room's name always; its long description on
+  // `look`, in VERBOSE, or the first time in; what is in it unless
+  // SUPERBRIEF. Arriving is the only time a visitor's mode is asked.
+  describe {
+    text described
+    // The room's picture, where it has one: the first time a visitor comes in and whenever
+    // they look, never for a poll, and in a dark room only by the light they see it by. The
+    // file names are written here so that `sprout pack` can send the pictures with the world.
+    if (seen == :look || (seen == :arrival && actor.recall(:visits) < 2)) {
+      if (self.is(WhiteHousePicture)) { media.show("pictures/white-house.png", "the white house") }
+      else if (self.is(ClearingPicture)) { media.show("pictures/grating.png", "the clearing") }
+      else if (self.is(LivingRoomPicture)) { media.show("pictures/trophy-case.png", "the trophy case") }
+      else if (self.is(DamPicture)) { media.show("pictures/dam.png", "Flood Control Dam #3") }
+      else if (self.is(KitchenPicture)) { media.show("pictures/kitchen.png", "the kitchen") }
+      else if (self.is(DarkRoom)) {
+        if (self.get(:alight)) {
+          if (self.is(CellarPicture)) { media.show("pictures/cellar.png", "the cellar") }
+          else if (self.is(TrollRoomPicture)) { media.show("pictures/troll.png", "the troll room") }
+          else if (self.is(MazePicture)) { media.show("pictures/maze.png", "the maze") }
+        }
+      }
+    }
+  }
+  // The description as a passage.
+  passage described {
+    {if seen == :arrival && actor.is(Adventurer) && actor.get(:mode) == :superbrief}{self.title}{else if seen == :arrival && actor.is(Adventurer) && actor.get(:mode) == :brief && actor.recall(:visits) > 1}{self.brief}{else}{self.full}{/if}
+  }
+
+  // A room answers to the words of its name ("Troll Room" to `troll`), but
+  // only where nothing in it does; then it is as if nothing were there.
+  as target for any { permit { refuse "You can't see any such thing." } }
+  as tool for any { permit { refuse "You can't see any such thing." } }
+
+  on :entered (item, from) {
+    if (item.is(Thief)) { send item :survey }
+    if (item.is(Adventurer)) {
+      self.set(:visited, true)
+      send wall :wall_look with self.get(:walls)
+      // A visit counts only where there is light to see the room by.
+      let seen_by = !self.is(DarkRoom) || item.get(:light) > 0
+      if (item.recall(:visits) < 2 && seen_by) { item.adjust(:visits, 1) }
+      if (self.is(DarkRoom) && item.recall(:visits) < 2 && !seen_by) {
+        if (self.get(:alight)) { item.adjust(:visits, 1) }
+      }
+      if (self.get(:value) > 0) {
+        send item :scored with self.get(:value)
+        self.set(:value, 0)
+      }
+    }
+  }
+}
+
+kind DarkRoom is Room {
+  grammar { lit (self.get(:daylight) || self.get(:haunted) || self.sees(sprout.LightSource, :lit)) }
+
+  // Lit by daylight from above (the Grating Room, while the grating is
+  // open), by a lamp on its floor, or by one in somebody's hands: `:alight`.
+  :daylight false
+  :floor_lit false
+  :bearers 0 min 0 max 50
+  :alight false
+  // One of the dead is here, who needs no light (Zork's ALWAYS-LIT).
+  :haunted false
+
+  on :entered (item, from) { send self :relight }
+  on :left (item, to)      { send self :relight }
+  on :snuffed              { send self :relight }
+
+  changed :daylight (was) { send self :relight }
+
+  on :relight {
+    self.set(:floor_lit, self.get(:daylight))
+    self.set(:bearers, 0)
+    each l: Light in self { if (l.get(:lit)) { self.set(:floor_lit, true) } }
+    // On a table, a pedestal or an altar, or in an open box on the floor.
+    each b: Box in self {
+      if (b.get(:open) || b.get(:transparent)) { each l: Light in b { if (l.get(:lit)) { self.set(:floor_lit, true) } } }
+    }
+    each a: Adventurer in self { if (a.get(:light) > 0) { self.adjust(:bearers, 1) } }
+    self.set(:haunted, false)
+    each a: Adventurer in self { if (a.get(:dead)) { self.set(:haunted, true) } }
+    self.set(:alight, self.get(:floor_lit) || self.get(:bearers) > 0 || self.get(:haunted))
+    // Each visitor is told whether the room would be lit without their own.
+    each a: Adventurer in self {
+      if (a.get(:light) > 0) { send a :room_lit with self.get(:floor_lit) || self.get(:bearers) > 1 }
+      else { send a :room_lit with self.get(:alight) }
+    }
+  }
+}
+
+// The forest rooms, where a songbird is sometimes heard.
+kind Forest is Room {
+  object forest is Woods
+}
+
+// Where the canary's song carries to a songbird (Zork's FOREST-ROOM?): the
+// three Forests, the Forest Path and the tree above it.
+kind Songful { }
+
+// A forest room whose trees are only trees: none of them the climbing kind.
+kind Woodland is Forest, Songful {
+  object trees is Trees
+}
+
+// The trees of the forest, seen from among them or from its edge.
+kind Trees is Scenery {
+  grammar { name "trees"  nouns "tree"  adjectives "large", "tall", "old" }
+  passage short { trees }
+  passage view default {
+    The trees are large and old and stand close about you, as trees in a forest will, each one much like the next. None has a branch low enough to climb, which saves a good deal of argument.
+  }
+  describe { text view }
+}
+
+// The forest itself, wherever a forest room is.
+kind Woods is Scenery {
+  grammar { name "forest"  nouns "woods"  adjectives "dim", "dimly", "lit" }
+  passage short { forest }
+  passage view default { The forest is dim and old and goes on in most directions for longer than seems strictly necessary. Somewhere in it a songbird is minding its own business. }
+  describe { text view }
+}
+
+// A room where jumping is a mistake, as the Kitchen is in Zork: its way
+// down leads nowhere a body can follow.
+kind Perilous { }
+
+// Where `look down` has something to show: the edge of a chasm, the edge
+// of the Deep Canyon.
+kind ChasmEdge { }
+kind CanyonEdge { }
+
+// The two ends of the Studio's chimney: whoever climbs from the foot to the
+// top must have a light and no more than one other thing in hand, as Zork's
+// UP-CHIMNEY-FUNCTION has it.
+kind ChimneyFoot { }
+kind ChimneyTop { }
+
+// The surrounding wall, in every room. A room cannot give the wall it
+// inherits a line of its own, so it tells the wall, as a visitor comes in,
+// which walls these are.
+kind Wall is Scenery {
+  without as target for read from Thing
+  as target for read {
+    do {
+      if (self.get(:look) == 9) { say "It only SAYS \"Granite Wall\"." }
+      else { say "How does one read a {self.short}?" }
+    }
+  }
+  grammar { name "surrounding wall"  nouns "wall", "walls"  adjectives "surrounding", "east", "west", "north", "south" }
+  passage short { surrounding wall }
+  :look 0 min 0 max 9
+  on :wall_look (from, value) { self.set(:look, value) }
+  passage plain { The surrounding wall is solid, plain and entirely uninterested in you. }
+  passage damp { The cellar walls are damp, rough stone, sweating quietly in the dark. }
+  passage scarred { The walls are rough rock, marred by old bloodstains and by deep scratches, perhaps made by an axe. }
+  passage painted { The walls are splattered with paint, sixty-nine colors of it by the count of someone who had the time. Some of the splashes look deliberate. None of them looks finished. }
+  passage carved { The walls of the cave are cut all over with old engravings, in a style that took its time and expected to be looked at. }
+  passage granite { The west wall is solid granite, smooth and blank and very sure of itself. The east wall bears an ancient inscription, cut deep. }
+  passage bloodied { The walls are rough rock, spattered with old bloodstains from the floor to well above head height: higher than most people bleed, and lower than a cyclops eats. The east wall is solid rock, polished smooth where something very large has leaned on it. }
+  passage broken { The walls are rough rock, spattered with old bloodstains from the floor to well above head height. The east wall has a cyclops-sized hole in it, and most of the rest of the east wall is lying beyond it. }
+  passage etched { The walls are dark rock, shot through with seams of coal. On the south wall someone has etched, in careful capitals, the words "Granite Wall". The wall isn't granite. }
+  passage hoard { The east wall is solid granite, smooth and blank and entirely without a door, which is the point of it. The other walls are rough rock, and somebody has knocked a row of iron pegs into them to hang bags on. }
+  describe {
+    if (self.get(:look) == 1) { text damp }
+    else if (self.get(:look) == 2) { text scarred }
+    else if (self.get(:look) == 3) { text painted }
+    else if (self.get(:look) == 4) { text carved }
+    else if (self.get(:look) == 5) { text granite }
+    else if (self.get(:look) == 6) { text bloodied }
+    else if (self.get(:look) == 7) { text hoard }
+    else if (self.get(:look) == 8) { text broken }
+    else if (self.get(:look) == 9) { text etched }
+    else { text plain }
+  }
+}
+
+// Zork's GRUE-FUNCTION: what a visitor may learn of a grue without meeting
+// one. Everything else done to it is answered as Zork answers anything.
+kind Grue is Scenery {
+  grammar { name "lurking grue"  nouns "grue", "grues"  adjectives "lurking", "sinister", "hungry", "silent" }
+  passage short { lurking grue }
+  passage absent { There is no grue here, but I'm sure there is at least one lurking in the darkness nearby. I wouldn't let my light go out if I were you! }
+  describe { text "The grue is a sinister, lurking presence in the dark places of the earth. Its favorite diet is adventurers, but its insatiable appetite is tempered by its fear of light. No grue has ever been seen by the light of day, and few have survived its fearsome jaws to tell the tale." }
+  without as target for listen from Thing
+  as target for listen { do { say "It makes no sound but is always lurking in the darkness nearby." } }
+  without as target for search from Thing
+  as target for search { do { say absent } }
+  without as target for look_in from Thing
+  as target for look_in { do { say absent } }
+  without as target for look_under from Thing
+  as target for look_under { do { say absent } }
+  without as target for look_behind from Thing
+  as target for look_behind { do { say absent } }
+}
+
+// The rooms with a picture compose one of these, and the room's describe shows it.
+kind WhiteHousePicture { }
+kind ClearingPicture { }
+kind LivingRoomPicture { }
+kind DamPicture { }
+kind CellarPicture { }
+kind TrollRoomPicture { }
+kind KitchenPicture { }
+kind MazePicture { }

@@ -1,0 +1,502 @@
+// The white house: the Kitchen, the Attic and the Living Room, and the
+// things in them. The kitchen window is one window seen from two rooms, and
+// the trap door one door; each side keeps the other in step by a message
+// the world lets pass between rooms.
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery} from 'thing'
+import {Box, Bag} from 'box'
+import {Lamp} from 'lamp'
+import {Sword, Knife, Treasure, Food, Water, Lunch, Garlic} from 'items'
+import {Room, DarkRoom, Perilous, ChimneyTop, LivingRoomPicture, KitchenPicture} from 'room'
+import {Adventurer} from 'adventurer'
+import {Stairs} from 'scenery'
+import {Rope} from 'temple'
+import {fill, mung, open, close, look_in, read, shift, raise, look_under, smell, eat, through, climb_up, climb_down, :travel, :window_sync, :trap, :trap_sync, :rug_moved, :scored, :magic, :won, :consume, :smash} from 'verbs'
+import {strange_passage} from 'cyclops'
+import {AncientMap} from 'barrow'
+import {behind_house} from 'above_ground'
+import {Riverside, OnTheRiver} from 'river'
+import {MagicBoat} from 'boat'
+import {cellar} from 'cellar'
+
+// The room outside the kitchen window.
+kind Outdoors { }
+
+kind KitchenWindow is Scenery {
+  grammar { name "kitchen window"  nouns "window"  adjectives "small" }
+  :open false
+  :opened_once false
+  :door true
+  passage short { kitchen window }
+
+  describe {
+    if (!self.get(:opened_once)) { text "The window is slightly ajar, but not enough to allow entry." }
+    else if (self.get(:open)) { text "The kitchen window is open, but I can't tell what's beyond it." }
+    else { text "The kitchen window is closed." }
+  }
+
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for look_in from Thing
+  as target for open {
+    permit { if (self.get(:open)) { refuse "It is already open." } }
+    do {
+      self.set(:open, true)
+      self.set(:opened_once, true)
+      say "With great effort, you open the window far enough to allow entry."
+      broadcast :window_sync with true
+    }
+  }
+  as target for close {
+    permit { if (!self.get(:open)) { refuse "It is already closed." } }
+    do {
+      self.set(:open, false)
+      self.set(:opened_once, true)
+      say "The window closes (more easily than it opened)."
+      broadcast :window_sync with false
+    }
+  }
+  as target for look_in {
+    do {
+      if (here.is(Outdoors)) { say "You can see what appears to be a kitchen." }
+      else { say "You can see a clear area leading towards a forest." }
+    }
+  }
+  // Through the window, as Zork's WALK and THROUGH take it: to the other
+  // side, if it is open.
+  without as target for through from Thing
+  as target for through {
+    do {
+      if (!self.get(:open)) { say "The kitchen window is closed." }
+      else if (here.is(Outdoors)) { send actor :travel with :kitchen  say "" }
+      else { send actor :travel with :behind  say "" }
+    }
+  }
+  on :window_sync (from, value) {
+    self.set(:open, value)
+    self.set(:opened_once, true)
+  }
+}
+
+object kitchen is Room, Perilous, ChimneyTop, KitchenPicture in underground_caverns {
+  grammar {
+    name "Kitchen"
+    exit east "window"  -> behind_house when (self.get(:window_open))
+    exit east "window"  refuse "The kitchen window is closed."
+    exit out  "outside" -> behind_house when (self.get(:window_open))
+    exit out  "outside" refuse "The kitchen window is closed."
+    exit west "west"    -> living_room
+    exit up   "stairs"  -> attic
+    exit down "chimney" refuse "Only Santa Claus climbs down chimneys."
+  }
+  :value 10
+  :window_open false
+  passage body {
+    You are in the kitchen of the white house. A table seems to have been used recently for the preparation of food. A passage leads to the west and a dark staircase can be seen leading upward. A dark chimney leads down and to the east is a small window which is {if self.get(:window_open)}open.{else}slightly ajar.{/if}
+  }
+  on :window_sync (from, value) { self.set(:window_open, value) }
+
+  // The lunch, the garlic and the water are made the first time anyone
+  // comes in, so that eating and drinking may unmake them.
+  :stocked false
+  on :entered (item, from) {
+    if (item.is(Adventurer) && !self.get(:stocked)) {
+      self.set(:stocked, true)
+      spawn Lunch in table.sack
+      spawn Garlic in table.sack
+      spawn Water in table.bottle
+    }
+  }
+
+  object table is Box {
+    grammar { name "kitchen table"  nouns "table" }
+    :open true
+    :surface true
+    :ndesc true
+    :capacity 50
+    passage short { kitchen table }
+    passage examined {
+      The kitchen table is a sturdy, scrubbed affair of plain wood, scarred by knives and stained here and there by whatever was prepared on it recently. Someone has been eating well, and has not been tidying up.
+
+      {self.look_inside}
+    }
+
+    object sack is Bag {
+      :burnable true
+      grammar { name "brown sack"  nouns "bag", "sack"  adjectives "elongated", "smelly" }
+      :has_fdesc true
+      :size 9
+      :capacity 9
+      passage short { brown sack }
+      passage fdesc { On the table is an elongated brown sack, smelling of hot peppers. }
+      passage examined {
+        It is an elongated sack of coarse brown paper, folded over at the top and spotted with grease. It smells of hot peppers, and has clearly been somebody's lunch.
+
+        {self.look_inside}
+      }
+
+      without as target for smell from Thing
+      as target for smell {
+        do {
+          if (self.count(Food) > 0) { say "It smells of hot peppers." } else { say "It smells like a brown sack." }
+        }
+      }
+    }
+
+    object bottle is Bottle
+  }
+
+  object window is KitchenWindow
+  object stairs is Stairs {
+    passage view { The staircase is dark and narrow, and leads upward to somewhere darker still. }
+    as target for climb_up   { do { send actor :travel with :attic  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+  object west_passage is Scenery {
+    grammar { name "passage"  nouns "passageway"  adjectives "west" }
+    passage short { passage }
+    describe { text "The passage leads west, toward the rest of the house. It is a perfectly ordinary passage, which in this house is almost suspicious." }
+  }
+  object chimney_flue is Scenery {
+    grammar { name "chimney"  adjectives "dark", "narrow" }
+    passage short { chimney }
+    describe { text "The chimney leads downward, and looks climbable." }
+    without as target for climb_down from Thing
+    without as target for climb_up from Thing
+    as target for climb_down { do { say "Only Santa Claus climbs down chimneys." } }
+    as target for climb_up   { do { say "The chimney doesn't lead upward." } }
+  }
+}
+
+object attic is DarkRoom in underground_caverns {
+  grammar {
+    name "Attic"
+    exit down "stairs" -> kitchen
+  }
+  passage body { This is the attic. The only exit is a stairway leading down. }
+
+  object rope is Rope
+
+  object table is Box {
+    grammar { name "table" }
+    :open true
+    :surface true
+    :ndesc true
+    :capacity 40
+    passage short { table }
+    passage examined {
+      The table is small, plain and dusty, and has been put up here in the attic for the same reason as everything else in attics.
+
+      {self.look_inside}
+    }
+    on :left (item, to) { self.set(:ndesc, false) }
+
+    object knife is Knife {
+      describe { text "It is a nasty-looking knife, short and broad in the blade and none too clean. It was not made for buttering bread." }
+      grammar { name "nasty knife"  nouns "knife", "knives", "blade"  adjectives "nasty", "unrusty" }
+      :has_fdesc true
+      passage short { nasty knife }
+      passage fdesc { On a table is a nasty-looking knife. }
+    }
+  }
+  object stairs is Stairs {
+    passage view { The stairway leads down to the kitchen. It is the only way out, unless you count the window, and there is no window. }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down { do { send actor :travel with :kitchen  say "" } }
+  }
+}
+
+object living_room is Room, LivingRoomPicture in underground_caverns {
+  grammar {
+    name "Living Room"
+    exit east "east"      -> kitchen
+    exit west "opening"   -> strange_passage when (self.get(:magic))
+    exit west "west"      refuse "The door is nailed shut."
+    exit down "trap door" -> cellar when (self.get(:trap_open))
+    exit down "trap door" refuse "The trap door is closed." when (self.get(:rug_moved))
+  }
+  :rug_moved false
+  :trap_open false
+  // The Cyclops has gone out through the wooden door, leaving a hole in it
+  // (Zork's MAGIC-FLAG).
+  :magic false
+  on :magic { self.set(:magic, true) }
+  passage body {
+    You are in the living room. There is a doorway to the east{if self.get(:magic)}. To the west is a cyclops-shaped opening in an old wooden door, above which is some strange gothic lettering, {else}, a wooden door with strange gothic lettering to the west, which appears to be nailed shut, {/if}a trophy case, {if self.get(:rug_moved) && self.get(:trap_open)}and a rug lying beside an open trap door.{else if self.get(:rug_moved)}and a closed trap door at your feet.{else if self.get(:trap_open)}and an open trap door at your feet.{else}and a large oriental rug in the center of the room.{/if}
+  }
+
+  on :rug_moved (from) { self.set(:rug_moved, true) }
+  on :trap (from, value) {
+    self.set(:trap_open, value)
+    broadcast :trap_sync with value
+  }
+  on :trap_sync (from, value) { self.set(:trap_open, value) }
+
+  object trophy_case is TrophyCase
+  object lamp is Lamp {
+    grammar { name "brass lantern"  nouns "lamp", "lantern", "light"  adjectives "brass" }
+    :has_fdesc true
+    :size 15
+    passage short { brass lantern }
+    passage fdesc { A battery-powered brass lantern is on the trophy case. }
+    passage ldesc { There is a brass lantern (battery-powered) here. }
+  }
+  object sword is Sword {
+    grammar { nouns "sword", "orcrist", "glamdring", "blade"  adjectives "elvish", "old", "antique" }
+    :has_fdesc true
+    :size 30
+    passage short { sword }
+    passage fdesc { Above the trophy case hangs an elvish sword of great antiquity. }
+    describe {
+      if (self.get(:glow) == 2) { text "Your sword is glowing very brightly." }
+      else if (self.get(:glow) == 1) { text "Your sword is glowing with a faint blue glow." }
+      else { text "The blade is long, keen and elvish, its hilt worked with vines and runes. It is very old, and has plainly been in worse places than a living room." }
+    }
+  }
+  object rug is Rug {
+    object trap_door is TrapDoor
+  }
+  object wooden_door is Scenery {
+    grammar { name "wooden door"  nouns "door", "lettering", "writing", "engravings", "opening"  adjectives "wooden", "gothic", "strange", "west", "cyclops-shaped" }
+    passage short { wooden door }
+    :door true
+    without as target for open from Thing
+    without as target for read from Thing
+    as target for open { do { say "The door cannot be opened." } }
+    as target for read { do { say "The engravings translate to \"This space intentionally left blank.\"" } }
+    describe {
+      if (living_room.get(:magic)) { text "The engravings translate to \"This space intentionally left blank.\" Below them, somebody very large has gone through the door without opening it, and left a cyclops-shaped hole in the middle of it, with the nails still in the frame." }
+      else { text "The engravings translate to \"This space intentionally left blank.\"" }
+    }
+    without as target for through from Thing
+    as target for through {
+      do {
+        if (living_room.get(:magic)) { send actor :travel with :strange  say "" }
+        else { say "You hit your head against the wooden door as you attempt this feat." }
+      }
+    }
+  }
+  object nails is Scenery {
+    grammar { nouns "nails", "nail" }
+    passage short { nails }
+    passage no_take { The nails, deeply imbedded in the door, cannot be removed. }
+    describe { text "The nails are large and many, driven deep into the wooden door and its frame by someone who meant it. Whatever is behind that door, somebody wanted it to stay there." }
+  }
+  object stairs is Stairs {
+    passage view { {if living_room.get(:trap_open)}A rickety staircase descends from the trap door into darkness. It does not look as if it was built with a return trip in mind.{else}The only stairs in sight are the ones in the kitchen, and they are in the kitchen.{/if} }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down {
+      do {
+        if (living_room.get(:trap_open)) { send actor :travel with :cellar  say "" }
+        else if (living_room.get(:rug_moved)) { say "The trap door is closed." }
+        else { say "The stairs don't lead downward." }
+      }
+    }
+  }
+  object doorway is Scenery {
+    grammar { name "doorway"  nouns "opening", "arch"  adjectives "east" }
+    passage short { doorway }
+    describe { text "The doorway leads east, into the kitchen. It has no door, which in this house makes it the friendliest thing in the room." }
+  }
+}
+
+// The trophy case. It pays a treasure's worth to everyone in the Living
+// Room when it goes in, and takes it back when it comes out.
+kind TrophyCase is Box {
+  grammar { name "trophy case"  nouns "case"  adjectives "trophy" }
+  :transparent true
+  :ndesc true
+  :capacity 10000
+  passage short { trophy case }
+  passage no_take { The trophy case is securely fastened to the wall. }
+  passage header { Your collection of treasures consists of: }
+  passage examined {
+    The trophy case is a handsome thing of polished wood and glass, fastened securely to the wall and plainly built to hold treasures. It has the patient air of something that expects to be filled.
+
+    {self.look_inside}
+  }
+
+  on :entered (item, from) {
+    if (item.is(Treasure)) {
+      each a: Adventurer in underground_caverns.living_room { send a :scored with item.get(:tvalue) }
+    }
+  }
+  // At 350 the ancient map is among the treasures (Zork's MAP, made
+  // visible by SCORE-UPD).
+  :mapped false
+  on :won {
+    if (!self.get(:mapped)) {
+      self.set(:mapped, true)
+      spawn AncientMap in self
+    }
+  }
+  on :left (item, to) {
+    if (item.is(Treasure)) {
+      each a: Adventurer in underground_caverns.living_room { send a :scored with 0 - item.get(:tvalue) }
+    }
+  }
+}
+
+// The rug hides the trap door until it is moved, once, aside.
+kind Rug is Scenery {
+  contains
+  :moved false
+  pass any (self.get(:moved))
+  grammar { name "carpet"  nouns "rug"  adjectives "large", "oriental" }
+  passage short { carpet }
+  passage no_take { The rug is extremely heavy and cannot be carried. }
+  describe {
+    if (self.get(:moved)) { text "The oriental rug lies bunched to one side of the room, where you dragged it. It looks faintly resentful." }
+    else { text "It is a large oriental rug, very fine and very heavy, laid squarely in the center of the room. It lies a little unevenly, as if something beneath it were not quite flat." }
+  }
+
+  without as target for shift from Thing
+  as target for shift {
+    do {
+      if (self.get(:moved)) {
+        say "Having moved the carpet previously, you find it impossible to move it again."
+      } else {
+        self.set(:moved, true)
+        say "With a great effort, the rug is moved to one side of the room, revealing the dusty cover of a closed trap door."
+        send living_room :rug_moved
+      }
+    }
+  }
+  without as target for raise from Thing
+  as target for raise {
+    do {
+      if (self.get(:moved)) { say "The rug is too heavy to lift." }
+      else { say "The rug is too heavy to lift, but in trying to take it you have noticed an irregularity beneath it." }
+    }
+  }
+  without as target for look_under from Thing
+  as target for look_under {
+    do {
+      if (self.get(:moved)) { say "There is nothing but dust there." }
+      else { say "Underneath the rug is a closed trap door. As you drop the corner of the rug, the trap door is once again concealed from view." }
+    }
+  }
+}
+
+// The trap door, from the Living Room.
+kind TrapDoor is Scenery {
+  grammar { name "trap door"  nouns "door", "trapdoor", "trap-door", "cover"  adjectives "trap", "dusty" }
+  :open false
+  :door true
+  passage short { trap door }
+  passage open_view {
+    It is a square trap door of heavy planks, set flush into the floor where the rug used to hide it, with an iron ring to lift it by.
+
+    The trap door is open, but I can't tell what's beyond it.
+  }
+  // Whether it has ever been opened: the dust remembers.
+  :disturbed false
+  passage shut_view {
+    It is a square trap door of heavy planks, set flush into the floor where the rug used to hide it, with an iron ring to lift it by. {if self.get(:disturbed)}The dust on it has been scuffed and smeared by somebody's comings and goings, and nobody has thought to sweep it.{else}A good deal of dust has settled on it, and nobody has disturbed it lately.{/if}
+
+    The trap door is closed.
+  }
+  describe {
+    if (self.get(:open)) { text open_view }
+    else { text shut_view }
+  }
+
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for raise from Thing
+  without as target for look_under from Thing
+  as target for open {
+    permit { if (self.get(:open)) { refuse "It is already open." } }
+    do {
+      self.set(:open, true)
+      self.set(:disturbed, true)
+      say "The door reluctantly opens to reveal a rickety staircase descending into darkness."
+      send living_room :trap with true
+    }
+  }
+  as target for raise {
+    permit { if (self.get(:open)) { refuse "It is already open." } }
+    do {
+      self.set(:open, true)
+      self.set(:disturbed, true)
+      say "The door reluctantly opens to reveal a rickety staircase descending into darkness."
+      send living_room :trap with true
+    }
+  }
+  as target for close {
+    permit { if (!self.get(:open)) { refuse "It is already closed." } }
+    do {
+      self.set(:open, false)
+      say "The door swings shut and closes."
+      send living_room :trap with false
+    }
+  }
+  // Down the trap door, said of the door: the stairs under it, as Zork's
+  // stairs are climbed; shut, it is shut.
+  without as target for climb_down from Thing
+  without as target for through from Thing
+  as target for climb_down {
+    do {
+      if (self.get(:open)) { send actor :travel with :cellar  say "" }
+      else { say "The trap door is closed." }
+    }
+  }
+  as target for through {
+    do {
+      if (self.get(:open)) { send actor :travel with :cellar  say "" }
+      else { say "The trap door is closed." }
+    }
+  }
+  as target for look_under {
+    do {
+      if (self.get(:open)) { say "You see a rickety staircase descending into darkness." }
+      else { say "It's closed." }
+    }
+  }
+  on :trap_sync (from, value) {
+    self.set(:open, value)
+    if (value) { self.set(:disturbed, true) }
+  }
+}
+
+// The glass bottle (BOTTLE, BOTTLE-FUNCTION): filled where there is water
+// to fill it from, the reservoir's, the stream's or the river's (V-FILL,
+// WATER-F); thrown, it shatters, and broken, it is gone.
+kind Bottle is Bag {
+  grammar { name "glass bottle"  nouns "bottle", "container"  adjectives "clear", "glass" }
+  :has_fdesc true
+  :transparent true
+  :capacity 4
+  passage short { glass bottle }
+  passage fdesc { A bottle is sitting on the table. }
+  passage examined {
+    It is a clear glass bottle with a stopper, of the kind made to carry water on long walks.
+
+    {self.look_inside}
+  }
+  without as target for fill from Thing
+  as target for fill {
+    do {
+      if (here.is(Riverside) || here.is(OnTheRiver) || here.is(MagicBoat)) {
+        if (!self.get(:open)) { say "The bottle is closed." }
+        else if (self.count(Thing) > 0) { say "The water slips through your fingers." }
+        else {
+          spawn Water in self
+          say "The bottle is now full of water."
+        }
+      } else if (bound tool) { say "You may know how to do that, but I don't." }
+      else { say "There's nothing to fill it with." }
+    }
+  }
+  without as target for mung from Thing
+  as target for mung {
+    do {
+      if (self.count(Water) > 0) { say "A brilliant maneuver destroys the bottle. The water spills to the floor and evaporates." }
+      else { say "A brilliant maneuver destroys the bottle." }
+      send self :consume
+    }
+  }
+  on :smash {
+    finally destroy self
+  }
+}

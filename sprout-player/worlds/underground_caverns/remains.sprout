@@ -1,0 +1,112 @@
+// The dead adventurer's remains, in the Maze: his skeleton, his useless
+// lantern, his rusty knife, his skeleton key and his bag of coins, as
+// dungeon.zil has them in MAZE-5. The skeleton's ghost (SKELETON) and the
+// knife's will (RUSTY-KNIFE-FCN) are Zork's; the bag answers as Zork's
+// STUPID-CONTAINER does.
+import {Thing, Portable, Scenery, Switchable} from 'thing'
+import {Weapon, Treasure} from 'items'
+import {open, close, look_in, lamp_on, rub, shift, raise, attack, kick, kiss, smell, listen, :spend, :banish} from 'verbs'
+
+// The skeleton. Taking it, moving it, touching it, raising it, kicking it,
+// kissing it or attacking it brings the ghost, who banishes the visitor's
+// valuables, and the room's, to the Land of the Living Dead.
+kind Skeleton is Scenery {
+  grammar { name "skeleton"  nouns "bones", "body", "remains"  adjectives "luckless", "dead", "deceased" }
+  passage short { skeleton }
+  passage curse {
+    A ghost appears in the room and is appalled at your desecration of the remains of a fellow adventurer. He casts a curse on your valuables and banishes them to the Land of the Living Dead. The ghost leaves, muttering obscenities.
+  }
+  // `take skeleton` is the adventurer's to answer, and it answers with this.
+  passage no_take { {self.curse} }
+  describe {
+    text "The skeleton lies where its owner fell, slumped against the wall of the passage as though he had sat down for a moment's rest and found the moment longer than expected. It is picked quite clean, and has been for some time. Whatever he came into the maze looking for, the maze found him first."
+  }
+
+  without as target for rub from Thing
+  without as target for shift from Thing
+  without as target for raise from Thing
+  without as target for kick from Thing
+  without as target for kiss from Thing
+  as target for rub   { do { say curse  send actor :banish } }
+  as target for shift { do { say curse  send actor :banish } }
+  as target for raise { do { say curse  send actor :banish } }
+  as target for kick  { do { say curse  send actor :banish } }
+  as target for kiss  { do { say curse  send actor :banish } }
+  // Attacked with the rusty knife, the knife answers first, and fatally:
+  // see the adventurer's part of `attack`.
+  as target for attack {
+    do {
+      if (bound weapon) {
+        if (!weapon.is(RustyKnife)) { say curse  send actor :banish }
+      } else { say curse  send actor :banish }
+    }
+  }
+  without as target for smell from Thing
+  as target for smell { do { say "It smells of nothing at all, which after this long is the most that can be said for it." } }
+}
+
+// The useless lantern: a lantern, and not a light. It does not answer
+// `turn on` as the brass one does, so where both are in reach `turn on
+// lamp` means the one that works.
+kind BurnedLantern is Portable, Switchable {
+  grammar { name "burned-out lantern"  nouns "lantern", "lamp"  adjectives "rusty", "burned", "burned-out", "dead", "useless", "broken" }
+  :has_fdesc true
+  :size 20
+  passage short { burned-out lantern }
+  passage fdesc { The deceased adventurer's useless lantern is here. }
+  describe {
+    text "It is a lantern of the old kind, rusted at every seam, its glass smoked black from the inside. Its batteries gave out some time before its owner did, which, down here, is the usual order of things."
+  }
+  without as target for lamp_on from Switchable
+  as target for lamp_on { permit { refuse "You can't turn that on." } }
+}
+
+// The rusty knife: a weapon with a will of its own. Taken while the sword
+// is held, the sword pulses; turned on anything, it turns on its bearer.
+kind RustyKnife is Weapon {
+  grammar { name "rusty knife"  nouns "knife", "knives", "blade"  adjectives "rusty" }
+  :wcode 2
+  :has_fdesc true
+  :size 20
+  // Once it has slit its bearer's throat it is gone, as Zork's
+  // REMOVE-CAREFULLY takes it.
+  :spent false
+  on :spend { self.set(:spent, true) }
+  passage short { rusty knife }
+  passage fdesc { Beside the skeleton is a rusty knife. }
+  describe {
+    text "It is a short knife, rusted nearly black, with a plain wooden grip worn smooth by a hand that is no longer in a position to hold it. The rust has not touched the edge. That is not a thing rust usually overlooks."
+  }
+}
+
+// The skeleton key, which opens the grating from below.
+kind SkeletonKey is Portable {
+  grammar { name "skeleton key"  nouns "key"  adjectives "skeleton", "iron" }
+  :size 10
+  passage short { skeleton key }
+  describe {
+    text "It is a heavy iron key, long in the shank, with a bow worked into the shape of a small grinning skull over a pair of crossed bones. Its owner carried it this far into the maze and no further. Whatever lock it fits wears the same skull, is somewhere down here, and is unlikely to be anywhere cheerful."
+  }
+}
+
+// The bag of coins: ten points when it is first taken, five more in the
+// trophy case. It is a bag, but not one to be opened or filled.
+kind CoinBag is Treasure {
+  grammar { name "leather bag of coins"  nouns "bag", "coins", "treasure", "coin"  adjectives "old", "leather" }
+  :size 15
+  :value 10
+  :tvalue 5
+  passage short { leather bag of coins }
+  passage ldesc { An old leather bag, bulging with coins, is here. }
+  describe {
+    text "It is an old leather bag, cracked with age and drawn tight at the neck with a knotted thong, and it bulges in the way that only coins make a bag bulge. There are lots of coins in there."
+  }
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for look_in from Thing
+  as target for open    { do { say "The coins are safely inside; there's no need to do that." } }
+  as target for close   { do { say "The coins are safely inside; there's no need to do that." } }
+  as target for look_in { do { say "There are lots of coins in there." } }
+  without as target for listen from Thing
+  as target for listen { do { say "The coins clink against one another, faintly and expensively." } }
+}

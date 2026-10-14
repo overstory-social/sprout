@@ -1,0 +1,4 @@
+// The world's visitor kind: an adventurer.
+import {Adventurer} from 'adventurer'
+
+kind Person is Adventurer { }

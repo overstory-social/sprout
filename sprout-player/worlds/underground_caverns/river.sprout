@@ -1,0 +1,692 @@
+// The Frigid River below the dam and the country along it, as
+// 1dungeon.zil joins them: the five reaches of the river, which only the
+// boat can be on (RIVER-1 to RIVER-5, I-RIVER and RIVER-FUNCTION); the
+// White Cliffs Beaches, whose narrow paths will not take an inflated boat
+// (WHITE-CLIFFS-FUNCTION); Sandy Beach with its shovel and the Sandy Cave
+// with a scarab under its sand (SAND-FUNCTION); the Shore; Aragain Falls,
+// the rainbow over them, which the sceptre makes solid, and the pot of gold
+// at its end (FALLS-ROOM, RAINBOW-FCN, SCEPTRE-FUNCTION); and the canyon,
+// Canyon Bottom, Rocky Ledge and Canyon View, up to the forest.
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Diggable} from 'thing'
+import {Box, Bag} from 'box'
+import {Treasure} from 'items'
+import {Room, DarkRoom, Perilous} from 'room'
+import {Adventurer} from 'adventurer'
+import {Vessel} from 'boat'
+import {cross, listen, through, climb_up, climb_down, dig, look_in, look_under, take, leap_at, drink, swim, open, close, Dest, :travel, :rainbow, :die, :consume} from 'verbs'
+import {damp_cave} from 'east'
+import {clearing, forest_3} from 'above_ground'
+
+message :dig_sand
+
+// A room where the river runs (and so the magic boat may be launched or
+// land), a room on the river itself, and the river's own kinds of place.
+kind Riverside { }
+kind OnTheRiver { }
+// The two White Cliffs Beaches: the path between them, and the passage to
+// the Damp Cave, are too narrow for an inflated boat.
+kind Narrows { }
+// Where the rainbow's foot is, and so where the sceptre makes it solid.
+kind RainbowFoot { :solid false }
+kind RainbowTop { }
+// The rainbow's west end, where the pot of gold is, the first time it is
+// made solid.
+kind RainbowEnd { :pot_shown false }
+// The Canyon View, where jumping is "Nice view, lousy place to jump."
+kind CanyonRim { }
+kind SandyCave is DarkRoom { }
+// The Damp Cave, at the end of the tight passage from the White Cliffs.
+kind CliffCave { }
+
+object river_1 is Room, OnTheRiver in underground_caverns {
+  :reach river_1
+  grammar { name "Frigid River" }
+  passage body { You are on the Frigid River in the vicinity of the Dam. The river flows quietly here. There is a landing on the west shore. }
+  object river is River
+  object cliffs is Cliffs
+  object dam is FarDam
+  object landing is Scenery {
+    grammar { name "landing"  nouns "shore", "bank"  adjectives "west" }
+    passage short { landing }
+    describe { text "On the west shore, below the dam, is a landing of flat stones, made for boats and not used by one for a long time." }
+  }
+}
+
+object river_2 is DarkRoom, OnTheRiver in underground_caverns {
+  :reach river_2
+  grammar { name "Frigid River" }
+  passage body { The river turns a corner here making it impossible to see the Dam. The White Cliffs loom on the east bank and large rocks prevent landing on the west. }
+  object river is River
+  object cliffs is Cliffs
+  object dam is FarDam {
+    describe { text "The river has turned the corner, and the dam is out of sight behind you. You can still hear it." }
+  }
+  object rocks is Scenery {
+    grammar { name "large rocks"  nouns "rocks", "rock", "boulders"  adjectives "large", "west", "half-hidden" }
+    passage short { large rocks }
+    describe { text "Along the west bank large rocks stand up out of the water, black and wet, with the river piling up white against them. There is no safe landing among them for anything made of plastic." }
+  }
+}
+
+object river_3 is DarkRoom, OnTheRiver in underground_caverns {
+  :reach river_3
+  grammar { name "Frigid River" }
+  passage body { The river descends here into a valley. There is a narrow beach on the west shore below the cliffs. In the distance a faint rumbling can be heard. }
+  object river is River
+  object cliffs is Cliffs
+  object beach is Scenery {
+    grammar { name "narrow beach"  nouns "beach", "shore", "strip"  adjectives "narrow", "west" }
+    passage short { narrow beach }
+    describe { text "On the west shore a narrow strip of beach runs along the foot of the White Cliffs, just wide enough to land a boat on." }
+  }
+  object rumbling is Rumble
+}
+
+object river_4 is DarkRoom, OnTheRiver in underground_caverns {
+  :reach river_4
+  grammar { name "Frigid River" }
+  passage body { The river is running faster here and the sound ahead appears to be that of rushing water. On the east shore is a sandy beach. A small area of beach can also be seen below the cliffs on the west shore. }
+  object buoy is Buoy {
+    object emerald is Emerald
+  }
+  object river is River
+  object cliffs is Cliffs
+  object beaches is Scenery, Diggable {
+    grammar { name "beaches"  nouns "beach", "shore", "sand"  adjectives "sandy", "east", "west", "small" }
+    passage short { beaches }
+    describe { text "On the east shore is a broad sandy beach; on the west, a small patch of beach tucked in below the White Cliffs. Either would take a boat." }
+  }
+  object rumbling is Rumble {
+    describe { text "The rumbling ahead has become the sound of rushing water, a great deal of it, and it is getting louder." }
+    passage sound { The rumbling ahead has become the sound of rushing water, a great deal of it, and it is getting louder. }
+  }
+}
+
+object river_5 is Room, OnTheRiver in underground_caverns {
+  :reach river_5
+  grammar { name "Frigid River" }
+  passage body { The sound of rushing water is nearly unbearable here. On the east shore is a large landing area. }
+  object river is River
+  object landing is Scenery {
+    grammar { name "landing area"  nouns "landing", "area", "shore", "bank"  adjectives "large", "east" }
+    passage short { landing area }
+    describe { text "On the east shore is a large, flat landing area, and it is getting closer to being behind you every moment." }
+  }
+  object rumbling is Rumble {
+    describe { text "Ahead, and not far ahead, the river goes over something with a noise like the end of the world. The noise is nearly unbearable." }
+    passage sound { Ahead, and not far ahead, the river goes over something with a noise like the end of the world. The noise is nearly unbearable. }
+  }
+}
+
+object white_cliffs_north is DarkRoom, Riverside, Narrows in underground_caverns {
+  :reach white_cliffs_north
+  grammar {
+    name "White Cliffs Beach"
+    exit south "south" -> white_cliffs_south
+    exit west  "west"  -> damp_cave
+  }
+  passage body {
+    You are on a narrow strip of beach which runs along the base of the White Cliffs. There is a narrow path heading south along the Cliffs and a tight passage leading west into the cliffs themselves.
+  }
+  object river is River
+  object cliffs is Cliffs
+  object water is WaterAbout
+  object path is Scenery {
+    grammar { name "narrow path"  nouns "path", "passage", "trail"  adjectives "narrow", "tight", "south", "west" }
+    passage short { narrow path }
+    describe { text "A narrow path heads south along the foot of the cliffs, and a tight passage goes west into the cliffs themselves. Neither was made with luggage in mind." }
+  }
+  object beach is Scenery {
+    grammar { name "beach"  nouns "strip", "shore", "pebbles"  adjectives "narrow" }
+    passage short { beach }
+    describe { text "The beach is a narrow strip of pale pebbles between the river and the cliffs, wet where the river has lately been." }
+  }
+}
+
+object white_cliffs_south is DarkRoom, Riverside, Narrows in underground_caverns {
+  :reach white_cliffs_south
+  grammar {
+    name "White Cliffs Beach"
+    exit north "north" -> white_cliffs_north
+  }
+  passage body {
+    You are on a rocky, narrow strip of beach beside the Cliffs. A narrow path leads north along the shore.
+  }
+  object river is River
+  object cliffs is Cliffs
+  object water is WaterAbout
+  object path is Scenery {
+    grammar { name "narrow path"  nouns "path", "trail"  adjectives "narrow", "north" }
+    passage short { narrow path }
+    describe { text "The path leads north along the shore between the river and the cliffs, narrow enough that you would have to turn sideways to pass anyone, and there is nobody to pass." }
+  }
+  object beach is Scenery {
+    grammar { name "beach"  nouns "strip", "shore", "rocks"  adjectives "rocky", "narrow" }
+    passage short { beach }
+    describe { text "The beach is a rocky little strip, all elbows, between the water and the cliffs." }
+  }
+}
+
+object sandy_beach is DarkRoom, Riverside in underground_caverns {
+  :reach sandy_beach
+  grammar {
+    name "Sandy Beach"
+    exit northeast "northeast" -> sandy_cave
+    exit south     "south"     -> shore
+  }
+  passage body {
+    You are on a large sandy beach on the east shore of the river, which is flowing quickly by. A path runs beside the river to the south here, and a passage is partially buried in sand to the northeast.
+  }
+  object shovel is Shovel
+  object river is River
+  object water is WaterAbout
+  object sand is Scenery, Diggable {
+    grammar { name "sand"  nouns "beach"  adjectives "sandy", "large" }
+    passage short { sand }
+    describe { text "The beach is fine pale sand, cool and damp, sloping down to the river. It drifts up against the cliff to the northeast, where it has half buried a passage." }
+  }
+  object buried_passage is Scenery {
+    grammar { name "passage"  nouns "opening", "cave"  adjectives "buried", "partially", "northeast" }
+    passage short { passage }
+    describe { text "To the northeast a passage goes into the cliff, its mouth half buried in drifted sand." }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "trail"  adjectives "south" }
+    passage short { path }
+    describe { text "A path runs south beside the river, which is flowing quickly by." }
+  }
+}
+
+object sandy_cave is SandyCave in underground_caverns {
+  :tour 47
+  grammar {
+    name "Sandy Cave"
+    exit southwest "southwest" -> sandy_beach
+  }
+  passage body { This is a sand-filled cave whose exit is to the southwest. }
+  object sand is Sand {
+    object scarab is Scarab
+  }
+}
+
+object shore is Room, Riverside in underground_caverns {
+  :reach shore
+  grammar {
+    name "Shore"
+    exit north "north" -> sandy_beach
+    exit south "south" -> aragain_falls
+  }
+  passage body {
+    You are on the east shore of the river. The water here seems somewhat treacherous. A path travels from north to south here, the south end quickly turning around a sharp corner.
+  }
+  object river is River
+  object water is WaterAbout
+  object path is Scenery {
+    grammar { name "path"  nouns "trail", "corner"  adjectives "sharp", "north", "south" }
+    passage short { path }
+    describe { text "The path runs north and south along the shore. At the south end it turns sharply round a corner of rock, toward a noise like the sky falling in." }
+  }
+}
+
+object aragain_falls is Room, RainbowFoot, Perilous, Riverside in underground_caverns {
+  grammar {
+    name "Aragain Falls"
+    exit west  "west"    -> on_rainbow when (self.get(:solid))
+    exit up    "rainbow" -> on_rainbow when (self.get(:solid))
+    exit up    "rainbow" refuse "Can you walk on water vapor?"
+    exit north "north"   -> shore
+    exit down  "down"  refuse "It's a long way..."
+  }
+  on :rainbow (from, value) { self.set(:solid, value) }
+  passage body {
+    You are at the top of Aragain Falls, an enormous waterfall with a drop of about 450 feet. The only path here is on the north end.
+
+    {if self.get(:solid)}A solid rainbow spans the falls.{else}A beautiful rainbow can be seen over the falls and to the west.{/if}
+  }
+  object falls is Falls
+  object rainbow is Rainbow
+  object river is River
+  object water is WaterAbout
+  // The far side, where the rainbow comes down: the way up the canyon to
+  // the forest, for anyone who could get there.
+  object far_side is Scenery {
+    grammar { name "far side"  nouns "side", "bank", "beach", "canyon", "sunlight", "sky", "walls", "west"  adjectives "far", "west", "sunlit", "little", "rocky" }
+    passage short { far side }
+    describe { text "Across the falls to the west, where the rainbow comes down, the river canyon opens to the sky, and a little rocky beach lies in real sunlight under the White Cliffs. A path leaves it down the canyon, and the canyon walls beyond it look a good deal less sheer than the ones on this side: the sort of walls a person might climb, to somewhere with trees on it. Between here and there is the rainbow, and four hundred and fifty feet of nothing." }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "trail", "end"  adjectives "north", "only" }
+    passage short { path }
+    describe { text "The only path here leaves at the north end, back along the river toward the Shore. Every other way out of this place goes down, a long way, in a hurry." }
+  }
+}
+
+object on_rainbow is Room, RainbowTop in underground_caverns {
+  grammar {
+    name "On the Rainbow"
+    exit west "west" -> end_of_rainbow
+    exit east "east" -> aragain_falls
+  }
+  passage body {
+    You are on top of a rainbow (I bet you never thought you would walk on a rainbow), with a magnificent view of the Falls. The rainbow travels east-west here.
+  }
+  // Run-of-the-mill again with somebody on it, or something: ROB of the
+  // rainbow, and the fall.
+  on :rainbow (from, value) {
+    if (!value) {
+      each t: Thing in self { if (!t.is(Scenery)) { send t :consume } }
+      each a: Adventurer in self { send a :die }
+    }
+  }
+  object rainbow is Rainbow
+  object falls is Falls {
+    describe { text "From up here the Falls are magnificent: the whole of the Frigid River going over the edge in one white roaring sheet, four hundred and fifty feet down into a cauldron of spray, out of which the rainbow you are standing on rises." }
+  }
+}
+
+object end_of_rainbow is Room, RainbowFoot, RainbowEnd, Riverside in underground_caverns {
+  grammar {
+    name "End of Rainbow"
+    exit up        "rainbow"   -> on_rainbow when (self.get(:solid))
+    exit up        "rainbow"   refuse "Can you walk on water vapor?"
+    exit northeast "northeast" -> on_rainbow when (self.get(:solid))
+    exit east      "east"      -> on_rainbow when (self.get(:solid))
+    exit southwest "southwest" -> canyon_bottom
+  }
+  on :rainbow (from, value) {
+    self.set(:solid, value)
+    // The pot of gold appears the first time the rainbow is made solid.
+    if (value && !self.get(:pot_shown)) {
+      self.set(:pot_shown, true)
+      spawn PotOfGold in self
+    }
+  }
+  passage body {
+    You are on a small, rocky beach on the continuation of the Frigid River past the Falls. The beach is narrow due to the presence of the White Cliffs. The river canyon opens here and sunlight shines in from above. A rainbow crosses over the falls to the east and a narrow path continues to the southwest.
+  }
+  object rainbow is Rainbow
+  object river is River
+  object cliffs is Cliffs
+  object water is WaterAbout
+  object beach is Scenery {
+    grammar { name "rocky beach"  nouns "beach", "shore", "rocks"  adjectives "small", "rocky", "narrow" }
+    passage short { rocky beach }
+    describe { text "The beach is small and rocky and squeezed between the river and the foot of the White Cliffs. Sunlight comes down into the canyon here from somewhere far above, and lies on the wet rocks like something spilled." }
+  }
+  object falls is Falls {
+    describe { text "To the east, Aragain Falls come down out of the sky in a white roaring curtain, and the rainbow stands in the spray above them." }
+  }
+  object sunlight is Scenery {
+    grammar { name "sunlight"  nouns "sun", "light", "sky"  adjectives "sun" }
+    passage short { sunlight }
+    describe { text "High above, the canyon opens to the sky, and sunlight comes down into it: the first you have seen since you went underground, if you went underground. It is warm on your face." }
+  }
+  object path is Scenery {
+    grammar { name "narrow path"  nouns "path", "trail"  adjectives "narrow", "southwest" }
+    passage short { narrow path }
+    describe { text "A narrow path goes off along the river to the southwest, down the canyon." }
+  }
+}
+
+object canyon_bottom is Room, Riverside in underground_caverns {
+  grammar {
+    name "Canyon Bottom"
+    exit up    "up"    -> cliff_middle
+    exit north "north" -> end_of_rainbow
+  }
+  passage body {
+    You are beneath the walls of the river canyon which may be climbable here. The lesser part of the runoff of Aragain Falls flows by below. To the north is a narrow path.
+  }
+  object cliff is ClimbableCliff {
+    as target for climb_up   { do { send actor :travel with :ledge  say "" } }
+    as target for climb_down { do { say "You are at the bottom already." } }
+  }
+  object falls is Falls {
+    describe { text "Upstream, beyond the end of the path, the spray of Aragain Falls hangs in the air of the canyon, and the noise of them comes down the walls." }
+  }
+  object runoff is Scenery {
+    grammar { name "runoff"  nouns "water", "flow", "river", "stream"  adjectives "lesser" }
+    passage short { runoff }
+    describe { text "The lesser part of the Falls' runoff goes by below you in a quick brown stream, on its way to wherever rivers go when nobody is watching." }
+  }
+  object path is Scenery {
+    grammar { name "narrow path"  nouns "path", "trail"  adjectives "narrow", "north" }
+    passage short { narrow path }
+    describe { text "A narrow path leads north along the river toward the foot of the Falls." }
+  }
+}
+
+object cliff_middle is Room in underground_caverns {
+  grammar {
+    name "Rocky Ledge"
+    exit up   "up"   -> canyon_view
+    exit down "down" -> canyon_bottom
+  }
+  passage body {
+    You are on a ledge about halfway up the wall of the river canyon. You can see from here that the main flow from Aragain Falls twists along a passage which it is impossible for you to enter. Below you is the canyon bottom. Above you is more cliff, which appears climbable.
+  }
+  object cliff is ClimbableCliff {
+    as target for climb_up   { do { send actor :travel with :canyon_view  say "" } }
+    as target for climb_down { do { send actor :travel with :canyon_bottom  say "" } }
+  }
+  object flow is Scenery {
+    grammar { name "main flow"  nouns "flow", "passage", "river", "water"  adjectives "main", "twisting" }
+    passage short { main flow }
+    describe { text "Below and to the north the main flow from Aragain Falls twists away into a passage in the rock, black and fast and much too narrow for anything that wants to come out the other end." }
+    without as target for through from Thing
+    as target for through { do { say "It is impossible for you to enter." } }
+  }
+}
+
+object canyon_view is Room, CanyonRim in underground_caverns {
+  grammar {
+    name "Canyon View"
+    exit east      "east"      -> cliff_middle
+    exit down      "down"      -> cliff_middle
+    exit northwest "northwest" -> clearing
+    exit west      "west"      -> forest_3
+    exit south     "south"     refuse "Storm-tossed trees block your way."
+  }
+  passage body {
+    You are at the top of the Great Canyon on its west wall. From here there is a marvelous view of the canyon and parts of the Frigid River upstream. Across the canyon, the walls of the White Cliffs join the mighty ramparts of the Flathead Mountains to the east. Following the Canyon upstream to the north, Aragain Falls may be seen, complete with rainbow. The mighty Frigid River flows out from a great dark cavern. To the west and south can be seen an immense forest, stretching for miles around. A path leads northwest. It is possible to climb down into the canyon from here.
+  }
+  object cliff is ClimbableCliff {
+    as target for climb_up   { do { say "You are at the top already." } }
+    as target for climb_down { do { send actor :travel with :ledge  say "" } }
+  }
+  object canyon is Scenery {
+    grammar { name "Great Canyon"  nouns "canyon", "gorge", "view"  adjectives "great", "river" }
+    passage short { Great Canyon }
+    describe { text "The Great Canyon falls away below you, a vast gash in the earth with the Frigid River at the bottom of it, so far down that the river looks like a thread somebody dropped. It is a marvelous view, and you are standing on the edge of it." }
+  }
+  object flathead is Scenery {
+    grammar { name "Flathead Mountains"  nouns "mountains", "ramparts", "mountain", "peaks"  adjectives "flathead", "mighty" }
+    passage short { Flathead Mountains }
+    describe { text "Beyond the canyon to the east the White Cliffs rise to meet the ramparts of the Flathead Mountains, which are flat on top, as a great many things named after Lord Dimwit Flathead are." }
+  }
+  object white_cliffs is Cliffs
+  object falls is Falls {
+    describe { text "Far upstream to the north, Aragain Falls pour over their edge in a long white plume, complete with rainbow." }
+  }
+  object rainbow is Rainbow
+  object river is River {
+    describe { text "The mighty Frigid River comes out of a great dark cavern far upstream, goes over the Falls, and winds away down the canyon below you." }
+  }
+  object cavern is Scenery {
+    grammar { name "dark cavern"  nouns "cavern", "cave", "mouth"  adjectives "great", "dark" }
+    passage short { dark cavern }
+    describe { text "Far to the north the river comes out of the side of the world through the mouth of a great dark cavern, as if it had been somewhere it would rather not discuss." }
+  }
+  object forest is Scenery {
+    grammar { name "forest"  nouns "trees", "woods"  adjectives "immense" }
+    passage short { forest }
+    describe { text "To the west and south an immense forest stretches away for miles, a great dark green fleece over the land, with a white house somewhere in it that you cannot see from here." }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "trail"  adjectives "northwest" }
+    passage short { path }
+    describe { text "A path leads away northwest into the trees." }
+  }
+}
+
+// The Frigid River, wherever it runs: what is put or thrown in it is gone
+// for good, and nobody swims it (RIVER-FUNCTION).
+kind River is Box {
+  grammar { name "river"  nouns "frigid", "water", "current"  adjectives "frigid", "mighty" }
+  :open true
+  :ndesc true
+  :capacity 10000
+  passage short { river }
+  passage swim_no { A look before leaping reveals that the river is wide and dangerous, with swift currents and large, half-hidden rocks. You decide to forgo your swim. }
+  describe { text "The Frigid River is wide and grey and very cold, and in a hurry, going downstream as if it had heard something about the end of it and wanted to see for itself." }
+  without as target for look_in from Box
+  as target for look_in { do { say "The water is grey and fast and too deep to see into." } }
+  without as target for close from Box
+  as target for close { do { say "You must tell me how to do that to a river." } }
+  without as target for open from Box
+  as target for open { do { say "You must tell me how to do that to a river." } }
+  without as target for cross from Thing
+  as target for cross { do { say "You'd need a boat for that." } }
+  without as target for through from Thing
+  as target for through { do { say swim_no } }
+  without as target for leap_at from Thing
+  as target for leap_at { do { say swim_no } }
+  passage no_take { The water slips through your fingers. }
+  without as target for drink from Thing
+  as target for drink { do { say "Thank you very much. I was rather thirsty (from all this talking, probably)." } }
+}
+
+// The water underfoot or alongside, where there is no river to be named
+// (Zork's GLOBAL-WATER).
+kind WaterAbout is Scenery {
+  grammar { name "water"  nouns "water", "quantity" }
+  passage short { water }
+  describe { text "The water is cold and clear and moving, as water down here mostly is." }
+  passage no_take { The water slips through your fingers. }
+  without as target for drink from Thing
+  as target for drink { do { say "Thank you very much. I was rather thirsty (from all this talking, probably)." } }
+  without as target for through from Thing
+  as target for through { do { say "You can't swim in the dungeon." } }
+}
+
+// The White Cliffs, which are not for climbing (WCLIF-OBJECT).
+kind Cliffs is Scenery {
+  grammar { name "white cliffs"  nouns "cliffs", "cliff", "walls"  adjectives "white" }
+  passage short { white cliffs }
+  describe { text "The White Cliffs rise sheer from the river in giant pale walls, chalk-white and streaked with grey, stretching away north and south as far as the light goes." }
+  without as target for climb_up from Thing
+  as target for climb_up { do { say "The cliff is too steep for climbing." } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say "The cliff is too steep for climbing." } }
+}
+
+// The canyon wall above the river, which may be climbed (CLIFF-OBJECT):
+// each room says which way.
+kind ClimbableCliff is Scenery {
+  grammar { name "cliff"  nouns "wall", "walls", "cliffs", "ledge", "rock"  adjectives "rocky", "sheer", "canyon" }
+  passage short { cliff }
+  describe { text "The wall of the river canyon is rough and broken and seamed with ledges, the kind of cliff that is climbable if you are careful and not if you are not." }
+  without as target for climb_up from Thing
+  without as target for climb_down from Thing
+  without as target for leap_at from Thing
+  as target for leap_at { do { say "That would be very unwise. Perhaps even fatal." } }
+}
+
+// Aragain Falls, near or far.
+kind Falls is Scenery {
+  grammar { name "falls"  nouns "waterfall", "aragain", "cataract", "spray"  adjectives "aragain", "enormous" }
+  passage short { falls }
+  describe { text "Aragain Falls are enormous: the whole of the Frigid River going over the edge at once, in a white thundering curtain, about 450 feet straight down into a boil of spray. The noise is like being inside a drum." }
+  without as target for leap_at from Thing
+  as target for leap_at { do { say "It's a long way..." } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say "It's a long way..." } }
+}
+
+// The rainbow, wherever it is seen from (RAINBOW-FCN). Each room says
+// whether it is solid.
+kind Rainbow is Scenery {
+  grammar { name "rainbow"  nouns "bow", "arc", "colors", "colours", "stairs", "bannister" }
+  passage short { rainbow }
+  describe {
+    if (here.is(RainbowFoot)) {
+      if (here.get(:solid)) { text "The rainbow arches over the falls from one bank to the other, and it is solid: you can see steps in it, and a bannister, in seven colors, which is the giveaway." }
+      else if (here.is(RainbowEnd)) { text "A beautiful rainbow hangs in the spray over the falls, every color there is and some that are not, arching away to the east. It is made, as rainbows are, of light and water vapor, and you can see the river through it." }
+      else { text "A beautiful rainbow hangs in the spray over the falls, every color there is and some that are not, arching away to the west to come down on a little sunlit beach on the far side, where the canyon opens to the sky. It is made, as rainbows are, of light and water vapor, and you can see the river through it. From the beach on the far side a path goes off down the canyon, under walls a person might climb, to somewhere with trees on it: whatever comes to that beach comes down to it by land, since nothing that floats gets there in one piece." }
+    } else if (here.is(RainbowTop)) { text "Underfoot the rainbow is firm, faintly warm, and colored in broad bands from red at one edge to violet at the other. It does not bear thinking about, so you don't." }
+    else { text "Far up the canyon a rainbow hangs over Aragain Falls, small and perfect, like a painting of a rainbow." }
+  }
+  without as target for cross from Thing
+  as target for cross {
+    do {
+      if (here.is(RainbowFoot)) {
+        if (!here.get(:solid)) { say "Can you walk on water vapor?" }
+        else if (here.is(RainbowEnd)) { send actor :travel with :falls  say "" }
+        else { send actor :travel with :rainbow_end  say "" }
+      } else if (here.is(RainbowTop)) { say "You'll have to say which way..." }
+      else { say "From here?!?" }
+    }
+  }
+  without as target for through from Thing
+  as target for through {
+    do {
+      if (here.is(RainbowFoot)) {
+        if (!here.get(:solid)) { say "Can you walk on water vapor?" }
+        else if (here.is(RainbowEnd)) { send actor :travel with :falls  say "" }
+        else { send actor :travel with :rainbow_end  say "" }
+      } else if (here.is(RainbowTop)) { say "You'll have to say which way..." }
+      else { say "From here?!?" }
+    }
+  }
+  without as target for climb_up from Thing
+  as target for climb_up {
+    do {
+      if (here.is(RainbowFoot)) {
+        if (here.get(:solid)) { send actor :travel with :on_rainbow  say "" }
+        else { say "Can you walk on water vapor?" }
+      } else if (here.is(RainbowTop)) { say "You are on it already." }
+      else { say "From here?!?" }
+    }
+  }
+  without as target for look_under from Thing
+  as target for look_under { do { say "The Frigid River flows under the rainbow." } }
+  passage no_take { You reach for it, and there is nothing there but color. }
+}
+
+// The dam, seen from the river below it.
+kind FarDam is Scenery {
+  grammar { name "dam"  nouns "dam", "wall"  adjectives "flood", "control" }
+  passage short { dam }
+  describe { text "Upstream, Flood Control Dam #3 closes off the river with a wall of grey concrete, water spilling from it. It looks much bigger from down here, which is the point of dams." }
+}
+
+kind Rumble is Scenery {
+  grammar { name "rumbling"  nouns "rumble", "roar", "sound", "noise"  adjectives "faint", "distant" }
+  passage short { rumbling }
+  describe { text "Somewhere downstream something is making a long, low, rumbling roar, the sound of a great deal of water doing something sudden." }
+  // What it sounds like, listened to: each reach that names it says how
+  // near it has come.
+  passage sound default { Somewhere downstream something is making a long, low, rumbling roar, the sound of a great deal of water doing something sudden. }
+  without as target for listen from Thing
+  as target for listen { do { say sound } }
+}
+
+// The red buoy in the river, with the emerald in it (RIVR4-ROOM).
+kind Buoy is Bag {
+  grammar { name "red buoy"  nouns "buoy", "float"  adjectives "red" }
+  :open false
+  :has_fdesc true
+  :size 10
+  :capacity 20
+  :felt false
+  passage short { red buoy }
+  passage fdesc { There is a red buoy here (probably a warning). }
+  passage examined {
+    It is a red buoy, round and dented and faded to the color of old brick, with a ring on top for a mooring line that is no longer there. It is heavier than a buoy ought to be.
+
+    {self.look_inside}
+  }
+  on :moved (from, to) {
+    if (to.is(Adventurer) && !self.get(:felt)) {
+      self.set(:felt, true)
+      tell to "You notice something funny about the feel of the buoy."
+    }
+  }
+}
+
+kind Emerald is Treasure {
+  grammar { name "large emerald"  nouns "emerald", "treasure", "gem", "jewel"  adjectives "large", "green" }
+  :value 5
+  :tvalue 10
+  passage short { large emerald }
+  describe { text "It is an emerald the size of a hen's egg, deep green and flawless, with a light in it like sun through leaves on the bottom of a pond. Somebody put it in a buoy and left it in a river, which tells you something about somebody." }
+}
+
+kind Shovel is Portable {
+  grammar { name "shovel"  nouns "spade", "tool", "tools" }
+  :size 15
+  passage short { shovel }
+  describe { text "It is a sturdy shovel with a long ash handle and a broad steel blade, worn bright along the edge by a great deal of sand." }
+}
+
+// The sand of the Sandy Cave, with a scarab in it: dug with the shovel,
+// a little deeper each time, until the scarab shows, and then until the
+// hole falls in (SAND-FUNCTION, BDIGS).
+kind Sand is Scenery, Diggable {
+  contains
+  pass any (false)
+  grammar { name "sand"  nouns "sand", "floor", "hole"  adjectives "fine" }
+  // Zork's BEACH-DIG: -1 untouched, 0 to 3 the hole so far.
+  :digs -1 min -1 max 4
+  passage short { sand }
+  describe { text "The cave is half full of fine, dry sand, drifted in from the beach in long smooth slopes.{if self.get(:digs) >= 0} There is a hole in it, which you dug.{/if}" }
+  passage no_take { The sand runs through your fingers and is sand again. }
+  // Dug with the shovel by name, the digger is answered here; with the
+  // shovel found in hand (`dig`, `dig sand`, `dig with shovel`), the
+  // digger's own part says so and sends `:dig_sand`, whose lines are told.
+  as target for dig {
+    do {
+      if (bound tool) {
+        if (tool.is(Shovel)) {
+          self.adjust(:digs, 1)
+          if (self.get(:digs) > 3) {
+            self.set(:digs, -1)
+            each s: Scarab in here { move s to self }
+            say "The hole collapses, smothering you."
+            send actor :die
+          } else if (self.get(:digs) == 3) {
+            if (self.count(Scarab) > 0) {
+              each s: Scarab in self { move s to here }
+              say "You can see a scarab here in the sand."
+            } else { say "You are surrounded by a wall of sand on all sides." }
+          } else if (self.get(:digs) == 2) { say "You are surrounded by a wall of sand on all sides." }
+          else if (self.get(:digs) == 1) { say "The hole is getting deeper, but that's about it." }
+          else { say "You seem to be digging a hole here." }
+        }
+        else if (tool.is(Thing)) { say "Digging with the {tool.short} is slow and tedious." }
+      } else if (actor.is(Adventurer)) {
+        if (actor.get(:shovels) > 0) { send self :dig_sand }
+        else { say "Digging with a pair of hands is silly." }
+      }
+    }
+  }
+  on :dig_sand (from) {
+    self.adjust(:digs, 1)
+    if (self.get(:digs) > 3) {
+      self.set(:digs, -1)
+      each s: Scarab in underground_caverns.sandy_cave { move s to self }
+      each a: Adventurer in underground_caverns.sandy_cave {
+        tell a "The hole collapses, smothering you."
+        send a :die
+      }
+    } else if (self.get(:digs) == 3) {
+      if (self.count(Scarab) > 0) {
+        each s: Scarab in self { move s to underground_caverns.sandy_cave }
+        tell "You can see a scarab here in the sand."
+      } else { tell "You are surrounded by a wall of sand on all sides." }
+    } else if (self.get(:digs) == 2) { tell "You are surrounded by a wall of sand on all sides." }
+    else if (self.get(:digs) == 1) { tell "The hole is getting deeper, but that's about it." }
+    else { tell "You seem to be digging a hole here." }
+  }
+}
+
+kind Scarab is Treasure {
+  grammar { name "beautiful jeweled scarab"  nouns "scarab", "bug", "beetle", "treasure"  adjectives "beautiful", "carved", "jeweled", "jewelled" }
+  :size 8
+  :value 5
+  :tvalue 5
+  passage short { beautiful jeweled scarab }
+  describe { text "It is a scarab beetle carved from some deep blue stone and set with jewels along the ridges of its wings, so finely made that it looks about to walk off your hand. Sand is still caught in the crevices of its legs." }
+}
+
+kind PotOfGold is Treasure {
+  grammar { name "pot of gold"  nouns "pot", "gold", "treasure", "crock"  adjectives "gold" }
+  :size 15
+  :value 10
+  :tvalue 10
+  :has_fdesc true
+  passage short { pot of gold }
+  passage fdesc { At the end of the rainbow is a pot of gold. }
+  describe { text "It is a squat iron pot, blackened by a fire it was never put on, full to the brim with gold coins that have no business being as shiny as they are. It is exactly where the stories say it would be, which is somehow the most surprising thing about it." }
+}
