@@ -10,9 +10,9 @@ import { fileURLToPath } from 'node:url';
 /** Where the shipped `engine.wasm` is, beside `src/` and `dist/` alike. */
 export const ENGINE_WASM = fileURLToPath(new URL('../engine.wasm', import.meta.url));
 
-/** What a host is told when it names the WebAssembly engine and this package was built without it. */
+/** What a host is told when it names the WebAssembly engine and this package has no engine.wasm. */
 export const NOT_BUILT =
-  'The WebAssembly engine is not built: @overstory/sprout-engine-wasm has no engine.wasm, which its build makes only where clang with the wasm32 target and wasm-ld are found (`npm run build -w engine-wasm`).';
+  'The WebAssembly engine is not built: @overstory/sprout-engine-wasm has no engine.wasm. Its build (`npm run build -w engine-wasm`) makes it, and needs clang with the wasm32 target and wasm-ld (wasi-sdk has both).';
 
 /** Whether this package has its `engine.wasm`. */
 export function engineBuilt(): boolean {

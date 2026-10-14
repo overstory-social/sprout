@@ -89,6 +89,10 @@ docs/design/      the spec, the working notes, the backlog, the reviews
 
 ## Developing
 
+A machine needs Node 22 or later, CMake, a C compiler, and clang with the wasm32 target and wasm-ld
+for the WebAssembly engine every tool runs on: install [wasi-sdk](https://github.com/WebAssembly/wasi-sdk/releases)
+25 or later and put its `bin/` first on `PATH` (or LLVM 18 or later with lld). Without them `npm run build` fails, saying so.
+
 ```sh
 npm ci
 npm run gate      # before every commit: no conflict markers, lint, prettier, builds, every suite, spec typechecks, the corpus, the C runtime
