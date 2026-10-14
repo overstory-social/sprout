@@ -887,7 +887,7 @@ Pin it in the manifest, `"extensions": [{ "name": "media", "major": 1 }]`, and w
 | --- | --- |
 | `media.show(image: media.Image, caption?: string)` | yes |
 
-Show a picture with `media.show("cellar.png")` or `media.show("cellar.png", "a damp cellar")`, in a `describe` or a `do`. The picture is a black-and-white (1-bit) PNG file in the world’s folder; a client that cannot draw reads the caption, or the file’s name in brackets where there is none.
+Show a picture with `media.show("cellar.png")` or `media.show("cellar.png", "a damp cellar")`, in a `describe` or a `do`. The picture is a black-and-white (1-bit) PNG file in the world’s folder; a kind may hold one as a property, `:picture media.Image default "cellar.png"`, which each object restates with its own, `:picture "pictures/hall.png"`, and one `describe` shows with `media.show(self.get(:picture))`; a client that cannot draw reads the caption, or the file’s name in brackets where there is none.
 
 ## Composing the library’s kinds
 

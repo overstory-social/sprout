@@ -329,6 +329,38 @@ describe('a declared object destroyed is gone for good', () => {
     expect(loaded.state.instances.has(id('yard', 'lamp', 'wick'))).toBe(false);
   });
 
+  it('keeps a declared object moved out before the destroy, and what is declared inside it', () => {
+    const lantern = catalogueOf(
+      compiledWorld('printers_shop', {
+        ...SHOP,
+        'printers_shop.sprout': SHOP['printers_shop.sprout']!.replace(
+          '      object cup is Jar\n',
+          '      object cup is Jar\n      object lamp is Lantern\n',
+        ).concat('kind Lantern { contains object wick is Jar }\n'),
+      }),
+      CAPS,
+    );
+    const draft = new Draft(initialState(lantern));
+    draft.place(id('hall', 'shelf', 'lamp'), id('hall'));
+    draft.remove(id('hall', 'shelf'));
+    const live = draft.commit().state;
+    const saved = saveWorld(live);
+    expect(saved.tombstones).toEqual([
+      id('hall', 'shelf'),
+      id('hall', 'shelf', 'cup'),
+      id('hall', 'shelf', 'jar'),
+    ]);
+    // A store holds what a turn wrote: the lamp moved, and the wick inside it never did.
+    const wick = id('hall', 'shelf', 'lamp', 'wick');
+    const written = { ...saved, instances: saved.instances.filter((one) => one.id !== wick) };
+    const loaded = loadWorld(written, lantern);
+    expect(loaded.created).toEqual([wick]);
+    expect(loaded.state.instances.get(id('hall', 'shelf', 'lamp'))!.container).toBe(id('hall'));
+    expect(loaded.state.instances.get(wick)!.container).toBe(id('hall', 'shelf', 'lamp'));
+    expect(saveWorld(loaded.state)).toEqual(saved);
+    expect(loaded.state.children).toEqual(live.children);
+  });
+
   it('writes no tombstone for what was spawned inside it, which is simply removed', () => {
     const draft = new Draft(initialState(published));
     const jar = published.kinds.get('printers_shop.Jar')!;

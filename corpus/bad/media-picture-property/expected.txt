@@ -1,0 +1,10 @@
+media_picture_property.sprout:9:36   "" is not the name of an image: an image’s name ends in .png.
+                                     Write the name of a .png file in the world’s folder, as in "cellar.png".
+
+media_picture_property.sprout:10:35  The file "pictures/vault.png" is not in this world’s folder.
+                                     Put the file there, with the path from the world’s folder written exactly, or name another.
+
+room.sprout:10:16                    `image` of `media.show` is `media.Image`, and this is string.
+                                     Give it a property of `media.Image`, or text in quotes, which `media` reads.
+
+refused: 3 problems

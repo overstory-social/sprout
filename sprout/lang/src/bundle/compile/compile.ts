@@ -173,13 +173,6 @@ export function compileBundle(
   // The bundle over what parsed, with the extensions the world pins
   // against the ones the host installed.
   const extensions = pinnedExtensions(source, options.extensions ?? [], byLibrary, report);
-  const named = nameAssets(
-    source,
-    byLibrary.get(manifest.namespace) ?? [],
-    extensions,
-    caps,
-    report,
-  );
   const tables = resolveDeclarations(
     byLibrary,
     { namespace: manifest.namespace, name: manifest.name },
@@ -218,6 +211,14 @@ export function compileBundle(
     ),
     ...(world === null ? [] : [world]),
   ];
+  const named = nameAssets(
+    source,
+    byLibrary.get(manifest.namespace) ?? [],
+    everyKind.flatMap((kind) => [...kind.properties.values()]),
+    extensions,
+    caps,
+    report,
+  );
 
   // Every body, against the kind that wrote it: a kind's content once,
   // however many instances hold a copy.

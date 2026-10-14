@@ -18,8 +18,10 @@
 // for the host to report loudly (the spec's The runtime › State).
 //
 // A tombstone is kept as stored, and a declared object with one is never
-// made again, nor anything declared inside it, what a kind gives it and
-// what source has added since included (the spec's Destroying).
+// made again, nor anything declared inside it that nothing is stored for,
+// what a kind gives it and what source has added since included (the
+// spec's Destroying); a declared object moved out before the destroy is
+// stored, so it and what is declared inside it stay.
 
 import { isActor } from '../declare/actors.js';
 import { contentAt } from '../declare/contents.js';
@@ -131,10 +133,12 @@ export function loadWorld(stored: unknown, catalogue: Catalogue): Loaded {
   }
   const tombstones = new Set(read.tombstones as readonly InstanceId[]);
   // Rank walks the tree outside in, so a container is settled before what it holds.
+  // Gone reaches only what is still where it was declared: a stored declared
+  // object is where its record says, even out of a container since destroyed.
   const gone = new Set<InstanceId>();
   const declared = [...catalogue.declared.values()].sort((a, b) => a.rank - b.rank);
   for (const entry of declared) {
-    if (tombstones.has(entry.id) || gone.has(entry.container)) {
+    if (tombstones.has(entry.id) || (gone.has(entry.container) && unstored(entry.id))) {
       gone.add(entry.id);
       continue;
     }
