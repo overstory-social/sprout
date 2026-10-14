@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/exits.c: the way out a slot's words name (the spec's Verbs > Exits, Links; Names >
- * Articles), the cases of runtime/parser/exits.spec.ts over ways out built here as the cartridge carries them, a
+ * Articles), over ways out built here as the cartridge carries them, a
  * label beside its typed words, and the labels of the corpus worlds `exit-labels` and `out-of-reach-exit`.
  */
 #include "parse_fixture.h"

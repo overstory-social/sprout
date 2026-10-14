@@ -3,7 +3,7 @@
  * Pronouns, When nothing matches; Verbs > Exits; The runtime > Turns): inside that turn, over its draft, its meter and
  * its stream (parse_command_turn), or, for a host's preview, over a draft that is never committed under a command
  * turn's meter and the stream begun from the host's seed (sprout_parse), so the steps it spends and the draws it
- * makes are the turn's own. The order is the TypeScript parser's, since every step is charged where it
+ * makes are the turn's own. The order is fixed, since every step is charged where it
  * is: the ways out of the actor's place, then the words, then what the actor can reach, then each placement of each
  * phrase, a step, with what its slots' words fill their roles with and the readings they make. The best reading is
  * the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with `cannot` or

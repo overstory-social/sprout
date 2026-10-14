@@ -1,8 +1,8 @@
 /*
  * Tests for src/reading.c (the spec's Verbs > The two passes, Acting;
- * Limits > Runtime budgets): every reading the TypeScript runtime's goldens
+ * Limits > Runtime budgets): every reading the goldens
  * hold (corpus/goldens/readings.json) is run here against the same cartridge
- * and stored worlds, and must end as the oracle did: acted, refused, gone or
+ * and stored worlds, and must end as the golden holds: acted, refused, gone or
  * faulted, with the same steps, effects, handlers run, descriptions owed and
  * committed state. A verb written in a body is reached from its own library
  * first, then the standard library's; a set role is held to the host's cap on

@@ -1,4 +1,4 @@
-/* Tests for src/draws.c: the stream is the one the spec writes, and the TypeScript runtime's golden. */
+/* Tests for src/draws.c: the stream is the one the spec writes, and the golden's. */
 #include "draws.h"
 #include "json.h"
 #include "check.h"

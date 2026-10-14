@@ -96,9 +96,7 @@ function plannedOf(reading: Reading): object {
     if ('object' in bound) return { role, binds: 'object', id: bound.object };
     if ('set' in bound) return { role, binds: 'set', ids: bound.set };
     if ('exit' in bound) return { role, binds: 'exit', ...bound.exit };
-    if (typeof bound.value === 'string' || typeof bound.value === 'number')
-      return { role, binds: 'value', value: bound.value };
-    throw new Error(`A planned step binds \`${role}\` to a value no role takes.`);
+    return { role, binds: 'value', value: bound.value };
   });
   return {
     verb: `${reading.verb.library}.${reading.verb.name}`,

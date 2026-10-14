@@ -3,7 +3,7 @@
  * payload `media.show(image)` or `media.show(image, caption)` records, `{"image": …, "caption": …}`
  * with the caption left out where there is none, and the transcript line a client that cannot draw
  * reads: the caption, or the image's name in brackets. The compiler carries the extension's
- * definition; this reimplements its `run` and `transcript` for a runtime with no TypeScript.
+ * definition; this implements its `run` and `transcript` for a runtime with no TypeScript.
  */
 #ifndef SPROUT_MEDIA_H
 #define SPROUT_MEDIA_H

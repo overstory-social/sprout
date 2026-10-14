@@ -1,7 +1,7 @@
 /*
  * Tests for src/parse/address.c: what a thing is called and answers to (the spec's Names > Addressing and display,
- * Articles, Nicknames), the cases of runtime/parser/address.spec.ts read in the corpus world it reads, `grammar`,
- * and every live instance of every corpus world as a visitor arrives held to the TypeScript runtime's
+ * Articles, Nicknames), read in the corpus world `grammar`,
+ * and every live instance of every corpus world as a visitor arrives held to the golden
  * (`corpus/goldens/addresses.json`).
  */
 #include "parse_golden.h"
@@ -159,7 +159,7 @@ static void the_pronoun_a_thing_declares_is_its_own_and_none_where_it_declares_n
   bench_close(&b);
 }
 
-/* Each live instance the golden names is addressed as the TypeScript runtime addresses it. */
+/* Each live instance the golden names is addressed as the golden says. */
 static void addressed_alike(bench *b, const sprout_json *world) {
   const sprout_json *instances = sprout_json_get(world, "instances");
   size_t i, j;

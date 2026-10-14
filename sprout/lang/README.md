@@ -1,8 +1,9 @@
 # @overstory/sprout/lang
 
 The Sprout language on its own: the parser, the declarations and their
-types, the checker, and the closed bundle a microworld compiles to. It
-imports `zod` and nothing else (`src/boundary.spec.ts` holds that line).
+types, the checker, and the closed bundle a microworld compiles to and its
+cartridge; and what a host and its engine exchange. It imports `zod` and
+nothing else (`src/boundary.spec.ts` holds that line).
 
 The language is described whole in
 [`docs/design/sprout-design-spec.md`](../../docs/design/sprout-design-spec.md);
@@ -37,6 +38,6 @@ around the gap.
 | `declare/` | value types, enums, kinds and their composition, objects, properties, messages, verbs, the world root                                                           |
 | `check/`   | typed bindings and scope, the expression checker                                                                                                                |
 | `bundle/`  | limits as host configuration, the manifest, the bundle and its hash, the declaration tables, `compileBundle`, absence, and the generated skill, `generateSkill` |
-| `runtime/` | the turn's budget meter and the list value                                                                                                                      |
+| `host/`    | what a host and its engine exchange: ids, the stored form, the catalogue and the cartridge reader, each turn's inputs, effects, faults and the view             |
 
 Every source file has a colocated `.spec.ts` that exercises it directly.

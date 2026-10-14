@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/answers.c: the world's answers to a line it could not run (the spec's Parsing > When nothing
- * matches; Verbs > Carried roles, Exits), the cases of runtime/parser/answers.spec.ts in the study (the corpus world
+ * matches; Verbs > Carried roles, Exits), in the study (the corpus world
  * `grammar`) with Marta arrived in its hall, and an exit's refusal in the corpus world `no-way`.
  */
 #include "parse_fixture.h"

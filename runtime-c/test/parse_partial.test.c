@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/partial.c: a line read in part (the spec's Parsing > When nothing matches; Verbs > Carried
- * roles), the cases of runtime/parser/partial.spec.ts. The partials of `unlock [target] with [tool]` are made in the
+ * roles). The partials of `unlock [target] with [tool]` are made in the
  * study (the corpus world `grammar`) from fills built here, where the line `unlock door with gong` puts its slots;
  * a line read in part for a carried role is read through `sprout_parse` in the corpus world `carried`, and a tie
  * among partials in the study.

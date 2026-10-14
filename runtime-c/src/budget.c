@@ -1,8 +1,7 @@
 /*
  * The meter. A budget is spent while a turn runs and is exhausted when a charge takes it past the host's
- * figure; with no figure it never is. The fault says what ran out in the words the TypeScript runtime tells it
- * in (`<figure>: <what the turn may do>`, held in corpus/goldens/budgets.json), so the log of either runtime
- * reads the same, beside the host's figure and the index of the message that was running.
+ * figure; with no figure it never is. The fault says what ran out in the words corpus/goldens/budgets.json
+ * holds (`<figure>: <what the turn may do>`), beside the host's figure and the index of the message that was running.
  */
 #include "budget.h"
 
@@ -69,7 +68,7 @@ void sprout_meter_message(sprout_meter *meter, uint64_t index) { meter->message 
 
 /*
  * Records the fault: the budget's row, the host's figure and the message being run. Its words are
- * `<name>: <before><figure><after>`, where `<name>` is the TypeScript runtime's name for the figure.
+ * `<name>: <before><figure><after>`, where `<name>` is the host's name for the figure (`RuntimeBudgets`).
  */
 static bool exhaust(sprout_meter *meter, const char *budget, const char *name, const char *before, uint64_t limit,
                     const char *after) {
@@ -91,7 +90,7 @@ static bool exhaust(sprout_meter *meter, const char *budget, const char *name, c
 
 /*
  * Spends `count` of a budget held in `*spent`; false when that passes the limit. The charge that passes it is
- * recorded (saturating), as the TypeScript meter records the step that went over, so a faulted turn reads as
+ * recorded (saturating), so a faulted turn reads as
  * having spent the figure and one more.
  */
 static bool spend(sprout_meter *meter, uint64_t *spent, uint64_t count, sprout_limit limit, const char *budget,

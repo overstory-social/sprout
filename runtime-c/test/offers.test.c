@@ -47,7 +47,7 @@ static size_t typed_as(const offers_case *k, const char *typed) {
   return n;
 }
 
-static void the_offers_are_the_oracles_in_its_order_with_its_typed_lines_and_its_refusals(void) {
+static void the_offers_are_the_goldens_in_its_order_with_its_typed_lines_and_its_refusals(void) {
   view_bench b;
   const sprout_json *cases;
   size_t i, compared = 0;
@@ -238,7 +238,7 @@ static void a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_ea
 
 int main(void) {
   RUN(a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_each_asked_a_step);
-  RUN(the_offers_are_the_oracles_in_its_order_with_its_typed_lines_and_its_refusals);
+  RUN(the_offers_are_the_goldens_in_its_order_with_its_typed_lines_and_its_refusals);
   RUN(go_is_offered_by_each_exit_by_its_direction_and_by_each_link_by_its_labels_typed_words);
   RUN(a_way_is_an_exit_filler_naming_where_it_leads);
   RUN(a_set_role_is_offered_one_member_at_a_time);

@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/again.c: the actor's last reading, run again (the spec's Parsing > Sequences, again and all).
- * `parser.spec.ts`'s `again` cases, ported, in the corpus world `grammar` (the study): a kept reading runs where it is
+ * In the corpus world `grammar` (the study): a kept reading runs where it is
  * still one its verb takes, and through `sprout_parse` `again`, `g` and `Again` run it whatever its words would mean
  * now, `unknown` before any reading.
  */

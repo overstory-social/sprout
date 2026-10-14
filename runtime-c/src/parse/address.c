@@ -5,7 +5,7 @@
  * answers to its full name, the last word of it, its identifier and every noun its closure writes, and its
  * adjectives are its name's words before the last and every adjective its closure writes. A visitor answers to
  * the whole of their nickname, with the nouns and adjectives their kind writes. The cartridge carries the nouns and
- * adjectives as written, so they are read as typed words here, as the TypeScript runtime reads them.
+ * adjectives as written, so they are read as typed words here.
  */
 #include <string.h>
 

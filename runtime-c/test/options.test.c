@@ -52,7 +52,7 @@ static const sprout_role_options *options_of(options_case *k, const char *typed,
   exit(2);
 }
 
-static void the_options_are_the_oracles_for_every_offer_of_every_bench_case(void) {
+static void the_options_are_the_goldens_for_every_offer_of_every_bench_case(void) {
   view_bench b;
   const sprout_json *cases;
   size_t i, offers_compared = 0;
@@ -211,7 +211,7 @@ static void a_value_is_heard_where_a_participants_from_holds_it_or_its_range_tak
 
 int main(void) {
   RUN(a_value_is_heard_where_a_participants_from_holds_it_or_its_range_takes_it_charging_nothing);
-  RUN(the_options_are_the_oracles_for_every_offer_of_every_bench_case);
+  RUN(the_options_are_the_goldens_for_every_offer_of_every_bench_case);
   RUN(a_symbol_role_offers_what_each_participants_list_property_holds_first_heard_first);
   RUN(an_option_two_participants_hear_is_offered_once);
   RUN(an_integer_role_offers_the_range_a_property_or_a_literal_gives);

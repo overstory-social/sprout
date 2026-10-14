@@ -1,7 +1,7 @@
 /*
  * Tests for src/parse/command.c: a typed line read as the command turn it begins reads it, under that turn's budget
  * and seed and writing nothing (the spec's Parsing > Matching a line, Choosing a reading, Pronouns, Synonyms, When
- * nothing matches; Verbs > Exits; The runtime > Turns), in the corpus worlds the TypeScript parser's specs read: the
+ * nothing matches; Verbs > Exits; The runtime > Turns), in the corpus worlds: the
  * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms`, `all-leaves-out-refused`, `no-way` and
  * `out-of-reach-synonym`. A line reads to
  * the best of its readings, a tie drawn from the turn's stream; a line no reading reads is answered as answers.c

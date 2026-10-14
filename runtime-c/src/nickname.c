@@ -1,5 +1,5 @@
 /*
- * Whether a nickname may be admitted (see nickname.h), word for word as the TypeScript host says it. A
+ * Whether a nickname may be admitted (see nickname.h), in the words corpus/goldens/nicknames.json pins. A
  * nickname is read as a typed line is (typed.h), so two nicknames are one where they are typed alike. Every
  * refusal carries words the host can show the person, asking for another nickname, and names
  * what it collided on; a host may replace them with its own.

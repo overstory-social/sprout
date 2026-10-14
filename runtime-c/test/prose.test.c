@@ -1,7 +1,7 @@
 /*
- * Tests for src/prose.c: every case the TypeScript prose layer's goldens hold
+ * Tests for src/prose.c: every case the golden holds
  * (corpus/goldens/prose.json) is replayed here against the same cartridge and stored worlds, and
- * must render as the oracle did: the same words for each reader of each line, in the order said,
+ * must render as the golden holds: the same words for each reader of each line, in the order said,
  * the same readers cut short or the same fault, and the same steps.
  */
 #include "prose_fixture.h"

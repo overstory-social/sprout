@@ -1,8 +1,7 @@
 /*
  * Tests for src/outcome.c (the spec's The runtime > Effects): what a reading
  * recorded and the refusal the consent pass gave are canonical JSON, in the
- * form the TypeScript goldens hold, so a host reads the same lines whichever
- * runtime ran the turn. Every reading the goldens hold is run and its JSON
+ * form the goldens hold, so a host reads the lines the golden pins. Every reading the goldens hold is run and its JSON
  * compared, byte for byte, with the golden's.
  */
 #include "outcome.h"

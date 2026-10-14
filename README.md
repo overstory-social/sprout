@@ -44,7 +44,8 @@ place's exits and links, and verbs with their roles resolved across
 libraries, passages and the `.prose` files they live in, and the
 extensions a world pins against the ones its host installed) and checks the
 expressions Phase 1 defined, the prose every passage holds and each
-`describe`; the runtime reads a visitor's typed line as a reading, runs it
+`describe`; the runtime (`runtime-c/`, which every host runs as the
+WebAssembly engine) reads a visitor's typed line as a reading, runs it
 as a turn, answers the engine verbs (`go`, `look`, `examine`, `inventory`,
 `wait`, `help`), gives back what every turn said as one ordered
 sequence of effects, each rendered for the one person who reads it, an
@@ -66,12 +67,11 @@ sprout/lang/src
   declare/   what a declaration means: types, enums, kinds and composition, objects, properties, messages, verbs, the world, actors, what an extension is
   check/     bindings and the expression checker
   bundle/    limits, the manifest, the closed bundle, the standard library, strict and lenient compiling, the generated skill
-  runtime/   the turn's meter, values, range, ids, stored and live state, what is remembered about an actor, the queue, turns, the command parser, descriptions, nickname admission, the engine verbs' answers, an extension's values and statements run, a turn's effects, and a visitor's view
-  prose/     what is said and described, rendered for each reader: names, slots, blocks and loops, reflow, who hears it, a turn's effects, the view as its visitor reads it
+  host/      what a host and its engine exchange: ids, the stored form and its changes, the catalogue and the cartridge reader, typed phrases, levels, the seed stream, each turn's inputs, effects, faults, nickname refusals and the view's shapes
 sprout/core/src   the store port, its records, the memory store, the conformance suite, the engine interface and its conformance suite, turns under the lock, the log, conversation beside the world, what each client is sent and what a screen reader speaks
 sprout/store-sql  sprout/store-document   the two store adapters
-player/src        play (a script through real turns on an engine, and its transcript), test (an author's own tests of their world), and standing a visitor in a world; which engine a tool runs
-engine-wasm/src   the C engine built for WebAssembly as one world's engine for core, its live state kept in the instance, and the corpus played through both engines
+player/src        play (a script through real turns on an engine, and its transcript), test (an author's own tests of their world), and standing a visitor in a world; the engine a world runs on
+engine-wasm/src   the C engine built for WebAssembly as one world's engine for core, and its live state kept in the instance
 repl/src          play interactively, one typed line at a time under one visitor's prompt
 mcp/src           a world as tools for an agent: a session of visitors on the player's stage, its tools, over stdio or HTTP
 server/src        the reference host: its config, the worlds it serves and redeploys, the protocol's connections, and its clock

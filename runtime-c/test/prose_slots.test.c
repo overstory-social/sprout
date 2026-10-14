@@ -1,12 +1,12 @@
 /*
  * Tests for src/prose/slots.c: every case the goldens hold of a slot of each kind, of `{if}`,
  * `{for}` and `{one of}`, and of passages nested to the host's depth and the step budget, renders
- * as the oracle rendered it; and what rendering refuses is the engine's defect, never a fault an
+ * as the golden holds it; and what rendering refuses is the engine's defect, never a fault an
  * author can cause.
  */
 #include "prose_fixture.h"
 
-static void slots_of_each_kind_render_as_the_oracle_did(void) {
+static void slots_of_each_kind_render_as_the_golden_holds(void) {
   prose_bench b;
   prose_bench_open(&b);
   CHECK(prose_replay_area(&b, "slots") >= 8);
@@ -14,7 +14,7 @@ static void slots_of_each_kind_render_as_the_oracle_did(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
-static void conditions_loops_and_choices_render_as_the_oracle_did(void) {
+static void conditions_loops_and_choices_render_as_the_golden_holds(void) {
   prose_bench b;
   prose_bench_open(&b);
   CHECK(prose_replay_area(&b, "flow") >= 8);
@@ -81,8 +81,8 @@ static void a_passage_renders_nothing_when_it_is_empty_of_words(void) {
 }
 
 int main(void) {
-  RUN(slots_of_each_kind_render_as_the_oracle_did);
-  RUN(conditions_loops_and_choices_render_as_the_oracle_did);
+  RUN(slots_of_each_kind_render_as_the_golden_holds);
+  RUN(conditions_loops_and_choices_render_as_the_golden_holds);
   RUN(passages_nest_to_the_hosts_depth_and_no_further);
   RUN(a_choice_where_nothing_draws_is_the_engines_defect);
   RUN(a_choice_is_a_step_and_a_draw_and_an_if_is_a_step_for_each_condition);

@@ -1,7 +1,7 @@
 /*
  * Tests for src/parse/later.c: a run's items after its first (the spec's Parsing > Sequences, again and all), in the
- * corpus world `runs`, which stands in for the pantry `runs.spec.ts` is written about. The items of a run filled
- * where `take salt, lamp and key` puts them are planned directly, and `runs.spec.ts`'s cases for a run in a role that
+ * corpus world `runs`, a pantry. The items of a run filled
+ * where `take salt, lamp and key` puts them are planned directly, and the cases for a run in a role that
  * takes one thing, and for `and` before a verb, are read through `sprout_parse`.
  */
 #include "parse_fixture.h"

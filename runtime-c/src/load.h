@@ -6,7 +6,7 @@
  * as 32-bit numbers. The body is a JSON preamble (what a shelf and the
  * catalogue read) and then, eight-aligned, the table of table.h. A runtime
  * refuses a format or a level newer than it reads, naming the number, in the
- * words the TypeScript loader uses. The caps the cartridge records are the
+ * words the language's cartridge reader uses. The caps the cartridge records are the
  * publish record: a world runs under the host's caps, which are read at
  * every load.
  */

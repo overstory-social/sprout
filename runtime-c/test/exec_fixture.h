@@ -4,8 +4,8 @@
  * stored worlds `corpus/goldens/exec.json` holds, a world loaded under each case's
  * figures, and a turn to run a body in. A case names its body by the entry of
  * the cartridge's graph that holds it; replaying one runs the body, drains
- * the queue, and compares what it ended in with what the TypeScript runtime
- * ended in: the committed state or the fault, the steps, the effects in
+ * the queue, and compares what it ended in with what the golden says it
+ * ends in: the committed state or the fault, the steps, the effects in
  * order, the handlers that ran and the descriptions owed.
  */
 #ifndef SPROUT_TEST_EXEC_FIXTURE_H
@@ -109,7 +109,7 @@ static inline sprout_limit exec_limit(const sprout_json *limits, const char *key
   return limit;
 }
 
-/* The host's figures a case ran under in the oracle. */
+/* The host's figures a case ran under in the golden. */
 static inline void exec_fill_budgets(sprout_budgets *budgets, const sprout_json *limits) {
   budgets->steps = exec_limit(limits, "steps");
   budgets->events = exec_limit(limits, "events");
@@ -206,7 +206,7 @@ static inline double exec_property(exec_case *c, const char *id, const char *nam
   return value.kind == SPROUT_NUMBER ? value.as.number : value.kind == SPROUT_BOOL ? (double)value.as.boolean : -1;
 }
 
-/* ---- comparing what a run recorded with what the oracle recorded ---- */
+/* ---- comparing what a run recorded with what the golden holds ---- */
 
 static inline bool exec_same_str(sprout_str a, const sprout_json *b) {
   return b != NULL && b->kind == SPROUT_JSON_STRING && a.length == b->length && memcmp(a.bytes, b->bytes, a.length) == 0;
@@ -349,7 +349,7 @@ static inline void exec_check_after(exec_bench *b, exec_case *c, const sprout_js
 
 /*
  * Replays a case: the body runs and the queue drains, and the case ends as
- * the oracle ended it. Returns the status of the run.
+ * the golden ends it. Returns the status of the run.
  */
 static inline sprout_eval_status exec_replay(exec_bench *b, const sprout_json *golden) {
   exec_case c;

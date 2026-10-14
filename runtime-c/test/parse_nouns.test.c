@@ -1,7 +1,7 @@
 /*
  * Tests for src/parse/nouns.c: what a noun names among what a visitor can reach (the spec's Names > Articles;
- * Verbs > Slots, Set roles; Parsing > Matching a line, Pronouns), the cases of runtime/parser/nouns.spec.ts read in
- * the corpus world it reads, `grammar`: the things of its hall, each nearer than the next as the list stands.
+ * Verbs > Slots, Set roles; Parsing > Matching a line, Pronouns), read in
+ * the corpus world `grammar`: the things of its hall, each nearer than the next as the list stands.
  */
 #include "parse_fixture.h"
 

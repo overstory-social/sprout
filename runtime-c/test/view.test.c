@@ -1,6 +1,6 @@
 /*
- * Tests for src/view.c: a poll gives each visitor the view the TypeScript runtime gave them, byte for byte in
- * its canonical JSON, with the tree a chip client walks over it equal to the one the oracle dumped beside it,
+ * Tests for src/view.c: a poll gives each visitor the view the golden holds, byte for byte in
+ * its canonical JSON, with the tree a chip client walks over it equal to the one the golden holds beside it,
  * the steps it spent and the fault it raised. The goldens are the view of a visitor arriving in every corpus
  * world and the bench cases for what a view is for: the ways out, a set role, a value role's options, a
  * refusal, `inside_itself`, the dark, a visitor whose place is gone and a poll that spends its budget. A poll
@@ -8,7 +8,7 @@
  */
 #include "view_fixture.h"
 
-static void every_bench_case_is_polled_as_the_oracle_polled_it(void) {
+static void every_bench_case_is_polled_as_the_golden_holds(void) {
   view_bench b;
   const sprout_json *cases;
   size_t i;
@@ -27,7 +27,7 @@ static void every_bench_case_is_polled_as_the_oracle_polled_it(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
-static void the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles(void) {
+static void the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_goldens(void) {
   view_bench b;
   const sprout_json *worlds;
   size_t i;
@@ -450,8 +450,8 @@ static void a_verbs_readings_that_spend_their_budget_are_no_readings(void) {
 int main(void) {
   RUN(a_scene_lists_the_verbs_and_a_verbs_readings_come_alone_as_the_whole_poll_gives_them);
   RUN(a_verbs_readings_that_spend_their_budget_are_no_readings);
-  RUN(every_bench_case_is_polled_as_the_oracle_polled_it);
-  RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles);
+  RUN(every_bench_case_is_polled_as_the_golden_holds);
+  RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_goldens);
   RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);
   RUN(the_bench_shows_each_part_a_view_is_for);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);

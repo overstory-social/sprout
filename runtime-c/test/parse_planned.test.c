@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/planned.c: a reading an earlier turn of a line planned, as its own turn runs it (the spec's
- * Parsing > Sequences, again and all). `planned.spec.ts`'s cases, ported, in the corpus world `grammar` (the study),
+ * Parsing > Sequences, again and all), in the corpus world `grammar` (the study),
  * with the ways out of `exit-labels`' forest, and through `sprout_parse` handed the reading: as planned where what
  * it binds is still in reach, and `not_here` where it is not.
  */

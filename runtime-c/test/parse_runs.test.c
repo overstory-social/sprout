@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/runs.c: a run of things in a role that takes one thing (the spec's Parsing > Sequences,
- * again and all), the items cases of runtime/parser/runs.spec.ts read in the corpus world `runs`, whose kitchen
+ * again and all), read in the corpus world `runs`, whose kitchen
  * holds the salt, the pepper, the salt and pepper shaker, the lamp, two keys and a box. What a line's turns do with
  * a run's items is parse_item and parse_later's, and the world's transcripts play them through the engine.
  */

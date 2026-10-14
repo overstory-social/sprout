@@ -20,11 +20,11 @@ on a shelf, come back to one after days, and fetch more worlds from the
 web.
 
 In scope: one visitor per world, on one device; every language feature the
-TypeScript runtime has, including the `media` extension; saves; time that
+C runtime has, including the `media` extension; saves; time that
 passes while the app is closed; a signed list of worlds to download.
 
-Out of scope: a typed command line (the console has no keyboard, so the C
-runtime has no command parser); more than one person in a world (that is
+Out of scope: a typed command line (the console has no keyboard, so the app
+reads no typed line); more than one person in a world (that is
 the server); the studio, which authors and approves worlds elsewhere; any
 extension but `media`.
 
@@ -41,18 +41,21 @@ Three programs share one language and meet at two files.
   clock and seed from a host record, and holds no default for any limit.
 - **The viewer is per host.** The desktop host `sproutc` prints text; the
   Playdate app is C over the same runtime (_The Playdate app_); the TypeScript hosts (CLI,
-  server, terminal client) are unchanged.
+  server, terminal client) run the same runtime as WebAssembly
+  (`@overstory/sprout-engine-wasm`).
 
 The **stored world** (the spec's _State_) is the second meeting point: the
-C runtime writes the same bytes the TypeScript runtime writes, so a save
-made on a console loads on a laptop and the other way round. The
+C runtime writes the stored form the language's schema
+(`sprout/lang/src/host/stored.ts`) reads, byte for byte as
+`corpus/goldens/stored-canon.json` pins it, so a save made on a console
+loads on a laptop and the other way round. The
 **view** is the third: a poll gives the visitor's place, ways out, people,
 carried things and every reading they could make, and that, not a typed
 line, is what a viewer without a keyboard works from.
 
 Why C and not TypeScript on the device: there is no JavaScript on the
 Playdate, and Lua is too slow and too loose for a runtime whose output must
-equal another runtime's to the byte. Why not C for the compiler: the
+equal every other host's to the byte. Why not C for the compiler: the
 compiler is most of the code, it changes most often, and it only ever runs
 where Node does.
 
@@ -380,7 +383,7 @@ across a lock and a low-power sleep through `main.c`'s event handler.
 ### The chip tree and the crank sentence builder
 
 A reading is not typed. The view lists every reading the visitor could make,
-and `chipTree(view)` (`prose/chips.ts`, and `chips.c` in C) arranges them as
+and `chips.c` (`sprout_chip_tree_of`) arranges them as
 a tree: a verb, then what fills each of its roles in the order the verb
 declares them (a thing, a set of things, a way out), then each value role's
 word or number, ending in a leaf that holds the typed line, the refusal if
@@ -439,7 +442,7 @@ ends it, and what ran before stays done. Only one role in a sentence takes one
 thing as "everything". The sentence so far reads "everything" where it was
 picked. A finished reading
 lists the roles a thing fills in the tree's order and then its value roles,
-which is the order the TypeScript parser binds them in
+which is the order the parser binds them in
 (`corpus/good/value-first` pins it). The view offers readings and not
 intents, so the wheel has no intents at the top (hole 500).
 
@@ -459,7 +462,7 @@ under `Source/fonts/`.
 
 The console has no keyboard, so a visitor picks from a pool of plain words
 (Alder, Aster, Birch, …) filtered by the cartridge's word set, folded as the
-TypeScript host folds (lower case, split on white space), and by who is
+engine folds a typed line (lower case, split on white space), and by who is
 present. A returning visitor is offered their last name first. The device
 keeps no list of names apart from the saves: the last name is the visitor's
 record in the world's save, and starting a world over carries it across to
@@ -638,7 +641,8 @@ build holds each graduated world's listed plays to that figure. The other
 steps are the spec's and are not tuned: the Simulator runs far faster than
 the console. The ten static caps with figures are checked
 against a cartridge's recorded ones when it is shelved, and one recorded
-larger is refused cap by cap in the TypeScript host's words, less the offer
+larger is refused cap by cap in the words the compiler gives every host
+(`bundle/compile/recorded.ts`, repeated by `src/budgets.c`), less the offer
 of an exception; the five the spec leaves to the host (places, objects,
 kinds, files, source bytes) are unset (hole 500).
 
@@ -809,7 +813,8 @@ the spec_ with the alternatives; none is closed until Eric decides it.
   no file.
 - **493.** What C does with a store and cartridge the spec leaves open:
   stored order, whole numbers only, refusal wording, the typed words
-  travelling final, and nickname admission folded as TypeScript folds it.
+  travelling final, and a typed line and a nickname folded by `typed.c` as
+  `typedWords` folds them.
 - **494.** What a spawn costs (the instance and each content), what bounds
   live instances (a host row), and that C does not decode extension-typed
   properties.

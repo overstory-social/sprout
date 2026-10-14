@@ -1,5 +1,5 @@
 /*
- * Tests for src/parse/match.c: match.spec.ts's cases, where a phrase's slots fall in a typed line. The phrase's
+ * Tests for src/parse/match.c: where a phrase's slots fall in a typed line. The phrase's
  * words must be the line's words where they stand, each slot takes at least one word, and where words do not pin
  * a slot, an earlier slot's longer run is tried first.
  */

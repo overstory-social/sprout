@@ -5,7 +5,7 @@
  */
 #include "prose_fixture.h"
 
-static void every_engine_line_renders_as_the_oracle_did(void) {
+static void every_engine_line_renders_as_the_golden_holds(void) {
   prose_bench b;
   prose_bench_open(&b);
   CHECK(prose_replay_area(&b, "engine") >= 27);
@@ -86,7 +86,7 @@ static void a_line_reads_into_the_pieces_the_parser_would_make_of_it(void) {
 }
 
 int main(void) {
-  RUN(every_engine_line_renders_as_the_oracle_did);
+  RUN(every_engine_line_renders_as_the_golden_holds);
   RUN(every_line_the_spec_names_reads_into_nodes);
   RUN(a_name_that_is_no_engine_line_is_not_one);
   RUN(the_words_are_the_standard_librarys);

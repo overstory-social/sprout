@@ -1,5 +1,5 @@
 /*
- * Tests for src/view_json.c: a view is written as canonical JSON in the form the TypeScript view specs write it
+ * Tests for src/view_json.c: a view is written as canonical JSON in the form the language's view shapes give it
  * (description, effects, exits, occupants, carried, readings), a filler of each kind, a refusal or null, and the
  * options of a symbol role and of an integer role. The writer is also the tree a chip client's leaf and filler
  * are written from.

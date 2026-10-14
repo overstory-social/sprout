@@ -9,7 +9,7 @@
  * it cannot read (answers.c), a run's items after its first (later.c), `and` or a comma between two commands
  * (chain.c), a reading a line planned (planned.c), the last reading run again (again.c), an item of a run read on
  * its own turn (item.c), and a line read as the command turn reads it (command.c, `parse_command_turn` inside the
- * turn and `sprout_parse` for a host). Every step is charged where the TypeScript parser charges it. Scratch is the
+ * turn and `sprout_parse` for a host). Every step is charged where `corpus/goldens/addresses.json` pins it. Scratch is the
  * turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what a host reads is
  * copied into the arena it hands in.
  */

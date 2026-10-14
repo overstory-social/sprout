@@ -1,7 +1,7 @@
 /*
  * Tests for src/parse/rank.c: choosing a reading (the spec's Parsing > Choosing a reading; the working notes' Holes
  * 461), over readings of `take` and the standard library's `open_with` intent in the study (the corpus world
- * `grammar`), ranked as each case says. `rank.spec.ts`'s cases, ported: how the engine writes a thing is the study's
+ * `grammar`), ranked as each case says: how the engine writes a thing is the study's
  * own, where the pebbles are both "a pebble" and everything else is written apart.
  */
 #include "parse_fixture.h"
