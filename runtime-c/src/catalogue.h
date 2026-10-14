@@ -85,11 +85,11 @@ typedef struct sprout_kind_def {
   size_t order_count;
   const char **order; /* every kind it composes, itself last */
   size_t property_count;
-  sprout_property *properties; /* in declared order */
+  const sprout_property **properties; /* in declared order; a property two kinds list is one record */
   size_t passage_count;
   sprout_passage *passages;
   size_t play_group_count;
-  sprout_play_group *plays;
+  const sprout_play_group **plays; /* a group two kinds hold is one record */
   bool contains, contains_actors;
   bool roams; /* an NPC of it moves itself to any place */
   bool composes_world, composes_visitor, composes_actor;

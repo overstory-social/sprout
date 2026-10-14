@@ -28,58 +28,91 @@ const char *cat_id_of(loader *l, const char *world, size_t count, const char *co
   return out;
 }
 
+/* The placements of the declared tree in one walk, outside in, each with the place of the one that holds it. */
+typedef struct tree_queue {
+  const sprout_node **items;
+  size_t *held_by; /* the queue place of the placement whose holds list it, or NO_HOLDER */
+  size_t capacity, tail;
+} tree_queue;
+
+#define NO_HOLDER ((size_t)-1)
+
+/* Appends every placement `held` lists, held by the queue place `holder`; the queue doubles in the load's scratch. */
+static sprout_status enqueue(loader *l, tree_queue *q, const sprout_node *held, size_t holder) {
+  size_t i;
+  for (i = 0; i < held->count; i++) {
+    if (q->tail == q->capacity) {
+      size_t bigger = q->capacity == 0 ? 16 : q->capacity * 2;
+      const sprout_node **items;
+      size_t *by;
+      if (bigger > (size_t)-1 / 2 / sizeof(size_t)) return SPROUT_NO_MEMORY;
+      items = (const sprout_node **)sprout_arena_take(l->scratch, bigger * sizeof *items);
+      by = (size_t *)sprout_arena_take(l->scratch, bigger * sizeof *by);
+      MEMORY(items);
+      MEMORY(by);
+      if (q->tail > 0) {
+        memcpy(items, q->items, q->tail * sizeof *items);
+        memcpy(by, q->held_by, q->tail * sizeof *by);
+      }
+      q->items = items;
+      q->held_by = by;
+      q->capacity = bigger;
+    }
+    q->items[q->tail] = sprout_item(l->graph, held, i);
+    q->held_by[q->tail++] = holder;
+  }
+  return SPROUT_OK;
+}
+
+/* Whether a placement's `container`, an array of strings, is the path of `holder` (the world's, NULL, is empty). */
+static bool contained_by(const sprout_graph *graph, const sprout_node *container, const sprout_declared *holder) {
+  size_t count = holder == NULL ? 0 : holder->path_count, i;
+  if (container->count != count) return false;
+  for (i = 0; i < count; i++) {
+    const sprout_node *step = sprout_item(graph, container, i);
+    if (step->kind != SPROUT_NODE_STRING || strcmp(sprout_text(graph, step), holder->path[i]) != 0) return false;
+  }
+  return true;
+}
+
 static sprout_status build_tree(loader *l, const sprout_node *holds) {
   sprout_world *w = l->world;
-  const sprout_node **queue;
-  size_t capacity = 16, tail = 0, head, i;
+  tree_queue q;
+  size_t head;
+  memset(&q, 0, sizeof q);
   if (holds == NULL || holds->kind != SPROUT_NODE_MAP) return cat_shaped(l, "tree.holds");
-  queue = (const sprout_node **)cat_array(l, capacity, sizeof(sprout_node *));
-  MEMORY(queue);
-  /* Placements are a tree, so the queue never holds more than the whole of it; grow by doubling. */
-  for (i = 0; i < holds->count; i++) {
-    if (tail == capacity) {
-      const sprout_node **bigger = (const sprout_node **)cat_array(l, capacity * 2, sizeof(sprout_node *));
-      MEMORY(bigger);
-      memcpy(bigger, queue, capacity * sizeof(sprout_node *));
-      queue = bigger;
-      capacity *= 2;
-    }
-    queue[tail++] = sprout_item(l->graph, holds, i);
-  }
-  for (head = 0; head < tail; head++) {
-    const sprout_node *held = sprout_node_get(l->graph, queue[head], "holds");
+  NEED(enqueue(l, &q, holds, NO_HOLDER));
+  for (head = 0; head < q.tail; head++) {
+    const sprout_node *held = sprout_node_get(l->graph, q.items[head], "holds");
     if (held == NULL || held->kind != SPROUT_NODE_MAP) return cat_shaped(l, "a placement's holds");
-    for (i = 0; i < held->count; i++) {
-      if (tail == capacity) {
-        const sprout_node **bigger =
-            (const sprout_node **)cat_array(l, capacity * 2, sizeof(sprout_node *));
-        MEMORY(bigger);
-        memcpy(bigger, queue, capacity * sizeof(sprout_node *));
-        queue = bigger;
-        capacity *= 2;
-      }
-      queue[tail++] = sprout_item(l->graph, held, i);
-    }
+    NEED(enqueue(l, &q, held, head));
   }
-  w->declared_count = tail;
-  w->declared = (sprout_declared *)cat_array(l, tail, sizeof(sprout_declared));
+  w->declared_count = q.tail;
+  w->declared = (sprout_declared *)cat_array(l, q.tail, sizeof(sprout_declared));
   MEMORY(w->declared);
-  for (head = 0; head < tail; head++) {
+  for (head = 0; head < q.tail; head++) {
     sprout_declared *entry = &w->declared[head];
-    size_t container_count;
-    const char **container;
+    const sprout_node *container = sprout_node_get(l->graph, q.items[head], "container");
+    const sprout_declared *holder = q.held_by[head] == NO_HOLDER ? NULL : &w->declared[q.held_by[head]];
     sprout_kind_def *kind;
-    NEED(cat_strings(l, sprout_node_get(l->graph, queue[head], "path"), "a placement's path", &entry->path_count,
+    NEED(cat_strings(l, sprout_node_get(l->graph, q.items[head], "path"), "a placement's path", &entry->path_count,
                  &entry->path));
-    NEED(cat_strings(l, sprout_node_get(l->graph, queue[head], "container"), "a placement's container",
-                 &container_count, &container));
-    NEED(cat_read_kind(l, sprout_node_get(l->graph, queue[head], "kind"), &kind));
+    NEED(cat_read_kind(l, sprout_node_get(l->graph, q.items[head], "kind"), &kind));
     entry->kind = kind;
     entry->rank = head;
     entry->id = cat_id_of(l, w->header.name, entry->path_count, entry->path);
-    entry->container = cat_id_of(l, w->header.name, container_count, container);
     MEMORY(entry->id);
-    MEMORY(entry->container);
+    if (!cat_is_array(container)) return cat_shaped(l, "a placement's container");
+    /* A container is the placement that holds it, whose id is already made; the world's is its name. */
+    if (contained_by(l->graph, container, holder)) {
+      entry->container = holder == NULL ? w->header.name : holder->id;
+    } else {
+      size_t container_count;
+      const char **path;
+      NEED(cat_strings(l, container, "a placement's container", &container_count, &path));
+      entry->container = cat_id_of(l, w->header.name, container_count, path);
+      MEMORY(entry->container);
+    }
   }
   return SPROUT_OK;
 }
@@ -213,14 +246,6 @@ sprout_status sprout_catalogue_peek(sprout_world *world, const sprout_json *root
   return SPROUT_OK;
 }
 
-/* Zeroed room in the load's scratch for one pointer an entry: a cache the load alone reads. */
-static void *cache_of(sprout_arena *scratch, size_t entries) {
-  size_t bytes = (entries == 0 ? 1 : entries) * sizeof(void *);
-  void *room = sprout_arena_take(scratch, bytes);
-  if (room != NULL) memset(room, 0, bytes);
-  return room;
-}
-
 sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *root, sprout_arena *scratch,
                                      char *error, size_t capacity) {
   loader load, *l = &load;
@@ -233,8 +258,7 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   load.arena = &world->arena;
   load.error = error;
   load.capacity = capacity;
-  load.read = (void **)cache_of(scratch, world->graph.count);
-  MEMORY(load.read);
+  load.scratch = scratch;
 
   NEED(read_header(l, section(root, "header")));
   NEED(read_caps(l, section(root, "caps")));
@@ -361,24 +385,23 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   }
 
   /* The name table binds each name a body writes to what it names, by the index of the entry written. */
-  world->bound = (const sprout_node **)cat_array(l, world->graph.count, sizeof(sprout_node *));
-  world->option_slot = (bool *)cat_array(l, world->graph.count, sizeof(bool));
-  MEMORY(world->bound);
-  MEMORY(world->option_slot);
   names = sprout_graph_cell(&world->graph, sprout_json_get(bodies_section, "names"));
   if (names == NULL || names->kind != SPROUT_NODE_MAP) return cat_shaped(l, "bodies.names");
+  NEED(sprout_entry_map_init(&world->bound, l->arena, names->count));
   for (i = 0; i < names->count; i++) {
     size_t at = sprout_graph_index(&world->graph, sprout_map_key(l->graph, names, i));
-    if (at != SPROUT_NOT_AN_ENTRY) world->bound[at] = sprout_item(l->graph, names, i);
+    if (at != SPROUT_NOT_AN_ENTRY) NEED(sprout_entry_map_put(&world->bound, l->arena, at, sprout_item(l->graph, names, i)));
   }
   {
     const sprout_node *slots_set =
         sprout_graph_cell(&world->graph, sprout_json_get(bodies_section, "optionSlots"));
     if (slots_set == NULL || slots_set->kind != SPROUT_NODE_SET)
       return cat_shaped(l, "bodies.optionSlots");
+    NEED(sprout_entry_map_init(&world->option_slots, l->arena, slots_set->count));
     for (i = 0; i < slots_set->count; i++) {
-      size_t at = sprout_graph_index(&world->graph, sprout_item(l->graph, slots_set, i));
-      if (at != SPROUT_NOT_AN_ENTRY) world->option_slot[at] = true;
+      const sprout_node *slot = sprout_item(l->graph, slots_set, i);
+      size_t at = sprout_graph_index(&world->graph, slot);
+      if (at != SPROUT_NOT_AN_ENTRY) NEED(sprout_entry_map_put(&world->option_slots, l->arena, at, slot));
     }
   }
 
@@ -423,7 +446,7 @@ const sprout_kind_def *sprout_world_kind(const sprout_world *world, const char *
 const sprout_property *sprout_kind_property(const sprout_kind_def *kind, const char *name) {
   size_t i;
   for (i = 0; i < kind->property_count; i++)
-    if (strcmp(kind->properties[i].name, name) == 0) return &kind->properties[i];
+    if (strcmp(kind->properties[i]->name, name) == 0) return kind->properties[i];
   return NULL;
 }
 
@@ -455,5 +478,10 @@ const sprout_content *sprout_world_content_at(const sprout_world *world, const c
 const sprout_node *sprout_world_bound(const sprout_world *world, const sprout_node *written) {
   size_t at = sprout_graph_index(&world->graph, written);
   if (at == SPROUT_NOT_AN_ENTRY) return NULL;
-  return world->bound[at];
+  return (const sprout_node *)sprout_entry_map_get(&world->bound, at);
+}
+
+bool sprout_world_option_slot(const sprout_world *world, const sprout_node *piece) {
+  size_t at = sprout_graph_index(&world->graph, piece);
+  return at != SPROUT_NOT_AN_ENTRY && sprout_entry_map_get(&world->option_slots, at) != NULL;
 }

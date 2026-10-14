@@ -1,7 +1,7 @@
 /*
  * Tests for src/catalogue_helpers.c: the refusal sentence, the arena
- * allocation that reports no memory, and the small readers of strings and
- * flags out of graph nodes.
+ * allocation that reports no memory, what an entry was read as, and the
+ * small readers of strings and flags out of graph nodes.
  */
 #include "catalogue_build.h"
 #include "check.h"
@@ -25,6 +25,7 @@ static void open_bench(bench *b) {
   sprout_build_begin(&b->builder, &b->arena, room);
   b->graph = sprout_build_graph(&b->builder);
   b->l.arena = &b->arena;
+  b->l.scratch = &b->arena;
   b->l.graph = b->graph;
   b->l.error = b->error;
   b->l.capacity = sizeof b->error;
@@ -120,9 +121,24 @@ static void strings_flags_and_arrays_are_read_from_nodes(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+/* What an entry was read as is kept by its index; a node made at run time is no entry, so nothing is kept for it. */
+static void only_an_entry_is_kept_as_read(void) {
+  bench b;
+  int record;
+  const sprout_node *made;
+  open_bench(&b);
+  made = sprout_build_number(&b.builder, 7);
+  CHECK(made != NULL);
+  CHECK_INT(cat_keep(&b.l, made, &record), SPROUT_OK);
+  CHECK(cat_read_as(&b.l, made) == NULL);
+  CHECK_INT(b.l.read.count, 0);
+  sprout_arena_reset(&b.arena);
+}
+
 int main(void) {
   RUN(a_refusal_is_the_pieces_joined_and_cut_to_fit);
   RUN(allocation_is_zeroed_and_an_impossible_size_is_refused);
   RUN(strings_flags_and_arrays_are_read_from_nodes);
+  RUN(only_an_entry_is_kept_as_read);
   return REPORT();
 }

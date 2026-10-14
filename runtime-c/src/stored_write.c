@@ -203,7 +203,7 @@ static const sprout_property *next_declared(const sprout_kind_def *kind, const c
   const sprout_property *best = NULL;
   size_t i;
   for (i = 0; i < kind->property_count; i++) {
-    const sprout_property *one = &kind->properties[i];
+    const sprout_property *one = kind->properties[i];
     if (one->remembered || (after != NULL && name_order(one->name, after) <= 0)) continue;
     if (best == NULL || name_order(one->name, best->name) < 0) best = one;
   }
