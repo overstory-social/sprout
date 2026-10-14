@@ -15,6 +15,6 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.spec.ts", "src/fixtures"],
+  "exclude": ["src/**/*.spec.ts"],
   "references": []
 }

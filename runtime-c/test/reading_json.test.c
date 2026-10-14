@@ -1,6 +1,6 @@
 /*
- * Tests for src/reading_json.c: a reading, an item of a run and a turn a line runs written in the readings file's
- * forms (player/src/parsed.ts), and a reading and an item read back to what was written; what no role takes, or
+ * Tests for src/reading_json.c: a reading, an item of a run and a turn a line runs written in the forms the
+ * WebAssembly engine's export layer hands a host, and a reading and an item read back to what was written; what no role takes, or
  * what is missing, is refused in words.
  */
 #include "check.h"

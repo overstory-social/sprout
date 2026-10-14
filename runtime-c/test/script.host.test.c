@@ -1,6 +1,5 @@
 /*
- * Tests for host/script.c: a script's steps driven through the turn call on the world the TypeScript player
- * drives them on. A tick tells each place that holds a visitor, time moved on delivers nothing while nobody
+ * Tests for host/script.c: a script's steps driven through the turn call. A tick tells each place that holds a visitor, time moved on delivers nothing while nobody
  * stands in the world, and a departure empties it; a typed line is read by the runtime, a turn to each command;
  * each step prints what it told.
  */
@@ -11,7 +10,6 @@ static const char *WORLD = "sproutc-script-test.sproutworld";
 static const char *OUT = "sproutc-script-test.out";
 static const char *ERR = "sproutc-script-test.err";
 static const char *SCRIPT = "sproutc-script-test.json";
-static const char *READINGS = "sproutc-script-test.readings.json";
 
 static void put(const char *path, const void *bytes, size_t length) {
   FILE *file = fopen(path, "wb");
@@ -57,17 +55,11 @@ static int run(int argc, char **argv) {
 
 static void a_tick_tells_the_places_that_hold_a_visitor_and_a_departure_empties_the_world(void) {
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
-  const char *readings =
-      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"@arrive Marta\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Marta\"},"
-      "{\"index\":1,\"line\":\"@tick\",\"atSeconds\":10,\"seed\":0,\"kind\":\"tick\"},"
-      "{\"index\":2,\"line\":\"@advance 1 hour\",\"atSeconds\":3610,\"seed\":0,\"kind\":\"advance\",\"forSeconds\":3600},"
-      "{\"index\":3,\"line\":\"@leave Marta\",\"atSeconds\":3610,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Marta\"},"
-      "{\"index\":4,\"line\":\"@tick\",\"atSeconds\":3620,\"seed\":0,\"kind\":\"tick\"}]}";
+  const char *script =
+      "{\"steps\":[{\"arrive\":\"Marta\"},{\"tick\":true},{\"advance\":\"1 hour\"},{\"leave\":\"Marta\"},{\"tick\":true}]}";
   static char output[1 << 17];
   put_world();
-  put(SCRIPT, "{\"steps\":[]}", 12);
-  put(READINGS, readings, strlen(readings));
+  put(SCRIPT, script, strlen(script));
   CHECK_INT(run(4, argv), 0);
   strcpy(output, slurp(OUT));
   CHECK(strstr(output, "## step 1: @tick\nMarta (told): The porch boards creak.\n") != NULL);
@@ -76,24 +68,18 @@ static void a_tick_tells_the_places_that_hold_a_visitor_and_a_departure_empties_
   CHECK_STR(slurp(ERR), "");
   remove(WORLD);
   remove(SCRIPT);
-  remove(READINGS);
 }
 
 /* A typed line is read by the runtime, each command a turn: a line it cannot read is answered, and ends the line. */
 static void a_typed_line_is_read_by_the_runtime_as_the_turns_it_runs(void) {
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
-  const char *readings =
-      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"@arrive Marta\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Marta\"},"
-      "{\"index\":1,\"line\":\"Marta> look then look\",\"atSeconds\":0,\"seed\":0,\"kind\":\"command\",\"nickname\":\"Marta\","
-      "\"typed\":\"look then look\",\"turns\":[]},"
-      "{\"index\":2,\"line\":\"Marta> plugh. look\",\"atSeconds\":0,\"seed\":0,\"kind\":\"command\",\"nickname\":\"Marta\","
-      "\"typed\":\"plugh. look\",\"turns\":[]}]}";
+  const char *script =
+      "{\"steps\":[{\"arrive\":\"Marta\"},{\"as\":\"Marta\",\"type\":\"look then look\"},"
+      "{\"as\":\"Marta\",\"type\":\"plugh. look\"}]}";
   static char output[1 << 17];
   const char *step, *last;
   put_world();
-  put(SCRIPT, "{\"steps\":[]}", 12);
-  put(READINGS, readings, strlen(readings));
+  put(SCRIPT, script, strlen(script));
   CHECK_INT(run(4, argv), 0);
   strcpy(output, slurp(OUT));
   step = strstr(output, "## step 1: Marta> look then look\n");
@@ -107,12 +93,31 @@ static void a_typed_line_is_read_by_the_runtime_as_the_turns_it_runs(void) {
   CHECK_STR(slurp(ERR), "");
   remove(WORLD);
   remove(SCRIPT);
-  remove(READINGS);
+}
+
+/* With --offered each reading the runtime reads a turn as is looked for in the view polled before it, under --poll-steps. */
+static void offered_holds_each_reading_to_the_view_polled_before_it(void) {
+  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--offered"};
+  char *starved[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--offered", "--poll-steps", "1"};
+  const char *script =
+      "{\"steps\":[{\"arrive\":\"Marta\"},{\"as\":\"Marta\",\"type\":\"look then look\"},"
+      "{\"as\":\"Marta\",\"type\":\"plugh\"}]}";
+  put_world();
+  put(SCRIPT, script, strlen(script));
+  CHECK_INT(run(5, argv), 0);
+  CHECK(strstr(slurp(OUT), "--- offered: 2 of 2 readings, the widest poll ") != NULL);
+  CHECK_STR(slurp(ERR), "");
+  CHECK_INT(run(7, starved), 1);
+  CHECK(strstr(slurp(OUT), "--- offered: 0 of 2 readings") != NULL);
+  CHECK(strstr(slurp(ERR), "sproutc: step 1: the poll before `look` faulted") != NULL);
+  remove(WORLD);
+  remove(SCRIPT);
 }
 
 int main(void) {
   RUN(a_tick_tells_the_places_that_hold_a_visitor_and_a_departure_empties_the_world);
   RUN(a_typed_line_is_read_by_the_runtime_as_the_turns_it_runs);
+  RUN(offered_holds_each_reading_to_the_view_polled_before_it);
   remove(OUT);
   remove(ERR);
   return REPORT();

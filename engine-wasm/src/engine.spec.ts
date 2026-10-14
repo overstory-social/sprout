@@ -1,36 +1,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  bundleOn,
   COUNTER,
   engineCases,
   HALL,
   MARTA,
-  playedTally,
   seeded,
   TALLY,
   type EngineWorld,
 } from '@overstory/sprout/engine-conformance';
 import type { InstanceId } from '@overstory/sprout/lang';
-import {
-  memoryStore,
-  replayLog,
-  runCommand,
-  tsEngine,
-  wholeLog,
-  type StoredState,
-} from '@overstory/sprout/core';
+import { memoryStore, runCommand, type StoredState } from '@overstory/sprout/core';
 
 import { wasmEngine } from './engine.js';
 import { WasmInstance } from './instance.js';
 import { engineBuilt, NOT_BUILT } from './wasm.js';
 
-// The WebAssembly engine passes the engine conformance suite core's
-// TypeScript engine passes, each case as a vitest case; it keeps the
-// world live, opening a stored state from its records only where the
-// state it is handed is not the one it holds; and either engine replays
-// the other's log to the same stored state. Without engine.wasm every
-// case is skipped, under words that say why.
+// The WebAssembly engine passes the engine conformance suite, each case
+// as a vitest case; and it keeps the world live, opening a stored state
+// from its records only where the state it is handed is not the one it
+// holds. Without engine.wasm every case is skipped, under words that say
+// why.
 
 const make = ({ host, cartridge }: EngineWorld) =>
   wasmEngine({ cartridge, catalogue: host.catalogue, budgets: host.budgets });
@@ -114,21 +104,6 @@ describe.skipIf(!engineBuilt())('the WebAssembly engine’s live state', () => {
       },
     });
   });
-});
-
-describe.skipIf(!engineBuilt())('a log replayed on the other engine', () => {
-  const ts = ({ host }: EngineWorld) => tsEngine(host);
-  for (const [played, replayed, name] of [
-    [ts, make, 'the TypeScript runtime’s log on the WebAssembly engine'],
-    [make, ts, 'the WebAssembly engine’s log on the TypeScript runtime'],
-  ] as const) {
-    it(`replays ${name} to the same stored state`, async () => {
-      const store = await playedTally(played, 'play');
-      const again = replayLog(await wholeLog(store, 'w', 100), bundleOn(replayed, TALLY));
-      expect(again.diverged).toEqual([]);
-      expect(again.state).toEqual(await store.read('w', (tx) => tx.state()));
-    });
-  }
 });
 
 describe.runIf(!engineBuilt())('the WebAssembly engine, without engine.wasm', () => {

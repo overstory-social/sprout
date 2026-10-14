@@ -18,7 +18,7 @@
 # session, and the recording plays back as written. It serves the new world from the installed `sprout-server`,
 # and the installed terminal client, plain from a pipe, comes in, looks and leaves before the server is stopped. The installed `sprout-language-server`
 # is sent an edit that breaks the new kind and answers with the refusal on
-# its file. The C runtime is fuzzed against the TypeScript one over the corpus. Runs locally only — there is no CI on this repository.
+# its file. The C runtime is built, tested and played against the frozen goldens, with the C compiler required. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 repo=$(pwd)
@@ -173,9 +173,7 @@ send({ method: 'textDocument/didOpen', params: { textDocument: { uri, languageId
 LSP
 node lsp.cjs | tee lsp.txt
 grep -q 'Fixtur' lsp.txt
-# The C runtime and the TypeScript one take the same fuzzed plays of every corpus world, about two thousand
-# typed lines in all, and print the same things turn by turn.
-(cd "$repo" && node scripts/check-runtime-c.mjs --required | tail -1 && node scripts/fuzz-runtime.mjs --corpus --readings 2000 | tee "$packs/fuzz.txt" | tail -1)
-grep -q 'no divergence' "$packs/fuzz.txt"
+# The C runtime, its tests and the WebAssembly engine against the frozen goldens, a C compiler required.
+(cd "$repo" && node scripts/check-runtime-c.mjs --required | tail -1)
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server to the installed client, the installed language server, and the C runtime against the TypeScript one over fuzzed plays, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server to the installed client, the installed language server, and the C runtime against the frozen goldens, at $sha)"

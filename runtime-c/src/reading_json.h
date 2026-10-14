@@ -1,6 +1,6 @@
 /*
- * A reading, an item of a run read afresh and a turn a line runs after another, as JSON: the forms a readings file
- * keeps them in (player/src/parsed.ts), which a host hands a planned turn back in. A reading is its verb (or, for an
+ * A reading, an item of a run read afresh and a turn a line runs after another, as JSON: the forms the WebAssembly
+ * engine's export layer (wasm/engine/) hands a host, which hands a planned turn back in. A reading is its verb (or, for an
  * intent's, the intent) by qualified name, who performs it, and what fills each role it binds, in order, each filler
  * by id with a value role's value. Trees are built in the arena given and point into what they were made from; a
  * reading read back points into the tree.

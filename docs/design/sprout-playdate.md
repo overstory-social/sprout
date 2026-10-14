@@ -4,7 +4,7 @@
 
 The design of the Playdate player as it is built: a C runtime that
 runs a closed world file, a C app over it that lets a person play one with a
-crank, and the checks that hold the first to the TypeScript runtime. The
+crank, and the checks that hold the first to the spec. The
 design spec says what any host owes a world (_The host contract_,
 _Limits_); this document is the concrete choices the Playdate host makes.
 Where the two disagree, the spec wins. Every choice the spec leaves open is
@@ -195,9 +195,12 @@ device.
 
 **`sproutc`** is the desktop host (`runtime-c/host/`), which may use libc:
 
-- `sproutc play <cartridge> [--state f] [--script s] [--readings f] [--trace f] [--clock N]`
+- `sproutc play <cartridge> [--state f] [--script s] [--trace f] [--clock N] [--offered] [--poll-steps N]`
   plays a script on a fake clock, with the script's seeds, through
-  `sprout_run_turn`.
+  `sprout_run_turn`, each typed line read by the runtime as the command
+  turns it runs. `--trace` writes what each step told readers; `--offered`
+  polls the view before each command turn and fails where it does not offer
+  the reading the runtime reads the turn as.
 - `sproutc view <cartridge> --state f [--visit KEY] [--poll-steps N] [--json | --golden]`
   prints the page `sprout view` prints, over a stored world. `--golden`
   prints the poll as `views.json` holds one: the view, its chip tree, the
@@ -207,10 +210,10 @@ device.
 
 ## Conformance
 
-The TypeScript runtime is the oracle. The C runtime is correct when it does
-what the TypeScript runtime does, and the checks below say how that is
-shown. `npm run gate` runs all of them except the fuzzer; `npm run e2e`
-runs the plain check, then the sanitized check, then the fuzzer (plain).
+The C runtime is held to the spec by its own tests, the frozen goldens and
+core's engine conformance suite; no other runtime is its oracle.
+`npm run gate` runs all of it; `npm run e2e` runs it plain and sanitized
+([`sprout-test-harness.md`](sprout-test-harness.md), 7).
 
 - **Goldens under `corpus/goldens/`**, fixtures the C tests replay byte for
   byte: `catalogues.json` (every world's ids, kinds, properties, verbs and
@@ -222,34 +225,19 @@ runs the plain check, then the sanitized check, then the fuzzer (plain).
   `node scripts/write-goldens.mjs <golden>` rewrites the ones that have a
   writer, and the rest are hand-kept. Either way, the diff is read like any
   golden ([`sprout-test-harness.md`](sprout-test-harness.md), 7a).
-- **The replay of every transcript.** `scripts/check-runtime-c.mjs` packs
-  every `corpus/good` world with transcripts or tests and plays each script
-  through `sproutc`. The C side has no parser, so
-  `scripts/resolve-script.mjs` first plays the script with the TypeScript
-  runtime and writes the reading its parser made of each typed line; a line
-  the parser answered instead of reading is marked and skipped. The replay
-  fails unless the list of passing worlds is `EXPECTED_PASSING`, which is
-  every world.
-- **The view comparison.** For every corpus world, `sproutc view` and
-  `sprout view` print the same page over the stored world the TypeScript
-  runtime writes for an arrival. It has its own line apart from the replay.
-- **The differential fuzzer.** `scripts/fuzz-runtime.mjs` plays offered,
-  refused and unreadable lines, ticks, time, departures and arrivals and
-  tight budgets through both runtimes from a seed, and writes the first
-  divergence as a transcript under the world's `transcripts/`, to be fixed
-  and kept. The e2e runs about two thousand readings over the corpus.
+- **The corpus on the WebAssembly engine.** `runtime-c/wasm/engine.test.mjs`
+  opens every corpus world empty to the state `stored-worlds.json` holds,
+  and plays every transcript through the engine, each step making what it
+  expects and the stored world after each pinned step the golden's.
+  `npm run check` plays every transcript and every world's tests through the
+  CLI on the same engine.
+- **The engine conformance suite** (`@overstory/sprout/engine-conformance`),
+  which the WebAssembly engine passes in its package's specs.
 
-**What is compared:** what each reader was told, in order; the log's entry
-for every turn that ran; the stored world after every step; a view byte for
-byte, with the steps it spent and its fault; an expression's value or its
-fault and its steps; a rendered line with the steps it spent.
-
-**What is not compared:** a command's parsing, which is TypeScript's alone;
-the budget faults' detail where the two runtimes count differently (the
-step budget is compared by its row, figure and steps spent); the object a
-fault names in a poll (a C fault carries none, hole 497); the record of
-where each effect's words were written, which is for an author's tools; any
-extension but `media`; a run on a Unicode newer than 17.0 (hole 498).
+**What no check pins:** the object a fault names in a poll (a C fault
+carries none, hole 497); the record of where each effect's words were
+written, which is for an author's tools; any extension but `media`; a run on
+a Unicode newer than 17.0 (hole 498).
 
 **The Playdate app's own checks** are below, under _What is checked_.
 
@@ -662,8 +650,8 @@ listed plays (`"plays"` in `worlds.json`, scripts under the world's folder)
 played through `sproutc play --offered` over the packed cartridge, the view
 polled before every command under the app's poll budget and each reading
 required to be among what it offers, a set role one member at a time, as the
-sentence builder builds it, with every line the TypeScript runtime's. The
-Simulator target must compile and `pdc` must package the pdx with no
+sentence builder builds it, no turn faulting and each step saying what the
+play expects of it. The Simulator target must compile and `pdc` must package the pdx with no
 compiled script in it; the device target is built too where
 `arm-none-eabi-gcc` is installed.
 `docs/design/sprout-test-harness.md` lists each.

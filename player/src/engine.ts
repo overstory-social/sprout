@@ -41,17 +41,13 @@ export function toolEngine(): EngineName {
   return 'wasm';
 }
 
-/** A host for `world` under the host's default budgets less any `budgets` given, its parser `parse`. */
-export function hostFor(
-  world: PlayableWorld,
-  budgets: Partial<RuntimeBudgets> = {},
-  parse: CommandHost['parse'] = parseCommand,
-): CommandHost {
+/** A host for `world` under the host's default budgets less any `budgets` given. */
+export function hostFor(world: PlayableWorld, budgets: Partial<RuntimeBudgets> = {}): CommandHost {
   return {
     catalogue: catalogueFor(world),
     budgets: { ...DEFAULT_LIMITS.budgets, ...budgets },
     render: renderEffects,
-    parse,
+    parse: parseCommand,
   };
 }
 

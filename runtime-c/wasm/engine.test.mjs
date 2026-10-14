@@ -1,246 +1,88 @@
-// The WebAssembly engine (engine/, driven by @overstory/sprout-engine-wasm's WasmInstance) checked against the TypeScript runtime, and
-// libc.c against the C standard (libc.test.c). Every corpus script is played by the TypeScript runtime
-// (scripts/resolve-script.mjs) and then through the engine: arrivals, departures, ticks and wakes from the
-// turns the TypeScript runtime logged, and each typed line as the engine reads it, the line handing out each
-// command turn it runs (`line`, `lineNext`), each tick and wake under the seed the TypeScript runtime logged for it.
-// Each step's lines, by reader, and the stored world after it must
-// be what the TypeScript runtime left, and each turn must give what the TypeScript runtime's did: its effects,
-// fault and who it cut short, whose views it made stale, what the store writes, and the entry core's log keeps
-// at play depth, as core's builders make it, a command's with its words, the step a line planned and its draw.
-// After each step, every visitor in the world is polled in parts (the spec's The runtime > The view): the
-// scene, then the readings of each verb it lists, which must be the TypeScript runtime's `pollScene` and
-// `pollReadings` over the same stored world. Then the export layer's edges: loading and opening again, input it
-// cannot read, a reading built from chips, an entry at debug depth, and an arrival to a world that admits no
-// one, which still has words for the person.
+// The WebAssembly engine (engine/, driven by @overstory/sprout-engine-wasm's WasmInstance) checked against the
+// frozen goldens (corpus/goldens/stored-worlds.json), and libc.c against the C standard (libc.test.c). Every corpus
+// world opens empty to the state the golden holds for it; every transcript is played through the engine by the
+// player's own host (player/src/play.ts), each step making what the transcript expects of it, and after each step
+// the golden pins, the stored world is the golden's. Then the export layer's edges: loading and opening again,
+// input it cannot read, a reading built from chips, an entry at debug depth, and an arrival to a world that admits
+// no one, which still has words for the person.
 //
 //   node runtime-c/wasm/engine.test.mjs <out folder of build.sh> [corpus/good]
 //
 // scripts/check-runtime-c.mjs runs it after building with build.sh.
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
 import { atDepth, loggedEffects } from '@overstory/sprout/core';
-import {
-  DEFAULT_LIMITS,
-  loadCartridge,
-  loadWorld,
-  pollReadings,
-  pollScene,
-  renderEffects,
-} from '@overstory/sprout/lang';
-import { WasmInstance } from '@overstory/sprout-engine-wasm';
-import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
+import { DEFAULT_LIMITS, emitCartridge, readCartridge } from '@overstory/sprout/lang';
+import { WasmInstance, wasmEngine } from '@overstory/sprout-engine-wasm';
+import { checkWorld, formatCheck } from '@overstory/sprout-cli';
+import { expectationsOf, freshStage, playStep, plays, readScript } from '@overstory/sprout-player';
 
-import { loggedEntryOf, packWorld } from '../../scripts/replay-runtime-c.mjs';
-import { resolveFile } from '../../scripts/resolve-script.mjs';
+const GOLDEN = fileURLToPath(new URL('../../corpus/goldens/stored-worlds.json', import.meta.url));
 
-/** A fresh instance of the engine at `wasm`, with `cartridge` loaded and a new state for `worldId`, under `budgets`. */
-function opened(wasm, cartridge, worldId, budgets = {}) {
-  const engine = new WasmInstance(new WebAssembly.Module(readFileSync(wasm)));
+/** A fresh instance of the engine `module`, with `cartridge` loaded and a new state for `worldId`, under `budgets`. */
+function opened(module, cartridge, worldId, budgets = {}) {
+  const engine = new WasmInstance(module);
   engine.load(cartridge);
   engine.budgets({ ...DEFAULT_LIMITS.budgets, ...budgets }, DEFAULT_LIMITS.caps.listElements);
   engine.openEmpty(worldId);
   return engine;
 }
 
-/**
- * The corpus worlds whose scripts the engine plays, sorted: every one with a script. A world that comes or
- * goes from this list is a change to say so of.
- */
-const EXPECTED_WORLDS = [
-  'all-in-order',
-  'all-leaves-out-refused',
-  'allowed-first',
-  'arrival-order',
-  'brief',
-  'cancel-wakes',
-  'cannot',
-  'carried',
-  'carried-across',
-  'chip-tree',
-  'comma-commands',
-  'darkness',
-  'destroy-declared',
-  'dotted-paths',
-  'drop-here',
-  'embedded-passage',
-  'engine_lines',
-  'exit-labels',
-  'exit-say',
-  'help_and_wait',
-  'imports',
-  'instance-scope',
-  'intents',
-  'media-pictures',
-  'media-room',
-  'move',
-  'moved-out-of-destroyed',
-  'narrowing-and',
-  'nested-offers',
-  'no-way',
-  'notices-through-gate',
-  'out-of-reach-exit',
-  'out-of-reach-synonym',
-  'own-place',
-  'printers_shop',
-  'pronouns',
-  'refusal-hands',
-  'relatives',
-  'requires-held',
-  'roaming',
-  'rounds',
-  'runs',
-  'sequences',
-  'shut-contents',
-  'standard-library',
-  'synonyms',
-  'take-from',
-  'teashop',
-  'troll_room',
-  'turn-faults',
-  'unknown-word',
-  'value-first',
-  'visitor-contents',
-];
-
 /** The checks that are not a world's, each of which must have run. */
 const EXPECTED_CHECKS = ['libc.c', 'edges', 'closed arrival', 'debug depth'];
-
-const visitOf = (nickname) => `visit:${nickname}`;
 
 /** Seed 0 at the instant 0, for the checks that run a turn for what it says rather than what it draws. */
 const AT = { seed: 0, now: 0 };
 
-/** An engine's line as the readings file writes one. */
-function said([visit, kind, words]) {
-  return { reader: visit.startsWith('visit:') ? visit.slice(6) : visit, kind, words };
-}
-
-const lineOf = (one) => `${one.reader} (${one.kind}): ${one.words}`;
-
-/** The first way `got` differs from `want`, line by line, in words; null where they agree. */
-function linesDiffer(want, got) {
-  for (let at = 0; at < Math.max(want.length, got.length); at++) {
-    const a = want[at] === undefined ? '(nothing)' : lineOf(want[at]);
-    const b = got[at] === undefined ? '(nothing)' : lineOf(got[at]);
-    if (a !== b) return `line ${at + 1}: the engine says ${b} and the TypeScript runtime says ${a}`;
-  }
-  return null;
-}
-
-/** What a turn gave the host, as the TypeScript runtime's entry `want` has it: the fields both give. */
-const GIVEN = ['fault', 'effects', 'cutShort', 'stale', 'changes'];
-
-/** The first way the engine's `outcome` differs from the TypeScript runtime's turn `want`, in words; null where it agrees. */
-function turnDiffers(want, outcome, budgets) {
-  for (const field of GIVEN) {
-    if (!isDeepStrictEqual(outcome[field], want[field])) {
-      return `its ${field} is ${JSON.stringify(outcome[field])} where the TypeScript runtime's is ${JSON.stringify(want[field])}`;
-    }
-  }
-  const entry = loggedEntryOf(want, budgets) ?? null;
-  if (!isDeepStrictEqual(outcome.entry, entry)) {
-    return `its entry is ${JSON.stringify(outcome.entry)} where core's is ${JSON.stringify(entry)}`;
-  }
-  return null;
+/** The stored world `stored` as the engine writes it back, having opened it. */
+function rewritten(instance, worldId, stored) {
+  instance.open(JSON.stringify({ world: worldId, ...stored }));
+  return JSON.parse(instance.save());
 }
 
 /**
- * The turns `step` ran, each run through `engine` beside the TypeScript runtime's entry for it: `{ want, outcome }`. A
- * typed line's turns are the ones the engine's line hands out, the first under the step's seed and each after it the
- * next; one the TypeScript runtime did not run has no `want`.
+ * Plays the transcript `file` of the world compiled as `bundle` through the engine `module`, by the player's
+ * host; the first way it differs from what the transcript expects or from the stored worlds `pinned` holds
+ * for it, by step, in words, or null; and how many pinned states it compared.
  */
-function playStep(engine, step) {
-  const ran = [];
-  if (step.kind === 'command') {
-    const visit = visitOf(step.nickname);
-    for (
-      let command = engine.line(visit, step.typed);
-      command !== null;
-      command = engine.lineNext(command.line)
-    ) {
-      const seed = (step.seed + ran.length) % 2 ** 32;
-      const outcome = engine.command(command, { seed, now: step.atSeconds });
-      ran.push({ want: step.after?.turns[ran.length], outcome });
-    }
-    return ran;
-  }
-  for (const want of step.after?.turns ?? []) {
-    const at = { seed: want.seed, now: want.seconds };
-    let outcome;
-    if (want.kind === 'maintenance') outcome = engine.maintenance(at);
-    else if (want.kind === 'arrival') outcome = engine.arrive(want.who, want.nickname, at);
-    else if (want.kind === 'departure') outcome = engine.depart(want.who, at);
-    else if (want.kind === 'tick') outcome = engine.tick(want.who, at);
-    else outcome = engine.wake(want.who, want.wake, at);
-    ran.push({ want, outcome });
-  }
-  return ran;
-}
-
-/**
- * The first way the engine's polls of every visitor in the stored world `stored` differ from the TypeScript
- * runtime's under `host`, in words; null where they agree: the scene, its verbs with their phrases among it, then
- * each verb's readings.
- */
-function pollsDiffer(engine, host, stored) {
-  const { state } = loadWorld(stored, host.catalogue);
-  const present = [...state.visitors.values()]
-    .filter((visitor) => (state.instances.get(visitor.instance)?.container ?? null) !== null)
-    .map((visitor) => visitor.visit)
-    .sort();
-  for (const visit of present) {
-    const want = pollScene(state, host, visit).scene;
-    const got = engine.scene(visit).scene;
-    if (!isDeepStrictEqual(got, want)) {
-      return `${visit}'s scene is ${JSON.stringify(got)} where the TypeScript runtime's is ${JSON.stringify(want)}`;
-    }
-    const verbs = want.verbs.map((one) => one.verb);
-    for (const verb of verbs) {
-      const readings = pollReadings(state, host, visit, verb).readings;
-      const given = engine.readings(visit, verb).readings;
-      if (!isDeepStrictEqual(given, readings)) {
-        return `${visit}'s readings of ${verb} are ${JSON.stringify(given)} where the TypeScript runtime's are ${JSON.stringify(readings)}`;
+function playTranscript(module, bundle, cartridge, file, pinned) {
+  const base = freshStage(bundle, 'wasm');
+  const stage = {
+    ...base,
+    engine: wasmEngine({
+      cartridge,
+      catalogue: base.host.catalogue,
+      budgets: base.host.budgets,
+      module,
+    }),
+  };
+  const worldId = base.host.catalogue.world;
+  const instance = opened(module, cartridge, worldId);
+  const script = readScript(readFileSync(file, 'utf8'), file);
+  let compared = 0;
+  for (const [i, step] of script.steps.entries()) {
+    const made = playStep(stage, step, `${file}, step ${i + 1}`);
+    if (made !== null && plays(step) && step.expect !== undefined) {
+      const got = expectationsOf(made);
+      if (!isDeepStrictEqual(got, step.expect)) {
+        return {
+          differs: `step ${i + 1} made ${JSON.stringify(got)} where the transcript expects ${JSON.stringify(step.expect)}`,
+          compared,
+        };
       }
     }
+    const golden = pinned.get(i + 1);
+    if (golden === undefined) continue;
+    compared++;
+    if (!isDeepStrictEqual(rewritten(instance, worldId, stage.stored), golden)) {
+      return { differs: `step ${i + 1}: the stored world is not the golden's`, compared };
+    }
   }
-  return null;
-}
-
-/** Plays `readings` through a fresh engine; the first difference from the TypeScript runtime, or null. */
-async function playReadings(wasm, cartridge, worldId, readings, host) {
-  const engine = opened(wasm, cartridge, worldId, readings.budgets);
-  for (const step of readings.steps) {
-    const lines = [];
-    const ran = playStep(engine, step);
-    if (step.after !== undefined && ran.length !== step.after.turns.length) {
-      return `step ${step.index} (${step.line}): the engine ran ${ran.length} turns and the TypeScript runtime ${step.after.turns.length}`;
-    }
-    for (const [at, one] of ran.entries()) {
-      lines.push(...one.outcome.lines.map(said));
-      if (one.want === undefined) continue;
-      const differs = turnDiffers(one.want, one.outcome, readings.budgets);
-      if (differs !== null)
-        return `step ${step.index} (${step.line}), turn ${at + 1} (${one.want.kind}): ${differs}`;
-    }
-    if (step.after === undefined) continue;
-    const differs = linesDiffer(step.after.says, lines);
-    if (differs !== null) return `step ${step.index} (${step.line}), ${differs}`;
-    if (
-      step.after.world !== undefined &&
-      !isDeepStrictEqual(JSON.parse(engine.save()), step.after.world)
-    ) {
-      return `step ${step.index} (${step.line}): the stored world is not the TypeScript runtime's`;
-    }
-    const polls =
-      step.after.world === undefined ? null : pollsDiffer(engine, host, step.after.world);
-    if (polls !== null) return `step ${step.index} (${step.line}): ${polls}`;
-  }
-  return null;
+  return { differs: null, compared };
 }
 
 /** libc.c's checks: how many failed. */
@@ -251,9 +93,9 @@ async function libcFailures(out) {
 }
 
 /** The export layer's edges, over one packed world; each problem in words. */
-async function edges(wasm, cartridge, worldId) {
+async function edges(module, cartridge, worldId) {
   const problems = [];
-  const engine = opened(wasm, cartridge, worldId);
+  const engine = opened(module, cartridge, worldId);
   const expectThrow = (what, run, words) => {
     try {
       run();
@@ -375,8 +217,8 @@ async function edges(wasm, cartridge, worldId) {
 }
 
 /** A world whose arrival place is gone admits no one, and says so in words for the person. */
-async function closedArrival(wasm, cartridge, worldId, arrivalPlace) {
-  const engine = opened(wasm, cartridge, worldId);
+async function closedArrival(module, cartridge, worldId, arrivalPlace) {
+  const engine = opened(module, cartridge, worldId);
   const stored = JSON.parse(engine.save());
   stored.instances = stored.instances.filter((one) => one.id !== arrivalPlace);
   stored.tombstones = [...stored.tombstones, arrivalPlace].sort();
@@ -393,9 +235,9 @@ async function closedArrival(wasm, cartridge, worldId, arrivalPlace) {
  * An arrival's entry at debug depth keeps every effect as the log keeps it and no digest, and is the
  * play-depth entry once core takes it to play depth.
  */
-async function debugDepth(wasm, cartridge, worldId) {
+async function debugDepth(module, cartridge, worldId) {
   const arrive = async (depth) => {
-    const engine = opened(wasm, cartridge, worldId);
+    const engine = opened(module, cartridge, worldId);
     engine.logDepth(depth);
     engine.maintenance(AT);
     return engine.arrive('visit:Marta', 'Marta', AT);
@@ -412,95 +254,95 @@ async function debugDepth(wasm, cartridge, worldId) {
   return problems;
 }
 
-/** Checks the engine in `out` over every world in `corpus`; one result per world, and the edges' and libc's. */
+/**
+ * Checks the engine in `out` over every world in `corpus` against the stored-worlds golden; one result per world,
+ * the edges' and libc's, and one that every state the golden holds was compared.
+ */
 export async function testEngine(out, corpus = 'corpus/good') {
-  const wasm = join(out, 'engine.wasm');
-  const scratch = mkdtempSync(join(tmpdir(), 'sprout-wasm-'));
+  const module = new WebAssembly.Module(readFileSync(join(out, 'engine.wasm')));
+  const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
   const results = [];
-  try {
-    const failures = await libcFailures(out);
-    results.push({ name: 'libc.c', passed: failures === 0, words: `${failures} checks failed` });
-    for (const name of readdirSync(corpus).sort()) {
-      const world = join(corpus, name);
-      const scripts = ['transcripts', 'tests'].flatMap((folder) => {
-        const dir = join(world, folder);
-        try {
-          return readdirSync(dir)
-            .filter((file) => file.endsWith('.json'))
-            .map((file) => join(dir, file));
-        } catch {
-          return [];
-        }
-      });
-      if (scripts.length === 0) continue;
-      const cartridgeFile = join(scratch, `${name}.sproutworld`);
-      packWorld(world, cartridgeFile);
-      const cartridge = readFileSync(cartridgeFile);
-      const loaded = loadCartridge(cartridge, {
-        caps: DEFAULT_LIMITS.caps,
-        installed: INSTALLED_EXTENSIONS,
-      });
-      const worldId = loaded.world;
-      // The engine polls under the host's default budgets, as the corpus scripts are played.
-      const host = {
-        catalogue: loaded,
-        budgets: DEFAULT_LIMITS.budgets,
-        render: renderEffects,
-      };
-      let played = 0;
-      let differs = null;
-      for (const script of scripts) {
-        const readings = JSON.parse(resolveFile(cartridgeFile, script));
-        played++;
-        try {
-          differs = await playReadings(wasm, cartridge, worldId, readings, host);
-        } catch (err) {
-          differs = `the engine refused it: ${err.message}`;
-        }
-        if (differs !== null) {
-          differs = `${script}: ${differs}`;
-          break;
-        }
-      }
-      if (played > 0)
-        results.push({ name, passed: differs === null, words: differs ?? `${played} scripts` });
-      if (name === 'printers_shop') {
-        const problems = await edges(wasm, cartridge, worldId);
-        results.push({
-          name: 'edges',
-          passed: problems.length === 0,
-          words: problems.join('; ') || 'held',
-        });
-      }
-      if (name === 'brief') {
-        const problems = await closedArrival(wasm, cartridge, worldId, 'brief.west_of_house');
-        results.push({
-          name: 'closed arrival',
-          passed: problems.length === 0,
-          words: problems.join('; ') || 'told',
-        });
-        const depth = await debugDepth(wasm, cartridge, worldId);
-        results.push({
-          name: 'debug depth',
-          passed: depth.length === 0,
-          words: depth.join('; ') || 'kept',
-        });
+  let initial = 0;
+  let pinned = 0;
+  const failures = await libcFailures(out);
+  results.push({ name: 'libc.c', passed: failures === 0, words: `${failures} checks failed` });
+  for (const name of readdirSync(corpus).sort()) {
+    const world = join(corpus, name);
+    const checked = checkWorld(world);
+    if (checked.bundle === null) {
+      results.push({ name, passed: false, words: formatCheck(checked) });
+      continue;
+    }
+    const cartridge = emitCartridge(checked.bundle);
+    const worldId = readCartridge(cartridge).header.namespace;
+    const problems = [];
+    const empty = JSON.parse(opened(module, cartridge, worldId).save());
+    if (golden.initial[name] !== undefined) initial++;
+    if (!isDeepStrictEqual(empty, golden.initial[name]))
+      problems.push('the state it opens empty to is not the golden’s');
+    const folder = join(world, 'transcripts');
+    const transcripts = existsSync(folder)
+      ? readdirSync(folder)
+          .filter((file) => file.endsWith('.json'))
+          .sort()
+      : [];
+    for (const transcript of transcripts) {
+      const steps = new Map(
+        golden.played
+          .filter((one) => one.world === name && one.transcript === transcript)
+          .map((one) => [one.step, one.stored]),
+      );
+      try {
+        const played = playTranscript(
+          module,
+          checked.bundle,
+          cartridge,
+          join(folder, transcript),
+          steps,
+        );
+        pinned += played.compared;
+        if (played.differs !== null) problems.push(`${transcript}: ${played.differs}`);
+      } catch (err) {
+        problems.push(`${transcript}: the engine refused it: ${err.message}`);
       }
     }
-  } finally {
-    rmSync(scratch, { recursive: true, force: true });
+    results.push({
+      name,
+      passed: problems.length === 0,
+      words: problems.join('; ') || `${transcripts.length} transcripts`,
+    });
+    if (name === 'printers_shop') {
+      const edgeProblems = await edges(module, cartridge, worldId);
+      results.push({
+        name: 'edges',
+        passed: edgeProblems.length === 0,
+        words: edgeProblems.join('; ') || 'held',
+      });
+    }
+    if (name === 'brief') {
+      const closed = await closedArrival(module, cartridge, worldId, 'brief.west_of_house');
+      results.push({
+        name: 'closed arrival',
+        passed: closed.length === 0,
+        words: closed.join('; ') || 'told',
+      });
+      const depth = await debugDepth(module, cartridge, worldId);
+      results.push({
+        name: 'debug depth',
+        passed: depth.length === 0,
+        words: depth.join('; ') || 'kept',
+      });
+    }
   }
-  const played = results
-    .filter((one) => !EXPECTED_CHECKS.includes(one.name))
-    .map((one) => one.name);
   const missing = EXPECTED_CHECKS.filter((name) => !results.some((one) => one.name === name));
+  const held = Object.keys(golden.initial).length;
   results.push({
-    name: 'what was played',
-    passed: played.join(',') === EXPECTED_WORLDS.join(',') && missing.length === 0,
+    name: 'what was compared',
+    passed: missing.length === 0 && initial === held && pinned === golden.played.length,
     words:
       missing.length > 0
         ? `the checks ${missing.join(', ')} did not run`
-        : `the worlds played are ${played.join(', ')}; update EXPECTED_WORLDS in runtime-c/wasm/engine.test.mjs if the change is meant`,
+        : `${initial} of the golden's ${held} initial states and ${pinned} of its ${golden.played.length} played states were compared; a world or a transcript the golden holds is not in ${corpus}`,
   });
   return results;
 }

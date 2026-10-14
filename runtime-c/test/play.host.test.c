@@ -7,7 +7,6 @@ static const char *WORLD = "sproutc-play-test.sproutworld";
 static const char *OUT = "sproutc-play-test.out";
 static const char *ERR = "sproutc-play-test.err";
 static const char *SCRIPT = "sproutc-play-test.json";
-static const char *READINGS = "sproutc-play-test.readings.json";
 
 static void put(const char *path, const void *bytes, size_t length) {
   FILE *file = fopen(path, "wb");
@@ -65,42 +64,31 @@ static void the_header_and_manifest_are_printed_and_the_world_loads(void) {
   remove(WORLD);
 }
 
-static void a_picture_shown_reads_as_its_transcript_line_and_is_traced_with_its_payload(void) {
+static void a_picture_shown_reads_as_its_transcript_line(void) {
   const char *trace = "sproutc-play-test.trace";
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--trace", (char *)trace};
-  const char *readings =
-      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"# hello\",\"atSeconds\":0,\"seed\":0,\"kind\":\"comment\"},"
-      "{\"index\":1,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"}]}";
+  const char *script = "{\"steps\":[{\"comment\":\"hello\"},{\"arrive\":\"Ines\"}]}";
   static char output[1 << 17];
   put_world_of("media-room");
-  put(SCRIPT, "{\"steps\":[]}", 12);
-  put(READINGS, readings, strlen(readings));
+  put(SCRIPT, script, strlen(script));
   CHECK_INT(run(6, argv), 0);
   strcpy(output, slurp(OUT));
   CHECK(strstr(output, "## step 1: @arrive Ines\nInes (described): A damp cellar.\nInes (extension): [cellar.png]\n") != NULL);
   CHECK(strstr(output, "this host does not provide") == NULL);
   strcpy(output, slurp(trace));
-  CHECK(strstr(output, "\"kind\":\"extension\"") != NULL);
-  CHECK(strstr(output, "\"extension\":\"media\",\"statement\":\"show\",\"payload\":{\"image\":\"cellar.png\"}") != NULL);
+  CHECK(strstr(output, "{\"reader\":\"Ines\",\"kind\":\"extension\",\"words\":\"[cellar.png]\"}") != NULL);
   remove(WORLD);
   remove(SCRIPT);
-  remove(READINGS);
   remove(trace);
 }
 
 static void a_script_plays_its_steps_through_the_turn_call_and_traces_each(void) {
   const char *trace = "sproutc-play-test.trace";
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--clock", "5", "--trace", (char *)trace};
-  const char *readings =
-      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"# hello\",\"atSeconds\":0,\"seed\":0,\"kind\":\"comment\"},"
-      "{\"index\":1,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
-      "{\"index\":2,\"line\":\"@leave Ines\",\"atSeconds\":5,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
+  const char *script = "{\"steps\":[{\"comment\":\"hello\"},{\"arrive\":\"Ines\"},{\"leave\":\"Ines\"}]}";
   static char output[1 << 17];
   put_world();
-  put(SCRIPT, "{\"steps\":[]}", 12);
-  put(READINGS, readings, strlen(readings));
+  put(SCRIPT, script, strlen(script));
   CHECK_INT(run(8, argv), 0);
   strcpy(output, slurp(OUT));
   CHECK(strstr(output, "--- play\n## step 1: @arrive Ines\nInes (described): Lead and lamp oil.") != NULL);
@@ -108,30 +96,21 @@ static void a_script_plays_its_steps_through_the_turn_call_and_traces_each(void)
   CHECK(strstr(output, "## step 0") == NULL);
   strcpy(output, slurp(trace));
   CHECK(strstr(output, "{\"step\":1,\"says\":[{\"reader\":\"Ines\",\"kind\":\"described\",") == output);
-  CHECK(strstr(output, "{\"kind\":\"maintenance\",\"seed\":0,\"seconds\":0,") != NULL);
-  CHECK(strstr(output, "{\"kind\":\"arrival\",\"seed\":0,\"seconds\":0,\"who\":\"visit:Ines\",\"outcome\":\"done\"") != NULL);
-  CHECK(strstr(output, "\n{\"step\":2,") != NULL);
-  CHECK(strstr(output, "{\"kind\":\"departure\",\"seed\":0,\"seconds\":5,") != NULL);
-  CHECK(strstr(output, "\"world\":{\"world\":\"printers_shop\"") != NULL);
+  CHECK(strstr(output, "\n{\"step\":2,\"says\":[{\"reader\":\"Ines\",\"kind\":\"notice\",\"words\":\"You leave, and take what you carry with you.\"}]}\n") != NULL);
   remove(WORLD);
   remove(SCRIPT);
-  remove(READINGS);
   remove(trace);
 }
 
 static void a_profile_names_the_world_and_state_bytes_then_each_steps_held_and_peak(void) {
   const char *profile = "sproutc-play-test.profile";
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT, "--profile", (char *)profile};
-  const char *readings =
-      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"@arrive Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"arrive\",\"nickname\":\"Ines\"},"
-      "{\"index\":1,\"line\":\"@leave Ines\",\"atSeconds\":5,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
+  const char *script = "{\"steps\":[{\"arrive\":\"Ines\"},{\"leave\":\"Ines\"}]}";
   static char output[1 << 12];
   unsigned long world, load_peak, state, loaded, held, peak;
   const char *line;
   put_world();
-  put(SCRIPT, "{\"steps\":[]}", 12);
-  put(READINGS, readings, strlen(readings));
+  put(SCRIPT, script, strlen(script));
   CHECK_INT(run(6, argv), 0);
   strcpy(output, slurp(profile));
   CHECK(sscanf(output, "{\"world\":%lu,\"loadPeak\":%lu,\"state\":%lu,\"loaded\":%lu}", &world, &load_peak,
@@ -147,30 +126,30 @@ static void a_profile_names_the_world_and_state_bytes_then_each_steps_held_and_p
   CHECK(strstr(output, "\n{\"step\":1,") != NULL);
   remove(WORLD);
   remove(SCRIPT);
-  remove(READINGS);
   remove(profile);
 }
 
 static void a_call_the_runtime_refuses_ends_the_play_with_its_words(void) {
   char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
-  const char *readings =
-      "{\"format\":1,\"script\":\"s.json\",\"steps\":["
-      "{\"index\":0,\"line\":\"@leave Ines\",\"atSeconds\":0,\"seed\":0,\"kind\":\"leave\",\"nickname\":\"Ines\"}]}";
+  const char *script = "{\"steps\":[{\"leave\":\"Ines\"}]}";
   put_world();
-  put(SCRIPT, "{\"steps\":[]}", 12);
-  put(READINGS, readings, strlen(readings));
+  put(SCRIPT, script, strlen(script));
   CHECK_INT(run(4, argv), 1);
   CHECK(strstr(slurp(OUT), "## step 0: @leave Ines\n!! `visit:Ines` has never visited this world.\n") != NULL);
   remove(WORLD);
   remove(SCRIPT);
-  remove(READINGS);
 }
 
-static void a_script_with_no_readings_beside_it_is_refused_in_words(void) {
+static void a_script_that_is_not_there_or_not_one_is_refused_in_words(void) {
   char *argv[] = {"play", (char *)WORLD, "--script", "sproutc-no-such-script.json"};
+  char *bad[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
   put_world();
   CHECK_INT(run(4, argv), 1);
-  CHECK(strstr(slurp(ERR), "resolve-script") != NULL);
+  CHECK(strstr(slurp(ERR), "sproutc: there is no script at sproutc-no-such-script.json.") != NULL);
+  put(SCRIPT, "{\"steps\":[{\"tick\":false}]}", 26);
+  CHECK_INT(run(4, bad), 1);
+  CHECK(strstr(slurp(ERR), "sproutc: step 1: a step is") != NULL);
+  remove(SCRIPT);
   remove(WORLD);
 }
 
@@ -245,13 +224,13 @@ static void a_cartridge_the_runtime_refuses_is_refused_with_its_words(void) {
 int main(void) {
   RUN(the_header_and_manifest_are_printed_and_the_world_loads);
   RUN(a_script_plays_its_steps_through_the_turn_call_and_traces_each);
-  RUN(a_picture_shown_reads_as_its_transcript_line_and_is_traced_with_its_payload);
+  RUN(a_picture_shown_reads_as_its_transcript_line);
   RUN(a_profile_names_the_world_and_state_bytes_then_each_steps_held_and_peak);
   RUN(a_call_the_runtime_refuses_ends_the_play_with_its_words);
   RUN(a_stored_world_is_read_opened_and_written_back_and_a_second_pass_changes_nothing);
   RUN(a_store_that_is_not_readable_or_is_another_worlds_is_refused_in_words);
   RUN(a_cartridge_the_runtime_refuses_is_refused_with_its_words);
-  RUN(a_script_with_no_readings_beside_it_is_refused_in_words);
+  RUN(a_script_that_is_not_there_or_not_one_is_refused_in_words);
   RUN(a_bad_command_line_and_a_bad_file_are_refused_in_words);
   remove(OUT);
   remove(ERR);

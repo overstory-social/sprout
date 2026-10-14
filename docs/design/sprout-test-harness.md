@@ -1,28 +1,43 @@
 # Sprout — the test harness
 
-2026-09-22 · @Someone
+2026-10-14 · @Someone
 
-What each layer of testing in this repository is for, what it caught or
-failed to catch in the first two phases, and what is still to build. The
-rules a contributor follows are in `CLAUDE.md`; this is the reasoning.
+What each layer of testing in this repository is for and what it checks.
+The rules a contributor follows are in `CLAUDE.md`; this is the reasoning.
 
-## What the first two phases taught
+## The gate, step by step
 
-Phases 0 and 1 landed with about 900 colocated unit tests and a green gate
-on every merge, and still produced eleven regressions across four PRs, all
-in the parser's recovery. Every one had the same shape: a fix for one
-malformed input made an adjacent malformed input drop a well-formed item
-silently. The unit tests did not catch it because each asserted on the
-input it was written for. What finally caught the class was an invariant
-over generated input — "a well-formed item never vanishes without a
-diagnostic naming it" — added late, by hand, in the parser's spec.
+`npm run gate` runs before every commit, and every step must pass. In
+order:
 
-Two other gaps were visible by the end of Phase 1. Nothing exercised the
-new compiler end to end: the world resolver and the type checker were
-called only by their own specs, against hand-built fixtures, and the
-gate's corpus step still ran the previous language. And the words the
-compiler says to an author, which the spec makes a requirement, were pinned
-only where a unit test happened to quote them.
+1. **`npm run conflicts`** (`scripts/check-conflicts.mjs`): no tracked file
+   holds a merge-conflict marker.
+2. **`npm run lint`** and **`npm run format:check`**: ESLint and Prettier
+   over every package's sources, the corpus JSON and the design and manual
+   pages.
+3. **`npm run build`**: every package, in dependency order; the
+   WebAssembly engine's `engine.wasm` is built into
+   `@overstory/sprout-engine-wasm` where clang's wasm32 target is found.
+4. **`npm test`**: every package's vitest suites — the colocated specs (1),
+   the invariants (3), the boundary specs (4) and the conformance suites
+   (5).
+5. **`npm run typecheck:spec`**: the specs and fixtures typecheck as the
+   sources do.
+6. **`npm run check`**: the corpus (2), through the built CLI on the
+   WebAssembly engine. `scripts/check-corpus.mjs`: every `good/` world
+   passes, every `bad/` world prints exactly its `expected.txt`, every
+   `view.txt` is current, and `corpus/skill/SKILL.md` is what `sprout skill`
+   prints. `scripts/check-transcripts.mjs`: every transcript plays as written
+   (2a), from the folder and from the cartridge. `scripts/check-tests.mjs`:
+   every world's own tests pass (2b), from the folder and from the cartridge.
+7. **`node scripts/check-runtime-c.mjs`**: the C layers (7). runtime-c built
+   and its ctest run (7a); the library built again at `-O2` under
+   `-Wall -Wextra -Werror`, and once more without the parser, as the
+   Playdate takes it; `sproutc play` printing a packed world's header; the
+   WebAssembly engine against the goldens (7b); and the Playdate app (7e)
+   where `PLAYDATE_SDK_PATH` is set. Its last line says which parts ran.
+
+`npm run e2e` (6) runs before a PR is opened.
 
 ## The layers
 
@@ -114,34 +129,42 @@ Each package has a `boundary.spec.ts` that lists what it may import. They
 are cheap and they are what keeps the language free of any host. They are
 never loosened to make something build.
 
-### 5. The conformance suite
+### 5. The conformance suites
 
 `sprout/core/src/conformance.ts` is what a store adapter passes, under any
 test runner. It imports no framework. Both store packages run it, and a
 host with its own adapter runs it too.
 
+`sprout/core/src/engine-conformance/` is what an engine a host may name
+passes, the same way: core's turns, admission and the log, polls in whole
+and in parts with the cache, rounds of ticks, the host's questions, and a
+log replayed to the world it wrote, each over a memory store. The
+WebAssembly engine runs it in `engine-wasm/src/engine.spec.ts`. Neither
+suite is ever fenced.
+
 ### 6. End to end
 
-`npm run e2e` packs every tarball, installs them into an empty folder, and
-runs the installed CLI: `init` a world, `check` it, and `check` a corpus
-world. It proves the published packages work from outside the repository,
-which nothing else does. It also checks the worked microworld and plays
-each of its transcripts from the installed CLI, comparing what it prints
-to the golden, runs its tests and its transcripts as tests, which pass,
-and a test that must fail. It also runs the C layers' sanitized run and the
-fuzzer (7b, 7c), and the player's checks when `PLAYDATE_SDK_PATH` is set.
+`npm run e2e` (`scripts/e2e.sh`) packs every tarball, installs them into an
+empty folder, and runs the installed packages from outside the repository,
+which nothing else does: `sprout scaffold` and `check` a fresh world and a
+corpus world; `parse`, `view`, `play` (scripted and interactive) and `test`
+(and its report) on the worked microworld, its transcripts compared to the
+goldens and a test that must fail; `skill`; the MCP host over stdio, whose
+recording plays back as written; a world served by the installed server to
+the installed terminal client; and the installed language server. It runs
+the C layers twice with `--required`, which fails rather than skips without
+a C compiler: first sanitized (7c), and last plain, as the gate does.
 
 ### 7. The C layers
 
 `runtime-c/` and `sprout-player/` are tested in layers, each with a
 different job. The design they test is
-[`sprout-playdate.md`](sprout-playdate.md). The TypeScript runtime is the
-oracle throughout: a C test passes when C does what TypeScript does, and
-where the two cannot be compared (below) the test says what it pins instead.
-The C tests need the TypeScript build first (`npm run build`): ctest packs
-every corpus world through the built CLI.
+[`sprout-playdate.md`](sprout-playdate.md). The C runtime is held to the
+spec through its own tests, the frozen goldens and the engine conformance
+suite; no other runtime is its oracle. The C tests need the build first
+(`npm run build`): ctest packs every corpus world through the built CLI.
 
-#### 7a. The C unit layer
+#### 7a. The C unit layer and the goldens
 
 Every module of `runtime-c/src` has a `foo.test.c` beside it, built by CMake
 and run by ctest (one header-only runner, `test/check.h`). The library calls
@@ -204,21 +227,45 @@ which #686 owns.
 Four rules keep the layer honest.
 
 - **A budget is compared by its row, its figure and the steps spent.** The
-  host's figure and the host's words differ from the TypeScript budget's
-  detail, so the step that went over is included and the sentence is not.
+  sentence a budget fault's detail says is the host's to word, so the step
+  that went over is compared and the sentence is not.
 - **A faulted turn leaves the stored world byte for byte as it was.**
   `corpus/good/turn-faults`, a world whose handlers fault on purpose, is
   what `turn_<kind>.test.c` runs each of the six turn kinds on.
 - **The Unicode tables are pinned by edge.** The prose layer carries two
   tables (`runtime-c/src/prose/unicode.c`, generated by
-  `scripts/generate-prose-unicode.mjs` from the Node that wrote the
-  goldens); `prose.json` holds the edge of every run of letters and numbers
+  `scripts/generate-prose-unicode.mjs` from Node's own Unicode data);
+  `prose.json` holds the edge of every run of letters and numbers
   and every letter whose upper case differs, each capitalised as JavaScript
   does.
 - **A release in a test fills the block with a pattern before it frees it,**
   so a read after free fails in the plain build as well as the sanitized one.
 
-#### 7b. The sanitized run
+#### 7b. The WebAssembly engine against the goldens
+
+`runtime-c/wasm/build.sh` builds the runtime for wasm32, and
+`runtime-c/wasm/engine.test.mjs` checks the build with the frozen goldens,
+not with another runtime. Every corpus world opens empty to the state
+`stored-worlds.json` holds for it. Every transcript is played through the
+engine by the player's own host (`player/src/play.ts`, as `sprout play`
+plays it), and each step must make exactly what the transcript expects;
+after each step the golden pins, the stored world, written back by the
+engine, must be the golden's. The test ends by checking that every state
+the golden holds was compared, so a world or a transcript that goes missing
+fails it. Beside the corpus it holds the export layer to its edges (loading
+and opening again without growing, input it cannot read refused in words,
+a reading built from chips, a line handing out its next command only once
+the last ran), an arrival to a world that admits no one, which still has
+words for the person, an entry at debug depth that is the play-depth entry
+once core takes it there, and `libc.c` against the C standard. Without
+clang's wasm32 target and `wasm-ld` the step is skipped, and its line says
+so.
+
+The same engine passes core's engine conformance suite in
+`engine-wasm/src/engine.spec.ts` (5), and every `npm run check` step runs
+the CLI on it.
+
+#### 7c. The sanitized run
 
 `node scripts/check-runtime-c.mjs --sanitize` configures a second build with
 `-DSPROUT_SANITIZE=ON` (AddressSanitizer and UndefinedBehaviorSanitizer,
@@ -228,72 +275,12 @@ Playdate app's C tests under the sanitizers. The gate keeps the plain build
 to stay fast; `npm run e2e` runs this one.
 
 On Linux the sanitized ctest, and the sanitized `sproutc` the player step
-plays saves through, run under `setarch "$(uname -m)" -R` when `setarch` is on
+plays saves and plays through, run under `setarch "$(uname -m)" -R` when `setarch` is on
 the PATH (`player/src/aslr.ts` chooses, and the run prints one line saying
 which). AddressSanitizer maps its shadow memory at fixed addresses, and a
 kernel with high-entropy address-space randomisation (large
 `vm.mmap_rnd_bits`, as on WSL2) can occupy them first, which fails the run at
 random. Without `setarch` the line gives the remedy, `setarch -R npm run e2e`.
-
-#### 7c. The differential layer
-
-`sproutc play` (`runtime-c/host`) plays a cartridge's script on a fake clock
-with the script's seeds, and three scripts hold the C runtime to the
-TypeScript one over whole worlds.
-
-- **The replay of every transcript.** `scripts/check-runtime-c.mjs` packs
-  every `corpus/good` world that has transcripts or tests and plays each
-  script. `scripts/resolve-script.mjs` first plays each script with the
-  TypeScript runtime and writes, beside it, what each step left behind
-  (`player/src/readings.ts`); `sproutc play` then reads each typed line
-  itself, as the command turns it runs (`sprout_line_begin`). It prints one
-  line per world and the list that pass, and fails unless that list is
-  `EXPECTED_PASSING`, which is every world. It compares what each reader was
-  told, the log's entry for each turn that ran (a command's with its words,
-  the step a line planned for it, the item it re-read and its draw), that
-  entry again in core's own form as core's builders make it, and the stored
-  world after every step.
-- **The view comparison.** `sproutc view` prints the page `sprout view`
-  prints; the script compares the two for every corpus world, on its own
-  line, over the stored world the TypeScript runtime writes for the arrival.
-  Then it polls the view in parts, as a host may: `sproutc view --scene`
-  against `sprout view --scene`, the scene with the verbs it lists, and
-  `sproutc view --verb <name>` against `sprout view --verb <name>` for each
-  verb the TypeScript scene lists. The WebAssembly engine's test polls the
-  scene and each verb's readings of every visitor after every step of every
-  script, against `pollScene` and `pollReadings`, and the fuzzer polls every
-  visitor still in the world at the end of each play.
-- **The parse comparison.** The readings files are the C parser's oracle
-  line by line: beside each command turn
-  they keep what `host.parse` returned (`parsed`: the reading or intent with
-  its bindings in the order bound, the turns after it, the draw, the
-  corrections, or the answer's line and bindings, or the fault; the bounds
-  drawn and the steps spent), what a later turn of a line was handed, and
-  the stored world a turn after the first in its step began from
-  (`player/src/parsed.ts`). `sproutc parse <cartridge> --readings <file>`
-  reads each turn's words, or what a later turn of a line was handed,
-  through `sprout_parse` over that world, under the turn's seed, and
-  compares the two as JSON; a turn with no parse recorded is counted apart. `scripts/check-runtime-c.mjs` runs it over
-  every script (`replayParses`), prints one line per world with how many
-  turns read alike and how many of the TypeScript parser's `unknown`
-  answers, and fails when the worlds that parse alike in full are not
-  `EXPECTED_PARSING`, which is every world.
-- **The fuzzer.** `scripts/fuzz-runtime.mjs` plays, from a seed, offered,
-  refused and unreadable lines, offered lines perturbed (a pronoun, the
-  adjectives alone, `all except`, two chained, a word nobody knows, `again`),
-  ticks, time, departures and arrivals, and tight budgets, a step budget a
-  line's reading reaches among them, through both runtimes, each reading the
-  lines itself, and writes the first divergence as a
-  transcript under the world's `transcripts/`, to be fixed and kept.
-  `npm run e2e` runs about two thousand readings over the corpus; longer
-  campaigns are run by hand.
-
-What is not compared, and why: the object a poll's fault names (a C fault carries none); the record of where
-each effect's words were written (an author's tool); any extension but
-`media`. Each is a numbered hole in the working notes. A scene's verbs are
-compared by qualified name alone: the TypeScript scene gives each verb's
-phrases too, which the spec's scene does not name and the C scene does not
-carry.
 
 #### 7d. Extensions on a host that draws
 
@@ -324,14 +311,11 @@ draws reads is this. `media.show("cellar.png")` and
   and its `transcript`. A description's effects follow its `described` effect
   in a turn, and in the view they are kept apart from the description's
   paragraphs.
-- **`sproutc` prints them.** `sproutc play` says `Ines (extension): [cellar.png]`
-  and its `--trace` puts
-  `"extension":"media","statement":"show","payload":{"image":"cellar.png"}` on
-  the effect in the log entry (the TypeScript player writes the same, and the
-  replay compares them); `sproutc view --json` prints
+- **`sproutc` prints them.** `sproutc play` says `Ines (extension): [cellar.png]`,
+  and its `--trace` keeps that line as the reader's; `sproutc view --json` prints
   `"effects":[{"extension":"media","statement":"show","payload":{"image":"cellar.png"},"transcript":"[cellar.png]"}]`
-  in the view, and the page both runtimes print has an `effects` section after
-  the description when there are any.
+  in the view, and the page `sproutc view` and `sprout view` print has an
+  `effects` section after the description when there are any.
 - **The Playdate player draws it.** `sprout-player/src/ui/images.h` finds the
   asset at `<cartridge path>.assets/<image>` and the pictures screen
   (`src/ui/pictures.h`) shows each picture a turn asked for on the whole
@@ -361,7 +345,8 @@ variable is not set).
   the saves of built turns, which `scripts/playdate-player.mjs` then holds to
   `sproutc`: the save must read and write back byte for byte, and the turns
   built from the view's chips must leave the stored world the same lines typed
-  leave (`corpus/good/chip-tree`, `corpus/good/value-first`).
+  leave when `sproutc play` reads them (`corpus/good/chip-tree`,
+  `corpus/good/value-first`).
 - **The screens** (`sprout-player/src/ui`) are driven a frame at a
   time through the same fake, whose graphics draw into a 400 by 240 one-bit
   frame and keep each run of text with where it was drawn, and whose buttons
@@ -384,12 +369,14 @@ variable is not set).
 - **The listed plays of the shipped worlds.** Each graduated world may list
   plays in `sprout-player/worlds.json` (the studio's `underground_caverns`
   lists the whole of Zork, `tests/walkthrough.json`); the player step plays
-  each with the TypeScript runtime and through `sproutc play --offered
-  --poll-steps` under the app's own poll budget, which polls the view before
-  every command turn and fails where the reading the TypeScript runtime ran
-  is not among what it offers, a set role one member at a time, as the sentence builder builds it,
-  and compares every line with the TypeScript runtime's. A world the chips
-  cannot play to the end, or that outgrows the poll budget, fails the build.
+  each through `sproutc play --offered --poll-steps` under the app's own poll
+  budget, which polls the view before every command turn and fails where the
+  reading the runtime reads the turn as is not among what it offers, a set
+  role one member at a time, as the sentence builder builds it. No turn may
+  fault, and each step must say what the play expects of it, as `sprout test`
+  holds a test (`unmetExpectation`, read from `sproutc`'s `--trace`). A world
+  the chips cannot play to the end, or that outgrows the poll budget, fails
+  the build.
 - **Shipped worlds and downloads** are tested at each seam, with no network.
   `ed25519.test.c` holds the signature check to all of RFC 8032 section 7.1's
   vectors (and refuses a key or R of small order or in a non-canonical
@@ -418,7 +405,7 @@ variable is not set).
   `worlds.json` (names or paths, a list that cannot be used, assets copied, a
   world that does not pack, the public key read); `scripts/playdate-player.mjs`
   runs both and the build's check of the graduated list.
-- **The sanitizers** run the player's C tests too (7b).
+- **The sanitizers** run the player's C tests too (7c).
 - **The build itself is a test.** The Simulator target must compile and `pdc`
   must package the pdx with no compiled script in it, and the device target is built too where
   `arm-none-eabi-gcc` is installed.
@@ -431,9 +418,6 @@ design doc lists them.
 
 ## Still to build
 
-- **Replay determinism**: a log recorded once and replayed against the same
-  bundle produces byte-identical effects. A property test over random
-  command sequences on the worked microworld, once B34 and B40 exist.
 - **A generated-input harness shared across readers**: the parser's
   invariant loop extracted into a helper the lexer, manifest reader and
   command parser use, so the pattern is one thing rather than four.

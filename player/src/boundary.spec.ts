@@ -48,15 +48,9 @@ const NEVER = [
   'renderActed',
 ];
 
-/**
- * What reads the TypeScript runtime beside the engine, and the files it is
- * for: the TypeScript engine itself; and the readings file, which is that
- * runtime's record and writes its stored worlds whole.
- */
+/** What reads the TypeScript runtime beside the engine, and the files it is for: the TypeScript engine itself. */
 const ONLY_IN: Readonly<Record<string, readonly string[]>> = {
   tsEngine: ['engine.ts'],
-  loaded: ['readings.ts'],
-  saveWorld: ['readings.ts'],
 };
 
 function sources(dir: string): string[] {

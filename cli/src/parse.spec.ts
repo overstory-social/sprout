@@ -1,20 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, expect, it } from 'vitest';
 
 import { checkWorld } from './check.js';
 import { formatGrammar, parseLine } from './parse.js';
-import type { Bundle } from '@overstory/sprout/lang';
-import {
-  catalogueFor,
-  engineFor,
-  readScript,
-  standIn,
-  type EngineName,
-  type Standing,
-} from '@overstory/sprout-player';
+import { catalogueFor, engineFor, standIn, type Standing } from '@overstory/sprout-player';
 import { ENGINES_BUILT, LANE, worldFolder } from '@overstory/sprout-player/fixtures';
 
 const lane = () => checkWorld(worldFolder('lane', LANE)).bundle!;
@@ -301,55 +289,4 @@ it runs 2 steps, each a turn of its own:
       );
     });
   });
-});
-
-const CORPUS = fileURLToPath(new URL('../../corpus/good', import.meta.url));
-
-/** Every line typed in the scripts of the corpus world in `dir`, its transcripts' and its tests', once each. */
-function typedIn(dir: string): string[] {
-  const typed = ['transcripts', 'tests'].flatMap((folder) => {
-    let files: string[];
-    try {
-      files = readdirSync(join(dir, folder)).filter((file) => file.endsWith('.json'));
-    } catch {
-      return [];
-    }
-    return files.flatMap((file) =>
-      readScript(readFileSync(join(dir, folder, file), 'utf8'), file).steps.flatMap((step) =>
-        'type' in step ? [step.type] : [],
-      ),
-    );
-  });
-  return [...new Set(typed)];
-}
-
-/** A visitor standing where visitors arrive on `engine`, or the words of what kept them from it. */
-function arrived(bundle: Bundle, engine: EngineName): Standing | string {
-  try {
-    return standIn(bundle, engine);
-  } catch (err) {
-    return `thrown: ${err instanceof Error ? err.message : String(err)}`;
-  }
-}
-
-describe.runIf(ENGINES_BUILT.includes('wasm'))('the corpus, read on both engines', () => {
-  const worlds = readdirSync(CORPUS)
-    .sort()
-    .filter((name) => typedIn(join(CORPUS, name)).length > 0);
-  it('has worlds whose scripts type lines', () => expect(worlds.length).toBeGreaterThan(40));
-  for (const name of worlds) {
-    it(`${name}: every line its scripts type reads alike, where a visitor arrives`, () => {
-      const bundle = checkWorld(join(CORPUS, name)).bundle;
-      expect(bundle, `${name} compiles`).not.toBeNull();
-      const ts = arrived(bundle!, 'ts');
-      const wasm = arrived(bundle!, 'wasm');
-      if (typeof ts === 'string' || typeof wasm === 'string') {
-        expect(wasm).toEqual(ts);
-        return;
-      }
-      for (const line of typedIn(join(CORPUS, name))) {
-        expect(parseLine(line, wasm), line).toEqual(parseLine(line, ts));
-      }
-    });
-  }
 });
