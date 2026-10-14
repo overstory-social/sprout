@@ -9,42 +9,6 @@
 
 #include "prose.h"
 
-/* `file:line:column` of a place, or `?` where the cartridge kept none. */
-static const char *location_of(const prose_reading *reading, const sprout_node *at) {
-  const sprout_graph *graph = &reading->world->graph;
-  char digits[24];
-  size_t used = 0, n, count;
-  const char *file;
-  char *text;
-  long numbers[2];
-  size_t i;
-  int placed;
-  if (at == NULL || at->kind != SPROUT_NODE_PLACE) return "?";
-  placed = sprout_place_file(reading->graph, at);
-  if (placed < 0 || (size_t)placed >= graph->file_count) return "?";
-  file = graph->files[placed];
-  numbers[0] = sprout_place_line(reading->graph, at);
-  numbers[1] = sprout_place_column(reading->graph, at);
-  n = strlen(file);
-  text = (char *)sprout_arena_take(reading->notes->arena, n + 2 * 21 + 1);
-  if (text == NULL) return NULL;
-  memcpy(text, file, n);
-  used = n;
-  for (i = 0; i < 2; i++) {
-    unsigned long number = (unsigned long)numbers[i];
-    text[used++] = ':';
-    count = sizeof digits;
-    do {
-      digits[--count] = (char)('0' + (int)(number % 10));
-      number /= 10;
-    } while (number > 0);
-    memcpy(text + used, digits + count, sizeof digits - count);
-    used += sizeof digits - count;
-  }
-  text[used] = '\0';
-  return text;
-}
-
 static bool known(const prose_notes *notes, const sprout_noted *wanted) {
   size_t i;
   for (i = 0; i < notes->count; i++) {
@@ -72,7 +36,7 @@ void prose_note_passage(const prose_reading *reading, const sprout_node *passage
   wanted.passage = true;
   wanted.name = sprout_node_text(reading->graph, passage, "name");
   wanted.origin = sprout_node_text(reading->graph, passage, "origin");
-  wanted.at = location_of(reading, sprout_node_get(reading->graph, passage, "at"));
+  wanted.at = sprout_place_text(reading->graph, sprout_node_get(reading->graph, passage, "at"), reading->notes->arena);
   if (wanted.name == NULL || wanted.origin == NULL) return;
   note(reading, &wanted);
 }
@@ -81,7 +45,7 @@ void prose_note_line(const prose_reading *reading, const sprout_node *prose) {
   sprout_noted wanted;
   if (reading->notes == NULL) return;
   memset(&wanted, 0, sizeof wanted);
-  wanted.at = location_of(reading, sprout_node_get(reading->graph, prose, "at"));
+  wanted.at = sprout_place_text(reading->graph, sprout_node_get(reading->graph, prose, "at"), reading->notes->arena);
   note(reading, &wanted);
 }
 

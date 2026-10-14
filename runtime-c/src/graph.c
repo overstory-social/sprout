@@ -26,6 +26,39 @@ static sprout_status refuse(char *error, size_t capacity, const char *a, const c
   return SPROUT_BAD_INPUT;
 }
 
+const char *sprout_place_text(const sprout_graph *graph, const sprout_node *place, sprout_arena *arena) {
+  char digits[24];
+  size_t used, n, count, i;
+  const char *file;
+  char *text;
+  unsigned long numbers[2];
+  int placed;
+  if (place == NULL || place->kind != SPROUT_NODE_PLACE) return "?";
+  placed = sprout_place_file(graph, place);
+  if (placed < 0 || (size_t)placed >= graph->file_count) return "?";
+  file = graph->files[placed];
+  numbers[0] = (unsigned long)sprout_place_line(graph, place);
+  numbers[1] = sprout_place_column(graph, place);
+  n = strlen(file);
+  text = (char *)sprout_arena_take(arena, n + 2 * 21 + 1);
+  if (text == NULL) return NULL;
+  memcpy(text, file, n);
+  used = n;
+  for (i = 0; i < 2; i++) {
+    unsigned long number = numbers[i];
+    text[used++] = ':';
+    count = sizeof digits;
+    do {
+      digits[--count] = (char)('0' + (int)(number % 10));
+      number /= 10;
+    } while (number > 0);
+    memcpy(text + used, digits + count, sizeof digits - count);
+    used += sizeof digits - count;
+  }
+  text[used] = '\0';
+  return text;
+}
+
 sprout_status sprout_graph_map(sprout_graph *graph, const unsigned char *block, size_t length, sprout_arena *arena,
                                const sprout_json *files, char *error, size_t error_capacity) {
   const char *why = NULL;

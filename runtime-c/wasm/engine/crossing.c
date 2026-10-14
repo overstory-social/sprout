@@ -65,6 +65,7 @@ static sprout_status set_up(wasm_engine *e) {
   e->host.read = host_read;
   e->host.write = host_write;
   e->host.emit = host_emit;
+  e->host.accounts = true;
   e->log_depth = SPROUT_LOG_PLAY;
   spec_budgets(&e->host.budgets);
   status = sprout_arena_init(&e->scratch, &e->host);

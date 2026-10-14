@@ -27,8 +27,7 @@ import { pathOf } from './stand.js';
 // in full and reaches only the words it told of the fault, since what it
 // did was undone. Which handlers ran, and which lines the parser answered
 // or the consent pass refused, are the engine's account of each turn
-// (core's `Step.account`); where the engine gives none, those parts of the
-// report are null.
+// (core's `Step.account`).
 
 /** One script played, by the name its steps are reported under. */
 export interface PlayedRun {
@@ -77,26 +76,25 @@ export interface Report {
   readonly seeds: readonly number[];
   /** Command turns each visitor typed, by nickname. */
   readonly turns: Readonly<Record<string, number>>;
-  /** What became of the lines typed; each part but `typed` null where the engine gave no account of a turn. */
+  /** What became of the lines typed. */
   readonly reading: {
     /** Lines typed. */
     readonly typed: number;
     /** Lines the parser answered in place of reading them: `unknown`, `not_here` and the rest. */
-    readonly unread: readonly Misread[] | null;
+    readonly unread: readonly Misread[];
     /** Lines read, and refused in the consent pass. */
-    readonly refused: readonly Misread[] | null;
+    readonly refused: readonly Misread[];
     /** Unread lines as a share of those typed, to two places; 0 where none were typed. */
-    readonly unreadRate: number | null;
+    readonly unreadRate: number;
     /** Refused lines as a share of those typed, likewise. */
-    readonly refusedRate: number | null;
+    readonly refusedRate: number;
   };
   readonly faults: readonly ReportedFault[];
   readonly reach: {
     readonly places: Reach;
     readonly objects: Reach;
     readonly verbs: Reach;
-    /** Null where the engine gave no account of a turn, so which handlers ran is not known. */
-    readonly handlers: Reach | null;
+    readonly handlers: Reach;
     readonly passages: Reach;
   };
   readonly repetition: readonly Repeated[];
@@ -239,7 +237,6 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
     passages: new Set<string>(),
   };
   let typed = 0;
-  let accounted = true;
 
   for (const { name, played } of runs) {
     played.forEach(({ step, turns: ran }, i) => {
@@ -249,8 +246,7 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
         for (const place of turn.standing) reached.places.add(place);
         for (const id of filled(turn)) reached.objects.add(id);
         if (turn.reading !== null) reached.verbs.add(turn.reading.verb);
-        if (turn.account === null) accounted &&= !ranAnything(turn);
-        else for (const one of turn.account.ran) reached.handlers.add(one.at);
+        for (const one of turn.account?.ran ?? []) reached.handlers.add(one.at);
         for (const effect of turn.effects) {
           for (const written of effect.written) reached.passages.add(keyOf(written));
         }
@@ -284,29 +280,21 @@ export function reportOf(bundle: Bundle, runs: readonly PlayedRun[]): Report {
     turns,
     reading: {
       typed,
-      unread: accounted ? unread : null,
-      refused: accounted ? refused : null,
-      unreadRate: accounted ? share(unread.length, typed) : null,
-      refusedRate: accounted ? share(refused.length, typed) : null,
+      unread,
+      refused,
+      unreadRate: share(unread.length, typed),
+      refusedRate: share(refused.length, typed),
     },
     faults,
     reach: {
       places: reachOf(declared.places, reached.places),
       objects: reachOf(declared.objects, reached.objects),
       verbs: reachOf(declared.verbs, reached.verbs),
-      handlers: accounted ? reachOf(declared.handlers, reached.handlers) : null,
+      handlers: reachOf(declared.handlers, reached.handlers),
       passages: reachOf(declared.passages, reached.passages),
     },
     repetition: [...repeats(lines, 'line'), ...repeats(answers, 'answer')],
   };
-}
-
-/**
- * Whether a turn with no account may have run something: every turn but a
- * closed arrival, which ran nothing and so has nothing to account for.
- */
-function ranAnything(turn: Traced): boolean {
-  return turn.logged.outcome !== 'closed';
 }
 
 /** `part` of `whole`, to two places; 0 of nothing. */

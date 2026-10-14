@@ -47,6 +47,7 @@ static inline void reading_open(exec_bench *b, exec_case *c, const sprout_json *
   sprout_draws_begin(&c->draws, exec_has_number(golden, "seed") ? (uint64_t)exec_number(golden, "seed") : 1);
   sprout_exec_begin(&c->x, c->world, &c->draft, &c->turn, &c->meter, &c->draws, &c->fault,
                     exec_has_number(golden, "instant") ? (uint64_t)exec_number(golden, "instant") : 0);
+  c->x.accounts = true;
   c->frame = sprout_exec_frame(&c->x, exec_str(self), NULL, NULL);
 }
 

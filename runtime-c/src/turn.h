@@ -90,7 +90,10 @@ sprout_eval_status turn_handed(sprout_arena *keep, const sprout_draft *draft, co
  */
 sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_outcome *outcome);
 
-/* Commits the attempt's draft, its changes counted among the outcome's; the state is now what the turn made. */
+/*
+ * Commits the attempt's draft, its changes counted among the outcome's, and what it ran after what the turn's
+ * earlier commits ran; the state is now what the turn made.
+ */
 sprout_status turn_commit(turn_run *run, sprout_outcome *outcome);
 
 /*

@@ -117,12 +117,8 @@ describe.each(ENGINES_BUILT)('on the %s engine', (engine) => {
       expect(refused![0]!.reading?.verb).toBe('kiln_yard.fire');
       expect(unread![0]!.reading).toBeNull();
       expect(comment).toEqual([]);
-      // What a turn ran, was answered with or refused is the TypeScript engine's account alone (#665).
+      // What a turn ran, was answered with or refused, as the engine accounts for it.
       const accounts = [fired, refused, unread, woken].map((turns) => turns![0]!.account);
-      if (engine === 'wasm') {
-        expect(accounts).toEqual([null, null, null, null]);
-        return;
-      }
       expect(accounts.map((account) => [account?.answered, account?.refused])).toEqual([
         [null, false],
         [null, true],
