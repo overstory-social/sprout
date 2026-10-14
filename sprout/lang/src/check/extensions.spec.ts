@@ -254,13 +254,31 @@ describe('a statement whose last argument may be left out', () => {
     ]);
   });
 
-  it('shows an image named in quotes, which a property cannot stand in for', () => {
+  it('shows a property’s image, or a `let` of one, as it shows one named in quotes', () => {
     expect(
       refusedByMedia(
-        ':picture media.Image default "a.png"\n  describe { text "A lamp."  media.show(self.get(:picture)) }',
-      ).map(([, message]) => message),
+        [
+          ':picture media.Image default "a.png"',
+          '  describe {',
+          '    text "A lamp."',
+          '    media.show(self.get(:picture))',
+          '    let shown = self.get(:picture)',
+          '    media.show(shown, "a lamp")',
+          '  }',
+        ].join('\n'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('refuses a value of another type as the image, saying what to give it', () => {
+    expect(
+      refusedByMedia(':label "a.png"\n  describe { text "A lamp."  media.show(self.get(:label)) }'),
     ).toEqual([
-      '`media.show` shows an image named in quotes, so its file can be found and sent with the world.',
+      [
+        'lamp.sprout:4:41',
+        '`image` of `media.show` is `media.Image`, and this is string.',
+        'Give it a property of `media.Image`, or text in quotes, which `media` reads.',
+      ],
     ]);
   });
 });

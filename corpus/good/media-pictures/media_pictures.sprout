@@ -1,0 +1,31 @@
+// A picture as a property: every room shares one `describe`, which shows
+// the room's own picture where it has one. A room that composes
+// `Illustrated` holds `:picture`, a `media.Image` whose default is a file
+// name; the hall keeps the kind's default and the garden restates its own,
+// and the shed, which has no picture, is a plain `Room`. Every default is a
+// file the world sends with its cartridge.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Room} from 'room'
+import {Illustrated} from 'illustrated'
+
+world media_pictures is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is Room, Illustrated {
+    grammar { exit north "into the garden" -> garden }
+  }
+
+  object garden is Room, Illustrated {
+    :picture "pictures/garden.png"
+    grammar {
+      exit south "back to the hall" -> hall
+      exit east "to the shed" -> shed
+    }
+  }
+
+  object shed is Room {
+    grammar { exit west "back to the garden" -> garden }
+  }
+}

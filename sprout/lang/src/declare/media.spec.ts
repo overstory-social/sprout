@@ -155,11 +155,9 @@ describe('media.show', () => {
     expect(accepts('a.png')).toBe(false);
   });
 
-  it('refuses an image that is not written out, so its file can be found, and a caption with no words', () => {
-    expect(show.check!([undefined, undefined])).toMatchObject({
-      problem:
-        '`media.show` shows an image named in quotes, so its file can be found and sent with the world.',
-    });
+  it('takes an image the world supplies, as a property’s, and refuses a caption with no words', () => {
+    expect(show.check!([undefined, undefined])).toBeNull();
+    expect(show.check!([undefined, ''])).toMatchObject({ problem: 'A caption needs words.' });
     expect(show.check!(['a.png', ''])).toMatchObject({ problem: 'A caption needs words.' });
     expect(show.check!(['a.png', undefined])).toBeNull();
     expect(show.check!(['a.png', 'x'])).toBeNull();

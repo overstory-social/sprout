@@ -1,0 +1,5 @@
+extension media 1
+
+kind Illustrated {
+  :picture media.Image default "pictures/hall.png"
+}

@@ -2,10 +2,11 @@
 // › What an extension may add; The host contract › Two decisions): an
 // `Image` value type whose literal is the name of a 1-bit PNG in the
 // world's folder, and `media.show(image)` or `media.show(image, caption)`,
-// which records `{ image, caption? }` and reads, to a client that cannot
-// draw, as its caption or, with none, as the image's name in brackets. The
-// definition is data and pure functions; a host that draws the image
-// reimplements this behaviour in its own language.
+// whose image is such a literal or any value of the type (a property's,
+// whose default is one), and which records `{ image, caption? }` and reads,
+// to a client that cannot draw, as its caption or, with none, as the
+// image's name in brackets. The definition is data and pure functions; a
+// host that draws the image reimplements this behaviour in its own language.
 
 import type {
   AssetFile,
@@ -84,23 +85,14 @@ const SHOW: ExtensionStatementDefinition = {
     { name: 'caption', type: 'string', optional: true },
   ],
   describe: true,
-  check: ([image, caption]) => {
-    if (image === undefined) {
-      return {
-        problem:
-          '`media.show` shows an image named in quotes, so its file can be found and sent with the world.',
-        remedy: 'Write the file’s name in quotes, as in `media.show("cellar.png")`.',
-      };
-    }
-    if (caption === '') {
-      return {
-        problem: 'A caption needs words.',
-        remedy:
-          'Say what the picture shows, as in `media.show("cellar.png", "a cellar")`, or leave the caption out.',
-      };
-    }
-    return null;
-  },
+  check: ([, caption]) =>
+    caption === ''
+      ? {
+          problem: 'A caption needs words.',
+          remedy:
+            'Say what the picture shows, as in `media.show("cellar.png", "a cellar")`, or leave the caption out.',
+        }
+      : null,
   run: ({ arguments: [image, caption] }) => {
     const shown: { image: string; caption?: string } = { image: String(image) };
     if (typeof caption === 'string' && caption !== '') shown.caption = caption;
@@ -136,5 +128,8 @@ export const MEDIA: Extension = {
   skill:
     'Show a picture with `media.show("cellar.png")` or `media.show("cellar.png", "a damp cellar")`, ' +
     'in a `describe` or a `do`. The picture is a black-and-white (1-bit) PNG file in the world’s folder; ' +
+    'a kind may hold one as a property, `:picture media.Image default "cellar.png"`, which each object ' +
+    'restates with its own, `:picture "pictures/hall.png"`, and one `describe` shows with ' +
+    '`media.show(self.get(:picture))`; ' +
     'a client that cannot draw reads the caption, or the file’s name in brackets where there is none.',
 };

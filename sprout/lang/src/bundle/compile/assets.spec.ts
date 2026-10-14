@@ -51,6 +51,19 @@ function compiled(
 const said = (diagnostics: Parameters<typeof refusals>[0]) =>
   diagnostics.map((d) => [locationOf(d.at), d.message, d.remedy]);
 
+/** A world whose lamps, `objects`, compose a `Lamp` holding `:picture` at `fallback`, compiled with `folder`. */
+function pictured(objects: string, fallback: string, folder: Record<string, AssetFile>) {
+  const files = worldFiles(
+    worldLine(objects),
+    `extension media 1\nkind Lamp {\n  :picture media.Image default "${fallback}"\n  describe {\n    text "A lamp."\n    media.show(self.get(:picture))\n  }\n}`,
+  );
+  const source = world({ files, manifest: { extensions: [{ name: 'media', major: 1 }] } });
+  return compileBundle(
+    { ...source, assets: (path) => folder[path] ?? null },
+    { extensions: [MEDIA], mode: 'publish' },
+  );
+}
+
 describe('the files an extension’s values name', () => {
   it('are each found in the world’s folder once, by path, with their size and hash', () => {
     const { bundle, diagnostics } = compiled(
@@ -69,6 +82,41 @@ describe('the files an extension’s values name', () => {
     const { bundle } = compiled('', {});
     expect(bundle!.assets).toEqual([]);
     expect(bundle!.size.assetBytes).toBe(0);
+  });
+
+  it('include each property default of the type, a kind’s and each object’s restatement', () => {
+    const { bundle, diagnostics } = pictured(
+      'object lamp is Lamp { :picture "lit.png" } object lantern is Lamp',
+      'plain.png',
+      { 'lit.png': file(10), 'plain.png': file(20), 'unused.png': file(40) },
+    );
+    expect(diagnostics).toEqual([]);
+    expect(bundle!.assets).toEqual([
+      { extension: 'media', path: 'lit.png', bytes: 10, sha: 'sha-of-10' },
+      { extension: 'media', path: 'plain.png', bytes: 20, sha: 'sha-of-20' },
+    ]);
+  });
+
+  it('name a kind’s default though every object restates it, since the kind may yet be composed', () => {
+    const { bundle } = pictured('object lamp is Lamp { :picture "lit.png" }', 'plain.png', {
+      'lit.png': file(10),
+      'plain.png': file(20),
+    });
+    expect(bundle!.assets.map((asset) => asset.path)).toEqual(['lit.png', 'plain.png']);
+  });
+
+  it('are refused at a default, as at a statement, when the folder lacks one', () => {
+    const objects = 'object lamp is Lamp { :picture "gone.png" }';
+    const { bundle, diagnostics } = pictured(objects, 'plain.png', { 'plain.png': file(20) });
+    const column = worldLine(objects).indexOf('"gone.png"') + 1;
+    expect(bundle).toBeNull();
+    expect(said(refusals(diagnostics))).toEqual([
+      [
+        `printers_shop.sprout:1:${column}`,
+        'The file "gone.png" is not in this world’s folder.',
+        'Put the file there, with the path from the world’s folder written exactly, or name another.',
+      ],
+    ]);
   });
 
   it('are refused at publish, at the literal, when the folder lacks one', () => {

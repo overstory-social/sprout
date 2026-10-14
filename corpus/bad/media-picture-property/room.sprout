@@ -1,0 +1,13 @@
+import * as sprout from 'sprout'
+
+extension media 1
+
+kind Room is sprout.Place {
+  :picture media.Image default "cellar.png"
+  :caption "a damp cellar"
+  describe {
+    text "A damp cellar."
+    media.show(self.get(:caption))
+    media.show(self.get(:picture))
+  }
+}

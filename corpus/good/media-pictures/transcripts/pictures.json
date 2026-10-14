@@ -1,0 +1,19 @@
+{
+  "about": "Every room shares one describe, which shows the room's own picture where it has one: the hall's is the kind's default, the garden's is its own restatement, and the shed, which has none, is described in words alone. A client that cannot draw reads each picture as its file name in brackets.",
+  "steps": [
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "You stand in a hall." },
+      { "reader": "Ines", "kind": "extension", "words": "[pictures/hall.png]" }
+    ] },
+    { "as": "Ines", "type": "north", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "You stand in a garden." },
+      { "reader": "Ines", "kind": "extension", "words": "[pictures/garden.png]" }
+    ] },
+    { "as": "Ines", "type": "east", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "You stand in a shed." }
+    ] },
+    { "as": "Ines", "type": "look", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "You stand in a shed." }
+    ] }
+  ]
+}
