@@ -1,0 +1,400 @@
+// Above ground: the fields around the white house, the forest, the path and
+// its tree, and the two clearings. Room names and descriptions are Zork's,
+// from dungeon.zil and actions.zil.
+import {Thing, Portable, Scenery} from 'thing'
+import {Box} from 'box'
+import {Readable, Treasure} from 'items'
+import {Room, Forest, Woodland, Woods, Trees, WhiteHousePicture, ClearingPicture} from 'room'
+import {TreeTop, Nest, Egg, Canary} from 'tree'
+import {Songful} from 'room'
+import {Adventurer} from 'adventurer'
+import {WhiteHouse, DistantHouse, Boards, BoardedWindow, FrontDoor, TreeAbove, TreeBelow} from 'scenery'
+import {KitchenWindow, Outdoors} from 'house'
+import {Leaves, Ground, GratingAbove} from 'grating'
+import {grating_room} from 'maze'
+import {take, open, read, cross, climb_up, climb_down, climb_over, duck_under, :window_sync, :reveal, :travel, :grate_open, :grate_revealed, :won} from 'verbs'
+import {kitchen} from 'house'
+import {canyon_view} from 'river'
+import {stone_barrow} from 'barrow'
+
+object west_of_house is Room, WhiteHousePicture in underground_caverns {
+  grammar {
+    name "West of House"
+    exit north     "north"      -> north_of_house
+    exit south     "south"      -> south_of_house
+    exit northeast "northeast"  -> north_of_house
+    exit southeast "southeast"  -> south_of_house
+    exit west      "west"       -> forest_1
+    exit east      "front door" refuse "The door is boarded and you can't remove the boards."
+    exit southwest "secret path" -> stone_barrow when (self.get(:won))
+    exit in        "in"          -> stone_barrow when (self.get(:won))
+  }
+  passage body { You are standing in an open field west of a white house, with a boarded front door.{if self.get(:won)} A secret path leads southwest into the forest.{/if} }
+  // At 350 the secret path is there (WON-FLAG), and the room is seen in
+  // full the next time each visitor comes (its TOUCHBIT cleared).
+  :won false
+  on :won { self.set(:won, true) }
+  remembers { :path_seen false }
+  on :entered (item, from) {
+    if (item.is(Adventurer) && self.get(:won)) {
+      if (!item.recall(:path_seen)) {
+        item.remember(:path_seen, true)
+        item.remember(:visits, 1)
+      }
+    }
+  }
+
+  object mailbox is Box {
+    grammar { name "small mailbox"  nouns "box" }
+    :plain 1
+    passage short { small mailbox }
+    passage no_take { It is securely anchored. }
+    passage examined {
+      The small mailbox stands on a post at the edge of the field, painted to match the house and a good deal less weathered. Its little flag is down.
+
+      {self.look_inside}
+    }
+
+    object leaflet is Readable {
+      :burnable true
+      grammar { nouns "advertisement", "booklet", "mail"  adjectives "small" }
+      :size 2
+      passage short { leaflet }
+      passage ldesc { A small leaflet is on the ground. }
+      passage words {
+        "WELCOME TO ZORK!
+
+        ZORK is a game of adventure, danger, and low cunning. In it you will explore some of the most amazing territory ever seen by mortals. No computer should be without one!"
+      }
+      describe { text words }
+    }
+  }
+  object front_door is FrontDoor
+  object house is WhiteHouse
+  object boards is Boards
+  object field is Scenery {
+    grammar { name "open field"  nouns "field", "grass", "meadow"  adjectives "open" }
+    passage short { open field }
+    describe { text "The field is open, grassy and entirely without incident, which is what fields are for. It runs up to the white house on the east, gives out at the forest on the west, and keeps the mailbox company in between.{if self.get(:won)} At its southwest corner a secret path goes into the trees.{/if}" }
+    // The secret path, there to be seen once the score is 350.
+    contains
+    :won false
+    pass any (self.get(:won))
+    on :won { self.set(:won, true) }
+    object secret_path is Scenery {
+      grammar { name "secret path"  nouns "path", "trail"  adjectives "secret", "southwest" }
+      passage short { secret path }
+      describe { text "A narrow path, mossy and half hidden, leaves the corner of the field and goes southwest into the forest, where no path was before, or where nobody had noticed one. It is the path on the map, marked \"To Stone Barrow\"." }
+    }
+    object forest is Woods {
+      passage view { The forest begins at the edge of the field, west and southwest, old and dim and much like the rest of the forest, except for the path going into it, which is new, or newly noticed. }
+    }
+  }
+}
+
+object north_of_house is Room in underground_caverns {
+  grammar {
+    name "North of House"
+    exit southwest "southwest" -> west_of_house
+    exit southeast "southeast" -> behind_house
+    exit west      "west"      -> west_of_house
+    exit east      "east"      -> behind_house
+    exit north     "north"     -> forest_path
+    exit south     "window"    refuse "The windows are all boarded."
+  }
+  passage body {
+    You are facing the north side of a white house. There is no door here, and all the windows are boarded up. To the north a narrow path winds through the trees.
+  }
+  object house is WhiteHouse { :around behind }
+  object window is BoardedWindow
+  object boards is Boards
+  object trees is Trees {
+    passage view { Beyond the path the trees begin, large and close together and darker the further in you look. The path is the only polite way into them. }
+  }
+  object path is Scenery {
+    grammar { name "narrow path"  nouns "path", "trail"  adjectives "narrow", "winding", "forest" }
+    passage short { narrow path }
+    describe { text "The narrow path winds north, away from the house and into the trees, as though it had somewhere better to be." }
+  }
+}
+
+object south_of_house is Room in underground_caverns {
+  grammar {
+    name "South of House"
+    exit west      "west"      -> west_of_house
+    exit east      "east"      -> behind_house
+    exit northeast "northeast" -> behind_house
+    exit northwest "northwest" -> west_of_house
+    exit south     "south"     -> forest_3
+    exit north     "window"    refuse "The windows are all boarded."
+  }
+  passage body {
+    You are facing the south side of a white house. There is no door here, and all the windows are boarded.
+  }
+  object house is WhiteHouse { :around west_side }
+  object window is BoardedWindow
+  object boards is Boards
+}
+
+object behind_house is Room, Outdoors in underground_caverns {
+  grammar {
+    name "Behind House"
+    exit north     "north"     -> north_of_house
+    exit south     "south"     -> south_of_house
+    exit southwest "southwest" -> south_of_house
+    exit northwest "northwest" -> north_of_house
+    exit east      "east"      -> clearing
+    exit west      "window"    -> kitchen when (self.get(:window_open))
+    exit west      "window"    refuse "The kitchen window is closed."
+    exit in        "house"     -> kitchen when (self.get(:window_open))
+    exit in        "house"     refuse "The kitchen window is closed."
+  }
+  :window_open false
+  passage body {
+    You are behind the white house. A path leads into the forest to the east. In one corner of the house there is a small window which is {if self.get(:window_open)}open.{else}slightly ajar.{/if}
+  }
+  on :window_sync (from, value) { self.set(:window_open, value) }
+
+  object house is WhiteHouse {
+    :around south_side
+    without as target for open from WhiteHouse
+    as target for open {
+      do {
+        if (behind_house.get(:window_open)) {
+          send actor :travel with :kitchen
+          say ""
+        }
+        else { say "The window is closed." }
+      }
+    }
+  }
+  object window is KitchenWindow
+  object forest is Woods {
+    passage view { The forest begins where the path does, to the east, and keeps a respectful distance from the house, which it has perhaps been asked to do. }
+  }
+  object trees is Trees {
+    passage view { The trees of the forest stand off to the east, beyond a strip of grass, large and old and not inclined to come any closer. }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "trail"  adjectives "east", "forest" }
+    passage short { path }
+    describe { text "The path leads east, away from the house and into the forest. It is well trodden, though not, apparently, by anyone you will meet soon." }
+  }
+  object corner is Scenery {
+    grammar { name "corner"  adjectives "house" }
+    passage short { corner }
+    passage view {
+      In the corner of the house, where the walls meet, is a small window which is {if behind_house.get(:window_open)}open.{else}slightly ajar.{/if} It is the only one on the house that is not boarded.
+    }
+    describe { text view }
+  }
+}
+
+object forest_1 is Woodland in underground_caverns {
+  grammar {
+    name "Forest"
+    exit up    "tree"  refuse "There is no tree here suitable for climbing."
+    exit north "north" -> grating_clearing
+    exit east  "east"  -> forest_path
+    exit south "south" -> forest_3
+    exit west  "west"  refuse "You would need a machete to go further west."
+  }
+  passage body { This is a forest, with trees in all directions. To the east, there appears to be sunlight. }
+  object house is DistantHouse
+  object sunlight is Scenery {
+    grammar { name "sunlight"  nouns "light", "sun"  adjectives "east" }
+    passage short { sunlight }
+    describe { text "Off to the east the trees thin a little, and sunlight comes through in long pale bars. It is the most cheerful thing in this forest, which is not saying much." }
+  }
+}
+
+object forest_2 is Woodland in underground_caverns {
+  grammar {
+    name "Forest"
+    exit up    "tree"  refuse "There is no tree here suitable for climbing."
+    exit north "north" refuse "The forest becomes impenetrable to the north."
+    exit east  "east"  -> mountains
+    exit south "south" -> clearing
+    exit west  "west"  -> forest_path
+  }
+  passage body { This is a dimly lit forest, with large trees all around. }
+  object house is DistantHouse
+}
+
+object mountains is Forest in underground_caverns {
+  grammar {
+    name "Forest"
+    exit up    "mountains" refuse "The mountains are impassable."
+    exit north "north"     -> forest_2
+    exit east  "east"      refuse "The mountains are impassable."
+    exit south "south"     -> forest_2
+    exit west  "west"      -> forest_2
+  }
+  passage body { The forest thins out, revealing impassable mountains. }
+  object house is DistantHouse
+  object range is Scenery {
+    grammar { name "mountains"  nouns "mountains", "mountain", "range", "peaks"  adjectives "impassable", "grey", "gray" }
+    passage short { mountains }
+    describe { text "The mountains rise sheer and grey beyond the last of the trees. They are impassable, and they look it." }
+    // MOUNTAIN-RANGE-F: CLIMB, said of the mountains, is CLIMB UP.
+    synonyms climb_up: "climb"
+    without as target for climb_up from Thing
+    without as target for climb_down from Thing
+    as target for climb_up   { do { say "Don't you believe me? The mountains are impassable!" } }
+    as target for climb_down { do { say "Don't you believe me? The mountains are impassable!" } }
+  }
+  object trees is Trees {
+    passage view { The trees thin out here, the last of them small and wind-bent, as though they had come this far only to have a look at the mountains and think better of it. }
+  }
+}
+
+object forest_3 is Woodland in underground_caverns {
+  grammar {
+    name "Forest"
+    exit up        "tree"      refuse "There is no tree here suitable for climbing."
+    exit north     "north"     -> clearing
+    exit east      "east"      refuse "The rank undergrowth prevents eastward movement."
+    exit south     "south"     refuse "Storm-tossed trees block your way."
+    exit west      "west"      -> forest_1
+    exit northwest "northwest" -> south_of_house
+  }
+  passage body { This is a dimly lit forest, with large trees all around. }
+  object house is DistantHouse
+}
+
+object forest_path is Forest, Songful in underground_caverns {
+  grammar {
+    name "Forest Path"
+    exit up    "tree"  -> up_a_tree
+    exit north "north" -> grating_clearing
+    exit east  "east"  -> forest_2
+    exit south "south" -> north_of_house
+    exit west  "west"  -> forest_1
+  }
+  passage body {
+    This is a path winding through a dimly lit forest. The path heads north-south here. One particularly large tree with some low branches stands at the edge of the path.
+  }
+  object tree is TreeBelow
+  object house is DistantHouse
+  object path is Scenery {
+    grammar { name "path"  nouns "trail"  adjectives "forest", "winding" }
+    passage short { path }
+    describe { text "The path winds north and south through the dim forest, around roots and past one particularly large tree, which it seems to regard with respect." }
+  }
+}
+
+object up_a_tree is TreeTop in underground_caverns {
+  grammar {
+    name "Up a Tree"
+    exit down "down" -> forest_path
+    exit up   "tree" refuse "You cannot climb any higher."
+  }
+  passage body {
+    You are about 10 feet above the ground nestled among some large branches. The nearest branch above you is above your reach.
+  }
+  object tree is TreeAbove
+  object house is DistantHouse
+
+  object nest is Nest {
+    grammar { nouns "nest"  adjectives "birds", "bird's", "bird", "small" }
+    :has_fdesc true
+    :capacity 20
+    passage fdesc { Beside you on the branch is a small bird's nest. }
+
+    object egg is Egg {
+      grammar { nouns "egg", "treasure"  adjectives "birds", "encrusted", "jeweled", "jewel", "broken" }
+      :has_fdesc true
+      :value 5
+      :tvalue 5
+      passage fdesc {
+        In the bird's nest is a large egg encrusted with precious jewels, apparently scavenged by a childless songbird. The egg is covered with fine gold inlay, and ornamented in lapis lazuli and mother-of-pearl. Unlike most eggs, this one is hinged and closed with a delicate looking clasp. The egg appears extremely fragile.
+      }
+
+      object canary is Canary {
+        grammar { nouns "canary", "treasure"  adjectives "clockwork", "gold", "golden", "broken" }
+        :has_fdesc true
+        :value 6
+        :tvalue 4
+        passage fdesc {
+          {if self.get(:broken)}{self.broken_fdesc}{else}There is a golden clockwork canary nestled in the egg. It has ruby eyes and a silver beak. Through a crystal window below its left wing you can see intricate machinery inside. It appears to have wound down.{/if}
+        }
+        passage broken_fdesc {
+          There is a golden clockwork canary nestled in the egg. It seems to have recently had a bad experience. The mountings for its jewel-like eyes are empty, and its silver beak is crumpled. Through a cracked crystal window below its left wing you can see the remains of intricate machinery. It is not clear what result winding it would have, as the mainspring seems sprung.
+        }
+      }
+    }
+  }
+}
+
+object grating_clearing is Forest, ClearingPicture in underground_caverns {
+  grammar {
+    name "Clearing"
+    exit north "north"   refuse "The forest becomes impenetrable to the north."
+    exit east  "east"    -> forest_2
+    exit west  "west"    -> forest_1
+    exit south "south"   -> forest_path
+    exit down  "grating" -> grating_room when (self.get(:grate_open))
+    exit down  "grating" refuse "The grating is closed!" when (self.get(:revealed))
+  }
+  :revealed false
+  :grate_open false
+  passage body {
+    You are in a clearing, with a forest surrounding you on all sides. A path leads south.{if self.get(:grate_open)}
+
+    There is an open grating, descending into darkness.{else if self.get(:revealed)}
+
+    There is a grating securely fastened into the ground.{/if}
+  }
+
+  on :reveal (from) {
+    if (!self.get(:revealed)) {
+      self.set(:revealed, true)
+      send ground :reveal
+      broadcast :grate_revealed
+    }
+  }
+  on :grate_open (from, value) { self.set(:grate_open, value) }
+
+  // Carrying the leaves off uncovers what they hid.
+  on :left (item, to) {
+    if (item.is(Leaves) && !self.get(:revealed)) {
+      send self :reveal
+      if (to.is(Adventurer)) { tell to "In disturbing the pile of leaves, a grating is revealed." }
+    }
+  }
+
+  object leaves is Leaves
+  object path is Scenery {
+    grammar { name "path"  nouns "trail"  adjectives "forest", "south" }
+    passage short { path }
+    describe { text "A path leads south out of the clearing, back into the forest." }
+  }
+  object trees is Trees {
+    passage view { The trees stand all around the clearing in a ring, large and close, leaving it the only open sky for some way. }
+  }
+  object ground is Ground {
+    object grating is GratingAbove
+  }
+  object house is DistantHouse
+}
+
+object clearing is Forest in underground_caverns {
+  grammar {
+    name "Clearing"
+    exit up    "tree"  refuse "There is no tree here suitable for climbing."
+    exit east  "east"  -> canyon_view
+    exit north "north" -> forest_2
+    exit south "south" -> forest_3
+    exit west  "west"  -> behind_house
+  }
+  passage body { You are in a small clearing in a well marked forest path that extends to the east and west. }
+  object trees is Trees {
+    passage view { The trees stand back from the path on either side, large and old, as though the path had been negotiated with them. }
+  }
+  object path is Scenery {
+    grammar { name "forest path"  nouns "path", "trail"  adjectives "forest", "well", "marked" }
+    passage short { forest path }
+    describe { text "The path is well marked, as forest paths go, and runs east and west through the clearing. To the east the trees thin, and there is a feeling of a great deal of open air not far off." }
+  }
+  object house is DistantHouse
+}

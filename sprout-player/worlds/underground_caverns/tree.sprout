@@ -1,0 +1,182 @@
+// The tree on the Forest Path, and what is up it: the bird's nest and the
+// jewel-encrusted egg with the clockwork canary inside.
+//
+// Whatever is let go of Up a Tree falls to the Forest Path below. The egg
+// does not survive it. Dropping the nest with the egg in it spills the egg,
+// ruined, onto the path and leaves the nest where it was, as Zork's own
+// TREE-ROOM does.
+import {Thing, Portable} from 'thing'
+import {Box, Bag} from 'box'
+import {Treasure, Weapon} from 'items'
+import {Forest, Songful} from 'room'
+import {Adventurer} from 'adventurer'
+import {open, close, look_in, wind, :fall, :landed, :smash, :open_gate, :gate_open, :close_gate, :scored, :pry, :shed, mung} from 'verbs'
+import {forest_path} from 'above_ground'
+
+kind TreeTop is Forest, Songful {
+  // Something has come into the tree that nobody let go of (the canary's
+  // songbird's bauble): it falls as anything let go of does.
+  on :shed { send underground_caverns :open_gate }
+
+  on :entered (item, from) {
+    if (item.is(Thing)) {
+      if (from.is(Adventurer)) {
+        send item :fall
+        send underground_caverns :open_gate
+      }
+    }
+  }
+
+  on :gate_open {
+    each t: Thing in self {
+      if (t.get(:falling)) {
+        if (t.is(Nest) && t.count(Egg) > 0) {
+          each e: Egg in t {
+            move e to forest_path
+            send e :smash
+          }
+          send t :landed
+        } else if (t.is(Egg)) {
+          move t to forest_path
+          send t :smash
+        } else {
+          move t to forest_path
+        }
+      }
+    }
+    send underground_caverns :close_gate
+  }
+}
+
+kind Nest is Bag {
+  :burnable true
+  :open true
+  passage short { bird's nest }
+  passage examined {
+    The nest is a neat cup of twigs, grass and down, wedged into the fork of a branch by a songbird with better taste in treasure than in architecture.
+
+    {self.look_inside}
+  }
+}
+
+// Zork's EGG and BROKEN-EGG are two objects; here they are one, which
+// remembers that it has been broken.
+kind Egg is Box, Treasure {
+  without as target for close from Thing
+  without as target for look_in from Thing
+  without as target for open from Thing
+  :broken false
+  :tried false
+  // Opened by someone with the tools and the expertise (the thief's
+  // DEPOSIT-BOOTY: Zork's EGG-SOLVE), and none the worse for it.
+  :solved false
+  :capacity 6
+  on :pry {
+    if (!self.get(:broken)) {
+      self.set(:solved, true)
+      self.set(:open, true)
+    }
+  }
+
+  passage short {{if self.get(:broken)}broken jewel-encrusted egg{else}jewel-encrusted egg{/if}}
+  passage ldesc {
+    {if self.get(:broken)}There is a somewhat ruined egg here.{else}There is a jewel-encrusted egg here.{/if}
+  }
+  passage examined {
+    {if self.get(:broken)}The egg has been opened in the least delicate way available. Its gold inlay is scratched, its lapis lazuli cracked, and its clasp hangs by a thread; it was once a wonder.{else if self.get(:solved)}The egg is covered with fine gold inlay and ornamented in lapis lazuli and mother-of-pearl. It is hinged, and its delicate clasp has been undone by somebody with the tools and the expertise: it stands open without a scratch on it, as though it had been waiting for him.{else}The egg is covered with fine gold inlay and ornamented in lapis lazuli and mother-of-pearl. Unlike most eggs, it is hinged, and closed with a delicate looking clasp. It looks extremely fragile, and extremely valuable, in that order. The clasp is jeweller's work, and would take a professional's fingers to undo without harm: deft fingers, and not, one suspects, entirely honest ones.{/if}
+
+    {self.look_inside}
+  }
+  passage spill {{if self.count(Canary) > 0}{self.canary_text}{/if}}
+  passage canary_text {
+    There is a golden clockwork canary nestled in the egg. It seems to have recently had a bad experience. The mountings for its jewel-like eyes are empty, and its silver beak is crumpled. Through a cracked crystal window below its left wing you can see the remains of intricate machinery. It is not clear what result winding it would have, as the mainspring seems sprung.
+  }
+
+  without as target for open from Box
+  as target for open {
+    do {
+      if (self.get(:open)) { say "The egg is already open." }
+      else if (bound tool) {
+        if (tool.is(Weapon)) {
+          say "The egg is now open, but the clumsiness of your attempt has seriously compromised its esthetic appeal. {self.spill}"
+          send self :smash
+        } else if (self.get(:tried)) {
+          if (tool.is(Thing)) { say "Not to say that using the {tool.short} isn't original too..." }
+        } else {
+          self.set(:tried, true)
+          if (tool.is(Thing)) { say "The concept of using a {tool.short} is certainly original." }
+        }
+      }
+      else { say "You have neither the tools nor the expertise." }
+    }
+  }
+
+  // Zork's BAD-EGG: broken open by force, it opens, and is ruined.
+  without as target for mung from Thing
+  as target for mung {
+    do {
+      if (self.get(:broken)) { say "Nice try." }
+      else {
+        say "Your rather indelicate handling of the egg has caused it damage, although you have succeeded in opening it. {self.spill}"
+        send self :smash
+      }
+    }
+  }
+
+  on :smash {
+    if (!self.get(:broken)) {
+      // Spoiled in the trophy case, it takes back what the case paid.
+      if (self.get(:cased)) {
+        each a: Adventurer in underground_caverns.living_room { send a :scored with 2 - self.get(:tvalue) }
+      }
+      self.set(:broken, true)
+      self.set(:open, true)
+      self.set(:tvalue, 2)
+      self.set(:value, 0)
+      each c: Canary in self { send c :smash }
+    }
+  }
+}
+
+kind Canary is Treasure {
+  describe {
+    if (self.get(:broken)) { text "The canary is gold, and clockwork, and done for. Its eye sockets are empty, its silver beak is crumpled, and behind the cracked crystal window under its wing the machinery has the look of something that has sung its last and knows it." }
+    else { text "The canary is gold, and clockwork, and very nearly alive: ruby eyes, a silver beak, every feather chased in the metal. Through a crystal window below its left wing you can see intricate machinery inside, and a key to wind it with. It appears to have wound down." }
+  }
+  :broken false
+  // Zork's SING-SONG: the songbird comes only once.
+  :sung false
+  passage short {{if self.get(:broken)}broken clockwork canary{else}golden clockwork canary{/if}}
+
+  as target for wind {
+    do {
+      let songful = here.is(Songful)
+      if (self.get(:broken)) { say "There is an unpleasant grinding noise from inside the canary." }
+      else if (!self.get(:sung) && songful) {
+        // Zork's CANARY-OBJECT: in the forest, the songbird answers, and
+        // drops what it has been carrying. Up the tree, it falls to the path.
+        // The bauble itself is the winder's to set down (adventurer.sprout):
+        // what is in a hand cannot reach the room around it.
+        self.set(:sung, true)
+        say "The canary chirps, slightly off-key, an aria from a forgotten opera. From out of the greenery flies a lovely songbird. It perches on a limb just over your head and opens its beak to sing. As it does so a beautiful brass bauble drops from its mouth, bounces off the top of your head, and lands glimmering in the grass. As the canary winds down, the songbird flies away."
+      }
+      else { say "The canary chirps blithely, if somewhat tinnily, for a short time." }
+    }
+  }
+
+  on :smash {
+    self.set(:broken, true)
+    self.set(:tvalue, 1)
+    self.set(:value, 0)
+  }
+}
+
+// The songbird's brass bauble, dropped for the canary's aria (Zork's
+// BAUBLE): a treasure, if a modest one.
+kind Bauble is Treasure {
+  grammar { name "beautiful brass bauble"  nouns "bauble", "treasure", "ball", "trinket"  adjectives "brass", "beautiful", "glimmering" }
+  :value 1
+  :tvalue 1
+  passage short { beautiful brass bauble }
+  describe { text "It is a little ball of brass, polished bright and pierced all over with a pattern of leaves, just the size to fit in a songbird's beak and not much else. It is worth very little, and it is the only present a songbird has ever given you." }
+}

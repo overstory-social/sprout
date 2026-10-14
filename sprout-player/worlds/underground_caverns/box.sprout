@@ -1,0 +1,132 @@
+// A container, as Zork has them: it opens with "Opened." or "Opening the
+// ... reveals ...", it lists what it holds the way Zork's PRINT-CONT does,
+// and a closed one passes nothing in or out. A transparent one (Zork's
+// TRANSBIT: the bottle, the trophy case) passes while closed, so what it
+// holds can be seen and named, and its lid keeps hands out instead: nothing
+// leaves it, or enters it, until it is opened. A surface (a table) says
+// "Sitting on the ... is:".
+//
+// `:plain` counts what Zork would list plainly ("A leaflet") rather than by
+// a first description: whatever was here from the start without one, and
+// whatever has arrived since.
+//
+// `:held` is what it holds by weight, as Zork's V-PUT weighs it: the sum of
+// the sizes of the things directly inside it, kept as they come and go
+// (what is inside from the start arrives too). A thing put in must fit what is left of `:capacity`,
+// counting what a box it brings holds directly; Zork's own line refuses it.
+import {Thing, Portable} from 'thing'
+import {open, close, look_in, shake, :sealed, :uncork} from 'verbs'
+import {Adventurer} from 'adventurer'
+import {Light} from 'lamp'
+
+kind Box is Thing {
+  contains
+  :open false
+  :transparent false
+  :surface false
+  :capacity 10 min 0 max 10000
+  :held 0 min 0 max 10000
+  :plain 0 min 0 max 100
+
+  pass any (self.get(:open) || self.get(:transparent))
+
+  accept (item, from) {
+    if (!self.get(:open)) { refuse "The {self.short} isn't open." }
+    else if (item.is(Box)) {
+      if (self.get(:held) + item.get(:size) + item.get(:held) > self.get(:capacity)) { refuse "There's no room." }
+    }
+    else if (item.is(Thing)) {
+      if (self.get(:held) + item.get(:size) > self.get(:capacity)) { refuse "There's no room." }
+    }
+  }
+  release (item, to) {
+    if (!self.get(:open)) { refuse "You can't reach something that's inside a closed container." }
+  }
+
+  // Behind a shut glass lid, what it holds knows it is out of reach.
+  on :entered (item, from) {
+    self.adjust(:plain, 1)
+    if (item.is(Thing)) { self.adjust(:held, item.get(:size)) }
+    if (item.is(Thing)) { send item :sealed with !self.get(:open) && self.get(:transparent) }
+  }
+  // Opened by somebody else's hands: the Cyclops, checking that the bottle
+  // is open before he drinks from it.
+  on :uncork { self.set(:open, true) }
+  changed :open (was) {
+    each t: Thing in self { send t :sealed with !self.get(:open) && self.get(:transparent) }
+  }
+
+  on :left (item, to) {
+    if (item.is(Thing)) {
+      self.adjust(:held, 0 - item.get(:size))
+      if (item.get(:touched) || !item.get(:has_fdesc)) { self.adjust(:plain, -1) }
+    }
+  }
+
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for look_in from Thing
+
+  as target for open {
+    permit { if (self.get(:open)) { refuse "It is already open." } }
+    do     { self.set(:open, true)  say opened_line }
+  }
+  as target for close {
+    permit {
+      if (self.get(:surface)) { refuse "You cannot close that." }
+      else if (!self.get(:open)) { refuse "It is already closed." }
+    }
+    do { self.set(:open, false)  say "Closed." }
+  }
+  as target for look_in { do { say "{self.look_inside}" } }
+
+  // Examined, a box says what it is, where it has words for that, and
+  // then Zork's line for what is in it.
+  passage examined default { {self.look_inside} }
+  describe { text examined }
+
+  passage opened_line default {
+    {if self.count(Thing) == 0 || self.get(:transparent)}Opened.{else}Opening the {self.short} reveals {self.content_list}.{/if}
+  }
+  passage content_list default {{for u: Thing in self}{if !$first}, {if $last}and {/if}{/if}a {u.short}{/for}}
+  passage header default {
+    {if self.get(:surface)}Sitting on the {self.short} is:{else}The {self.short} contains:{/if}
+  }
+  passage look_inside default {
+    {if !self.get(:open) && !self.get(:transparent)}The {self.short} is closed.{else if self.count(Thing) == 0}The {self.short} is empty.{else}{self.header}{for u: Thing in self}
+
+    A {u.short}{if u.is(Light)}{if u.get(:lit)} (providing light){/if}{/if}{/for}{/if}
+  }
+  passage inside_lines {
+    {if self.get(:open) || self.get(:transparent)}{for u: Thing in self}{if u.get(:has_fdesc) && !u.get(:touched)}
+
+    {u.fdesc}{u.inside_lines}{/if}{/for}{if self.get(:plain) > 0 && self.count(Thing) > 0}
+
+    {self.header}{for u: Thing in self}{if u.get(:touched) || !u.get(:has_fdesc)}
+
+    A {u.short}{if u.is(Light)}{if u.get(:lit)} (providing light){/if}{/if}{/if}{/for}{/if}{/if}
+  }
+}
+
+// A container that can be carried: the sack, the bottle, the nest. It
+// leaves out the thing's default answers to `open`, `close` and `look in`,
+// which would otherwise arrive again by way of `Portable`.
+kind Bag is Box, Portable {
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for look_in from Thing
+  without as target for shake from Thing
+  without as target for shake from Portable
+  // Zork's SHAKE: an open one spills what it holds (the visitor's own part
+  // does that, and says so); a shut one rattles or does not.
+  as target for shake {
+    do {
+      if (!self.get(:open)) {
+        if (self.count(Thing) > 0) { say "It sounds like there is something inside the {self.short}." }
+        else { say "The {self.short} sounds empty." }
+      } else if (actor.is(Adventurer)) {
+        if (!actor.get(:spilled)) { say "Shaken." }
+      }
+    }
+  }
+}

@@ -1,0 +1,272 @@
+// The Maze west of the Troll Room, as dungeon.zil has it: fifteen rooms of
+// twisty little passages, all alike, four dead ends, and the Grating Room
+// under the Clearing. Every room of the maze is a `Maze` or a `DeadEnd`,
+// which gives it its name, its description, its dark and its passages; each
+// room writes only its own ways out, which are Zork's, loops and one-way
+// tunnels and all. Exits do not compose, so no kind can
+// write them.
+//
+// Four of the ways down are Zork's MAZE-DIODES, one-way tunnels with no way
+// back up: from Maze 2 to Maze 4, Maze 7 to the first Dead End, Maze 9 to
+// Maze 11 and Maze 12 to Maze 5. Each says Zork's warning as the visitor
+// goes through it; Maze 6's way down into Maze 5 is an ordinary one, and
+// says nothing.
+import {Thing, Scenery} from 'thing'
+import {DarkRoom, MazePicture} from 'room'
+import {Skeleton, BurnedLantern, RustyKnife, SkeletonKey, CoinBag} from 'remains'
+import {GratingBelow} from 'grating'
+import {read, :grate_open, :grate_unlock, :cyclops_gone} from 'verbs'
+import {cyclops_room} from 'cyclops'
+import {troll_room} from 'cellar'
+import {grating_clearing} from 'above_ground'
+
+kind Maze is DarkRoom {
+  grammar { name "Maze" }
+  passage body default { This is part of a maze of twisty little passages, all alike. }
+  // What a one-way tunnel says on the way down it.
+  passage diode { You won't be able to get back up to the tunnel you are going through when it gets to the next room. }
+  object passages is MazePassages
+}
+
+kind DeadEnd is DarkRoom {
+  grammar { name "Dead End" }
+  passage body { You have come to a dead end in the maze. }
+  object passages is MazePassages
+  object dead_end is Scenery {
+    grammar { name "dead end"  nouns "end"  adjectives "dead", "blank" }
+    passage short { dead end }
+    describe { text "The passage simply stops, in a wall of rock exactly like every other wall of rock in the maze. It is the one honest thing in the place: it does not pretend to go anywhere." }
+  }
+}
+
+// The maze itself, and its passages, wherever they are.
+kind MazePassages is Scenery {
+  grammar { name "twisty little passages"  nouns "passages", "passage", "tunnels", "passageways", "maze"  adjectives "twisty", "little", "alike", "twisting" }
+  passage short { twisty little passages }
+  describe {
+    text "The passages are twisty, they are little, and they are all alike: the same rough walls, the same low ceiling, the same turnings that turn just far enough to hide where they are going. Whoever made this maze had one idea, and saw it through."
+  }
+}
+
+object maze_1 is Maze, MazePicture in underground_caverns {
+  :tour 6
+  grammar {
+    exit east  "east"  -> troll_room
+    exit north "north" -> maze_1
+    exit south "south" -> maze_2
+    exit west  "west"  -> maze_4
+  }
+}
+
+object maze_2 is Maze in underground_caverns {
+  :tour 7
+  grammar {
+    exit south "south" -> maze_1
+    exit down  "down"  -> maze_4 say diode
+    exit east  "east"  -> maze_3
+  }
+}
+
+object maze_3 is Maze in underground_caverns {
+  :tour 8
+  grammar {
+    exit west  "west"  -> maze_2
+    exit north "north" -> maze_4
+    exit up    "up"    -> maze_5
+  }
+}
+
+object maze_4 is Maze in underground_caverns {
+  :tour 9
+  grammar {
+    exit west  "west"  -> maze_3
+    exit north "north" -> maze_1
+    exit east  "east"  -> dead_end_1
+  }
+}
+
+object dead_end_1 is DeadEnd in underground_caverns {
+  :tour 10
+  grammar { exit south "south" -> maze_4 }
+}
+
+// Where the last adventurer to try the maze without a map stopped trying.
+object maze_5 is Maze in underground_caverns {
+  :tour 11
+  grammar {
+    exit east      "east"      -> dead_end_2
+    exit north     "north"     -> maze_3
+    exit southwest "southwest" -> maze_6
+  }
+  passage body {
+    This is part of a maze of twisty little passages, all alike. A skeleton, probably the remains of a luckless adventurer, lies here.
+  }
+
+  object skeleton is Skeleton
+  object lantern is BurnedLantern
+  object rusty_knife is RustyKnife
+  object key is SkeletonKey
+  object coins is CoinBag
+}
+
+object dead_end_2 is DeadEnd in underground_caverns {
+  :tour 12
+  grammar { exit west "west" -> maze_5 }
+}
+
+object maze_6 is Maze in underground_caverns {
+  :tour 13
+  grammar {
+    exit down "down" -> maze_5
+    exit east "east" -> maze_7
+    exit west "west" -> maze_6
+    exit up   "up"   -> maze_9
+  }
+}
+
+object maze_7 is Maze in underground_caverns {
+  :tour 14
+  grammar {
+    exit up    "up"    -> maze_14
+    exit west  "west"  -> maze_6
+    exit down  "down"  -> dead_end_1 say diode
+    exit east  "east"  -> maze_8
+    exit south "south" -> maze_15
+  }
+}
+
+object maze_8 is Maze in underground_caverns {
+  :tour 15
+  grammar {
+    exit northeast "northeast" -> maze_7
+    exit west      "west"      -> maze_8
+    exit southeast "southeast" -> dead_end_3
+  }
+}
+
+object dead_end_3 is DeadEnd in underground_caverns {
+  :tour 16
+  grammar { exit north "north" -> maze_8 }
+}
+
+object maze_9 is Maze in underground_caverns {
+  :tour 17
+  grammar {
+    exit north     "north"     -> maze_6
+    exit down      "down"      -> maze_11 say diode
+    exit east      "east"      -> maze_10
+    exit south     "south"     -> maze_13
+    exit west      "west"      -> maze_12
+    exit northwest "northwest" -> maze_9
+  }
+}
+
+object maze_10 is Maze in underground_caverns {
+  :tour 18
+  grammar {
+    exit east "east" -> maze_9
+    exit west "west" -> maze_13
+    exit up   "up"   -> maze_11
+  }
+}
+
+object maze_11 is Maze in underground_caverns {
+  :tour 19
+  grammar {
+    exit northeast "northeast" -> grating_room
+    exit down      "down"      -> maze_10
+    exit northwest "northwest" -> maze_13
+    exit southwest "southwest" -> maze_12
+  }
+}
+
+object maze_12 is Maze in underground_caverns {
+  :tour 21
+  grammar {
+    exit down      "down"      -> maze_5 say diode
+    exit southwest "southwest" -> maze_11
+    exit east      "east"      -> maze_13
+    exit up        "up"        -> maze_9
+    exit north     "north"     -> dead_end_4
+  }
+}
+
+object dead_end_4 is DeadEnd in underground_caverns {
+  :tour 22
+  grammar { exit south "south" -> maze_12 }
+}
+
+object maze_13 is Maze in underground_caverns {
+  :tour 23
+  grammar {
+    exit east  "east"  -> maze_9
+    exit down  "down"  -> maze_12
+    exit south "south" -> maze_10
+    exit west  "west"  -> maze_11
+  }
+}
+
+object maze_14 is Maze in underground_caverns {
+  :tour 24
+  grammar {
+    exit west      "west"      -> maze_15
+    exit northwest "northwest" -> maze_14
+    exit northeast "northeast" -> maze_7
+    exit south     "south"     -> maze_7
+  }
+}
+
+// Southeast, the Cyclops Room. The cyclops is near enough for an elvish
+// sword to know it.
+object maze_15 is Maze in underground_caverns {
+  :tour 25
+  grammar {
+    exit west      "west"      -> maze_14
+    exit south     "south"     -> maze_7
+    exit southeast "southeast" -> cyclops_room
+  }
+  :glow 1
+  on :cyclops_gone { self.set(:glow, 0) }
+}
+
+// Under the Clearing: dark while the grating is shut, and lit by the day
+// while it is open, as Zork's GRATE-FUNCTION sets and clears its ONBIT.
+object grating_room is DarkRoom in underground_caverns {
+  :tour 20
+  grammar {
+    name "Grating Room"
+    exit southwest "southwest" -> maze_11
+    exit up        "grating"   -> grating_clearing when (self.get(:grate_open))
+    exit up        "grating"   refuse "The grating is closed."
+  }
+  :grate_open false
+  :grate_unlocked false
+  passage body {
+    You are in a small room near the maze. There are twisty passages in the immediate vicinity.
+
+    {if self.get(:grate_open)}Above you is an open grating with sunlight pouring in.{else if self.get(:grate_unlocked)}Above you is a grating.{else}Above you is a grating locked with a skull-and-crossbones lock.{/if}
+  }
+  on :grate_open (from, value) {
+    self.set(:grate_open, value)
+    self.set(:daylight, value)
+  }
+  on :grate_unlock (from, value) { self.set(:grate_unlocked, value) }
+
+  object grating is GratingBelow
+  object passages is MazePassages
+  object lock is Scenery {
+    grammar { name "skull-and-crossbones lock"  nouns "lock", "padlock", "keyhole"  adjectives "skull", "crossbones", "skull-and-crossbones" }
+    passage short { skull-and-crossbones lock }
+    describe {
+      text "The lock on the underside of the grating is a heavy iron thing with a skull and crossbones cast into its face, which seems excessive for a grating. It has a keyhole of generous size, as though whoever made it expected a key of some character."
+    }
+  }
+  object sunlight is Scenery {
+    grammar { name "sunlight"  nouns "light", "sun", "daylight", "sky", "trees"  adjectives "pouring" }
+    passage short { sunlight }
+    describe {
+      if (grating_room.get(:grate_open)) { text "Sunlight pours down through the open grating, green from the leaves of the trees above. After the maze it is almost indecently cheerful." }
+      else { text "A little grey light leaks between the bars of the grating, enough to show that there is a sky up there and no more." }
+    }
+  }
+}

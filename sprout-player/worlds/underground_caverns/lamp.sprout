@@ -1,0 +1,150 @@
+// Lights. A `Light` lights whatever dark room it is in, lying on the floor
+// or carried, and tells its bearer when it is lit, put out, picked up or set
+// down; a light on the floor tells the room, for the grue's sake: see the
+// dark room, in room.sprout. The brass lantern is a `Lamp`, a light that
+// turns on and off; the ivory torch and the altar's candles are lights of
+// their own kinds (temple.sprout).
+import * as sprout from 'sprout'
+import {Portable, Thing, Switchable} from 'thing'
+import {Adventurer} from 'adventurer'
+import {Thief} from 'thief'
+import {DarkRoom, Room} from 'room'
+import {Box} from 'box'
+import {lamp_on, lamp_off, :light, :relight, :lamp_age, :snuffed, :shatter_lamp, :burn_tick} from 'verbs'
+extension media 1
+
+kind Light is Portable, sprout.LightSource, Switchable {
+  on :moved (from, to) {
+    if (self.get(:lit)) {
+      // Into the thief's hands the visitor counts it gone themselves: his
+      // bag is out of everyone's range, the light's own included.
+      if (from.is(Adventurer) && !to.is(Thief)) { send from :light with -1 }
+      if (to.is(Adventurer)) { send to :light with 1 }
+    }
+  }
+}
+
+kind Lamp is Light {
+  // Scratch, for putting it out: how many other lights are left.
+  :others 0 min 0 max 50
+  // Zork's I-LANTERN and LAMP-TABLE: 385 moves of light in the battery,
+  // spent a move at a time while it is lit in its bearer's hand (the
+  // bearer counts the moves: a wake every move would roll the NPCs' dice
+  // differently, friction 91); a bit dimmer with 185 moves left,
+  // definitely dimmer with 85, nearly out with 15, then burned out.
+  :life 385 min 0 max 385
+  :age 0 min 0 max 4
+  :burned_out false
+  without as target for lamp_on from Switchable
+  without as target for lamp_off from Switchable
+
+  // Examined, the lamp says what it is, then Zork's line for whether it is lit.
+  describe {
+    if (self.get(:burned_out)) { text spent_view }
+    else if (self.get(:lit)) { text lit_view }
+    else { text dark_view }
+    if (seen == :look) { media.show("pictures/lantern.png", "the brass lantern") }
+  }
+  passage spent_view {
+    {self.view}
+
+    The lamp has burned out.
+  }
+  passage view default { It is a battery-powered brass lantern, dented here and there but sound, with a stout handle and a glass that someone has kept clean. }
+  passage lit_view {
+    {self.view}
+
+    The lamp is on.
+  }
+  passage dark_view {
+    {self.view}
+
+    The lamp is turned off.
+  }
+
+  as target for lamp_on {
+    permit {
+      if (self.get(:burned_out)) { refuse "A burned-out lamp won't light." }
+      if (self.get(:lit)) { refuse "It is already on." }
+    }
+    do {
+      // Zork's V-LAMP-ON looks around if the light is new to the room.
+      let was_dark = here.is(DarkRoom) && !here.get(:alight)
+      self.set(:lit, true)
+      say "The {self.short} is now on."
+      if (actor.holds(self)) { send actor :light with 1 } else { send here :relight }
+      if (was_dark && here.is(Room)) { say "{here.full}" }
+    }
+  }
+
+  as target for lamp_off {
+    permit {
+      if (self.get(:burned_out)) { refuse "The lamp has already burned out." }
+      if (!self.get(:lit)) { refuse "It is already off." }
+    }
+    do {
+      self.set(:lit, false)
+      say "The {self.short} is now off."
+      if (actor.holds(self)) { send actor :light with -1 } else { send here :relight }
+      // Pitch black, unless the day or another light is left: one on the
+      // floor, or in somebody's hands. From a hand, the room's floor is out
+      // of the lamp's sight (friction 33), so it asks what the room last
+      // counted; from the floor, it looks.
+      if (here.is(DarkRoom)) {
+        if (actor.holds(self)) {
+          let mine = actor.is(Adventurer) && actor.get(:light) > 1
+          if (!here.get(:daylight) && !here.get(:floor_lit) && here.get(:bearers) <= 1 && !mine) { say "It is now pitch black." }
+        } else {
+          self.set(:others, 0)
+          each l: Light in here { if (l != self && l.get(:lit)) { self.adjust(:others, 1) } }
+          each b: Box in here {
+            if (b.get(:open)) { each l: Light in b { if (l != self && l.get(:lit)) { self.adjust(:others, 1) } } }
+          }
+          if (!here.get(:daylight) && self.get(:others) == 0 && here.get(:bearers) == 0) { say "It is now pitch black." }
+        }
+      }
+    }
+  }
+
+  // The battery, burning down while the lamp is lit (I-LANTERN, LIGHT-INT):
+  // what it says is told by whoever holds it or stands by it, since a held
+  // thing's own voice goes no further than the pocket (friction 73).
+  on :burn_tick {
+    if (self.get(:lit) && !self.get(:burned_out)) {
+      self.adjust(:life, -1)
+      if (self.get(:life) <= 0) {
+        self.set(:burned_out, true)
+        self.set(:lit, false)
+        self.set(:age, 4)
+        broadcast :lamp_age with 4
+        broadcast :snuffed
+      } else {
+        if (self.get(:life) <= 15 && self.get(:age) < 3) {
+          self.set(:age, 3)
+          broadcast :lamp_age with 3
+        } else if (self.get(:life) <= 85 && self.get(:age) < 2) {
+          self.set(:age, 2)
+          broadcast :lamp_age with 2
+        } else if (self.get(:life) <= 185 && self.get(:age) < 1) {
+          self.set(:age, 1)
+          broadcast :lamp_age with 1
+        }
+      }
+    }
+  }
+  // LANTERN's THROW: smashed on the floor, and gone; the broken lantern the
+  // thrower's own part has set down is what is left of it.
+  on :shatter_lamp {
+    self.set(:lit, false)
+    broadcast :snuffed
+    finally destroy self
+  }
+}
+
+// What is left of the brass lantern, thrown (BROKEN-LAMP).
+kind BrokenLamp is Portable, Switchable {
+  grammar { name "broken lantern"  nouns "lamp", "lantern"  adjectives "broken", "brass", "smashed" }
+  :size 15
+  passage short { broken lantern }
+  describe { text "It is what is left of the brass lantern: a dented frame, a twisted handle and a good deal of broken glass, none of it inclined to give light ever again. It was a perfectly good lamp until somebody threw it." }
+}

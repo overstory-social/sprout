@@ -575,10 +575,19 @@ a path>", "title": "…"}]}`). `scripts/playdate-player.mjs` packs each with
 `sprout pack`, with its assets, into the pdx's `worlds/`, as
 `<name>.sproutworld` for the name the world's manifest gives it. Today the
 list is the worked microworld `printers_shop` and the studio's finished
-`underground_caverns`, reached by path into a `sprout-studio` checkout beside
-this one, so the player's checks need that checkout on a machine with the
-SDK. The studio will write this file; until then this repository owns it
-(hole 502). The build fails if the app would grey a listed world.
+`underground_caverns`. Every world the list names is inside this repository,
+so the build and the gate never read another checkout. A studio world ships as a
+pinned snapshot under `sprout-player/worlds/<world>/`: the files the studio
+commits under `worlds/<world>/world`, less its `tests/` but for the plays this
+list names, and a `source.json` (`{ repository, world, commit }`) naming the
+studio commit they were copied at. New content lands in sprout-studio; when it
+is worth shipping, `node scripts/sync-world.mjs <world> <path to a
+sprout-studio checkout>`, run by hand, replaces the snapshot with the world at
+that checkout's HEAD and rewrites the pin, and its diff is read before it is
+committed. It refuses, writing nothing, a checkout with no such world, no
+manifest, uncommitted changes to the world or no origin, and a world this list
+has no entry for. The studio will write this file; until then this repository
+owns it (hole 502). The build fails if the app would grey a listed world.
 
 The **signed index** (`sprout-player/index.schema.json`) is what the
 download screen fetches: `{ "worlds": [ { title, author, version, bytes,

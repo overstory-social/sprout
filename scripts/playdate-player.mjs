@@ -74,12 +74,12 @@ export function sdkPath() {
 
 /**
  * Reads the list of graduated worlds: each entry names a world folder (a name under corpus/good, or
- * a path from the repository root or absolute, which may reach into a sibling checkout such as
- * sprout-studio), the title it is listed under, and `plays`, scripts under the world's folder the
- * app must be able to play (none where left out). The cartridge is named for the world's own name,
- * the manifest's, since a folder may be called anything. Throws, saying what to write, for a list
- * that is not that shape, or that names a world twice, one that is not there, one with no
- * manifest, or a play that is not there.
+ * a path from the repository root or absolute; a studio world is its snapshot under
+ * sprout-player/worlds), the title it is listed under, and `plays`, scripts under the world's
+ * folder the app must be able to play (none where left out). The cartridge is named for the world's
+ * own name, the manifest's, since a folder may be called anything. Throws, saying what to write,
+ * for a list that is not that shape, or that names a world twice, one that is not there, one with
+ * no manifest, or a play that is not there.
  */
 export function readGraduated(file = WORLDS_FILE) {
   let list;
@@ -108,12 +108,7 @@ export function readGraduated(file = WORLDS_FILE) {
     const dir = entry.world.includes('/')
       ? resolve(root, entry.world)
       : join(root, 'corpus/good', entry.world);
-    if (!existsSync(dir)) {
-      const beside = entry.world.startsWith('../')
-        ? ` (a sibling checkout: clone it beside this repository)`
-        : '';
-      throw new Error(`${file}: the world "${entry.world}" is not at ${dir}${beside}.`);
-    }
+    if (!existsSync(dir)) throw new Error(`${file}: the world "${entry.world}" is not at ${dir}.`);
     const name = manifestName(join(dir, 'sprout.json'), file, entry.world);
     if (seen.has(name)) throw new Error(`${file}: the world "${name}" is listed twice.`);
     seen.add(name);
@@ -584,10 +579,10 @@ export async function checkPlayer({ sanitize = false } = {}) {
   return `sprout-player: ${ran.join('; ')}`;
 }
 
-/** Runs the specs of the shipping scripts (the signed index, the graduated list); one line of what ran. */
+/** Runs the specs of the shipping scripts (the signed index, the graduated list, the world sync); one line of what ran. */
 export function shippingSpecs() {
-  const specs = ['publish-index.spec.mjs', 'playdate-player.spec.mjs'].map((name) =>
-    join(root, 'scripts', name),
+  const specs = ['publish-index.spec.mjs', 'playdate-player.spec.mjs', 'sync-world.spec.mjs'].map(
+    (name) => join(root, 'scripts', name),
   );
   run(process.execPath, ['--test', ...specs]);
   return 'shipping script specs passed';

@@ -1,0 +1,242 @@
+// Under the house: the Cellar, where the trap door is barred behind
+// whoever comes down the first time, and the Troll Room.
+import {Thing, Scenery} from 'thing'
+import {Axe} from 'items'
+import {DarkRoom, CellarPicture, TrollRoomPicture} from 'room'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {Troll} from 'troll'
+import {open, close, read, climb_up, climb_down, shift, raise, mung, knock, through, :trap_sync, :troll_flag, :troll_gone, :unbar, :travel, :thief_start} from 'verbs'
+import {east_of_chasm} from 'gallery'
+import {living_room} from 'house'
+import {maze_1} from 'maze'
+import {east_west_passage} from 'east'
+
+object cellar is DarkRoom, CellarPicture in underground_caverns {
+  :tour 1
+  grammar {
+    name "Cellar"
+    exit north "north"     -> troll_room
+    exit south "crawlway"  -> east_of_chasm
+    exit up    "trap door" -> living_room when (self.get(:trap_open))
+    exit up    "trap door" refuse shut_up
+    exit west  "ramp"      refuse "You try to ascend the ramp, but it is impossible, and you slide back down."
+  }
+  :value 25
+  :glow 1
+  :trap_open false
+  :barred false
+  passage body {
+    You are in a dark and damp cellar with a narrow passageway leading north, and a crawlway to the south. On the west is the bottom of a steep metal ramp which is unclimbable.{if self.get(:trap_open)} Overhead, at the top of the stairs, the trap door stands open.{/if}
+  }
+  // The Cellar named in BRIEF says, as Zork's does not, when the trap door
+  // above stands open: the way home is the short one.
+  passage brief {
+    {self.title}{if self.get(:trap_open)}
+
+    The trap door above you stands open.{/if}
+
+    {self.objects}
+  }
+  // Whoever bars the trap door, said wherever a visitor runs into the bar
+  // from below: the exit, the stairs, and the door itself.
+  passage bar_rule { Whoever keeps the bar up there drops it behind anyone new to the house. Come home by some other road and open the door yourself, and it will be let alone. }
+  passage shut_up {
+    The trap door is closed. {self.bar_rule}
+  }
+  on :trap_sync (from, value) {
+    self.set(:trap_open, value)
+    self.set(:crash, value && !self.get(:barred))
+  }
+  on :troll_gone { self.set(:glow, 0) }
+  // Someone has come up the chimney from the Studio while the trap door was
+  // shut: whoever bars it will bar it again behind the next one down, as
+  // Zork's UP-CHIMNEY-FUNCTION clears the trap door's TOUCHBIT.
+  // A death does the same whatever the trap door's state, as JIGS-UP does:
+  // if it already stands open above, the next one down hears it crash.
+  on :unbar (from, value) {
+    if (value || !self.get(:trap_open)) {
+      self.set(:barred, false)
+      self.set(:crash, self.get(:trap_open))
+    }
+  }
+
+  // The first time down, the trap door crashes shut and is barred above:
+  // the one coming down hears it as they arrive (the adventurer's `go`).
+  on :entered (item, from) {
+    // The first visitor down: the thief's clock starts (Zork's I-THIEF runs
+    // from the first move; above ground there is nothing for him to do).
+    if (item.is(Adventurer)) { broadcast :thief_start }
+    if (item.is(Adventurer) && self.get(:trap_open) && !self.get(:barred)) {
+      self.set(:barred, true)
+      self.set(:trap_open, false)
+      self.set(:crash, false)
+      broadcast :trap_sync with false
+    }
+  }
+
+  // Zork's STAIRS, which the Cellar keeps among its globals: the rickety
+  // staircase from the trap door, seen from the foot of it.
+  object stairs is Stairs {
+    // CLIMB, said of the stairs from below, is CLIMB UP.
+    synonyms climb_up: "climb"
+    passage view { The rickety staircase climbs from the cellar floor to the underside of the trap door, which is as far as it goes and, from this side, as far as you go. }
+    as target for climb_up {
+      do {
+        if (cellar.get(:trap_open)) { send actor :travel with :living_room  say "" }
+        else { say "{cellar.shut_up}" }
+      }
+    }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+
+  object trap_door is Scenery {
+    grammar { name "trap door"  nouns "door", "trapdoor", "trap-door", "cover"  adjectives "trap", "dusty" }
+    :open false
+    :door true
+    passage short { trap door }
+    passage open_view {
+      High overhead is the underside of the trap door: rough planks and iron bands, and not a handle or a ring to be had from this side.
+
+      The trap door is open, but I can't tell what's beyond it.
+    }
+    passage shut_view {
+      High overhead is the underside of the trap door: rough planks and iron bands, and not a handle or a ring to be had from this side.
+
+      Whoever bars it keeps an ear on the house. The door is barred behind anyone new to the place, or new out of its chimney, or newly back from the dead; someone who turns up in the house by any other road and opens it again is, as far as the bar is concerned, already accounted for.
+
+      The trap door is closed.
+    }
+    describe {
+      if (self.get(:open)) { text open_view }
+      else { text shut_view }
+    }
+    on :trap_sync (from, value) { self.set(:open, value) }
+
+    passage locked { The door is locked from above. {cellar.bar_rule} }
+
+    without as target for open from Thing
+    without as target for close from Thing
+    without as target for shift from Thing
+    without as target for raise from Thing
+    without as target for mung from Thing
+    without as target for knock from Thing
+    without as target for through from Thing
+    without as target for climb_up from Thing
+    as target for open {
+      do {
+        if (!self.get(:open)) { say locked }
+        else { say "{one of}Look around.{or}Too late for that.{or}Have your eyes checked.{/one of}" }
+      }
+    }
+    as target for close {
+      do {
+        if (!self.get(:open)) { say "The door closes and locks." }
+        else { say "{one of}Look around.{or}Too late for that.{or}Have your eyes checked.{/one of}" }
+      }
+    }
+    // Pushed, lifted, battered, knocked on, gone through: from below, while
+    // it is shut, every one of them runs into the bar and is told why.
+    as target for shift { do { if (self.get(:open)) { say "You can't move the trap door." } else { say locked } } }
+    as target for raise { do { if (self.get(:open)) { say "It is already open." } else { say locked } } }
+    as target for mung {
+      do {
+        if (self.get(:open)) { say "Nice try." }
+        else { say "Nice try. The planks are oak and the bands are iron, and the bar is on the other side. {cellar.bar_rule}" }
+      }
+    }
+    as target for knock {
+      do {
+        if (self.get(:open)) { say "Nobody's home." }
+        else { say "Nobody answers. {cellar.bar_rule}" }
+      }
+    }
+    as target for through {
+      do {
+        if (self.get(:open)) { send actor :travel with :living_room  say "" }
+        else { say "{cellar.shut_up}" }
+      }
+    }
+    as target for climb_up {
+      do {
+        if (self.get(:open)) { send actor :travel with :living_room  say "" }
+        else { say "{cellar.shut_up}" }
+      }
+    }
+  }
+
+  object ramp is Scenery {
+    grammar { name "metal ramp"  nouns "ramp", "chute", "slide"  adjectives "steep", "metal", "twisting" }
+    passage short { metal ramp }
+    describe { text "The bottom of a steep metal ramp comes down out of the dark on the west side of the cellar. It is polished smooth by everything that has ever slid down it, and it is unclimbable." }
+    // SLIDE-FUNCTION in the Cellar: climbing it is going west, which fails.
+    without as target for climb_up from Thing
+    as target for climb_up { do { say "You try to ascend the ramp, but it is impossible, and you slide back down." } }
+  }
+  object passageway is Scenery {
+    grammar { name "narrow passageway"  nouns "passageway", "passage"  adjectives "narrow", "north" }
+    passage short { narrow passageway }
+    describe { text "A narrow passageway leads north out of the cellar. The air that comes down it is cold, and smells faintly of something that has not bathed." }
+  }
+  object crawlway is Scenery {
+    grammar { name "crawlway"  nouns "crawl", "tunnel"  adjectives "south", "low" }
+    passage short { crawlway }
+    describe { text "The crawlway to the south is low and mean, the kind of tunnel that is wider at the mouth than it ever is again. Someone has cleared it lately: the fallen rock is stacked neatly along one side, and there are fresh pick marks in the roof." }
+  }
+  :walls 1
+}
+
+object troll_room is DarkRoom, TrollRoomPicture in underground_caverns {
+  :tour 2
+  grammar {
+    name "Troll Room"
+    article the
+    exit south "south" -> cellar
+    exit east  "east"  -> east_west_passage when (self.get(:troll_flag))
+    exit east  "east"  refuse "The troll fends you off with a menacing gesture."
+    exit west  "hole"  -> maze_1 when (self.get(:troll_flag))
+    exit west  "hole"  refuse "The troll fends you off with a menacing gesture."
+  }
+  :glow 2
+  :troll_flag false
+  passage body {
+    This is a small room with passages to the east and south and a forbidding hole leading west. Bloodstains and deep scratches (perhaps made by an axe) mar the walls.
+  }
+
+  on :troll_flag (from, value) { self.set(:troll_flag, value) }
+  on :troll_gone { self.set(:glow, 0) }
+
+  object troll is Troll {
+    grammar { nouns "troll"  adjectives "nasty" }
+
+    object axe is Axe {
+      grammar { name "bloody axe"  nouns "axe", "ax"  adjectives "bloody" }
+      :size 25
+      :wielded true
+      passage short { bloody axe }
+      describe { text "The axe is a heavy, ugly, single-bitted thing, its haft wrapped in greasy leather and its edge notched from use. The blood on the blade is not all old. It is heavy even for an axe, a quarter of anything you could hope to carry, and does nothing a sword does not do better." }
+    }
+  }
+
+  object passages is Scenery {
+    grammar { name "passages"  nouns "passage", "passageway", "passageways"  adjectives "east", "south" }
+    passage short { passages }
+    describe { text "Passages lead east and south out of the room. The one to the south goes back toward the cellar; the one to the east goes somewhere the troll would rather you did not." }
+  }
+  object hole is Scenery {
+    grammar { name "forbidding hole"  nouns "hole"  adjectives "forbidding", "west" }
+    passage short { forbidding hole }
+    describe { text "The hole in the west wall is ragged and dark, dark even by the standards of this place. Beyond it the rock is cut into narrow passages that twist away out of sight almost at once. It is not so much an exit as a suggestion, and not a friendly one." }
+  }
+  object bloodstains is Scenery {
+    grammar { name "bloodstains"  nouns "blood", "stains", "bloodstain"  adjectives "dried" }
+    passage short { bloodstains }
+    describe { text "The bloodstains are old and brown and spattered high up the walls. Whoever they belonged to has no further use for them." }
+  }
+  object scratches is Scenery {
+    grammar { name "deep scratches"  nouns "scratches", "scratch", "gouges"  adjectives "deep" }
+    passage short { deep scratches }
+    describe { text "Deep scratches score the rock, the kind made by something heavy swung hard and often. An axe would do it. Someone has evidently been practicing." }
+  }
+  :walls 2
+}
