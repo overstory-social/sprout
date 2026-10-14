@@ -13,6 +13,7 @@
 #include "corpus.h"
 #include "json.h"
 #include "play.h"
+#include "turn_fixture.h"
 
 typedef struct run {
   int code;
@@ -207,6 +208,37 @@ static void a_verb_gives_the_readings_the_whole_page_gives_it(void) {
   release(&r);
 }
 
+/* A fault in a rule about an object names that object, where a budget run out names the visitor's place. */
+static void a_poll_that_faults_on_an_object_names_it(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading take;
+  char *bytes;
+  FILE *file;
+  char *argv[] = {"view", cartridge_of("shut-contents"), "--state", "viewing-host-held-box.json", "--visit", "pell"};
+  run r;
+  tw_open(&w, "shut-contents");
+  tw_arrive(&w, "ines", "Ines", 0, &out);
+  sprout_outcome_free(&out);
+  tw_arrive(&w, "pell", "Pell", 1, &out);
+  sprout_outcome_free(&out);
+  take = tw_reading("sprout.take", tw_person(&w, "ines"), &filling, "target", "shut_contents.cellar.box");
+  tw_command(&w, "ines", &take, 2, &out);
+  sprout_outcome_free(&out);
+  bytes = tw_bytes(&w);
+  file = fopen(argv[3], "wb");
+  fwrite(bytes, 1, strlen(bytes), file);
+  fclose(file);
+  free(bytes);
+  tw_close(&w);
+  r = sproutc(6, argv);
+  CHECK_INT(r.code, 1);
+  CHECK(strstr(r.out, "\nthe poll faulted, against cellar.box, NameOutOfRange: `shut_contents.cellar.box` is out of range "
+                      "of `shut_contents.cellar`, so it could not be read through `box`.\n") != NULL);
+  release(&r);
+}
+
 static void a_scene_or_a_verb_that_runs_out_shows_the_fault_and_exits_1(void) {
   char *scene[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--scene", "--poll-steps", "30"};
   char *verb[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--verb", "sprout.ask",
@@ -288,6 +320,7 @@ int main(void) {
   RUN(the_scene_is_the_page_with_its_verbs_in_place_of_the_readings);
   RUN(a_verb_gives_the_readings_the_whole_page_gives_it);
   RUN(a_scene_or_a_verb_that_runs_out_shows_the_fault_and_exits_1);
+  RUN(a_poll_that_faults_on_an_object_names_it);
   RUN(a_command_line_it_cannot_follow_exits_2_with_words);
   return REPORT();
 }
