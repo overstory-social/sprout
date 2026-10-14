@@ -6,8 +6,10 @@
  * gives lives until the next call on the session.
  *
  * Time is host seconds, clamped so it never goes below the last the save recorded
- * (host/pd_host.h). The save is written after every committed turn; `saved` false says it could
- * not be, and the UI stops play and says so.
+ * (host/pd_host.h). After every committed turn the log tail is written at once and the state is
+ * owed: `player_save_step` writes it a slice a frame, and every call that runs a turn, loads or
+ * closes writes what is owed first, so the state never changes under the writer. `saved` false
+ * says a write failed, and the UI stops play and says so.
  */
 #ifndef PLAYER_SESSION_H
 #define PLAYER_SESSION_H
@@ -127,8 +129,24 @@ typedef struct player_result {
   const char *words;
 } player_result;
 
-/* Writes the save now. */
+/* Writes the save now, whole. */
 player_result player_save(player_session *session);
+
+/* How many bytes of the state the app writes a frame. */
+#define PLAYER_SAVE_SLICE (16u * 1024u)
+
+/*
+ * One step of the save owed: the state's bytes made, or up to `bytes` more of them written; the
+ * last renames the written file over the save. Not ok, with the words, when a write failed. It
+ * releases nothing an earlier call handed back.
+ */
+player_result player_save_step(player_session *session, size_t bytes);
+
+/* Writes all of the save that is owed or under way, now: before the app pauses, locks or sleeps. */
+player_result player_save_settle(player_session *session);
+
+/* Whether any of the state is yet to be written. */
+bool player_saving(const player_session *session);
 
 /* The open world begun again; `ok` false with `reason` saying why it could not be. */
 typedef struct player_restart {

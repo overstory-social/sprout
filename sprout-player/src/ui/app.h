@@ -72,8 +72,14 @@ void player_cue(player_app *app, player_cue_name name);
 /* The device's seconds since 2000-01-01, as the system gives them. */
 uint64_t player_app_seconds(const player_app *app);
 
-/* The device locks or sleeps for a low battery (kEventLock, kEventLowPower): no tick is owed until it unlocks. */
+/*
+ * The device locks or sleeps for a low battery (kEventLock, kEventLowPower): the save owed is
+ * written whole, and no tick is owed until it unlocks.
+ */
 void player_app_sleep(player_app *app);
+
+/* The system menu opens (kEventPause): the save owed is written whole, since the person may end the app from there. */
+void player_app_pause(player_app *app);
 
 /* The device unlocks (kEventUnlock): ticks are owed again from now, while a world is being read. */
 void player_app_wake(player_app *app);
@@ -82,7 +88,9 @@ void player_app_wake(player_app *app);
 int player_app_update(void *app);
 
 /*
- * One frame with `input`: the screen's update, a screen change, the frame cleared, the screen drawn.
+ * One frame with `input`: a step of the save owed (`player_save_step`, PLAYER_SAVE_SLICE bytes),
+ * the screen's update, a screen change, the frame cleared, the screen drawn. A step that could
+ * not write stops play as a turn's failed save does, in place of the update.
  * Where "leave world" was chosen while a reader is open, the visitor leaves in place of the update
  * and the app goes back to the shelf (or says the save could not be written). Where "start over"
  * was chosen while a reader is open, its question is put over the screen on show, which is neither

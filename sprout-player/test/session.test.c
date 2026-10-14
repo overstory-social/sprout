@@ -1,6 +1,7 @@
-/* session.c: shelving a cartridge, opening it, reading and writing its save, starting it over, closing it. */
+/* session.c: shelving a cartridge, opening it, reading and writing its save a slice at a time, starting it over, closing it. */
 #include <stdlib.h>
 
+#include "host/pd_host.h"
 #include "session.h"
 #include "state.h"
 #include "support.h"
@@ -223,7 +224,8 @@ static void starting_over_forgets_the_world_and_keeps_the_name(void) {
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   player_load(s);
   player_admit(s, "Marta");
-  CHECK(go_north(s).saved && exists(state_path) && exists(log_path), "the visitor moved and the world is saved");
+  CHECK(go_north(s).saved && player_save_settle(s).ok && exists(state_path) && exists(log_path),
+        "the visitor moved and the world is saved");
   snprintf(state_temp, sizeof state_temp, "%s.tmp", state_path);
   snprintf(log_temp, sizeof log_temp, "%s.tmp", log_path);
   write_text(state_temp, "a write cut short");
@@ -255,6 +257,111 @@ static void starting_over_forgets_the_world_and_keeps_the_name(void) {
   end();
 }
 
+#define SLICE 512
+
+/* The stored state in the file at `path` reads whole, and stands its visitor in `place`. */
+static bool saved_in(const char *path, const char *place) {
+  sprout_state *state = NULL;
+  sprout_refusal refusal;
+  sprout_str key = {PLAYER_VISIT, sizeof PLAYER_VISIT - 1};
+  const sprout_stored_visitor *visitor;
+  const sprout_stored_instance *person;
+  char *text = file_text(path);
+  bool found = false;
+  player_host host;
+  if (text == NULL) return false;
+  player_host_init(&host, &fake->api);
+  if (sprout_state_read(&host.record, text, strlen(text), &state, &refusal) == SPROUT_OK) {
+    visitor = sprout_state_find_visitor(state, key);
+    person = visitor == NULL ? NULL : sprout_state_find(state, visitor->instance);
+    found = person != NULL && person->has_container && sprout_str_is(person->container, place);
+    sprout_state_free(state);
+  }
+  free(text);
+  return found;
+}
+
+/*
+ * A committed turn writes its log line at once and owes the state; each step writes a slice of it
+ * to `.part`, and the last turns the part into `.tmp` and the `.tmp` into the save, so the save on
+ * disk is only ever replaced by a whole one.
+ */
+static void the_state_is_written_a_slice_a_step_after_the_turn(void) {
+  player_session *s;
+  char state_path[200], log_path[200], part[220], want[1200];
+  char *log;
+  int steps = 0;
+  begin("slices");
+  s = session_new();
+  save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
+  snprintf(part, sizeof part, "%s.part", state_path);
+  player_load(s);
+  CHECK(!player_saving(s), "a fresh world owes nothing");
+  CHECK(player_admit(s, "Marta").saved, "the arrival");
+  log = file_text(log_path);
+  CHECK(log != NULL && HAS(log, "\"kind\":\"arrival\""), "the log line is written with the turn");
+  free(log);
+  CHECK(!exists(state_path) && !exists(part) && player_saving(s), "and the state is owed, not yet begun");
+  CHECK(player_save_step(s, SLICE).ok && exists(part) && !exists(state_path), "the first step makes the bytes and opens the part");
+  fake->file_log[0] = '\0';
+  while (player_saving(s) && steps < 10000) {
+    CHECK(!exists(state_path), "no save until the part is whole, after %d slices", steps);
+    CHECK(player_save_step(s, SLICE).ok, "a slice");
+    steps++;
+  }
+  CHECK(steps > 2, "the state takes several slices of %d bytes: %d", SLICE, steps);
+  snprintf(want, sizeof want, "unlink %s.tmp\nrename %s.part %s.tmp\nunlink %s\nrename %s.tmp %s\n", state_path, state_path,
+           state_path, state_path, state_path, state_path);
+  CHECK(strcmp(fake->file_log, want) == 0, "the part becomes the .tmp and the .tmp the save:\n%s", fake->file_log);
+  CHECK(!exists(part) && saved_in(state_path, "chip_tree.hall"), "the save is whole");
+  CHECK(player_save_step(s, SLICE).ok && !player_saving(s), "and nothing more is owed");
+  end();
+}
+
+/* A turn asked while the state is being written waits for the rest of it, so it runs on a state that is whole on disk. */
+static void a_turn_during_the_save_waits_for_it(void) {
+  player_session *s;
+  char state_path[200], log_path[200], part[220];
+  const sprout_seen_view *view;
+  const char *words;
+  begin("waits");
+  s = session_new();
+  save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
+  snprintf(part, sizeof part, "%s.part", state_path);
+  player_load(s);
+  player_admit(s, "Marta");
+  CHECK(player_save_settle(s).ok && saved_in(state_path, "chip_tree.hall"), "settled, the arrival is on disk");
+  CHECK(go_north(s).committed, "the visitor goes north");
+  player_save_step(s, SLICE);
+  player_save_step(s, SLICE);
+  CHECK(exists(part) && saved_in(state_path, "chip_tree.hall"), "part way through the save of the move");
+  CHECK(look(s).saved, "a turn asked now");
+  CHECK(!exists(part) && saved_in(state_path, "chip_tree.yard"), "found the move's save finished before it ran");
+  view = player_view(s, &words);
+  CHECK(view != NULL && sprout_str_is(view->place.id, "chip_tree.yard"), "and ran where the visitor stands: %s", words);
+  CHECK(go_north(s).saved, "another move");
+  CHECK(player_close(s).saved && !exists(part), "closing writes what is owed, whole");
+  end();
+}
+
+/* A slice that cannot be written stops play: the step says so, and so does the next turn. */
+static void a_step_that_cannot_write_is_told(void) {
+  player_session *s;
+  player_result step;
+  begin("stepfails");
+  s = session_new();
+  player_open_whole(s, "chip-tree.sproutworld");
+  player_load(s);
+  player_admit(s, "Marta");
+  fake->fail_writes = 1;
+  step = player_save_step(s, SLICE);
+  CHECK(!step.ok && HAS(step.words, "The save could not be written"), "%s", step.words);
+  CHECK(!look(s).saved, "the next turn says the save is not kept");
+  fake->fail_writes = 0;
+  CHECK(player_save_settle(s).ok && !player_saving(s), "once there is room, settling writes it");
+  end();
+}
+
 /* What a call hands back lives until the next call on the session, which releases it. */
 static void an_answer_lives_until_the_next_call(void) {
   player_session *s;
@@ -281,6 +388,9 @@ int main(void) {
   a_damaged_save_is_set_aside_in_words();
   a_save_that_cannot_be_written_is_told();
   starting_over_forgets_the_world_and_keeps_the_name();
+  the_state_is_written_a_slice_a_step_after_the_turn();
+  a_turn_during_the_save_waits_for_it();
+  a_step_that_cannot_write_is_told();
   an_answer_lives_until_the_next_call();
   return finish();
 }

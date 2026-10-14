@@ -10,6 +10,8 @@
 
 #define SAVES "saves"
 
+static const char SAVE_FAILED[] = "The save could not be written. Is the device out of room?";
+
 player_session *player_session_new(PlaydateAPI *pd) {
   player_session *session = (player_session *)player_alloc(pd, sizeof *session);
   if (session == NULL) return NULL;
@@ -22,6 +24,7 @@ player_session *player_session_new(PlaydateAPI *pd) {
 
 /* Releases the world, its state and the log tail; the session is ready to open another. */
 static void release_world(player_session *session) {
+  session_save_abandon(session);
   session_drop_view(session);
   if (session->loading != NULL) sprout_load_abandon(session->loading);
   player_free(session->pd, session->loading_bytes);
@@ -31,7 +34,6 @@ static void release_world(player_session *session) {
   if (session->world != NULL) sprout_world_free(session->world);
   session->state = NULL;
   session->world = NULL;
-  session->dirty = false;
   session->host.last_seconds = 0;
   savelog_clear(session);
 }
@@ -229,26 +231,141 @@ bool session_visitor_present(const player_session *session, const sprout_stored_
   return person != NULL && person->has_container;
 }
 
+/* `<path><suffix>` into `out`, of `size` bytes. */
+static void path_with(char *out, size_t size, const char *path, const char *suffix) {
+  text_buffer buffer;
+  text_begin(&buffer, out, size);
+  text_add(&buffer, path);
+  text_add(&buffer, suffix);
+}
+
+/* A write failed: the slices under way are dropped, the state is owed still, and play stops. */
+static bool save_failed(player_session *session) {
+  session_writer *w = &session->writer;
+  char part[PATH_BYTES + 8];
+  if (w->file != NULL) player_file_close(session->pd, w->file);
+  w->file = NULL;
+  if (w->live) {
+    path_with(part, sizeof part, session->state_path, ".part");
+    player_file_remove(session->pd, part);
+    sprout_arena_reset(&w->arena);
+    session->owed = true;
+  }
+  w->live = false;
+  session->unsaved = true;
+  return false;
+}
+
+/* The state's bytes made and `<state>.part` opened: the write's first step, a frame of its own. */
+static bool save_begin(player_session *session) {
+  session_writer *w = &session->writer;
+  char part[PATH_BYTES + 8];
+  if (sprout_arena_init(&w->arena, &session->host.record) != SPROUT_OK) return save_failed(session);
+  w->live = true;
+  session->owed = false;
+  w->written = 0;
+  if (sprout_state_write(session->state, &w->arena, &w->bytes, &w->length) != SPROUT_OK) return save_failed(session);
+  path_with(part, sizeof part, session->state_path, ".part");
+  w->file = player_file_create(session->pd, part);
+  return w->file != NULL || save_failed(session);
+}
+
+/*
+ * Up to `bytes` more of the state into `<state>.part`; once all are, the part becomes `<state>.tmp`
+ * and then the save, so a save on disk is only ever replaced by a whole one, and a read finds the
+ * `.tmp` in the moment between.
+ */
+static bool save_slice(player_session *session, size_t bytes) {
+  session_writer *w = &session->writer;
+  char part[PATH_BYTES + 8], temp[PATH_BYTES + 8];
+  size_t count = w->length - w->written < bytes ? w->length - w->written : bytes;
+  if (count > 0 && !player_file_append(session->pd, w->file, w->bytes + w->written, count)) return save_failed(session);
+  w->written += count;
+  if (w->written < w->length) return true;
+  if (!player_file_close(session->pd, w->file)) {
+    w->file = NULL;
+    return save_failed(session);
+  }
+  w->file = NULL;
+  path_with(part, sizeof part, session->state_path, ".part");
+  path_with(temp, sizeof temp, session->state_path, ".tmp");
+  if (!player_file_move(session->pd, part, temp) || !player_file_move(session->pd, temp, session->state_path))
+    return save_failed(session);
+  sprout_arena_reset(&w->arena);
+  w->live = false;
+  session->unsaved = false;
+  return true;
+}
+
+/* One step of the save: its beginning, or a slice of `bytes`. */
+static bool save_step(player_session *session, size_t bytes) {
+  if (session->writer.live) return save_slice(session, bytes);
+  if (session->owed && session->state != NULL) return save_begin(session);
+  return true;
+}
+
 static void *mkdir_saves(void *pd) {
   ((PlaydateAPI *)pd)->file->mkdir(SAVES);
   return NULL;
 }
 
-bool session_save_if_dirty(player_session *session) {
-  const char *bytes;
-  size_t length;
-  sprout_arena scratch;
-  bool written;
-  if (session->state == NULL || !session->dirty) return true;
-  player_on_main_stack(mkdir_saves, session->pd);
-  if (sprout_arena_init(&scratch, &session->host.record) != SPROUT_OK) return false;
-  written = sprout_state_write(session->state, &scratch, &bytes, &length) == SPROUT_OK &&
-            player_write_file(session->pd, session->state_path, bytes, length);
-  sprout_arena_reset(&scratch);
-  if (!written) return false;
-  if (!savelog_write(session)) return false;
+bool session_save_soon(player_session *session) {
+  if (session->state != NULL && session->dirty) {
+    session->dirty = false;
+    session->owed = true;
+    player_on_main_stack(mkdir_saves, session->pd);
+    if (!savelog_write(session)) session->unsaved = true;
+  }
+  return !session->unsaved;
+}
+
+bool session_save_finish(player_session *session) {
+  while (session->writer.live || (session->owed && session->state != NULL))
+    if (!save_step(session, (size_t)-1)) return false;
+  return !session->unsaved;
+}
+
+bool session_save_settle(player_session *session) {
+  session_save_soon(session);
+  if (session->unsaved && session->state != NULL && !savelog_write(session)) return false;
+  return session_save_finish(session);
+}
+
+void session_save_abandon(player_session *session) {
+  session_writer *w = &session->writer;
+  char part[PATH_BYTES + 8];
+  if (w->file != NULL) player_file_close(session->pd, w->file);
+  if (w->live) {
+    path_with(part, sizeof part, session->state_path, ".part");
+    player_file_remove(session->pd, part);
+    sprout_arena_reset(&w->arena);
+  }
+  memset(w, 0, sizeof *w);
   session->dirty = false;
-  return true;
+  session->owed = false;
+  session->unsaved = false;
+}
+
+player_result player_save_step(player_session *session, size_t bytes) {
+  player_result answer = {true, ""};
+  if (!save_step(session, bytes) || session->unsaved) {
+    answer.ok = false;
+    answer.words = SAVE_FAILED;
+  }
+  return answer;
+}
+
+player_result player_save_settle(player_session *session) {
+  player_result answer = {true, ""};
+  if (!session_save_settle(session)) {
+    answer.ok = false;
+    answer.words = SAVE_FAILED;
+  }
+  return answer;
+}
+
+bool player_saving(const player_session *session) {
+  return session->writer.live || session->owed || session->dirty;
 }
 
 player_result player_save(player_session *session) {
@@ -259,8 +376,8 @@ player_result player_save(player_session *session) {
     return answer;
   }
   session->dirty = true;
-  if (!session_save_if_dirty(session)) {
-    answer.words = "The save could not be written. Is the device out of room?";
+  if (!session_save_settle(session)) {
+    answer.words = SAVE_FAILED;
     return answer;
   }
   answer.ok = true;
@@ -381,6 +498,8 @@ player_loaded player_load(player_session *session) {
     answer.words = "No world is open.";
     return answer;
   }
+  session_save_settle(session);
+  session_save_abandon(session);
   session_drop_view(session);
   if (session->state != NULL) {
     sprout_state_free(session->state);
@@ -399,7 +518,7 @@ player_loaded player_load(player_session *session) {
     /* The last session ended without leaving: the visitor leaves now, and nothing is narrated. */
     sprout_outcome outcome;
     if (turns_depart(session, &outcome)) sprout_outcome_free(&outcome);
-    session_save_if_dirty(session);
+    session_save_settle(session);
     answer.recovered = true;
     visitor = session_visitor(session);
   }
@@ -415,10 +534,7 @@ player_loaded player_load(player_session *session) {
 /* Removes the file at `path` and the `.tmp` beside it that a write cut short may have left. */
 static void remove_save_file(player_session *session, const char *path) {
   char temp[PATH_BYTES + 8];
-  text_buffer out;
-  text_begin(&out, temp, sizeof temp);
-  text_add(&out, path);
-  text_add(&out, ".tmp");
+  path_with(temp, sizeof temp, path, ".tmp");
   player_file_remove(session->pd, path);
   player_file_remove(session->pd, temp);
 }
@@ -426,6 +542,7 @@ static void remove_save_file(player_session *session, const char *path) {
 player_restart player_start_over(player_session *session) {
   player_restart answer;
   const sprout_stored_visitor *visitor;
+  char part[PATH_BYTES + 8];
   memset(&answer, 0, sizeof answer);
   session_answer(session);
   if (session->world == NULL || session->state == NULL) {
@@ -434,14 +551,16 @@ player_restart player_start_over(player_session *session) {
   }
   visitor = session_visitor(session);
   if (visitor != NULL) answer.nickname = kept_str(session, visitor->nickname);
+  session_save_abandon(session);
   session_drop_view(session);
   sprout_state_free(session->state);
   session->state = NULL;
-  session->dirty = false;
   session->host.last_seconds = 0;
   savelog_clear(session);
   remove_save_file(session, session->state_path);
   remove_save_file(session, session->log_path);
+  path_with(part, sizeof part, session->state_path, ".part");
+  player_file_remove(session->pd, part);
   answer.ok = true;
   answer.name = session->title;
   answer.word_count = session->world->word_count;
@@ -461,7 +580,7 @@ player_told player_close(player_session *session) {
     told_collect(&session->answer, &answer.lines, &outcome, PLAYER_VISIT);
     sprout_outcome_free(&outcome);
   }
-  answer.saved = session_save_if_dirty(session);
+  answer.saved = session_save_settle(session);
   release_world(session);
   return answer;
 }
