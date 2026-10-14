@@ -368,7 +368,7 @@ static void leave_world_in_the_system_menu_goes_back_to_the_shelf(void) {
   app_folder("app");
   ship(shipped, 1);
   eventHandler(&fake->api, kEventInit, 0);
-  CHECK(strcmp(fake->menu_title, "leave world") == 0, "the system menu offers to leave: \"%s\"", fake->menu_title);
+  CHECK(fake_menu_holds(fake, "leave world"), "the system menu offers to leave");
   fake_frame(fake, 0, 0);
   CHECK(fake_menu(fake, "leave world"), "it can be chosen on the shelf");
   fake_frame(fake, 0, 0);
@@ -386,7 +386,150 @@ static void leave_world_in_the_system_menu_goes_back_to_the_shelf(void) {
   snprintf(command, sizeof command, "grep -l '\"kind\":\"departure\"' '%s'/saves/*.log >/dev/null", fake->data);
   CHECK(system(command) == 0, "the visitor left, and the departure is in the saved log");
   eventHandler(&fake->api, kEventTerminate, 0);
-  CHECK(fake->menu_title[0] == '\0', "the item is taken out of the menu when the app ends");
+  CHECK(fake_menu_count(fake) == 0, "the items are taken out of the menu when the app ends");
+  end();
+}
+
+/* Runs frames until the nickname screen is drawn, or `most` have run; how many ran. */
+static int frames_until_nickname(int most) {
+  int n;
+  for (n = 1; n <= most && !on_nickname(); n++) fake_frame(fake, 0, 0);
+  return n;
+}
+
+/* Whether a file of the Data folder's `saves/` ends in `suffix`. */
+static bool saved_file(const char *suffix) {
+  char command[1200];
+  snprintf(command, sizeof command, "ls '%s'/saves/*%s >/dev/null 2>&1", fake->data, suffix);
+  return system(command) == 0;
+}
+
+/*
+ * "start over" in the system menu: chosen on the shelf it does nothing; chosen in the reader it asks
+ * on screen what it will do, B goes back to the reader as it was, and A forgets the world's save and
+ * brings the nickname screen up again, the name the visitor had offered first, for a fresh arrival.
+ */
+static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) {
+  static const char *const shipped[] = {"chip-tree.sproutworld"};
+  const fake_run *name, *first;
+  char before[64], command[1200];
+  int frames;
+  begin("restart");
+  app_folder("app");
+  ship(shipped, 1);
+  eventHandler(&fake->api, kEventInit, 0);
+  CHECK(fake_menu_holds(fake, "start over") && fake_menu_holds(fake, "leave world"), "the system menu offers both items");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_menu(fake, "start over"), "it can be chosen on the shelf");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0,
+        "where nothing is open it does nothing");
+  fake_frame(fake, kButtonA, 0);
+  frames = frames_until_nickname(10000);
+  CHECK(on_nickname(), "the nickname screen came up after %d frames", frames);
+  fake_frame(fake, kButtonDown, 0);
+  name = fake_run_at(fake, PLAYER_MARGIN, 100);
+  CHECK(name != NULL, "a name is offered");
+  snprintf(before, sizeof before, "%s", name != NULL ? name->text : "");
+  frames = frames_until_reader(100);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader came up after %d frames", frames);
+  for (frames = 0; frames < 100 && !saved_file(".json"); frames++) fake_frame(fake, 0, 0);
+  CHECK(saved_file(".json") && saved_file(".log"), "the arrival is saved over the frames after it: %d", frames);
+
+  fake->note_count = 0;
+  CHECK(fake_menu(fake, "start over"), "chosen in the reader");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP) != NULL &&
+            strcmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, PLAYER_RESTART_QUESTION) == 0,
+        "the question is asked on screen");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP + LINE) != NULL &&
+            strcmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP + LINE)->text, PLAYER_RESTART_WARNING) == 0,
+        "and says what starting over does");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2) != NULL &&
+            strcmp(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2)->text, PLAYER_RESTART_KEYS) == 0,
+        "with its keys");
+  CHECK((int)strlen(PLAYER_RESTART_WARNING) * fake->glyph <= 400 - 2 * PLAYER_MARGIN &&
+            (int)strlen(PLAYER_RESTART_QUESTION) * fake->glyph <= 400 - 2 * PLAYER_MARGIN,
+        "each line fits the screen");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) == NULL, "the reader is not drawn under it");
+  fake_frame(fake, 0, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP) != NULL, "it stays until A or B");
+  fake_frame(fake, kButtonB, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "B goes back to the reader");
+  first = fake_run_at(fake, 2, TOP);
+  CHECK(first != NULL && strncmp(first->text, "- You are in ", 13) == 0, "as it was");
+  CHECK(fake->note_count == 1 && saved_file(".json") && saved_file(".log"), "with the back cue, and nothing forgotten");
+
+  fake_menu(fake, "start over");
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_nickname(), "A brings the nickname screen up again, with no loading between");
+  CHECK(!saved_file(".json") && !saved_file(".log"), "the save and the log are gone");
+  name = fake_run_at(fake, PLAYER_MARGIN, 100);
+  CHECK(name != NULL && strcmp(name->text, before) == 0, "the name the visitor had is offered first: %s, was %s",
+        name != NULL ? name->text : "(none)", before);
+  frames = frames_until_reader(100);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader came up after %d frames", frames);
+  snprintf(command, sizeof command, "test $(grep -c '\"kind\":\"arrival\"' '%s'/saves/*.log) -eq 1", fake->data);
+  CHECK(system(command) == 0, "the new log holds the one fresh arrival and nothing from before");
+  eventHandler(&fake->api, kEventTerminate, 0);
+  end();
+}
+
+/*
+ * The arrival's log line is on disk when the reader comes up, and its state follows a slice a frame
+ * behind it; opening the system menu (kEventPause) writes the rest at once.
+ */
+static void the_save_follows_the_reply_and_the_system_menu_finishes_it(void) {
+  const char *folder = getenv("PLAYER_SHIPPED_DIR");
+  char command[2600];
+  int slices = 0, drawn = 0;
+  if (folder == NULL) {
+    printf("ui: PLAYER_SHIPPED_DIR is not set, the caverns' save is not watched\n");
+    return;
+  }
+  begin("save-frames");
+  app_folder("app");
+  snprintf(command, sizeof command, "mkdir -p '%s'/worlds && cp '%s'/underground_caverns.sproutworld '%s'/worlds/", fake->data,
+           folder, fake->data);
+  CHECK(system(command) == 0, "the caverns are on the shelf");
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  frames_until_nickname(10000);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(saved_file(".log") && !saved_file(".json"), "the arrival told, its log line is written and its state is not yet");
+  while (!saved_file(".json") && slices < 1000) {
+    fake_frame(fake, 0, 0);
+    slices++;
+    if (saved_file(".part") && fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL) drawn++;
+  }
+  CHECK(slices > 10, "the caverns' state takes many frames of %u bytes: %d", PLAYER_SAVE_SLICE, slices);
+  CHECK(drawn + 2 >= slices, "the reader is drawn in the frames it is written in: %d of %d", drawn, slices);
+  snprintf(command, sizeof command, "rm -f '%s'/saves/*.json", fake->data);
+  CHECK(system(command) == 0, "the save removed, to watch it written again");
+  fake_menu(fake, "leave world");
+  fake_frame(fake, 0, 0);
+  CHECK(saved_file(".json") && !saved_file(".part"), "leaving writes the departure's save whole before the shelf");
+  eventHandler(&fake->api, kEventTerminate, 0);
+  end();
+}
+
+/* The system menu opening writes what the save owes, whole, before the person can end the app from it. */
+static void pausing_writes_the_save_owed(void) {
+  static const char *const shipped[] = {"chip-tree.sproutworld"};
+  begin("pause");
+  app_folder("app");
+  ship(shipped, 1);
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  frames_until_nickname(10000);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!saved_file(".json") && !saved_file(".part"), "the arrival's state is owed");
+  eventHandler(&fake->api, kEventPause, 0);
+  CHECK(saved_file(".json") && !saved_file(".part"), "the pause wrote it whole");
+  eventHandler(&fake->api, kEventTerminate, 0);
   end();
 }
 
@@ -398,5 +541,8 @@ int main(void) {
   a_cartridge_that_cannot_be_opened_is_told_in_words();
   the_reader_ticks_while_awake_and_tells_what_a_tick_told();
   leave_world_in_the_system_menu_goes_back_to_the_shelf();
+  start_over_in_the_system_menu_asks_and_begins_the_world_again();
+  the_save_follows_the_reply_and_the_system_menu_finishes_it();
+  pausing_writes_the_save_owed();
   return finish();
 }
