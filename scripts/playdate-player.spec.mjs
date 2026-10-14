@@ -39,6 +39,14 @@ test("the graduated list in the repository ships the worked microworld and the s
   for (const entry of list) assert.ok(existsSync(join(entry.dir, 'sprout.json')), entry.world);
   const caverns = list.find((entry) => entry.file === 'underground_caverns.sproutworld');
   assert.deepEqual(caverns.plays, ['tests/walkthrough.json'], 'the whole of Zork is a listed play');
+  assert.equal(caverns.dir, join(root, 'sprout-player/worlds/underground_caverns'));
+  const pin = JSON.parse(readFileSync(join(caverns.dir, 'source.json'), 'utf8'));
+  assert.equal(pin.world, 'worlds/underground_caverns/world');
+  assert.match(
+    pin.commit,
+    /^[0-9a-f]{40}$/,
+    'the snapshot names the studio commit it was copied at',
+  );
 });
 
 test('a world may list plays under its folder, and one that is not there is refused by name', () => {

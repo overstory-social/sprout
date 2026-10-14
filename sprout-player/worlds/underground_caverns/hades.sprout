@@ -1,0 +1,335 @@
+// Hades (v8), as 1dungeon.zil and 1actions.zil have it: the Entrance to
+// Hades at the foot of the Cave's stairs, where the evil spirits bar the
+// gate (GHOSTS, GHOSTS-F, GATE-PSEUDO, BODIES), and the Land of the Dead
+// beyond it, with the crystal skull (LAND-OF-LIVING-DEAD, SKULL). Both are
+// lit, as Zork's are.
+//
+// The exorcism is Zork's LLD-ROOM, in its order and to its clock: the bell
+// rung here grows red hot and falls, and the candles in hand fall and go
+// out (XB, six moves); the candles lit in hand while the spirits reel make
+// them cower (XC, three moves); the black book read while they cower drives
+// them off for good (LLD-FLAG). The room keeps the clock (`:phase`, and a
+// wake for each of I-XB and I-XC); the bell keeps its own heat (I-XBH,
+// temple.sprout); the visitor's own parts of `ring`, `burn`, `take` and
+// `read` tell the room what was done here, since a thing in a hand cannot
+// reach the room around it (friction 88).
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Flame, Lockable} from 'thing'
+import {Room} from 'room'
+import {Treasure} from 'items'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {tiny_cave} from 'mirror'
+import {ask} from 'sprout'
+import {take, give, mung, alarm, burn, clear, climb_down, climb_over, climb_up, close, cross, cut, deflate, drink, duck_under, eat, fill, greet, inflate, kick, kiss, knock, lamp_off, lamp_on, land, launch, leap_at, listen, lock, look_behind, look_in, look_under, lower, oil, open, plug, pour, raise, read, ring, rub, rub_with, search, shake, shift, smell, squeeze, talk, tally, through, tie, turn, turn_with, unlock, untie, walk_around, wave, wind, :travel, :rite, :rite_lit, :rite_read, :consume, :die, :reckon} from 'verbs'
+
+// The Entrance to Hades: the rite's clock, and whether it has been done.
+// `:phase` is 0 while the spirits jeer, 1 while they reel from the bell
+// (Zork's XB), 2 while they cower before the candles (XC).
+kind HadesGate is Room {
+  :exorcised false
+  :phase 0 min 0 max 2
+}
+
+object entrance_to_hades is HadesGate in underground_caverns {
+  :tour 69
+  grammar {
+    name "Entrance to Hades"
+    exit up    "staircase" -> tiny_cave
+    exit in    "gate"      -> land_of_the_dead when (self.get(:exorcised))
+    exit in    "gate"      refuse barred
+    exit south "south"     -> land_of_the_dead when (self.get(:exorcised))
+    exit south "south"     refuse barred
+  }
+  passage barred { Some invisible force prevents you from passing through the gate. }
+  passage body {
+    You are outside a large gateway, on which is inscribed
+
+    Abandon every hope all ye who enter here!
+
+    The gate is open; through it you can see a desolation, with a pile of mangled bodies in one corner. Thousands of voices, lamenting some hideous fate, can be heard.{if !self.get(:exorcised) && !self.get(:shade)}
+
+    The way through the gate is barred by evil spirits, who jeer at your attempts to pass.{/if}
+  }
+  // Whether one of the dead stands here, to whom the spirits do not show
+  // themselves barring the way (LLD-ROOM's NOT DEAD): a description cannot
+  // ask who is reading it, so the room keeps it.
+  :shade false
+  on :entered (item, from) { if (item.is(Adventurer)) { send self :reckon } }
+  on :left (item, to) { if (item.is(Adventurer)) { send self :reckon } }
+  on :reckon {
+    self.set(:shade, false)
+    each a: Adventurer in self { if (a.get(:dead)) { self.set(:shade, true) } }
+  }
+
+  // The bell rung (LLD-ROOM's RING): the spirits reel, for six moves.
+  on :rite {
+    if (!self.get(:exorcised)) {
+      self.set(:phase, 1)
+      cancel wakes
+      wake in 3 minutes
+    }
+  }
+  // The candles lit in hand while they reel (LLD-ROOM's M-END): they cower,
+  // for three moves more.
+  on :rite_lit {
+    if (!self.get(:exorcised) && self.get(:phase) == 1) {
+      self.set(:phase, 2)
+      cancel wakes
+      wake in 90 seconds
+      each a: Adventurer in self { tell a "The flames flicker wildly and appear to dance. The earth beneath your feet trembles, and your legs nearly buckle beneath you. The spirits cower at your unearthly power." }
+    }
+  }
+  // The black book read while they cower: they flee, and the gate is open.
+  on :rite_read {
+    if (!self.get(:exorcised) && self.get(:phase) == 2) {
+      self.set(:exorcised, true)
+      self.set(:phase, 0)
+      cancel wakes
+      each g: Ghosts in self { send g :consume }
+    }
+  }
+  // I-XB and I-XC: the moment passes, and the jeering resumes.
+  on :woke (elapsed) {
+    if (!self.get(:exorcised) && self.get(:phase) > 0) {
+      self.set(:phase, 0)
+      each a: Adventurer in self { tell a "The tension of this ceremony is broken, and the wraiths, amused but shaken at your clumsy attempt, resume their hideous jeering." }
+    }
+  }
+
+  object spirits is Ghosts
+  object gate is HellGate
+  object inscription is Scenery {
+    grammar { name "inscription"  nouns "writing", "words", "lettering", "letters", "legend"  adjectives "inscribed" }
+    passage short { inscription }
+    passage words { Abandon every hope all ye who enter here! }
+    describe { text "The words are cut across the lintel of the gateway in letters as tall as your arm, deep and square and old, in a hand that did not expect to be argued with: \"Abandon every hope all ye who enter here!\"" }
+    without as target for read from Thing
+    as target for read { do { say words } }
+  }
+  object bodies is Bodies {
+    passage view { Through the gate, in one corner of the desolation beyond, lies a pile of mangled bodies, heaped as carelessly as firewood. None of them is moving, and none of them looks as if it ever expected to be here. }
+  }
+  object voices is Lament {
+    passage view { The voices come through the gate from the desolation beyond, thousands of them, all lamenting at once and none of them in time. The words are lost, but the tune is unmistakable: it is the sound of a great many people who have just realized something. }
+  }
+  object desolation is Scenery {
+    grammar { name "desolation"  nouns "wasteland", "plain", "waste"  adjectives "desolate", "grey", "gray" }
+    passage short { desolation }
+    describe { text "Beyond the gate the ground runs away grey and flat and empty, under a sky that is not a sky, as far as there is light to see. Nothing grows there. Nothing has ever thought of growing there." }
+  }
+  object stairs is Stairs {
+    grammar { adjectives "forbidding", "stone" }
+    passage view { The staircase you came down climbs back up into the dark toward the Cave. A cold draught goes up it ahead of you, as if it too would rather be elsewhere. }
+    as target for climb_up   { do { send actor :travel with :tiny_cave  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+}
+
+object land_of_the_dead is Room in underground_caverns {
+  :tour 70
+  grammar {
+    name "Land of the Dead"
+    exit north "north" -> entrance_to_hades
+    exit out   "out"   -> entrance_to_hades
+  }
+  passage body {
+    You have entered the Land of the Living Dead. Thousands of lost souls can be heard weeping and moaning. In the corner are stacked the remains of dozens of previous adventurers less fortunate than yourself. A passage exits to the north.
+  }
+  object skull is Skull
+  object bodies is Bodies {
+    passage view { The remains are stacked in the corner with a dreadful neatness, dozens of them, adventurers all, to judge by what is left of their boots. Each of them came a long way to get here, and every one of them got here first. }
+  }
+  object souls is Lament {
+    grammar { nouns "souls", "soul" }
+    passage view { The lost souls are heard and not seen: thousands of them, weeping and moaning on every side, close enough to touch and nowhere at all. They do not seem to have noticed you. They are not, on the whole, the noticing kind. }
+  }
+  object way_north is Scenery {
+    grammar { name "passage"  nouns "exit", "way", "gate"  adjectives "north" }
+    passage short { passage }
+    describe { text "The passage leads north, back through the gate to the stairs and the world above. It is the only way out, which down here counts as generous." }
+  }
+}
+
+// The evil spirits at the gate (GHOSTS, GHOSTS-F): nothing material reaches
+// them. Spoken to, they jeer; attacked, they ask how; anything else, and
+// you cannot interact with them at all. Exorcised, they are gone.
+kind Ghosts is Scenery {
+  grammar { name "evil spirits"  nouns "ghosts", "ghost", "spirits", "spirit", "fiends", "force", "wraiths", "wraith"  adjectives "invisible", "evil" }
+  passage short { evil spirits }
+  passage unable { You seem unable to interact with these spirits. }
+  passage jeer { The spirits jeer loudly and ignore you. }
+  passage no_take { {self.unable} }
+  describe {
+    text "The spirits crowd the gateway, pale and thin as smoke and in no way friendly, with faces that are mostly mouth. They drift back and forth across the way through, jeering, plucking at the air where you stand, and whenever you take a step toward the gate there are suddenly a great many more of them. They have been here a very long time, and they intend to stay."
+  }
+  without as target for mung from Thing
+  as target for mung { do { say "How can you attack a spirit with material objects?" } }
+  without as target for open from Thing
+  as target for open { do { say unable } }
+  without as target for close from Thing
+  as target for close { do { say unable } }
+  without as target for read from Thing
+  as target for read { do { say unable } }
+  without as target for look_in from Thing
+  as target for look_in { do { say unable } }
+  without as target for look_under from Thing
+  as target for look_under { do { say unable } }
+  without as target for search from Thing
+  as target for search { do { say unable } }
+  without as target for cross from Thing
+  as target for cross { do { say unable } }
+  without as target for shift from Thing
+  as target for shift { do { say unable } }
+  without as target for raise from Thing
+  as target for raise { do { say unable } }
+  without as target for eat from Thing
+  as target for eat { do { say unable } }
+  without as target for drink from Thing
+  as target for drink { do { say unable } }
+  without as target for tally from Thing
+  as target for tally { do { say unable } }
+  without as target for smell from Thing
+  as target for smell { do { say unable } }
+  without as target for listen from Thing
+  as target for listen { do { say unable } }
+  without as target for climb_up from Thing
+  as target for climb_up { do { say unable } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say unable } }
+  without as target for knock from Thing
+  as target for knock { do { say unable } }
+  without as target for walk_around from Thing
+  as target for walk_around { do { say unable } }
+  without as target for kick from Thing
+  as target for kick { do { say unable } }
+  without as target for rub from Thing
+  as target for rub { do { say unable } }
+  without as target for rub_with from Thing
+  as target for rub_with { do { say unable } }
+  without as target for shake from Thing
+  as target for shake { do { say unable } }
+  without as target for squeeze from Thing
+  as target for squeeze { do { say unable } }
+  without as target for kiss from Thing
+  as target for kiss { do { say unable } }
+  without as target for look_behind from Thing
+  as target for look_behind { do { say unable } }
+  without as target for fill from Thing
+  as target for fill { do { say unable } }
+  without as target for alarm from Thing
+  as target for alarm { do { say unable } }
+  without as target for turn from Thing
+  as target for turn { do { say unable } }
+  without as target for leap_at from Thing
+  as target for leap_at { do { say unable } }
+  without as target for burn from Thing
+  as target for burn { do { say unable } }
+  without as target for climb_over from Thing
+  as target for climb_over { do { say unable } }
+  without as target for duck_under from Thing
+  as target for duck_under { do { say unable } }
+  without as target for clear from Thing
+  as target for clear { do { say unable } }
+  without as target for cut from Thing
+  as target for cut { do { say unable } }
+  without as target for through from Thing
+  as target for through { do { say unable } }
+  without as target for talk from Thing
+  as target for talk { do { say jeer } }
+  without as target for ask from Thing
+  as target for ask { do { say jeer } }
+  without as target for greet from Thing
+  as target for greet { do { say jeer } }
+  as recipient for give { do { say unable } }
+}
+
+// The gate of Hell (GATE-PSEUDO): through it is in, if it lets you; touch
+// it any other way and it makes your teeth ache.
+kind HellGate is Scenery, Lockable {
+  grammar { name "gate"  nouns "gates", "gateway", "portal", "archway"  adjectives "large", "open", "iron" }
+  passage short { gate }
+  passage ache { The gate is protected by an invisible force. It makes your teeth ache to touch it. }
+  passage no_take { {self.ache} }
+  describe { text "It is a gateway of black iron, very large, its two leaves standing wide open as if nobody had ever had any reason to close them. Over it the inscription is cut deep. Through it lies a grey desolation, and the way through is, for all that it is open, not at all inviting. The air in the gateway has a faint shimmer, like heat over a road." }
+  without as target for through from Thing
+  as target for through {
+    do {
+      if (here.is(HadesGate)) {
+        if (here.get(:exorcised)) { send actor :travel with :lld  say "" }
+        else { say "Some invisible force prevents you from passing through the gate." }
+      }
+    }
+  }
+  without as target for open from Thing
+  as target for open { do { say ache } }
+  without as target for close from Thing
+  as target for close { do { say ache } }
+  without as target for rub from Thing
+  as target for rub { do { say ache } }
+  without as target for shift from Thing
+  as target for shift { do { say ache } }
+  without as target for kick from Thing
+  as target for kick { do { say ache } }
+  without as target for kiss from Thing
+  as target for kiss { do { say ache } }
+  without as target for knock from Thing
+  as target for knock { do { say ache } }
+  without as target for climb_over from Thing
+  as target for climb_over { do { say ache } }
+  without as target for lock from Lockable
+  as target for lock { do { say ache } }
+  without as target for unlock from Lockable
+  as target for unlock { do { say ache } }
+  without as target for mung from Thing
+  as target for mung { do { say ache } }
+  without as target for look_in from Thing
+  as target for look_in { do { say "Through the gate lies a desolation, with a pile of mangled bodies in one corner." } }
+}
+
+// The pile of bodies (BODY-FUNCTION), seen from the gate and in the Land of
+// the Dead: not to be taken, and not to be desecrated.
+kind Bodies is Scenery {
+  grammar { name "pile of bodies"  nouns "bodies", "body", "remains", "pile", "corpses", "corpse", "adventurers", "corner"  adjectives "mangled", "stacked", "dead", "previous" }
+  passage short { pile of bodies }
+  passage view default { It is a pile of mangled bodies. }
+  passage no_take { A force keeps you from taking the bodies. }
+  passage disrespect { The voice of the guardian of the dungeon booms out from the darkness, "Your disrespect costs you your life!" and places your head on a sharp pole. }
+  describe { text view }
+  without as target for mung from Thing
+  as target for mung { do { say disrespect  if (actor.is(Adventurer)) { send actor :die } } }
+  without as target for burn from Thing
+  as target for burn {
+    do {
+      if (bound tool) {
+        if (tool.is(Flame)) {
+          if (tool.get(:lit)) { say disrespect  if (actor.is(Adventurer)) { send actor :die } }
+          else { say "With a {tool.short}??!?" }
+        } else if (tool.is(Thing)) { say "With a {tool.short}??!?" }
+        else { say "With that??!?" }
+      } else { say "You didn't say with what!" }
+    }
+  }
+}
+
+// The lamenting voices at the gate, and the lost souls beyond it.
+kind Lament is Scenery {
+  grammar { name "voices"  nouns "voice", "lament", "lamenting", "weeping", "moaning", "wailing"  adjectives "thousands", "lost", "lamenting" }
+  passage short { voices }
+  passage view default { Thousands of voices are lamenting. }
+  describe { text view }
+  without as target for listen from Thing
+  as target for listen { do { say "Thousands of voices, lamenting some hideous fate. You listen for a while, and wish you had not; it is the kind of thing that stays with you." } }
+}
+
+// The crystal skull (SKULL): ten points taken, ten more in the trophy case,
+// the last twenty of Zork's 350.
+kind Skull is Treasure {
+  grammar { name "crystal skull"  nouns "skull", "head", "treasure"  adjectives "crystal", "carved", "grinning" }
+  :has_fdesc true
+  :value 10
+  :tvalue 10
+  passage short { crystal skull }
+  passage fdesc { Lying in one corner of the room is a beautifully carved crystal skull. It appears to be grinning at you rather nastily. }
+  describe { text "It is a human skull, life-size and perfect to the last tooth, carved out of a single piece of rock crystal so clear that you can see your own fingers through it, and so cold it seems to drink the warmth out of them. Whoever carved it knew exactly what a skull looks like from the inside. It is grinning at you rather nastily, which, being a skull, it cannot help." }
+}

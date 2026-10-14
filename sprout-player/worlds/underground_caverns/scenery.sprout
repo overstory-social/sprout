@@ -1,0 +1,93 @@
+// The scenery Zork keeps in LOCAL-GLOBALS and shows in several rooms: the
+// white house, its boards and boarded windows, the front door, the trees.
+// Here each room that shows one has its own.
+import {Thing, Scenery} from 'thing'
+import {open, read, shift, look_in, climb_up, climb_down, walk_around, Dest, :travel} from 'verbs'
+
+kind WhiteHouse is Scenery {
+  grammar { name "white house"  nouns "house"  adjectives "beautiful", "colonial" }
+  passage short { white house }
+  describe {
+    text "The house is a beautiful colonial house which is painted white. It is clear that the owners must have been extremely wealthy."
+  }
+  without as target for open from Thing
+  as target for open { do { say "I can't see how to get in from here." } }
+
+  // Zork's HOUSE-AROUND: walking around the house takes the visitor to the
+  // next side of it, west, north, behind, south and west again.
+  :around Dest default north_side
+  without as target for walk_around from Thing
+  as target for walk_around { do { send actor :travel with self.get(:around)  say "" } }
+}
+
+// The house, seen from the forest: everything about it is elsewhere.
+kind DistantHouse is Scenery {
+  grammar { name "white house"  nouns "house"  adjectives "beautiful", "colonial" }
+  passage short { white house }
+  as target for any { permit { refuse "You're not at the house." } }
+}
+
+kind Boards is Scenery {
+  grammar { name "board"  nouns "boards" }
+  passage short { board }
+  passage no_take { The boards are securely fastened. }
+  describe { text "The boards are securely fastened." }
+}
+
+kind BoardedWindow is Scenery {
+  grammar { name "boarded window"  nouns "window", "windows" }
+  passage short { boarded window }
+  describe { text "The windows are boarded over with planks, nailed on by someone who did not want to be bothered. Through the cracks there is only darkness, and possibly a smell of dust." }
+  without as target for open from Thing
+  as target for open { do { say "The windows are boarded and can't be opened." } }
+}
+
+kind FrontDoor is Scenery {
+  grammar { name "door"  adjectives "front", "boarded" }
+  :door true
+  passage short { door }
+  without as target for open from Thing
+  without as target for read from Thing
+  without as target for look_in from Thing
+  as target for open    { do { say "The door cannot be opened." } }
+  as target for read    { do { say "There is no writing on this side." } }
+  as target for look_in { do { say "The door is closed." } }
+  passage view {
+    The front door is solid oak and painted white, like the rest of the house, and is boarded across with planks nailed every which way, by someone in more of a hurry than a carpenter. Whatever the owners meant by it, they did not mean visitors.
+
+    The door is closed.
+  }
+  describe { text view }
+}
+
+kind Tree is Scenery {
+  grammar { name "tree"  nouns "branch", "branches", "trees"  adjectives "large", "storm" }
+  passage short { tree }
+}
+
+// The tree by the Forest Path, from below and from among its branches.
+kind TreeBelow is Tree {
+  describe { text "It is a particularly large tree, older than the house and in no hurry, with some low branches that all but invite climbing." }
+  without as target for climb_up from Thing
+  without as target for climb_down from Thing
+  as target for climb_up   { do { send actor :travel with :up_a_tree  say "" } }
+  as target for climb_down { do { say "You can't go that way." } }
+}
+kind TreeAbove is Tree {
+  describe { text "The branches around you are thick and sturdy enough to sit in. The nearest one above is just out of reach, which is the tree's way of saying that this is far enough." }
+  without as target for climb_up from Thing
+  without as target for climb_down from Thing
+  as target for climb_up   { do { say "You cannot climb any higher." } }
+  as target for climb_down { do { send actor :travel with :path  say "" } }
+}
+
+// Zork's STAIRS. Climbing them goes the way they lead, as Zork's
+// V-CLIMB-UP and V-CLIMB-DOWN walk; each room's own says which way that is.
+kind Stairs is Scenery {
+  grammar { name "stairs"  nouns "steps", "staircase", "stairway"  adjectives "dark", "rickety" }
+  passage short { stairs }
+  passage view default { The stairs are old, wooden and a little rickety, as stairs in old houses are. }
+  describe { text view }
+  without as target for climb_up from Thing
+  without as target for climb_down from Thing
+}

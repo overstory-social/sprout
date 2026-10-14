@@ -1,0 +1,879 @@
+// The thief: Zork's "seedy-looking individual", an NPC (`sprout.Actor`)
+// with nobody behind him, written from ROBBER-FUNCTION, I-THIEF,
+// THIEF-VS-ADVENTURER, ROB, STEAL-JUNK, DROP-JUNK, DEPOSIT-BOOTY,
+// ROB-MAZE, THIEF-IN-TREASURE, TREASURE-ROOM-FCN and the melee in
+// 1actions.zil.
+//
+// He walks a round of every room underground that Zork does not hold
+// sacred, one room a turn, unseen (Zork's INVISIBLE thief is in the room;
+// so is this one, and nobody can name him or read him arriving). In each
+// room he passes through he robs what Zork's thief robs: treasures off the
+// floor of a room somebody has been in, now and then a lesser thing, and,
+// in a dark room with a visitor in it, sometimes the visitor. Sometimes he
+// lets himself be seen, leaning on a wall with his bag; then he fights with
+// his stiletto, on Zork's tables, until he wins, loses, or leaves.
+//
+// What he takes goes into his large bag, which shows nothing. In his lair,
+// the Treasure Room, he empties it; there he opens the jewel-encrusted egg,
+// as only he can. Killed, he leaves his stiletto and his treasures where he
+// fell, and in his lair his hidden hoard shows itself.
+//
+// A handler has no `here`, so each of his turns starts by asking the room
+// he stands in to show itself (`broadcast :prowl`; the room answers
+// `:survey`), and in that answer `from` is his room. He roams, so he moves
+// himself from room to room by the index the rooms keep (`:tour`), and no
+// turn of his opens the world's gate to anyone else.
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery} from 'thing'
+import {Weapon, Knife, Treasure} from 'items'
+import {Room, DarkRoom} from 'room'
+import {Maze, DeadEnd} from 'maze'
+import {Adventurer} from 'adventurer'
+import {Troll} from 'troll'
+import {Egg} from 'tree'
+import {Chalice, TreasureRoom} from 'cyclops'
+import {ask} from 'sprout'
+import {examine} from 'sprout'
+import {take, drop, open, close, look_in, search, attack, give, throw, listen, talk, greet, alarm, shift, :blow, :expire, :settle, :wander, :thief_start, :prowl, :survey, :rob, :summon, :defend, :pinch, :unveil, :pry, :thief_gone, :keeper} from 'verbs'
+import {cellar, troll_room} from 'cellar'
+import {east_of_chasm, gallery, studio} from 'gallery'
+import {maze_1, maze_2, maze_3, maze_4, dead_end_1, maze_5, dead_end_2, maze_6, maze_7, maze_8, dead_end_3, maze_9, maze_10, maze_11, grating_room, maze_12, dead_end_4, maze_13, maze_14, maze_15} from 'maze'
+import {cyclops_room, strange_passage, treasure_room} from 'cyclops'
+import {east_west_passage, round_room, deep_canyon, damp_cave, loud_room, north_south_passage, chasm_room, engravings_cave} from 'east'
+import {egyptian_room, dome_room, torch_room} from 'temple'
+import {reservoir_south, reservoir_north, stream_view, atlantis_room} from 'reservoir'
+import {dam_room, dam_lobby, maintenance_room} from 'dam'
+import {sandy_cave} from 'river'
+import {narrow_corridor, mirror_room_2, winding_passage, tiny_cave, mirror_room_1, twisting_passage, small_cave, cold_passage} from 'mirror'
+import {slide_room, mine_entrance, squeaky_room, shaft_room, smelly_room, mine_1, mine_2, mine_3, mine_4, ladder_top, ladder_bottom, coal_dead_end, machine_room} from 'mine'
+import {entrance_to_hades, land_of_the_dead} from 'hades'
+extension media 1
+
+message :disgorge with integer
+message :unloaded with integer
+message :pinned with boolean
+
+// His large bag. It shows nothing, and only he reaches into it; what he
+// takes out of it he takes out by asking it (`:disgorge`): 1 his treasures,
+// 2 now and then a thing he finds worthless, 3 everything.
+kind LargeBag is Scenery {
+  contains
+  pass any (false)
+  grammar { name "large bag"  nouns "bag"  adjectives "large", "thiefs", "thief's" }
+  // Whether the thief, out cold, lies on it.
+  :pinned false
+  on :pinned (from, value) { self.set(:pinned, value) }
+  passage short { large bag }
+  passage no_take {{if self.get(:pinned)}Sadly for you, the robber collapsed on top of the bag. Trying to take it would wake him.{else}The bag will be taken over his dead body.{/if}}
+  passage examined { The bag is underneath the thief, so one can't say what, if anything, is inside. }
+  describe { text examined }
+  without as target for open from Thing
+  without as target for close from Thing
+  without as target for look_in from Thing
+  without as target for search from Thing
+  without as target for shift from Thing
+  as target for open    { do { say "Getting close enough would be a good trick." } }
+  as target for close   { do { say "Getting close enough would be a good trick." } }
+  as target for look_in { do { say examined } }
+  as target for search  { do { say examined } }
+  as target for shift   { do { say no_take } }
+
+  on :disgorge (from, value) {
+    if (from.is(Thief)) {
+      each t: Thing in self {
+        if (value == 3) { move t to from }
+        else if (t.is(Treasure)) {
+          if (value == 1 && t.get(:tvalue) > 0) { move t to from }
+          else if (value == 2 && t.get(:tvalue) == 0 && random(10) < 3) { move t to from }
+        } else if (value == 2 && random(10) < 3) { move t to from }
+      }
+      send from :unloaded with value
+    }
+  }
+}
+
+// His stiletto. In his hand it is out of anyone else's; on the floor, while
+// he is anywhere in the room, it is white-hot (Zork's WEAPON-FUNCTION).
+kind Stiletto is Weapon {
+  grammar { name "stiletto"  nouns "dagger"  adjectives "vicious", "deadly", "thin" }
+  :wcode 4
+  :size 10
+  :wielded false
+  on :moved (from, to) { self.set(:wielded, to.is(Thief)) }
+  passage short { stiletto }
+  passage ldesc { There is a stiletto here. }
+  describe { text "It is a stiletto: a thin, three-sided blade on a plain black hilt, made for going between things, ribs among them. It is spotless. Its owner takes better care of it than of anything else he owns, which is saying something, since everything else he owns used to be somebody else's." }
+}
+
+kind Thief is Thing, sprout.Actor {
+  roams
+  grammar { name "thief"  nouns "robber", "man", "person", "gentleman", "individual", "crook"  adjectives "shady", "suspicious", "seedy", "suspicious-looking", "seedy-looking" }
+  :capacity 60
+  // Seen or unseen (Zork's INVISIBLE, cleared): unseen, he is not to be
+  // named, and his hands are out of reach.
+  :shown false
+  :ndesc true
+  pass any (self.get(:shown))
+  as target for any { permit { if (!self.get(:shown)) { refuse "You can't see any such thing." } } }
+  as tool for any   { permit { if (!self.get(:shown)) { refuse "You can't see any such thing." } } }
+
+  object bag is LargeBag
+  object stiletto is Stiletto { :wielded true }
+
+  // His clock (Zork's I-THIEF), which starts the first time anyone goes
+  // down into the Cellar.
+  :started false
+  :dead false
+  // Zork's THIEF-HERE: he has made himself known in the room he is in.
+  :announced false
+  // Zork's FIGHTBIT, STAGGERED and THIEF-ENGROSSED.
+  :fighting false
+  :staggered false
+  :engrossed false
+  // Zork's P?STRENGTH: 5 fresh, less for each wound, negated while he is
+  // out cold.
+  :strength 5 min -9 max 9
+  // Out cold, his chance in a hundred of coming round (Zork's V-PROB),
+  // 25 more each turn.
+  :rouse 0 min 0 max 100
+  // Which part of his turn the room's `:survey` answers: 1 the room he
+  // stands in, 2 the room he has just moved on to, 3 his lair, which he
+  // has come to defend.
+  :phase 0 min 0 max 3
+  // Where he stands, and where he goes next, by the rooms' `:tour`.
+  :at 30 min 0 max 80
+  :next 0 min 0 max 80
+  :rushing false
+  // Whether a visitor stands in his room, as the last survey found.
+  :company false
+  // Scratch: how many treasures he took, whether he is done, whether he
+  // stays put this turn, whether he dropped anything worthless, and what
+  // he left behind dying.
+  :took 0 min 0 max 99
+  :done false
+  :stay false
+  :junked false
+  :booty false
+  // How many things are in his bag, by his own count, since he cannot see
+  // into it; whether he is getting the better of a fight (Zork's WINNING?);
+  // and whether he robs the room or its visitor this turn.
+  :loot 0 min 0 max 99
+  :winning false
+  :pilfer false
+  // The melee (Zork's tables): attack, defence, the die, and the result.
+  :ma 0 min 0 max 99
+  :md 0 min -99 max 99
+  :mk 0 min 0 max 20
+  :mdiff 0 min -200 max 200
+  :mres 1 min 1 max 9
+  // The weapon last swung at him: 1 the sword, 2 the nasty knife, 3 the
+  // axe, 4 his own stiletto; and what the blow did, for the line that says
+  // so: 1 to 6 as the tables, 7 disarmed, 10 out cold and 11 unarmed, he
+  // dies.
+  :wep 1 min 1 max 4
+  :last 0 min 0 max 11
+  // What his own blow does to a visitor, decided as he strikes: 1 missed,
+  // 2 knocked out and spared, 3 killed, 4 lightly wounded, 5 knocked out
+  // and put to death, 6 staggered, 7 seriously wounded, 8 a wound that
+  // kills.
+  :dealt 1 min 1 max 8
+
+  passage short { thief }
+  passage ldesc {
+    {if self.get(:strength) < 0}There is a suspicious-looking individual lying unconscious on the ground.{else}There is a suspicious-looking individual, holding a large bag, leaning against one wall. He is armed with a deadly stiletto.{/if}
+  }
+  passage no_take { Once you got him, what would you do with him? }
+  passage held_fast { Once you got him, what would you do with him? }
+  passage not_yours { The thief swings it out of your reach. }
+  describe {
+    if (self.get(:strength) < 0) { text "The thief lies where he fell, out cold, with his bag beneath him and an expression of pained surprise, as of a man whose luck has never let him down before. Even unconscious he keeps one hand on the bag." }
+    else { text "The thief is a slippery character with beady eyes that flit back and forth. He carries, along with an unmistakable arrogance, a large bag over his shoulder and a vicious stiletto, whose blade is aimed menacingly in your direction. I'd watch out if I were you." }
+    if (seen == :look) { media.show("pictures/thief.png", "the thief") }
+  }
+
+  without as target for listen from Thing
+  as target for listen { do { say "The thief says nothing, as you have not been formally introduced." } }
+  without as target for talk from Thing
+  as target for talk { do { say "The thief is a strong, silent type." } }
+  without as target for ask from Thing
+  as target for ask { do { say "The thief is a strong, silent type." } }
+  without as target for greet from Thing
+  as target for greet {
+    do {
+      if (self.get(:strength) < 0) { say "The thief, being temporarily incapacitated, is unable to acknowledge your greeting with his usual graciousness." }
+      else { say "The thief bows his head to you in greeting." }
+    }
+  }
+  without as target for alarm from Thing
+  as target for alarm {
+    do {
+      if (self.get(:strength) < 0) { say "He seems to be deeply unconscious, and in no hurry to stop being so." }
+      else { say "He's wide awake, or haven't you noticed..." }
+    }
+  }
+  without as target for shift from Thing
+  as target for shift { do { say no_take } }
+
+  // A gift, handed or thrown (Zork's ROBBER-FUNCTION): out cold, he comes
+  // round for it; a treasure he stops to admire, and he is the slower for
+  // it in a fight; anything else goes in the bag with thanks. The visitor's
+  // own part has already put it in his hands.
+  without as recipient for give from Thing
+  as recipient for give {
+    do {
+      if (item.is(Thing)) {
+        if (self.get(:strength) < 0) {
+          say "Your proposed victim suddenly recovers consciousness."
+          self.set(:strength, 0 - self.get(:strength))
+          send treasure_room :keeper with true
+          self.set(:rouse, 0)
+          each b: LargeBag in self { send b :pinned with false }
+        }
+        if (item.is(Treasure)) {
+          if (item.get(:tvalue) > 0) {
+            self.set(:engrossed, true)
+            say "The thief is taken aback by your unexpected generosity, but accepts the {item.short} and stops to admire its beauty."
+          } else { say "The thief places the {item.short} in his bag and thanks you politely." }
+        } else { say "The thief places the {item.short} in his bag and thanks you politely." }
+      }
+    }
+  }
+  // Thrown at, he catches it, as a gift; but the nasty knife, thrown while
+  // he is not fighting, either frightens him off, his bag spilling, or
+  // misses and makes him angry.
+  as aim for throw {
+    do {
+      if (target.is(Thing)) {
+        if (target.is(Knife) && !self.get(:fighting)) {
+          if (random(10) == 0) {
+            if (self.get(:loot) > 0) { say "You evidently frightened the robber, though you didn't hit him. He flees, but the contents of his bag fall on the floor." }
+            else { say "You evidently frightened the robber, though you didn't hit him. He flees." }
+            each b: LargeBag in self { send b :disgorge with 3 }
+            self.set(:shown, false)
+            self.set(:ndesc, true)
+            if (here.is(Room)) { send actor :settle with here.get(:glow) }
+          } else {
+            say "You missed. The thief makes no attempt to take the knife, though it would be a fine addition to the collection in his bag. He does seem angered by your attempt."
+            self.set(:fighting, true)
+          }
+        } else if (target.is(Portable)) {
+          if (self.get(:strength) < 0) {
+            say "Your proposed victim suddenly recovers consciousness."
+            self.set(:strength, 0 - self.get(:strength))
+            send treasure_room :keeper with true
+            self.set(:rouse, 0)
+            each b: LargeBag in self { send b :pinned with false }
+          }
+          if (target.is(Treasure)) {
+            if (target.get(:tvalue) > 0) {
+              self.set(:engrossed, true)
+              say "The thief is taken aback by your unexpected generosity, but accepts the {target.short} and stops to admire its beauty."
+            } else { say "The thief places the {target.short} in his bag and thanks you politely." }
+          } else { say "The thief places the {target.short} in his bag and thanks you politely." }
+        }
+      }
+    }
+  }
+
+  // What comes into his hands goes into his bag, but his stiletto; what
+  // comes out of the bag he lets fall where he stands.
+  on :entered (item, from) {
+    if (item.is(Stiletto) || item.is(LargeBag)) { }
+    else if (from.is(LargeBag)) {
+      self.adjust(:loot, -1)
+      if (item.is(Portable)) { act drop (target: item) }
+      if (item.is(Egg)) { send item :pry }
+      if (item.is(Treasure)) { if (item.get(:tvalue) > 0) { self.set(:booty, true) } }
+      if (self.get(:junked)) {
+        self.set(:junked, false)
+        tell "The robber, rummaging through his bag, dropped a few items he found valueless."
+      }
+    } else {
+      each b: LargeBag in self { move item to b }
+      self.adjust(:loot, 1)
+    }
+  }
+  as actor for drop { do { each t of target { move t to here } } }
+
+  // The bag has given up what he asked of it: dying, his booty stays where
+  // he fell, and in his lair the room shows what he hid there.
+  on :unloaded (from, value) {
+    self.set(:junked, false)
+    if (self.get(:dead) && value == 1) {
+      if (self.get(:at) == 28) { broadcast :unveil }
+      else if (self.get(:booty)) { tell "His booty remains." }
+    }
+  }
+
+  // His clock starts.
+  on :thief_start {
+    if (!self.get(:started) && !self.get(:dead)) {
+      self.set(:started, true)
+      cancel wakes
+      wake in 1 minutes
+    }
+  }
+
+  // One of his turns: he asks the room he is in to show itself.
+  on :woke (elapsed) {
+    if (!self.get(:dead)) {
+      cancel wakes
+      wake in 1 minutes
+      self.set(:phase, 1)
+      broadcast :prowl
+    }
+  }
+
+  // Somebody has walked into his lair. If he is there, unseen, he shows
+  // himself; if he is anywhere else, he comes, by passages unknown to you.
+  on :defend {
+    if (!self.get(:dead) && self.get(:strength) > 0) {
+      self.set(:phase, 3)
+      broadcast :prowl
+    }
+  }
+  on :summon {
+    if (!self.get(:dead) && self.get(:strength) > 0) {
+      self.set(:started, true)
+      self.set(:rushing, true)
+      self.set(:announced, false)
+      self.set(:phase, 3)
+      send self :wander
+    }
+  }
+
+  // The room he stands in, shown: his turn (Zork's I-THIEF and I-FIGHT).
+  on :survey (from) {
+    if (from.is(Room) && !self.get(:dead) && self.get(:phase) > 0) {
+      let ph = self.get(:phase)
+      self.set(:phase, 0)
+      self.set(:stay, false)
+      self.set(:at, from.get(:tour))
+      self.set(:company, from.count(Adventurer) > 0)
+      if (ph == 3) {
+        // TREASURE-ROOM-FCN and THIEF-IN-TREASURE. The scream and the
+        // gesture are the visitor's to tell, as they come in, so that they
+        // come before the room (friction 92); the lair keeps `:keeper` so
+        // that they know he is there to come.
+        self.set(:shown, true)
+        self.set(:ndesc, false)
+        self.set(:fighting, true)
+        each s: Stiletto in from { move s to self }
+        each t: Treasure in from {
+          if (!t.is(Chalice)) {
+            each b: LargeBag in self { move t to b }
+            self.adjust(:loot, 1)
+          }
+        }
+        each a: Adventurer in from { send a :settle with 2 }
+      } else if (self.get(:strength) < 0) {
+        // Out cold (I-FIGHT's AWAKEN): with somebody watching, a growing
+        // chance each turn of coming round; left alone, at once.
+        if (self.get(:company)) {
+          if (random(100) < self.get(:rouse)) {
+            tell "The robber revives, briefly feigning continued unconsciousness, and, when he sees his moment, scrambles away from you."
+            self.set(:rouse, 0)
+            self.set(:strength, 0 - self.get(:strength))
+            send treasure_room :keeper with true
+            self.set(:fighting, true)
+            each s: Stiletto in from { move s to self }
+          } else { self.adjust(:rouse, 25) }
+        } else {
+          self.set(:rouse, 0)
+          self.set(:strength, 0 - self.get(:strength))
+          send treasure_room :keeper with true
+          each s: Stiletto in from { move s to self }
+        }
+      } else {
+        // I-THIEF.
+        if (from.is(TreasureRoom) && !self.get(:company)) {
+          // Alone in his lair: he empties his bag of what is worth having
+          // (DEPOSIT-BOOTY), and opens the egg if he has it.
+          if (self.get(:shown)) {
+            self.set(:shown, false)
+            self.set(:ndesc, true)
+          }
+          each s: Stiletto in from { move s to self }
+          each b: LargeBag in self { send b :disgorge with 1 }
+        } else if (self.get(:company) && from.is(TreasureRoom)) {
+          // THIEF-VS-ADVENTURER's first clause: in his own lair, with a
+          // visitor in it, he neither shows himself, nor robs, nor leaves,
+          // nor runs; he stands and fights until one of them is dead.
+        } else if (self.get(:company) && from.is(DarkRoom) && from.count(Troll) == 0) {
+          // THIEF-VS-ADVENTURER. First, Zork's WINNING?: his strength
+          // against the visitor's, and a chance.
+          self.set(:md, 2)
+          each a: Adventurer in from {
+            self.set(:md, a.get(:fight))
+            if (a.get(:score) >= 70) { self.adjust(:md, 1) }
+            if (a.get(:score) >= 140) { self.adjust(:md, 1) }
+            if (a.get(:score) >= 210) { self.adjust(:md, 1) }
+            if (a.get(:score) >= 280) { self.adjust(:md, 1) }
+            if (a.get(:score) >= 350) { self.adjust(:md, 1) }
+          }
+          self.set(:mdiff, self.get(:strength) - self.get(:md))
+          let w = random(100)
+          if (self.get(:mdiff) > 3) { self.set(:winning, w < 90) }
+          else if (self.get(:mdiff) > 0) { self.set(:winning, w < 75) }
+          else if (self.get(:mdiff) == 0) { self.set(:winning, w < 50) }
+          else if (self.get(:strength) > 1) { self.set(:winning, w < 25) }
+          else { self.set(:winning, w < 10) }
+          self.set(:pilfer, false)
+          if (!self.get(:announced)) {
+            if (!self.get(:shown) && random(10) < 3) {
+              if (self.count(Stiletto) > 0) {
+                self.set(:shown, true)
+                self.set(:ndesc, false)
+                self.set(:announced, true)
+                self.set(:stay, true)
+                tell "Someone carrying a large bag is casually leaning against one of the walls here. He does not speak, but it is clear from his aspect that the bag will be taken only over his dead body."
+                each a: Adventurer in from { send a :settle with 2 }
+              }
+            } else if (self.get(:shown) && self.get(:fighting) && !self.get(:winning)) {
+              tell "Your opponent, determining discretion to be the better part of valor, decides to terminate this little contretemps. With a rueful nod of his head, he steps backward into the gloom and disappears."
+              self.set(:shown, false)
+              self.set(:ndesc, true)
+              self.set(:fighting, false)
+              self.set(:stay, true)
+              each s: Stiletto in from { move s to self }
+              each a: Adventurer in from { send a :settle with from.get(:glow) }
+            } else if (self.get(:shown) && self.get(:fighting) && random(10) < 9) {
+            } else if (self.get(:shown) && random(10) < 3) {
+              tell "The holder of the large bag just left, looking disgusted. Fortunately, he took nothing."
+              self.set(:shown, false)
+              self.set(:ndesc, true)
+              self.set(:stay, true)
+              each s: Stiletto in from { move s to self }
+              each a: Adventurer in from { send a :settle with from.get(:glow) }
+            } else if (random(10) < 7) {
+            } else {
+              self.set(:announced, true)
+              self.set(:pilfer, true)
+            }
+          } else if (self.get(:shown) && random(10) < 3) {
+            self.set(:pilfer, true)
+          }
+          // He robs the room of its treasures, or, if it has none, its
+          // visitor, who hands them over (a visitor's hands are the
+          // visitor's own); seen, he leaves with them.
+          if (self.get(:pilfer)) {
+            self.set(:took, 0)
+            each t: Treasure in from {
+              if (t.get(:tvalue) > 0 && !t.get(:sacred)) {
+                each b: LargeBag in self { move t to b }
+                self.adjust(:loot, 1)
+                self.adjust(:took, 1)
+              }
+            }
+            if (self.get(:took) > 0) {
+              if (self.get(:shown)) { tell "The thief just left, still carrying his large bag. You may not have noticed that he appropriated the valuables in the room." }
+              else { tell "A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from the room, mumbling something about \"Doing unto others before...\"" }
+            } else {
+              each a: Adventurer in from {
+                if (self.get(:shown)) { send a :rob with 2 } else { send a :rob with 1 }
+              }
+            }
+            if (self.get(:shown)) {
+              self.set(:shown, false)
+              self.set(:ndesc, true)
+              self.set(:fighting, false)
+              each s: Stiletto in from { move s to self }
+              each a: Adventurer in from { send a :settle with from.get(:glow) }
+            }
+          }
+        } else {
+          // Somewhere nobody is, or nobody he cares to meet: he goes on
+          // unseen, robbing the room of its treasures if anybody has been
+          // in it, and of a lesser thing now and then.
+          if (self.get(:shown)) {
+            self.set(:shown, false)
+            self.set(:ndesc, true)
+            each a: Adventurer in from { send a :settle with from.get(:glow) }
+          }
+          if (from.get(:visited)) {
+            // ROB of the room, as Zork's I-THIEF robs a lit room with the
+            // visitor in it: silently in Zork, but here a treasure gone from
+            // under the visitor's eyes is told with STEAL-JUNK's own line.
+            each t: Treasure in from {
+              if (t.get(:tvalue) > 0 && !t.get(:sacred) && random(4) < 3) {
+                each b: LargeBag in self { move t to b }
+                self.adjust(:loot, 1)
+                if (self.get(:company)) { tell "You suddenly notice that the {t.short} vanished." }
+              }
+            }
+            self.set(:done, false)
+            if (from.is(Maze) || from.is(DeadEnd)) {
+              // ROB-MAZE: in the maze, the first thing he has his eye on,
+              // said aloud; anyone else in the maze hears it.
+              each t: Portable in from {
+                if (!self.get(:done) && !t.get(:sacred) && random(10) < 4) {
+                  self.set(:done, true)
+                  send t :pinch with random(10) < 6
+                }
+              }
+            } else {
+              // STEAL-JUNK: one lesser thing, now and then, and his
+              // stiletto always.
+              each t: Portable in from {
+                if (!self.get(:done) && !t.get(:sacred) && (t.is(Stiletto) || random(10) == 0)) {
+                  if (t.is(Treasure)) {
+                    if (t.get(:tvalue) == 0) {
+                      self.set(:done, true)
+                      if (t.is(Stiletto)) { move t to self } else {
+                        each b: LargeBag in self { move t to b }
+                        self.adjust(:loot, 1)
+                      }
+                      if (self.get(:company)) { tell "You suddenly notice that the {t.short} vanished." }
+                    }
+                  } else {
+                    self.set(:done, true)
+                    if (t.is(Stiletto)) { move t to self } else {
+                        each b: LargeBag in self { move t to b }
+                        self.adjust(:loot, 1)
+                      }
+                    if (self.get(:company)) { tell "You suddenly notice that the {t.short} vanished." }
+                  }
+                }
+              }
+            }
+          }
+        }
+        // I-FIGHT: seen, with somebody here, he fights if he is fighting,
+        // and now and then starts to; anywhere else he stops fighting, and
+        // stops admiring whatever he was given.
+        if (ph == 1 && !(self.get(:company) && self.get(:shown))) {
+          self.set(:engrossed, false)
+          self.set(:staggered, false)
+          self.set(:fighting, false)
+        }
+        if (ph == 1 && self.get(:company) && self.get(:shown)) {
+          if (self.get(:engrossed)) { self.set(:engrossed, false) }
+          else if (self.get(:fighting) || (self.get(:announced) && random(10) < 2)) {
+            self.set(:fighting, true)
+            if (self.get(:staggered)) {
+              self.set(:staggered, false)
+              tell "The thief slowly regains his feet."
+            } else if (self.count(Stiletto) == 0 && from.count(Stiletto) > 0) {
+              each s: Stiletto in from { move s to self }
+              tell "The robber, somewhat surprised at this turn of events, nimbly retrieves his stiletto."
+            } else {
+              each a: Adventurer in from {
+                if (self.count(Stiletto) > 0) { each s: Stiletto in self { act attack (target: a, weapon: s) } }
+                else { act attack (target: a) }
+              }
+            }
+          }
+        }
+        // On to the next room, unseen, unless something here keeps him.
+        if (ph == 1 && !self.get(:shown) && !self.get(:stay)) {
+          each s: Stiletto in from { move s to self }
+          if (from.get(:tour) >= 70 || from.get(:tour) == 0) { self.set(:next, 1) }
+          else { self.set(:next, from.get(:tour) + 1) }
+          self.set(:phase, 2)
+          self.set(:announced, false)
+          send self :wander
+        } else if (!from.is(TreasureRoom)) {
+          // DROP-JUNK: now and then he lets fall something not worth his bag.
+          self.set(:junked, self.get(:company))
+          each b: LargeBag in self { send b :disgorge with 2 }
+        }
+      }
+    }
+  }
+
+  // To his lair, or on round the Empire.
+  on :wander {
+    if (self.get(:rushing)) {
+      self.set(:rushing, false)
+      move self to treasure_room
+    } else {
+      if (self.get(:next) == 1) { move self to cellar
+      } else if (self.get(:next) == 2) { move self to troll_room
+      } else if (self.get(:next) == 3) { move self to east_of_chasm
+      } else if (self.get(:next) == 4) { move self to gallery
+      } else if (self.get(:next) == 5) { move self to studio
+      } else if (self.get(:next) == 6) { move self to maze_1
+      } else if (self.get(:next) == 7) { move self to maze_2
+      } else if (self.get(:next) == 8) { move self to maze_3
+      } else if (self.get(:next) == 9) { move self to maze_4
+      } else if (self.get(:next) == 10) { move self to dead_end_1
+      } else if (self.get(:next) == 11) { move self to maze_5
+      } else if (self.get(:next) == 12) { move self to dead_end_2
+      } else if (self.get(:next) == 13) { move self to maze_6
+      } else if (self.get(:next) == 14) { move self to maze_7
+      } else if (self.get(:next) == 15) { move self to maze_8
+      } else if (self.get(:next) == 16) { move self to dead_end_3
+      } else if (self.get(:next) == 17) { move self to maze_9
+      } else if (self.get(:next) == 18) { move self to maze_10
+      } else if (self.get(:next) == 19) { move self to maze_11
+      } else if (self.get(:next) == 20) { move self to grating_room
+      } else if (self.get(:next) == 21) { move self to maze_12
+      } else if (self.get(:next) == 22) { move self to dead_end_4
+      } else if (self.get(:next) == 23) { move self to maze_13
+      } else if (self.get(:next) == 24) { move self to maze_14
+      } else if (self.get(:next) == 25) { move self to maze_15
+      } else if (self.get(:next) == 26) { move self to cyclops_room
+      } else if (self.get(:next) == 27) { move self to strange_passage
+      } else if (self.get(:next) == 28) { move self to treasure_room
+      } else if (self.get(:next) == 29) { move self to east_west_passage
+      } else if (self.get(:next) == 30) { move self to round_room
+      } else if (self.get(:next) == 31) { move self to deep_canyon
+      } else if (self.get(:next) == 32) { move self to damp_cave
+      } else if (self.get(:next) == 33) { move self to loud_room
+      } else if (self.get(:next) == 34) { move self to north_south_passage
+      } else if (self.get(:next) == 35) { move self to chasm_room
+      } else if (self.get(:next) == 36) { move self to engravings_cave
+      } else if (self.get(:next) == 37) { move self to egyptian_room
+      } else if (self.get(:next) == 38) { move self to dome_room
+      } else if (self.get(:next) == 39) { move self to torch_room
+      } else if (self.get(:next) == 40) { move self to reservoir_south
+      } else if (self.get(:next) == 41) { move self to reservoir_north
+      } else if (self.get(:next) == 42) { move self to stream_view
+      } else if (self.get(:next) == 43) { move self to atlantis_room
+      } else if (self.get(:next) == 44) { move self to dam_room
+      } else if (self.get(:next) == 45) { move self to dam_lobby
+      } else if (self.get(:next) == 46) { move self to maintenance_room
+      } else if (self.get(:next) == 47) { move self to sandy_cave
+      } else if (self.get(:next) == 48) { move self to narrow_corridor
+      } else if (self.get(:next) == 49) { move self to mirror_room_2
+      } else if (self.get(:next) == 50) { move self to winding_passage
+      } else if (self.get(:next) == 51) { move self to tiny_cave
+      } else if (self.get(:next) == 52) { move self to mirror_room_1
+      } else if (self.get(:next) == 53) { move self to twisting_passage
+      } else if (self.get(:next) == 54) { move self to small_cave
+      } else if (self.get(:next) == 55) { move self to cold_passage
+      } else if (self.get(:next) == 56) { move self to slide_room
+      } else if (self.get(:next) == 57) { move self to mine_entrance
+      } else if (self.get(:next) == 58) { move self to squeaky_room
+      } else if (self.get(:next) == 59) { move self to shaft_room
+      } else if (self.get(:next) == 60) { move self to smelly_room
+      } else if (self.get(:next) == 61) { move self to mine_1
+      } else if (self.get(:next) == 62) { move self to mine_2
+      } else if (self.get(:next) == 63) { move self to mine_3
+      } else if (self.get(:next) == 64) { move self to mine_4
+      } else if (self.get(:next) == 65) { move self to ladder_top
+      } else if (self.get(:next) == 66) { move self to ladder_bottom
+      } else if (self.get(:next) == 67) { move self to coal_dead_end
+      } else if (self.get(:next) == 68) { move self to machine_room
+      } else if (self.get(:next) == 69) { move self to entrance_to_hades
+      } else if (self.get(:next) == 70) { move self to land_of_the_dead
+      }
+    }
+  }
+
+  // His blow (Zork's VILLAIN-BLOW, with THIEF-MELEE's words): decided here
+  // on the tables and told to the one it falls on. What it does to them,
+  // the wound, the stagger, the death, is theirs to write, and their own
+  // part of `attack` reads it from `:dealt`.
+  as actor for attack {
+    do {
+      if (target.is(Adventurer)) {
+        // His strength, no more than 2 while he is admiring a gift.
+        self.set(:ma, self.get(:strength))
+        if (self.get(:engrossed)) {
+          if (self.get(:ma) > 2) { self.set(:ma, 2) }
+          self.set(:engrossed, false)
+        }
+        // Theirs, as Zork's FIGHT-STRENGTH: more as their score grows,
+        // less for every wound.
+        self.set(:md, target.get(:fight))
+        if (target.get(:score) >= 70) { self.adjust(:md, 1) }
+        if (target.get(:score) >= 140) { self.adjust(:md, 1) }
+        if (target.get(:score) >= 210) { self.adjust(:md, 1) }
+        if (target.get(:score) >= 280) { self.adjust(:md, 1) }
+        if (target.get(:score) >= 350) { self.adjust(:md, 1) }
+        if (self.get(:md) > 0) {
+          self.set(:mk, random(9))
+          if (self.get(:md) == 1) {
+            if (self.get(:ma) >= 3) { self.adjust(:mk, 2) } else if (self.get(:ma) == 2) { self.adjust(:mk, 1) }
+            if (self.get(:mk) < 4) { self.set(:mres, 1) } else if (self.get(:mk) < 6) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 2) } else { self.set(:mres, 3) }
+          } else if (self.get(:md) == 2) {
+            if (self.get(:ma) <= 1) {
+              if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else { self.set(:mres, 4) }
+            } else {
+              if (self.get(:ma) == 3) { self.adjust(:mk, 1) } else if (self.get(:ma) >= 4) { self.adjust(:mk, 2) }
+              if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else if (self.get(:mk) < 9) { self.set(:mres, 2) } else { self.set(:mres, 3) }
+            }
+          } else {
+            self.set(:mdiff, self.get(:ma) - self.get(:md))
+            if (self.get(:mdiff) <= -2) {
+              if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else { self.set(:mres, 4) }
+            } else if (self.get(:mdiff) == -1) {
+              self.adjust(:mk, 1)
+              if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else if (self.get(:mk) < 9) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            } else if (self.get(:mdiff) == 0) {
+              if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            } else if (self.get(:mdiff) == 1) {
+              self.adjust(:mk, 1)
+              if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            } else {
+              if (self.get(:mk) < 1) { self.set(:mres, 1) } else if (self.get(:mk) < 3) { self.set(:mres, 6) } else if (self.get(:mk) < 7) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            }
+          }
+          let v = self.get(:mres)
+          if (v == 1) {
+            self.set(:dealt, 1)
+            tell target "{one of}The thief stabs nonchalantly with his stiletto and misses.{or}You dodge as the thief comes in low.{or}You parry a lightning thrust, and the thief salutes you with a grim nod.{or}The thief tries to sneak past your guard, but you twist away.{/one of}"
+          } else if (v == 2) {
+            // Out cold, the visitor lies at his mercy: one to three more
+            // strokes, and only a stagger's luck on every one spares them.
+            tell target "{one of}Shifting in the midst of a thrust, the thief knocks you unconscious with the haft of his stiletto.{or}The thief knocks you out.{/one of}"
+            let more = random(3)
+            if (random(9) < 2 && (more == 0 || random(9) < 2) && (more <= 1 || random(9) < 2)) {
+              self.set(:dealt, 2)
+              tell target "{one of}The thief, a man of superior breeding, pauses for a moment to consider the propriety of finishing you off.{or}The thief amuses himself by searching your pockets.{or}The thief entertains himself by rifling your pack.{/one of}"
+            } else {
+              self.set(:dealt, 5)
+              tell target "{one of}The thief, forgetting his essentially genteel upbringing, cuts your throat.{or}The thief, a pragmatist, dispatches you as a threat to his livelihood.{/one of}"
+              tell target dead_line
+            }
+          } else if (v == 3) {
+            self.set(:dealt, 3)
+            tell target "{one of}Finishing you off, the thief inserts his blade into your heart.{or}The thief comes in from the side, feints, and inserts the blade into your ribs.{or}The thief bows formally, raises his stiletto, and with a wry grin, ends the battle and your life.{/one of}"
+            tell target dead_line
+          } else if (v == 4) {
+            tell target "{one of}A quick thrust pinks your left arm, and blood starts to trickle down.{or}The thief draws blood, raking his stiletto across your arm.{or}The stiletto flashes faster than you can follow, and blood wells from your leg.{or}The thief slowly approaches, strikes like a snake, and leaves you wounded.{/one of}"
+            if (self.get(:md) <= 1) {
+              self.set(:dealt, 8)
+              tell target dead_line
+            } else { self.set(:dealt, 4) }
+          } else if (v == 5) {
+            tell target "{one of}The thief strikes like a snake! The resulting wound is serious.{or}The thief stabs a deep cut in your upper arm.{or}The stiletto touches your forehead, and the blood obscures your vision.{or}The thief strikes at your wrist, and suddenly your grip is slippery with blood.{/one of}"
+            if (self.get(:md) <= 2) {
+              self.set(:dealt, 8)
+              tell target dead_line
+            } else { self.set(:dealt, 7) }
+          } else {
+            // A stagger, or one time in four a lost weapon: the visitor's
+            // own hands are out of his range, so they tell it themselves.
+            self.set(:dealt, 6)
+          }
+        }
+      }
+    }
+  }
+  passage dead_line { It appears that that last blow was too much for you. I'm afraid you are dead. }
+
+  // The visitor's blow (Zork's HERO-BLOW). `value` is the weapon: 1 the
+  // sword, 2 the nasty knife, 3 the axe, 4 the stiletto, 0 a blow that came
+  // to nothing. Whatever it did, his turn follows it.
+  on :blow (from, value) {
+    if (from.is(Adventurer) && !self.get(:dead)) {
+      self.set(:fighting, true)
+      self.set(:last, 0)
+      if (value == 0) { }
+      else if (self.get(:strength) < 0) {
+        self.set(:last, 10)
+        send self :expire
+      } else if (self.count(Stiletto) == 0) {
+        self.set(:last, 11)
+        send self :expire
+      } else {
+        self.set(:wep, value)
+        self.set(:ma, from.get(:fight))
+        if (from.get(:score) >= 70) { self.adjust(:ma, 1) }
+        if (from.get(:score) >= 140) { self.adjust(:ma, 1) }
+        if (from.get(:score) >= 210) { self.adjust(:ma, 1) }
+        if (from.get(:score) >= 280) { self.adjust(:ma, 1) }
+        if (from.get(:score) >= 350) { self.adjust(:ma, 1) }
+        if (self.get(:ma) < 1) { self.set(:ma, 1) }
+        // His defence: his strength, no more than 2 while he admires a
+        // gift, and one less against the nasty knife, his bane; whatever it
+        // came to, it is his strength after the blow (VILLAIN-RESULT).
+        self.set(:md, self.get(:strength))
+        if (self.get(:engrossed)) {
+          if (self.get(:md) > 2) { self.set(:md, 2) }
+          self.set(:engrossed, false)
+        }
+        if (value == 2 && self.get(:md) > 1) { self.adjust(:md, -1) }
+        self.set(:mk, random(9))
+        if (self.get(:md) == 1) {
+          if (self.get(:ma) >= 3) { self.adjust(:mk, 2) } else if (self.get(:ma) == 2) { self.adjust(:mk, 1) }
+          if (self.get(:mk) < 4) { self.set(:mres, 1) } else if (self.get(:mk) < 6) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 2) } else { self.set(:mres, 3) }
+        } else if (self.get(:md) == 2) {
+          if (self.get(:ma) <= 1) {
+            if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else { self.set(:mres, 4) }
+          } else {
+            if (self.get(:ma) == 3) { self.adjust(:mk, 1) } else if (self.get(:ma) >= 4) { self.adjust(:mk, 2) }
+            if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else if (self.get(:mk) < 9) { self.set(:mres, 2) } else { self.set(:mres, 3) }
+          }
+        } else {
+          self.set(:mdiff, self.get(:ma) - self.get(:md))
+          if (self.get(:mdiff) <= -2) {
+            if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else { self.set(:mres, 4) }
+          } else if (self.get(:mdiff) == -1) {
+            self.adjust(:mk, 1)
+            if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else if (self.get(:mk) < 9) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+          } else if (self.get(:mdiff) == 0) {
+            if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+          } else if (self.get(:mdiff) == 1) {
+            self.adjust(:mk, 1)
+            if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+          } else {
+            if (self.get(:mk) < 1) { self.set(:mres, 1) } else if (self.get(:mk) < 3) { self.set(:mres, 6) } else if (self.get(:mk) < 7) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+          }
+        }
+        if (self.get(:mres) == 6 && random(4) == 0) { self.set(:mres, 7) }
+        let r = self.get(:mres)
+        self.set(:last, r)
+        if (r == 2) {
+          send treasure_room :keeper with false
+          self.set(:strength, 0 - self.get(:md))
+          self.set(:fighting, false)
+          self.set(:rouse, 0)
+          each s: Stiletto in self { act drop (target: s) }
+          each b: LargeBag in self { send b :pinned with true }
+        } else if (r == 3) {
+          send self :expire
+        } else if (r == 4 || r == 5) {
+          if (r == 4) { self.adjust(:md, -1) } else { self.adjust(:md, -2) }
+          if (self.get(:md) <= 0) { send self :expire }
+          else { self.set(:strength, self.get(:md)) }
+        } else {
+          self.set(:strength, self.get(:md))
+          if (r == 6) { self.set(:staggered, true) }
+          if (r == 7) { each s: Stiletto in self { act drop (target: s) } }
+        }
+      }
+      if (self.get(:strength) > 0) {
+        cancel wakes
+        wake in 1 minutes
+        self.set(:phase, 1)
+        broadcast :prowl
+      }
+    }
+  }
+
+  // Dead: the fog takes him; his stiletto falls, and so does what he had
+  // of value, out of the bag. The rest goes with him.
+  on :expire {
+    if (!self.get(:dead)) {
+      self.set(:dead, true)
+      self.set(:fighting, false)
+      self.set(:booty, false)
+      send treasure_room :keeper with false
+      tell "Almost as soon as the thief breathes his last breath, a cloud of sinister black fog envelops him, and when the fog lifts, the carcass has disappeared."
+      broadcast :thief_gone
+      each s: Stiletto in self { act drop (target: s) }
+      each b: LargeBag in self { send b :disgorge with 1 }
+      cancel wakes
+      finally destroy self
+    }
+  }
+
+  passage wep_name {{if self.get(:wep) == 1}sword{else if self.get(:wep) == 2}nasty knife{else if self.get(:wep) == 3}bloody axe{else}stiletto{/if}}
+
+  // Zork's HERO-MELEE, for the thief: a line drawn from those for what the
+  // blow did.
+  passage hit_line {{if self.get(:last) == 1}{self.missed}{else if self.get(:last) == 2}{self.knocked_out}{else if self.get(:last) == 3}{self.killed}{else if self.get(:last) == 4}{self.wounded}{else if self.get(:last) == 5}{self.gashed}{else if self.get(:last) == 6}{self.staggered_line}{else if self.get(:last) == 7}{self.disarmed}{else if self.get(:last) == 10}The unconscious thief cannot defend himself: He dies.{else if self.get(:last) == 11}The unarmed thief cannot defend himself: He dies.{/if}}
+  passage missed {{one of}Your {self.wep_name} misses the thief by an inch.{or}A good slash, but it misses the thief by a mile.{or}You charge, but the thief jumps nimbly aside.{or}Clang! Crash! The thief parries.{or}A quick stroke, but the thief is on guard.{or}A good stroke, but it's too slow; the thief dodges.{/one of}}
+  passage knocked_out {{one of}Your {self.wep_name} crashes down, knocking the thief into dreamland.{or}The thief is battered into unconsciousness.{or}A furious exchange, and the thief is knocked out!{or}The haft of your {self.wep_name} knocks out the thief.{or}The thief is knocked out!{/one of}}
+  passage killed {{one of}It's curtains for the thief as your {self.wep_name} removes his head.{or}The fatal blow strikes the thief square in the heart: He dies.{or}The thief takes a fatal blow and slumps to the floor dead.{/one of}}
+  passage wounded {{one of}The thief is struck on the arm; blood begins to trickle down.{or}Your {self.wep_name} pinks the thief on the wrist, but it's not serious.{or}Your stroke lands, but it was only the flat of the blade.{or}The blow lands, making a shallow gash in the thief's arm!{/one of}}
+  passage gashed {{one of}The thief receives a deep gash in his side.{or}A savage blow on the thigh! The thief is stunned but can still fight!{or}Slash! Your blow lands! That one hit an artery, it could be serious!{or}Slash! Your stroke connects! This could be serious!{/one of}}
+  passage staggered_line {{one of}The thief is staggered, and drops to his knees.{or}The thief is momentarily disoriented and can't fight back.{or}The force of your blow knocks the thief back, stunned.{or}The thief is confused and can't fight back.{or}The quickness of your thrust knocks the thief back, stunned.{/one of}}
+  passage disarmed {{one of}The thief's weapon is knocked to the floor, leaving him unarmed.{or}The thief is disarmed by a subtle feint past his guard.{/one of}}
+}
+
+// He starts in the Round Room, as Zork's does, unseen.
+object thief is Thief in round_room

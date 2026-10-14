@@ -1,0 +1,676 @@
+// Zork's verbs, as Sprout verbs. Where the standard library has a verb of
+// the same name (take, drop, put, open, close, look_in, unlock), this one
+// replaces it, so that the words and the refusals are Zork's own.
+import {Box} from 'box'
+import * as sprout from 'sprout'
+import {inventory} from 'sprout'
+import {Portable, Inflatable, Switchable, Lockable, Tieable, Lowerable, Pluggable, Mechanism, Diggable} from 'thing'
+import {Grating} from 'grating'
+import {River, WaterAbout, Shovel} from 'river'
+import {Lake, Stream, Pump} from 'reservoir'
+import {Water} from 'items'
+import {Canary} from 'tree'
+import {SkeletonKey} from 'remains'
+import {Sceptre, Bell, Rope} from 'temple'
+import {Ghosts} from 'hades'
+import {Vessel} from 'boat'
+
+// `take` and `drop` take several things at once, as Zork's do: `take lamp
+// and sword`, `take all`. Each is answered with its name before it, as
+// Zork answers more than one.
+// Zork's TAKE ... FROM and TAKE ... OUT OF: the box says only where to
+// look, and the take is the plain one.
+verb take {
+  role target many
+  role source: Box
+  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"
+  "take [target] from [source]"  "take [target] out of [source]"  "get [target] from [source]"
+  "get [target] out of [source]"
+  synonyms "steal", "seize", "grab", "carry", "hold", "remove"
+}
+
+// A trailing `here` is the standard library's (sprout#473), and this
+// `drop` replaces the library's, so it writes the same three.
+verb drop {
+  role target: Portable carried many
+  "drop [target]"  "put down [target]"  "put [target] down"  "discard [target]"
+  "release [target]"  "drop [target] here"  "put down [target] here"  "put [target] down here"
+  synonyms "leave"
+}
+
+verb put {
+  role item
+  role container: Box
+  "put [item] in [container]"  "put [item] into [container]"  "put [item] on [container]"
+  "place [item] in [container]"  "place [item] on [container]"
+  "insert [item] in [container]"  "insert [item] into [container]"
+  "stuff [item] in [container]"
+}
+// Zork's PUT into the grating (GRATE-FUNCTION): a small thing goes
+// through the bars into the dark below.
+verb put_through {
+  role item carried
+  role target: Grating
+  "put [item] in [target]"  "put [item] into [target]"  "put [item] through [target]"  "drop [item] through [target]"
+  "drop [item] in [target]"  "drop [item] into [target]"  "push [item] through [target]"  "throw [item] through [target]"
+}
+// Zork's DROP into something is its PUT.
+intent drop_in {
+  "drop [x] in [y]"  "drop [x] into [y]"  "drop [x] down [y]"
+  do put (item: x, container: y)
+}
+
+verb open {
+  role target
+  role tool carried
+  "open [target]"  "open [target] with [tool]"
+  "pry open [target] with [tool]"  "force [target] with [tool]"
+  "push open [target]"  "pull open [target]"  "push [target] open"  "pull [target] open"
+}
+
+verb close { role target  "close [target]"  "shut [target]" }
+
+verb read { role target  "read [target]"  "skim [target]"  "peruse [target]" }
+
+verb look_in {
+  role target
+  "look in [target]"  "look inside [target]"  "look into [target]"
+  "look through [target]"
+}
+
+// Zork's SEARCH, which finds nothing unusual: a verb of its own, not LOOK
+// INSIDE, so `search the walls` is not answered as a container.
+verb search { role target  "search [target]"  "search in [target]"  "rummage in [target]" }
+
+verb look_under {
+  role target
+  "look under [target]"  "look beneath [target]"  "look below [target]"
+  "search under [target]"
+}
+
+verb lamp_on {
+  role target: Switchable
+  "turn on [target]"  "turn [target] on"  "light [target]"  "switch on [target]"
+  "switch [target] on"  "activate [target]"
+}
+
+verb lamp_off {
+  role target: Switchable
+  "turn off [target]"  "turn [target] off"  "extinguish [target]"
+  "switch off [target]"  "switch [target] off"  "douse [target]"
+  "blow out [target]"  "blow [target] out"
+}
+
+verb attack {
+  role target
+  role weapon carried
+  "attack [target] with [weapon]"  "attack [target]"
+  synonyms "kill", "hit", "fight", "stab", "slay", "murder", "strike"
+}
+
+verb shift {
+  role target
+  "move [target]"  "push [target]"  "pull [target]"  "slide [target]"
+  "roll up [target]"  "shove [target]"  "press [target]"
+}
+// Moving a thing aside, or out of the way, or off: SHIFT all the same.
+intent shift_aside {
+  "move [x] aside"  "push [x] aside"  "pull [x] aside"  "move [x] out of the way"
+  "push [x] out of the way"  "pull [x] out of the way"  "pull [x] off"  "pull off [x]"
+  do shift (target: x)
+}
+
+verb raise { role target  "raise [target]"  "lift [target]"  "lift up [target]"  "pull up [target]"  "haul up [target]"  "hoist [target]"  "bring up [target]" }
+// Zork's LOWER, for the basket on its chain (v7).
+verb lower { role target: Lowerable  "lower [target]"  "let down [target]"  "send down [target]"  "lower down [target]" }
+
+verb eat { role target  "eat [target]"  "consume [target]"  "devour [target]"  "taste [target]" }
+
+verb drink { role target  "drink [target]"  "sip [target]"  "swallow [target]" }
+
+verb wind { role target: Canary  "wind [target]"  "wind up [target]" }
+
+verb tally { role target  "count [target]" }
+
+verb smell { role target  "smell [target]"  "sniff [target]" }
+// `smell` alone: Zork would ask what; the parser here cannot ask, so the
+// visitor is told what there is to smell, as `listen` alone is.
+verb smell_here { "smell"  "sniff"  "smell the air"  "sniff the air" }
+
+verb listen { role target  "listen to [target]"  "listen for [target]" }
+// `listen` alone: Zork would ask to what; the parser here cannot ask, so the
+// visitor is told what there is to hear.
+verb listen_here { "listen"  "listen carefully" }
+
+verb climb_up { role target  "climb up [target]"  "go up [target]"  "scale [target]" }
+verb climb_down { role target  "climb down [target]"  "go down [target]"  "descend [target]"  "slide down [target]"  "lower yourself down [target]" }
+
+verb unlock { role target: Lockable  role tool: SkeletonKey carried  "unlock [target] with [tool]"  "unlock [target]" }
+
+verb lock { role target: Lockable  "lock [target]" }
+
+verb knock { role target  "knock on [target]"  "knock at [target]"  "rap on [target]"  "rap at [target]" }
+
+// Zork's DIG: with no tool, the visitor's own pair of hands.
+verb dig {
+  role target: Diggable
+  role tool carried
+  "dig in [target]"  "dig [target]"  "dig in [target] with [tool]"  "dig [target] with [tool]"
+  "dig through [target]"  "dig through [target] with [tool]"  "dig into [target]"  "dig into [target] with [tool]"
+}
+// `dig with the shovel`, with nothing named to dig in: Zork would ask what
+// in, and the parser here cannot ask, so the answer is the one Zork gives
+// once it knows. Only the shovel is offered to dig with.
+verb dig_with { role tool: Shovel carried  "dig with [tool]"  "dig using [tool]" }
+
+// Zork's POUR: alone it is DROP, into something it is PUT, onto something
+// it is POUR-ON. Only water pours.
+verb pour_in {
+  role item: Water
+  role container
+  "pour [item] in [container]"  "pour [item] into [container]"
+  "spill [item] in [container]"  "spill [item] into [container]"
+}
+verb pour_on {
+  role item: Water
+  role target
+  "pour [item] on [target]"  "pour [item] onto [target]"  "pour [item] over [target]"
+  "spill [item] on [target]"  "spill [item] over [target]"
+}
+
+verb pour { role target: Water  "pour [target]"  "pour out [target]"  "spill [target]" }
+
+// Zork's MUNG: breaking, destroying, damaging. Zork wants something to do
+// it with and asks what; the parser here cannot ask, so a bare `break`
+// is taken as the hands.
+verb mung {
+  role target
+  role tool carried
+  "break [target] with [tool]"  "break [target]"  "destroy [target] with [tool]"
+  "destroy [target]"  "damage [target] with [tool]"  "smash [target] with [tool]"
+  "smash [target]"  "vandalize [target]"
+}
+
+verb walk_around {
+  role target
+  "walk around [target]"  "go around [target]"  "run around [target]"  "step around [target]"
+  "proceed around [target]"
+}
+verb walk_about { "walk"  "step" }
+
+// Zork's THROUGH, for the ways in English a visitor climbs through a window.
+verb through {
+  role target
+  "go in through [target]"  "walk in through [target]"  "climb in through [target]"
+  "climb through [target]"  "crawl through [target]"  "walk through [target]"
+  "walk in [target]"  "climb in [target]"
+}
+
+verb give {
+  role item carried
+  role recipient
+  "give [item] to [recipient]"  "give [recipient] [item]"
+  "offer [item] to [recipient]"  "hand [item] to [recipient]"  "feed [item] to [recipient]"
+  "feed [recipient] [item]"  "donate [item] to [recipient]"  "offer [recipient] [item]"
+}
+// `feed` with only the one fed: Zork's parser asks what with (its orphan
+// question); this one cannot take the answer, so it asks the question and
+// the visitor says the whole sentence again.
+verb feed_bare { role target: sprout.Actor  "feed [target]" }
+
+// Zork's THROW: the thing leaves the hand for the floor, and whatever it
+// was thrown at answers.
+verb throw {
+  role target carried
+  role aim
+  "throw [target] at [aim]"  "throw [target] to [aim]"  "throw [target] in [aim]"
+  "throw [target] into [aim]"  "throw [target] over [aim]"  "throw [target] down [aim]"
+  "throw [target]"
+  synonyms "toss", "hurl", "chuck"
+}
+
+// Zork's HACK-HACK verbs, and the rest of the small change of the parser:
+// each answered by every thing with Zork's default, and by a few things
+// better. `wave` is the sceptre's alone.
+verb kick { role target  "kick [target]"  "taunt [target]" }
+verb rub { role target  "rub [target]"  "touch [target]"  "feel [target]"  "pat [target]"  "pet [target]"  "caress [target]" }
+// Zork's RUB ... WITH: the mirror, touched with something, only tingles.
+verb rub_with { role target  role tool carried  "rub [target] with [tool]"  "touch [target] with [tool]"  "feel [target] with [tool]"  "pat [target] with [tool]"  "poke [target] with [tool]"  "tap [target] with [tool]" }
+verb wave { role target: Sceptre  "wave [target]"  "brandish [target]"  "flourish [target]" }
+verb shake { role target  "shake [target]" }
+verb squeeze { role target  "squeeze [target]" }
+verb kiss { role target  "kiss [target]"  "hug [target]"  "embrace [target]" }
+verb look_behind { role target  "look behind [target]" }
+verb fill {
+  role target
+  role tool
+  "fill [target] with [tool]"  "fill [target]"  "fill up [target]"
+}
+verb tie {
+  role target: Tieable
+  role tool
+  "tie [target] to [tool]"  "fasten [target] to [tool]"  "attach [target] to [tool]"
+  "tie up [target]"  "tie [target]"
+}
+// Zork's ALARM: waking someone who is out cold.
+verb alarm { role target  "wake [target]"  "wake up [target]"  "awaken [target]"  "rouse [target]"  "startle [target]"  "surprise [target]" }
+// Zork's TELL, and HELLO said to someone.
+verb talk { role target  "talk to [target]"  "speak to [target]"  "tell [target]"  "ask [target]"  "chat with [target]" }
+verb greet { role target  "hello [target]"  "hi [target]"  "greet [target]"  "say hello to [target]" }
+// Zork's CROSS, and the ways of getting past a rope a visitor might try,
+// which only the rope adds to it.
+verb cross { role target  "cross [target]"  "ford [target]" }
+verb pray { "pray" }
+
+// Not Zork's words, but the ones players reach for at a barrier: over it,
+// under it, clearing it away. Each thing answers in Zork's voice.
+verb climb_over {
+  role target
+  "climb over [target]"  "step over [target]"  "hop over [target]"  "vault over [target]"
+  "vault [target]"  "clamber over [target]"
+}
+verb duck_under {
+  role target
+  "duck under [target]"  "crawl under [target]"  "go under [target]"  "slip under [target]"
+  "squeeze under [target]"
+}
+verb clear {
+  role target
+  "clear [target]"  "clear away [target]"  "clear [target] away"  "clear out [target]"
+  "shift [target] aside"
+}
+// Zork's CUT. Turned on someone, Zork's CUT is an attack (`cut_with`).
+verb cut {
+  role target
+  role tool carried
+  "cut [target]"  "slice [target]"  "chop [target]"
+}
+intent cut_with {
+  "cut [x] with [y]"  "slice [x] with [y]"  "chop [x] with [y]"  "hack at [x] with [y]"
+  do attack (target: x, weapon: y) when (x.is(sprout.Actor)) then cut (target: x, tool: y) when (!x.is(sprout.Actor))
+}
+// `look down`, where there is somewhere to look down to.
+verb look_down { "look down"  "look below"  "peer down"  "look over the edge"  "look over the side"  "look down into the room below"  "look into the room below"  "look down below" }
+intent look_over {
+  "look over [x]"  "peer over [x]"  "lean over [x]"  "look down over [x]"
+  do look_in (target: x)
+}
+verb swim { "swim"  "bathe"  "wade" }
+// Swimming in something, or across it: the water's own refusal where the
+// thing is water (Zork's LAKE-PSEUDO, RIVER-FUNCTION and GLOBAL-WATER
+// answer SWIM as THROUGH), and plain SWIM anywhere else.
+intent swim_in {
+  "swim in [x]"  "swim across [x]"  "swim through [x]"  "swim into [x]"  "swim over [x]"
+  "swim to [x]"  "bathe in [x]"  "wade into [x]"
+  do through (target: x) when (x.is(Lake) || x.is(River) || x.is(WaterAbout) || x.is(Stream)) then swim when (!(x.is(Lake) || x.is(River) || x.is(WaterAbout) || x.is(Stream)))
+}
+
+// Zork's ECHO: a word the Loud Room listens for. Anywhere else, the echo
+// is all it gets.
+verb echo { "echo"  "say echo"  "shout echo"  "yell echo" }
+// Zork's RING, for the Temple's bell.
+verb ring { role target: Bell  role tool  "ring [target]"  "ring [target] with [tool]" }
+// Zork's EXORCISE, with its BANISH, CAST, DRIVE and BEGONE: only the
+// ceremony itself has any effect, and at the gates of Hell that is what the
+// visitor is told to perform.
+verb exorcise {
+  role target: Ghosts
+  "exorcise [target]"  "banish [target]"  "cast out [target]"  "drive out [target]"
+  "drive away [target]"  "exorcise out [target]"  "exorcise away [target]"  "begone [target]"
+}
+// EXORCISE with nothing named: Zork would ask what; the parser here cannot
+// ask, so the visitor is answered as if the spirits were named.
+verb exorcise_here { "exorcise"  "perform exorcism"  "perform an exorcism"  "perform the exorcism"  "perform ceremony"  "perform the ceremony"  "perform the rite"  "begone" }
+// Zork's UNTIE, for the rope.
+verb untie {
+  role target: Rope
+  role tool
+  "untie [target]"  "untie [target] from [tool]"  "unfasten [target]"  "unfasten [target] from [tool]"
+  "detach [target]"  "detach [target] from [tool]"  "unknot [target]"
+}
+// Zork's BURN: with something already burning, the torch or the candles.
+// Zork asks with what when told only `burn`; the parser here cannot ask,
+// so the answer is the one Zork gives when the question goes unanswered.
+verb burn {
+  role target
+  role tool
+  "burn [target] with [tool]"  "burn [target]"  "light [target] with [tool]"
+  "ignite [target] with [tool]"  "set fire to [target] with [tool]"  "set fire to [target]"
+  "incinerate [target] with [tool]"  "incinerate [target]"
+}
+// Zork's LEAP with something to leap at: over it, into it, across it.
+verb leap_at {
+  role target
+  "jump [target]"  "jump over [target]"  "jump into [target]"  "jump in [target]"
+  "jump across [target]"  "leap over [target]"  "leap into [target]"  "leap across [target]"
+}
+// Zork's TURN, which pages a book and turns little else.
+verb turn { role target  "turn [target]"  "turn [target] over"  "turn over [target]"  "flip [target] over"  "turn page of [target]"  "turn pages of [target]"  "flip through [target]"  "leaf through [target]" }
+// Zork's TREASURE and TEMPLE: words the Temple and the Treasure Room know,
+// each the way to the other.
+verb treasure { "treasure"  "temple"  "say treasure"  "say temple" }
+// Zork's ODYSSEUS: the name the Cyclops's father had cause to remember.
+verb odysseus { "ulysses"  "odysseus"  "say ulysses"  "say odysseus"  "yell ulysses"  "yell odysseus"  "shout ulysses"  "shout odysseus" }
+
+// The boat (v6): getting in and out, launching, landing, and blowing it
+// up. A bare "launch" and "land" in the boat are the boat's own ways out
+// (boat.sprout), offered only where they apply; these take the words a
+// player says with the boat named.
+verb board {
+  role target: Vessel
+  "board [target]"  "get in [target]"  "get into [target]"  "get on [target]"
+  "sit in [target]"  "embark on [target]"  "take in [target]"
+}
+// Not ENTER: any verb that reads `enter [target]` answers `enter house`
+// with its own words where the house's way in refuses (friction 101).
+verb disembark {
+  role target: Vessel
+  "get out of [target]"  "disembark [target]"  "disembark from [target]"  "exit [target]"
+  "climb out of [target]"  "step out of [target]"  "get off [target]"  "take out [target]"
+  // Zork's LEAVE is DROP, and of the vehicle one is in, DISEMBARK: an
+  // intent that chose between them would fault (friction 105), so `leave`
+  // is a word of both, and the reading that is allowed wins.
+  synonyms "leave"
+}
+verb disembark_here { "get out"  "disembark"  "climb out"  "step out"  "alight"  "stand up" }
+verb launch { role target: Vessel  "launch [target]"  "push off in [target]"  "push [target] off"  "row [target] out" }
+verb land { role target: Vessel  "land [target]"  "beach [target]"  "ground [target]"  "row [target] ashore" }
+verb ashore { "go ashore"  "row ashore"  "come ashore"  "head for shore"  "head for the shore"  "push off"  "make for the shore" }
+verb inflate {
+  role target: Inflatable
+  role tool: Pump
+  "inflate [target] with [tool]"  "inflate [target]"  "blow up [target] with [tool]"
+  "blow up [target]"  "blow into [target]"  "pump up [target] with [tool]"  "pump up [target]"
+  "pump [target]"
+}
+verb deflate { role target: Vessel  "deflate [target]"  "let air out of [target]"  "let the air out of [target]" }
+// Zork's PLUG, and its GLUE, PATCH, REPAIR and FIX.
+verb plug {
+  role target: Pluggable
+  role tool carried
+  "plug [target] with [tool]"  "plug [target]"  "plug up [target] with [tool]"
+  "stop [target] with [tool]"  "seal [target] with [tool]"  "stuff [tool] into [target]"
+  synonyms "glue", "patch", "repair", "fix", "mend"
+}
+// Spreading something on something is plugging it, as Zork's PUT of the
+// putty on the leak is.
+intent smear {
+  "apply [x] to [y]"  "spread [x] on [y]"  "smear [x] on [y]"  "squeeze [x] on [y]"
+  "squeeze [x] onto [y]"  "rub [x] on [y]"  "press [x] into [y]"
+  do plug (target: y, tool: x)
+}
+// Zork's TURN ... WITH: the bolt, and the wrench to turn it.
+verb turn_with {
+  role target: Mechanism
+  role tool carried
+  "turn [target] with [tool]"  "turn [target] using [tool]"  "rotate [target] with [tool]"
+  "twist [target] with [tool]"  "tighten [target] with [tool]"  "loosen [target] with [tool]"
+  "unscrew [target] with [tool]"  "screw [target] with [tool]"
+}
+// Zork's TURN ON ... WITH, which for the coal mine's machine is turning its
+// switch (MACHINE-F).
+intent turn_on_with {
+  "turn on [x] with [y]"  "turn [x] on with [y]"  "start [x] with [y]"  "switch on [x] with [y]"
+  "activate [x] with [y]"
+  do turn_with (target: x, tool: y)
+}
+// Zork's OIL, LUBRICATE and GREASE.
+verb oil { role target: Mechanism  role tool carried  "oil [target] with [tool]"  "lubricate [target] with [tool]"  "grease [target] with [tool]" }
+
+verb score { "score" }
+verb diagnose { "diagnose" }
+verb xyzzy { "xyzzy"  "plugh" }
+verb hello { "hello"  "hi" }
+verb jump { "jump"  "leap" }
+verb yell { "yell"  "scream"  "shout" }
+verb zork { "zork" }
+verb verbose { "verbose" }
+verb brief { "brief" }
+verb superbrief { "superbrief" }
+verb quit { "quit"  "q" }
+verb restart { "restart" }
+verb save { "save" }
+verb restore { "restore" }
+verb curse { "damn"  "curse"  "shit"  "fuck" }
+
+// The ways in English a verb the world knows is followed by a preposition
+// its own phrases do not take. Without them the preposition is read as the
+// start of a name, and a thing in plain sight is answered `not_here`
+// (friction 68).
+intent squeeze_through {
+  "squeeze through [x]"  "squeeze in through [x]"  "squeeze into [x]"  "go through [x]"
+  "go into [x]"  "walk into [x]"  "crawl into [x]"  "go in [x]"
+  do through (target: x)
+}
+// Up and down the stairs, said as a house is said: Zork has no UPSTAIRS,
+// and its stairs go where CLIMB UP and CLIMB DOWN take them.
+verb upstairs { "go upstairs"  "upstairs"  "climb upstairs"  "walk upstairs"  "run upstairs"  "head upstairs" }
+verb downstairs { "go downstairs"  "downstairs"  "climb downstairs"  "walk downstairs"  "run downstairs"  "head downstairs" }
+// Mercy, as players offer it to the disarmed troll: Zork has no SPARE.
+verb spare {
+  role target
+  "spare [target]"  "let [target] go"  "let [target] live"  "show mercy to [target]"
+  "have mercy on [target]"  "forgive [target]"  "spare the life of [target]"
+}
+// Going back the way one came, said as players say it.
+intent go_back_up {
+  "go back up [x]"  "climb back up [x]"  "head back up [x]"
+  do climb_up (target: x)
+}
+intent go_back_down {
+  "go back down [x]"  "climb back down [x]"  "head back down [x]"
+  do climb_down (target: x)
+}
+intent look_down_into {
+  "look down into [x]"  "peer down into [x]"  "look down at [x]"
+  "look down [x]"  "peer down [x]"  "look down the [x]"
+  do look_in (target: x)
+}
+// Giving, as people say it beyond give's own eight phrases: the troll can
+// be handed his water, or let drink it.
+intent give_more {
+  "hand [y] [x]"  "pass [x] to [y]"  "pass [y] [x]"  "let [y] have [x]"
+  "let [y] drink [x]"  "let [y] eat [x]"  "give [x] for [y] to drink"
+  do give (item: x, recipient: y)
+}
+intent what_carried {
+  "what am i carrying"  "what do i have"  "what have i got"  "what am i holding"
+  do inventory
+}
+// Asked as a person would ask it: Zork's SCORE.
+intent how_doing {
+  "how am i doing"  "what is my score"  "whats my score"  "what's my score"
+  do score
+}
+intent climb_into {
+  "climb down into [x]"  "go down into [x]"  "lower yourself into [x]"
+  do climb_down (target: x)
+}
+intent walk_around_to {
+  "walk around to the back of [x]"  "go around to the back of [x]"
+  "walk round [x]"  "go round [x]"  "walk around to [x]"
+  do walk_around (target: x)
+}
+
+// The library's `open [y] with [x]` intent stands for its own `open`, which
+// this world replaces; this one stands for this world's.
+intent open_with {
+  "use [x] to open [y]"
+  do open (target: y, tool: x)
+}
+
+// Where somebody may be sent by the world's gate: see the world's `:gate`.
+enum Dest { grate_drop, tiny_cave, hades, lld, spirit, risen, barrow_in, ns_passage, forest_1, path, up_a_tree, kitchen, attic, cellar, living_room, living_dead, west_side, north_side, behind, south_side, banish, prayed, torch_room, ew_passage, chasm, loud_room, deep_canyon, temple, egypt, treasure, cyclops, strange, damp_cave, round_room, canyon_view, ledge, canyon_bottom, falls, rainbow_end, on_rainbow, atlantis, dam_room, dam_base, bat, mirror_1, mirror_2, small_cave, smelly_room, gas_room, ladder_top, ladder_bottom, mine_1, mine_2, mine_3, mine_4, squeaky_room, mine_entrance }
+
+// Where on the water a boat is, or which shore it may put out from (v6):
+// the rooms the Frigid River, the stream and the reservoir touch, and
+// `nowhere` for everywhere else.
+enum Reach { nowhere, dam_base, river_1, river_2, river_3, river_4, river_5, white_cliffs_north, white_cliffs_south, sandy_beach, shore, reservoir_south, reservoir_north, reservoir, stream_view, in_stream }
+
+// How much of a room a visitor is told on coming back to it: Zork's BRIEF
+// (the default), VERBOSE and SUPERBRIEF.
+enum Mode { brief, verbose, superbrief }
+
+message :scored with integer
+message :claimed
+message :light with integer
+message :relight
+message :room_lit with boolean
+message :open_gate
+message :gate_open
+// The thief, setting off: he roams, so he moves himself to his next room
+// or his lair with no gate opened (thief.sprout).
+message :wander
+message :close_gate
+message :fall
+message :landed
+message :smash
+message :window_sync with boolean
+message :trap with boolean
+message :trap_sync with boolean
+message :rug_moved
+message :reveal
+message :blow with integer
+message :hit with integer
+message :swing
+message :expire
+message :gift
+message :come_round
+message :troll_flag with boolean
+message :troll_gone
+message :glow with integer
+message :settle with integer
+message :die
+message :grue
+message :travel with Dest
+message :wall_look with integer
+// The trap door is free to be barred again behind the next one down: up
+// the chimney while it is shut (false), or a death (true), as Zork clears
+// its TOUCHBIT in UP-CHIMNEY-FUNCTION and JIGS-UP.
+message :unbar with boolean
+message :sealed with boolean
+// The grating, one grating seen from two rooms: whether it is unlocked and
+// whether it is open, kept in step on both sides, and the leaves that hid
+// it gone from above.
+message :grate_unlock with boolean
+message :grate_open with boolean
+message :grate_revealed
+// The skeleton's ghost: the visitor's valuables, and the room's, banished.
+message :banish
+// The rusty knife, once it has done what it does.
+message :spend
+// The Loud Room falls quiet for good once somebody says the word.
+message :hush
+// The rope tied to the Dome's railing, or untied: the Dome keeps the way
+// down, and the Torch Room below sees the rope's end.
+message :dome_rope with boolean
+// Something gone for good: burned, vaporized, or dropped into the chasm.
+message :consume
+// The candles, burning down, or put out: whoever holds them has a light
+// fewer, and the room they light may be dark.
+message :snuffed
+// The candles, a stage further burned down (1 to 3), or out (4).
+message :candle_burn with integer
+// The rope, let go of at the Dome's rail.
+message :let_go
+// The thief (thief.sprout). His clock starts the first time anyone goes
+// down into the Cellar; each of his turns he asks the room he is in to
+// show itself (`:prowl`, answered `:survey`), since a handler has no
+// `here`; he walks the Empire by the world's gate.
+message :thief_start
+message :prowl
+message :survey
+// The thief robs a visitor, who hands over what he takes (the hands are
+// the visitor's own): 1 while he passes unseen, 2 as he leaves, seen.
+message :rob with integer
+// The Treasure Room, entered: the thief comes to defend it, from wherever
+// he is (`:summon`, through the world) or from where he stood unseen in it
+// (`:defend`).
+message :summon
+message :defend
+// The thief tells his lair whether he is there to come to its defense:
+// false while he lies out cold and once he is dead.
+message :keeper with boolean
+// In the maze, a thing the thief has his eye on, and whether he takes it;
+// and the voice a visitor elsewhere in the maze hears saying so.
+message :pinch with boolean
+// The thief, dead: a sword that knew him knows it.
+message :thief_gone
+message :far_voice
+// Dying in the Treasure Room, the thief lets it show what he hid there.
+message :unveil
+// The egg, opened by someone with the tools and the expertise.
+message :pry
+// A stoppered bottle opened by somebody else's hands.
+message :uncork
+// The Cyclops: his clock (I-CYCLOPS), the state the Cyclops Room describes
+// him in (0 hungry, 1 wary, 2 gasping, 3 asleep, 4 gone), and his leaving
+// by the east wall, which opens the Strange Passage to the Living Room.
+message :clock
+message :cyc_state with integer
+message :magic
+message :cyclops_gone
+// Something dropped from the tree top by somebody other than a visitor.
+message :shed
+// The dam (v6). The state of the sluice gates and the water behind them,
+// which the bolt keeps and tells every room that cares, through the world:
+// 0 gates shut and the reservoir full, 1 gates open and still full, 2 gates
+// open and the reservoir drained, 3 gates shut and refilling.
+message :tide with integer
+// The yellow and brown buttons, which free and lock the bolt (GATE-FLAG).
+message :gate_flag with boolean
+// The red button: the Maintenance Room's lights.
+message :lights
+// The Maintenance Room, full of water: its doors open no more.
+message :flooded
+// The Loud Room, roaring with the gates open, throws its visitor out.
+message :flung with boolean
+// The rainbow over Aragain Falls, solid (true) or only light (false).
+message :rainbow with boolean
+// Somebody in a boat asks the room it lies in for a way out of it (a
+// handler has no `here`): the room answers with itself, `:berth`. A room
+// told `:wreck` swaps the inflated boat in it for a punctured one.
+message :where
+message :berth
+message :wreck
+// A burning match, gone out in somebody's hand.
+message :match_out
+// The coal mine and the mirrors (v7). The mirror broken, both mirrors and
+// both rooms hear it through the world; the one who broke it is unlucky.
+message :shatter
+message :bad_luck
+// The Bat Room, entered: the visitor sees whether there is garlic about,
+// and if not, the bat carries them off (`:bats`).
+message :bats
+// The Gas Room, entered with a flame (`:gas`), or a match struck in it
+// (`:boom`).
+message :gas
+message :boom
+// The Tiny Cave's draught, at the candles in hand, and the candles blown
+// out by it.
+message :gust
+message :blow_out
+// Hades (v8). The bell rung at the gates of Hell (XB), the candles lit in
+// hand while the spirits reel (XC), and the black book read while they
+// cower: the Entrance to Hades keeps the ceremony's clock.
+message :rite
+message :rite_lit
+message :rite_read
+// The Entrance to Hades, counting the dead who stand in it.
+message :reckon
+// The bell, red hot, cooled by water poured on it.
+message :cool
+// The brass lantern's battery, burning down (1 a bit dimmer, 2 definitely
+// dimmer, 3 nearly out, 4 burned out).
+message :lamp_age with integer
+// A move made with the brass lantern lit in hand.
+message :burn_tick
+// The brass lantern thrown and smashed.
+message :shatter_lamp
+// The score at 350 (Zork's WON-FLAG): the map in the trophy case, and the
+// secret path from West of House to the Stone Barrow.
+message :won
+// The barrow entered: the game is over, and the score is read (FINISH).
+message :finish
+// Something put through the grating, on its way down to the Grating Room.
+message :sink

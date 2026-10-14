@@ -1,0 +1,2049 @@
+// The adventurer: what every visitor is made of. Zork's own parts of the
+// verbs that are the adventurer's to answer (taking, dropping, putting,
+// fighting, the score), the light they carry, their wounds, their score and
+// their deaths.
+//
+// Dying is Zork's JIGS-UP: ten points lost, then, the first two times, the
+// Forest with what was carried scattered (the lamp to the Living Room,
+// treasures to dark places, everything else above ground); the third time,
+// the Land of the Living Dead. Getting there takes the world's gate, since
+// no room can otherwise reach another.
+import * as sprout from 'sprout'
+import {Thing, Portable, Flame} from 'thing'
+import {Box, Bag} from 'box'
+import {Lamp, Light, BrokenLamp} from 'lamp'
+import {Weapon, Sword, Knife, Axe, Treasure, Food, Water, Lunch, Garlic} from 'items'
+import {Room, DarkRoom, Forest, Perilous, ChimneyFoot, ChimneyTop, ChasmEdge, CanyonEdge, Songful} from 'room'
+import {TreeTop, Nest, Egg, Canary, Bauble} from 'tree'
+import {Troll} from 'troll'
+import {Thief, Stiletto} from 'thief'
+import {Cyclops, CyclopsRoom, TreasureRoom, Chalice, :flee} from 'cyclops'
+import {treasure_room, cyclops_room, strange_passage} from 'cyclops'
+import {go, look, examine, inventory, wait, help} from 'sprout'
+import {spare, upstairs, downstairs, take, drop, put, give, knock, dig, dig_with, pour, pour_in, pour_on, mung, walk_around, walk_about, through, attack, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, climb_up, climb_down, unlock, lock, score, diagnose, xyzzy, hello, jump, yell, zork, verbose, brief, superbrief, quit, restart, save, restore, curse, echo, ring, untie, burn, leap_at, turn, treasure, odysseus, throw, kick, rub, wave, shake, squeeze, kiss, feed_bare, look_behind, fill, tie, alarm, talk, greet, pray, swim, search, cross, climb_over, duck_under, clear, cut, look_down, listen_here, smell_here, Dest, Mode, :scored, :light, :relight, :room_lit, :grue, :open_gate, :gate_open, :close_gate, :blow, :troll_gone, :glow, :die, :claimed, :settle, :travel, :unbar, :banish, :spend, :hush, :snuffed, :candle_burn, :let_go, :rob, :far_voice, :consume, :thief_gone, :cyclops_gone, :shed, :fall, board, disembark, disembark_here, launch, land, inflate, deflate, plug, turn_with, oil, :where, :berth, :wreck, :flung, :match_out, :rainbow, ashore, lower, rub_with, :shatter, :bad_luck, :bats, :gas, :boom, :gust, :blow_out, exorcise, exorcise_here, :rite, :rite_lit, :rite_read, :won, :shatter_lamp, :troll_flag, :cool, :lamp_age, :finish, :burn_tick, :smash, put_through, :sink} from 'verbs'
+import {behind_house, clearing, forest_1, forest_2, forest_3, forest_path, grating_clearing, north_of_house, south_of_house, west_of_house} from 'above_ground'
+import {cellar, troll_room} from 'cellar'
+import {attic, kitchen, living_room, Bottle} from 'house'
+import {land_of_the_living_dead} from 'nowhere'
+import {east_of_chasm, studio, StudioChimney} from 'gallery'
+import {maze_5, Maze, DeadEnd} from 'maze'
+import {Skeleton, RustyKnife, SkeletonKey} from 'remains'
+import {east_west_passage, north_south_passage, chasm_room, loud_room, deep_canyon, Abyss} from 'east'
+import {torch_room, temple, egyptian_room, Rope, Railing, Coffin, Torch, Candles, Bell, BlackBook, DomeRoom, AltarRoom, TempleRoom} from 'temple'
+import {Leaves, GratingAbove} from 'grating'
+import {Stairs} from 'scenery'
+import {Sharp, Rejecting} from 'items'
+import {MagicBoat, Vessel, :put_out, :come_ashore, :hurry} from 'boat'
+import {Pump, reservoir_north, atlantis_room} from 'reservoir'
+import {Matchbook, dam_room, dam_base} from 'dam'
+import {:dig_sand, River, Shovel, Narrows, CliffCave, CanyonRim, SandyCave, Sand, Riverside, OnTheRiver, canyon_view, cliff_middle, canyon_bottom, aragain_falls, end_of_rainbow, on_rainbow, RainbowTop, RainbowFoot} from 'river'
+import {damp_cave, round_room} from 'east'
+import {Bat, Basket, Chute, Crawlspace, GasRoom, ShaftTop, Reeking, Squeaky, bat_room, mine_1, mine_2, mine_3, mine_4, ladder_top, ladder_bottom, squeaky_room, mine_entrance, smelly_room, gas_room} from 'mine'
+import {Mirror, Murmuring, BelowAltar, mirror_room_1, mirror_room_2, small_cave, tiny_cave} from 'mirror'
+import {HadesGate, Ghosts, entrance_to_hades, land_of_the_dead} from 'hades'
+import {inside_barrow, AncientMap} from 'barrow'
+import {DraftyEnd} from 'mine'
+import {ask} from 'sprout'
+
+kind Adventurer is sprout.Visitor {
+  :capacity 30
+  :score 0 min -100 max 350
+  :deaths 0 min 0 max 3
+  :light 0 min 0 max 9
+  :room_dark false
+  :wounds 0 min 0 max 9
+  :fight 2 min -9 max 9
+  :staggered false
+  :healing false
+  :load 0 min 0 max 900
+  :dest Dest default forest_1
+  :devoured false
+  :own_light false
+  :mode Mode default brief
+  // Standing at the foot of the Studio's chimney.
+  :at_chimney false
+  // Attacking with the rusty knife.
+  :suicide false
+  // How many skeleton keys are in hand: a grating cannot look into the
+  // hands of the one unlocking it, so the hands say.
+  :keys 0 min 0 max 9
+  // How many gold coffins are in hand, for the hole in the Altar's floor,
+  // which cannot see into the hands of the one going down it (friction 72).
+  :coffins 0 min 0 max 9
+  // Zork's MOVES: every command but the ones about the game itself.
+  :moves 0 min 0 max 1000000
+  // The move by which the next wound point heals (Zork's I-CURE tick, read
+  // by DIAGNOSE): a wake's own time cannot be read, so the hands keep it.
+  :cure_at 0 min 0 max 1000000
+  // Scratch for DIAGNOSE: the moves until every wound is cured, and the
+  // strength to spare (Zork's FIGHT-STRENGTH less the wounds).
+  :cure_left 0 min -1000000 max 1000000
+  :spare 0 min -20 max 20
+  // Scratch for taking several things in one command: the load so far, and
+  // how many of them are not already held.
+  :carry 0 min 0 max 900
+  :fresh 0 min 0 max 50
+  // Whether the thing `take all` has come to is inside another it is
+  // taking: Zork's ALL takes the sack, not the lunch out of it.
+  :nested false
+  // Of several taken out of a box, this one is not in it.
+  :astray false
+  // Somewhere in the maze, where a thief's voice carries from room to room.
+  :in_maze false
+  // How brightly the sword should glow here, with nobody visiting: what the
+  // room says, for when the thief who made it blaze is gone.
+  :room_glow 0 min 0 max 2
+  // Scratch, for being robbed: how much went, and whether a light went.
+  :robbed 0 min 0 max 50
+  :lost_light false
+  :still_lit false
+  // Zork's FIGHT-STRENGTH, for the thief and the Cyclops: the visitor's
+  // strength grows with the score.
+  :might 0 min -20 max 20
+  // What the thief's or the Cyclops's last blow did, as he decided it.
+  :hurt 1 min 1 max 8
+  // How many air pumps and shovels are in hand: the pile of plastic and the
+  // sand cannot look into the hands of the one working them (friction 33).
+  :pumps 0 min 0 max 9
+  :shovels 0 min 0 max 9
+  // On a White Cliffs Beach, where the paths are too narrow for an
+  // inflated boat (WHITE-CLIFFS-FUNCTION's DEFLATE).
+  :at_narrows false
+  // Getting out of a boat something sharp has just got at: once out, the
+  // room is asked to swap it for the punctured boat.
+  :wrecking false
+  // Attacking with something sharp from the magic boat.
+  :spiked false
+  // How many cloves of garlic are in hand, for the bat, who cannot see into
+  // the hands he respects (v7).
+  :garlics 0 min 0 max 9
+  // In the Timber Room or the Drafty Room, between which nothing heavier
+  // than a clove of garlic goes (Zork's EMPTY-HANDED).
+  :in_crawl false
+  // The mirror broken by these hands: Zork's LUCKY, gone.
+  :unlucky false
+  // Scratch, for the Gas Room: a flame in hand.
+  :flaming false
+  // Hades (v8). Whether the Altar has been seen, after which a death is
+  // spent as a spirit before the gates of Hell (JIGS-UP); whether this
+  // visitor is that spirit (Zork's DEAD); standing at the Altar, whose hole
+  // will not take the coffin (COFFIN-CURE).
+  :altar_seen false
+  :dead false
+  :at_altar false
+  // The score at 350 (WON-FLAG), and the game over: the barrow entered, or
+  // the third death (FINISH).
+  :won false
+  :finished false
+  :in_barrow false
+
+  passage hands_full { You're holding too many things already! }
+
+  // DEAD-FUNCTION: what a spirit may not do, and what it is told.
+  passage dead_cant { You can't even do that. }
+  passage dead_vain { All such attacks are vain in your condition. }
+  passage dead_beyond { Even such an action is beyond your capabilities. }
+  passage dead_wait { Might as well. You've got an eternity. }
+  passage dead_light { You need no light to guide you. }
+  passage dead_score { You're dead! How can you think of your score? }
+  passage dead_take { Your hand passes through its object. }
+  passage dead_none { You have no possessions. }
+  passage dead_diag { You are dead. }
+  // FINISH: the game is over, by the barrow or by a third death.
+  passage over { {if self.get(:in_barrow)}The door of the barrow has closed behind you, and the bridge ahead belongs to another adventure. Your adventure in the Great Underground Empire is over.{else}Your remains are installed in the Land of the Living Dead, and nothing further will happen to you in this game.{/if} }
+
+  // Zork's EMPTY-HANDED refusal, going on as the chimney's does: which of
+  // the things in hand will not go, the lamp among them
+  // where it is carried, and that the slot takes a body and next to nothing.
+  // Only those are named, so the garlic and the matchbook are left out of it.
+  // A small container is named for holding anything at all: a passage does
+  // no sums (friction).
+  passage crawl_load { You cannot fit through this passage with that load. What will not go through the slot between the timbers is {for u: Thing in self}{if u.get(:size) > 4}the {u.short}, {else if u.is(Box)}{if u.get(:held) > 0}the {u.short} with what is in it, {/if}{/if}{/for}and anything else bigger than would go in a pocket. }
+
+  // Zork's "Your load is too heavy.", and which of what is carried weighs
+  // the most, where it is one of the heavy ones. With the torch, which
+  // never goes out, and the lamp both in hand, the lamp is named: of the
+  // two, it is the one a visitor can spare.
+  passage heaviest {{if self.count(Coffin) > 0}{for t: Coffin in self}{t.short}{/for}{else if self.count(Sword) > 0}{for t: Sword in self}{t.short}{/for}{else if self.count(Axe) > 0}{for t: Axe in self}{t.short}{/for}{else if self.count(Leaves) > 0}{for t: Leaves in self}{t.short}{/for}{else if self.count(Torch) > 0 && self.count(Lamp) > 0}{for t: Lamp in self}{t.short}{/for}{else if self.count(Torch) > 0}{for t: Torch in self}{t.short}{/for}{/if}}
+  passage too_heavy { Your load is too heavy{if self.count(Coffin) > 0 || self.count(Sword) > 0 || self.count(Axe) > 0 || self.count(Leaves) > 0 || self.count(Torch) > 0}, the {self.heaviest} not least of it{/if}. }
+
+  // Zork's UP-CHIMNEY-FUNCTION: up the Studio's chimney only with a light
+  // and at most one thing besides.
+  passage empty_handed { Going up empty-handed is a bad idea. }
+  passage overloaded { You can't get up there with what you're carrying, which is {for u: Thing in self}{if !$first}{if $last} and {else}, {/if}{/if}the {u.short}{/for}. The chimney has room for you, your lamp and one thing more, and not an inch besides. }
+  // Zork's chimney wants the brass lamp itself: a flame in the open is no
+  // light to climb a chimney by.
+  passage lampless { You can't get up there with what you're carrying. The draught up the chimney would have any flame out before you were halfway, and nothing else you have would see you to the top; it is a climb for a lamp. }
+  depart (to) {
+    // SOUTH-TEMPLE: the hole in the Altar's floor takes anything but the
+    // gold coffin (COFFIN-CURE).
+    if (self.get(:at_altar) && to.is(BelowAltar) && self.get(:coffins) > 0) { refuse "You haven't a prayer of getting the coffin down there." }
+    // DEAD-FUNCTION: a spirit does not go west from the Timber Room.
+    if (self.get(:dead) && self.get(:in_crawl) && to.is(DraftyEnd)) { refuse "You cannot enter in your condition." }
+    // NO-OBJS: between the Timber Room and the Drafty Room, nothing in hand
+    // may weigh more than four, what is in it counting.
+    if (self.get(:in_crawl) && to.is(Crawlspace)) {
+      each t: Thing in self {
+        if (t.get(:size) > 4) { refuse crawl_load }
+        if (t.is(Box)) { if (t.get(:size) + t.get(:held) > 4) { refuse crawl_load } }
+      }
+    }
+    if (self.get(:at_narrows) && self.count(MagicBoat) > 0 && to.is(Room)) {
+      if (to.is(Narrows) || to.is(CliffCave)) { refuse "The path is too narrow." }
+    }
+    if (self.get(:at_chimney) && to.is(ChimneyTop)) {
+      if (self.count(Thing) == 0) { refuse empty_handed }
+      else if (self.count(Lamp) == 0) { refuse lampless }
+      else if (self.count(Thing) > 2) { refuse overloaded }
+    }
+  }
+
+  // Zork has no HELP; the Empire answers it in its own voice rather than
+  // with every verb against every thing in sight.
+  passage help {
+    You are in the Great Underground Empire. Tell it what to do in plain English: NORTH, SOUTH, EAST, WEST, NORTHEAST and the other diagonals, UP and DOWN (N, S, E, W, NE, U, D and so on) to move; LOOK (or L) to look around; INVENTORY (or I) to see what you carry; and TAKE, DROP, OPEN, CLOSE, READ, EXAMINE, PUT something IN something, GIVE something TO someone, THROW something AT something, TURN ON something, ATTACK something WITH something, for the rest. SCORE and DIAGNOSE tell you how you are doing. A room is described in full the first time you enter it and named after that, unless you ask for VERBOSE; BRIEF goes back to that, and SUPERBRIEF names every room and no more.
+  }
+
+  passage inventory {
+    {if self.count(Thing) == 0}You are empty-handed.{else}You are carrying:{for t: Thing in self}
+
+    A {t.short}{if t.is(Light)}{if t.get(:lit)} (providing light){/if}{/if}{t.inside_lines}{/for}{/if}
+  }
+
+  passage yuk {
+    {one of}A valiant attempt.{or}You can't be serious.{or}An interesting idea...{or}What a concept!{/one of}
+  }
+
+  passage rank {{if self.get(:score) >= 350}Master Adventurer{else if self.get(:score) > 330}Wizard{else if self.get(:score) > 300}Master{else if self.get(:score) > 200}Adventurer{else if self.get(:score) > 100}Junior Adventurer{else if self.get(:score) > 50}Novice Adventurer{else if self.get(:score) > 25}Amateur Adventurer{else}Beginner{/if}}
+
+  passage score_line {
+    Your score is {self.get(:score)} (total of 350 points), in {self.get(:moves)} {if self.get(:moves) == 1}move{else}moves{/if}.
+
+    This gives you the rank of {self.rank}.
+  }
+
+  // What carrying weighs, as Zork weighs it: a load of 100 at most.
+  on :entered (item, from) {
+    if (item.is(Thing)) { self.adjust(:load, item.get(:size)) }
+    if (item.is(SkeletonKey)) { self.adjust(:keys, 1) }
+    if (item.is(Coffin)) { self.adjust(:coffins, 1) }
+    if (item.is(Pump)) { self.adjust(:pumps, 1) }
+    if (item.is(Shovel)) { self.adjust(:shovels, 1) }
+    if (item.is(Garlic)) { self.set(:garlics, self.count(Garlic)) }
+    if (item.is(Treasure)) {
+      if (item.get(:value) > 0) {
+        self.adjust(:score, item.get(:value))
+        send item :claimed
+      }
+    }
+  }
+  on :left (item, to) {
+    if (item.is(Thing)) { self.adjust(:load, 0 - item.get(:size)) }
+    if (item.is(SkeletonKey)) { self.adjust(:keys, -1) }
+    if (item.is(Coffin)) { self.adjust(:coffins, -1) }
+    if (item.is(Pump)) { self.adjust(:pumps, -1) }
+    if (item.is(Shovel)) { self.adjust(:shovels, -1) }
+    if (item.is(Garlic)) { self.set(:garlics, self.count(Garlic)) }
+  }
+
+  // The Bat Room, come into (BATS-ROOM's M-ENTER): with no garlic in hand
+  // and none on the floor, the room as it is seen, the bat's swoop, and
+  // FLY-ME. The room passed through is never described (friction 100), so
+  // it is told here.
+  passage fweeps {
+        Fweep!
+        Fweep!
+        Fweep!
+
+    The bat grabs you by the scruff of your neck and lifts you away....
+  }
+  on :bats (from) {
+    self.set(:garlics, self.count(Garlic))
+    // BATS-ROOM leaves the dead alone.
+    if (from.is(DarkRoom) && !self.get(:dead)) {
+      if (self.get(:garlics) == 0 && from.count(Garlic) == 0) {
+        if (self.get(:light) > 0 || from.get(:floor_lit)) { tell self "{from.full}" }
+        else { tell self "It is pitch black. You are likely to be eaten by a grue." }
+        tell self fweeps
+        self.set(:dest, :bat)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+  // BOOM-ROOM: a flame in hand, or in an open box in hand, in the Gas Room.
+  on :gas (from) {
+    self.set(:flaming, false)
+    each f: Flame in self { if (f.get(:lit)) { self.set(:flaming, true) } }
+    each b: Box in self {
+      if (b.get(:open)) { each f: Flame in b { if (f.get(:lit)) { self.set(:flaming, true) } } }
+    }
+    if (self.get(:flaming) && !self.get(:dead)) {
+      // The room passed through is never described (friction 100): told.
+      if (from.is(DarkRoom)) {
+        if (self.get(:light) > 0 || from.get(:floor_lit)) { tell self "{from.full}" }
+      }
+      tell self "Oh dear. It appears that the smell coming from this room was coal gas. I would have thought twice about carrying flaming objects in here."
+      tell self "** BOOOOOOOOOOOM **"
+      send self :die
+    }
+  }
+  // A match struck in the Gas Room: the match has said how sad it is.
+  on :boom {
+    tell self "** BOOOOOOOOOOOM **"
+    send self :die
+  }
+  // CAVE2-ROOM: the draught up from Hades blows out candles in hand, half
+  // the time, or four times in five for whoever broke the mirror.
+  on :gust (from) {
+    each c: Candles in self {
+      if (c.get(:lit)) {
+        let r = random(10)
+        if (r < 5 || (self.get(:unlucky) && r < 8)) {
+          send c :blow_out
+          tell self "A gust of wind blows out your candles!"
+          if (self.get(:light) <= 1) { tell self "It is now completely dark." }
+        }
+      }
+    }
+  }
+  on :bad_luck { self.set(:unlucky, true) }
+
+  on :scored (from, value) { self.adjust(:score, value) }
+
+  // FINISH, inside the barrow: the score, and nothing further.
+  on :finish {
+    if (!self.get(:finished)) {
+      self.set(:finished, true)
+      self.set(:in_barrow, true)
+      tell self score_line
+    }
+  }
+
+  // I-LANTERN: a move made with the brass lantern lit in hand spends a
+  // move of its battery.
+  changed :moves (was) {
+    each l: Lamp in self { if (l.get(:lit)) { send l :burn_tick } }
+  }
+
+  // SCORE-UPD: at 350, the whisper, the map in the trophy case and the
+  // secret path from West of House (WON-FLAG), once.
+  changed :score (was) {
+    if (self.get(:score) >= 350 && !self.get(:won)) {
+      self.set(:won, true)
+      tell self "An almost inaudible voice whispers in your ear, \"Look to your treasures for the final secret.\""
+      broadcast :won
+    }
+  }
+
+  // The skeleton's ghost: through the world's gate, the valuables to the
+  // Land of the Living Dead.
+  on :banish {
+    self.set(:dest, :banish)
+    send underground_caverns :open_gate
+  }
+
+  // Out of the magic boat: the room it lies in has answered with itself.
+  // Out of a boat something sharp has just got at, the room is asked to
+  // put the punctured boat in its place.
+  on :berth (from) {
+    move self to from
+    if (self.get(:wrecking)) {
+      self.set(:wrecking, false)
+      send from :wreck
+    }
+  }
+
+  // The Loud Room with the gates open (LOUD-ROOM-FCN's M-END), or roaring
+  // again (I-RFILL): out, through the world's gate, into the Damp Cave, the
+  // Round Room or the Deep Canyon (LOUD-RUNS).
+  on :flung (from, value) {
+    if (value) { tell self "It is unbearably loud here, with an ear-splitting roar seeming to come from all around you. There is a pounding in your head which won't stop. With a tremendous effort, you scramble out of the room." }
+    let r = random(3)
+    if (r == 0) { self.set(:dest, :damp_cave) }
+    else if (r == 1) { self.set(:dest, :round_room) }
+    else { self.set(:dest, :deep_canyon) }
+    send underground_caverns :open_gate
+  }
+
+  // Asked to go somewhere no exit from here leads (up the tree by its
+  // branches, say): through the world's gate.
+  on :travel (from, value) {
+    self.set(:dest, value)
+    send underground_caverns :open_gate
+  }
+
+  // Light: how many lit lamps are carried, and whether the room is dark
+  // without them.
+  on :light (from, value) {
+    self.adjust(:light, value)
+    broadcast :relight
+  }
+  on :room_lit (from, value) { self.set(:room_dark, !value) }
+  // The candles, burning down in hand or close by (Zork's I-CANDLES and
+  // LIGHT-INT). A pocket passes nothing (`sprout.Actor`), so these two are
+  // let through it, for the hand that holds them to hear (friction 73).
+  pass :candle_burn (true)
+  pass :snuffed (true)
+  pass :match_out (true)
+  // The sceptre, waved in hand at the rainbow: its news has to get out of
+  // the pocket to reach the rooms the rainbow joins.
+  pass :rainbow (true)
+  on :match_out (from) { if (self.holds(from)) { tell self "The match has gone out." } }
+  // The brass lantern's battery, said to whoever holds it or stands by it.
+  pass :lamp_age (true)
+  on :lamp_age (from, value) {
+    if (value == 1) { tell self "The lamp appears a bit dimmer." }
+    else if (value == 2) { tell self "The lamp is definitely dimmer now." }
+    else if (value == 3) { tell self "The lamp is nearly out." }
+    else { tell self "You'd better have more light than from the brass lantern." }
+  }
+  on :candle_burn (from, value) {
+    if (value == 1) { tell self "The candles grow shorter." }
+    else if (value == 2) { tell self "The candles are becoming quite short." }
+    else if (value == 3) { tell self "The candles won't last long now." }
+    else { tell self "You'd better have more light than from the pair of candles." }
+  }
+  // A light in hand gone out of its own accord (the candles, burned down).
+  on :snuffed (from) {
+    if (self.holds(from)) { send self :light with -1 }
+  }
+
+  // Going somewhere, as Zork's GOTO does it: into a dark place, the
+  // warning; from one dark place into another without a light, four times
+  // in five, the grue; and into the Cellar while the trap door stands open
+  // above, the crash. These are said before the room is described, and
+  // what is told on arrival (the sword's glow, the songbird) after it.
+  as actor for go {
+    do {
+      self.adjust(:moves, 1)
+      // A lamp lights the way in the hand or in an open bag, as the room's
+      // own `lit` sees it.
+      // The dead need no light to guide them (ALWAYS-LIT).
+      self.set(:own_light, self.get(:light) > 0 || self.get(:dead))
+      each b: Box in self {
+        if (b.get(:open)) {
+          each l: Light in b { if (l.get(:lit)) { self.set(:own_light, true) } }
+        }
+      }
+      if (here.is(DarkRoom)) {
+        if (!self.get(:own_light) && !here.get(:alight)) {
+          if (self.get(:room_dark) && !chance(5)) {
+            self.set(:devoured, true)
+            send self :grue
+          } else {
+            say "You have moved into a dark place."
+          }
+        }
+      }
+      if (here.is(Room)) {
+        if (here.get(:crash)) { say "The trap door crashes shut, and you hear someone barring it." }
+      }
+      // The thief's lair, entered (TREASURE-ROOM-FCN's M-ENTER): his scream
+      // and his gesture come before the room is described, as in Zork.
+      if (here.is(TreasureRoom) && !self.get(:dead)) {
+        if (here.get(:keeper)) {
+          if (here.count(Thief) == 0) { say scream }
+          if (here.count(Treasure) > here.count(Chalice)) { say vanish }
+        }
+      }
+    }
+  }
+  passage scream { You hear a scream of anguish as you violate the robber's hideaway. Using passages unknown to you, he rushes to its defense. }
+  passage vanish { The thief gestures mysteriously, and the treasures in the room suddenly vanish. }
+
+  on :grue {
+    self.set(:devoured, false)
+    tell self "Oh, no! A lurking grue slithered into the room and devoured you!"
+    send self :die
+  }
+
+  // Arriving somewhere: the sword's glow, and in the forest, now and then,
+  // the songbird.
+  on :moved (from, to) {
+    self.set(:in_maze, to.is(Maze) || to.is(DeadEnd))
+    // Up the chimney with the trap door shut: whoever bars it will bar it
+    // again behind the next one down.
+    if (self.get(:at_chimney) && to.is(ChimneyTop)) { broadcast :unbar with false }
+    self.set(:at_chimney, to.is(ChimneyFoot))
+    self.set(:at_narrows, to.is(Narrows))
+    self.set(:in_crawl, to.is(Crawlspace))
+    self.set(:at_altar, to.is(AltarRoom))
+    if (to.is(AltarRoom)) { self.set(:altar_seen, true) }
+    if (to.is(Room)) { self.set(:room_glow, to.get(:glow)) }
+    if (to.is(Room) && !self.get(:devoured)) {
+      if (!to.is(DarkRoom)) { self.set(:room_dark, false) }
+      // Into the lair while its keeper will come to it: the sword knows him
+      // at once, and glows the once, brightly.
+      if (to.is(TreasureRoom)) {
+        if (to.get(:keeper)) { send self :settle with 2 }
+        else { send self :settle with to.get(:glow) }
+      }
+      else { send self :settle with to.get(:glow) }
+      if (to.is(Forest) && chance(7)) { tell self "You hear in the distance the chirping of a song bird." }
+    }
+  }
+
+  on :settle (from, value) {
+    each s: Sword in self {
+      if (s.get(:glow) != value) {
+        if (value == 2) { tell self "Your sword has begun to glow very brightly." }
+        else if (value == 1) { tell self "Your sword is glowing with a faint blue glow." }
+        else { tell self "Your sword is no longer glowing." }
+        send s :glow with value
+      }
+    }
+  }
+
+  on :thief_gone { send self :settle with self.get(:room_glow) }
+  // The Cyclops gone through the wall: nothing near is left for the sword to
+  // know (the troll went before him).
+  on :cyclops_gone {
+    self.set(:room_glow, 0)
+    send self :settle with 0
+  }
+
+  on :troll_gone {
+    self.set(:room_glow, 0)
+    each s: Sword in self {
+      if (s.get(:glow) > 0) {
+        tell self "Your sword is no longer glowing."
+        send s :glow with 0
+      }
+    }
+  }
+
+  // The troll's blow, which he deals by acting: `attack`, with this visitor
+  // as its target. He has decided what it does and told them so in his own
+  // part (`:dealt`: 1 missed, 2 knocked out and spared, 3 killed, 4 lightly
+  // wounded, 5 knocked out and put to death, 6 staggered); this is what it
+  // does to them, which only they may write.
+  as target for attack {
+    // I-FIGHT leaves the dead alone, and the game, once it is over.
+    permit { if (self.get(:dead) || self.get(:finished)) { refuse "" } }
+    do {
+      if (actor.is(Troll)) {
+        let v = actor.get(:dealt)
+        if (v == 3 || v == 5) {
+          send self :die
+        } else if (v == 4) {
+          self.adjust(:wounds, 1)
+          self.adjust(:fight, -1)
+          if (self.get(:fight) <= 0) {
+            send self :die
+          } else if (!self.get(:healing)) {
+            self.set(:healing, true)
+            self.set(:cure_at, self.get(:moves) + 20)
+            wake in 10 minutes
+          }
+        } else if (v == 6) {
+          // Staggered, or one time in four disarmed (Zork's LOSE-WEAPON). The
+          // troll cannot see into these hands (33), so this line is the
+          // visitor's own, and names the weapon before it goes: a line is
+          // rendered once the turn's work is done, when the hand is empty.
+          if (self.count(Weapon) > 0 && chance(4)) {
+            if (self.count(Sword) > 0) {
+              tell self "{one of}The axe hits your sword and knocks it spinning.{or}The axe knocks your sword out of your hand. It falls to the floor.{/one of}"
+              each w: Sword in self { move w to here }
+            } else if (self.count(Knife) > 0) {
+              tell self "{one of}The axe hits your nasty knife and knocks it spinning.{or}The axe knocks your nasty knife out of your hand. It falls to the floor.{/one of}"
+              each w: Knife in self { move w to here }
+            } else {
+              tell self "{one of}The axe hits your bloody axe and knocks it spinning.{or}The axe knocks your bloody axe out of your hand. It falls to the floor.{/one of}"
+              each w: Axe in self { move w to here }
+            }
+          } else {
+            tell self "{one of}The troll hits you with a glancing blow, and you are momentarily stunned.{or}The troll swings; the blade turns on your armor but crashes broadside into your head.{or}You stagger back under a hail of axe strokes.{or}The troll's mighty blow drops you to your knees.{/one of}"
+            self.set(:staggered, true)
+          }
+        }
+      } else if (actor.is(Thief) || actor.is(Cyclops)) {
+        // The thief's stiletto or the Cyclops's fist: decided and told by
+        // him (`:dealt`: 1 missed, 2 knocked out and spared, 3 killed, 4 a
+        // light wound, 5 knocked out and put to death, 6 staggered, 7 a
+        // serious wound, 8 a wound that kills); done here.
+        if (actor.is(Thief)) { self.set(:hurt, actor.get(:dealt)) }
+        if (actor.is(Cyclops)) { self.set(:hurt, actor.get(:dealt)) }
+        let v = self.get(:hurt)
+        if (v == 3 || v == 5 || v == 8) {
+          send self :die
+        } else if (v == 4 || v == 7) {
+          // Wounds are counted as Zork counts them, in points of strength
+          // lost: a light wound one, a serious wound two.
+          if (v == 4) {
+            self.adjust(:wounds, 1)
+            self.adjust(:fight, -1)
+          } else {
+            self.adjust(:wounds, 2)
+            self.adjust(:fight, -2)
+          }
+          if (!self.get(:healing)) {
+            self.set(:healing, true)
+            self.set(:cure_at, self.get(:moves) + 20)
+            wake in 10 minutes
+          }
+        } else if (v == 6) {
+          // Staggered, or one time in four disarmed (LOSE-WEAPON): which
+          // weapon is in hand is theirs to see, and so theirs to say.
+          if (self.count(Weapon) > 0 && chance(4)) {
+            if (self.count(Sword) > 0) {
+              if (actor.is(Thief)) { tell self "{one of}A long, theatrical slash. You catch it on your sword, but the thief twists his knife, and the sword goes flying.{or}The thief neatly flips your sword out of your hands, and it drops to the floor.{or}You parry a low thrust, and your sword slips out of your hand.{/one of}" }
+              else { tell self "{one of}The Cyclops grabs your sword, tastes it, and throws it to the ground in disgust.{or}The monster grabs you on the wrist, squeezes, and you drop your sword in pain.{/one of}" }
+              each w: Sword in self { move w to here }
+            } else if (self.count(Knife) > 0) {
+              if (actor.is(Thief)) { tell self "{one of}A long, theatrical slash. You catch it on your nasty knife, but the thief twists his knife, and the nasty knife goes flying.{or}The thief neatly flips your nasty knife out of your hands, and it drops to the floor.{or}You parry a low thrust, and your nasty knife slips out of your hand.{/one of}" }
+              else { tell self "{one of}The Cyclops grabs your nasty knife, tastes it, and throws it to the ground in disgust.{or}The monster grabs you on the wrist, squeezes, and you drop your nasty knife in pain.{/one of}" }
+              each w: Knife in self { move w to here }
+            } else if (self.count(Axe) > 0) {
+              if (actor.is(Thief)) { tell self "{one of}A long, theatrical slash. You catch it on your bloody axe, but the thief twists his knife, and the bloody axe goes flying.{or}The thief neatly flips your bloody axe out of your hands, and it drops to the floor.{or}You parry a low thrust, and your bloody axe slips out of your hand.{/one of}" }
+              else { tell self "{one of}The Cyclops grabs your bloody axe, tastes it, and throws it to the ground in disgust.{or}The monster grabs you on the wrist, squeezes, and you drop your bloody axe in pain.{/one of}" }
+              each w: Axe in self { move w to here }
+            } else if (self.count(Stiletto) > 0) {
+              if (actor.is(Thief)) { tell self "{one of}A long, theatrical slash. You catch it on your stiletto, but the thief twists his knife, and the stiletto goes flying.{or}The thief neatly flips your stiletto out of your hands, and it drops to the floor.{or}You parry a low thrust, and your stiletto slips out of your hand.{/one of}" }
+              else { tell self "{one of}The Cyclops grabs your stiletto, tastes it, and throws it to the ground in disgust.{or}The monster grabs you on the wrist, squeezes, and you drop your stiletto in pain.{/one of}" }
+              each w: Stiletto in self { move w to here }
+            } else if (self.count(RustyKnife) > 0) {
+              if (actor.is(Thief)) { tell self "{one of}A long, theatrical slash. You catch it on your rusty knife, but the thief twists his knife, and the rusty knife goes flying.{or}The thief neatly flips your rusty knife out of your hands, and it drops to the floor.{or}You parry a low thrust, and your rusty knife slips out of your hand.{/one of}" }
+              else { tell self "{one of}The Cyclops grabs your rusty knife, tastes it, and throws it to the ground in disgust.{or}The monster grabs you on the wrist, squeezes, and you drop your rusty knife in pain.{/one of}" }
+              each w: RustyKnife in self { move w to here }
+            }
+          } else {
+            if (actor.is(Thief)) {
+              tell self "{one of}The butt of his stiletto cracks you on the skull, and you stagger back.{or}The thief rams the haft of his blade into your stomach, leaving you out of breath.{or}The thief attacks, and you fall back desperately.{/one of}"
+            } else {
+              tell self "{one of}The Cyclops lands a punch that knocks the wind out of you.{or}Heedless of your weapons, the Cyclops tosses you against the rock wall of the room.{/one of}"
+            }
+            self.set(:staggered, true)
+          }
+        }
+      }
+    }
+  }
+
+
+  // The thief robs them: whatever of value is in their hands goes into his
+  // (Zork's ROB of the WINNER), and the thief's line is theirs to tell,
+  // since only they know whether he found anything (1 while he passes
+  // unseen, 2 as he leaves, seen; THIEF-VS-ADVENTURER).
+  on :rob (from, value) {
+    // THIEF-VS-ADVENTURER leaves the dead alone.
+    if (from.is(Thief) && !self.get(:dead) && !self.get(:finished)) {
+      self.set(:robbed, 0)
+      self.set(:lost_light, false)
+      self.set(:still_lit, false)
+      each t: Treasure in self {
+        if (t.get(:tvalue) > 0 && !t.get(:sacred)) {
+          if (t.is(Light)) {
+            if (t.get(:lit)) {
+              self.set(:lost_light, true)
+              send self :light with -1
+            }
+          }
+          move t to from
+          self.adjust(:robbed, 1)
+        }
+      }
+      each l: Light in self { if (l.get(:lit)) { self.set(:still_lit, true) } }
+      if (value == 1) {
+        if (self.get(:robbed) > 0) { tell self "A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from your possession, mumbling something about \"Doing unto others before...\"" }
+        else { tell self "A \"lean and hungry\" gentleman just wandered through, carrying a large bag. Finding nothing of value, he left disgruntled." }
+      } else {
+        if (self.get(:robbed) > 0) { tell self "The thief just left, still carrying his large bag. You may not have noticed that he robbed you blind first." }
+        else { tell self "The thief, finding nothing of value, left disgusted." }
+      }
+      // Zork's STOLE-LIGHT?.
+      if (self.get(:lost_light) && !self.get(:still_lit) && self.get(:room_dark)) { tell self "The thief seems to have left you in the dark." }
+    }
+  }
+
+  // In the maze, the thief's voice carries (Zork's ROB-MAZE).
+  on :far_voice (from) {
+    if (self.get(:in_maze) && from.is(Thing)) {
+      tell self "You hear, off in the distance, someone saying \"My, I wonder what this fine {from.short} is doing here.\""
+    }
+  }
+
+  // Wounds heal, a point at a time (Zork's I-CURE), one every ten minutes,
+  // which at the host's half-minute a turn is twenty moves.
+  on :woke (elapsed) {
+    self.set(:healing, false)
+    if (self.get(:wounds) > 0) {
+      self.adjust(:wounds, -1)
+      self.adjust(:fight, 1)
+      if (self.get(:wounds) > 0) {
+        self.set(:healing, true)
+        self.set(:cure_at, self.get(:moves) + 20)
+        wake in 10 minutes
+      }
+    }
+  }
+
+  // JIGS-UP. Killed while already dead, it is the end (FINISH).
+  on :die {
+    if (self.get(:finished)) { }
+    else if (self.get(:dead)) {
+      tell self "It takes a talented person to be killed while already dead. YOU are such a talent. Unfortunately, it takes a talented person to deal with it. I am not such a talent. Sorry."
+      tell self score_line
+      self.set(:finished, true)
+      self.set(:dest, :living_dead)
+      send underground_caverns :open_gate
+    }
+    else {
+      self.adjust(:score, -10)
+      self.adjust(:deaths, 1)
+      self.set(:wounds, 0)
+      self.set(:fight, 2)
+      self.set(:staggered, false)
+      if (self.get(:unlucky)) { tell self "Bad luck, huh?" }
+      tell self "****  You have died  ****"
+      // JIGS-UP clears the trap door's TOUCHBIT: whoever next goes down it
+      // from above hears it barred behind them again. A sword that was
+      // glowing stops, wherever it is scattered to.
+      broadcast :unbar with true
+      each s: Sword in self { send s :glow with 0 }
+      if (self.get(:deaths) >= 3) {
+        tell self "You clearly are a suicidal maniac.  We don't allow psychotics in the cave, since they may harm other adventurers.  Your remains will be installed in the Land of the Living Dead, where your fellow adventurers may gloat over them."
+        tell self score_line
+        self.set(:finished, true)
+        self.set(:dest, :living_dead)
+      } else {
+        // Once the Altar has been seen, a death is spent as a spirit before
+        // the gates of Hell, until a prayer at the Altar is answered.
+        if (self.get(:altar_seen)) { tell self "As you take your last breath, you feel relieved of your burdens. The feeling passes as you find yourself before the gates of Hell, where the spirits jeer at you and deny you entry.  Your senses are disturbed.  The objects in the dungeon appear indistinct, bleached of color, even unreal." }
+        else { tell self "Now, let's take a look here... Well, you probably deserve another chance.  I can't quite fix you up completely, but you can't have everything." }
+        if (self.count(Lamp) > 0) { tell self "Your belongings, such as they were, have not come with you. The plain things are strewn about the forest and the fields around the house, anything of value has rolled into some dark corner in or under it, and somebody tidy has put the lamp back in the living room." }
+        else if (self.count(Thing) > 0) { tell self "Your belongings, such as they were, have not come with you. The plain things are strewn about the forest and the fields around the house, and anything of value has rolled into some dark corner in or under it." }
+        if (self.get(:altar_seen)) { self.set(:dest, :spirit) } else { self.set(:dest, :forest_1) }
+      }
+      send underground_caverns :open_gate
+    }
+  }
+
+  // The gate is open: go where the world sends you.
+  on :gate_open {
+    if (self.get(:dest) == :living_dead) {
+      move self to land_of_the_living_dead
+    } else if (self.get(:dest) == :banish) {
+      // Zork's ROB: what has a trophy value, in hand and on the floor of the
+      // skeleton's room; not what is inside something else.
+      each t: Treasure in self { if (t.get(:tvalue) > 0) { move t to land_of_the_dead } }
+      each t: Treasure in underground_caverns.maze_5 { if (t.get(:tvalue) > 0) { move t to land_of_the_dead } }
+    } else if (self.get(:dest) == :path) {
+      move self to forest_path
+    } else if (self.get(:dest) == :up_a_tree) {
+      move self to up_a_tree
+    } else if (self.get(:dest) == :kitchen) {
+      move self to kitchen
+    } else if (self.get(:dest) == :attic || self.get(:dest) == :cellar) {
+      // Along a staircase by name, as `up` or `down` would go. A lamp lights
+      // the way in the hand or in an open bag, as in `go`.
+      self.set(:own_light, self.get(:light) > 0 || self.get(:dead))
+      each b: Box in self {
+        if (b.get(:open)) {
+          each l: Light in b { if (l.get(:lit)) { self.set(:own_light, true) } }
+        }
+      }
+      if (self.get(:dest) == :attic) {
+        if (!self.get(:own_light) && !underground_caverns.attic.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to attic
+      } else {
+        // Down the rickety staircase: the crash, and all.
+        if (!self.get(:own_light) && !underground_caverns.cellar.get(:alight)) { tell self "You have moved into a dark place." }
+        if (underground_caverns.cellar.get(:crash)) { tell self "The trap door crashes shut, and you hear someone barring it." }
+        move self to cellar
+      }
+    } else if (self.get(:dest) == :prayed) {
+      // Zork's V-PRAY at the Altar: up to the Forest, with everything.
+      move self to forest_1
+    } else if (self.get(:dest) == :temple) {
+      move self to temple
+    } else if (self.get(:dest) == :torch_room || self.get(:dest) == :ew_passage || self.get(:dest) == :chasm || self.get(:dest) == :loud_room || self.get(:dest) == :deep_canyon || self.get(:dest) == :egypt || self.get(:dest) == :treasure || self.get(:dest) == :cyclops || self.get(:dest) == :strange || self.get(:dest) == :ns_passage) {
+      // Down a rope, or along a staircase by name, into the dark: as `go`
+      // goes, the warning first where there is no light to see by.
+      self.set(:own_light, self.get(:light) > 0 || self.get(:dead))
+      each b: Box in self {
+        if (b.get(:open)) {
+          each l: Light in b { if (l.get(:lit)) { self.set(:own_light, true) } }
+        }
+      }
+      if (self.get(:dest) == :torch_room) {
+        if (!self.get(:own_light) && !underground_caverns.torch_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to torch_room
+      } else if (self.get(:dest) == :ew_passage) {
+        if (!self.get(:own_light) && !underground_caverns.east_west_passage.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to east_west_passage
+      } else if (self.get(:dest) == :chasm) {
+        if (!self.get(:own_light) && !underground_caverns.chasm_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to chasm_room
+      } else if (self.get(:dest) == :loud_room) {
+        if (!self.get(:own_light) && !underground_caverns.loud_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to loud_room
+      } else if (self.get(:dest) == :deep_canyon) {
+        if (!self.get(:own_light) && !underground_caverns.deep_canyon.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to deep_canyon
+      } else if (self.get(:dest) == :treasure) {
+        if (!self.get(:own_light) && !underground_caverns.treasure_room.get(:alight)) { tell self "You have moved into a dark place." }
+        if (underground_caverns.treasure_room.get(:keeper)) {
+          if (underground_caverns.treasure_room.count(Thief) == 0) { tell self scream }
+          if (underground_caverns.treasure_room.count(Treasure) > underground_caverns.treasure_room.count(Chalice)) { tell self vanish }
+        }
+        move self to treasure_room
+      } else if (self.get(:dest) == :cyclops) {
+        if (!self.get(:own_light) && !underground_caverns.cyclops_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to cyclops_room
+      } else if (self.get(:dest) == :ns_passage) {
+        if (!self.get(:own_light) && !underground_caverns.north_south_passage.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to north_south_passage
+      } else if (self.get(:dest) == :strange) {
+        if (!self.get(:own_light) && !underground_caverns.strange_passage.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to strange_passage
+      } else {
+        if (!self.get(:own_light) && !underground_caverns.egyptian_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to egyptian_room
+      }
+    } else if (self.get(:dest) == :damp_cave || self.get(:dest) == :round_room || self.get(:dest) == :atlantis) {
+      // Thrown out of the Loud Room, or up a slimy stairway, into the dark.
+      self.set(:own_light, self.get(:light) > 0 || self.get(:dead))
+      each b: Box in self {
+        if (b.get(:open)) {
+          each l: Light in b { if (l.get(:lit)) { self.set(:own_light, true) } }
+        }
+      }
+      if (self.get(:dest) == :damp_cave) {
+        if (!self.get(:own_light) && !underground_caverns.damp_cave.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to damp_cave
+      } else if (self.get(:dest) == :round_room) {
+        if (!self.get(:own_light) && !underground_caverns.round_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to round_room
+      } else {
+        if (!self.get(:own_light) && !underground_caverns.atlantis_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to atlantis_room
+      }
+    } else if (self.get(:dest) == :bat || self.get(:dest) == :mirror_1 || self.get(:dest) == :mirror_2 || self.get(:dest) == :small_cave || self.get(:dest) == :smelly_room || self.get(:dest) == :gas_room || self.get(:dest) == :ladder_top || self.get(:dest) == :ladder_bottom || self.get(:dest) == :mine_4) {
+      // The coal mine and the mirrors (v7): carried off by the bat to one of
+      // eight rooms (BAT-DROPS), changed over with a Mirror Room's contents,
+      // or along a staircase or a ladder by name, into the dark.
+      self.set(:own_light, self.get(:light) > 0 || self.get(:dead))
+      each b: Box in self {
+        if (b.get(:open)) {
+          each l: Light in b { if (l.get(:lit)) { self.set(:own_light, true) } }
+        }
+      }
+      if (self.get(:dest) == :bat) {
+        let r = random(8)
+        if (r == 0) { self.set(:dest, :mine_1) }
+        else if (r == 1) { self.set(:dest, :mine_2) }
+        else if (r == 2) { self.set(:dest, :mine_3) }
+        else if (r == 3) { self.set(:dest, :mine_4) }
+        else if (r == 4) { self.set(:dest, :ladder_top) }
+        else if (r == 5) { self.set(:dest, :ladder_bottom) }
+        else if (r == 6) { self.set(:dest, :squeaky_room) }
+        else { self.set(:dest, :mine_entrance) }
+      }
+      // MIRROR-MIRROR: what lies in each room goes to the other, by way of
+      // a room between, and then the one who rubbed.
+      if (self.get(:dest) == :mirror_1 || self.get(:dest) == :mirror_2) {
+        each t: Portable in underground_caverns.mirror_room_1 { move t to underground_caverns.mirror_limbo }
+        each t: Portable in underground_caverns.mirror_room_2 { move t to underground_caverns.mirror_room_1 }
+        each t: Portable in underground_caverns.mirror_limbo { move t to underground_caverns.mirror_room_2 }
+      }
+      if (self.get(:dest) == :mirror_1) {
+        if (!self.get(:own_light) && !underground_caverns.mirror_room_1.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to mirror_room_1
+      } else if (self.get(:dest) == :mirror_2) {
+        move self to mirror_room_2
+      } else if (self.get(:dest) == :small_cave) {
+        if (!self.get(:own_light) && !underground_caverns.small_cave.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to small_cave
+      } else if (self.get(:dest) == :smelly_room) {
+        if (!self.get(:own_light) && !underground_caverns.smelly_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to smelly_room
+      } else if (self.get(:dest) == :gas_room) {
+        if (!self.get(:own_light) && !underground_caverns.gas_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to gas_room
+      } else if (self.get(:dest) == :ladder_top) {
+        if (!self.get(:own_light) && !underground_caverns.ladder_top.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to ladder_top
+      } else if (self.get(:dest) == :ladder_bottom) {
+        if (!self.get(:own_light) && !underground_caverns.ladder_bottom.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to ladder_bottom
+      } else if (self.get(:dest) == :mine_1) {
+        if (!self.get(:own_light) && !underground_caverns.mine_1.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to mine_1
+      } else if (self.get(:dest) == :mine_2) {
+        if (!self.get(:own_light) && !underground_caverns.mine_2.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to mine_2
+      } else if (self.get(:dest) == :mine_3) {
+        if (!self.get(:own_light) && !underground_caverns.mine_3.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to mine_3
+      } else if (self.get(:dest) == :mine_4) {
+        if (!self.get(:own_light) && !underground_caverns.mine_4.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to mine_4
+      } else if (self.get(:dest) == :squeaky_room) {
+        if (!self.get(:own_light) && !underground_caverns.squeaky_room.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to squeaky_room
+      } else {
+        if (!self.get(:own_light) && !underground_caverns.mine_entrance.get(:alight)) { tell self "You have moved into a dark place." }
+        move self to mine_entrance
+      }
+    } else if (self.get(:dest) == :grate_drop) {
+      each t: Thing in self { if (t.get(:sinking)) { move t to underground_caverns.grating_room } }
+    } else if (self.get(:dest) == :tiny_cave) {
+      // Down the hole in the Altar's floor, or up the stairs from Hell, into
+      // the dark Cave.
+      self.set(:own_light, self.get(:light) > 0 || self.get(:dead))
+      each b: Box in self {
+        if (b.get(:open)) {
+          each l: Light in b { if (l.get(:lit)) { self.set(:own_light, true) } }
+        }
+      }
+      if (!self.get(:own_light) && !underground_caverns.tiny_cave.get(:alight)) { tell self "You have moved into a dark place." }
+      move self to tiny_cave
+    } else if (self.get(:dest) == :hades) {
+      move self to entrance_to_hades
+    } else if (self.get(:dest) == :lld) {
+      move self to land_of_the_dead
+    } else if (self.get(:dest) == :risen) {
+      // DEAD-FUNCTION's PRAY at the Altar: alive again, in the forest; the
+      // troll, if he is still standing, guards his room again.
+      self.set(:dead, false)
+      each t: Troll in underground_caverns.troll_room { if (t.get(:strength) > 0) { send underground_caverns.troll_room :troll_flag with false } }
+      move self to forest_1
+    } else if (self.get(:dest) == :barrow_in) {
+      move self to inside_barrow
+    } else if (self.get(:dest) == :canyon_view) {
+      move self to canyon_view
+    } else if (self.get(:dest) == :ledge) {
+      move self to cliff_middle
+    } else if (self.get(:dest) == :canyon_bottom) {
+      move self to canyon_bottom
+    } else if (self.get(:dest) == :falls) {
+      move self to aragain_falls
+    } else if (self.get(:dest) == :rainbow_end) {
+      move self to end_of_rainbow
+    } else if (self.get(:dest) == :on_rainbow) {
+      move self to on_rainbow
+    } else if (self.get(:dest) == :dam_room) {
+      move self to dam_room
+    } else if (self.get(:dest) == :dam_base) {
+      move self to dam_base
+    } else if (self.get(:dest) == :living_room) {
+      move self to living_room
+    } else if (self.get(:dest) == :behind) {
+      move self to behind_house
+    } else if (self.get(:dest) == :west_side) {
+      move self to west_of_house
+    } else if (self.get(:dest) == :north_side) {
+      move self to north_of_house
+    } else if (self.get(:dest) == :south_side) {
+      move self to south_of_house
+    } else {
+      each t: Thing in self {
+        if (t.is(Lamp)) {
+          move t to living_room
+        } else if (t.is(RustyKnife)) {
+          // A rusty knife that has done its work goes with the one it did
+          // it to.
+          if (t.get(:spent)) { move t to land_of_the_living_dead }
+          else {
+            let k = random(10)
+            if (k < 5) { move t to forest_1 } else { move t to clearing }
+          }
+        } else if (t.is(Treasure)) {
+          let r = random(5)
+          if (r == 0) { move t to attic }
+          else if (r == 1) { move t to cellar }
+          else if (r == 2) { move t to east_of_chasm }
+          else if (r == 3) { move t to studio }
+          else { move t to troll_room }
+        } else {
+          let n = random(10)
+          if (n == 0) { move t to west_of_house }
+          else if (n == 1) { move t to north_of_house }
+          else if (n == 2) { move t to south_of_house }
+          else if (n == 3) { move t to behind_house }
+          else if (n == 4) { move t to forest_1 }
+          else if (n == 5) { move t to forest_2 }
+          else if (n == 6) { move t to forest_3 }
+          else if (n == 7) { move t to forest_path }
+          else if (n == 8) { move t to clearing }
+          else { move t to grating_clearing }
+        }
+      }
+      // A spirit, before the gates of Hell: the troll lets the dead pass
+      // (TROLL-FLAG).
+      if (self.get(:dest) == :spirit) {
+        self.set(:dead, true)
+        send underground_caverns.troll_room :troll_flag with true
+        move self to entrance_to_hades
+      } else { move self to forest_1 }
+    }
+    send underground_caverns :close_gate
+  }
+
+  // Taking and dropping several things at once, as Zork does: each answered
+  // with its name before it. Zork's `all` leaves out what is already held;
+  // here `all` and a list of names arrive alike, so what is already held is
+  // left out of any list that has something else in it.
+  // Zork's TAKE looks for what is on the ground or in the room, not in
+  // hand: so a name that fits both a thing held and a thing lying here
+  // (the sack and the bag of coins, the brass lantern and the burned-out
+  // one) means the one lying here. A reading of one thing already held is
+  // refused, and the parser prefers the reading that is not.
+  as actor for take {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_take } 
+      // Zork's PRE-TAKE: taken from a box, it has to be in that box. Zork
+      // names the thing; a refusal inside `each` cannot (friction 78). Of
+      // several, each is answered in turn below, as Zork answers them.
+      if (bound source && target.count == 1) {
+        each t of target {
+          if (t.is(Thing)) { if (!source.holds(t)) { refuse "That isn't in the {source.short}." } }
+        }
+      }
+      if (target.count == 1) {
+        each t of target {
+          if (t.is(Thing)) { if (self.holds(t)) { refuse "You already have that!" } }
+        }
+      }
+    }
+    do {
+      self.adjust(:moves, 1)
+      self.set(:carry, self.get(:load))
+      self.set(:fresh, 0)
+      let several = target.count > 1
+      each t of target {
+        if (t.is(Thing)) {
+          self.set(:nested, false)
+          if (several) { each u of target { if (u != t && u.is(Box)) { if (u.holds(t)) { self.set(:nested, true) } } } }
+          if (!self.holds(t) && !t.get(:sealed) && !self.get(:nested)) {
+            if (t.is(Axe)) { if (!t.get(:wielded)) { self.adjust(:fresh, 1) } }
+            else { self.adjust(:fresh, 1) }
+          }
+        }
+      }
+      // Zork's TAKE ALL with nothing left to take: ALL leaves out what is
+      // held, finds nothing, and the parser says so. Here `all` arrives as a
+      // list (friction 36), so a line of several with nothing new in it
+      // that names everything in hand, or as much of it as a line may
+      // bind, is taken for `all`; a shorter list of held things is answered
+      // thing by thing, as Zork answers one.
+      if (several && self.get(:fresh) == 0 && (target.count >= self.count(Thing) || target.count >= 8)) {
+        say "It's not clear what you're referring to."
+      }
+      else { each t of target {
+        if (t.is(Thing)) {
+          self.set(:nested, false)
+          if (several) { each u of target { if (u != t && u.is(Box)) { if (u.holds(t)) { self.set(:nested, true) } } } }
+          self.set(:astray, false)
+          if (bound source) {
+            if (several && !source.holds(t)) {
+              self.set(:astray, true)
+              say "{t.short}: That isn't in the {source.short}."
+            }
+          }
+          if (self.get(:astray)) { }
+          else if (several && self.get(:nested)) { }
+          else if (several && self.holds(t) && self.get(:fresh) > 0) { }
+          // In the troll's fist, or behind a shut glass lid, a thing is seen
+          // and in reach of a name but not of a hand; `all` and a run leave
+          // it out, and taken alone, the move says why.
+          else if (several && (t.get(:sealed) || t.is(Axe) && t.get(:wielded) || t.is(Stiletto) && t.get(:wielded))) { }
+          else if (self.holds(t)) { say "{if several}{t.short}: {/if}You already have that!" }
+          else if (t.is(Rope) && t.get(:tied)) { say "{if several}{t.short}: {/if}The rope is tied to the railing." }
+          // The thief's stiletto, on the floor while he is anywhere in the
+          // room, is white-hot (Zork's WEAPON-FUNCTION).
+          else if (t.is(Stiletto) && !t.get(:wielded) && here.count(Thief) > 0) { say "{if several}{t.short}: {/if}The stiletto seems white-hot. You can't hold on to it." }
+          // HOT-BELL-F.
+          else if (t.is(Bell) && t.get(:hot)) { say "{if several}{t.short}: {/if}The bell is very hot and cannot be taken." }
+          else if (t.is(Portable)) {
+            if (self.get(:carry) + t.get(:size) > 100) { say "{if several}{t.short}: {/if}{self.too_heavy}" }
+            else {
+              move t to self
+              self.adjust(:carry, t.get(:size))
+              // LLD-ROOM's M-END: burning candles in hand while the spirits
+              // reel from the bell.
+              if (t.is(Candles) && here.is(HadesGate)) { if (t.get(:lit)) { send here :rite_lit } }
+              if (t.is(RustyKnife)) {
+                if (self.count(Sword) > 0) { say "{if several}{t.short}: {/if}As you touch the rusty knife, your sword gives a single pulse of blinding blue light." }
+              }
+              say "{if several}{t.short}: {/if}Taken."
+            }
+          }
+          // The bat, reached for (BAT-F): out of reach of garlic, and
+          // otherwise he does the carrying.
+          else if (t.is(Bat)) {
+            if (self.get(:garlics) > 0 || here.count(Garlic) > 0) { say "{if several}{t.short}: {/if}You can't reach him; he's on the ceiling." }
+            else {
+              say fweeps
+              self.set(:dest, :bat)
+              send underground_caverns :open_gate
+            }
+          }
+          else {
+            say "{if several}{t.short}: {/if}{t.no_take}"
+            if (t.is(Skeleton)) { send self :banish }
+          }
+        }
+        else { say yuk }
+      } }
+    }
+  }
+
+  as actor for drop { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_none } }
+    do {
+      self.adjust(:moves, 1)
+      let several = target.count > 1
+      each t of target {
+        // Dropped out of a box in hand, a treasure has been held.
+        if (t.is(Treasure)) {
+          if (!self.holds(t) && t.get(:value) > 0) {
+            self.adjust(:score, t.get(:value))
+            send t :claimed
+          }
+        }
+        if (here.is(TreeTop)) {
+          if (t.is(Nest)) {
+            if (t.count(Egg) > 0) { say "{if several}{t.short}: {/if}The nest falls to the ground, and the egg spills out of it, seriously damaged." }
+            else { say "{if several}{t.short}: {/if}The bird's nest falls to the ground." }
+          } else if (t.is(Egg)) {
+            say "{if several}{t.short}: {/if}The egg falls to the ground and springs open, seriously damaged. {t.spill}"
+          } else {
+            say "{if several}{t.short}: {/if}The {t.short} falls to the ground."
+          }
+          move t to here
+        }
+        // The rope, let go of at the Dome's rail, goes over it (the Dome
+        // sees to that).
+        else if (here.is(DomeRoom) && t.is(Rope)) {
+          send t :let_go
+          move t to here
+          say "{if several}{t.short}: {/if}The rope drops gently to the floor below."
+        }
+        // Something sharp, let go of in the magic boat (RBOAT-FUNCTION).
+        else if (here.is(MagicBoat)) {
+          if (t.is(Sharp)) {
+            move t to here
+            say "{if several}{t.short}: {/if}It seems that the {t.short} didn't agree with the boat, as evidenced by the loud hissing noise issuing therefrom. With a pathetic sputter, the boat deflates, leaving you without."
+            if (here.get(:afloat)) {
+              if (here.get(:at) == :reservoir || here.get(:at) == :in_stream) { say "Another pathetic sputter, this time from you, heralds your drowning." }
+              else { say "In other words, fighting the fierce currents of the Frigid River. You manage to hold your own for a bit, but then you are carried over a waterfall and into some nasty rocks. Ouch!" }
+              send self :die
+            } else {
+              self.set(:wrecking, true)
+              broadcast :where
+            }
+          } else {
+            move t to here
+            say "{if several}{t.short}: {/if}Dropped."
+          }
+        }
+        else {
+          move t to here
+          say "{if several}{t.short}: {/if}Dropped."
+        }
+      }
+    }
+  }
+
+
+  // GRATE-FUNCTION's PUT: from above, what is small enough goes through
+  // the bars and down into the Grating Room, by the putter's own errand
+  // through the world's gate; from below, the grating is overhead.
+  as actor for put_through { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(GratingAbove)) {
+        if (item.is(Thing)) {
+          if (item.get(:size) > 20) { say "It won't fit through the grating." }
+          else {
+            say "The {item.short} goes through the grating into the darkness below."
+            send item :sink
+            self.set(:dest, :grate_drop)
+            send underground_caverns :open_gate
+          }
+        }
+      } else { say "The grating is over your head; anything put through it would come straight back down." }
+    }
+  }
+  as actor for put { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (item == container) { say "How can you do that?" }
+      // The leak, the punctured boat, the tube, the tool chests: each
+      // answers for itself, and nothing goes in.
+      else if (container.is(Rejecting)) { }
+      // Something sharp, put in the magic boat by one sitting in it.
+      else if (container.is(MagicBoat) && item.is(Sharp) && item.is(Thing) && self.holds(item) && here.is(MagicBoat)) {
+        move item to container
+        if (item.is(Thing)) { say "It seems that the {item.short} didn't agree with the boat, as evidenced by the loud hissing noise issuing therefrom. With a pathetic sputter, the boat deflates, leaving you without." }
+        if (here.is(MagicBoat)) {
+          if (here.get(:afloat)) {
+            if (here.get(:at) == :reservoir || here.get(:at) == :in_stream) { say "Another pathetic sputter, this time from you, heralds your drowning." }
+            else { say "In other words, fighting the fierce currents of the Frigid River. You manage to hold your own for a bit, but then you are carried over a waterfall and into some nasty rocks. Ouch!" }
+            send self :die
+          } else {
+            self.set(:wrecking, true)
+            broadcast :where
+          }
+        }
+      }
+      // Into the Frigid River: gone for good (RIVER-FUNCTION).
+      else if (container.is(River)) {
+        if (item.is(MagicBoat)) { say "You should get in the boat then launch it." }
+        else if (item.is(Thing)) {
+          if (item.get(:burnable)) { say "The {item.short} floats for a moment, then sinks." }
+          else { say "The {item.short} splashes into the water and is gone forever." }
+          move item to container
+        }
+      }
+      else if (item.is(Portable)) {
+        // Zork's PUT takes its item first (HAVE): a treasure put somewhere
+        // straight out of a box in hand, or off the floor, has been held,
+        // and pays what taking it pays.
+        if (item.is(Treasure)) {
+          if (!self.holds(item) && !container.holds(item) && item.get(:value) > 0) {
+            self.adjust(:score, item.get(:value))
+            send item :claimed
+          }
+        }
+        if (container.holds(item)) { say "The {item.short} is already in the {container.short}." }
+        else if (container.is(Abyss)) {
+          move item to container
+          say "The {item.short} drops out of sight into the chasm."
+        }
+        // SLIDER: into the slide, and down it to the Cellar.
+        else if (container.is(Chute)) {
+          move item to container
+          say "The {item.short} falls into the slide and is gone."
+        }
+        else {
+          move item to container
+          say "Done."
+        }
+      }
+      else if (item.is(Thing)) { say "{item.no_take}" }
+      else { say yuk }
+    }
+  }
+
+  as actor for attack { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } }
+    do {
+      self.adjust(:moves, 1)
+      // Zork's RUSTY-KNIFE-FCN: whatever it is turned on, it turns on its
+      // bearer. Named, or the only weapon in hand against the troll.
+      self.set(:suicide, false)
+      self.set(:spiked, false)
+      if (bound weapon) {
+        if (weapon.is(Sharp) && here.is(MagicBoat)) { self.set(:spiked, true) }
+        if (weapon.is(RustyKnife)) { self.set(:suicide, true) }
+      } else if ((target.is(Troll) || target.is(Thief)) && self.count(Sword) == 0 && self.count(Knife) == 0 && self.count(Axe) == 0 && self.count(Stiletto) == 0 && self.count(RustyKnife) > 0) {
+        say "(with the rusty knife)"
+        self.set(:suicide, true)
+      }
+      if (self.get(:spiked)) {
+        // A weapon swung in the magic boat (RBOAT-FUNCTION).
+        if (bound weapon) { if (weapon.is(Thing)) { say "It seems that the {weapon.short} didn't agree with the boat, as evidenced by the loud hissing noise issuing therefrom. With a pathetic sputter, the boat deflates, leaving you without." } }
+        if (here.is(MagicBoat)) {
+          if (here.get(:afloat)) {
+            if (here.get(:at) == :reservoir || here.get(:at) == :in_stream) { say "Another pathetic sputter, this time from you, heralds your drowning." }
+            else { say "In other words, fighting the fierce currents of the Frigid River. You manage to hold your own for a bit, but then you are carried over a waterfall and into some nasty rocks. Ouch!" }
+            send self :die
+          } else {
+            self.set(:wrecking, true)
+            broadcast :where
+          }
+        }
+      } else if (self.get(:suicide)) {
+        say "As the knife approaches its victim, your mind is submerged by an overmastering will. Slowly, your hand turns, until the rusty blade is an inch from your neck. The knife seems to sing as it savagely slits your throat."
+        each k: RustyKnife in self { send k :spend }
+        send self :die
+      } else if (target.is(Skeleton)) {
+      } else if (target.is(Troll)) {
+        if (self.get(:staggered)) {
+          self.set(:staggered, false)
+          say "You are still recovering from that last blow, so your attack is ineffective."
+          send target :blow with 0
+        } else if (bound weapon) {
+          if (weapon.is(Weapon)) {
+            send target :blow with weapon.get(:wcode)
+            say "{target.hit_line}"
+          }
+          else if (weapon.is(Thing)) { say "Trying to attack the troll with a {weapon.short} is suicidal." }
+          else { say "Trying to attack a troll with your bare hands is suicidal." }
+        } else if (self.count(Sword) > 0) {
+          say "(with the sword)"
+          send target :blow with 1
+          say "{target.hit_line}"
+        } else if (self.count(Knife) > 0) {
+          say "(with the nasty knife)"
+          send target :blow with 2
+          say "{target.hit_line}"
+        } else if (self.count(Axe) > 0) {
+          say "(with the bloody axe)"
+          send target :blow with 3
+          say "{target.hit_line}"
+        } else {
+          say "Trying to attack a troll with your bare hands is suicidal."
+        }
+      } else if (target.is(Cyclops)) {
+        // The Cyclops answers for himself (CYCLOPS-FCN): no blow lands.
+      } else if (target.is(Thief)) {
+        if (self.get(:staggered)) {
+          self.set(:staggered, false)
+          say "You are still recovering from that last blow, so your attack is ineffective."
+          send target :blow with 0
+        } else if (bound weapon) {
+          if (weapon.is(Weapon)) {
+            send target :blow with weapon.get(:wcode)
+            say "{target.hit_line}"
+          }
+          else if (weapon.is(Thing)) { say "Trying to attack the thief with a {weapon.short} is suicidal." }
+          else { say "Trying to attack a thief with your bare hands is suicidal." }
+        } else if (self.count(Sword) > 0) {
+          say "(with the sword)"
+          send target :blow with 1
+          say "{target.hit_line}"
+        } else if (self.count(Knife) > 0) {
+          say "(with the nasty knife)"
+          send target :blow with 2
+          say "{target.hit_line}"
+        } else if (self.count(Axe) > 0) {
+          say "(with the bloody axe)"
+          send target :blow with 3
+          say "{target.hit_line}"
+        } else if (self.count(Stiletto) > 0) {
+          say "(with the stiletto)"
+          send target :blow with 4
+          say "{target.hit_line}"
+        } else {
+          say "Trying to attack a thief with your bare hands is suicidal."
+        }
+      } else if (target.is(Matchbook)) {
+        // STRIKE, for a match: the matchbook's own part lights one.
+      } else if (target.is(Bat)) {
+        // BAT-F: out of reach of garlic; otherwise he does the carrying.
+        if (self.get(:garlics) > 0 || here.count(Garlic) > 0) { say "You can't reach him; he's on the ceiling." }
+        else {
+          say fweeps
+          self.set(:dest, :bat)
+          send underground_caverns :open_gate
+        }
+      } else if (target.is(Mirror)) {
+        // The mirror answers for itself: it breaks.
+      } else if (target.is(Ghosts)) {
+        say "How can you attack a spirit with material objects?"
+      } else if (target.is(Thing)) {
+        say "I've known strange people, but fighting a {target.short}?"
+      } else {
+        say "I've known strange people, but fighting that?"
+      }
+    }
+  }
+
+  as actor for jump { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "jump jump ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(TreeTop)) {
+        say "In a feat of unaccustomed daring, you manage to land on your feet without killing yourself."
+        self.set(:dest, :path)
+        send underground_caverns :open_gate
+      } else if (here.is(CanyonRim)) {
+        say "Nice view, lousy place to jump."
+        send self :die
+      } else if (here.is(Perilous) || (here.is(DomeRoom) && !here.get(:roped)) || (here.is(AltarRoom) && self.count(Coffin) > 0)) {
+        say "This was not a very safe place to try jumping."
+        say "{one of}You should have looked before you leaped.{or}In the movies, your life would be passing before your eyes.{or}Geronimo...{/one of}"
+        send self :die
+      } else {
+        say "{one of}Very good. Now you can go to the second grade.{or}Are you enjoying yourself?{or}Wheeeeeeeeee!!!!!{or}Do you expect me to applaud?{/one of}"
+      }
+    }
+  }
+
+  as actor for score { permit { if (self.get(:dead)) { refuse dead_score }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "score score ..." } } } do { say score_line } }
+
+  as actor for diagnose { permit { if (self.get(:dead)) { refuse dead_diag }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "diagnose diagnose ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      // Zork's V-DIAGNOSE: the wound, the moves until it is cured (the
+      // points still to heal after this one, twenty moves each, and what is
+      // left of this one), and what strength is left, the score counting.
+      self.set(:cure_left, self.get(:cure_at) - self.get(:moves))
+      if (self.get(:cure_left) < 1) { self.set(:cure_left, 1) }
+      if (self.get(:wounds) >= 2) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 3) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 4) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 5) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 6) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 7) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 8) { self.adjust(:cure_left, 20) }
+      if (self.get(:wounds) >= 9) { self.adjust(:cure_left, 20) }
+      self.set(:spare, self.get(:fight))
+      if (self.get(:score) >= 70) { self.adjust(:spare, 1) }
+      if (self.get(:score) >= 140) { self.adjust(:spare, 1) }
+      if (self.get(:score) >= 210) { self.adjust(:spare, 1) }
+      if (self.get(:score) >= 280) { self.adjust(:spare, 1) }
+      if (self.get(:score) >= 350) { self.adjust(:spare, 1) }
+      let left = self.get(:cure_left)
+      let rs = self.get(:spare)
+      say "{if self.get(:wounds) == 0}You are in perfect health.{else}You have {if self.get(:wounds) == 1}a light wound{else if self.get(:wounds) == 2}a serious wound{else if self.get(:wounds) == 3}several wounds{else}serious wounds{/if}, which will be cured after {left} moves.{/if}"
+      say "You can {if rs <= 0}expect death soon{else if rs == 1}be killed by one more light wound{else if rs == 2}be killed by a serious wound{else if rs == 3}survive one serious wound{else}survive several wounds{/if}."
+      if (self.get(:deaths) == 1) { say "You have been killed once." }
+      else if (self.get(:deaths) == 2) { say "You have been killed twice." }
+    }
+  }
+
+  as actor for xyzzy { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "xyzzy xyzzy ..." } } } do { self.adjust(:moves, 1)  say "A hollow voice says \"Fool.\"" } }
+  as actor for hello { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "hello hello ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      say "{one of}Hello.{or}Good day.{or}Nice weather we've been having lately.{or}Goodbye.{/one of}"
+    }
+  }
+  as actor for yell { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "yell yell ..." } } } do { self.adjust(:moves, 1)  say "Aaaarrrrgggghhhh!" } }
+  as actor for zork { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "zork zork ..." } } } do { self.adjust(:moves, 1)  say "At your service!" } }
+  as actor for curse { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "curse curse ..." } } } do { self.adjust(:moves, 1)  say "Such language in a high-class establishment like this!" } }
+
+  // Every other verb counts a move, as Zork's CLOCKER does; `score`,
+  // `verbose`, `brief`, `superbrief`, `quit`, `restart`, `save` and
+  // `restore`, which are about the game rather than in it, do not.
+  // The Loud Room's echo: no help to be had there either.
+  as actor for help { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "help help ..." } } } }
+  // DEAD-FUNCTION's LOOK: the room, as the dead see it.
+  as actor for look       { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "look look ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (self.get(:dead)) {
+        say "The room looks strange and unearthly and objects appear indistinct."
+        if (here.is(DarkRoom)) { if (!here.get(:daylight) && !here.get(:floor_lit)) { say "Although there is no light, the room seems dimly illuminated." } }
+      }
+    }
+  }
+  as actor for examine    { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for inventory  { permit { if (self.get(:dead)) { refuse dead_none }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "inventory inventory ..." } } } do { self.adjust(:moves, 1) } }
+  // Zork's V-WAIT passes three moves, stopped by the first clock with
+  // something to say; a turn here is one move, and the host keeps the
+  // clock. In the boat on the river the current is that clock, and comes
+  // now (friction 106).
+  as actor for wait       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_wait }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "wait wait ..." } } } do { self.adjust(:moves, 1)  if (here.is(MagicBoat)) { send here :hurry } } }
+  as actor for open       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for close      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  // The black book read while the spirits cower (LLD-ROOM's READ).
+  as actor for read { permit { if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(BlackBook) && here.is(HadesGate)) {
+        if (here.get(:phase) == 2 && !here.get(:exorcised)) { send here :rite_read }
+      }
+    }
+  }
+  as actor for look_in    { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for look_under { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // CANDLES-FCN: lit with nothing named, with the match, if one burns.
+  :kindled false
+  as actor for lamp_on { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_light } }
+    do {
+      self.adjust(:moves, 1)
+      self.set(:kindled, false)
+      if (target.is(Candles)) {
+        if (!target.get(:lit) && target.get(:stage) < 4) {
+          each m: Matchbook in self {
+            if (m.get(:lit) && !self.get(:kindled)) {
+              self.set(:kindled, true)
+              say "(with the match)"
+              act burn (target: target, tool: m)
+            }
+          }
+        }
+      }
+    }
+  }
+  // Zork's EXORCISE: at the gates of Hell, the ceremony is wanted, and the
+  // things to perform it with; elsewhere, a bizarre concept.
+  as actor for exorcise { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(HadesGate) && !here.get(:exorcised)) {
+        if (self.count(Bell) > 0 && self.count(BlackBook) > 0 && self.count(Candles) > 0) { say "You must perform the ceremony." }
+        else { say "You aren't equipped for an exorcism." }
+      } else if (target.is(Ghosts)) { say "Only the ceremony itself has any effect." }
+      else { say "What a bizarre concept!" }
+    }
+  }
+  as actor for exorcise_here { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(HadesGate) && !here.get(:exorcised)) {
+        if (self.count(Bell) > 0 && self.count(BlackBook) > 0 && self.count(Candles) > 0) { say "You must perform the ceremony." }
+        else { say "You aren't equipped for an exorcism." }
+      } else { say "What a bizarre concept!" }
+    }
+  }
+  as actor for ask { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for lamp_off   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for shift      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for raise      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for lower      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // HOT-BELL-F's RUB WITH: what burns is consumed against the hot bell.
+  as actor for rub_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(Bell)) { if (target.get(:hot)) { if (tool.is(Thing)) { if (tool.get(:burnable) && self.holds(tool)) { send tool :consume } } } }
+    }
+  }
+  // Garlic eaten out of hand is gone from it at once: what it would tell
+  // the hand as it goes is dropped with it.
+  as actor for eat        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1)  if (target.is(Garlic) && self.holds(target)) { self.adjust(:garlics, -1) } } }
+  as actor for drink      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  // Winding the canary in the forest the first time: its own part sings,
+  // and the songbird's bauble is set down here by the winder, since what is
+  // in a hand cannot reach the room around it. Up the tree, it falls.
+  as actor for wind { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      let songful = here.is(Songful)
+      if (target.is(Canary) && songful) {
+        if (!target.get(:broken) && !target.get(:sung)) {
+          let b = spawn Bauble in here
+          if (here.is(TreeTop)) {
+            send b :fall
+            send here :shed
+          }
+        }
+      }
+    }
+  }
+  as actor for tally      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for feed_bare { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      if (target.is(Thing)) { say "What do you want to feed the {target.short}?" }
+      else { say "What do you want to feed?" }
+    }
+  }
+  as actor for smell      { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for listen     { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for search     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for cross      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // `listen` with nothing named. In the forest, the songbird the forest
+  // keeps mentioning; in the maze, the maze; elsewhere, nothing much.
+  as actor for listen_here { permit { if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "listen listen ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(Forest)) { say "You hear in the distance the chirping of a song bird." }
+      else if (here.is(Maze) || here.is(DeadEnd)) { say "You hear nothing. The silence is the same silence as in every other part of the maze, which is no help at all." }
+      else if (here.is(CanyonEdge)) { say "You can hear the sound of flowing water from below, a long way down, going somewhere in a hurry." }
+      else if (here.is(Squeaky)) { say "A high, thin squeaking, and now and then something that sounds remarkably like \"Fweep!\"" }
+      else if (here.is(Murmuring)) { say "Voices, a great many of them, far below, murmuring. You cannot make out the words, which is probably a kindness." }
+      // On the reaches that name the Falls' rumbling, it is what you hear.
+      else if (here.is(MagicBoat)) {
+        if (here.get(:at) == :river_3) { say "{underground_caverns.river_3.rumbling.sound}" }
+        else if (here.get(:at) == :river_4) { say "{underground_caverns.river_4.rumbling.sound}" }
+        else if (here.get(:at) == :river_5) { say "{underground_caverns.river_5.rumbling.sound}" }
+        else { say "You hear nothing out of the ordinary." }
+      }
+      else { say "You hear nothing out of the ordinary." }
+    }
+  }
+  // `smell` alone, as `listen` alone: the forest, the maze, or nothing much.
+  as actor for smell_here { permit { if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "smell smell ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(Forest)) { say "You smell pine, damp earth and leaf mould, as forests do." }
+      else if (here.is(Maze) || here.is(DeadEnd)) { say "The air smells of cold, damp stone. It smells the same in every part of the maze, which is no help at all." }
+      // GAS-PSEUDO, in the Gas Room and the Smelly Room above it.
+      else if (here.is(GasRoom)) { say "It smells like coal gas in here." }
+      else if (here.is(Reeking)) { say "A foul odor comes up the staircase from below. It smells like coal gas." }
+      else { say "You smell nothing out of the ordinary." }
+    }
+  }
+  as actor for climb_down { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for climb_over { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for duck_under { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for clear      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for cut        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // `look down`: over the Dome's rail, into a chasm or a canyon, out of a
+  // tree; anywhere else, at the floor.
+  as actor for look_down { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "down down ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(DomeRoom)) {
+        if (here.get(:roped)) { say "Beyond the railing the dome falls away to the floor of a room below, a good twenty feet down. The rope hangs into it from the rail and ends some ten feet short of the floor." }
+        else { say "Beyond the railing the dome falls away to the floor of a room below, a good twenty feet down: too far to drop, and nothing between you and it but air." }
+      }
+      else if (here.is(ChasmEdge)) { say "You peer over the edge. The chasm goes down, and then further down, and then, as far as anyone has come back to say, down." }
+      else if (here.is(CanyonEdge)) { say "The canyon falls away below you, sheer and black, too deep for your light to find the bottom. Far down, water is flowing." }
+      else if (here.is(ShaftTop)) { say "The shaft drops through the floor, square and narrow, into a dark your light cannot follow down.{if underground_caverns.shaft_room.count(Basket) > 0} The basket hangs at the top of it, at the end of its chain.{else} The chain goes down into it, taut, and somewhere at the bottom is the basket.{/if} Whatever is down there is in the dark." }
+      else if (here.is(TreeTop)) { say "Far below, through the branches, is the forest path. It is a long way down for anything that falls." }
+      else if (here.is(RainbowTop)) { say "Between your feet, through the bands of color, is four hundred and fifty feet of falling water and, at the bottom of it, a cauldron of spray. The rainbow is all that is in between, and it is mostly light." }
+      else if (here.is(RainbowFoot) && here.is(Perilous)) { say "The Frigid River goes over the edge beside you in one white sheet and falls, and falls, four hundred and fifty feet into a boil of spray. Nothing that goes down there has ever been known to come back up, which is the river's business and none of yours." }
+      else { say "You see the floor, where you left it." }
+    }
+  }
+  as actor for unlock     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for knock      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for walk_around { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // Climbing into the magic boat is boarding it.
+  as actor for through {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (target.is(MagicBoat)) {
+        if (here.is(MagicBoat)) { refuse "You are already in the magic boat!" }
+        else if (!here.holds(target)) { refuse "The magic boat must be on the ground to be boarded." }
+      }
+    }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(MagicBoat)) {
+        if (self.count(Sharp) > 0) {
+          say "Oops! Something sharp seems to have slipped and punctured the boat. The boat deflates to the sounds of hissing, sputtering, and cursing."
+          send here :wreck
+        } else {
+          move self to target
+          say "You are now in the magic boat."
+        }
+      }
+    }
+  }
+  // A gift to the troll goes from the visitor's hand (or the open bottle in
+  // it) into his; what he does with it is his part of the reading.
+  as actor for give { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (recipient.is(Troll)) { move item to recipient }
+      else if (recipient.is(Thief)) {
+        // Into his hands, and so his bag: a light that goes with it lights
+        // these hands no longer.
+        if (item.is(Light) && self.holds(item)) { if (item.get(:lit)) { send self :light with -1 } }
+        move item to recipient
+      } else if (recipient.is(Cyclops)) {
+        // The lunch he takes while he is not yet hot from it. The water he
+        // takes bottle and all, to see whether he wants it, since he cannot
+        // see into these hands (CYCLOPS-FCN; his own part decides).
+        if (!recipient.get(:asleep)) {
+          if (item.is(Lunch)) { if (recipient.get(:wrath) >= 0) { move item to recipient } }
+          else if (item.is(Water)) { each b: Bag in self { if (b.holds(item)) { move b to here } } }
+          else if (item.is(Bag)) { if (item.count(Water) > 0) { move item to here } }
+        }
+      }
+    }
+  }
+
+  // LANTERN's THROW: the brass lantern, thrown, is smashed for good.
+  passage smash { The lamp has smashed into the floor, and the light has gone out. }
+
+  // Zork's THROW: out of the hand and onto the floor (and so, Up a Tree,
+  // down to the path below), or into the troll's, who catches it.
+  as actor for throw { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_none } }
+    do {
+      self.adjust(:moves, 1)
+      if (bound aim) {
+        if (aim.is(Troll)) { move target to aim }
+        else if (target.is(Water)) { }
+        // At the thief, he catches it, as a gift, unless it is the nasty
+        // knife and he is not yet fighting, when it falls short; at the
+        // Cyclops, it falls short.
+        else if (aim.is(Thief)) {
+          if (target.is(Knife) && !aim.get(:fighting)) { move target to here }
+          else {
+            if (target.is(Light) && self.holds(target)) { if (target.get(:lit)) { send self :light with -1 } }
+            move target to aim
+          }
+        }
+        else if (aim.is(Cyclops)) { move target to here }
+        // At the mirror, it breaks (MIRROR-MIRROR's THROW), both mirrors at
+        // once, and the thrower's luck with it.
+        else if (aim.is(Mirror)) {
+          move target to here
+          if (aim.get(:mung)) { say "Haven't you done enough damage already?" }
+          else {
+            say "You have broken the mirror. I hope you have a seven years' supply of good luck handy."
+            broadcast :shatter
+            self.set(:unlucky, true)
+          }
+        }
+        else if (aim.is(Chute)) {
+          move target to aim
+          if (target.is(Thing)) { say "The {target.short} falls into the slide and is gone." }
+        }
+        else if (aim.is(Abyss)) {
+          move target to aim
+          if (target.is(Thing)) { say "The {target.short} drops out of sight into the chasm." }
+        }
+        else if (aim.is(River)) {
+          if (target.is(Thing)) {
+            if (target.get(:burnable)) { say "The {target.short} floats for a moment, then sinks." }
+            else { say "The {target.short} splashes into the water and is gone forever." }
+          }
+          move target to aim
+        }
+        // GHOSTS-F: nothing material reaches the spirits.
+        else if (aim.is(Ghosts)) { say "You seem unable to interact with these spirits." }
+        else if (aim.is(sprout.Actor)) {
+          move target to here
+          if (target.is(Thing)) { say "{aim} ducks as the {target.short} flies by and crashes to the ground." }
+        } else {
+          move target to here
+          if (target.is(Lamp)) { say smash  spawn BrokenLamp in here  send target :shatter_lamp }
+          else if (target.is(Bottle)) {
+            if (target.count(Water) > 0) { say "The bottle hits the far wall and shatters. The water spills to the floor and evaporates." }
+            else { say "The bottle hits the far wall and shatters." }
+            send target :smash
+          }
+          else { say "Thrown." }
+        }
+      } else if (target.is(Water)) {
+      } else {
+        move target to here
+        if (target.is(Lamp)) { say smash  spawn BrokenLamp in here  send target :shatter_lamp }
+        else if (target.is(Bottle)) {
+            if (target.count(Water) > 0) { say "The bottle hits the far wall and shatters. The water spills to the floor and evaporates." }
+            else { say "The bottle hits the far wall and shatters." }
+            send target :smash
+          }
+        else { say "Thrown." }
+      }
+    }
+  }
+
+  // Zork's SHAKE, for an open container with something in it: what is in it
+  // spills to the ground. The container's own part says the rest.
+  :spilled false
+  as actor for shake { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      self.set(:spilled, false)
+      if (target.is(Bag)) {
+        if (target.get(:open) && target.count(Thing) > 0) {
+          self.set(:spilled, true)
+          say "The contents of the {target.short} spill to the ground."
+          each u: Thing in target { move u to here }
+        }
+      }
+    }
+  }
+
+  as actor for kick        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for rub         { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for wave        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for squeeze     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for kiss        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for look_behind { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for fill        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // Tied to the Dome's railing, the rope leaves the hand for the rail.
+  as actor for tie { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(Rope) && here.is(DomeRoom) && !target.get(:tied)) {
+        if (bound tool) {
+          if (tool.is(Railing) && !here.holds(target)) { move target to here }
+        }
+      }
+    }
+  }
+  as actor for alarm       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } } do { self.adjust(:moves, 1) } }
+  as actor for talk        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for greet       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // Zork's V-PRAY: at the Altar, a prayer is answered, with the Forest.
+  as actor for pray { permit { if (self.get(:finished)) { refuse over }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "pray pray ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (self.get(:dead)) {
+        // DEAD-FUNCTION's PRAY: at the Altar, life again, in the forest.
+        if (here.is(AltarRoom)) {
+          say risen
+          self.set(:dest, :risen)
+          send underground_caverns :open_gate
+        } else { say "Your prayers are not heard." }
+      } else if (here.is(AltarRoom)) {
+        self.set(:dest, :prayed)
+        send underground_caverns :open_gate
+        say ""
+      } else { say "If you pray enough, your prayers may be answered." }
+    }
+  }
+  passage risen { From the distance the sound of a lone trumpet is heard. The room becomes very bright and you feel disembodied. In a moment, the brightness fades and you find yourself rising as if from a long sleep, deep in the woods. In the distance you can faintly hear a songbird and the sounds of the forest. }
+  // Zork's ECHO: in the Loud Room, while it roars, the word that quiets it.
+  as actor for echo { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(Room)) {
+        if (here.get(:deafening)) {
+          send here :hush
+          say "The acoustics of the room change subtly."
+        } else { say "echo echo ..." }
+      } else { say "echo echo ..." }
+    }
+  }
+  // Zork's TREASURE and TEMPLE (V-TREASURE): in the Temple, the way to the
+  // thief's lair; in the lair, the way back.
+  as actor for treasure { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "treasure treasure ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(TempleRoom)) {
+        self.set(:dest, :treasure)
+        send underground_caverns :open_gate
+        say ""
+      } else if (here.is(TreasureRoom)) {
+        self.set(:dest, :temple)
+        send underground_caverns :open_gate
+        say ""
+      } else { say "Nothing happens." }
+    }
+  }
+  // Zork's ODYSSEUS: in the Cyclops's hearing, the name his father had
+  // cause to remember, and he goes, through the east wall.
+  as actor for odysseus { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "ulysses ulysses ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(CyclopsRoom)) {
+        if (here.get(:cstate) <= 2) {
+          each c: Cyclops in here { send c :flee }
+          say "The cyclops, hearing the name of his father's deadly nemesis, flees the room by knocking down the wall on the east of the room."
+        } else { say "Wasn't he a sailor?" }
+      } else { say "Wasn't he a sailor?" }
+    }
+  }
+  // LLD-ROOM's RING: at the gates of Hell, the bell grows red hot and falls,
+  // and so do the candles in hand, put out; the spirits reel. HOT-BELL-F's
+  // RING WITH: what burns is consumed on it.
+  passage rite_bell { The bell suddenly becomes red hot and falls to the ground. The wraiths, as if paralyzed, stop their jeering and slowly turn to face you. On their ashen faces, the expression of a long-forgotten terror takes shape. }
+  as actor for ring { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(Bell)) {
+        if (target.get(:hot)) {
+          if (bound tool) { if (tool.is(Thing)) { if (tool.get(:burnable) && self.holds(tool)) { send tool :consume } } }
+        } else if (here.is(HadesGate)) {
+          if (!here.get(:exorcised)) {
+            if (!here.holds(target)) { move target to here }
+            say rite_bell
+            if (self.count(Candles) > 0) {
+              say "In your confusion, the candles drop to the ground (and they are out)."
+              each c: Candles in self {
+                move c to here
+                send c :blow_out
+              }
+            }
+            send here :rite
+          }
+        }
+      }
+    }
+  }
+  as actor for untie   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  // The candles lit in hand at the gates of Hell (LLD-ROOM's M-END).
+  as actor for burn { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(Candles) && here.is(HadesGate) && self.holds(target)) {
+        if (!target.get(:lit) && target.get(:stage) < 4) {
+          if (bound tool) { if (tool.is(Matchbook)) { if (tool.get(:lit)) { send here :rite_lit } } }
+        }
+      }
+    }
+  }
+  as actor for leap_at { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for turn    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for swim  { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "swim swim ..." } } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(Riverside) || here.is(OnTheRiver) || here.is(MagicBoat)) { say "Swimming isn't usually allowed in the dungeon." }
+      else { say "Go jump in a lake!" }
+    }
+  }
+  as actor for walk_about { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "walk walk ..." } } } do { self.adjust(:moves, 1)  say "Use compass directions for movement." } }
+
+  // Zork's DIG: with nothing else to dig with, a pair of hands. Zork asks
+  // what to dig in when told only `dig`; the parser here cannot ask, so the
+  // answer is the one Zork gives once it knows.
+  // The sand of the Sandy Cave answers for itself (river.sprout); with the
+  // shovel found in hand, the digger says so first. Anywhere else the
+  // shovel finds no reason (V-DIG).
+  as actor for dig { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(Sand)) {
+        if (!bound tool && self.get(:shovels) > 0) { say "(with the shovel)" }
+      } else if (bound tool) {
+        if (tool.is(Shovel)) { say "There's no reason to be digging here." }
+        else if (tool.is(Thing)) { say "Digging with a {tool.short} is silly." }
+        else { say "Digging with a pair of hands is silly." }
+      } else { say "Digging with a pair of hands is silly." }
+    }
+  }
+  as actor for dig_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (here.is(SandyCave)) {
+        say "(in the sand)"
+        each d: Sand in here { send d :dig_sand }
+      } else { say "There's no reason to be digging here." }
+    }
+  }
+  as actor for pour    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for pour_in { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // HOT-BELL-F's POUR-ON: water cools the red hot bell, which a thing in
+  // a hand cannot reach to tell.
+  as actor for pour_on { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (item.is(Water) && target.is(Bell)) { if (target.get(:hot)) { send target :cool } }
+    }
+  }
+  as actor for mung    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } } do { self.adjust(:moves, 1) } }
+  // Climbing the Studio's chimney by name is going up it, on the same terms.
+  as actor for climb_up {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (target.is(StudioChimney)) {
+        if (self.count(Thing) == 0) { refuse empty_handed }
+        else if (self.count(Lamp) == 0) { refuse lampless }
+        else if (self.count(Thing) > 2) { refuse overloaded }
+      }
+    }
+    do { self.adjust(:moves, 1) }
+  }
+  as actor for lock       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  // UPSTAIRS and DOWNSTAIRS: the stairs of the room, climbed the way they
+  // are asked, as CLIMB UP and CLIMB DOWN climb them; where there are none,
+  // the way does not go.
+  as actor for upstairs { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      if (here.count(Stairs) > 0) { each s: Stairs in here { act climb_up (target: s) } }
+      else { say "You can't go that way." }
+    }
+  }
+  as actor for downstairs { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      if (here.count(Stairs) > 0) { each s: Stairs in here { act climb_down (target: s) } }
+      else { say "You can't go that way." }
+    }
+  }
+  // Mercy: the troll, disarmed and pleading, takes it as a troll would.
+  as actor for spare { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(Troll)) {
+        if (target.count(Axe) == 0) { say "You lower your weapon. The troll stops pleading at once, and looks, gratefully and for a long time, at the axe on the floor." }
+        else { say "The troll, who is holding the axe, does not appear to be the one in need of mercy." }
+      }
+      else if (target.is(Thief)) { say "The thief inclines his head, as though you had done him a courtesy he fully intends to repay in kind, and makes sure his bag is still with him." }
+      else if (target.is(Cyclops)) { say "The cyclops has never been in any danger from you, and is not much moved." }
+      else { say "It is in no danger from you." }
+    }
+  }
+  as actor for verbose    { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "verbose verbose ..." } } } do { self.set(:mode, :verbose)  say "Maximum verbosity." } }
+  as actor for brief      { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "brief brief ..." } } } do { self.set(:mode, :brief)  say "Brief descriptions." } }
+  as actor for superbrief { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "superbrief superbrief ..." } } } do { self.set(:mode, :superbrief)  say "Superbrief descriptions." } }
+  // The magic boat (v6, boat.sprout): in, out, out on the water and back.
+  // PRE-BOARD: on the ground, and not already in it; something sharp in
+  // hand punctures it (RBOAT-FUNCTION).
+  as actor for board {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (target.is(MagicBoat)) {
+        if (here.is(MagicBoat)) { refuse "You are already in the magic boat!" }
+        else if (!here.holds(target)) { refuse "The magic boat must be on the ground to be boarded." }
+      }
+    }
+    do {
+      self.adjust(:moves, 1)
+      if (target.is(MagicBoat)) {
+        if (self.count(Sharp) > 0) {
+          say "Oops! Something sharp seems to have slipped and punctured the boat. The boat deflates to the sounds of hissing, sputtering, and cursing."
+          send here :wreck
+        } else {
+          move self to target
+          say "You are now in the magic boat."
+        }
+      }
+    }
+  }
+  // V-DISEMBARK: on land, on your own feet; on the water, no. The way out
+  // is the room's, asked for (`:where`), since the visitor cannot name it.
+  as actor for disembark {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (here.is(MagicBoat)) {
+        if (!target.is(MagicBoat)) { refuse "You're not in that!" }
+        else if (here.get(:afloat)) { refuse "You realize that getting out here would be fatal." }
+      } else { refuse "You're not in that!" }
+    }
+    do {
+      self.adjust(:moves, 1)
+      say "You are on your own feet again."
+      broadcast :where
+    }
+  }
+  as actor for disembark_here {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (here.is(MagicBoat)) {
+        if (here.get(:afloat)) { refuse "You realize that getting out here would be fatal." }
+      } else { refuse "You are already on your own two feet." }
+    }
+    do {
+      self.adjust(:moves, 1)
+      say "You are on your own feet again."
+      broadcast :where
+    }
+  }
+  // LAUNCH and LAND said with the boat named: the boat's own errand. Said
+  // bare, they are the boat's own ways out.
+  as actor for launch {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (here.is(MagicBoat)) {
+        if (here.get(:afloat)) { refuse "{here.afloat_line}" }
+        else if (!here.get(:launch_ok)) { refuse "You can't launch it here." }
+      } else { refuse "You're not in the boat!" }
+    }
+    do {
+      self.adjust(:moves, 1)
+      send here :put_out
+      say ""
+    }
+  }
+  as actor for land {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (here.is(MagicBoat)) {
+        if (here.get(:at) == :river_2) { refuse "There is no safe landing spot here." }
+        else if (here.get(:at) == :river_4) { refuse "You can land either to the east or the west." }
+        else if (!(here.get(:at) == :river_1 || here.get(:at) == :river_3 || here.get(:at) == :river_5 || here.get(:at) == :in_stream)) { refuse "You can't go that way." }
+      } else { refuse "You can't go that way." }
+    }
+    do {
+      self.adjust(:moves, 1)
+      send here :come_ashore
+      say ""
+    }
+  }
+  as actor for ashore {
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
+      if (here.is(MagicBoat)) {
+        if (here.get(:at) == :river_2) { refuse "There is no safe landing spot here." }
+        else if (here.get(:at) == :river_4) { refuse "You can land either to the east or the west." }
+        else if (!(here.get(:at) == :river_1 || here.get(:at) == :river_3 || here.get(:at) == :river_5 || here.get(:at) == :in_stream)) { refuse "You can't go that way." }
+      } else { refuse "You can't go that way." }
+    }
+    do {
+      self.adjust(:moves, 1)
+      send here :come_ashore
+      say ""
+    }
+  }
+  as actor for inflate   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for deflate   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for plug      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for turn_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for oil       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+
+  as actor for quit {
+    do {
+      say score_line
+      say "There is no quitting the Great Underground Empire from inside it. Walk away whenever you like; it will keep your place, and your score, until you come back."
+    }
+  }
+  as actor for restart { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "restart restart ..." } } }
+    do { say "The Great Underground Empire cannot be started over from inside it. What is done here stays done." }
+  }
+  as actor for save {
+    do { say "The Empire keeps your place for you whether you ask or not. There is nothing to save." }
+  }
+  as actor for restore {
+    do { say "The Empire keeps your place for you whether you ask or not. There is nothing to restore." }
+  }
+}

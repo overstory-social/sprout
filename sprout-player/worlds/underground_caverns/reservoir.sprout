@@ -1,0 +1,303 @@
+// The reservoir behind the dam, as 1dungeon.zil joins it: Reservoir South
+// and North on its shores, the Reservoir itself (a lake, or once the
+// sluice gates have drained it, a mud pile with a trunk of jewels in it),
+// Stream View and the Stream above it, and the Atlantis Room north of it,
+// with Poseidon's crystal trident. The descriptions follow the dam
+// (RESERVOIR-SOUTH-FCN, RESERVOIR-FCN, RESERVOIR-NORTH-FCN), and the
+// way across the lake on foot opens only while the water is low. I-REMPTY
+// and I-RFILL's lines are each room's own, told as its note of the dam
+// changes (`changed :tide`); so is the drowning of anyone caught on the
+// lake bed as it refills.
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Diggable} from 'thing'
+import {Box} from 'box'
+import {Treasure} from 'items'
+import {Room, DarkRoom} from 'room'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {Abyss} from 'east'
+import {Tidal} from 'dam'
+import {WaterAbout, Riverside, OnTheRiver} from 'river'
+import {cross, through, climb_up, climb_down, dig, look_in, take, swim, leap_at, open, close, Dest, :travel, :tide, :die} from 'verbs'
+import {deep_canyon, chasm_room} from 'east'
+import {dam_room} from 'dam'
+import {small_cave} from 'mirror'
+
+object reservoir_south is DarkRoom, Tidal, Riverside in underground_caverns {
+  :tour 40
+  :reach reservoir_south
+  grammar {
+    name "Reservoir South"
+    exit southeast "southeast" -> deep_canyon
+    exit southwest "southwest" -> chasm_room
+    exit east      "east"      -> dam_room
+    exit west      "west"      -> stream_view
+    exit north     "north"     -> reservoir when (self.get(:tide) == 2 || self.get(:tide) == 3)
+    exit north     "north"     refuse "You would drown."
+  }
+  passage body {
+    {if self.get(:tide) == 2}You are in a long room, to the north of which was formerly a lake. However, with the water level lowered, there is merely a wide stream running through the center of the room.{else if self.get(:tide) == 1}You are in a long room. To the north is a large lake, too deep to cross. You notice, however, that the water level appears to be dropping at a rapid rate. Before long, it might be possible to cross to the other side from here.{else if self.get(:tide) == 3}You are in a long room, to the north of which is a wide area which was formerly a reservoir, but now is merely a stream. You notice, however, that the level of the stream is rising quickly and that before long it will be impossible to cross here.{else}You are in a long room on the south shore of a large lake, far too deep and wide for crossing.{/if}
+
+    There is a path along the stream to the east or west, a steep pathway climbing southwest along the edge of a chasm, and a path leading into a canyon to the southeast.
+  }
+  changed :tide (was) {
+    if (self.get(:tide) == 2) { tell "The water level is now quite low here and you could easily cross over to the other side." }
+    else if (self.get(:tide) == 0 && was == 3) { tell "You notice that the water level has risen to the point that it is impossible to cross." }
+  }
+  object lake is Lake
+  object chasm is Abyss {
+    describe { text "The chasm runs off to the southwest, a black slot in the floor with a steep pathway climbing along its edge. A cold air comes up out of it." }
+  }
+  object paths is Scenery {
+    grammar { name "paths"  nouns "path", "pathway", "pathways", "trail"  adjectives "steep", "east", "west", "southeast", "southwest" }
+    passage short { paths }
+    describe { text "A path runs along the shore to the east, toward the dam, and to the west, upstream. A steep pathway climbs away southwest along the edge of a chasm, and another path leads off southeast into a canyon." }
+  }
+}
+
+object reservoir is DarkRoom, Tidal, Riverside in underground_caverns {
+  :reach reservoir
+  grammar {
+    name "Reservoir"
+    exit north "north" -> reservoir_north
+    exit south "south" -> reservoir_south
+    exit up    "up"    refuse "You can't go there without a vehicle."
+    exit west  "west"  refuse "You can't go there without a vehicle."
+    exit down  "down"  refuse "The dam blocks your way."
+  }
+  passage body {
+    {if self.get(:tide) == 2 || self.get(:tide) == 3}You are on what used to be a large lake, but which is now a large mud pile. There are "shores" to the north and south.{else}You are on the lake. Beaches can be seen north and south. Upstream a small stream enters the lake through a narrow cleft in the rocks. The dam can be seen downstream.{/if}
+  }
+  passage perilous { You notice that the water level here is rising rapidly. The currents are also becoming stronger. Staying here seems quite perilous! }
+  // RESERVOIR-FCN's warning, on foot and refilling; I-RFILL's end, for
+  // whoever is still on the lake bed when it is full.
+  on :entered (item, from) {
+    if (item.is(Adventurer) && self.get(:tide) == 3) { tell item perilous }
+  }
+  changed :tide (was) {
+    if (self.get(:tide) == 3) {
+      each a: Adventurer in self { tell a perilous }
+    } else if (self.get(:tide) == 0 && was == 3) {
+      each a: Adventurer in self {
+        tell a "You are lifted up by the rising river! You try to swim, but the currents are too strong. You come closer, closer to the awesome structure of Flood Control Dam #3. The dam beckons to you. The roar of the water nearly deafens you, but you remain conscious as you tumble over the dam toward your certain doom among the rocks at its base."
+        send a :die
+      }
+    }
+  }
+  // The trunk lies in the mud, out of sight until the water goes down, and
+  // out of sight again when it comes back, if it is still here.
+  object mud is Mud {
+    object trunk is Trunk
+  }
+  object lake is Lake
+  object shores is Scenery {
+    grammar { name "shores"  nouns "shore", "beaches", "beach"  adjectives "north", "south" }
+    passage short { shores }
+    describe { text "{if reservoir.get(:tide) == 2 || reservoir.get(:tide) == 3}To the north and south, what used to be the shores of the lake stand up out of the mud like the banks of a ditch somebody forgot to fill in.{else}Beaches can be seen to the north and south, a long way off across the water.{/if}" }
+  }
+  object cleft is Scenery {
+    grammar { name "cleft"  nouns "rocks", "crack"  adjectives "narrow" }
+    passage short { cleft }
+    describe { text "Upstream, to the west, a small stream comes into the lake through a narrow cleft in the rocks, too narrow to follow on foot." }
+  }
+  object dam is Scenery {
+    grammar { name "dam"  nouns "wall"  adjectives "flood", "control" }
+    passage short { dam }
+    describe { text "Downstream, to the east, the dam closes off the end of the reservoir: a long grey wall, seen from behind, which is not its best side." }
+  }
+}
+
+object reservoir_north is DarkRoom, Tidal, Riverside in underground_caverns {
+  :tour 41
+  :reach reservoir_north
+  grammar {
+    name "Reservoir North"
+    exit north "north" -> atlantis_room
+    exit south "south" -> reservoir when (self.get(:tide) == 2 || self.get(:tide) == 3)
+    exit south "south" refuse "You would drown."
+  }
+  passage body {
+    {if self.get(:tide) == 2}You are in a large cavernous room, the south of which was formerly a lake. However, with the water level lowered, there is merely a wide stream running through there.{else if self.get(:tide) == 1}You are in a large cavernous area. To the south is a wide lake, whose water level appears to be falling rapidly.{else if self.get(:tide) == 3}You are in a cavernous area, to the south of which is a very wide stream. The level of the stream is rising rapidly, and it appears that before long it will be impossible to cross to the other side.{else}You are in a large cavernous room, north of a large lake.{/if}
+
+    There is a slimy stairway leaving the room to the north.
+  }
+  changed :tide (was) {
+    if (self.get(:tide) == 2) { tell "The water level is now quite low here and you could easily cross over to the other side." }
+    else if (self.get(:tide) == 0 && was == 3) { tell "You notice that the water level has risen to the point that it is impossible to cross." }
+  }
+  object pump is Pump
+  object lake is Lake
+  object stairs is Stairs {
+    grammar { adjectives "slimy" }
+    passage view { The stairway leaves the room to the north, its steps green and slick with the slime of a place that has been under water more often than not. }
+    as target for climb_up   { do { send actor :travel with :atlantis  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+}
+
+object stream_view is DarkRoom, Riverside in underground_caverns {
+  :tour 42
+  :reach stream_view
+  grammar {
+    name "Stream View"
+    exit east "east" -> reservoir_south
+    exit west "west" refuse "The stream emerges from a spot too small for you to enter."
+  }
+  passage body {
+    You are standing on a path beside a gently flowing stream. The path follows the stream, which flows from west to east.
+  }
+  object stream is Stream
+  object path is Scenery {
+    grammar { name "path"  nouns "trail", "bank"  adjectives "narrow" }
+    passage short { path }
+    describe { text "The path follows the stream down from the west, along a bank just wide enough for one, toward the reservoir to the east." }
+  }
+  object spot is Scenery {
+    grammar { name "spot"  nouns "opening", "hole", "source"  adjectives "small", "too" }
+    passage short { spot }
+    describe { text "To the west the stream comes out of the rock through an opening the size of a cat flap, with a good deal more force than you would expect from something so small. It is much too small for you to enter." }
+    without as target for through from Thing
+    as target for through { do { say "The stream emerges from a spot too small for you to enter." } }
+  }
+}
+
+object in_stream is DarkRoom, OnTheRiver in underground_caverns {
+  :reach in_stream
+  grammar { name "Stream" }
+  passage body {
+    You are on the gently flowing stream. The upstream route is too narrow to navigate, and the downstream route is invisible due to twisting walls. There is a narrow beach to land on.
+  }
+  object stream is Stream
+  object beach is Scenery {
+    grammar { name "narrow beach"  nouns "beach", "bank", "shore"  adjectives "narrow" }
+    passage short { narrow beach }
+    describe { text "A narrow beach of grey gravel runs beside the stream, with a path along it. It is the only place for some way in either direction where a boat might land." }
+  }
+  object walls is Scenery {
+    grammar { name "twisting walls"  nouns "walls", "channel", "route"  adjectives "twisting", "narrow", "upstream", "downstream" }
+    passage short { twisting walls }
+    describe { text "The walls of the channel twist and close in. Upstream they close in altogether; downstream they turn and turn again, so that you cannot see where the stream goes, except that it is going there." }
+  }
+}
+
+object atlantis_room is DarkRoom in underground_caverns {
+  :tour 43
+  grammar {
+    name "Atlantis Room"
+    exit south "south"     -> reservoir_north
+    exit up    "staircase" -> small_cave
+  }
+  passage body {
+    This is an ancient room, long under water. There is an exit to the south and a staircase leading up.
+  }
+  object trident is Trident
+  object stairs is Stairs {
+    grammar { adjectives "ancient", "worn" }
+    passage view { The staircase climbs out of the room, its steps worn into shallow cups and furred with something that was alive while the water was here. }
+    as target for climb_up   { do { send actor :travel with :small_cave  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+  object chamber is Scenery {
+    grammar { name "ancient room"  nouns "room", "chamber", "barnacles", "weed", "pillars", "columns", "carvings", "carving"  adjectives "ancient", "drowned" }
+    passage short { ancient room }
+    describe { text "The room is very old and has been under water for most of that time. Its pillars are crusted with something like barnacles, its floor slopes down to a little shore of silt at the south end, and weed hangs from the carvings in long, dry, disappointed strands." }
+  }
+  object silt is Scenery, Diggable {
+    grammar { name "shore"  nouns "silt", "sand"  adjectives "little" }
+    passage short { shore }
+    describe { text "At the south end of the room the floor runs down to a little shore of fine grey silt, rippled where the water last left it." }
+  }
+}
+
+// The lake, as Zork's LAKE-PSEUDO and STREAM-PSEUDO answer it: too wide,
+// too deep, and, with the gates open, not much of a lake.
+kind Lake is Scenery {
+  grammar { name "lake"  nouns "reservoir", "water", "stream"  adjectives "large", "wide", "deep" }
+  :low false
+  on :tide (from, value) { self.set(:low, value == 2 || value == 3) }
+  passage short { lake }
+  passage dry { There's not much lake left.... }
+  describe {
+    if (self.get(:low)) { text "Where the lake was is a broad expanse of mud with a wide stream winding across it, which is not much of a lake." }
+    else { text "The lake is wide and dark and very still, and the far side of it is a long way off. It is far too deep and wide for crossing." }
+  }
+  without as target for cross from Thing
+  as target for cross { do { if (self.get(:low)) { say dry } else { say "It's too wide to cross." } } }
+  without as target for through from Thing
+  as target for through { do { if (self.get(:low)) { say dry } else { say "You can't swim in this lake." } } }
+  as target for leap_at { do { if (self.get(:low)) { say dry } else { say "You can't swim in this lake." } } }
+  passage no_take { The water slips through your fingers. }
+}
+
+kind Stream is Scenery {
+  grammar { name "stream"  nouns "water", "brook", "current"  adjectives "gently", "flowing", "gentle" }
+  passage short { stream }
+  describe { text "The stream is clear and cold and in no particular hurry, flowing from west to east over a bed of grey pebbles." }
+  without as target for cross from Thing
+  as target for cross { do { say "The other side is a sheer rock cliff." } }
+  without as target for through from Thing
+  as target for through { do { say "You can't swim in the stream." } }
+  as target for leap_at { do { say "You can't swim in the stream." } }
+  passage no_take { The water slips through your fingers. }
+}
+
+// The mud on the lake bed: while the water is up, nothing in it can be seen
+// or named. It shows the trunk when the reservoir drains, and takes it back
+// out of sight when it fills again, if it is still lying there.
+kind Mud is Scenery {
+  contains
+  pass any (false)
+  grammar { name "mud"  nouns "mud", "pile", "bed", "silt", "ooze"  adjectives "large", "muddy" }
+  :low false
+  passage short { mud }
+  describe {
+    if (self.get(:low)) { text "The mud of the lake bed is grey and glistening and smells of a very long time under water. It is deep, and would like to keep your boots." }
+    else { text "The mud is at the bottom of the lake, under a great deal of water, which is where it is happiest." }
+  }
+  on :tide (from, value) {
+    self.set(:low, value == 2 || value == 3)
+    if (value == 2 || value == 3) { each t: Trunk in self { move t to underground_caverns.reservoir } }
+    else { each t: Trunk in underground_caverns.reservoir { move t to self } }
+  }
+  passage no_take { It squelches through your fingers and goes back where it was. }
+}
+
+// The trunk of jewels on the lake bed (TRUNK-F's STUPID-CONTAINER).
+kind Trunk is Treasure {
+  grammar { name "trunk of jewels"  nouns "trunk", "chest", "jewels", "treasure"  adjectives "old" }
+  :size 35
+  :value 15
+  :tvalue 5
+  // Lifted out of the mud by somebody: Zork's FDESC is for the trunk still
+  // lying half buried where it was found.
+  :lifted false
+  on :moved (from, to) { if (to.is(Adventurer)) { self.set(:lifted, true) } }
+  passage short { trunk of jewels }
+  passage ldesc {{if self.get(:lifted)}There is an old trunk here, bulging with assorted jewels.{else}Lying half buried in the mud is an old trunk, bulging with jewels.{/if}}
+  describe { text "It is an old sea-trunk, its leather rotted and its brass corners green, and it is bulging with jewels: rubies and sapphires and things you cannot name, glinting through every split in its sides. There are lots of jewels in there." }
+  without as target for open from Thing
+  as target for open { do { say "The jewels are safely inside; there's no need to do that." } }
+  without as target for close from Thing
+  as target for close { do { say "The jewels are safely inside; there's no need to do that." } }
+  without as target for look_in from Thing
+  as target for look_in { do { say "There are lots of jewels in there." } }
+}
+
+// The hand-held air pump from Reservoir North, for the boat.
+kind Pump is Portable {
+  grammar { name "hand-held air pump"  nouns "pump", "air-pump", "tool", "tools"  adjectives "small", "hand-held", "air", "hand" }
+  passage short { hand-held air pump }
+  describe { text "It is a small hand-held air pump, a brass barrel with a wooden handle and a length of rubber hose ending in a nozzle, of the kind made for blowing up things that come folded." }
+}
+
+// Poseidon's own crystal trident, on the shore of the Atlantis Room.
+kind Trident is Treasure {
+  grammar { name "crystal trident"  nouns "trident", "fork", "treasure"  adjectives "poseidon", "poseidon's", "own", "crystal" }
+  :has_fdesc true
+  :size 20
+  :value 4
+  :tvalue 11
+  passage short { crystal trident }
+  passage fdesc { On the shore lies Poseidon's own crystal trident. }
+  describe { text "It is a trident cut from a single piece of crystal, clear as water and as long as you are tall, its three tines ending in points fine enough to draw blood by looking at them. Light goes into it and comes out somewhere else. It was made for someone who expected to be obeyed by the sea." }
+}

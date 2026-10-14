@@ -1,0 +1,213 @@
+// The kinds of portable thing Zork treats specially: weapons, treasures,
+// food and drink, and things with writing on them.
+import {Portable, Thing} from 'thing'
+import {Adventurer} from 'adventurer'
+import {eat, drink, read, pour, pour_in, pour_on, give, throw, :glow, :claimed} from 'verbs'
+import {TrophyCase} from 'house'
+import {Troll} from 'troll'
+import {examine} from 'sprout'
+import {Box} from 'box'
+import {Torch, Bell} from 'temple'
+
+// Something sharp, which the magic boat does not agree with: Zork's
+// WEAPONBIT, and the sceptre's point (RBOAT-FUNCTION).
+kind Sharp is Thing { }
+
+// Something nothing can be put into, which answers a `put` itself: the
+// leak, the punctured boat, the tube, the tool chests (v6).
+kind Rejecting { }
+
+// A weapon, and which one: Zork's melee tables care whether it is the
+// sword (which the troll fears most), the knife or the axe.
+kind Weapon is Portable, Sharp {
+  :wcode 1 min 1 max 4
+}
+
+kind Sword is Weapon {
+  :glow 0 min 0 max 2
+  on :glow (from, value) { self.set(:glow, value) }
+}
+
+kind Knife is Weapon { :wcode 2 }
+
+// The troll's axe. While he wields it, it is in plain sight in his fist and
+// in reach of a name, but not of a good look, and not of a hand (his own
+// guard says so: see `Troll`).
+kind Axe is Weapon {
+  :wcode 3
+  :wielded false
+  on :moved (from, to) { self.set(:wielded, to.is(Troll)) }
+  as target for examine {
+    permit {
+      if (self.get(:wielded)) { refuse "You can't get a good look at the axe while the troll is waving it at you. What you can see of it is heavy, notched and bloody, and generally coming your way." }
+    }
+  }
+}
+
+// A treasure pays `:value` the first time it is taken, and `:tvalue` for as
+// long as it sits in the trophy case.
+kind Treasure is Portable {
+  :value 0 min 0 max 50
+  :tvalue 0 min 0 max 50
+  // Whether it sits in the trophy case: a treasure spoiled there takes
+  // back what the case paid for it.
+  :cased false
+  on :claimed { self.set(:value, 0) }
+  on :moved (from, to) { self.set(:cased, to.is(TrophyCase)) }
+}
+
+// Something to eat. Eaten, it is gone for good, as in Zork.
+kind Food is Portable {
+  without as target for eat from Thing
+  as target for eat {
+    // V-EAT: in hand, or in something in hand.
+    permit {
+      if (!actor.holds(self)) {
+        each b: Box in actor { if (b.holds(self)) { allow } }
+        refuse "You're not holding that."
+      }
+    }
+    do {
+      say "Thank you very much. It really hit the spot."
+      destroy self
+    }
+  }
+}
+
+// Something with words on it. Reading a thing you are not holding picks it
+// up first, as Zork's parser does, and says so.
+kind Readable is Portable {
+  without as target for read from Thing
+  passage words default { {if false}.{/if} }
+  as target for read {
+    permit {
+      // Taken first, as Zork's parser takes it, the load permitting.
+      if (actor.is(Adventurer)) {
+        if (!actor.holds(self) && actor.get(:load) + self.get(:size) > 100) { refuse "(Taking the {self.short} first) {actor.too_heavy}" }
+      }
+      // Behind a shut glass lid (the map in the trophy case).
+      if (self.get(:sealed)) { refuse "You can't reach something that's inside a closed container." }
+    }
+    do {
+      if (!actor.holds(self)) {
+        move self to actor
+        say "(Taken)"
+      }
+      say words
+    }
+  }
+}
+
+// Zork's lunch and clove of garlic, from the brown sack.
+kind Lunch is Food {
+  grammar { name "lunch"  nouns "food", "sandwich", "dinner"  adjectives "hot", "pepper" }
+  passage short { lunch }
+  passage ldesc { A hot pepper sandwich is here. }
+  describe { text "It is a hot pepper sandwich, wrapped in waxed paper that has long since given up trying to contain it. It smells of hot peppers from across the room, and of more hot peppers from closer to." }
+}
+
+kind Garlic is Food {
+  grammar { name "clove of garlic"  nouns "garlic", "clove" }
+  :size 4
+  passage short { clove of garlic }
+  describe { text "It is a single clove of garlic, plump and papery and very much itself. It is the sort of thing that keeps certain company at a distance, and most other company too." }
+  without as target for eat from Food
+  as target for eat {
+    permit {
+      if (!actor.holds(self)) {
+        each b: Box in actor { if (b.holds(self)) { allow } }
+        refuse "You're not holding that."
+      }
+    }
+    do {
+      say "What the heck! You won't make friends this way, but nobody around here is too friendly anyhow. Gulp!"
+      destroy self
+    }
+  }
+}
+
+// Water, from the glass bottle: it slips through the fingers, and is drunk
+// where it stands.
+kind Water is Thing {
+  grammar { name "quantity of water"  nouns "water", "liquid", "h2o", "drink" }
+  :size 4
+  passage short { quantity of water }
+  passage no_take { It's in the bottle. Perhaps you should take that instead. }
+  // Behind the bottle's shut stopper it is seen and named, as Zork's
+  // TRANSBIT shows it, and not to be had: WATER-F's and V-DRINK's lines.
+  passage stoppered { The bottle is closed. }
+  without as target for drink from Thing
+  as target for drink {
+    permit { if (self.get(:sealed)) { refuse "You'll have to open the glass bottle first." } }
+    do {
+      say "Thank you very much. I was rather thirsty (from all this talking, probably)."
+      destroy self
+    }
+  }
+
+  // Poured, as Zork's WATER-F takes it: on the floor, into anything but
+  // the bottle it is in, or over something, it is gone.
+  as target for pour {
+    permit { if (self.get(:sealed)) { refuse stoppered } }
+    do {
+      say "The water spills to the floor and evaporates."
+      destroy self
+    }
+  }
+  as item for pour_in {
+    permit { if (self.get(:sealed)) { refuse stoppered } }
+    do {
+      if (container.is(Box)) {
+        if (container.holds(self)) { say "The water slips through your fingers." }
+        else {
+          say "The water leaks out of the {container.short} and evaporates immediately."
+          destroy self
+        }
+      } else if (container.is(Thing)) {
+        say "The water leaks out of the {container.short} and evaporates immediately."
+        destroy self
+      } else {
+        say "The water spills to the floor and evaporates."
+        destroy self
+      }
+    }
+  }
+  as item for pour_on {
+    permit { if (self.get(:sealed)) { refuse stoppered } }
+    do {
+      if (target.is(Torch)) { say "The water evaporates before it gets close." }
+      // HOT-BELL-F's POUR-ON, and I-XBH at once.
+      else if (target.is(Bell)) {
+        if (target.get(:hot)) {
+          say "The water cools the bell and is evaporated."
+          say "The bell appears to have cooled down."
+        } else { say "The water spills over the {target.short}, to the floor, and evaporates." }
+      }
+      else if (target.is(Thing)) { say "The water spills over the {target.short}, to the floor, and evaporates." }
+      else { say "The water spills to the floor and evaporates." }
+      destroy self
+    }
+  }
+
+  // Given to the troll, out of the open bottle in hand, it goes into his;
+  // shut in the bottle, it goes nowhere.
+  as item for give {
+    permit { if (self.get(:sealed)) { refuse stoppered } }
+  }
+  // Thrown, as WATER-F has it, unless at the troll, who catches anything.
+  as target for throw {
+    permit { if (self.get(:sealed)) { refuse stoppered } }
+    do {
+      if (bound aim) {
+        if (aim.is(Troll)) { }
+        else {
+          say "The water splashes on the walls and evaporates immediately."
+          destroy self
+        }
+      } else {
+        say "The water splashes on the walls and evaporates immediately."
+        destroy self
+      }
+    }
+  }
+}

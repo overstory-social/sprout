@@ -1,0 +1,54 @@
+{
+  "name": "underground_caverns",
+  "version": "0.1.0",
+  "author": "studio",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [
+    {
+      "name": "media",
+      "major": 1
+    }
+  ],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "e07a01d353c34e10d14044970e85c1fc1a1b0ebba0078fa69a2bec86936b95da"
+    }
+  ],
+  "files": [
+    "underground_caverns.sprout",
+    "person.sprout",
+    "verbs.sprout",
+    "thing.sprout",
+    "box.sprout",
+    "room.sprout",
+    "lamp.sprout",
+    "items.sprout",
+    "adventurer.sprout",
+    "troll.sprout",
+    "tree.sprout",
+    "scenery.sprout",
+    "grating.sprout",
+    "maze.sprout",
+    "remains.sprout",
+    "above_ground.sprout",
+    "house.sprout",
+    "cellar.sprout",
+    "gallery.sprout",
+    "nowhere.sprout",
+    "east.sprout",
+    "temple.sprout",
+    "thief.sprout",
+    "cyclops.sprout",
+    "dam.sprout",
+    "reservoir.sprout",
+    "river.sprout",
+    "boat.sprout",
+    "mirror.sprout",
+    "mine.sprout",
+    "hades.sprout",
+    "barrow.sprout"
+  ]
+}

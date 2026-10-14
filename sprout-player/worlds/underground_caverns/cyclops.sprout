@@ -1,0 +1,559 @@
+// Beyond Maze 15, as 1dungeon.zil has it: the Cyclops Room, whose cyclops
+// guards the stairs up to the thief's lair; the Treasure Room, that lair,
+// with the silver chalice; and the Strange Passage, which the Cyclops opens
+// to the Living Room when he leaves by the east wall. From CYCLOPS-FCN,
+// I-CYCLOPS, CYCLOPS-ROOM-FCN and V-ODYSSEUS, TREASURE-ROOM-FCN, CHALICE-FCN
+// and the CYCLOPS-MELEE table in 1actions.zil and gverbs.zil.
+//
+// The Cyclops is an NPC (`sprout.Actor`), as the troll and the thief are,
+// and the third in the world. He wants feeding: the lunch makes him
+// thirsty, and the water (in its bottle) puts him to sleep, which leaves
+// the stairs open. Annoyed, or fed and not watered, he grows wrathful on a
+// clock of his own until he eats you. He cannot be fought: a blow at him
+// he shrugs off, and a blow that wakes him starts him fighting, on Zork's
+// tables, with his fists. The name of Odysseus, said in his hearing, sends
+// him through the east wall in a panic.
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Tieable} from 'thing'
+import {Box, Bag} from 'box'
+import {Treasure, Lunch, Garlic, Water} from 'items'
+import {Room, DarkRoom} from 'room'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {Thief} from 'thief'
+import {ask} from 'sprout'
+import {take, put, open, close, look_in, attack, give, throw, listen, talk, greet, alarm, mung, kick, burn, tie, climb_up, climb_down, through, shift, :travel, :clock, :cyc_state, :magic, :cyclops_gone, :uncork, :consume, :summon, :defend, :keeper, :unveil, :wall_look, :die, search} from 'verbs'
+import {maze_15} from 'maze'
+import {living_room} from 'house'
+extension media 1
+
+message :restate
+message :waken
+message :flee
+
+kind CyclopsRoom is DarkRoom {
+  // How the room sees its cyclops: 0 hungry, 1 wary, 2 gasping, 3 asleep,
+  // 4 gone; and whether the east wall is open (Zork's MAGIC-FLAG).
+  :cstate 0 min 0 max 4
+  :magic false
+}
+kind TreasureRoom is DarkRoom {
+  // Whether its owner is alive and awake to come to its defense, as he
+  // tells it (a room cannot read him out of its range).
+  :keeper true
+  on :keeper (from, value) { self.set(:keeper, value) }
+}
+
+object cyclops_room is CyclopsRoom in underground_caverns {
+  grammar {
+    name "Cyclops Room"
+    exit northwest "northwest" -> maze_15
+    exit east      "opening"   -> strange_passage when (self.get(:magic))
+    exit east      "east"      refuse "The east wall is solid rock."
+    exit up        "staircase" -> treasure_room when (self.get(:cstate) >= 3)
+    exit up        "staircase" refuse "The cyclops doesn't look like he'll let you past."
+  }
+  :tour 26
+  :walls 6
+  :glow 2
+  passage body {
+    This room has an exit on the northwest, and a staircase leading up.
+
+    {if self.get(:magic)}The east wall, previously solid, now has a cyclops-sized opening in it.{else if self.get(:cstate) == 3}The cyclops is sleeping blissfully at the foot of the stairs.{else if self.get(:cstate) == 1}The cyclops is standing in the corner, eyeing you closely. I don't think he likes you very much. He looks extremely hungry, even for a cyclops.{else if self.get(:cstate) == 2}The cyclops, having eaten the hot peppers, appears to be gasping. His enflamed tongue protrudes from his man-sized mouth.{else}A cyclops, who looks prepared to eat horses (much less mere adventurers), blocks the staircase. From his state of health, and the bloodstains on the walls, you gather that he is not very friendly, though he likes people.{/if}
+  }
+  on :cyc_state (from, value) { self.set(:cstate, value) }
+  on :magic {
+    self.set(:magic, true)
+    self.set(:cstate, 4)
+    self.set(:walls, 8)
+    send underground_caverns.cyclops_room.wall :wall_look with 8
+  }
+  on :cyclops_gone { self.set(:glow, 0) }
+  // Coming in on a cyclops already roused, his clock starts again
+  // (CYCLOPS-ROOM-FCN's M-ENTER).
+  on :entered (item, from) {
+    // I-CYCLOPS leaves the dead alone.
+    if (item.is(Adventurer) && !item.get(:dead)) {
+      if (self.get(:cstate) == 1 || self.get(:cstate) == 2) { each c: Cyclops in self { send c :clock } }
+    }
+  }
+
+  object cyclops is Cyclops
+  object stairs is Stairs {
+    grammar { adjectives "foot", "up" }
+    passage view { A broad stone staircase climbs out of the room. {if cyclops_room.get(:cstate) >= 3}Nothing stands between you and it now.{else}At its foot stands the cyclops, and the stairs are, for practical purposes, his.{/if} }
+    as target for climb_up {
+      do {
+        if (cyclops_room.get(:cstate) >= 3) { send actor :travel with :treasure  say "" }
+        else { say "The cyclops doesn't look like he'll let you past." }
+      }
+    }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+  object exit is Scenery {
+    grammar { name "exit"  nouns "passage", "way"  adjectives "northwest" }
+    passage short { exit }
+    describe { text "The exit on the northwest leads back into the twisty little passages of the maze, which look, from here, exactly like a way out of something worse." }
+  }
+  object bloodstains is Scenery {
+    grammar { name "bloodstains"  nouns "blood", "stains", "bloodstain"  adjectives "old", "dried" }
+    passage short { bloodstains }
+    describe { text "The bloodstains are old and many and spattered in the arcs a large hand makes, flinging. They suggest that the cyclops likes people the way a cook likes potatoes." }
+  }
+  object opening is Scenery {
+    grammar { name "solid rock"  nouns "opening", "hole", "rubble", "rock"  adjectives "east", "cyclops-sized", "solid" }
+    passage short { solid rock }
+    describe {
+      if (cyclops_room.get(:magic)) { text "Where the east wall was solid rock there is now a cyclops-sized opening, ragged at the edges, with the rubble of the wall scattered beyond it into a passage. Whoever went through it did not stop to open it first." }
+      else { text "The east wall is solid rock, grey and unremarkable and much like any other wall, except that something very large has leaned against it often enough to polish it." }
+    }
+    without as target for through from Thing
+    as target for through {
+      do {
+        if (cyclops_room.get(:magic)) { send actor :travel with :strange  say "" }
+        else { say "The east wall is solid rock." }
+      }
+    }
+  }
+}
+
+// Zork's CYCLOPS. He holds nothing; what he eats goes no further.
+kind Cyclops is Thing, sprout.Actor, Tieable {
+  grammar { name "cyclops"  nouns "monster", "eye", "giant", "tongue", "mouth"  adjectives "hungry", "giant", "sleeping", "enflamed", "man-sized" }
+  :ndesc true
+  // Zork's CYCLOWRATH: 0 calm; more and more, the angrier he grows;
+  // below 0, the hotter the peppers he has eaten.
+  :wrath 0 min -9 max 9
+  // Zork's CYCLOPS-FLAG while he is in the room, and FIGHTBIT.
+  :asleep false
+  :fighting false
+  // Whether his clock (I-CYCLOPS) is running.
+  :clock false
+  // The melee: attack, defence, the die, and the result; and what his
+  // blow does to a visitor (as the thief's `:dealt`).
+  :ma 99 min 0 max 99
+  :md 0 min -99 max 99
+  :mk 0 min 0 max 20
+  :mdiff 0 min -200 max 200
+  :mres 1 min 1 max 9
+  :dealt 1 min 1 max 8
+  :wet false
+
+  passage short { cyclops }
+  passage no_take { The cyclops doesn't take kindly to being grabbed. }
+  passage held_fast { The cyclops doesn't take kindly to being grabbed. }
+  describe {
+    if (self.get(:asleep)) { text "The cyclops is sleeping like a baby, albeit a very ugly one." }
+    else { text "A hungry cyclops is standing at the foot of the stairs." }
+    if (seen == :look) { media.show("pictures/cyclops.png", "the cyclops") }
+  }
+
+  // The state the room describes him in.
+  on :restate {
+    if (self.get(:asleep)) { send underground_caverns.cyclops_room :cyc_state with 3 }
+    else if (self.get(:wrath) > 0) { send underground_caverns.cyclops_room :cyc_state with 1 }
+    else if (self.get(:wrath) < 0) { send underground_caverns.cyclops_room :cyc_state with 2 }
+    else { send underground_caverns.cyclops_room :cyc_state with 0 }
+  }
+
+  without as target for listen from Thing
+  as target for listen {
+    do {
+      if (self.get(:asleep)) { say "The cyclops makes no sound." }
+      else { say "You can hear his stomach rumbling." }
+    }
+  }
+  without as target for talk from Thing
+  as target for talk {
+    do {
+      if (self.get(:asleep)) { say "No use talking to him. He's fast asleep." }
+      else { say "The cyclops prefers eating to making conversation." }
+    }
+  }
+  without as target for ask from Thing
+  as target for ask {
+    do {
+      if (self.get(:asleep)) { say "No use talking to him. He's fast asleep." }
+      else { say "The cyclops prefers eating to making conversation." }
+    }
+  }
+  without as target for greet from Thing
+  as target for greet { do { say "The cyclops bows his head to you in greeting." } }
+  without as target for tie from Tieable
+  as target for tie { do { say "You cannot tie the cyclops, though he is fit to be tied." } }
+  without as target for shift from Thing
+  as target for shift { do { say no_take } }
+
+  // Waking him (ALARM, KICK, ATTACK, BURN, MUNG on a sleeping cyclops): he
+  // remembers how cross he was, and comes up fighting.
+  passage roused { The cyclops yawns and stares at the thing that woke him up. }
+  without as target for alarm from Thing
+  as target for alarm {
+    do {
+      if (self.get(:asleep)) { say roused  send self :waken }
+      else { say "The cyclops isn't sleeping." }
+    }
+  }
+  without as target for kick from Thing
+  as target for kick {
+    do {
+      if (self.get(:asleep)) { say roused  send self :waken }
+      else { say "Kicking the cyclops {self.hacked}" }
+    }
+  }
+  without as target for burn from Thing
+  as target for burn {
+    do {
+      if (self.get(:asleep)) { say roused  send self :waken }
+      else if (bound tool) { say "You can't burn a cyclops." }
+      else { say "You didn't say with what!" }
+    }
+  }
+  // A blow, or a thrown thing, he shrugs off, and is the angrier for it;
+  // breaking him he dodges.
+  as target for attack {
+    do {
+      if (self.get(:asleep)) { say roused  send self :waken }
+      else {
+        say "The cyclops shrugs but otherwise ignores your pitiful attempt."
+        send self :clock
+      }
+    }
+  }
+  without as target for mung from Thing
+  as target for mung {
+    do {
+      if (self.get(:asleep)) { say roused  send self :waken }
+      else {
+        say "\"Do you think I'm as stupid as my father was?\", he says, dodging."
+        send self :clock
+      }
+    }
+  }
+  as aim for throw {
+    do {
+      if (target.is(Thing)) {
+        if (self.get(:asleep)) { say "The cyclops ducks as the {target.short} flies by and crashes to the ground." }
+        else {
+          say "The cyclops shrugs but otherwise ignores your pitiful attempt."
+          send self :clock
+        }
+      }
+    }
+  }
+
+  // A gift (CYCLOPS-FCN's GIVE): the lunch he eats, and wants a drink after;
+  // the water, once he is thirsty, he drinks, bottle and all, and sleeps.
+  // The visitor's own part has already handed over what he takes.
+  without as recipient for give from Thing
+  as recipient for give {
+    do {
+      // Water, or the bottle with water in it.
+      self.set(:wet, item.is(Water))
+      if (item.is(Bag)) { if (item.count(Water) > 0) { self.set(:wet, true) } }
+      if (item.is(Thing)) {
+        if (self.get(:asleep)) { say "The cyclops refuses it politely." }
+        else if (item.is(Lunch)) {
+          if (self.get(:wrath) >= 0) {
+            say "The cyclops says \"Mmm Mmm. I love hot peppers! But oh, could I use a drink. Perhaps I could drink the blood of that thing.\" From the gleam in his eye, it could be surmised that you are \"that thing\"."
+            if (self.get(:wrath) > 0) { self.set(:wrath, 0 - self.get(:wrath)) } else { self.set(:wrath, -1) }
+            send item :consume
+          }
+          send self :clock
+          send self :restate
+        } else if (self.get(:wet)) {
+          if (self.get(:wrath) < 0) {
+            say "The cyclops takes the bottle, checks that it's open, and drinks the water. A moment later, he lets out a yawn that nearly blows you over, and then falls fast asleep (what did you put in that drink, anyway?)."
+            each b: Bag in here {
+              if (b.holds(item) || b == item) {
+                send b :uncork
+                each w: Water in b { send w :consume }
+              }
+            }
+            self.set(:asleep, true)
+            self.set(:fighting, false)
+            self.set(:clock, false)
+            cancel wakes
+            send self :restate
+          } else {
+            say "The cyclops apparently is not thirsty and refuses your generous offer."
+            each b: Bag in here { if (b.holds(item) || b == item) { move b to actor } }
+          }
+        } else if (item.is(Garlic)) { say "The cyclops may be hungry, but there is a limit." }
+        else { say "The cyclops is not so stupid as to eat THAT!" }
+      }
+    }
+  }
+
+  on :waken {
+    self.set(:asleep, false)
+    self.set(:fighting, true)
+    if (self.get(:wrath) < 0) { self.set(:wrath, 0 - self.get(:wrath)) }
+    send self :restate
+    cancel wakes
+    wake in 1 minutes
+  }
+  // His clock starts, or goes on (I-CYCLOPS, enabled).
+  on :clock {
+    if (!self.get(:asleep)) {
+      self.set(:clock, true)
+      cancel wakes
+      wake in 1 minutes
+    }
+  }
+  // Odysseus: he flees, through the east wall.
+  on :flee {
+    self.set(:clock, false)
+    self.set(:fighting, false)
+    cancel wakes
+    broadcast :magic
+    broadcast :cyclops_gone
+    finally destroy self
+  }
+
+  // His turns: his temper (I-CYCLOPS), and his fists, if he is fighting
+  // (I-FIGHT). Left alone, he forgets about you.
+  on :woke (elapsed) {
+    if (!self.get(:asleep)) {
+      if (underground_caverns.cyclops_room.count(Adventurer) == 0) {
+        self.set(:clock, false)
+        self.set(:fighting, false)
+      } else {
+        if (self.get(:clock)) {
+          if (self.get(:wrath) > 5 || self.get(:wrath) < -5) {
+            self.set(:clock, false)
+            tell "The cyclops, tired of all of your games and trickery, grabs you firmly. As he licks his chops, he says \"Mmm. Just like Mom used to make 'em.\" It's nice to be appreciated."
+            each a: Adventurer in underground_caverns.cyclops_room { if (!a.get(:dead)) { send a :die } }
+          } else {
+            if (self.get(:wrath) < 0) { self.adjust(:wrath, -1) } else { self.adjust(:wrath, 1) }
+            tell mad_line
+            send self :restate
+          }
+        }
+        if (self.get(:fighting)) {
+          each a: Adventurer in underground_caverns.cyclops_room { act attack (target: a) }
+        }
+        if (self.get(:clock) || self.get(:fighting)) { wake in 1 minutes }
+      }
+    }
+  }
+  passage mad_line {{if self.get(:wrath) == 1 || self.get(:wrath) == -1}The cyclops seems somewhat agitated.{else if self.get(:wrath) == 2 || self.get(:wrath) == -2}The cyclops appears to be getting more agitated.{else if self.get(:wrath) == 3 || self.get(:wrath) == -3}The cyclops is moving about the room, looking for something.{else if self.get(:wrath) == 4 || self.get(:wrath) == -4}The cyclops was looking for salt and pepper. No doubt they are condiments for his upcoming snack.{else if self.get(:wrath) == 5 || self.get(:wrath) == -5}The cyclops is moving toward you in an unfriendly manner.{else}You have two choices: 1. Leave  2. Become dinner.{/if}}
+
+  // His fist (VILLAIN-BLOW with CYCLOPS-MELEE): no weapon, and a strength
+  // nobody has measured, against the visitor's.
+  as actor for attack {
+    do {
+      if (target.is(Adventurer)) {
+        self.set(:ma, 99)
+        self.set(:md, target.get(:fight))
+          if (target.get(:score) >= 70) { self.adjust(:md, 1) }
+          if (target.get(:score) >= 140) { self.adjust(:md, 1) }
+          if (target.get(:score) >= 210) { self.adjust(:md, 1) }
+          if (target.get(:score) >= 280) { self.adjust(:md, 1) }
+          if (target.get(:score) >= 350) { self.adjust(:md, 1) }
+        if (self.get(:md) > 0) {
+          self.set(:mk, random(9))
+          if (self.get(:md) == 1) {
+            if (self.get(:ma) >= 3) { self.adjust(:mk, 2) } else if (self.get(:ma) == 2) { self.adjust(:mk, 1) }
+            if (self.get(:mk) < 4) { self.set(:mres, 1) } else if (self.get(:mk) < 6) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 2) } else { self.set(:mres, 3) }
+          } else if (self.get(:md) == 2) {
+            if (self.get(:ma) <= 1) {
+              if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else { self.set(:mres, 4) }
+            } else {
+              if (self.get(:ma) == 3) { self.adjust(:mk, 1) } else if (self.get(:ma) >= 4) { self.adjust(:mk, 2) }
+              if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else if (self.get(:mk) < 9) { self.set(:mres, 2) } else { self.set(:mres, 3) }
+            }
+          } else {
+            self.set(:mdiff, self.get(:ma) - self.get(:md))
+            if (self.get(:mdiff) <= -2) {
+              if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else { self.set(:mres, 4) }
+            } else if (self.get(:mdiff) == -1) {
+              self.adjust(:mk, 1)
+              if (self.get(:mk) < 5) { self.set(:mres, 1) } else if (self.get(:mk) < 7) { self.set(:mres, 6) } else if (self.get(:mk) < 9) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            } else if (self.get(:mdiff) == 0) {
+              if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            } else if (self.get(:mdiff) == 1) {
+              self.adjust(:mk, 1)
+              if (self.get(:mk) < 3) { self.set(:mres, 1) } else if (self.get(:mk) < 5) { self.set(:mres, 6) } else if (self.get(:mk) < 8) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            } else {
+              if (self.get(:mk) < 1) { self.set(:mres, 1) } else if (self.get(:mk) < 3) { self.set(:mres, 6) } else if (self.get(:mk) < 7) { self.set(:mres, 4) } else { self.set(:mres, 5) }
+            }
+          }
+          let v = self.get(:mres)
+          if (v == 1) {
+            self.set(:dealt, 1)
+            tell target "{one of}The Cyclops misses, but the backwash almost knocks you over.{or}The Cyclops rushes you, but runs into the wall.{/one of}"
+          } else if (v == 2) {
+            tell target "The Cyclops sends you crashing to the floor, unconscious."
+            let more = random(3)
+            if (random(9) < 2 && (more == 0 || random(9) < 2) && (more <= 1 || random(9) < 2)) {
+              self.set(:dealt, 2)
+              tell target "The Cyclops seems unable to decide whether to broil or stew his dinner."
+            } else {
+              self.set(:dealt, 5)
+              tell target "The Cyclops, no sportsman, dispatches his unconscious victim."
+              tell target dead_line
+            }
+          } else if (v == 3) {
+            self.set(:dealt, 3)
+            tell target "The Cyclops breaks your neck with a massive smash."
+            tell target dead_line
+          } else if (v == 4) {
+            tell target "{one of}A quick punch, but it was only a glancing blow.{or}A glancing blow from the Cyclops' fist.{/one of}"
+            if (self.get(:md) <= 1) {
+              self.set(:dealt, 8)
+              tell target dead_line
+            } else { self.set(:dealt, 4) }
+          } else if (v == 5) {
+            tell target "{one of}The monster smashes his huge fist into your chest, breaking several ribs.{or}The Cyclops almost knocks the wind out of you with a quick punch.{/one of}"
+            if (self.get(:md) <= 2) {
+              self.set(:dealt, 8)
+              tell target dead_line
+            } else { self.set(:dealt, 7) }
+          } else {
+            self.set(:dealt, 6)
+          }
+        }
+      }
+    }
+  }
+  passage dead_line { It appears that that last blow was too much for you. I'm afraid you are dead. }
+}
+
+object strange_passage is DarkRoom in underground_caverns {
+  grammar {
+    name "Strange Passage"
+    exit west "west" -> cyclops_room
+    exit in   "in"   -> cyclops_room
+    exit east "door" -> living_room
+  }
+  :tour 27
+  :glow 1
+  on :cyclops_gone { self.set(:glow, 0) }
+  passage body {
+    This is a long passage. To the west is one entrance. On the east there is an old wooden door, with a large opening in it (about cyclops sized).
+  }
+  object door is Scenery {
+    grammar { name "wooden door"  nouns "door", "opening", "hole", "lettering"  adjectives "old", "wooden", "large", "east", "cyclops-sized" }
+    :door true
+    passage short { wooden door }
+    describe { text "It is an old wooden door, much nailed, with a large opening smashed through the middle of it at about the height and width of a cyclops in a hurry. The splinters all point east. Through the opening you can see the inside of a house." }
+    without as target for open from Thing
+    without as target for close from Thing
+    as target for open  { do { say "The door cannot be opened, but it hardly matters now." } }
+    as target for close { do { say "There is not enough door left to close." } }
+    without as target for through from Thing
+    as target for through { do { send actor :travel with :living_room  say "" } }
+    without as target for look_in from Thing
+    as target for look_in { do { say "Through the opening you can see a living room, and a trophy case, and the end of a large oriental rug." } }
+  }
+  object passage_way is Scenery {
+    grammar { name "long passage"  nouns "passage", "passageway", "entrance"  adjectives "long", "strange", "west" }
+    passage short { long passage }
+    describe { text "The passage is long and low and runs straight between the door and the cyclops's room, as if it had been cut for exactly one purpose, by someone who knew exactly how big a cyclops is. The rock of the floor is worn smooth down the middle." }
+  }
+}
+
+object treasure_room is TreasureRoom in underground_caverns {
+  grammar {
+    name "Treasure Room"
+    exit down "staircase" -> cyclops_room
+  }
+  :tour 28
+  :value 25
+  :walls 7
+  :glow 1
+  // The cyclops below has gone out through the wall (a room cannot read
+  // another out of its range, so it keeps its own note).
+  :fled false
+  on :cyclops_gone {
+    self.set(:glow, 0)
+    self.set(:fled, true)
+  }
+  passage body {
+    This is a large room, whose east wall is solid granite. A number of discarded bags, which crumble at your touch, are scattered about on the floor. There is an exit down a staircase.
+  }
+  // Somebody is in the lair: its owner comes to defend it
+  // (TREASURE-ROOM-FCN), from wherever he is.
+  on :entered (item, from) {
+    if (item.is(Adventurer)) {
+      if (self.count(Thief) > 0) { each t: Thief in self { send t :defend } }
+      else { broadcast :summon }
+    }
+  }
+  // The thief, dying here: what he hid shows itself (ROBBER-FUNCTION's
+  // F-DEAD).
+  // Only what he hid is his treasure: the stiletto he dropped, and anything
+  // the visitor brought in that was not a treasure, lie in plain sight.
+  on :unveil (from) {
+    if (self.count(Treasure) > self.count(Chalice)) { tell revealed }
+    tell "The chalice is now safe to take."
+  }
+  passage revealed {
+    As the thief dies, the power of his magic decreases, and his treasures reappear:{for t: Treasure in self}{if !t.is(Chalice)}
+
+    A {t.short}{/if}{/for}
+  }
+
+  object chalice is Chalice
+  object bags is Scenery {
+    grammar { name "discarded bags"  nouns "bags", "sacks"  adjectives "discarded", "crumbling", "old", "empty" }
+    passage short { discarded bags }
+    passage no_take { The bag crumbles at your touch into a little heap of dust and a smell of old leather, and you leave the rest of them alone. }
+    describe { text "The bags lie all over the floor, dozens of them, sacks and satchels and purses, every one empty and every one so old that it crumbles at a touch. Somebody has been filling bags in this room for a very long time, and emptying them into somewhere else." }
+    without as target for shift from Thing
+    as target for shift { do { say no_take } }
+    without as target for open from Thing
+    as target for open { do { say no_take } }
+    without as target for look_in from Thing
+    as target for look_in { do { say "They are all empty. Whatever was in them is somewhere else." } }
+    without as target for search from Thing
+    as target for search { do { say "They are all empty. Whatever was in them is somewhere else." } }
+  }
+  object granite is Scenery {
+    grammar { name "granite"  adjectives "solid", "east" }
+    passage short { granite }
+    describe { text "The east wall is a single face of solid granite, grey and seamless and smooth. It looks like the wall at the west of the temple, and it may well be the other side of it; there is no telling, and no getting through." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "staircase" }
+    passage view { A staircase goes down out of the room, toward the Cyclops Room{if treasure_room.get(:fled)}, which has a cyclops-sized hole in it and no cyclops{else} and the cyclops, and whatever is left of his temper{/if}. }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down { do { send actor :travel with :cyclops  say "" } }
+  }
+}
+
+// Zork's CHALICE: a treasure, and a container nobody should use as one.
+// While its owner stands guard over it, fighting, it is not to be had.
+kind Chalice is Box, Treasure {
+  grammar { name "chalice"  nouns "cup", "silver", "treasure", "goblet"  adjectives "silver", "engraved", "engravings", "intricately" }
+  without as target for close from Thing
+  without as target for look_in from Thing
+  without as target for open from Thing
+  without as target for close from Box
+  without as target for look_in from Box
+  without as target for open from Box
+  :open true
+  :capacity 5
+  :size 10
+  :value 10
+  :tvalue 5
+  passage short { chalice }
+  passage ldesc { There is a silver chalice, intricately engraved, here. }
+  passage examined {
+    The chalice is of heavy silver, deep-bowled and short-stemmed, engraved all over with leaves, birds and little scenes of people handing one another things. It has been polished by somebody who loved it, and there is not a dent in it. It is the finest thing in the room, which is saying a great deal, and it is not for drinking from.
+
+    {self.look_inside}
+  }
+  as target for open    { do { say "You can't do that." } }
+  as target for close   { do { say "You can't do that." } }
+  as target for look_in { do { say "{self.look_inside}" } }
+  as container for put  { permit { refuse "You can't. It's not a very good chalice, is it?" } }
+  as target for take {
+    permit {
+      each t: Thief in here {
+        if (t.get(:shown) && t.get(:fighting) && t.get(:strength) > 0) { refuse "You'd be stabbed in the back first." }
+      }
+    }
+  }
+}

@@ -1,0 +1,415 @@
+// East of the Troll Room, as dungeon.zil joins it: the East-West Passage,
+// the Round Room, the Loud Room and its platinum bar, the Deep Canyon and
+// the Damp Cave, the Chasm and the North-South Passage, and the Engravings
+// Cave on the way to the Dome. All of them are dark. Room names and
+// descriptions are Zork's; the Loud Room's echo is LOUD-ROOM-FCN's, the
+// chasm's answers CHASM-PSEUDO's, the crack's CRACK-FCN's.
+//
+// Since v6 the ways on to the dam, the reservoir and the White Cliffs lead
+// there (dam.sprout, reservoir.sprout, river.sprout). The Loud Room and the
+// Deep Canyon follow the dam: each keeps its own note of the sluice gates
+// and the water (`Tidal`). Since v7 the way south of the Round Room goes on
+// to the Narrow Passage and the mirrors (mirror.sprout); the heaps that
+// once blocked it sit in a passage southwest that Zork never opened.
+import {Thing, Portable, Scenery, Diggable} from 'thing'
+import {Box} from 'box'
+import {Treasure} from 'items'
+import {DarkRoom, Perilous, ChasmEdge, CanyonEdge} from 'room'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {open, close, look_in, climb_up, climb_down, cross, leap_at, through, read, listen, smell, take, shift, raise, dig, mung, clear, climb_over, duck_under, cut, kick, rub, search, look_behind, look_under, :travel, :troll_gone, :hush, :flung, :tide} from 'verbs'
+import {troll_room} from 'cellar'
+import {narrow_corridor} from 'mirror'
+import {dome_room} from 'temple'
+import {Tidal, dam_room} from 'dam'
+import {reservoir_south} from 'reservoir'
+import {white_cliffs_north, CliffCave} from 'river'
+
+object east_west_passage is DarkRoom in underground_caverns {
+  :tour 29
+  grammar {
+    name "East-West Passage"
+    exit east  "east"     -> round_room
+    exit west  "west"     -> troll_room
+    exit down  "stairway" -> chasm_room
+    exit north "north"    -> chasm_room
+  }
+  :value 5
+  // Next door to the troll, the sword knows it while he lives.
+  :glow 1
+  on :troll_gone { self.set(:glow, 0) }
+  passage body {
+    This is a narrow east-west passageway. There is a narrow stairway leading down at the north end of the room.
+  }
+  object passageway is Scenery {
+    grammar { name "passageway"  nouns "passage", "corridor"  adjectives "narrow", "east-west", "east", "west" }
+    passage short { passageway }
+    describe { text "The passageway runs east and west, narrow and straight and dry, as if whoever cut it knew exactly where they were going and had no wish to linger on the way. The west end smells of troll." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "stairway" }
+    passage view { A narrow stairway goes down at the north end of the passage, cut into the rock in steps worn hollow in the middle by a great many feet, none of them recent. }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down { do { send actor :travel with :chasm  say "" } }
+  }
+}
+
+object round_room is DarkRoom in underground_caverns {
+  :tour 30
+  grammar {
+    name "Round Room"
+    exit east      "east"      -> loud_room
+    exit west      "west"      -> east_west_passage
+    exit north     "north"     -> north_south_passage
+    exit south     "south"     -> narrow_corridor
+    exit southwest "southwest" refuse blocked_way
+    exit southeast "southeast" -> engravings_cave
+  }
+  passage body {
+    This is a circular stone room with passages in all directions. Several of them have unfortunately been blocked by cave-ins.
+  }
+  // One of the cave-ins, tidied.
+  passage blocked_way {
+    The passage southwest narrows almost at once and then stops, choked by one of the cave-ins. Somebody has sorted the near end of the rubble into neat heaps by size, smallest nearest. Behind the heaps the roof has come down all the way to the floor, and it has not finished coming down: grit is still trickling from it as you watch. There is no way through.
+  }
+  object passages is Scenery {
+    grammar { name "passages"  nouns "passage", "passageways", "openings", "directions"  adjectives "all", "radiating" }
+    passage short { passages }
+    describe { text "Passages leave the room in every direction, like spokes from a hub. Most of them do not get far. The ones that do go east, west, north, south and southeast; the one to the southwest starts out bravely and gives up under a heap of fallen roof." }
+  }
+  object cave_ins is Rubble {
+    grammar { name "cave-ins"  nouns "cave-in", "rubble", "rocks", "rock", "rockfall", "boulders", "stones", "debris"  adjectives "fallen", "blocked", "a", "south" }
+    passage short { cave-ins }
+    describe { text "Fallen rock fills most of the passages out of the room, ceiling and all. At the mouth of the passage to the southwest somebody has sorted the nearest of it into neat heaps, smallest nearest, the way some people tidy a room they have no intention of using. Behind the heaps the roof has come down to the floor, and grit still trickles from it now and then. What the rock has left open goes east, west, north, south and southeast." }
+  }
+  // The heaps, looked at closer: somebody has been here, and no further.
+  object heaps is Rubble {
+    grammar { name "heaps"  nouns "heap", "piles", "pile", "pebbles", "pebble", "grit", "dust", "cone"  adjectives "sorted", "neat", "nearest", "small", "smallest", "little" }
+    passage short { heaps }
+    describe { text "There are five heaps, graded as carefully as a builder grades gravel: fist-sized stones at the back, then smaller ones, then pebbles, then grit, and nearest of all a little cone of dust that has been swept up rather than kicked. Not one stone is on the wrong heap. Whoever did it knelt to do it; the dust in front of the smallest heap still has the marks of two knees in it, and nothing to say which way they went after." }
+  }
+  // Where whoever sorted the heaps knelt to do it.
+  object marks is Scenery {
+    grammar { name "marks"  nouns "marks", "mark", "knees", "dents", "prints"  adjectives "knee", "two", "kneeling" }
+    passage short { marks }
+    describe { text "Two shallow dents in the dust in front of the smallest heap, side by side, a little apart: somebody knelt here a long while, sorting, and then got up without putting a hand down, and the dust around them has not a footprint in it. Whoever it was is tidy even about leaving." }
+    passage no_take { There is nothing to take but dust, and the dust is part of the marks. }
+  }
+  object stone is Scenery {
+    grammar { name "stone"  nouns "room", "circle", "floor"  adjectives "circular", "round" }
+    passage short { stone }
+    describe { text "The room is a near-perfect circle of smooth grey stone, the kind of room that makes you feel you have been put in the middle of something. The floor is worn in a ring, as if a great many people had come in here, gone round once, and left by a different door." }
+  }
+}
+
+// Zork's Loud Room (LOUD-ROOM-FCN). With the dam's gates shut and the
+// reservoir full, water pours over the dam, and until somebody says "echo"
+// (the adventurer's part of `echo`) the room is deafening: whatever is done
+// to anything in it, the room says back (thing.sprout), and the only things
+// that work are the ways out. Said, the room falls quiet for good, and the
+// platinum bar can be had. With the gates open and the water still high,
+// the roar is unbearable, and throws whoever is in it out, into the Damp
+// Cave, the Round Room or the Deep Canyon (friction 71); with the gates
+// shut and the reservoir drained, the room is quiet without the word.
+object loud_room is DarkRoom, Tidal in underground_caverns {
+  :tour 33
+  grammar {
+    name "Loud Room"
+    exit east      "east"     -> damp_cave
+    exit west      "west"     -> round_room
+    exit up        "stairway" -> deep_canyon
+    // What Zork's loop does with a way that is not a way out: it echoes.
+    exit north     "north"     refuse "north north ..." when (self.get(:deafening))
+    exit south     "south"     refuse "south south ..." when (self.get(:deafening))
+    exit down      "down"      refuse "down down ..." when (self.get(:deafening))
+    exit northeast "northeast" refuse "northeast northeast ..." when (self.get(:deafening))
+    exit northwest "northwest" refuse "northwest northwest ..." when (self.get(:deafening))
+    exit southeast "southeast" refuse "southeast southeast ..." when (self.get(:deafening))
+    exit southwest "southwest" refuse "southwest southwest ..." when (self.get(:deafening))
+    exit in        "in"        refuse "in in ..." when (self.get(:deafening))
+    exit out       "out"       refuse "out out ..." when (self.get(:deafening))
+  }
+  // Zork's LOUD-FLAG: somebody has said the word.
+  :hushed false
+  :deafening true
+  on :hush {
+    self.set(:hushed, true)
+    self.set(:deafening, false)
+  }
+  changed :tide (was) {
+    self.set(:deafening, !self.get(:hushed) && self.get(:tide) != 3 && self.get(:tide) != 1)
+    // The gates open while somebody is in here; or the reservoir full again
+    // and pouring over the dam (I-RFILL): out they go.
+    if (self.get(:tide) == 1) {
+      each a: Adventurer in self { send a :flung with true }
+    } else if (self.get(:tide) == 0 && was == 3) {
+      each a: Adventurer in self {
+        tell a "All of a sudden, an alarmingly loud roaring sound fills the room. Filled with fear, you scramble away."
+        send a :flung with false
+      }
+    }
+  }
+  // In with the gates open and the water high: the room, then the roar.
+  on :entered (item, from) {
+    if (item.is(Adventurer) && self.get(:tide) == 1) { send item :flung with true }
+  }
+  passage body {
+    This is a large room with a ceiling which cannot be detected from the ground. There is a narrow passage from east to west and a stone stairway leading upward. {if self.get(:hushed) || self.get(:tide) == 3}The room is eerie in its quietness.{else}The room is deafeningly loud with an undetermined rushing sound. The sound seems to reverberate from all of the walls, making it difficult even to think.{/if}
+  }
+
+  object bar is Treasure {
+    grammar { name "platinum bar"  nouns "bar", "platinum", "treasure", "ingot"  adjectives "platinum", "large" }
+    :size 20
+    :value 10
+    :tvalue 5
+    :sacred true
+    passage short { platinum bar }
+    passage ldesc { On the ground is a large platinum bar. }
+    passage echoed { bar bar ... }
+    describe { text "It is a bar of platinum the size of a house brick and very nearly the weight of one, cast plain and stamped with nothing at all, as though whoever made it felt the metal said enough. It is cold to the touch, and quite silent, which in this room is a distinction." }
+  }
+  object ceiling is Scenery {
+    grammar { name "ceiling"  nouns "roof", "dark"  adjectives "high", "undetectable" }
+    passage short { ceiling }
+    describe { text "If there is a ceiling, it is too far up to be detected from the ground, and the dark up there gives nothing away. {if loud_room.get(:deafening)}The noise seems to come down from it, and up from the floor, and in from the walls, all at once.{else}Up there, somewhere, the last of the echo is still going round.{/if}" }
+  }
+  object passage_east_west is Scenery {
+    grammar { name "narrow passage"  nouns "passage", "passageway"  adjectives "narrow", "east", "west" }
+    passage short { narrow passage }
+    describe { text "A narrow passage crosses the room from east to west, the only part of the place built to anything like a human scale." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "stairway"  adjectives "stone" }
+    passage view { A stone stairway climbs out of the room, steep and uneven, toward somewhere with less noise in it. }
+    as target for climb_up   { do { send actor :travel with :deep_canyon  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+  object noise is Scenery {
+    grammar { name "rushing sound"  nouns "sound", "noise", "roar", "acoustics", "echo", "quiet", "silence" }
+    passage short { rushing sound }
+    describe {
+      if (loud_room.get(:deafening)) { text "It is a vast, featureless, rushing roar, like water or wind or both, coming from everywhere at once. It goes into your ears and does not come out again." }
+      else { text "There is no sound at all, now: only the quiet, which has a texture of its own in a room this size, like a held breath." }
+    }
+    without as target for listen from Thing
+    as target for listen { do { say "The room is eerie in its quietness. Somewhere far off, the last of an echo is still going round." } }
+  }
+}
+
+object deep_canyon is DarkRoom, CanyonEdge, Tidal in underground_caverns {
+  :tour 31
+  grammar {
+    name "Deep Canyon"
+    exit northwest "northwest" -> reservoir_south
+    exit east      "east"      -> dam_room
+    exit southwest "southwest" -> north_south_passage
+    exit down      "stairway"  -> loud_room
+  }
+  passage body {
+    You are on the south edge of a deep canyon. Passages lead off to the east, northwest and southwest. A stairway leads down.{if self.get(:tide) == 1} You can hear a loud roaring sound, like that of rushing water, from below.{else if self.get(:tide) == 3}{else} You can hear the sound of flowing water from below.{/if}
+  }
+  // I-REMPTY and I-RFILL, heard from the canyon's edge.
+  changed :tide (was) {
+    if (self.get(:tide) == 2) { tell "The roar of rushing water is quieter now." }
+    else if (self.get(:tide) == 0 && was == 3) { tell "A sound, like that of flowing water, starts to come from below." }
+  }
+  object canyon is Scenery {
+    grammar { name "canyon"  nouns "edge", "gorge", "ravine", "drop"  adjectives "deep", "south" }
+    passage short { canyon }
+    describe { text "The canyon falls away to the north, sheer and black, too deep for your light to find the bottom.{if deep_canyon.get(:tide) == 3} From far below there is no sound at all.{else} From somewhere far below comes the sound of water, going about its business.{/if}" }
+    without as target for climb_down from Thing
+    as target for climb_down { do { say "The canyon walls are sheer, and the bottom is a very long way down. You decide against it." } }
+    without as target for look_in from Thing
+    as target for look_in { do { say "Far below, too far to see, water is flowing. It sounds busy." } }
+  }
+  object passages is Scenery {
+    grammar { name "passages"  nouns "passage", "passageways"  adjectives "east", "northwest", "southwest" }
+    passage short { passages }
+    describe { text "Passages lead off east, northwest and southwest. The one to the east climbs toward a deep, steady hum; the one to the northwest is wet underfoot and smells of standing water; the one to the southwest is merely a passage, which down here counts as a recommendation." }
+  }
+  object stairs is Stairs {
+    grammar { nouns "stairway" }
+    // The canyon cannot see into the Loud Room (friction 89); it goes by
+    // its own note of the dam.
+    passage view { The stairway goes down into a roaring dark. {if deep_canyon.get(:tide) == 3}It is quiet down there now.{else if deep_canyon.get(:tide) == 1}The roar comes up it, louder than you would have thought possible.{else}The roar comes up it to meet you.{/if} }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+    as target for climb_down { do { send actor :travel with :loud_room  say "" } }
+  }
+  object water is Scenery {
+    grammar { name "flowing water"  nouns "water", "sound", "river", "stream"  adjectives "flowing", "rushing" }
+    passage short { flowing water }
+    passage no_take { It is a long way below you, and in no mood to be taken anywhere. }
+    describe { text "You cannot see the water from here. You can only hear it, far below, {if deep_canyon.get(:tide) == 1}roaring{else}flowing steadily and with great conviction{/if} toward somewhere else." }
+    without as target for listen from Thing
+    as target for listen { do { if (deep_canyon.get(:tide) == 1) { say "You can hear a loud roaring sound, like that of rushing water, from below." } else if (deep_canyon.get(:tide) == 3) { say "You hear nothing out of the ordinary." } else { say "You can hear the sound of flowing water from below." } } }
+  }
+}
+
+object damp_cave is DarkRoom, CliffCave in underground_caverns {
+  :tour 32
+  grammar {
+    name "Damp Cave"
+    exit west  "west"  -> loud_room
+    exit east  "east"  -> white_cliffs_north
+    exit south "crack" refuse "It is too narrow for most insects."
+  }
+  passage body {
+    This cave has exits to the west and east, and narrows to a crack toward the south. The earth is particularly damp here.
+  }
+  object crack is Crack
+  object earth is Scenery {
+    grammar { name "earth"  nouns "ground", "floor", "mud", "dirt", "damp"  adjectives "damp", "particularly" }
+    passage short { earth }
+    describe { text "The earth underfoot is particularly damp, as the room promised, and gives a little under your weight. Something has dripped here for a very long time without ever quite getting around to being a puddle." }
+  }
+  object exits is Scenery {
+    grammar { name "exits"  nouns "exit", "passages", "passage"  adjectives "west", "east" }
+    passage short { exits }
+    describe { text "There are ways out to the west, back toward the noise, and to the east, toward a cold breath of air and the sound of a river." }
+  }
+}
+
+object north_south_passage is DarkRoom in underground_caverns {
+  :tour 34
+  grammar {
+    name "North-South Passage"
+    exit north     "north"     -> chasm_room
+    exit northeast "northeast" -> deep_canyon
+    exit south     "south"     -> round_room
+  }
+  passage body { This is a high north-south passage, which forks to the northeast. }
+  object high_passage is Scenery {
+    grammar { name "high passage"  nouns "passageway", "passage", "fork"  adjectives "high", "north-south", "north", "south", "northeast" }
+    passage short { high passage }
+    describe { text "The passage is high and narrow, a slot in the rock that runs north and south, with a fork going off to the northeast as if it had had second thoughts. The ceiling is lost in the dark overhead." }
+  }
+}
+
+object chasm_room is DarkRoom, Perilous, ChasmEdge in underground_caverns {
+  :tour 35
+  grammar {
+    name "Chasm"
+    exit northeast "northeast" -> reservoir_south
+    exit southwest "southwest" -> east_west_passage
+    exit up        "stairway"  -> east_west_passage
+    exit south     "crack"     -> north_south_passage
+    exit down      "chasm"     refuse "Are you out of your mind?"
+  }
+  passage body {
+    A chasm runs southwest to northeast and the path follows it. You are on the south side of the chasm, where a crack opens into a passage.
+  }
+  object chasm is Abyss {
+    describe { text "The chasm runs southwest to northeast, a black slot in the floor of the world, too deep for any light to find the bottom. A cold air comes up out of it, smelling of nothing at all." }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "ledge", "trail"  adjectives "chasm" }
+    passage short { path }
+    describe { text "The path follows the chasm from southwest to northeast, keeping a respectful distance from the edge. To the northeast it climbs toward a smell of standing water." }
+  }
+  object crack is Crack {
+    grammar { nouns "passage", "passageway" }
+    passage view { The crack in the south side of the chasm is wide enough for a person, just, and opens into a passage that leads away south. }
+    without as target for through from Crack
+    as target for through { do { send actor :travel with :ns_passage  say "" } }
+  }
+  object stairs is Stairs {
+    grammar { nouns "stairway" }
+    passage view { A stairway climbs from the edge of the chasm up into the rock, toward the east-west passage. }
+    as target for climb_up   { do { send actor :travel with :ew_passage  say "" } }
+    as target for climb_down { do { say "The stairs don't lead downward." } }
+  }
+}
+
+object engravings_cave is DarkRoom in underground_caverns {
+  :tour 36
+  grammar {
+    name "Engravings Cave"
+    exit northwest "northwest" -> round_room
+    exit east      "east"      -> dome_room
+  }
+  :walls 4
+  passage body { You have entered a low cave with passages leading northwest and east. }
+  object engravings is Scenery {
+    grammar { name "wall with engravings"  nouns "engravings", "engraving", "inscription", "carvings", "reliefs", "bas-reliefs"  adjectives "old", "ancient" }
+    :ndesc false
+    passage short { wall with engravings }
+    passage ldesc { There are old engravings on the walls here. }
+    passage words {
+      The engravings were incised in the living rock of the cave wall by an unknown hand. They depict, in symbolic form, the beliefs of the ancient Zorkers. Skillfully interwoven with the bas reliefs are excerpts illustrating the major religious tenets of that time. Unfortunately, a later age seems to have considered them blasphemous and just as skillfully excised them.
+    }
+    describe { text words }
+    without as target for read from Thing
+    as target for read { do { say words } }
+  }
+  object cave is Scenery {
+    grammar { name "low cave"  nouns "cave", "passages", "passage"  adjectives "low", "northwest", "east" }
+    passage short { low cave }
+    describe { text "The cave is low enough to make you duck, and long enough to make you tired of ducking. Passages leave it to the northwest and the east; from the east comes a faint draught, as though from somewhere very large." }
+  }
+}
+
+// A narrow crack, as Zork's CRACK is: nobody fits through it.
+// The Round Room's cave-in and the heaps sorted from it: whatever is tried
+// on them, the one reason, a roof that is still coming down.
+kind Rubble is Scenery, Diggable {
+  passage no_take { You lay a hand on the nearest rock, and the roof overhead answers with a trickle of grit and a long, considering creak. The cave-in has not finished falling in, and it would rather finish on you than not. You leave the heaps as you found them. }
+  without as target for shift from Thing
+  as target for shift { do { say no_take } }
+  without as target for raise from Thing
+  as target for raise { do { say no_take } }
+  without as target for clear from Thing
+  as target for clear { do { say no_take } }
+  without as target for kick from Thing
+  as target for kick { do { say no_take } }
+  without as target for mung from Thing
+  as target for mung { do { say no_take } }
+  without as target for rub from Thing
+  as target for rub { do { say no_take } }
+  without as target for search from Thing
+  as target for search { do { say "You find nothing among the heaps but rock, sorted by size." } }
+  without as target for look_behind from Thing
+  as target for look_behind { do { say "Behind the heaps the roof has come down all the way to the floor, and grit is still trickling from it." } }
+  without as target for look_under from Thing
+  as target for look_under { do { say no_take } }
+  without as target for climb_over from Thing
+  as target for climb_over { do { say "The heaps are easy enough to climb; it is the cave-in behind them that goes all the way up to the roof, and the roof is still coming down." } }
+  as target for dig { do { say no_take } }
+  without as target for through from Thing
+  as target for through { do { say "There is no way through. The roof came down all the way to the floor, and it is still coming." } }
+}
+
+kind Crack is Scenery {
+  grammar { name "crack"  nouns "fissure", "slit"  adjectives "narrow" }
+  passage short { crack }
+  passage view default { The crack is a dark slit in the rock a few inches wide, narrowing as it goes. A draught comes out of it, and so, now and then, does an ant. }
+  describe { text view }
+  without as target for through from Thing
+  as target for through { do { say "You can't fit through the crack." } }
+  without as target for look_in from Thing
+  as target for look_in { do { say "The crack goes back into the rock, narrowing, until it is too dark to say where it goes." } }
+}
+
+// A chasm, as Zork's CHASM-PSEUDO has it: too wide to cross or leap, and
+// whatever is put or thrown into it is never seen again.
+kind Abyss is Box {
+  grammar { name "chasm"  nouns "ravine", "gorge", "abyss", "edge", "bottom"  adjectives "bottomless", "deep" }
+  :open true
+  :ndesc true
+  :capacity 10000
+  passage short { chasm }
+  passage peer default { You peer over the edge. The chasm goes down, and then further down, and then, as far as anyone has come back to say, down. }
+  // What goes in is gone for good, when the turn is done (thing.sprout).
+
+  without as target for look_in from Box
+  as target for look_in { do { say peer } }
+  without as target for close from Box
+  as target for close { do { say "You must tell me how to do that to a chasm." } }
+  without as target for open from Box
+  as target for open { do { say "You must tell me how to do that to a chasm." } }
+  without as target for cross from Thing
+  as target for cross { do { say "It's too far to jump, and there's no bridge." } }
+  without as target for leap_at from Thing
+  as target for leap_at { do { say "You look before leaping, and realize that you would never survive." } }
+  without as target for climb_down from Thing
+  as target for climb_down { do { say "Are you out of your mind?" } }
+}

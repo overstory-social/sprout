@@ -1,0 +1,296 @@
+// The Mirror Rooms and the passages round them (v7), as 1dungeon.zil and
+// 1actions.zil have them (MIRROR-ROOM, MIRROR-MIRROR, CAVE2-ROOM): the way
+// from the Round Room's country and from the Atlantis Room to the coal mine.
+//
+// Two rooms, alike to the last stone, each with an enormous mirror on its
+// south wall. The Narrow Passage south of the Round Room comes to Mirror
+// Room 2, which leads only to the Winding Passage and the Tiny Cave, whose
+// stairs go down to Hades. Mirror Room 1, up from the Atlantis Room by way
+// of the Cave, leads north to the Cold Passage and the coal mine. Rubbing
+// either mirror changes the two rooms over, and whatever is lying in them,
+// and the visitor with them: Zork's only way across from the Round Room's
+// side. Broken, the mirror changes nothing ever again, and the luck of the
+// one who broke it is gone (Zork's LUCKY).
+//
+// The rooms cannot reach each other, so the rub asks the visitor to go
+// (`:travel`, `:mirror_1` or `:mirror_2`), and the visitor, through the
+// world's gate, carries the rooms' contents across by way of a room nobody
+// visits (`mirror_limbo`) before going itself (adventurer.sprout).
+import * as sprout from 'sprout'
+import {Thing, Scenery, Portable} from 'thing'
+import {Room, DarkRoom} from 'room'
+import {Stairs} from 'scenery'
+import {Adventurer} from 'adventurer'
+import {take, rub, rub_with, mung, attack, look_in, look_behind, look_under, through, climb_up, climb_down, kiss, search, shift, raise, read, kick, listen, Dest, :travel, :shatter, :bad_luck, :gust} from 'verbs'
+import {round_room} from 'east'
+import {atlantis_room} from 'reservoir'
+import {slide_room} from 'mine'
+import {entrance_to_hades} from 'hades'
+
+// The Tiny Cave, where the voices below can be heard.
+kind Murmuring { }
+
+// A Mirror Room, either one: its description, and the mirror broken or not.
+kind MirrorRoom {
+  :mung false
+  on :shatter { self.set(:mung, true) }
+  passage body {
+    You are in a large square room with tall ceilings. On the south wall is an enormous mirror which fills the entire wall. There are exits on the other three sides of the room.{if self.get(:mung)}
+
+    Unfortunately, the mirror has been destroyed by your recklessness.{/if}
+  }
+}
+
+// The mirror (MIRROR-MIRROR). Each room has its own, and each knows the
+// room its rubbing leads to.
+kind Mirror is Scenery {
+  grammar { name "mirror"  nouns "reflection", "glass", "looking-glass"  adjectives "enormous", "huge", "south", "tall" }
+  :mung false
+  :leads Dest default mirror_1
+  passage short { mirror }
+  passage no_take { The mirror is many times your size. Give up. }
+  passage whole { There is an ugly person staring back at you. }
+  passage broken { The mirror is broken into many pieces. }
+  passage smashed { You have broken the mirror. I hope you have a seven years' supply of good luck handy. }
+  passage again { Haven't you done enough damage already? }
+  on :shatter { self.set(:mung, true) }
+  describe {
+    if (self.get(:mung)) { text broken } else { text whole }
+  }
+  without as target for look_in from Thing
+  as target for look_in {
+    do { if (self.get(:mung)) { say broken } else { say whole } }
+  }
+  without as target for look_behind from Thing
+  as target for look_behind { do { say "The mirror fills the wall. There is nothing behind it but more wall, which is the usual arrangement." } }
+  without as target for search from Thing
+  as target for search { do { if (self.get(:mung)) { say broken } else { say whole } } }
+  without as target for kiss from Thing
+  as target for kiss { do { if (self.get(:mung)) { say "You would cut your lip." } else { say "The ugly person in the mirror kisses you back, without enthusiasm." } } }
+  without as target for through from Thing
+  as target for through { do { say "You hit your head against the mirror as you attempt this feat. The ugly person on the other side does the same." } }
+  // Rubbed with the hands: the rooms change over, and so does the visitor.
+  without as target for rub from Thing
+  as target for rub {
+    do {
+      if (self.get(:mung)) { say "Fiddling with the mirror {self.hacked}" }
+      else {
+        say "There is a rumble from deep within the earth and the room shakes."
+        send actor :travel with self.get(:leads)
+      }
+    }
+  }
+  without as target for rub_with from Thing
+  as target for rub_with {
+    do {
+      if (self.get(:mung)) { say "Fiddling with the mirror {self.hacked}" }
+      else if (tool.is(Thing)) { say "You feel a faint tingling transmitted through the {tool.short}." }
+      else {
+        say "There is a rumble from deep within the earth and the room shakes."
+        send actor :travel with self.get(:leads)
+      }
+    }
+  }
+  // Broken, by a blow or by anything thrown at it (the adventurer's THROW
+  // asks it the same way), as Zork breaks it: both mirrors at once.
+  without as target for mung from Thing
+  as target for mung {
+    do {
+      if (self.get(:mung)) { say again }
+      else {
+        self.set(:mung, true)
+        say smashed
+        broadcast :shatter
+        send actor :bad_luck
+      }
+    }
+  }
+  as target for attack {
+    do {
+      if (self.get(:mung)) { say again }
+      else {
+        self.set(:mung, true)
+        say smashed
+        broadcast :shatter
+        send actor :bad_luck
+      }
+    }
+  }
+}
+
+// Where the two rooms' contents wait for a moment while they change over.
+// Nobody goes there, and nothing stays.
+object mirror_limbo is sprout.Place in underground_caverns {
+  grammar { name "between the mirrors" article none }
+  describe { text "Nowhere in particular." }
+}
+
+object narrow_corridor is DarkRoom in underground_caverns {
+  :tour 48
+  grammar {
+    name "Narrow Passage"
+    exit north "north" -> round_room
+    exit south "south" -> mirror_room_2
+  }
+  passage body {
+    This is a long and narrow corridor where a long north-south passageway briefly narrows even further.
+  }
+  object corridor is Scenery {
+    grammar { name "narrow corridor"  nouns "corridor", "passage", "passageway"  adjectives "long", "narrow", "north-south" }
+    passage short { narrow corridor }
+    describe { text "The corridor runs north and south, and halfway along it the walls lean in to have a closer look at whoever is passing. Shoulders brush rock on both sides. It is not a squeeze, quite; it is a reminder that squeezes exist." }
+  }
+}
+
+object mirror_room_2 is Room, MirrorRoom in underground_caverns {
+  :tour 49
+  grammar {
+    name "Mirror Room"
+    exit west  "west"  -> winding_passage
+    exit north "north" -> narrow_corridor
+    exit east  "east"  -> tiny_cave
+  }
+  object mirror is Mirror { :leads mirror_1 }
+  object exits is MirrorExits
+}
+
+object winding_passage is DarkRoom in underground_caverns {
+  :tour 50
+  grammar {
+    name "Winding Passage"
+    exit north "north" -> mirror_room_2
+    exit east  "east"  -> tiny_cave
+  }
+  passage body {
+    This is a winding passage. It seems that there are only exits on the east and north.
+  }
+  object way is WindingWay
+}
+
+// Zork's CAVE2-ROOM: a draught up the stairs from Hades blows out candles
+// (the adventurer's part, `:gust`). The hole in the Altar's floor comes
+// down into it (v8), and its stairs go down to the Entrance to Hades.
+object tiny_cave is DarkRoom, Murmuring, BelowAltar in underground_caverns {
+  :tour 51
+  grammar {
+    name "Cave"
+    exit north "north"     -> mirror_room_2
+    exit west  "west"      -> winding_passage
+    exit down  "staircase" -> entrance_to_hades
+  }
+  passage body {
+    This is a tiny cave with entrances west and north, and a dark, forbidding staircase leading down.
+  }
+  on :entered (item, from) {
+    if (item.is(Adventurer)) { send item :gust }
+  }
+  object stairs is Stairs {
+    grammar { adjectives "forbidding", "dark", "stone" }
+    passage view { The staircase goes down out of the cave into a darkness your light does not so much fail to reach as decline to. A steady cold draught comes up it, and with it, faintly, something like voices. }
+    as target for climb_down { do { send actor :travel with :hades  say "" } }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+  }
+  object entrances is CaveEntrances
+  object draught is Scenery {
+    grammar { name "draught"  nouns "draft", "wind", "gust", "breeze", "voices", "voice", "murmur", "murmuring"  adjectives "cold", "steady" }
+    passage short { draught }
+    describe { text "A cold draught comes up the staircase and does not stop. It smells of stone that has never been warm, and every so often it carries a murmur of voices, too faint to make out and too many to be anything good." }
+    without as target for listen from Thing
+    as target for listen { do { say "Voices, a great many of them, far below, murmuring. You cannot make out the words, which is probably a kindness." } }
+  }
+  object hole is Scenery {
+    grammar { name "hole"  nouns "ceiling", "shaft"  adjectives "small", "round" }
+    passage short { hole }
+    describe { text "High in the ceiling is a small round hole, the bottom of the one in the Altar's floor. Whatever comes down it comes down to stay: it is well out of reach, and the walls below it are smooth." }
+    without as target for climb_up from Thing
+    as target for climb_up { do { say "The hole is well out of reach, and the walls below it are smooth." } }
+  }
+}
+
+// The Cave, below the hole in the Altar's floor, which will not take the
+// gold coffin (the adventurer's own `depart`).
+kind BelowAltar { }
+
+object mirror_room_1 is DarkRoom, MirrorRoom in underground_caverns {
+  :tour 52
+  grammar {
+    name "Mirror Room"
+    exit north "north" -> cold_passage
+    exit west  "west"  -> twisting_passage
+    exit east  "east"  -> small_cave
+  }
+  object mirror is Mirror { :leads mirror_2 }
+  object exits is MirrorExits
+}
+
+object twisting_passage is DarkRoom in underground_caverns {
+  :tour 53
+  grammar {
+    name "Twisting Passage"
+    exit north "north" -> mirror_room_1
+    exit east  "east"  -> small_cave
+  }
+  passage body {
+    This is a winding passage. It seems that there are only exits on the east and north.
+  }
+  object way is WindingWay
+}
+
+object small_cave is DarkRoom in underground_caverns {
+  :tour 54
+  grammar {
+    name "Cave"
+    exit north "north"     -> mirror_room_1
+    exit down  "staircase" -> atlantis_room
+    exit south "south"     -> atlantis_room
+    exit west  "west"      -> twisting_passage
+  }
+  passage body {
+    This is a tiny cave with entrances west and north, and a staircase leading down.
+  }
+  object stairs is Stairs {
+    grammar { adjectives "ancient", "worn", "slimy" }
+    passage view { The staircase goes down out of the cave, its lower steps green and slick, as if the water that once filled the room below had come up this far to look around and gone back down disappointed. }
+    as target for climb_down { do { send actor :travel with :atlantis  say "" } }
+    as target for climb_up   { do { say "The stairs don't lead upward." } }
+  }
+  object entrances is CaveEntrances
+}
+
+object cold_passage is DarkRoom in underground_caverns {
+  :tour 55
+  grammar {
+    name "Cold Passage"
+    exit south "south" -> mirror_room_1
+    exit west  "west"  -> slide_room
+  }
+  passage body {
+    This is a cold and damp corridor where a long east-west passageway turns into a southward path.
+  }
+  object corridor is Scenery {
+    grammar { name "corridor"  nouns "passage", "passageway", "path", "damp"  adjectives "cold", "damp", "long", "east-west", "southward" }
+    passage short { corridor }
+    describe { text "The corridor is cold enough to see your breath in, and damp enough that the walls glisten. It comes from the west, long and straight, and turns south here as though it had remembered an appointment. The air moving along it smells faintly of coal." }
+  }
+}
+
+// The two Mirror Rooms' other three sides.
+kind MirrorExits is Scenery {
+  grammar { name "exits"  nouns "exit", "doorways", "doorway", "openings", "sides", "ceiling", "ceilings"  adjectives "other", "three", "tall" }
+  passage short { exits }
+  describe { text "The room is perfectly square, its ceiling lost somewhere above your light, and there is a doorway in the middle of each of three sides, north, east and west. The fourth side is all mirror, so that the room appears to be twice its size and to contain twice as many of you, which is more than anyone needs." }
+}
+
+// The two Caves' ways in, west and north.
+kind CaveEntrances is Scenery {
+  grammar { name "entrances"  nouns "entrance", "openings", "opening"  adjectives "west", "north" }
+  passage short { entrances }
+  describe { text "Two low openings lead out of the cave, one to the west and one to the north. The cave is small enough that you could touch both without moving your feet, if you had longer arms." }
+}
+
+// The Winding and Twisting Passages, which say the same about themselves.
+kind WindingWay is Scenery {
+  grammar { name "passage"  nouns "passageway", "corridor"  adjectives "winding", "twisting" }
+  passage short { passage }
+  describe { text "The passage winds about as if it could not make up its mind, and in the end goes only north and east. Every bend looks like the one before it, which may be the point." }
+}
