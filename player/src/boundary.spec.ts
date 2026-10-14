@@ -113,6 +113,13 @@ describe('@overstory/sprout-player runs the world only through an engine', () =>
         ...valuesFrom(text, '@overstory/sprout/core'),
       ];
       const at = relative(SRC, file);
+      // Every value is imported by name, so the names above are all it imports of either.
+      const whole = [
+        ...text.matchAll(
+          /(?:import\s*\*|export\s*(?:\*|\{[^}]*\}))[^;']*'(@overstory\/sprout\/(?:lang|core))'/g,
+        ),
+      ].map((m) => m[0]);
+      expect(whole).toEqual([]);
       expect(named.filter((name) => NEVER.includes(name))).toEqual([]);
       expect(
         named.filter((name) => ONLY_IN[name] !== undefined && !ONLY_IN[name].includes(at)),
