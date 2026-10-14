@@ -4,13 +4,12 @@ import {
   type PolledReadings,
   type PolledScene,
   type PolledView,
-  type TurnHost,
   type VisitKey,
 } from '@overstory/sprout/lang';
 
 import { pollFaultEntry } from './log/poll-fault.js';
 import type { SproutStore } from './store.js';
-import { engineOf, type EngineHost } from './engine.js';
+import { type EngineHost } from './engine.js';
 import { committedStored } from './turns.js';
 
 // A visitor's view against a store, and a host's cache of it (the spec's
@@ -33,11 +32,11 @@ import { committedStored } from './turns.js';
 export async function runView(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & EngineHost,
+  host: EngineHost,
   visit: VisitKey,
   now: HostSeconds,
 ): Promise<PolledView> {
-  const polled = engineOf(host).view(await committedStored(store, microworldId), visit);
+  const polled = host.engine.view(await committedStored(store, microworldId), visit);
   await logged(store, microworldId, polled.fault, now);
   return polled;
 }
@@ -46,11 +45,11 @@ export async function runView(
 export async function runScene(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & EngineHost,
+  host: EngineHost,
   visit: VisitKey,
   now: HostSeconds,
 ): Promise<PolledScene> {
-  const polled = engineOf(host).scene(await committedStored(store, microworldId), visit);
+  const polled = host.engine.scene(await committedStored(store, microworldId), visit);
   await logged(store, microworldId, polled.fault, now);
   return polled;
 }
@@ -59,13 +58,13 @@ export async function runScene(
 export async function runReadings(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & EngineHost,
+  host: EngineHost,
   visit: VisitKey,
   verb: string,
   now: HostSeconds,
 ): Promise<PolledReadings> {
   const stored = await committedStored(store, microworldId);
-  const polled = engineOf(host).readings(stored, visit, verb);
+  const polled = host.engine.readings(stored, visit, verb);
   await logged(store, microworldId, polled.fault, now);
   return polled;
 }
@@ -102,7 +101,7 @@ export class ViewCache {
   async view(
     store: SproutStore,
     microworldId: string,
-    host: TurnHost & EngineHost,
+    host: EngineHost,
     visit: VisitKey,
     now: HostSeconds,
   ): Promise<PolledView> {
@@ -119,7 +118,7 @@ export class ViewCache {
   async scene(
     store: SproutStore,
     microworldId: string,
-    host: TurnHost & EngineHost,
+    host: EngineHost,
     visit: VisitKey,
     now: HostSeconds,
   ): Promise<PolledScene> {
@@ -140,7 +139,7 @@ export class ViewCache {
   async readings(
     store: SproutStore,
     microworldId: string,
-    host: TurnHost & EngineHost,
+    host: EngineHost,
     visit: VisitKey,
     verb: string,
     now: HostSeconds,

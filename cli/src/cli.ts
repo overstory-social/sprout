@@ -21,7 +21,6 @@ import {
   runTests,
   standIn,
   testFiles,
-  toolEngine,
   writeReport,
   writeScript,
   type PlayableWorld,
@@ -281,7 +280,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           say(formatGrammar(catalogueFor(checked)));
           return 0;
         }
-        const parsed = parseLine(line, standIn(checked, toolEngine(), standing(flags)));
+        const parsed = parseLine(line, standIn(checked, standing(flags)));
         say(parsed.page);
         return parsed.ok ? 0 : 1;
       }
@@ -296,7 +295,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           );
         if (verb !== undefined && flags['scene'] !== undefined)
           throw new Error('Write one of --scene and --verb: each prints a poll of its own.');
-        const stood = standIn(checked, toolEngine(), standing(flags));
+        const stood = standIn(checked, standing(flags));
         const inspected =
           verb !== undefined
             ? inspectReadings(stood, verb)
@@ -327,7 +326,6 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
             checked,
             {
               ...standing(flags),
-              engine: toolEngine(),
               debug,
               seed: sessionSeed(flags),
               ...(record === undefined ? {} : { record }),
@@ -342,7 +340,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         }
         const name = basename(script);
         const read = readScript(readFileSync(script, 'utf8'), name);
-        const steps = playSteps(checked, read, name, toolEngine());
+        const steps = playSteps(checked, read, name);
         const played = writeScript(filledIn(read, steps));
         if (report !== null) writeReached(checked, [{ name, played: steps }], report);
         if (flags['write'] !== undefined) {
@@ -363,7 +361,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           );
         }
         const report = reportFile(flags);
-        const tested = runTests(checked, testFiles(dir, named), toolEngine());
+        const tested = runTests(checked, testFiles(dir, named));
         say(tested.page);
         if (report !== null) {
           writeReached(checked, tested.runs, report);

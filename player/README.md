@@ -5,10 +5,8 @@ freshly loaded world: `sprout play dir script.json` prints it back with every st
 `sprout test` checks an author's own tests against what the world says.
 The player is a local host: it keeps the world's stored state as a store
 would and runs every turn, poll and question through one engine, core's
-`Engine` — the C runtime built for WebAssembly (`wasm`), or the
-TypeScript runtime (`ts`) the specs compare it with. `toolEngine` is the
-one a tool runs: `wasm`, refused in words where
-`@overstory/sprout-engine-wasm` has no module.
+`Engine`: the C runtime built for WebAssembly (`engineFor`), refused in
+words where `@overstory/sprout-engine-wasm` has no module.
 `reportOf` counts what one or more scripts reached between them — the
 lines misread, every fault, the places, objects, verbs, handlers and
 passages reached of those the world declares, and the prose never
@@ -20,7 +18,7 @@ script format is described there.
 ```ts
 import { playScript, readScript, runTests, writeScript } from '@overstory/sprout-player';
 
-const played = playScript(bundle, readScript(text, 'walk.json'), 'walk.json', 'wasm');
+const played = playScript(bundle, readScript(text, 'walk.json'), 'walk.json');
 process.stdout.write(writeScript(played));
 ```
 

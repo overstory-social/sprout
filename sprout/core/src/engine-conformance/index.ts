@@ -11,8 +11,8 @@ import type { EngineCase, MakeEngine } from './worlds.js';
 // conformance suite does. Each case runs core's turns, polls and the
 // host's questions over a memory store through the engine `make` makes
 // for a world, and throws on failure; a host runs it under any test
-// runner with a three-line loop. The TypeScript runtime's engine passes
-// it in core's own specs, and the WebAssembly engine in its package's.
+// runner with a three-line loop. The WebAssembly engine passes it in its
+// package's specs.
 // The worlds the cases run, and the log the replay cases play, are
 // exported too, for an engine's own specs.
 

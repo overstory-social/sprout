@@ -76,9 +76,8 @@ blessed_libraries = ["sha256:…"]
 A key the config does not take is refused by its line. There is no key
 naming the engine: every world runs on the C runtime built for WebAssembly
 (`@overstory/sprout-engine-wasm`), the one engine there is, and a server
-whose engine package was built without its `engine.wasm` refuses to start,
-in words naming the package and the toolchain it needs. A config that
-writes `engine` is refused, as any key the config does not take is.
+whose engine package was installed without its `engine.wasm` refuses to
+start, in words naming the package and the toolchain it needs.
 
 A secret is never written in the config. Where one is needed, as a
 Postgres password, the key names an environment variable (`url_env`).

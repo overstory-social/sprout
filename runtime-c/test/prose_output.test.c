@@ -5,7 +5,7 @@
  */
 #include "prose_fixture.h"
 
-static void output_cases_render_as_the_oracle_did(void) {
+static void output_cases_render_as_the_golden_holds(void) {
   prose_bench b;
   prose_bench_open(&b);
   CHECK(prose_replay_area(&b, "output") >= 6);
@@ -124,7 +124,7 @@ static void a_turn_nobody_acted_in_cuts_everyone_and_faults_no_one(void) {
 }
 
 int main(void) {
-  RUN(output_cases_render_as_the_oracle_did);
+  RUN(output_cases_render_as_the_golden_holds);
   RUN(a_host_that_sets_no_figure_tells_everyone_everything);
   RUN(output_exactly_at_the_figure_fits_and_one_more_does_not);
   RUN(each_recipient_is_counted_apart);

@@ -10,7 +10,7 @@
 // Across the bundle, composing: a composer's own `name`, `article`, `pronouns` or `lit` replaces
 // what it composes, one source's applies, and two sources are refused;
 // nouns and adjectives from every source apply, in closure order, the
-// composer's own last. What applies where nothing is written is the runtime's to say,
+// composer's own last. What applies where nothing is written is the engine's to say,
 // since it depends on what the thing is.
 
 import type { KindDeclaration, KindExpr, KindMember, ObjectDeclaration } from '../syntax/ast.js';

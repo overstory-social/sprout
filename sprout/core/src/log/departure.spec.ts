@@ -1,49 +1,30 @@
 import { describe, expect, it } from 'vitest';
 
-import { departureTurn, type DepartureTurn } from '@overstory/sprout/lang';
+import { FAULTED, INPUTS, roundTrip, SAID } from '../fixtures/entries.js';
+import { DepartureEntry, departureOf } from './departure.js';
 
-import { COUNTER, HALL, MARTA, seeded, tally } from '../fixtures/tally.js';
-import { committedState } from '../fixtures/committed.js';
-import { DepartureEntry, departureEntry, departureOf } from './departure.js';
-
-const { host } = tally();
-const departure = { visit: MARTA, now: 70, seed: 3, mayHold: null };
-
-async function departed(): Promise<Extract<DepartureTurn, { committed: true }>> {
-  const state = await committedState(await seeded(host), 'w', host);
-  const turn = departureTurn(state, host, departure);
-  if (!turn.committed) throw new Error('Marta did not leave');
-  return turn;
-}
+const departed = {
+  kind: 'departure',
+  ...INPUTS,
+  visit: 'v-marta',
+  fault: null,
+  effects: [SAID],
+  cutShort: [],
+} as const;
 
 describe('a visitor’s exit in the log', () => {
-  it('keeps the visit, its inputs and what it said, the engine’s words to the one who left among it', async () => {
-    const entry = departureEntry(departure, host, await departed());
-    expect(entry).toMatchObject({ kind: 'departure', visit: MARTA, now: 70, seed: 3, fault: null });
-    expect(entry.effects.map((e) => e.visit)).toContain(MARTA);
-    expect(DepartureEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
-    expect(departureOf(entry)).toEqual(departure);
-    // Each reader the turn cut short is kept, in order, as a warning.
-    const turn = await departed();
-    const cut = { ...turn, cutShort: [COUNTER, HALL] };
-    expect(departureEntry(departure, host, cut).cutShort).toEqual([
-      { level: 'warning', to: COUNTER },
-      { level: 'warning', to: HALL },
-    ]);
+  it('keeps the visit, its inputs and what it said, and a fault where it had one', () => {
+    expect(DepartureEntry.parse(roundTrip(departed))).toEqual(departed);
+    const faulted = { ...departed, fault: FAULTED };
+    expect(DepartureEntry.parse(roundTrip(faulted))).toEqual(faulted);
   });
 
-  it('keeps a fault, and what the quiet departure after it said', async () => {
-    const quietly = await departed();
-    const fault = { name: 'MoveFault', detail: 'no', object: HALL, engine: false, extension: null };
-    const entry = departureEntry(departure, host, { committed: false, fault, quietly });
-    expect(entry.fault).toEqual({ level: 'error', ...fault });
-    // The quiet departure's readers cut short are the ones kept.
-    const cut = { ...quietly, cutShort: [COUNTER] };
-    expect(
-      departureEntry(departure, host, { committed: false, fault, quietly: cut }).cutShort,
-    ).toEqual([{ level: 'warning', to: COUNTER }]);
-    expect(entry.effects.map((e) => e.paragraphs)).toEqual(
-      quietly.effects.map((e) => [...e.paragraphs]),
-    );
+  it('hands back the departure as the host handed it over', () => {
+    expect(departureOf(DepartureEntry.parse(departed))).toEqual({
+      visit: 'v-marta',
+      seed: 3,
+      mayHold: null,
+      now: 9,
+    });
   });
 });

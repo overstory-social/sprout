@@ -14,31 +14,26 @@ import { memoryStore, runCommand, type StoredState } from '@overstory/sprout/cor
 
 import { wasmEngine } from './engine.js';
 import { WasmInstance } from './instance.js';
-import { engineBuilt, NOT_BUILT } from './wasm.js';
 
 // The WebAssembly engine passes the engine conformance suite, each case
 // as a vitest case; and it keeps the world live, opening a stored state
 // from its records only where the state it is handed is not the one it
-// holds. Without engine.wasm every case is skipped, under words that say
-// why.
+// holds.
 
 const make = ({ host, cartridge }: EngineWorld) =>
   wasmEngine({ cartridge, catalogue: host.catalogue, budgets: host.budgets });
 
 const command = (text: string) => ({ visit: MARTA, text, seed: 1, mayHold: null, now: 0 });
 
-describe.skipIf(!engineBuilt())(
-  'the WebAssembly engine passes the engine conformance suite',
-  () => {
-    for (const one of engineCases) {
-      it(`${one.name} — ${one.proves}`, async () => {
-        await one.run(make);
-      });
-    }
-  },
-);
+describe('the WebAssembly engine passes the engine conformance suite', () => {
+  for (const one of engineCases) {
+    it(`${one.name} — ${one.proves}`, async () => {
+      await one.run(make);
+    });
+  }
+});
 
-describe.skipIf(!engineBuilt())('the WebAssembly engine’s live state', () => {
+describe('the WebAssembly engine’s live state', () => {
   afterEach(() => vi.restoreAllMocks());
 
   const opened = () => vi.spyOn(WasmInstance.prototype, 'open');
@@ -104,8 +99,4 @@ describe.skipIf(!engineBuilt())('the WebAssembly engine’s live state', () => {
       },
     });
   });
-});
-
-describe.runIf(!engineBuilt())('the WebAssembly engine, without engine.wasm', () => {
-  it.skip(NOT_BUILT, () => {});
 });

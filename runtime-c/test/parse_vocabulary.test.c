@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/vocabulary.c: the words a noun may be made of anywhere in the world (the spec's Parsing > When
- * nothing matches), the cases of runtime/parser/vocabulary.spec.ts in the study (the corpus world `grammar`) with
+ * nothing matches), in the study (the corpus world `grammar`) with
  * Marta arrived in its hall: the cellar's barrel and ukulele out of reach, the coin shut in the chest.
  */
 #include "parse_fixture.h"

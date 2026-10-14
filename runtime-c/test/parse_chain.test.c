@@ -1,8 +1,7 @@
 /*
  * Tests for src/parse/chain.c: `and` or a comma between two commands (the spec's Parsing > Sequences, again and all),
- * read in the corpus world `grammar`, the study the TypeScript specs are written about. `chain.spec.ts`'s cases,
- * ported: which words begin a command, where a line may split, and, through `sprout_parse`, every turn a line runs.
- * The study here has no way out, so where a TypeScript case goes north, these look.
+ * read in the corpus world `grammar`, the study: which words begin a command, where a line may split, and, through `sprout_parse`, every turn a line runs.
+ * The study here has no way out, so where a case would go north, these look.
  */
 #include "parse_fixture.h"
 

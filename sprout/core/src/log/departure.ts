@@ -1,23 +1,8 @@
 import { z } from 'zod';
 
-import {
-  visitKey,
-  type Departure,
-  type DepartureTurn,
-  type TurnHost,
-} from '@overstory/sprout/lang';
+import { visitKey, type Departure } from '@overstory/sprout/lang';
 
-import {
-  inputsOf,
-  LoggedCut,
-  LoggedEffect,
-  loggedCuts,
-  LoggedFault,
-  loggedEffects,
-  loggedFault,
-  TurnInputs,
-  writeInputsOf,
-} from './parts.js';
+import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A visitor's exit in the log (the spec's The runtime › The log): the
@@ -39,23 +24,6 @@ export const DepartureEntry = TurnInputs.extend({
   cutShort: z.array(LoggedCut),
 });
 export type DepartureEntry = z.infer<typeof DepartureEntry>;
-
-/** What the log keeps of `departure`, run by `host` as `turn`. */
-export function departureEntry(
-  departure: Departure,
-  host: TurnHost,
-  turn: DepartureTurn,
-): DepartureEntry {
-  return {
-    kind: 'departure',
-    level: 'info',
-    ...inputsOf(departure, host),
-    visit: departure.visit,
-    fault: turn.committed ? null : loggedFault(turn.fault),
-    effects: loggedEffects(turn.committed ? turn.effects : turn.quietly.effects),
-    cutShort: loggedCuts(turn.committed ? turn.cutShort : turn.quietly.cutShort),
-  };
-}
 
 /** The departure `entry` records, as the host handed it over. */
 export function departureOf(entry: DepartureEntry): Departure {

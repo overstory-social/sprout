@@ -3,9 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_BLESSED,
   DEFAULT_LIMITS,
-  emptyWorld,
   limitsFrom,
-  type InstanceId,
   type StaticCaps,
 } from '@overstory/sprout/lang';
 
@@ -83,9 +81,13 @@ describe('the records', () => {
     };
     const state = { serial: 1, instances: [lamp], visitors: [], tombstones: [] };
     expect(StoredState.parse(state)).toEqual(state);
-    expect(Object.keys(StoredState.shape)).toEqual(
-      Object.keys(emptyWorld('shop' as InstanceId)).filter((k) => k !== 'world'),
-    );
+    // A stored world's fields but its name, which the store keys it by.
+    expect(Object.keys(StoredState.shape)).toEqual([
+      'serial',
+      'instances',
+      'visitors',
+      'tombstones',
+    ]);
     expect(StoredState.safeParse({ ...state, serial: -1 }).success).toBe(false);
     expect(
       StoredState.safeParse({ ...state, instances: [{ ...lamp, made: { from: 'spawned' } }] })

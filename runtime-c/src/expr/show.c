@@ -2,7 +2,7 @@
  * The canonical form of an evaluation, for goldens and for `sproutc eval`:
  * {"value":V} where a list is an array, {"object":"id"}, {"set":[ids]} or
  * {"readings":[lines]}. It is the stored form's JSON with the escapes
- * JSON.stringify makes, so a golden written by the TypeScript runtime and
+ * JSON.stringify makes, so a golden written from JavaScript and
  * this one's output compare as bytes.
  */
 #include "expr.h"

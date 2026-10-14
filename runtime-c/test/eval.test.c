@@ -1,5 +1,5 @@
 /*
- * Tests for src/eval.c: every case the TypeScript evaluator's goldens hold
+ * Tests for src/eval.c: every case the golden holds
  * (corpus/goldens/eval.json) is evaluated here against the same cartridge and
  * stored worlds, and must end in the same value, the same fault and the same
  * number of steps; a spawn makes the same instances; and the step budget
@@ -53,7 +53,7 @@ static void replay_case(bench *b, const sprout_json *golden) {
       CHECK_STR(t.meter.fault.budget, fault_budget_name(bench_text(expect, "budget")));
       CHECK_INT(t.meter.fault.limit, bench_number(expect, "limit"));
       CHECK_STR(t.fault.text, t.meter.fault.text);
-      /* The step that went over is recorded, as TypeScript records it. */
+      /* The step that went over is recorded, as the golden holds it. */
       CHECK_INT(t.meter.steps, bench_number(golden, "steps"));
     } else {
       CHECK_STR(t.fault.text, bench_text(expect, "detail"));

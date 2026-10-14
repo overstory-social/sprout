@@ -7,12 +7,11 @@ engine, which keeps the world's state live between turns.
 
 ```ts
 import { emitCartridge, loadCartridge } from '@overstory/sprout/lang';
-import { engineBuilt, NOT_BUILT, wasmEngine } from '@overstory/sprout-engine-wasm';
+import { wasmEngine } from '@overstory/sprout-engine-wasm';
 
-if (!engineBuilt()) throw new Error(NOT_BUILT);
 const cartridge = emitCartridge(bundle);
 const catalogue = loadCartridge(cartridge, { caps });
-const host = { catalogue, budgets, render, parse, engine: wasmEngine({ cartridge, catalogue, budgets }) };
+const host = { catalogue, budgets, engine: wasmEngine({ cartridge, catalogue, budgets }) };
 // runCommand(store, id, host, command), runView(…), new Ticker().round(…), … as with any engine.
 ```
 
@@ -25,8 +24,8 @@ The package ships `engine.wasm`, which its build makes with
 `runtime-c/wasm/build.sh`. That needs clang with the wasm32 target and
 wasm-ld (wasi-sdk has both); without them the build fails with one error
 that names what is missing and how to install it, and leaves no
-`engine.wasm`. A package without it has `engineBuilt()` false, and
-`wasmEngine` refuses in `NOT_BUILT`'s words.
+`engine.wasm`. An installed package without it has `engineBuilt()`
+false, and `wasmEngine` refuses in `NOT_BUILT`'s words.
 
 ## Its live state
 
@@ -55,10 +54,6 @@ Every entry is made at debug depth, and core keeps it at the host's.
 
 Nothing is listed as failing. What it does not do, by design:
 
-- It runs the steps a line planned only for lines it handed out itself:
-  a `Command` carrying another engine's `planned` reading is refused in
-  words.
 - `Engine.command` takes a typed line, as lang's `Command` is; a reading
   built from a view's chips is run through `WasmInstance.command`.
-- A turn's wall-clock backstop reads the process's clock, not the host's
-  `clock`.
+- A turn's wall-clock backstop reads the process's clock.

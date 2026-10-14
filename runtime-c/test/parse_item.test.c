@@ -1,7 +1,6 @@
 /*
  * Tests for src/parse/item.c: an item of a run read on its own turn (the spec's Parsing > Sequences, again and all).
- * `item.spec.ts`'s cases, ported: the shelf they are written about is the corpus world `runs` here (its salt standing
- * in for the shelf's coin, its tall guard and owl hearing `toll` and not), and `carried` for a role only what the
+ * In the corpus world `runs` (its salt, its tall guard and owl hearing `toll` and not), and `carried` for a role only what the
  * actor carries may fill.
  */
 #include "parse_fixture.h"

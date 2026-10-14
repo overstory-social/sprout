@@ -1,60 +1,57 @@
-import {
-  commandsOfLine,
-  dueWakes,
-  nicknameRefusal,
-  nicknamesIn,
-  objectWords,
-  occupiedPlaces,
-  pollReadings,
-  pollScene,
-  pollView,
-  readerOf,
-  renderActed,
-  type Arrival,
-  type Closed,
-  type Command,
-  type CommandHost,
-  type CommandTurn,
-  type TurnHost,
-  type Departure,
-  type DueWake,
-  type Effect,
-  type Fault,
-  type InstanceId,
-  type NicknameRefused,
-  type PolledReadings,
-  type PolledScene,
-  type PolledView,
-  type Tick,
-  type VisitKey,
-  type Wake,
-  type WorldState,
-  type WriteInputs,
+import type {
+  Arrival,
+  Catalogue,
+  Closed,
+  Command,
+  Departure,
+  DueWake,
+  Effect,
+  Fault,
+  InstanceId,
+  NicknameRefused,
+  PolledReadings,
+  PolledScene,
+  PolledView,
+  Ran,
+  RuntimeBudgets,
+  StoredChanges,
+  Tick,
+  VisitKey,
+  Wake,
+  WriteInputs,
 } from '@overstory/sprout/lang';
 
-import { hearers, type Heard } from './conversation.js';
-import { parsedLine, type ParsedCommand } from './parse.js';
+import type { Heard } from './conversation.js';
+import type { TurnEntry } from './log/entry.js';
+import type { ParsedCommand } from './parse.js';
 import type { StoredState } from './records.js';
-import {
-  arrivalStep,
-  commandStep,
-  departureStep,
-  kept,
-  loaded,
-  maintenanceStep,
-  tickStep,
-  wakeStep,
-  type Step,
-} from './steps.js';
 
 // The engine that runs one world, as core and its host reach it (the spec's
 // The runtime; The host contract). Core keeps the store, the lock, the log
 // and the caches; the engine is given the stored state as the store hands it
 // over and gives back what a host reads: each turn's effects, whose views it
 // made stale and its fault, what the store writes and the log keeps, each
-// poll, and what the host asks of the committed world between turns. What
-// it gives is the same whichever runtime runs it; `tsEngine` is the
-// TypeScript runtime's, and a host names another as its `engine`.
+// poll, and what the host asks of the committed world between turns.
+
+/**
+ * What a turn ran, as a report of a playthrough reads it: each handler and
+ * hook in the order it ran, the engine line the parser answered a command
+ * with, by its passage's name or its words, and whether the consent pass
+ * refused the command's reading.
+ */
+export interface Account {
+  readonly ran: readonly Ran[];
+  readonly answered: string | null;
+  readonly refused: boolean;
+}
+
+/** What one write turn did, what it writes, its log entry and its account; null for any it has none of, a turn that ran nothing having no account. */
+export interface Step<T> {
+  readonly turn: T;
+  readonly changes: StoredChanges | null;
+  readonly entry: TurnEntry | null;
+  readonly account: Account | null;
+}
 
 /** A write turn that committed: what each reader is told, whose views it made stale, and who was cut short. */
 export interface GivenCommitted {
@@ -186,127 +183,13 @@ export interface Engine {
   landed?(stored: StoredState): void;
 }
 
-/** What a host names its engine by; the TypeScript runtime's where it names none. */
-export interface EngineHost {
-  readonly engine?: Engine;
+/** What a host runs one world under: the world as it reads it, and its runtime budgets. */
+export interface WorldHost {
+  readonly catalogue: Catalogue;
+  readonly budgets: RuntimeBudgets;
 }
 
-const engines = new WeakMap<TurnHost, Engine>();
-
-/** The engine `host` names, or the TypeScript runtime's for its bundle, made once. */
-export function engineOf(host: TurnHost & EngineHost): Engine {
-  if (host.engine !== undefined) return host.engine;
-  const known = engines.get(host);
-  if (known !== undefined) return known;
-  const made = tsEngine(host);
-  engines.set(host, made);
-  return made;
-}
-
-/**
- * The TypeScript runtime as one world's engine: `steps.ts` over each stored
- * state, read once. It keeps the world each write turn left, and once core
- * reads back the stored state that turn landed (`landed`), the next turn
- * runs on that world as it is, as the WebAssembly engine runs on its live
- * state. Commands need the host's parser, so a host without one runs every
- * turn but a command.
- */
-export function tsEngine(host: TurnHost | CommandHost): Engine {
-  const state = (stored: StoredState): WorldState => loaded(stored, host);
-  /** The world the last write turn left, until core hands back the stored state it landed as. */
-  let left: WorldState | null = null;
-  /** `step`, its turn having left `world`. */
-  const leaving = <T>(step: Step<T>, world: WorldState): Step<T> => {
-    left = world;
-    return step;
-  };
-  return {
-    landed: (stored) => {
-      if (left !== null && left.serial === stored.serial) kept(stored, host, left);
-      left = null;
-    },
-    command: (stored, command) => {
-      if (!('parse' in host)) throw new Error('This host has no parser, so runs no command.');
-      const before = state(stored);
-      const step = commandStep(before, host, command);
-      return leaving(step, step.turn.committed ? step.turn.state : before);
-    },
-    line: (command, seed) => {
-      const commands = commandsOfLine(command, seed);
-      let started = false;
-      return {
-        next: (previous) => {
-          // The turns handed back are this engine's own, so each is the CommandTurn it gave.
-          const step = started ? commands.next(previous as CommandTurn) : commands.next();
-          started = true;
-          return step.done ? null : step.value;
-        },
-      };
-    },
-    tick: (stored, tick) => {
-      const before = state(stored);
-      const step = tickStep(before, host, tick);
-      const { turn } = step;
-      return leaving(step, 'unoccupied' in turn || !turn.committed ? before : turn.state);
-    },
-    wake: (stored, wake) => {
-      const before = state(stored);
-      const step = wakeStep(before, host, wake);
-      const { turn } = step;
-      return leaving(
-        step,
-        'unwoken' in turn ? before : turn.committed ? turn.state : turn.consumed.state,
-      );
-    },
-    maintenance: (stored, inputs) => {
-      const step = maintenanceStep(state(stored), host, inputs);
-      return leaving(step, step.turn.state);
-    },
-    arrival: (stored, arrival) => {
-      const before = state(stored);
-      const step = arrivalStep(before, host, arrival);
-      return leaving(step, step.turn.committed ? step.turn.state : before);
-    },
-    departure: (stored, departure) => {
-      const step = departureStep(state(stored), host, departure);
-      const { turn } = step;
-      return leaving(step, turn.committed ? turn.state : turn.quietly.state);
-    },
-    nicknameRefusal: (stored, visit, nickname) =>
-      nicknameRefusal(state(stored), host.catalogue, host.budgets, visit, nickname),
-    view: (stored, visit) => pollView(state(stored), host, visit),
-    scene: (stored, visit) => pollScene(state(stored), host, visit),
-    readings: (stored, visit, verb) => pollReadings(state(stored), host, visit, verb),
-    occupiedPlaces: (stored) => occupiedPlaces(state(stored)),
-    dueWakes: (stored, now) => dueWakes(state(stored), now),
-    hearers: (stored, visit) => hearers(state(stored), visit),
-    standing: (stored, visit) => standingIn(state(stored), visit),
-    parse: (stored, visit, line) => {
-      if (!('parse' in host)) throw new Error('This host has no parser, so reads no line.');
-      return parsedLine(state(stored), host, visit, line);
-    },
-    acted: (stored, reader, actor, typed) => {
-      const world = state(stored);
-      const acting = world.visitors.get(actor)?.instance;
-      return acting === undefined ? null : renderActed(world, host, reader, acting, typed);
-    },
-  };
-}
-
-/** Where `visit` stands in `state` and what is there, named for them. */
-function standingIn(state: WorldState, visit: VisitKey): Standing | null {
-  const visitor = state.visitors.get(visit);
-  const place =
-    visitor === undefined ? null : (state.instances.get(visitor.instance)?.container ?? null);
-  if (visitor === undefined || place === null || !state.instances.has(place)) return null;
-  const reader = readerOf(state);
-  const naming = { state: reader, nicknames: nicknamesIn(state) };
-  const named = (id: InstanceId) => ({ id, name: objectWords(id, visitor.instance, naming) });
-  return {
-    place: named(place),
-    here: reader
-      .children(place)
-      .filter((id) => id !== visitor.instance)
-      .map(named),
-  };
+/** A world's host with the engine it runs that world on. */
+export interface EngineHost extends WorldHost {
+  readonly engine: Engine;
 }

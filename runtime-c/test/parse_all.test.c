@@ -1,11 +1,11 @@
 /*
  * Tests for src/parse/all.c: `all` and `except` in a slot (the spec's Parsing > Sequences, again and all), read in
- * the corpus worlds `grammar` (the study the TypeScript specs are written about) and `all-in-order` (a hall where one
- * kind plays `examine`'s target and a world verb's, and one plays nothing). `all.spec.ts`'s cases, ported.
+ * the corpus worlds `grammar` (the study) and `all-in-order` (a hall where one
+ * kind plays `examine`'s target and a world verb's, and one plays nothing).
  */
 #include "parse_fixture.h"
 
-/* The study's hall, reached in the order the TypeScript cases give it, nothing carried. */
+/* The study's hall, reached in reach order, nothing carried. */
 static const char *const REACHED[] = {
     NULL, /* the actor */
     "study.hall.brass_key", "study.hall.iron_key", "study.hall.lamp", "study.hall.lamp_oil",

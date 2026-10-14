@@ -1,25 +1,8 @@
 import { z } from 'zod';
 
-import {
-  storedId,
-  type Committed,
-  type FaultedWake,
-  type TurnHost,
-  type Wake,
-  type Woke,
-} from '@overstory/sprout/lang';
+import { storedId, type Wake } from '@overstory/sprout/lang';
 
-import {
-  inputsOf,
-  LoggedCut,
-  LoggedEffect,
-  loggedCuts,
-  LoggedFault,
-  loggedEffects,
-  loggedFault,
-  TurnInputs,
-  writeInputsOf,
-} from './parts.js';
+import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A wake in the log (the spec's The runtime › The log, Faults; Time ›
@@ -43,24 +26,6 @@ export const WakeEntry = TurnInputs.extend({
   cutShort: z.array(LoggedCut),
 });
 export type WakeEntry = z.infer<typeof WakeEntry>;
-
-/** What the log keeps of `wake`, run by `host` as `turn`. */
-export function wakeEntry(
-  wake: Wake,
-  host: TurnHost,
-  turn: Committed<Woke> | FaultedWake,
-): WakeEntry {
-  return {
-    kind: 'wake',
-    level: 'info',
-    ...inputsOf(wake, host),
-    object: wake.object,
-    serial: wake.serial,
-    fault: turn.committed ? null : loggedFault(turn.fault),
-    effects: turn.committed ? loggedEffects(turn.effects) : [],
-    cutShort: turn.committed ? loggedCuts(turn.cutShort) : [],
-  };
-}
 
 /** The wake `entry` records, in `world`. */
 export function wakeOf(world: string, entry: WakeEntry): Wake {

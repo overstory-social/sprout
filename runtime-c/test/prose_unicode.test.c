@@ -1,5 +1,5 @@
 /*
- * Tests for src/prose/unicode.c, the two rules reflow takes from the JavaScript runtime as
+ * Tests for src/prose/unicode.c, the two rules reflow takes from JavaScript as
  * tables: which code points are letters or numbers, and what a code point of the Basic
  * Multilingual Plane becomes in upper case. Every line the golden holds is capitalised as
  * JavaScript capitalised it: the edge of every run of letters and numbers, and every letter

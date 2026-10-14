@@ -50,7 +50,7 @@ function rewritten(instance, worldId, stored) {
  * for it, by step, in words, or null; and how many pinned states it compared.
  */
 function playTranscript(module, bundle, cartridge, file, pinned) {
-  const base = freshStage(bundle, 'wasm');
+  const base = freshStage(bundle);
   const stage = {
     ...base,
     engine: wasmEngine({

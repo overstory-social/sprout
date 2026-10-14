@@ -3,7 +3,7 @@
  * Choosing a reading; Verbs > Slots, Set roles, Value roles; Parsing > Sequences, again and all). Each case tries
  * the phrases of one verb or intent against a line as the command turn does, every placement whose slots all fill
  * handed to `parse_placement_readings`: in the study (the corpus world `grammar`), `intents`,
- * `all-leaves-out-refused`, `synonyms` and `pronouns`. The cases are `parser.spec.ts`'s that read a line to a reading.
+ * `all-leaves-out-refused`, `synonyms` and `pronouns`, each reading a line to a reading.
  */
 #include "parse_fixture.h"
 

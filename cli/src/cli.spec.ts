@@ -54,7 +54,7 @@ describe('parseArgs', () => {
 
 /** What a session of `lines` prints with --debug in the world at `dir`: the transcript of that script played. */
 const transcript = (dir: string, lines: string) =>
-  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json', 'wasm'));
+  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json'));
 
 /** `lines` as a session begun at seed 0 seeds them: `@seed 0` first, then the stream's next before every line that plays. */
 const seeded = (lines: string): string => {
@@ -281,22 +281,16 @@ describe('main', () => {
   it('refuses a flag the command does not take, naming those it does', () => {
     const dir = worldFolder('lane', LANE);
     const refusals = [
+      [['parse', dir, 'look', '--quiet'], 'parse takes no --quiet; it takes --at and --as.'],
+      [['view', dir, '--quiet'], 'view takes no --quiet; it takes --at, --as, --scene and --verb.'],
       [
-        ['parse', dir, 'look', '--engine', 'ts'],
-        'parse takes no --engine; it takes --at and --as.',
+        ['play', dir, 'walk.json', '--quiet'],
+        'play takes no --quiet; it takes --write, --report, --at, --as, --seed, --debug and --record.',
       ],
+      [['test', dir, '--quiet=yes'], 'test takes no --quiet; it takes --report.'],
       [
-        ['view', dir, '--engine', 'ts'],
-        'view takes no --engine; it takes --at, --as, --scene and --verb.',
-      ],
-      [
-        ['play', dir, 'walk.json', '--engine', 'ts'],
-        'play takes no --engine; it takes --write, --report, --at, --as, --seed, --debug and --record.',
-      ],
-      [['test', dir, '--engine=ts'], 'test takes no --engine; it takes --report.'],
-      [
-        ['mcp', dir, '--engine', 'ts'],
-        'mcp takes no --engine; it takes --http, --seed, --record, --turn-cap and --advance-per-turn.',
+        ['mcp', dir, '--quiet'],
+        'mcp takes no --quiet; it takes --http, --seed, --record, --turn-cap and --advance-per-turn.',
       ],
     ] as const;
     for (const [argv, words] of refusals) {

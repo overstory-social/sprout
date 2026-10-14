@@ -5,10 +5,8 @@ import {
   type Effect,
   type EffectKind,
   type Fault,
-  type InstanceId,
   type Plain,
   type RuntimeBudgets,
-  type TurnHost,
   type WriteInputs,
 } from '@overstory/sprout/lang';
 
@@ -116,16 +114,6 @@ export const LoggedFault = z.object({
 });
 export type LoggedFault = z.infer<typeof LoggedFault>;
 
-/** What `host` handed a turn run with `inputs`, as the log keeps it. */
-export function inputsOf(inputs: WriteInputs, host: TurnHost): TurnInputs {
-  return {
-    seed: inputs.seed,
-    mayHold: inputs.mayHold,
-    now: inputs.now,
-    budgets: LoggedBudgets.parse(host.budgets),
-  };
-}
-
 /** A logged turn's inputs as a turn takes them again. */
 export function writeInputsOf(entry: TurnInputs): WriteInputs {
   return { seed: entry.seed, mayHold: entry.mayHold, now: entry.now };
@@ -157,8 +145,3 @@ export function loggedFault(fault: Fault): LoggedFault {
 /** Someone a turn's line would have taken past their output, who read nothing more that turn. */
 export const LoggedCut = z.object({ level: z.literal('warning'), to: z.string().min(1) });
 export type LoggedCut = z.infer<typeof LoggedCut>;
-
-/** `cutShort`, as the log keeps it, in the order it happened. */
-export function loggedCuts(cutShort: readonly InstanceId[]): LoggedCut[] {
-  return cutShort.map((to) => ({ level: 'warning', to }));
-}

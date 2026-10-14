@@ -1,5 +1,5 @@
 /*
- * Tests for src/nickname.c: every nickname the TypeScript runtime was asked about (corpus/goldens/nicknames.json,
+ * Tests for src/nickname.c: every nickname the golden asks about (corpus/goldens/nicknames.json,
  * against the harbour cartridge and a stored world with people standing, away and called alike) is admitted or
  * refused here for the same reason, in the same words, naming the same collisions; and a nickname is kept as its
  * words, single-spaced.

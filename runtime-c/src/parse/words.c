@@ -1,7 +1,7 @@
 /*
  * The parser's own word lists (the spec's Names > Articles; Verbs > Set roles, Exits; Parsing > Matching a line,
- * Pronouns, Sequences, again and all), as the TypeScript parser holds them: `corpus/goldens/parser-words.json`
- * pins the two to each other, list by list and in order.
+ * Pronouns, Sequences, again and all): `corpus/goldens/parser-words.json` pins them, list by list and in
+ * order.
  */
 #include <string.h>
 

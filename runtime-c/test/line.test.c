@@ -1,6 +1,6 @@
 /*
- * Tests for src/line.c (the spec's Parsing > Sequences, again and all; Intents): a line's commands are the ones the
- * TypeScript runtime's `partsOf` makes, and its turns come in `commandsOfLine`'s order. Each command's turn is
+ * Tests for src/line.c (the spec's Parsing > Sequences, again and all; Intents): a line's commands are split at
+ * each `.` and each word `then`, and each command's turn is
  * followed by the turns it planned, a command `and` joined run with the turns it plans in turn, and a turn that
  * does not let the line go on ends all of it. The outcomes handed back are made up here, so the order alone is
  * under test; turn_command.test.c runs real lines.
@@ -142,7 +142,7 @@ static void a_turn_that_does_not_let_the_line_go_on_ends_all_of_it(void) {
   runs_as("a then c", first, 1, "a");
 }
 
-/* The TypeScript runtime asks whether the line goes on of the command's own last turn: a joined command's that let it go on leaves it so. */
+/* Whether the line goes on is asked of the command's own last turn: a joined command's that let it go on leaves it so. */
 static void a_joined_command_that_went_on_leaves_the_line_as_its_command_left_it(void) {
   const scripted script[] = {
       {"a", true, 2, {{NULL, NULL, "b"}, {&P2, NULL, NULL}}},

@@ -2,7 +2,7 @@
  * The view bench as the C tests use it: the cartridge (`corpus/goldens/views.sproutworld`, compiled from
  * `benches/views`) and the stored worlds `corpus/goldens/views.json` holds, a world loaded under each case's
  * figures, and the visitor's view polled over it. A case is a stored world, a visit and the figures the poll ran
- * under; replaying one polls the view and compares it with the oracle's: the view as canonical JSON, the tree a
+ * under; replaying one polls the view and compares it with the golden's: the view as canonical JSON, the tree a
  * chip client walks over it, the steps the poll spent and the fault it raised.
  */
 #ifndef SPROUT_TEST_VIEW_FIXTURE_H
@@ -80,7 +80,7 @@ static inline sprout_limit view_limit(const sprout_json *limits, const char *key
   return limit;
 }
 
-/* The host's figures a case was polled under in the oracle. */
+/* The host's figures a case was polled under in the golden. */
 static inline void view_fill_budgets(sprout_budgets *budgets, const sprout_json *limits) {
   budgets->steps = view_limit(limits, "steps");
   budgets->poll_steps = view_limit(limits, "pollSteps");
@@ -211,7 +211,7 @@ static inline const char *view_label(const sprout_json *golden) {
 }
 
 /*
- * Polls a case and compares the view with the oracle's: its canonical JSON, the chip tree over it, the steps it
+ * Polls a case and compares the view with the golden's: its canonical JSON, the chip tree over it, the steps it
  * spent, and the fault it raised, if any. Returns the status of the poll, leaving the view in `view`.
  */
 static inline sprout_status view_replay(view_bench *b, const sprout_json *golden, view_case *c, sprout_seen_view *view) {

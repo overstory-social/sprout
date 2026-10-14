@@ -17,7 +17,8 @@ order:
    pages.
 3. **`npm run build`**: every package, in dependency order; the
    WebAssembly engine's `engine.wasm` is built into
-   `@overstory/sprout-engine-wasm` where clang's wasm32 target is found.
+   `@overstory/sprout-engine-wasm`, and the build fails, naming what is
+   missing, without clang's wasm32 target and wasm-ld.
 4. **`npm test`**: every package's vitest suites — the colocated specs (1),
    the invariants (3), the boundary specs (4) and the conformance suites
    (5).
@@ -117,8 +118,7 @@ spec holds the model: a table of well-formed items, a table of defects,
 and a loop that injects each defect beside each item and asserts that the
 well-formed item is either kept or named in a diagnostic. The same shape
 applies to the lexer (a refused character never merges its neighbours),
-to the manifest reader, and later to the command parser and the prose
-reader.
+to the manifest reader, and later to the prose reader.
 
 The rule: a change to recovery without an invariant test for the class of
 input it handles is not finished.
@@ -140,7 +140,10 @@ passes, the same way: core's turns, admission and the log, polls in whole
 and in parts with the cache, rounds of ticks, the host's questions, and a
 log replayed to the world it wrote, each over a memory store. The
 WebAssembly engine runs it in `engine-wasm/src/engine.spec.ts`. Neither
-suite is ever fenced.
+suite is ever fenced. Core's own specs check what core does around an
+engine (the lock, the log and its depth, the caches, the ticker,
+conversation, a replay's divergences) on a stand-in engine over one hall,
+`sprout/core/src/fixtures/hall.ts`, which is held to nothing itself.
 
 ### 6. End to end
 

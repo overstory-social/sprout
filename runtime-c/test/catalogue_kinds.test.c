@@ -1,7 +1,7 @@
 /*
  * Tests for src/catalogue_kinds.c: the kinds a cartridge declares, with their
  * properties' types and defaults, passages and plays, match the dump the
- * TypeScript catalogue spec wrote for every corpus world, and plays two kinds
+ * language's cartridge reader gives for every corpus world, and plays two kinds
  * hold alike are one array; the contents a kind's body gives are found by path.
  */
 #include "corpus.h"

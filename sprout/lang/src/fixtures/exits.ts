@@ -1,5 +1,4 @@
-// The ways the exit specs are written about, one kind per file, and what
-// they run a turn with. The yard leads in to the shop, north into the
+// The ways, a world of exits and links, one kind per file. The yard leads in to the shop, north into the
 // maze while the lamp is out and to the meadow once it is lit, up to the
 // shop's loft by its path, east to a shed, whose `:entered` tells
 // whoever comes in of its cobwebs, and south to the meadow only while a
@@ -16,22 +15,10 @@
 // ways out reach it, and digging it faults, since it has no way on to
 // connect. A person too tired refuses to go anywhere, and counts every
 // way they go.
-// `runtime/exits.spec.ts`, `runtime/links.spec.ts` and the go cases of
-// `runtime/command.spec.ts` share it. Spec support: the package build
-// leaves it out.
+// Spec support: the package build leaves it out.
 
 import type { Bundle } from '../bundle/bundle.js';
-import { DEFAULT_LIMITS } from '../bundle/limits.js';
 import { compiledWorld } from './bundle.js';
-import { catalogueOf } from '../runtime/catalogue.js';
-import type { CommandHost } from '../runtime/command.js';
-import { Draft } from '../runtime/draft.js';
-import { declaredId, visitKey, type InstanceId, type VisitKey } from '../runtime/ids.js';
-import { initialState } from '../runtime/load.js';
-import { parseCommand } from '../runtime/parser.js';
-import { newInstance, type WorldState } from '../runtime/state.js';
-import type { Value } from '../runtime/values.js';
-import { renderEffects } from '../prose/effects.js';
 
 export const WAYS: Bundle = compiledWorld('ways', {
   'ways.sprout': `world ways is sprout.World {
@@ -137,66 +124,3 @@ verb dig { role target: MazeCell  "dig [target]" }
 `,
   'person.sprout': 'kind Person is Walker, sprout.Visitor { }\n',
 });
-
-const at = (...path: string[]): InstanceId => declaredId('ways', path);
-export const WORLD = at();
-export const BEACON = at('beacon');
-export const YARD = at('yard');
-export const LAMP = at('yard', 'lamp');
-export const SHOP = at('shop');
-export const LADDER = at('shop', 'ladder');
-export const LOFT = at('shop', 'loft');
-export const MEADOW = at('meadow');
-export const SHED = at('shed');
-export const LANTERN = at('shed', 'lantern');
-export const CHIMNEY = at('chimney');
-export const SOOT = at('chimney', 'soot');
-export const MOUTH = at('maze_mouth');
-export const DEAD_END = at('dead_end');
-
-export const CATALOGUE = catalogueOf(WAYS, DEFAULT_LIMITS.caps);
-
-/** The host, reading commands with the command parser. */
-export const waysHost = (): CommandHost => ({
-  catalogue: CATALOGUE,
-  budgets: DEFAULT_LIMITS.budgets,
-  parse: parseCommand,
-  render: renderEffects,
-});
-
-export const MARTA: VisitKey = visitKey('v-marta');
-export const INES: VisitKey = visitKey('v-ines');
-
-/** The ways as committed, a visitor standing where each visit is given, and `set` written first. */
-export function ways(
-  standing: readonly (readonly [VisitKey, InstanceId])[] = [[MARTA, YARD]],
-  set: readonly (readonly [InstanceId, string, Value])[] = [],
-): WorldState {
-  const draft = new Draft(initialState(CATALOGUE));
-  for (const [visit, where] of standing) {
-    const id = draft.mint();
-    draft.add(
-      newInstance(
-        id,
-        { from: 'visitor' },
-        CATALOGUE.visitorKind!,
-        where,
-        draft.nextSerial(),
-        CATALOGUE.caps,
-      ),
-    );
-    draft.putVisitor({
-      visit,
-      nickname: visit,
-      instance: id,
-      lastPlace: where,
-      referents: [],
-      lastReading: null,
-    });
-  }
-  for (const [id, name, value] of set) {
-    const instance = draft.instance(id)!;
-    draft.write({ ...instance, properties: new Map(instance.properties).set(name, value) });
-  }
-  return draft.commit().state;
-}

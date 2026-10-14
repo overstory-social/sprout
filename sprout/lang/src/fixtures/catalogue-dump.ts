@@ -8,9 +8,9 @@ import type { StaticCaps } from '../bundle/limits.js';
 import type { Literal } from '../syntax/ast.js';
 import { kindName, type KindRef } from '../declare/kinds.js';
 import type { ResolvedPhrase, ResolvedVerb } from '../declare/verbs.js';
-import type { Catalogue } from '../runtime/catalogue.js';
-import { typeKey } from '../runtime/values.js';
-import type { TypedPart } from '../runtime/parser/phrases.js';
+import type { Catalogue } from '../host/catalogue.js';
+import { typeKey } from '../host/stored.js';
+import type { TypedPart } from '../host/phrases.js';
 
 export type DumpedDefault =
   | { readonly boolean: boolean }

@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/offered.c: an object's synonym typed where the object is out of reach (the spec's Parsing >
- * Synonyms, When nothing matches), the cases of runtime/parser/offered.spec.ts in the corpus world
+ * Synonyms, When nothing matches), in the corpus world
  * `out-of-reach-synonym`, where the yard's window makes `enter` a word for `go_through` and Marta stands in the
  * clearing, or in the yard beside it. What the answer comes to through `sprout_parse` is parse_command's.
  */

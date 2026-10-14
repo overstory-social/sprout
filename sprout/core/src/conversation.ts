@@ -1,19 +1,13 @@
 import {
   hostSeconds,
-  isPerson,
-  occupantsOf,
-  readerOf,
-  standsInPlace,
   type HostSeconds,
   type InstanceId,
-  type TurnHost,
   type VisitKey,
-  type WorldState,
 } from '@overstory/sprout/lang';
 
 import { saidEntry } from './log/said.js';
 import type { SproutStore } from './store.js';
-import { engineOf, type Engine, type EngineHost } from './engine.js';
+import type { Engine, EngineHost } from './engine.js';
 import type { StoredState } from './records.js';
 import { committedStored } from './turns.js';
 
@@ -120,22 +114,6 @@ export interface Heard {
   readonly to: readonly VisitKey[];
 }
 
-/** The place `visit` stands in and everyone directly in it, the speaker among them; null where they stand in no place, being away or displaced. */
-export function hearers(state: WorldState, visit: VisitKey): Heard | null {
-  const reader = readerOf(state);
-  const visitor = reader.visitor(visit);
-  if (visitor === undefined || !standsInPlace(reader, visitor.instance)) return null;
-  // `standsInPlace` already confirms the visitor's own container is a
-  // place, so it is where they stand: nothing further to climb to.
-  const place = reader.instance(visitor.instance)!.container!;
-  const visits = new Map([...state.visitors.values()].map((one) => [one.instance, one.visit]));
-  const to = occupantsOf(reader, place)
-    .filter((id) => isPerson(reader, id))
-    .map((id) => visits.get(id))
-    .filter((one): one is VisitKey => one !== undefined);
-  return { place, to };
-}
-
 /**
  * Throw where `visit` has no one to talk to because the host asked wrongly:
  * they never came, or are away, which is as the engine finds them, so a
@@ -195,7 +173,7 @@ export class ConversationPace {
 export async function runConversation(
   store: SproutStore,
   microworldId: string,
-  host: TurnHost & EngineHost,
+  host: EngineHost,
   conversation: ConversationHost,
   pace: ConversationPace,
   saying: Saying,
@@ -205,7 +183,7 @@ export async function runConversation(
   const bad = sayingRefusal(rules, saying.text);
   if (bad !== null) return bad;
   const text = keptSaying(saying.text);
-  const engine = engineOf(host);
+  const { engine } = host;
   mustBePresent(engine, await committedStored(store, microworldId), saying.visit);
   if (!pace.admit(microworldId, saying.visit, at, rules.pace)) {
     const { messages, seconds } = rules.pace!;

@@ -1,9 +1,8 @@
 import type { Catalogue, RuntimeBudgets } from '@overstory/sprout/lang';
 
-import type { Engine } from '../engine.js';
 import { emptyState, type StoredState } from '../records.js';
 import { applyChanges } from '../state.js';
-import type { Step } from '../steps.js';
+import type { Engine, Step } from '../engine.js';
 import { arrivalOf } from './arrival.js';
 import { commandOf } from './command.js';
 import { departureOf } from './departure.js';

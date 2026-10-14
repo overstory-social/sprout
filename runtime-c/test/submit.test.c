@@ -3,7 +3,7 @@
  * Effects): a host hands in a reading by id, and it runs through both passes
  * against a draft of the stored world, drains its queue, and commits unless
  * it was abandoned. Every reading the goldens hold is submitted and must
- * come back as the oracle ended it, with the lines it said in the goldens' own
+ * come back as the golden ends it, with the lines it said in the goldens' own
  * JSON and the world committed as the golden says; a reading the world cannot
  * take is bad input, in words; a fault writes nothing.
  */
@@ -99,7 +99,7 @@ static void check_written(submitted *s, const char *want) {
   sprout_arena_reset(&scratch);
 }
 
-static void every_golden_reading_submitted_comes_back_as_the_oracle_ended_it(void) {
+static void every_golden_reading_submitted_comes_back_as_the_golden_ends_it(void) {
   exec_bench b;
   const sprout_json *cases;
   size_t i, run = 0;
@@ -292,7 +292,7 @@ static void the_world_a_committed_reading_leaves_is_the_one_the_next_reading_run
 }
 
 int main(void) {
-  RUN(every_golden_reading_submitted_comes_back_as_the_oracle_ended_it);
+  RUN(every_golden_reading_submitted_comes_back_as_the_golden_ends_it);
   RUN(a_reading_the_world_cannot_take_is_bad_input_in_words);
   RUN(an_exit_the_actors_place_does_not_have_is_out_of_range_and_writes_nothing);
   RUN(a_seed_past_the_range_or_a_host_without_one_is_refused);

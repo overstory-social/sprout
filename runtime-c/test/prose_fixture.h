@@ -2,7 +2,7 @@
  * The prose bench as the C tests use it: the cartridge (`corpus/goldens/prose.sproutworld`, compiled
  * from `benches/prose`) and the stored worlds `corpus/goldens/prose.json` holds, a world loaded under
  * each case's figures, and a turn with the lines the case says
- * recorded as its effects. Replaying a case renders them, and the case ends as the oracle ended
+ * recorded as its effects. Replaying a case renders them, and the case ends as the golden ends
  * it: the same words for each reader, the same cuts or the same fault, and the same steps.
  */
 #ifndef SPROUT_TEST_PROSE_FIXTURE_H
@@ -300,7 +300,7 @@ static inline const char *prose_budget_name(const char *typescript) {
   return typescript;
 }
 
-/* What a case rendered to against what the oracle rendered. */
+/* What a case rendered to against what the golden holds. */
 static inline void prose_check_told(const sprout_rendered *rendered, const sprout_json *expect) {
   const sprout_json *effects = sprout_json_get(expect, "effects"), *cut = sprout_json_get(expect, "cut");
   size_t i, j;
@@ -325,7 +325,7 @@ static inline void prose_check_told(const sprout_rendered *rendered, const sprou
   for (i = 0; i < rendered->cut_count && i < cut->count; i++) CHECK(prose_same(rendered->cut[i], cut->items[i]));
 }
 
-/* Replays a case: renders what it says and compares it with what the oracle rendered. */
+/* Replays a case: renders what it says and compares it with what the golden holds. */
 static inline sprout_eval_status prose_replay(prose_bench *b, const sprout_json *golden) {
   prose_case c;
   sprout_rendered rendered;

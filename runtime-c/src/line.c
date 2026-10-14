@@ -1,6 +1,6 @@
 /*
  * A line a visitor typed, as the command turns it runs (the spec's Parsing > Sequences, again and all; Intents); see
- * line.h. The order is the TypeScript runtime's `commandsOfLine`: each command of the line is a turn, and the turns
+ * line.h. Each command of the line is a turn, and the turns
  * it planned follow it in order before the line's next command, a command `and` or a comma joined being run with the
  * turns it plans in turn. Whether the line goes on is asked of the turn that ran last in the command whose planned
  * turns are being run, never of a joined command's own, which only ends the line by ending itself.

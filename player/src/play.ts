@@ -39,7 +39,7 @@ import {
   type Stage,
   type Traced,
 } from './play/traced.js';
-import { engineFor, hostFor, type EngineName, type PlayableWorld } from './engine.js';
+import { engineFor, hostFor, type PlayableWorld } from './engine.js';
 import { turnSeed } from './seeds.js';
 import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 
@@ -48,8 +48,7 @@ import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 // (the spec's The runtime › Turns; The host contract › Admission and
 // identity, Time). The player is a local host: it keeps the world's stored
 // state as a store would, and runs every turn, poll and question through
-// one engine (core's `Engine`), the TypeScript runtime or the C runtime
-// built for WebAssembly, as its caller names. The world runs under the
+// one engine (core's `Engine`), the C runtime built for WebAssembly. The world runs under the
 // host's default limits and no clock. Time starts at 0 and moves only when
 // the script says. While anyone stands in the world, every due wake is
 // delivered live at the instant it falls due; while nobody does, the world
@@ -480,19 +479,15 @@ export function playStep(stage: Stage, step: Step, where: string): Made[] | null
 }
 
 /**
- * A fresh stage over `world` on the engine `engine` names: nothing stored
+ * A fresh stage over `world`: nothing stored
  * yet, time at 0, seed 0, nobody yet arrived, under the host's default
  * budgets, less any `budgets` given instead.
  */
-export function freshStage(
-  world: PlayableWorld,
-  engine: EngineName,
-  budgets: Partial<RuntimeBudgets> = {},
-): Stage {
+export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets> = {}): Stage {
   const host = hostFor(world, budgets);
   return {
     host,
-    engine: engineFor(engine, world, host),
+    engine: engineFor(world, host),
     stored: emptyState(),
     now: 0,
     seed: 0,
@@ -553,14 +548,9 @@ export function expectationsOf(made: readonly Made[]): Expectation[] {
   );
 }
 
-/** Play `script` over a freshly loaded `world` on `engine`, step by step; thrown, naming the step, where one cannot be played. */
-export function playSteps(
-  world: PlayableWorld,
-  script: Script,
-  name: string,
-  engine: EngineName,
-): PlayedStep[] {
-  const stage = freshStage(world, engine);
+/** Play `script` over a freshly loaded `world`, step by step; thrown, naming the step, where one cannot be played. */
+export function playSteps(world: PlayableWorld, script: Script, name: string): PlayedStep[] {
+  const stage = freshStage(world);
   return script.steps.map((step, i) => {
     const from = stage.turns.length;
     const made = playStep(stage, step, `${name}, step ${i + 1}`);
@@ -568,14 +558,9 @@ export function playSteps(
   });
 }
 
-/** `script` played over a freshly loaded `world` on `engine`, every step that plays expecting all it made. */
-export function playScript(
-  world: PlayableWorld,
-  script: Script,
-  name: string,
-  engine: EngineName,
-): Script {
-  return filledIn(script, playSteps(world, script, name, engine));
+/** `script` played over a freshly loaded `world`, every step that plays expecting all it made. */
+export function playScript(world: PlayableWorld, script: Script, name: string): Script {
+  return filledIn(script, playSteps(world, script, name));
 }
 
 /** `script` with every step that played expecting all it made, as `played` gives it. */

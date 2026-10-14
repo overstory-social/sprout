@@ -4,7 +4,7 @@
  * state, its records keeping only properties that hold other than their
  * default; a saved world reopened is unchanged; and stored worlds edited against
  * the world (an object gone, a property retyped, a kind removed, an object
- * destroyed) come out as the TypeScript load makes them, byte for byte, with
+ * destroyed) come out as the golden holds them, byte for byte, with
  * the same report of what was created, kept dormant and dropped.
  */
 #include "corpus.h"

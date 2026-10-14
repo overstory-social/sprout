@@ -2,10 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // The engine's module this package ships: `engine.wasm`, built by
-// runtime-c/wasm/build.sh into the package's folder when it is built
-// where clang with the wasm32 target and wasm-ld are found, and absent
-// where they are not. A host asks whether it is there before naming the
-// WebAssembly engine, and is told in words where it is not.
+// runtime-c/wasm/build.sh into the package's folder, whose build fails
+// without it. A host whose installed package has none is told so in
+// `NOT_BUILT`'s words.
 
 /** Where the shipped `engine.wasm` is, beside `src/` and `dist/` alike. */
 export const ENGINE_WASM = fileURLToPath(new URL('../engine.wasm', import.meta.url));

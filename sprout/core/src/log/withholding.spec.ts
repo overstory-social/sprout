@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { tally } from '../fixtures/tally.js';
+import { tallyBundle } from '../fixtures/tally.js';
 import { memoryStore } from '../memory-store.js';
 import { readLog } from './entry.js';
 import { withhold, WithholdingEntry, withholdingEntry } from './withholding.js';
 
-const { bundle } = tally();
+const bundle = tallyBundle();
 
 describe('a withholding in the log', () => {
   it('keeps every file withheld, once each in code-unit order, and the bundle the world then runs', () => {

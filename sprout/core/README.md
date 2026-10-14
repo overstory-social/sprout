@@ -23,13 +23,12 @@ so a fault writes nothing of the world; a poll reads a snapshot
 (`committedStored`) and takes no lock. Each runs on the world's engine
 (`engine.ts`): an `Engine` is handed the stored state and gives each
 turn's effects, stale visitors and fault, what is written and logged, each
-poll, and what the host asks between turns; `tsEngine` is the TypeScript
-runtime's, and `engineOf` gives it where a host names no `engine`; an
-engine that keeps the world live is handed back, with `landed`, the stored
+poll, and what the host asks between turns; a host names its `engine`,
+and an engine that keeps the world live is handed back, with `landed`, the stored
 state each commit landed. The engine conformance suite
 (`@overstory/sprout/engine-conformance`) is what every engine must pass,
-importing no test framework: the TypeScript engine passes it here, and
-`@overstory/sprout-engine-wasm`'s in its package. `runView` polls a visitor's view, `runScene` its scene and
+importing no test framework: `@overstory/sprout-engine-wasm`'s passes it
+in its package. `runView` polls a visitor's view, `runScene` its scene and
 `runReadings` one verb's readings (the spec's _The view_), and a
 `ViewCache` keeps each until a committed turn's `stale` names its visitor
 (`views.ts`).

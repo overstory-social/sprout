@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { deliver, deliveryOf, sendView } from './delivery.js';
 import { TEXT_ONLY } from './capabilities.js';
-import { command, MARTA, seeded, tally } from './fixtures/tally.js';
+import { HALL_VIEW, MARTA, PROJECTED } from './fixtures/showroom.js';
 import { clientMessageOf, ClientMessage, PROTOCOL, ServerMessage } from './protocol.js';
-import { runCommand } from './turns.js';
-import { runReadings, runScene, runView } from './views.js';
 import type { Effect, InstanceId, SeenView } from '@overstory/sprout/lang';
 
 const TOKEN = 'a-token-of-sixteen-or-more';
@@ -53,35 +51,28 @@ describe('a frame off the wire', () => {
 });
 
 describe('what a host sends', () => {
-  it('holds a turn’s effects and a view as core delivers them', async () => {
-    const { host } = tally();
-    const store = await seeded(host);
-    const turn = await runCommand(store, 'w', host, command('bump counter'));
-    if (!turn.committed) throw new Error('the bump faulted');
-    const effects = deliver(turn.effects, MARTA, TEXT_ONLY);
+  it('holds a turn’s effects and a view as core delivers them', () => {
+    const effects = deliver(PROJECTED, MARTA, TEXT_ONLY);
     expect(effects.length).toBeGreaterThan(0);
     expect(ServerMessage.safeParse({ t: 'effects', seq: 1, last: true, effects }).success).toBe(
       true,
     );
-    const { view } = await runView(store, 'w', host, MARTA, 0);
-    const sent = JSON.parse(JSON.stringify({ t: 'view', seq: 2, view: sendView(view, TEXT_ONLY) }));
+    const sent = JSON.parse(
+      JSON.stringify({ t: 'view', seq: 2, view: sendView(HALL_VIEW, TEXT_ONLY) }),
+    );
     const parsed = ServerMessage.safeParse(sent);
     expect(parsed.success, parsed.success ? '' : parsed.error.message).toBe(true);
   });
 
-  it('holds a scene’s verbs, and a verb’s readings as core polls them', async () => {
-    const { host } = tally();
-    const store = await seeded(host);
-    const { scene } = await runScene(store, 'w', host, MARTA, 0);
-    const [first] = scene.verbs;
-    expect(first).toBeDefined();
+  it('holds a scene’s verbs, and a verb’s readings as an engine polls them', () => {
+    const verbs = [{ verb: 'showroom.project', phrases: ['project …'] }];
     for (const message of [
-      { t: 'verbs', verbs: scene.verbs },
+      { t: 'verbs', verbs },
       {
         t: 'readings',
         seq: 3,
-        verb: first!.verb,
-        readings: (await runReadings(store, 'w', host, MARTA, first!.verb, 0)).readings,
+        verb: 'showroom.project',
+        readings: HALL_VIEW.readings,
         faulted: false,
       },
     ]) {

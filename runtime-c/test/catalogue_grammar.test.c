@@ -1,7 +1,7 @@
 /*
  * Tests for src/catalogue_grammar.c: verbs with their roles and phrases, the
  * typed phrases in the order they are tried, the intents' phrases and the
- * messages match the dump the TypeScript catalogue spec wrote for every
+ * messages match the dump the language's cartridge reader gives for every
  * corpus world; the typed phrases put the world's own verbs first, shadow a
  * library verb of the same name, and read words as a typed line is read.
  */

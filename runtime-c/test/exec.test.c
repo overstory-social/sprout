@@ -1,7 +1,7 @@
 /*
- * Tests for src/exec.c: every case the TypeScript runtime's goldens hold
+ * Tests for src/exec.c: every case the golden holds
  * (corpus/goldens/exec.json) is run here against the same cartridge and
- * stored worlds, and must end as the oracle did: the same committed state or
+ * stored worlds, and must end as the golden holds: the same committed state or
  * the same fault, the same steps, the same effects in the same order, the
  * same handlers run and descriptions owed. The nineteen kinds of statement
  * are all among them.

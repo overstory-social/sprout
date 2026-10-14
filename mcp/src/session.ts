@@ -9,7 +9,6 @@ import {
   playStep,
   plays,
   readScript,
-  toolEngine,
   writeScript,
   type Made,
   type Stage,
@@ -134,7 +133,7 @@ function freshSession(
   seed: number,
 ): Session {
   return {
-    stage: freshStage(bundle, toolEngine()),
+    stage: freshStage(bundle),
     options,
     warn,
     inboxes: new Map(),

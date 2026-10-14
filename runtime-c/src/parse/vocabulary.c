@@ -2,8 +2,8 @@
  * The words a noun may be made of anywhere in the world (the spec's Parsing > When nothing matches): every word some
  * thing in the world is named by, whatever its reach, or was or could be, destroyed or not yet spawned; every kind's
  * name; and the parser's own words a noun may hold. A noun that names nothing in reach is `not_here` only where each
- * of its words is one of these, and otherwise the line is `unknown`. What the bundle writes costs nothing, as the
- * TypeScript parser reads it once for the bundle; each instance in the world's tree is a step, the world first.
+ * of its words is one of these, and otherwise the line is `unknown`. What the bundle writes costs nothing, since it
+ * is read once for the bundle; each instance in the world's tree is a step, the world first.
  */
 #include <string.h>
 

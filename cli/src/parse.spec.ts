@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkWorld } from './check.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { catalogueFor, engineFor, standIn, type Standing } from '@overstory/sprout-player';
-import { ENGINES_BUILT, LANE, worldFolder } from '@overstory/sprout-player/fixtures';
+import { LANE, worldFolder } from '@overstory/sprout-player/fixtures';
 
 const lane = () => checkWorld(worldFolder('lane', LANE)).bundle!;
 
@@ -139,106 +139,104 @@ intent sprout.open_with, which does sprout.unlock, then sprout.open
   });
 });
 
-describe.each(ENGINES_BUILT)('on the %s engine', (engine) => {
-  const at = (place?: string): Standing =>
-    standIn(lane(), engine, place === undefined ? {} : { at: place });
-  const read = (line: string, standing = at()) => parseLine(line, standing);
+const at = (place?: string): Standing => standIn(lane(), place === undefined ? {} : { at: place });
+const read = (line: string, standing = at()) => parseLine(line, standing);
 
-  describe('parseLine', () => {
-    it('names the reading, what fills each role, and that everyone consents', () => {
-      expect(read('ask warden about old road')).toEqual({
-        ok: true,
-        page: `in yard, "ask warden about old road" reads as sprout.ask
+describe('parseLine', () => {
+  it('names the reading, what fills each role, and that everyone consents', () => {
+    expect(read('ask warden about old road')).toEqual({
+      ok: true,
+      page: `in yard, "ask warden about old road" reads as sprout.ask
   target: a warden (yard.warden)
   topic: :old_road
 every participant consents
 `,
-      });
     });
+  });
 
-    it('says a value role a participant does not hear is unbound', () => {
-      expect(read('ask warden about weather').page).toContain('  topic: unbound\n');
-      expect(read('turn dial to 7').page).toContain('  notch: 7\n');
-    });
+  it('says a value role a participant does not hear is unbound', () => {
+    expect(read('ask warden about weather').page).toContain('  topic: unbound\n');
+    expect(read('turn dial to 7').page).toContain('  notch: 7\n');
+  });
 
-    it('names an exit by its direction, label and where it leads', () => {
-      expect(read('in').page).toBe(`in yard, "in" reads as sprout.go
+  it('names an exit by its direction, label and where it leads', () => {
+    expect(read('in').page).toBe(`in yard, "in" reads as sprout.go
   way: exit in "into the shed" -> shed
 every participant consents
 `);
-    });
+  });
 
-    it('gives the consent pass’s refusal, who refused, in which role and kind, in their words', () => {
-      expect(read('pry open crate').page).toBe(`in yard, "pry open crate" reads as lane.pry
+  it('gives the consent pass’s refusal, who refused, in which role and kind, in their words', () => {
+    expect(read('pry open crate').page).toBe(`in yard, "pry open crate" reads as lane.pry
   target: a crate (yard.crate)
 refused by a crate (yard.crate) as target, in lane.Crate's permit:
   The lid is nailed down.
 `);
-    });
+  });
 
-    it('says a reading was drawn from several that tied, and what the visitor is told it meant', () => {
-      expect(read('take key').page).toBe(`in yard, "take key" reads as sprout.take
+  it('says a reading was drawn from several that tied, and what the visitor is told it meant', () => {
+    expect(read('take key').page).toBe(`in yard, "take key" reads as sprout.take
   target: a brass key (yard.brass_key)
   source: unbound
 drawn from 2 readings that tied, as a turn seeded 0 draws it; the visitor is told first:
   (a brass key)
 every participant consents
 `);
-    });
-
-    it('answers a word nobody reads with `unknown`, and a thing out of range with `not_here`', () => {
-      expect(read('frobnicate').page).toBe(
-        `in yard, "frobnicate" not understood; the world answers with \`unknown\`:
-  That is not something you can do here.
-`,
-      );
-      expect(read('take crate', at('shed')).page).toBe(
-        `in shed, "take crate" not understood; the world answers with \`not_here\`:
-  You see nothing like that here.
-`,
-      );
-    });
-
-    it('writes nothing: the reading is never run', () => {
-      const standing = at();
-      read('pry crate', standing);
-      read('go in', standing);
-      expect(read('pry crate', standing).page).toContain('refused by a crate');
-      const actor = standing.stored.instances.find((one) => one.id === standing.actor);
-      expect(actor!.container).toBe(standing.place);
-    });
-
-    it('says a line that costs more than a command turn’s steps faults, as its turn would', () => {
-      const standing = at();
-      const host = { ...standing.host, budgets: { ...standing.host.budgets, steps: 3 } };
-      const starved = { ...standing, host, engine: engineFor(engine, lane(), host) };
-      const parsed = read('take key', starved);
-      expect(parsed.ok).toBe(false);
-      expect(parsed.page).toBe(
-        'in yard, "take key" faults as its turn would, BudgetExhausted: steps: a command turn may take 3 steps.\n',
-      );
-    });
   });
 
-  describe('parseLine, for an intent', () => {
-    const vault = () =>
-      checkWorld(
-        worldFolder('lane', {
-          ...LANE,
-          'lane.sprout': LANE['lane.sprout']!.replace(
-            'object crate is Crate',
-            'object crate is Crate\n    object chest is Chest { :open false }\n    object gate is sprout.Lockable { :locked false }',
-          ),
-          'chest.sprout': 'kind Chest is sprout.Container, sprout.Lockable { }\n',
-          // `unlock`'s tool is carried, so every walker carries a key of their own.
-          'walker.sprout':
-            'kind Walker is sprout.Visitor {\n  object ring_key is Key { grammar { name "ring key" } }\n}\n',
-        }),
-      ).bundle!;
+  it('answers a word nobody reads with `unknown`, and a thing out of range with `not_here`', () => {
+    expect(read('frobnicate').page).toBe(
+      `in yard, "frobnicate" not understood; the world answers with \`unknown\`:
+  That is not something you can do here.
+`,
+    );
+    expect(read('take crate', at('shed')).page).toBe(
+      `in shed, "take crate" not understood; the world answers with \`not_here\`:
+  You see nothing like that here.
+`,
+    );
+  });
 
-    it('names the intent, what fills each slot, and the steps it plans now, each as a reading', () => {
-      expect(parseLine('open chest with ring key', standIn(vault(), engine)).page).toBe(
-        `in yard, "open chest with ring key" reads as the intent sprout.open_with
+  it('writes nothing: the reading is never run', () => {
+    const standing = at();
+    read('pry crate', standing);
+    read('go in', standing);
+    expect(read('pry crate', standing).page).toContain('refused by a crate');
+    const actor = standing.stored.instances.find((one) => one.id === standing.actor);
+    expect(actor!.container).toBe(standing.place);
+  });
+
+  it('says a line that costs more than a command turn’s steps faults, as its turn would', () => {
+    const standing = at();
+    const host = { ...standing.host, budgets: { ...standing.host.budgets, steps: 3 } };
+    const starved = { ...standing, host, engine: engineFor(lane(), host) };
+    const parsed = read('take key', starved);
+    expect(parsed.ok).toBe(false);
+    expect(parsed.page).toBe(
+      'in yard, "take key" faults as its turn would, BudgetExhausted: steps: a command turn may take 3 steps.\n',
+    );
+  });
+});
+
+describe('parseLine, for an intent', () => {
+  const vault = () =>
+    checkWorld(
+      worldFolder('lane', {
+        ...LANE,
+        'lane.sprout': LANE['lane.sprout']!.replace(
+          'object crate is Crate',
+          'object crate is Crate\n    object chest is Chest { :open false }\n    object gate is sprout.Lockable { :locked false }',
+        ),
+        'chest.sprout': 'kind Chest is sprout.Container, sprout.Lockable { }\n',
+        // `unlock`'s tool is carried, so every walker carries a key of their own.
+        'walker.sprout':
+          'kind Walker is sprout.Visitor {\n  object ring_key is Key { grammar { name "ring key" } }\n}\n',
+      }),
+    ).bundle!;
+
+  it('names the intent, what fills each slot, and the steps it plans now, each as a reading', () => {
+    expect(parseLine('open chest with ring key', standIn(vault())).page).toBe(
+      `in yard, "open chest with ring key" reads as the intent sprout.open_with
   y: a chest (yard.chest)
   x: a ring key (lane#2)
 it runs 2 steps, each a turn of its own:
@@ -248,45 +246,44 @@ it runs 2 steps, each a turn of its own:
   reads as sprout.open
     target: a chest (yard.chest)
 `,
-      );
-    });
+    );
+  });
 
-    it('says a key lying in the yard is not carried, since `unlock`’s tool is', () => {
-      expect(parseLine('open chest with brass key', standIn(vault(), engine)).page).toBe(
-        `in yard, "open chest with brass key" not understood; the world answers with \`not_carrying\`:
+  it('says a key lying in the yard is not carried, since `unlock`’s tool is', () => {
+    expect(parseLine('open chest with brass key', standIn(vault())).page).toBe(
+      `in yard, "open chest with brass key" not understood; the world answers with \`not_carrying\`:
   You aren't carrying a brass key.
 `,
-      );
-    });
-    it('says where it plans no step, and that the line is answered with `nothing_happens`', () => {
-      // The gate is unlocked, so no unlocking, and is no container, so no opening.
-      const page = parseLine('open gate with ring key', standIn(vault(), engine)).page;
-      expect(page).toContain(
-        'it plans no step that can run, and is answered with `nothing_happens`\n',
-      );
-    });
+    );
   });
-
-  describe('parseLine, for a line of several commands', () => {
-    it('reads each in turn against the world as it stands, since nothing runs', () => {
-      const { ok, page } = read('ask warden about toll then pry crate');
-      expect(ok).toBe(true);
-      expect(page.split('\n')[0]).toBe(
-        '"ask warden about toll then pry crate" holds 2 commands, each its own turn; each is read here against the world as it stands now, since nothing runs:',
-      );
-      expect(page).toContain('in yard, "ask warden about toll" reads as sprout.ask\n');
-      expect(page).toContain('in yard, "pry crate" reads as lane.pry\n');
-    });
+  it('says where it plans no step, and that the line is answered with `nothing_happens`', () => {
+    // The gate is unlocked, so no unlocking, and is no container, so no opening.
+    const page = parseLine('open gate with ring key', standIn(vault())).page;
+    expect(page).toContain(
+      'it plans no step that can run, and is answered with `nothing_happens`\n',
+    );
   });
+});
 
-  describe('parseLine, for the standard library’s everyday phrasings', () => {
-    it('reads `enter` and `go through` as `go`, and `talk to … about` as `ask`, each one verb', () => {
-      for (const line of ['enter in', 'go through into the shed']) {
-        expect(read(line).page, line).toContain(`"${line}" reads as sprout.go\n`);
-      }
-      expect(read('talk to warden about toll').page).toContain(
-        '"talk to warden about toll" reads as sprout.ask\n',
-      );
-    });
+describe('parseLine, for a line of several commands', () => {
+  it('reads each in turn against the world as it stands, since nothing runs', () => {
+    const { ok, page } = read('ask warden about toll then pry crate');
+    expect(ok).toBe(true);
+    expect(page.split('\n')[0]).toBe(
+      '"ask warden about toll then pry crate" holds 2 commands, each its own turn; each is read here against the world as it stands now, since nothing runs:',
+    );
+    expect(page).toContain('in yard, "ask warden about toll" reads as sprout.ask\n');
+    expect(page).toContain('in yard, "pry crate" reads as lane.pry\n');
+  });
+});
+
+describe('parseLine, for the standard library’s everyday phrasings', () => {
+  it('reads `enter` and `go through` as `go`, and `talk to … about` as `ask`, each one verb', () => {
+    for (const line of ['enter in', 'go through into the shed']) {
+      expect(read(line).page, line).toContain(`"${line}" reads as sprout.go\n`);
+    }
+    expect(read('talk to warden about toll').page).toContain(
+      '"talk to warden about toll" reads as sprout.ask\n',
+    );
   });
 });

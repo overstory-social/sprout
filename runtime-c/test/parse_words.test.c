@@ -1,5 +1,5 @@
 /*
- * Tests for src/parse/words.c: the parser's word lists are the TypeScript parser's, list by list and in order
+ * Tests for src/parse/words.c: the parser's word lists are the golden's, list by list and in order
  * (`corpus/goldens/parser-words.json`, a hand-kept golden), and a typed word is read
  * against them as that parser reads it.
  */

@@ -3,7 +3,7 @@
  * model > Range) reaches itself, its own contents, and each container
  * outward with what it holds, nearest first, stopping at the first container
  * that refuses the question and reaching that one only as a surface. Every
- * walk the TypeScript runtime's goldens hold is made here and must reach the
+ * walk the golden holds is made here and must reach the
  * same objects the same way, for the same steps.
  */
 #include "exec_fixture.h"

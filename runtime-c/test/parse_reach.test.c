@@ -1,8 +1,8 @@
 /*
  * Tests for src/parse/reach.c: what a visitor may name (the spec's Range; Range > Sight; Parsing > Choosing a
- * reading), the cases of runtime/parser/reach.spec.ts read in the corpus world `grammar`, the dark read in
+ * reading), read in the corpus world `grammar`, the dark read in
  * `darkness`, and what a visitor arriving in every corpus world may name, with how near, whether carried and the
- * steps it cost, held to the TypeScript runtime's (`corpus/goldens/addresses.json`).
+ * steps it cost, held to the golden (`corpus/goldens/addresses.json`).
  */
 #include "parse_golden.h"
 

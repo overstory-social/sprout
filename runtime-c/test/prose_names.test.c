@@ -4,7 +4,7 @@
  */
 #include "prose_fixture.h"
 
-static void names_render_as_the_oracle_did(void) {
+static void names_render_as_the_golden_holds(void) {
   prose_bench b;
   prose_bench_open(&b);
   CHECK(prose_replay_area(&b, "names") >= 4);
@@ -68,7 +68,7 @@ static void an_object_is_you_to_itself_and_a_visitor_is_their_nickname_to_anyone
 }
 
 int main(void) {
-  RUN(names_render_as_the_oracle_did);
+  RUN(names_render_as_the_golden_holds);
   RUN(an_article_and_a_name_come_from_the_grammar_block_the_identifier_or_the_kind);
   RUN(a_thing_with_no_identifier_is_named_for_its_kind);
   RUN(an_object_is_you_to_itself_and_a_visitor_is_their_nickname_to_anyone_else);

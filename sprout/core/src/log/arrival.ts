@@ -1,18 +1,8 @@
 import { z } from 'zod';
 
-import { visitKey, type Arrival, type ArrivalTurn, type TurnHost } from '@overstory/sprout/lang';
+import { visitKey, type Arrival } from '@overstory/sprout/lang';
 
-import {
-  inputsOf,
-  LoggedCut,
-  LoggedEffect,
-  loggedCuts,
-  LoggedFault,
-  loggedEffects,
-  loggedFault,
-  TurnInputs,
-  writeInputsOf,
-} from './parts.js';
+import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A visitor's entry in the log (the spec's The runtime › The log; The
@@ -39,45 +29,6 @@ export const ArrivalEntry = TurnInputs.extend({
   cutShort: z.array(LoggedCut),
 });
 export type ArrivalEntry = z.infer<typeof ArrivalEntry>;
-
-/** An arrival turn that ran: every outcome but a world that admits no one. */
-export type RanArrival = Exclude<ArrivalTurn, { readonly closed: unknown }>;
-
-/** What the log keeps of `arrival`, run by `host` as `turn`. */
-export function arrivalEntry(arrival: Arrival, host: TurnHost, turn: RanArrival): ArrivalEntry {
-  const base = {
-    kind: 'arrival' as const,
-    level: 'info' as const,
-    ...inputsOf(arrival, host),
-    visit: arrival.visit,
-    nickname: arrival.nickname,
-  };
-  if (turn.committed) {
-    return {
-      ...base,
-      outcome: 'admitted',
-      fault: null,
-      effects: loggedEffects(turn.effects),
-      cutShort: loggedCuts(turn.cutShort),
-    };
-  }
-  if ('refused' in turn) {
-    return {
-      ...base,
-      outcome: 'refused',
-      fault: null,
-      effects: loggedEffects(turn.effects),
-      cutShort: [],
-    };
-  }
-  return {
-    ...base,
-    outcome: 'faulted',
-    fault: loggedFault(turn.fault),
-    effects: [],
-    cutShort: [],
-  };
-}
 
 /** The arrival `entry` records, as the host handed it over. */
 export function arrivalOf(entry: ArrivalEntry): Arrival {

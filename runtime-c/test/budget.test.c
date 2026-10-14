@@ -35,7 +35,7 @@ static void a_charge_past_the_figure_is_refused_and_recorded(void) {
   CHECK(sprout_meter_steps(&meter, 10));
   sprout_meter_begin(&meter, &host, SPROUT_TURN_COMMAND);
   CHECK(!sprout_meter_steps(&meter, 11));
-  /* The charge that went over is recorded, as the TypeScript meter records it. */
+  /* The charge that went over is recorded, so a faulted turn reads as the figure and one more. */
   CHECK_INT(meter.steps, 11);
   CHECK_INT(meter.fault.limit, 10);
 }
@@ -257,7 +257,7 @@ static sprout_turn_kind kind_named(const char *name) {
   exit(2);
 }
 
-/* Runs the budget the golden names past its figure, as the TypeScript spec did. */
+/* Runs the budget the golden names past its figure. */
 static void spend_past(sprout_meter *meter, const char *name, uint64_t figure) {
   uint64_t held = 0;
   if (strcmp(name, "steps") == 0 || strcmp(name, "pollSteps") == 0) CHECK(!sprout_meter_steps(meter, figure + 1));

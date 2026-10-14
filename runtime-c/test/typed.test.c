@@ -1,5 +1,5 @@
 /*
- * Tests for src/typed.c: a typed line's words are the ones the TypeScript parser's `typedWords` makes, lower case
+ * Tests for src/typed.c: a typed line's words are the ones the language's `typedWords` makes, lower case
  * as JavaScript's `toLowerCase` makes it, split on the white space of JavaScript's `\s`, each comma a word of its
  * own. Each case's words were read off `typedWords` itself.
  */

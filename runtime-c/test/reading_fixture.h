@@ -5,7 +5,7 @@
  * figures, and a turn to run a reading in. A case is a reading, as the
  * parser's file holds it, in a state; replaying one runs it through the
  * consent pass and the effect pass, drains the queue, and compares how it
- * ended with how the TypeScript runtime ended it: acted, refused or gone, or
+ * ended with how the golden says it ends: acted, refused or gone, or
  * the fault; the steps; the effects in order; the handlers that ran; the
  * descriptions owed; and the state committed.
  */
@@ -162,7 +162,7 @@ static inline void reading_check_refusal(exec_bench *b, exec_case *c, const spro
 
 /*
  * Replays a case: the reading runs and the queue drains, and the case ends
- * as the oracle ended it. Returns the status of the run.
+ * as the golden ends it. Returns the status of the run.
  */
 static inline sprout_eval_status reading_replay(exec_bench *b, const sprout_json *golden) {
   exec_case c;

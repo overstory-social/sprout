@@ -1,57 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
-import { tickTurn, type Faulted } from '@overstory/sprout/lang';
+import { FAULTED, INPUTS, roundTrip, SAID } from '../fixtures/entries.js';
+import { TickEntry, tickOf } from './tick.js';
 
-import { COUNTER, HALL, seeded, tally } from '../fixtures/tally.js';
-import { committedState } from '../fixtures/committed.js';
-import { TickEntry, tickEntry, tickOf } from './tick.js';
-
-const { host } = tally();
-const tick = { place: HALL, now: 50, seed: 2, mayHold: null };
+const ticked = {
+  kind: 'tick',
+  ...INPUTS,
+  place: 'tally.hall',
+  fault: null,
+  effects: [SAID],
+  cutShort: [],
+} as const;
 
 describe('a tick in the log', () => {
-  it('keeps the place, its inputs and what it said', async () => {
-    const state = await committedState(await seeded(host), 'w', host);
-    const turn = tickTurn(state, host, tick);
-    if (!turn.committed) throw new Error('the tick did not commit');
-    const entry = tickEntry(tick, host, turn);
-    expect(entry).toMatchObject({ kind: 'tick', place: HALL, now: 50, seed: 2, fault: null });
-    expect(entry.effects).toEqual([]);
-    expect(TickEntry.parse(JSON.parse(JSON.stringify(entry)))).toEqual(entry);
-    // Each reader the turn cut short is kept, in order, as a warning.
-    const cut = { ...turn, cutShort: [COUNTER, HALL] };
-    expect(tickEntry(tick, host, cut).cutShort).toEqual([
-      { level: 'warning', to: COUNTER },
-      { level: 'warning', to: HALL },
-    ]);
-  });
-
-  it('keeps a dropped tick’s fault, and nothing it said', () => {
-    const dropped: Faulted = {
-      committed: false,
-      fault: {
-        name: 'BudgetExhausted',
-        detail: 'steps',
-        object: HALL,
-        engine: false,
-        extension: null,
-      },
-    };
-    expect(tickEntry(tick, host, dropped)).toMatchObject({
-      fault: { name: 'BudgetExhausted', object: HALL },
-      effects: [],
-      cutShort: [],
-    });
+  it('keeps the place, its inputs and what it said, and a dropped tick’s fault', () => {
+    expect(TickEntry.parse(roundTrip(ticked))).toEqual(ticked);
+    const dropped = { ...ticked, fault: FAULTED, effects: [] };
+    expect(TickEntry.parse(roundTrip(dropped))).toEqual(dropped);
   });
 
   it('hands back the tick, its place an id of the world, and refuses one of another', () => {
-    const entry = tickEntry(tick, host, {
-      committed: false,
-      fault: { name: 'X', detail: '', object: null, engine: true, extension: null },
+    expect(tickOf('tally', TickEntry.parse(ticked))).toEqual({
+      place: 'tally.hall',
+      seed: 3,
+      mayHold: null,
+      now: 9,
     });
-    expect(tickOf('tally', entry)).toEqual(tick);
-    expect(() => tickOf('tally', { ...entry, place: 'bakery.oven' })).toThrow(
-      /not an id in `tally`/,
-    );
+    expect(() => tickOf('shop', TickEntry.parse(ticked))).toThrow();
   });
 });

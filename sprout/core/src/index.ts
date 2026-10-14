@@ -1,7 +1,7 @@
 // @overstory/sprout/core — the Sprout runtime's store port and the records
 // it keeps, with the memory store and the conformance suite every adapter
-// must pass, the engine that runs a world (the TypeScript runtime's, or
-// another a host names), and a world's turns run against a store under its lock, its
+// must pass, the engine a host names to run a world, and a world's turns
+// run against a store under its lock, its
 // occupied places ticked in rounds, and a visitor's view polled and kept
 // until a committed write turn names it stale; conversation between
 // visitors, beside the world and never in it, logged and never replayed;
@@ -35,7 +35,6 @@ export * from './capabilities.js';
 export * from './delivery.js';
 export * from './protocol.js';
 export * from './screen-reader.js';
-export * from './steps.js';
 export * from './log/parts.js';
 export * from './log/depth.js';
 export * from './log/command.js';

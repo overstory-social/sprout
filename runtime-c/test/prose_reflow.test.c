@@ -1,12 +1,12 @@
 /*
- * Tests for src/prose/reflow.c: rendered words laid out as reflow.ts lays them out. White space
+ * Tests for src/prose/reflow.c: rendered words laid out as the golden lays them out. White space
  * is JavaScript's, a blank line is a paragraph and a paragraph with nothing in it is none, `\n`
  * is kept, the first letter of every line is capitalised past quotation marks and not past a
  * bracket, and a passage put into a slot loses the padding in its braces.
  */
 #include "prose_fixture.h"
 
-static void layout_cases_render_as_the_oracle_did(void) {
+static void layout_cases_render_as_the_golden_holds(void) {
   prose_bench b;
   prose_bench_open(&b);
   CHECK(prose_replay_area(&b, "layout") >= 7);
@@ -186,7 +186,7 @@ static void the_first_letter_is_capitalised_past_a_quotation_mark_and_not_past_a
 }
 
 int main(void) {
-  RUN(layout_cases_render_as_the_oracle_did);
+  RUN(layout_cases_render_as_the_golden_holds);
   RUN(every_run_of_space_is_one_space_and_a_paragraph_has_none_at_its_ends);
   RUN(a_blank_line_is_a_paragraph_and_a_paragraph_with_nothing_in_it_is_none);
   RUN(a_line_break_is_kept_and_every_line_is_capitalised);

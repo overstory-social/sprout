@@ -11,7 +11,6 @@ import {
 import {
   committedStored,
   ConversationPace,
-  engineOf,
   deliver,
   sendView,
   Ticker,
@@ -159,7 +158,7 @@ export async function sendStatus(
 ): Promise<void> {
   const visit = connection.visit!;
   const { served } = world;
-  const standing = engineOf(served.host).standing(
+  const standing = served.host.engine.standing(
     await committedStored(context.store, served.id),
     visit,
   );
@@ -200,7 +199,7 @@ export async function sendReadings(
   const visit = connection.visit!;
   const { served } = world;
   const stored = await committedStored(context.store, served.id);
-  const away = engineOf(served.host).standing(stored, visit) === null;
+  const away = served.host.engine.standing(stored, visit) === null;
   const polled = away
     ? null
     : await world.views.readings(

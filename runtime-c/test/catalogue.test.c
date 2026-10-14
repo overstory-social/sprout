@@ -1,7 +1,7 @@
 /*
  * Tests for src/catalogue.c: every corpus world's cartridge loads, and its
  * header, declared tree, caps, extensions and word set are what the
- * TypeScript catalogue spec dumped for it; lookups find what the tree holds.
+ * language's cartridge reader dumps for it; lookups find what the tree holds.
  */
 #include "corpus.h"
 #include "load.h"

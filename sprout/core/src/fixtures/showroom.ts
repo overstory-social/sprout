@@ -5,33 +5,27 @@ import {
   compileBundle,
   declaredId,
   DEFAULT_LIMITS,
-  Draft,
-  initialState,
   libraryHash,
-  newInstance,
-  parseCommand,
-  renderEffects,
   SourceFile,
   STANDARD_LIBRARY,
-  storedChanges,
   visitKey,
   type Catalogue,
-  type CommandHost,
+  type Effect,
   type Extension,
   type Manifest,
+  type SeenView,
   type VisitKey,
 } from '@overstory/sprout/lang';
 
-import { memoryStore } from '../memory-store.js';
-import type { SproutStore } from '../store.js';
 import { withImports } from './imports.js';
 
 // The showroom, the world core's client specs run: a dark hall whose
 // description shows a slide, and a magic lantern that throws another
 // when projected, and refuses while it is cold; one kind per file, each
 // naming the host's `slides` extension at major 1, whose one statement,
-// `show`, records a caption a text client reads as "[A slide: …]".
-// Spec support: the package build leaves it out.
+// `show`, records a caption a text client reads as "[A slide: …]"; and
+// what Marta, standing there with Ines, is told and shown of it, as the
+// engine gives them. Spec support: the package build leaves it out.
 
 /** The `slides` extension as a host installs it. */
 export const SLIDES: Extension = {
@@ -129,52 +123,416 @@ export const LANTERN = declaredId('showroom', ['hall', 'lantern']);
 export const MARTA: VisitKey = visitKey('v-marta');
 export const INES: VisitKey = visitKey('v-ines');
 
-/** A host running `catalogue` under the default budgets. */
-export const showroomHost = (catalogue: Catalogue): CommandHost => ({
-  catalogue,
-  budgets: DEFAULT_LIMITS.budgets,
-  parse: parseCommand,
-  render: renderEffects,
-});
+/** What Marta is told projecting the lantern while it is cold: its refusal. */
+export const COLD = [
+  {
+    kind: 'refused',
+    from: 'showroom.hall.lantern',
+    actor: 'showroom#1',
+    to: 'showroom#1',
+    visit: 'v-marta',
+    paragraphs: ['The lantern is cold.'],
+    written: [
+      {
+        line: 'lantern.sprout:8:45',
+      },
+    ],
+  },
+] as unknown as readonly Effect[];
 
-/** A store holding the showroom with Marta and Ines standing in the hall. */
-export async function showroom(catalogue: Catalogue): Promise<SproutStore> {
-  const store = memoryStore();
-  const draft = new Draft(initialState(catalogue));
-  for (const [visit, nickname] of [
-    [MARTA, 'Marta'],
-    [INES, 'Ines'],
-  ] as const) {
-    const id = draft.mint();
-    draft.add(
-      newInstance(
-        id,
-        { from: 'visitor' },
-        catalogue.visitorKind!,
-        HALL,
-        draft.nextSerial(),
-        catalogue.caps,
-      ),
-    );
-    draft.putVisitor({
-      visit,
-      nickname,
-      instance: id,
-      lastPlace: HALL,
-      referents: [],
-      lastReading: null,
-    });
-  }
-  const { state, changes } = draft.commit();
-  await store.transaction('w', (tx) => tx.putState(storedChanges(state, changes)));
-  return store;
-}
+/** What Marta is told projecting the lantern once it is lit: what it says, and the slide it shows. */
+export const PROJECTED = [
+  {
+    kind: 'said',
+    from: 'showroom.hall.lantern',
+    actor: 'showroom#1',
+    to: 'showroom#1',
+    visit: 'v-marta',
+    paragraphs: ['The lantern throws a picture on the sheet.'],
+    written: [
+      {
+        line: 'lantern.sprout:10:12',
+      },
+    ],
+  },
+  {
+    kind: 'extension',
+    from: 'showroom.hall.lantern',
+    actor: 'showroom#1',
+    to: 'showroom#1',
+    visit: 'v-marta',
+    paragraphs: ['[A slide: a ship in a storm]'],
+    written: [],
+    extension: 'slides',
+    statement: 'show',
+    payload: {
+      caption: 'a ship in a storm',
+    },
+  },
+] as unknown as readonly Effect[];
 
-/** A command `visit` types, with a fixed seed at the host's instant 0. */
-export const typed = (visit: VisitKey, text: string) => ({
-  visit,
-  text,
-  seed: 3,
-  mayHold: null,
-  now: 0,
-});
+/** What Marta is told looking about the hall: its description, and the slide it shows. */
+export const LOOKED = [
+  {
+    kind: 'described',
+    from: 'showroom.hall',
+    actor: 'showroom#1',
+    to: 'showroom#1',
+    visit: 'v-marta',
+    paragraphs: ['A dark hall with a sheet hung at one end.'],
+    written: [
+      {
+        line: 'hall.sprout:5:11',
+      },
+    ],
+  },
+  {
+    kind: 'extension',
+    from: 'showroom.hall',
+    actor: 'showroom#1',
+    to: 'showroom#1',
+    visit: 'v-marta',
+    paragraphs: ['[A slide: a moth, very large]'],
+    written: [],
+    extension: 'slides',
+    statement: 'show',
+    payload: {
+      caption: 'a moth, very large',
+    },
+  },
+] as unknown as readonly Effect[];
+
+/** Marta's view of the hall, Ines standing there with her. */
+export const HALL_VIEW = {
+  description: ['A dark hall with a sheet hung at one end.'],
+  effects: [
+    {
+      extension: 'slides',
+      statement: 'show',
+      payload: {
+        caption: 'a moth, very large',
+      },
+      transcript: '[A slide: a moth, very large]',
+    },
+  ],
+  exits: [],
+  occupants: [
+    {
+      id: 'showroom#3',
+      name: 'Ines',
+    },
+  ],
+  carried: [],
+  readings: [
+    {
+      verb: 'showroom.project',
+      typed: 'project hall',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall',
+          name: 'a hall',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'showroom.project',
+      typed: 'project lantern',
+      refused: ['The lantern is cold.'],
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'showroom.project',
+      typed: 'project Ines',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'showroom.light',
+      typed: 'light hall',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall',
+          name: 'a hall',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'showroom.light',
+      typed: 'light lantern',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'showroom.light',
+      typed: 'light Ines',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.look',
+      typed: 'look',
+      refused: null,
+      fillers: [],
+      options: [],
+    },
+    {
+      verb: 'sprout.examine',
+      typed: 'examine hall',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall',
+          name: 'a hall',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.examine',
+      typed: 'examine lantern',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.examine',
+      typed: 'examine Ines',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.inventory',
+      typed: 'inventory',
+      refused: null,
+      fillers: [],
+      options: [],
+    },
+    {
+      verb: 'sprout.wait',
+      typed: 'wait',
+      refused: null,
+      fillers: [],
+      options: [],
+    },
+    {
+      verb: 'sprout.help',
+      typed: 'help',
+      refused: null,
+      fillers: [],
+      options: [],
+    },
+    {
+      verb: 'sprout.take',
+      typed: 'take lantern',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+        {
+          role: 'source',
+          binds: 'unbound',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.take',
+      typed: 'take Ines',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+        {
+          role: 'source',
+          binds: 'unbound',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.drop',
+      typed: 'drop lantern',
+      refused: ['You are not holding a lantern.'],
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.drop',
+      typed: 'drop Ines',
+      refused: ['You are not holding Ines.'],
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.give',
+      typed: 'give lantern to Ines',
+      refused: ['You are not holding a lantern.'],
+      fillers: [
+        {
+          role: 'item',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+        {
+          role: 'recipient',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+      ],
+      options: [],
+    },
+    {
+      verb: 'sprout.ask',
+      typed: 'ask hall about …',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall',
+          name: 'a hall',
+        },
+        {
+          role: 'topic',
+          binds: 'unbound',
+        },
+      ],
+      options: [
+        {
+          role: 'topic',
+          takes: 'symbol',
+          options: [],
+        },
+      ],
+    },
+    {
+      verb: 'sprout.ask',
+      typed: 'ask lantern about …',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom.hall.lantern',
+          name: 'a lantern',
+        },
+        {
+          role: 'topic',
+          binds: 'unbound',
+        },
+      ],
+      options: [
+        {
+          role: 'topic',
+          takes: 'symbol',
+          options: [],
+        },
+      ],
+    },
+    {
+      verb: 'sprout.ask',
+      typed: 'ask Ines about …',
+      refused: null,
+      fillers: [
+        {
+          role: 'target',
+          binds: 'object',
+          id: 'showroom#3',
+          name: 'Ines',
+        },
+        {
+          role: 'topic',
+          binds: 'unbound',
+        },
+      ],
+      options: [
+        {
+          role: 'topic',
+          takes: 'symbol',
+          options: [],
+        },
+      ],
+    },
+  ],
+} as unknown as SeenView;

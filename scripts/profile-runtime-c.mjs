@@ -67,7 +67,7 @@ function nextStep(stage, random) {
 /** A random play of `steps` steps over `playable`, as a script. */
 function randomScript(playable, steps, seed) {
   const random = generator(seed);
-  const stage = freshStage(playable, 'wasm');
+  const stage = freshStage(playable);
   const made = [{ seed: random.below(4294967296) }, { arrive: VISITOR }];
   for (const step of made) playStep(stage, step, 'profile');
   for (let i = 0; i < steps; i++) {

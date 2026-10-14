@@ -7,7 +7,7 @@
 // (`checkVisitorBody`). Nothing declares or spawns a visitor, and
 // an actor is only ever directly inside something that declares
 // `contains actors` (`checkActors`), so every actor has a place; where one
-// may be moved is `runtime/move.ts`'s.
+// may be moved is the engine's (the spec's Moving something).
 
 import type { KindDeclaration, KindExpr, KindMember } from '../syntax/ast.js';
 import { writtenPass } from '../syntax/ast-events.js';
