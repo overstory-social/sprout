@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EntrySchema, LineCommandSchema, read, ToldSchema } from './shapes.js';
+import { EntrySchema, LineCommandSchema, ParsedSchema, read, ToldSchema } from './shapes.js';
 
 // What the engine answers is checked once as it crosses into TypeScript:
 // a shape the language does not have is refused, in words naming where.
@@ -72,5 +72,21 @@ describe('the shapes the engine answers in', () => {
     };
     expect(read(LineCommandSchema, JSON.stringify(one), 'a line')).toEqual(one);
     expect(LineCommandSchema.safeParse({ ...one, step: 0 }).success).toBe(false);
+  });
+
+  it('reads a line read, each command as what it came to, and refuses one that came to nothing', () => {
+    const counter = { id: 'tally.hall.counter', name: 'a counter' };
+    const reading = {
+      verb: 'tally.bump',
+      roles: [{ name: 'target', filler: { object: counter } }],
+    };
+    const commands = [
+      { text: 'bump counter', reading, drawn: { among: 2, meant: ['(a counter)'] }, refused: null },
+      { text: 'look', faulted: { name: 'BudgetExhausted', detail: 'steps' } },
+    ];
+    expect(read(ParsedSchema, JSON.stringify(commands), 'a line read')).toEqual(commands);
+    expect(() => read(ParsedSchema, JSON.stringify([{ text: 'look' }]), 'a line read')).toThrow(
+      /a line read in a shape it does not have/,
+    );
   });
 });

@@ -100,6 +100,43 @@ export const questionCases: EngineCase[] = [
     },
   },
   {
+    name: 'a typed line read and never run',
+    proves:
+      'each command of a line is read against the stored state as its turn would read it: a reading and its consent pass, an intent and the steps it plans, or the world’s answer; nothing runs',
+    async run(make) {
+      const store = await seeded(TALLY, [[MARTA, HALL, 'Marta']]);
+      const engine = played(make, TALLY).engine!;
+      const stored = await storedIn(store);
+      const counter = { id: COUNTER, name: 'a counter' };
+      const bump = { verb: 'tally.bump', roles: [{ name: 'target', filler: { object: counter } }] };
+      equal(
+        engine.parse(stored, MARTA, 'bump counter then twice counter. frobnicate'),
+        [
+          { text: 'bump counter', reading: bump, drawn: null, refused: null },
+          {
+            text: 'twice counter',
+            intent: { name: 'tally.twice', slots: [{ name: 'y', thing: counter }] },
+            drawn: null,
+            steps: [bump, bump],
+          },
+          {
+            text: 'frobnicate',
+            answered: {
+              passage: 'unknown',
+              paragraphs: ['That is not something you can do here.'],
+            },
+          },
+        ],
+        'what the line makes',
+      );
+      match(
+        engine.command(stored, command('bump counter')).changes,
+        { upsert: [{ id: COUNTER, properties: { n: { value: 1 } } }] },
+        'the first bump, the line having bumped nothing',
+      );
+    },
+  },
+  {
     name: 'the host’s questions between turns',
     proves:
       'the places a visitor stands in, the wakes due, who hears a visitor and why a nickname is refused are answered of the committed world',

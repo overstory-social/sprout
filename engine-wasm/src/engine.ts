@@ -313,6 +313,10 @@ export function wasmEngine(host: WasmEngineHost): Engine {
       onto(stored);
       return instance.standing(visit);
     },
+    parse: (stored, visit, line) => {
+      onto(stored);
+      return instance.parse(visit, line);
+    },
     acted: (stored, reader, actor, typed) => {
       onto(stored);
       return instance.acted(reader, actor, typed);

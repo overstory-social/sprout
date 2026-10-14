@@ -33,6 +33,7 @@ import {
 } from '@overstory/sprout/lang';
 
 import { hearers, type Heard } from './conversation.js';
+import { parsedLine, type ParsedCommand } from './parse.js';
 import type { StoredState } from './records.js';
 import {
   arrivalStep,
@@ -162,6 +163,8 @@ export interface Engine {
   hearers(stored: StoredState, visit: VisitKey): Heard | null;
   /** Where `visit` stands and what is there, named for them; null where they are away or their place is gone. */
   standing(stored: StoredState, visit: VisitKey): Standing | null;
+  /** What `line` would make, typed by `visit`: each command it holds, read against `stored` and never run. */
+  parse(stored: StoredState, visit: VisitKey, line: string): ParsedCommand[];
   /**
    * The world's `acted` for the line `actor` typed, as `reader` reads it
    * over a console they share (the spec's The command line): its
@@ -278,6 +281,10 @@ export function tsEngine(host: TurnHost | CommandHost): Engine {
     dueWakes: (stored, now) => dueWakes(state(stored), now),
     hearers: (stored, visit) => hearers(state(stored), visit),
     standing: (stored, visit) => standingIn(state(stored), visit),
+    parse: (stored, visit, line) => {
+      if (!('parse' in host)) throw new Error('This host has no parser, so reads no line.');
+      return parsedLine(state(stored), host, visit, line);
+    },
     acted: (stored, reader, actor, typed) => {
       const world = state(stored);
       const acting = world.visitors.get(actor)?.instance;

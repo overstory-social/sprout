@@ -42,8 +42,8 @@ import { inspectReadings, inspectScene, inspectView } from './view.js';
 // builder's reference this compiler generates from its own tables; and
 // `client`, `server` and `mcp`, handed to the terminal client, the server
 // and the MCP host where they are installed. `mcp` says a refused world's
-// page on stderr, since its stdout may be the protocol's. `view`, `play`,
-// `test` and `mcp` run the world on the engine `--engine` names, and, where
+// page on stderr, since its stdout may be the protocol's. `parse` with a
+// line, `view`, `play`, `test` and `mcp` run the world on the engine `--engine` names, and, where
 // it names none, on the WebAssembly engine where it is built; where it is
 // not, they say so on stderr and run the TypeScript one.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
@@ -60,7 +60,7 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       runtime loads in place of the source; without -o, <name>.sproutworld;
                                       the image files it names are copied into <file>.assets/
   sprout parse [dir]                  every phrase the world accepts
-  sprout parse dir "line" [--at place] [--as name]
+  sprout parse dir "line" [--at place] [--as name] [--engine ts|wasm]
                                       what a visitor standing there makes of the line, and whether it is refused
   sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--engine ts|wasm]
                                       what a visitor standing there is shown and could type; --scene the
@@ -84,9 +84,9 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
-                                      view, play, test and mcp run the world on the TypeScript engine (ts) or the
-                                      C engine built for WebAssembly (wasm): wasm where it is built, and ts,
-                                      said on stderr, where it is not, unless --engine names one
+                                      parse, view, play, test and mcp run the world on the TypeScript engine (ts)
+                                      or the C engine built for WebAssembly (wasm): wasm where it is built, and
+                                      ts, said on stderr, where it is not, unless --engine names one
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]
@@ -274,8 +274,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           say(formatGrammar(catalogueFor(checked)));
           return 0;
         }
-        // What `parse` reads is the TypeScript parser's, so the visitor stands on that engine.
-        const parsed = parseLine(line, standIn(checked, 'ts', standing(flags)));
+        const parsed = parseLine(line, standIn(checked, engineOf(flags, io), standing(flags)));
         say(parsed.page);
         return parsed.ok ? 0 : 1;
       }
