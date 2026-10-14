@@ -4,6 +4,7 @@ import {
   visitKey,
   type Catalogue,
   type InstanceId,
+  type RuntimeBudgets,
   type VisitKey,
 } from '@overstory/sprout/lang';
 import {
@@ -18,7 +19,7 @@ import { engineFor, hostFor, type PlayableWorld } from './engine.js';
 
 // One visitor standing in a freshly loaded world, for the inspectors to
 // look through (`sprout parse` and `sprout view`). The world is as it loads, nothing yet having happened in it,
-// under the host's default limits and no clock. The visitor comes in by an
+// under the host's default limits, less any budgets given, and no clock. The visitor comes in by an
 // arrival turn, as a host admits anyone (the spec's The host contract ›
 // Admission and identity): at the place visitors arrive at, or, named with
 // `--at`, at another place as a returning visitor comes back to where they
@@ -40,10 +41,11 @@ export interface Standing {
   readonly place: InstanceId;
 }
 
-/** Where to stand, by a place's path under the world, and the nickname to stand there as. */
+/** Where to stand, by a place's path under the world, the nickname to stand there as, and budgets in place of the host's defaults. */
 export interface StandOptions {
   readonly at?: string;
   readonly nickname?: string;
+  readonly budgets?: Partial<RuntimeBudgets>;
 }
 
 /** An id as an author writes it in the world's body: its path under the world, or the id itself. */
@@ -59,7 +61,7 @@ export function pathOf(world: InstanceId, id: InstanceId): string {
  * instead.
  */
 export function standIn(playable: PlayableWorld, options: StandOptions = {}): Standing {
-  const host = hostFor(playable);
+  const host = hostFor(playable, options.budgets);
   const running = engineFor(playable, host);
   const { catalogue } = host;
   const world = catalogue.world;

@@ -132,10 +132,11 @@ sprout — a Sprout microworld on the command line
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
-  sprout view [dir] [--at place] [--as name] [--scene | --verb name]
+  sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--poll-steps n]
                                       what a visitor standing there is shown and could type; --scene the
                                       scene, which lists the verbs in place of the readings; --verb one
-                                      verb's readings, by its qualified name (sprout.take)
+                                      verb's readings, by its qualified name (sprout.take); --poll-steps the
+                                      steps the poll may take, 10000 without it
   sprout play dir script.json [--write] [--report file.json]
                                       (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,

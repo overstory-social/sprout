@@ -27,6 +27,13 @@ describe('standIn', () => {
     );
   });
 
+  it('runs them under the budgets given, the host’s defaults for the rest', () => {
+    const standing = standIn(lane(), { budgets: { pollSteps: 2 } });
+    expect(standing.host.budgets).toEqual({ ...standIn(lane()).host.budgets, pollSteps: 2 });
+    const { fault } = standing.engine.view(standing.stored, standing.visit);
+    expect(fault?.detail).toBe('pollSteps: a poll turn may take 2 steps.');
+  });
+
   it('refuses a place its `accept` keeps them out of, naming where they came in instead', () => {
     expect(() => standIn(lane(), { at: 'attic' })).toThrow(
       '`attic` does not let a visitor in, so they came in at `yard`: its `accept`, or a bound on how many may stand there, turned them away.',
