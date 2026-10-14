@@ -1,0 +1,145 @@
+// The end of Zork I (v8): the ancient map that appears in the trophy case
+// once the score reaches 350 (SCORE-UPD, MAP), the secret path it shows from
+// West of House, the Stone Barrow at its end (STONE-BARROW), and inside the
+// barrow, the end of the game (STONE-BARROW-FCN and FINISH).
+//
+// A game cannot end here (friction 25): the barrow, once entered, closes on
+// its visitor, the score is read out, and every verb but those that look,
+// read and count is answered with the end (the adventurer's `:finished`).
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery} from 'thing'
+import {Room} from 'room'
+import {Readable} from 'items'
+import {Adventurer} from 'adventurer'
+import {west_of_house} from 'above_ground'
+import {open, close, read, through, cross, climb_over, look_in, knock, shift, :travel, :finish} from 'verbs'
+
+// The ancient parchment (MAP): read, it shows the way to the barrow.
+kind AncientMap is Readable {
+  grammar { name "ancient map"  nouns "map", "parchment"  adjectives "antique", "old", "ancient" }
+  :size 2
+  :has_fdesc true
+  passage short { ancient map }
+  passage fdesc { In the trophy case is an ancient parchment which appears to be a map. }
+  passage words { The map shows a forest with three clearings. The largest clearing contains a house. Three paths leave the large clearing. One of these paths, leading southwest, is marked "To Stone Barrow". }
+  describe { text "It is a sheet of parchment gone the color of weak tea, soft as cloth at the folds, drawn on in a brown ink by someone with a steady hand and a liking for small trees. Nobody put it in the trophy case; it was simply there, among the treasures, as though it had been waiting for them. {self.words}" }
+}
+
+object stone_barrow is Room in underground_caverns {
+  grammar {
+    name "Stone Barrow"
+    exit northeast "northeast" -> west_of_house
+    exit west      "west"      -> inside_barrow
+    exit in        "barrow"    -> inside_barrow
+  }
+  passage body {
+    You are standing in front of a massive barrow of stone. In the east face is a huge stone door which is open. You cannot see into the dark of the tomb.
+  }
+  object barrow is Barrow
+  object door is BarrowDoor
+  object dark is Scenery {
+    grammar { name "dark"  nouns "darkness", "inside", "interior"  adjectives "tomb" }
+    passage short { dark }
+    describe { text "Beyond the open door the dark of the tomb is complete, flat and black as a painted wall. It does not look like the dark of a cellar. It looks like the dark of a door that has not decided yet." }
+  }
+  object path is Scenery {
+    grammar { name "secret path"  nouns "path", "trail"  adjectives "secret", "northeast" }
+    passage short { secret path }
+    describe { text "The secret path winds back northeast through the trees toward the field west of the house. It is narrow and mossy and goes, as the map said it would, to exactly one place, which is here." }
+  }
+}
+
+// The barrow (BARROW, BARROW-FCN): through it is in.
+kind Barrow is Scenery {
+  grammar { name "stone barrow"  nouns "barrow", "tomb", "mound", "face"  adjectives "massive", "stone", "east" }
+  passage short { stone barrow }
+  describe { text "The barrow is a long low mound of fitted stones, grey with lichen and older than the forest that has grown up round it, the kind of thing a great many people were once at pains to build over somebody. In its east face the huge stone door stands open on the dark." }
+  without as target for through from Thing
+  as target for through { do { send actor :travel with :barrow_in  say "" } }
+  without as target for look_in from Thing
+  as target for look_in { do { say "You cannot see into the dark of the tomb." } }
+}
+
+// The huge stone door (BARROW-DOOR, BARROW-DOOR-FCN): open, and too heavy
+// to be anything else.
+kind BarrowDoor is Scenery {
+  grammar { name "stone door"  nouns "door", "doorway", "slab"  adjectives "huge", "stone", "open", "heavy" }
+  :door true
+  passage short { stone door }
+  describe { text "The door is a single slab of stone, taller than you and a good deal heavier, standing open on a pivot so worn and so perfectly balanced that it seems a breath would move it. It does not move. The door is open." }
+  without as target for open from Thing
+  as target for open { do { say "The door is too heavy." } }
+  without as target for close from Thing
+  as target for close { do { say "The door is too heavy." } }
+  without as target for shift from Thing
+  as target for shift { do { say "The door is too heavy." } }
+  without as target for through from Thing
+  as target for through { do { send actor :travel with :barrow_in  say "" } }
+  without as target for look_in from Thing
+  as target for look_in { do { say "You cannot see into the dark of the tomb." } }
+}
+
+// Inside the barrow: the end. Its description is Zork's last words; the
+// door is shut behind, and the bridge ahead belongs to the next adventure.
+object inside_barrow is Room in underground_caverns {
+  grammar {
+    name "Inside the Barrow"
+    exit east "door"       refuse "The door has closed behind you, inexorably, and it is not the kind of door that opens again."
+    exit out  "door"       refuse "The door has closed behind you, inexorably, and it is not the kind of door that opens again."
+    exit west "footbridge" refuse bridge_line
+  }
+  passage bridge_line { The footbridge, the path beyond it and the dark tunnel are another adventure, and this one is over. }
+  passage body {
+    As you enter the barrow, the door closes inexorably behind you. Around you it is dark, but ahead is an enormous cavern, brightly lit. Through its center runs a wide stream. Spanning the stream is a small wooden footbridge, and beyond a path leads into a dark tunnel. Above the bridge, floating in the air, is a large sign. It reads: All ye who stand before this bridge have completed a great and perilous adventure which has tested your wit and courage. You have mastered the first part of the ZORK trilogy. Those who pass over this bridge must be prepared to undertake an even greater adventure that will severely test your skill and bravery!
+
+    The ZORK trilogy continues with "ZORK II: The Wizard of Frobozz" and is completed in "ZORK III: The Dungeon Master."
+  }
+  // FINISH: the score, and the end.
+  on :entered (item, from) {
+    if (item.is(Adventurer)) { send item :finish }
+  }
+  object door is Scenery {
+    grammar { name "stone door"  nouns "door", "doorway"  adjectives "huge", "stone", "closed", "heavy" }
+    passage short { stone door }
+    passage shut { The door has closed behind you, inexorably, and it is not the kind of door that opens again. }
+    describe { text "Behind you the huge stone door has swung to, so neatly that you can hardly find the seam. There is no handle on this side. Nobody who came in this way ever needed one." }
+    without as target for open from Thing
+    as target for open { do { say shut } }
+    without as target for through from Thing
+    as target for through { do { say shut } }
+    without as target for knock from Thing
+    as target for knock { do { say "Nobody's home, and nobody is coming." } }
+  }
+  object sign is Scenery {
+    grammar { name "large sign"  nouns "sign", "words", "writing"  adjectives "large", "floating" }
+    passage short { large sign }
+    passage words { All ye who stand before this bridge have completed a great and perilous adventure which has tested your wit and courage. You have mastered the first part of the ZORK trilogy. Those who pass over this bridge must be prepared to undertake an even greater adventure that will severely test your skill and bravery! }
+    describe { text "The sign hangs in the air above the bridge with nothing holding it up, which is either very good engineering or none at all. It reads: {self.words}" }
+    without as target for read from Thing
+    as target for read { do { say words } }
+  }
+  object footbridge is Scenery {
+    grammar { name "wooden footbridge"  nouns "bridge", "footbridge"  adjectives "small", "wooden", "foot" }
+    passage short { wooden footbridge }
+    describe { text "It is a small wooden footbridge, plain and sound, spanning the stream in a single modest arch. It looks like the easiest thing you have been asked to do in some time, which is exactly how it would look." }
+    without as target for cross from Thing
+    as target for cross { do { say "{inside_barrow.bridge_line}" } }
+    without as target for climb_over from Thing
+    as target for climb_over { do { say "{inside_barrow.bridge_line}" } }
+  }
+  object stream is Scenery {
+    grammar { name "wide stream"  nouns "stream", "water", "river"  adjectives "wide" }
+    passage short { wide stream }
+    describe { text "A wide stream runs through the middle of the cavern, clear and quick and bright with the cavern's light, out of one dark and into another." }
+  }
+  object cavern is Scenery {
+    grammar { name "enormous cavern"  nouns "cavern", "cave", "light"  adjectives "enormous", "bright", "brightly", "lit" }
+    passage short { enormous cavern }
+    describe { text "The cavern is enormous and brightly lit, though there is nothing to say by what. After so long in the dark it is almost too much light to see by." }
+  }
+  object tunnel is Scenery {
+    grammar { name "dark tunnel"  nouns "tunnel", "path"  adjectives "dark" }
+    passage short { dark tunnel }
+    describe { text "Beyond the bridge a path leads into a dark tunnel. Something is down there, a long way off, and it is waiting for the next adventure." }
+  }
+}

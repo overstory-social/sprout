@@ -1,0 +1,65 @@
+// Zork I: The Great Underground Empire, the whole of it. The world
+// keeps Zork's narrator for the lines the engine speaks for itself, and a
+// gate: a room cannot reach another, so where Zork moves a body or a thing
+// across the map at a stroke (dying, falling from the tree), whoever needs
+// to asks the world to open the gate, does it, and asks it shut again, in
+// the one turn. While the world passes, every place is in range of every
+// other, and an actor may move to any of them (Range; Actors and visitors).
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {go} from 'sprout'
+import {west_of_house} from 'above_ground'
+import {:shatter, :open_gate, :gate_open, :close_gate, :trap_sync, :window_sync, :troll_gone, :unbar, :grate_unlock, :grate_open, :grate_revealed, :dome_rope, :thief_start, :summon, :far_voice, :magic, :cyclops_gone, :tide, :gate_flag, :rainbow, :flooded, :won} from 'verbs'
+
+world underground_caverns is sprout.World {
+  visitors are Person
+  visitors arrive at west_of_house
+  synonyms go: "climb", "run", "proceed", "crawl"
+
+  :gate false
+  pass any (self.get(:gate))
+  // A move made through the open gate is told only in the places it joins,
+  // as the world's `pass any` never answers for a move's notices (Places):
+  // the rest of the Empire hears nothing of it.
+  pass :trap_sync (true)
+  pass :window_sync (true)
+  pass :troll_gone (true)
+  pass :unbar (true)
+  pass :grate_unlock (true)
+  pass :grate_open (true)
+  pass :grate_revealed (true)
+  pass :dome_rope (true)
+  // The thief's clock starting, his lair calling him home, and a voice in
+  // the maze; the Cyclops through the wall, and the sword that knew him.
+  pass :thief_start (true)
+  pass :summon (true)
+  pass :far_voice (true)
+  pass :magic (true)
+  pass :cyclops_gone (true)
+  // The dam's gates and water, and the bolt freed or locked, heard by every
+  // room that keeps a note of them; the rainbow solid or not; the
+  // Maintenance Room flooded (v6).
+  pass :tide (true)
+  pass :gate_flag (true)
+  pass :rainbow (true)
+  pass :flooded (true)
+  // The mirror broken, heard in both Mirror Rooms (v7).
+  pass :shatter (true)
+  // The score at 350: the trophy case and West of House hear it (v8).
+  pass :won (true)
+
+  on :open_gate (from) {
+    self.set(:gate, true)
+    send from :gate_open
+  }
+  on :close_gate { self.set(:gate, false) }
+
+  passage unknown         { That sentence isn't one I recognize. }
+  passage not_here        { You can't see any such thing. }
+  passage no_way          { You can't go that way. }
+  passage dark            { It is pitch black. You are likely to be eaten by a grue. }
+  passage unremarkable    { There's nothing special about {thing}. }
+  passage nothing_happens { Nothing happens. }
+  passage waited          { Time passes... }
+  passage not_carrying    { You don't have {thing}. }
+}

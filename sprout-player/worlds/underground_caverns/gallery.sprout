@@ -1,0 +1,163 @@
+// South of the Cellar: the crawlway to the edge of the chasm, the Gallery
+// with the one painting the vandals left, and the Studio, whose chimney is
+// the way back up into the Kitchen. Room names and descriptions are Zork's,
+// from dungeon.zil; the chimney's rule is UP-CHIMNEY-FUNCTION's.
+import {Thing, Scenery} from 'thing'
+import {Treasure, Readable} from 'items'
+import {Room, DarkRoom, Perilous, ChimneyFoot, ChasmEdge} from 'room'
+import {Adventurer} from 'adventurer'
+import {open, close, climb_up, climb_down, look_in, mung, :travel, :scored} from 'verbs'
+import {cellar} from 'cellar'
+import {kitchen, living_room} from 'house'
+import {Abyss} from 'east'
+
+object east_of_chasm is DarkRoom, Perilous, ChasmEdge in underground_caverns {
+  :tour 3
+  grammar {
+    name "East of Chasm"
+    exit north "passage" -> cellar
+    exit east  "path"    -> gallery
+    exit down  "chasm"   refuse "The chasm probably leads straight to the infernal regions."
+  }
+  passage body {
+    You are on the east edge of a chasm, the bottom of which cannot be seen. A narrow passage goes north, and the path you are on continues to the east.
+  }
+
+  object chasm is Abyss {
+    describe { text "The chasm drops away from your feet into a dark that your lamp does not so much light as annoy. A pebble kicked over the edge is never heard from again. Neither, by the look of it, was whoever kicked the last one." }
+    passage peer { You peer over the edge. The chasm goes down, and then further down, and then, as far as anyone has come back to say, down. It probably leads straight to the infernal regions. }
+    without as target for climb_down from Abyss
+    as target for climb_down { do { say "The chasm probably leads straight to the infernal regions." } }
+  }
+  object narrow_passage is Scenery {
+    grammar { name "narrow passage"  nouns "crawlway", "passageway", "crawl"  adjectives "narrow", "north" }
+    passage short { narrow passage }
+    describe { text "The narrow passage north is the crawlway back to the cellar, as low and mean from this end as from the other." }
+  }
+  object path is Scenery {
+    grammar { name "path"  nouns "ledge", "trail"  adjectives "east" }
+    passage short { path }
+    describe { text "The path runs east along the lip of the chasm, a little wider than a person and a good deal narrower than a person would like." }
+  }
+}
+
+object gallery is Room in underground_caverns {
+  :tour 4
+  grammar {
+    name "Gallery"
+    exit west  "west"  -> east_of_chasm
+    exit north "north" -> studio
+  }
+  passage body {
+    This is an art gallery. Most of the paintings have been stolen by vandals with exceptional taste. The vandals left through either the north or west exits.
+  }
+
+  object painting is Painting
+  object hooks is Scenery {
+    grammar { name "bare hooks"  nouns "paintings", "hooks", "hook", "frames", "rectangles"  adjectives "bare", "empty", "stolen", "pale" }
+    passage short { bare hooks }
+    describe { text "Where the stolen paintings hung there are only bare hooks and pale rectangles on the wall, each one exactly the size of something worth having. The vandals took the frames as well. They had taste, and they had time." }
+  }
+  object vandals is Scenery {
+    grammar { name "vandals"  nouns "vandal", "thieves"  adjectives "tasteful" }
+    passage short { vandals }
+    describe { text "The vandals are long gone, north or west, and have left nothing of themselves behind but a gallery with very little in it and an air of quiet connoisseurship." }
+  }
+  object exits is Scenery {
+    grammar { name "exits"  nouns "exit", "doorway", "doorways", "openings"  adjectives "north", "west" }
+    passage short { exits }
+    describe { text "Exits lead north and west. Neither has a sign saying which way the vandals went, which is the sort of thing vandals see to." }
+  }
+}
+
+// Zork's PAINTING: four points when it is first taken, six in the trophy
+// case, and nothing at all once somebody has put a blade through it.
+kind Painting is Treasure {
+  :burnable true
+  grammar { name "painting"  nouns "art", "canvas", "masterpiece", "picture"  adjectives "beautiful" }
+  :has_fdesc true
+  :size 15
+  :value 4
+  :tvalue 6
+  :ruined false
+  passage short {{if self.get(:ruined)}worthless piece of canvas{else}painting{/if}}
+  passage fdesc { Fortunately, there is still one chance for you to be a vandal, for on the far wall is a painting of unparalleled beauty. }
+  passage ldesc {{if self.get(:ruined)}There is a worthless piece of canvas here.{else}A painting by a neglected genius is here.{/if}}
+  describe {
+    if (self.get(:ruined)) { text "It was a painting of unparalleled beauty. It is now a canvas with a hole in it, and the hole is the only part anyone will remember." }
+    else { text "It is a painting of a sunlit valley, done with such tenderness that it is hard to look at it for long, and harder to look away. The signature in the corner is too modest to read. The artist was a neglected genius, and it shows." }
+  }
+
+  without as target for mung from Thing
+  as target for mung {
+    do {
+      if (self.get(:ruined)) { say "Nice try." }
+      else {
+        if (self.get(:cased)) { send actor :scored with 0 - self.get(:tvalue) }
+        self.set(:ruined, true)
+        self.set(:tvalue, 0)
+        say "Congratulations! Unlike the other vandals, who merely stole the artist's masterpieces, you have destroyed one."
+      }
+    }
+  }
+}
+
+object studio is DarkRoom, ChimneyFoot in underground_caverns {
+  :tour 5
+  grammar {
+    name "Studio"
+    exit south "door"    -> gallery
+    exit up    "chimney" -> kitchen
+  }
+  :walls 3
+  passage body {
+    This appears to have been an artist's studio. The walls and floors are splattered with paints of 69 different colors. Strangely enough, nothing of value is hanging here. At the south end of the room is an open door (also covered with paint). A dark and narrow chimney leads up from a fireplace; although you might be able to get up it, it seems unlikely you could get back down.
+  }
+
+  object manual is Readable {
+    grammar { name "ZORK owner's manual"  nouns "manual", "paper", "piece"  adjectives "zork", "owners", "small" }
+    :has_fdesc true
+    :size 2
+    passage short { ZORK owner's manual }
+    passage fdesc { Loosely attached to a wall is a small piece of paper. }
+    passage words {
+      Congratulations!
+
+      You are the privileged owner of ZORK I: The Great Underground Empire, a self-contained and self-maintaining universe. If used and maintained in accordance with normal operating practices for small universes, ZORK will provide many months of trouble-free operation.
+    }
+    describe { text words }
+  }
+  object chimney is StudioChimney
+  object fireplace is Scenery {
+    grammar { name "fireplace"  nouns "hearth", "grate", "ashes"  adjectives "cold" }
+    passage short { fireplace }
+    describe { text "The fireplace is cold and swept, the only clean thing in the room. Above it the chimney goes up into the dark, narrow and sooty and not built for traffic." }
+  }
+  object paints is Scenery {
+    grammar { name "paint"  nouns "paints", "colors", "colours", "splatters", "floor", "floors"  adjectives "splattered", "spattered" }
+    passage short { paint }
+    describe { text "Paint is everywhere: on the floor, on the walls, on the door, in drips and fans and handprints, sixty-nine colors by the count of someone with time to count. Strangely enough, none of it is on anything worth stealing." }
+  }
+  object door is Scenery {
+    grammar { name "door"  nouns "doorway"  adjectives "open", "south", "painted" }
+    :door true
+    passage short { door }
+    describe { text "The door at the south end of the room stands open, held there by paint: so many coats of it that it has not closed in years, and would not thank you for trying." }
+    without as target for open from Thing
+    without as target for close from Thing
+    as target for open  { do { say "It is already open." } }
+    as target for close { do { say "The door is held open by a great many coats of paint, and stays where it is." } }
+  }
+}
+
+// The Studio's chimney: up it, with a light and no more than one other
+// thing, to the Kitchen. Climbing it by name is going up.
+kind StudioChimney is Scenery {
+  grammar { name "chimney"  nouns "flue"  adjectives "dark", "narrow", "sooty" }
+  passage short { chimney }
+  describe { text "The chimney is dark and narrow and leads up out of the fireplace. You might just get up it, if you travelled light and had a light to travel by. Getting back down it is another matter." }
+  without as target for climb_up from Thing
+  without as target for climb_down from Thing
+  as target for climb_up   { do { send actor :travel with :kitchen  say "" } }
+  as target for climb_down { do { say "You can't do that!" } }
+}

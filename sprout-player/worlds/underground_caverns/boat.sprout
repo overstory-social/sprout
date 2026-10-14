@@ -1,0 +1,460 @@
+// The Frobozz Magic Boat, as Zork has it in three shapes: a folded pile of
+// plastic at the Dam Base (INFLATABLE-BOAT), the magic boat itself once the
+// pump has blown it up (INFLATED-BOAT, RBOAT-FUNCTION), and a punctured boat
+// once something sharp has got at it (PUNCTURED-BOAT, DBOAT-FUNCTION). The
+// putty mends the third into the first.
+//
+// The magic boat is a place (`sprout.Place`) that also lies on the floor
+// and may be carried: whoever boards it is in it, and goes where it goes.
+// It goes by the world's gate, by the reach of the river it lies on
+// (`:at`, which every room by the water keeps as `:reach`), in four ways:
+//
+// - a way a visitor takes in it that leads back into the boat itself
+//   (`launch`, `land`, `west`, `east`): its own `:entered`, from itself,
+//   tells it to put out, land, or row on, whichever its reach means, and
+//   the engine then describes the boat, and so the room around it;
+// - `launch boat` and `land boat`, said with the boat named, which no way
+//   out can take, and so are messages;
+// - the river's current, on the boat's own clock (I-RIVER): two minutes on
+//   the first reaches, one at the last, and then the Falls;
+// - following a visitor who steps ashore by a way that leads out of it
+//   (west at the fourth reach, north and south on the lake).
+//
+// A boat cannot name the room it is in (friction 83), so it keeps its reach,
+// and a visitor who gets out of it asks the room (`:where`, `:berth`).
+import * as sprout from 'sprout'
+import {Thing, Portable, Scenery, Inflatable, Pluggable} from 'thing'
+import {Box, Bag} from 'box'
+import {Readable, Rejecting, Sharp} from 'items'
+import {Room, DarkRoom} from 'room'
+import {Light} from 'lamp'
+import {Adventurer} from 'adventurer'
+import {Pump} from 'reservoir'
+import {Putty} from 'dam'
+import {inflate, deflate, plug, board, through, fill, open, close, look_in, put, launch, land, read, turn, look_behind, Reach, :open_gate, :gate_open, :close_gate, :tide, :die} from 'verbs'
+import {dam_base} from 'dam'
+import {river_1, river_2, river_3, river_4, river_5, white_cliffs_north, white_cliffs_south, sandy_beach, shore} from 'river'
+import {reservoir_south, reservoir_north, reservoir, stream_view, in_stream} from 'reservoir'
+
+message :put_out
+message :come_ashore
+// The visitor waits in the boat: Zork's V-WAIT passes three moves, cut
+// short by the first clock that has something to say, and on the river
+// that is the current (friction 106).
+message :hurry
+
+// Whatever a visitor may be in: the magic boat.
+kind Vessel { }
+
+enum Errand { idle, steer, drift, follow, land, launch }
+
+// The folded boat. It holds the magic boat, out of sight, until it is
+// blown up; the boat folds back into a new one when it is let down.
+kind Pile is Portable, Inflatable {
+  contains
+  pass any (false)
+  // The folded boat still hears the dam, so it knows the lake when it is
+  // blown up.
+  pass :tide (true)
+  grammar { name "pile of plastic"  nouns "pile", "boat", "valve", "instructions", "words", "print", "back"  adjectives "folded", "inflatable", "plastic", "small", "printed" }
+  :size 20
+  :burnable true
+  passage short { pile of plastic }
+  passage ldesc { There is a folded pile of plastic here which has a small valve attached. }
+  describe { text "It is a pile of heavy plastic, folded small and tight, with a small valve attached at one corner. Printed on one fold, upside down, are the words \"FROBOZZ MAGIC BOAT COMPANY\" and the beginning of some instructions that go on round the back." }
+  // The instructions the fold promises, round the back of it.
+  passage back_words { Round the back, in type that gets smaller as it goes, the instructions go on: "...INFLATE AT VALVE WITH ANY STANDARD AIR PUMP. DO NOT INFLATE BY MOUTH, BELLOWS OR VOLCANIC VENT. FULL INSTRUCTIONS ON TAN LABEL INSIDE. THE FROBOZZ MAGIC BOAT COMPANY ACCEPTS NO RESPONSIBILITY FOR..." The rest is folded in too tight to read. }
+  without as target for read from Thing
+  as target for read { do { say back_words } }
+  without as target for turn from Thing
+  as target for turn { do { say "You turn the pile over, which takes some doing. {self.back_words}" } }
+  without as target for look_behind from Thing
+  as target for look_behind { do { say back_words } }
+  passage seaworthy { The boat inflates and appears seaworthy. }
+  without as target for inflate from Inflatable
+  as target for inflate {
+    do {
+      if (!here.holds(self)) { say "The boat must be on the ground to be inflated." }
+      else if (bound tool) {
+        say seaworthy
+        each b: MagicBoat in self {
+          each l: BoatLabel in b { if (!l.get(:touched)) { say "A tan label is lying inside the boat." } }
+          move b to here
+        }
+        finally destroy self
+      } else if (actor.is(Adventurer)) {
+        if (actor.get(:pumps) > 0) {
+          say "(with the hand-held air pump)"
+          say seaworthy
+          each b: MagicBoat in self {
+            each l: BoatLabel in b { if (!l.get(:touched)) { say "A tan label is lying inside the boat." } }
+            move b to here
+          }
+          finally destroy self
+        } else { say "You don't have enough lung power to inflate it." }
+      }
+    }
+  }
+  without as target for fill from Thing
+  as target for fill { do { say "You'll want to inflate it, and something to do it with." } }
+}
+
+// The magic boat: a place to be in, a box to put things in, and a thing to
+// carry, all at once.
+kind MagicBoat is sprout.Place, Bag, Vessel, Inflatable {
+  :open true
+  :capacity 100
+  :size 20
+  :burnable true
+  // Where it lies, and what that makes it: afloat on the river, the stream
+  // or the full lake, or on a shore it may be launched from.
+  :at Reach default dam_base
+  :full true
+  :afloat false
+  :launch_ok true
+  // Lit by day, or by a light in it or in somebody's hands in it.
+  :daylight true
+  :seeing true
+  :riders 0 min 0 max 20
+  :errand Errand default idle
+  :follow Reach default nowhere
+  passage short { magic boat }
+  passage ldesc { There is a magic boat here. }
+
+  // What the one in the boat reads: the room around it, as Zork shows a
+  // room from a vehicle, and what the boat holds. A describe cannot ask the
+  // room it is in for its words (friction 89), so the boat names each room
+  // it may lie in by its reach.
+  passage inside_view {{if self.get(:at) == :dam_base}{underground_caverns.dam_base.boat_view}{else if self.get(:at) == :river_1}{underground_caverns.river_1.boat_view}{else if self.get(:at) == :river_2}{underground_caverns.river_2.boat_view}{else if self.get(:at) == :river_3}{underground_caverns.river_3.boat_view}{else if self.get(:at) == :river_4}{underground_caverns.river_4.boat_view}{else if self.get(:at) == :river_5}{underground_caverns.river_5.boat_view}{else if self.get(:at) == :white_cliffs_north}{underground_caverns.white_cliffs_north.boat_view}{else if self.get(:at) == :white_cliffs_south}{underground_caverns.white_cliffs_south.boat_view}{else if self.get(:at) == :sandy_beach}{underground_caverns.sandy_beach.boat_view}{else if self.get(:at) == :shore}{underground_caverns.shore.boat_view}{else if self.get(:at) == :reservoir_south}{underground_caverns.reservoir_south.boat_view}{else if self.get(:at) == :reservoir_north}{underground_caverns.reservoir_north.boat_view}{else if self.get(:at) == :reservoir}{underground_caverns.reservoir.boat_view}{else if self.get(:at) == :stream_view}{underground_caverns.stream_view.boat_view}{else if self.get(:at) == :in_stream}{underground_caverns.in_stream.boat_view}{else}You are sitting in the magic boat, on dry land, which is not where a boat is at its best.{self.inside_lines}{/if}}
+  passage examined {
+    It is a magic boat, inflated, bright yellow, round-sided and unreasonably cheerful, with a pair of seats, a valve, and a good deal of fine print. It looks seaworthy. It also looks as though it would not care for anything sharp.
+
+    {self.look_inside}
+  }
+  describe {
+    if (self.holds(actor)) { text inside_view } else { text examined }
+  }
+
+  // The words a way taken in the boat says as it goes: rendered once the
+  // turn is done, so a boat now on a shore has landed.
+  passage rowing {{if self.get(:afloat)}{if self.get(:at) == :river_5}{self.last_reach}{/if}{else}The magic boat comes to a rest on the shore.{/if}}
+  passage ashore { The magic boat comes to a rest on the shore, and you clamber out of it onto dry land. }
+  passage label_line { Read the label for the boat's instructions. }
+  passage beached_line { You can't go anywhere on foot while you are sitting in a magic boat. Get out of it first. }
+  passage upstream_line { You cannot go upstream due to strong currents. }
+  passage downstream_line { The current needs no help from you. It will carry you downstream in its own good time, and sooner than you might like. }
+  passage afloat_line { You are on the {if self.get(:at) == :reservoir}reservoir{else if self.get(:at) == :in_stream}stream{else}river{/if}, or have you forgotten? }
+  passage falls_west { The west bank is sheer rock straight down into the water, and the current will not let you near it. The only landing left is the one on the east shore. }
+  // Put out from the Shore, the boat is on the last reach at once.
+  passage last_reach { The current takes the boat the moment it leaves the shore, and the shore is already slipping away behind you. The roar ahead is very close. }
+  passage falls_line { Unfortunately, the magic boat doesn't provide protection from the rocks and boulders one meets at the bottom of waterfalls. Including this one. }
+
+  without as target for close from Box
+  as target for close { do { say "You must tell me how to do that to a magic boat." } }
+  without as target for open from Box
+  as target for open { do { say "It is already open, as boats go." } }
+  without as target for inflate from Inflatable
+  as target for inflate { do { say "Inflating it further would probably burst it." } }
+  without as target for fill from Thing
+  as target for fill { do { say "Inflating it further would probably burst it." } }
+  as target for deflate {
+    permit {
+      if (self.holds(actor)) { refuse "You can't deflate the boat while you're in it." }
+      else if (!here.holds(self)) { refuse "The boat must be on the ground to be deflated." }
+      else if (self.get(:riders) > 0) { refuse "Not with somebody in it." }
+    }
+    do {
+      say "The boat deflates."
+      let p = spawn Pile in here
+      move self to p
+    }
+  }
+  // Getting in and out, launching and landing are the visitor's own parts
+  // (adventurer.sprout).
+  as target for launch { do { } }
+  as target for land { do { } }
+  as target for board { do { } }
+  without as target for through from Portable
+  without as target for through from Thing
+  as target for through { do { } }
+
+  // Who is in it: while anyone is, it is not listed in the room around them.
+  on :entered (item, from) {
+    if (item.is(Adventurer)) {
+      if (from == self) {
+        self.set(:errand, :steer)
+        send underground_caverns :open_gate
+      } else {
+        self.adjust(:riders, 1)
+        self.set(:ndesc, true)
+      }
+    }
+  }
+  on :left (item, to) {
+    if (item.is(Adventurer) && to != self) {
+      self.adjust(:riders, -1)
+      self.set(:ndesc, self.get(:riders) > 0)
+      // Stepped ashore from the water by a way out: the boat comes after.
+      if (self.get(:afloat) && to.is(Room)) {
+        if (to.get(:reach) == :white_cliffs_south || to.get(:reach) == :reservoir_north || to.get(:reach) == :reservoir_south) {
+          self.set(:follow, to.get(:reach))
+          self.set(:errand, :follow)
+          send underground_caverns :open_gate
+        }
+      }
+    }
+  }
+
+  on :put_out {
+    self.set(:errand, :launch)
+    send underground_caverns :open_gate
+  }
+  on :come_ashore {
+    self.set(:errand, :land)
+    send underground_caverns :open_gate
+  }
+
+  // The current (I-RIVER), while somebody is in it.
+  on :woke (elapsed) {
+    if (self.get(:riders) > 0) {
+      if (self.get(:at) == :river_5) {
+        tell inside falls_line
+        each a: Adventurer in self { send a :die }
+      } else if (self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4) {
+        tell inside "The flow of the river carries you downstream."
+        self.set(:errand, :drift)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+  // Waited on: the current comes now rather than in a minute or two, as
+  // Zork's three-move wait reaches it on every reach.
+  on :hurry {
+    if (self.get(:riders) > 0 && self.get(:errand) == :idle) {
+      if (self.get(:at) == :river_5) {
+        cancel wakes
+        tell inside falls_line
+        each a: Adventurer in self { send a :die }
+      } else if (self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4) {
+        cancel wakes
+        tell inside "The flow of the river carries you downstream."
+        self.set(:errand, :drift)
+        send underground_caverns :open_gate
+      }
+    }
+  }
+
+  // The dam, draining the lake under it or filling it again.
+  on :tide (from, value) {
+    let was_full = self.get(:full)
+    self.set(:full, value == 0 || value == 1)
+    if (self.get(:at) == :reservoir && self.get(:riders) > 0) {
+      if (was_full && !self.get(:full)) { tell inside "The water level has dropped to the point at which the boat can no longer stay afloat. It sinks into the mud." }
+      else if (!was_full && self.get(:full)) { tell inside "The boat lifts gently out of the mud and is now floating on the reservoir." }
+    }
+    self.set(:afloat, self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4 || self.get(:at) == :river_5 || self.get(:at) == :in_stream || (self.get(:at) == :reservoir && self.get(:full)))
+    self.set(:launch_ok, self.get(:at) == :dam_base || self.get(:at) == :white_cliffs_north || self.get(:at) == :white_cliffs_south || self.get(:at) == :sandy_beach || self.get(:at) == :shore || self.get(:at) == :stream_view || ((self.get(:at) == :reservoir_south || self.get(:at) == :reservoir_north) && self.get(:full)))
+  }
+
+  on :gate_open {
+    let a = self.get(:at)
+    let e = self.get(:errand)
+    if (e == :steer || e == :launch) {
+      if (a == :dam_base) { move self to river_1 }
+      else if (a == :white_cliffs_north) { move self to river_3 }
+      else if (a == :white_cliffs_south || a == :sandy_beach) { move self to river_4 }
+      else if (a == :shore) { move self to river_5 }
+      else if (a == :reservoir_south || a == :reservoir_north) { move self to reservoir }
+      else if (a == :stream_view) { move self to in_stream }
+      else if (a == :river_1) { move self to dam_base }
+      else if (a == :river_3) { move self to white_cliffs_north }
+      else if (a == :river_4) { move self to sandy_beach }
+      else if (a == :river_5) { move self to shore }
+      else if (a == :in_stream) { move self to reservoir }
+      else if (a == :reservoir) { move self to in_stream }
+    } else if (e == :drift) {
+      if (a == :river_1) { move self to river_2 }
+      else if (a == :river_2) { move self to river_3 }
+      else if (a == :river_3) { move self to river_4 }
+      else if (a == :river_4) { move self to river_5 }
+    } else if (e == :land) {
+      if (a == :river_1) { move self to dam_base }
+      else if (a == :river_3) { move self to white_cliffs_north }
+      else if (a == :river_5) { move self to shore }
+      else if (a == :in_stream) { move self to stream_view }
+    } else if (e == :follow) {
+      if (self.get(:follow) == :white_cliffs_south) { move self to white_cliffs_south }
+      else if (self.get(:follow) == :reservoir_north) { move self to reservoir_north }
+      else if (self.get(:follow) == :reservoir_south) { move self to reservoir_south }
+    }
+    send underground_caverns :close_gate
+  }
+
+  on :moved (from, to) {
+    let e = self.get(:errand)
+    self.set(:errand, :idle)
+    if (to.is(Room)) {
+      self.set(:at, to.get(:reach))
+      if (to.is(DarkRoom)) { self.set(:daylight, to.get(:daylight)) } else { self.set(:daylight, true) }
+    } else {
+      self.set(:at, :nowhere)
+      self.set(:daylight, true)
+    }
+    self.set(:afloat, self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4 || self.get(:at) == :river_5 || self.get(:at) == :in_stream || (self.get(:at) == :reservoir && self.get(:full)))
+    self.set(:launch_ok, self.get(:at) == :dam_base || self.get(:at) == :white_cliffs_north || self.get(:at) == :white_cliffs_south || self.get(:at) == :sandy_beach || self.get(:at) == :shore || self.get(:at) == :stream_view || ((self.get(:at) == :reservoir_south || self.get(:at) == :reservoir_north) && self.get(:full)))
+    // Carried by the current or put out or in by name: the one in the boat
+    // is told where it now is, as the room would describe itself.
+    if (e == :drift || e == :launch || e == :land) {
+      if (e == :land) { tell inside "The magic boat comes to a rest on the shore." }
+      if (e == :launch && self.get(:at) == :river_5) { tell inside last_reach }
+      self.set(:seeing, self.get(:daylight))
+      each l: Light in self { if (l.get(:lit)) { self.set(:seeing, true) } }
+      each r: Adventurer in self { if (r.get(:light) > 0) { self.set(:seeing, true) } }
+      if (!self.get(:seeing)) { tell inside "It is pitch black. You are likely to be eaten by a grue." }
+      else if (to.is(Room)) { tell inside "{to.boat_view}" }
+    }
+    // The current's clock, on the river; none anywhere else.
+    cancel wakes
+    if (self.get(:riders) > 0) {
+      if (self.get(:at) == :river_1 || self.get(:at) == :river_2) { wake in 2 minutes }
+      else if (self.get(:at) == :river_3) { wake in 90 seconds }
+      else if (self.get(:at) == :river_4 || self.get(:at) == :river_5) { wake in 1 minutes }
+    }
+  }
+}
+
+// The punctured boat. It holds the magic boat, out of sight, until the
+// gunk mends it; it shuts itself over the boat as the boat goes in.
+kind Wreck is Box, Portable, Rejecting, Inflatable, Pluggable {
+  pass :tide (true)
+  grammar { name "punctured boat"  nouns "boat", "pile", "plastic", "wreck"  adjectives "plastic", "punctured", "large", "deflated", "ruined" }
+  :open true
+  :size 20
+  :burnable true
+  :capacity 10000
+  passage short { punctured boat }
+  passage ldesc { There is a punctured boat here. }
+  passage examined { It is what is left of the magic boat: a sad heap of yellow plastic with a long split in one side, through which the last of the air has gone. Some moron punctured it. }
+  on :entered (item, from) { if (item.is(MagicBoat)) { self.set(:open, false) } }
+  without as target for open from Box
+  as target for open { do { say "You must tell me how to do that to a punctured boat." } }
+  without as target for close from Box
+  as target for close { do { say "You must tell me how to do that to a punctured boat." } }
+  without as target for look_in from Box
+  as target for look_in { do { say "There is nothing in it but a little air, and that is on its way out." } }
+  without as target for inflate from Inflatable
+  as target for inflate { do { say "No chance. Some moron punctured it." } }
+  without as target for fill from Thing
+  as target for fill { do { say "No chance. Some moron punctured it." } }
+  passage mended { Well done. The boat is repaired. }
+  without as target for plug from Pluggable
+  as target for plug {
+    do {
+      if (bound tool) {
+        if (tool.is(Putty)) {
+          say mended
+          let p = spawn Pile in here
+          self.set(:open, true)
+          each b: MagicBoat in self { move b to p }
+          finally destroy self
+        } else if (tool.is(Thing)) { say "With a {tool.short}?" }
+        else { say "With your bare hands?" }
+      } else { say "With your bare hands?" }
+    }
+  }
+  as container for put {
+    do {
+      if (item.is(Putty)) {
+        say mended
+        let p = spawn Pile in here
+        self.set(:open, true)
+        each b: MagicBoat in self { move b to p }
+        finally destroy self
+      } else { say "There's no room in it for anything but regret." }
+    }
+  }
+}
+
+// The tan label that comes in the boat (BOAT-LABEL).
+kind BoatLabel is Readable {
+  grammar { name "tan label"  nouns "label", "fineprint", "print", "instructions"  adjectives "tan", "fine" }
+  :size 2
+  :burnable true
+  passage short { tan label }
+  describe { text "It is a tan label, printed close in small type, the kind of thing nobody reads until it is too late. It begins \"!!!!FROBOZZ MAGIC BOAT COMPANY!!!!\"." }
+  passage words {
+    !!!!FROBOZZ MAGIC BOAT COMPANY!!!!
+
+    Hello, Sailor!
+
+    Instructions for use:
+
+    To get into a body of water, say "Launch".
+
+    To get to shore, say "Land" or the direction in which you want to maneuver the boat.
+
+    Warranty:
+
+    This boat is guaranteed against all defects for a period of 76 milliseconds from date of purchase or until first used, whichever comes first.
+
+    Warning:
+
+    This boat is made of thin plastic.
+
+    Good Luck!
+  }
+}
+
+// The magic boat, folded in the pile at the Dam Base until it is blown up.
+// Its ways out are its own: back into itself, to row, launch or land, and
+// out onto the two shores the fourth reach and the lake have more than one
+// of; the rest say why not, as RBOAT-FUNCTION does.
+object boat is MagicBoat in dam_base.pile {
+  grammar {
+    name "magic boat"
+    nouns "boat", "raft"
+    adjectives "magic", "inflated", "plastic", "seaworthy", "yellow"
+    lit (self.get(:daylight) || self.sees(sprout.LightSource, :lit))
+    exit in    "launch" -> boat say rowing when (self.get(:launch_ok))
+    exit in    "launch" refuse afloat_line when (self.get(:afloat))
+    exit in    "launch" refuse "You can't launch it here."
+    exit out   "land"   -> boat say rowing when (self.get(:at) == :river_1 || self.get(:at) == :river_3 || self.get(:at) == :river_5)
+    exit out   "land"   refuse "There is no safe landing spot here." when (self.get(:at) == :river_2)
+    exit out   "land"   refuse "You can land either to the east or the west." when (self.get(:at) == :river_4)
+    exit out   "out"    refuse "The boat is on dry land already. To leave it, get out of it." when (!self.get(:afloat))
+    exit out   "out"    refuse label_line
+    exit west  "west"   -> boat say rowing when (self.get(:at) == :river_1 || self.get(:at) == :river_3 || (self.get(:at) == :reservoir && self.get(:full)))
+    exit west  "west"   -> white_cliffs_south say ashore when (self.get(:at) == :river_4)
+    exit west  "west"   refuse "Just in time you steer away from the rocks." when (self.get(:at) == :river_2)
+    exit west  "west"   refuse falls_west when (self.get(:at) == :river_5)
+    exit west  "west"   refuse "The channel is too narrow." when (self.get(:at) == :in_stream)
+    exit west  "west"   refuse beached_line when (!self.get(:afloat))
+    exit west  "west"   refuse "You can't go that way."
+    exit east  "east"   -> boat say rowing when (self.get(:at) == :river_4 || self.get(:at) == :river_5 || self.get(:at) == :in_stream)
+    exit east  "east"   refuse "The White Cliffs prevent your landing here." when (self.get(:at) == :river_1 || self.get(:at) == :river_2)
+    exit east  "east"   refuse beached_line when (!self.get(:afloat))
+    exit east  "east"   refuse "You can't go that way."
+    exit north "north"  -> reservoir_north say ashore when (self.get(:at) == :reservoir && self.get(:full))
+    exit north "north"  refuse beached_line when (!self.get(:afloat))
+    exit north "north"  refuse label_line
+    exit south "south"  -> reservoir_south say ashore when (self.get(:at) == :reservoir && self.get(:full))
+    exit south "south"  refuse beached_line when (!self.get(:afloat))
+    exit south "south"  refuse label_line
+    exit up        "up"        refuse "The channel is too narrow." when (self.get(:at) == :in_stream)
+    exit up        "upstream"  refuse upstream_line when (self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4 || self.get(:at) == :river_5)
+    exit up        "up"        refuse beached_line when (!self.get(:afloat))
+    exit up        "up"        refuse label_line
+    exit down      "downstream" refuse downstream_line when (self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4 || self.get(:at) == :river_5)
+    exit down      "down"      refuse beached_line when (!self.get(:afloat))
+    exit down      "down"      refuse label_line
+    exit northeast "northeast" refuse beached_line when (!self.get(:afloat))
+    exit northeast "northeast" refuse label_line
+    exit northwest "northwest" refuse beached_line when (!self.get(:afloat))
+    exit northwest "northwest" refuse label_line
+    exit southeast "southeast" refuse beached_line when (!self.get(:afloat))
+    exit southeast "southeast" refuse label_line
+    exit southwest "southwest" refuse beached_line when (!self.get(:afloat))
+    exit southwest "southwest" refuse label_line
+  }
+  object label is BoatLabel
+}
