@@ -1,0 +1,20 @@
+{
+  "about": "Inflating the pile moves the boat out to the dock and destroys the pile, taking the pump still inside it. The boat's label, declared inside the boat, is still there to read, and the pump is gone.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a dock." }
+    ] },
+    { "as": "Marta", "type": "inflate pile", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The pile swells into a boat, and the scraps of plastic blow away." }
+    ] },
+    { "as": "Marta", "type": "read label", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "!!!!FROBOZZ MAGIC BOAT COMPANY!!!!" }
+    ] },
+    { "as": "Marta", "type": "take pump", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a dock." }
+    ] }
+  ]
+}

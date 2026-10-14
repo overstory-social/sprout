@@ -201,6 +201,38 @@ export const STAIR = compiled('stair', {
 });
 export const STAIR_CELLAR = declaredId('stair', ['cellar']);
 
+/**
+ * The dock: inflating the pile moves its boat out to the dock and destroys
+ * the pile, and the label declared inside the boat goes with the boat.
+ */
+export const DOCK = compiled('dock', {
+  'dock.sprout': `world dock is sprout.World {
+  visitors are Person
+  visitors arrive at quay
+  object quay is sprout.Place {
+    object pile is Pile {
+      object boat is sprout.Container {
+        object label is Label
+      }
+    }
+  }
+}
+verb inflate { role target  "inflate [target]" }
+verb read    { role target  "read [target]" }
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'pile.sprout': `kind Pile is sprout.Container {
+  as target for inflate { do { move quay.pile.boat to quay  destroy self  say "It swells into a boat." } }
+}
+`,
+  'label.sprout': `kind Label {
+  as target for read { do { say "Frobozz." } }
+}
+`,
+});
+export const QUAY = declaredId('dock', ['quay']);
+export const LABEL = declaredId('dock', ['quay', 'pile', 'boat', 'label']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');

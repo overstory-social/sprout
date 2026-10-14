@@ -1488,6 +1488,37 @@
     "steps": 5
   },
   {
+    "world": "moved-out-of-destroyed",
+    "state": "{\"world\":\"moved_out_of_destroyed\",\"serial\":2,\"instances\":[{\"id\":\"moved_out_of_destroyed\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"moved_out_of_destroyed#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"moved_out_of_destroyed.dock\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"moved_out_of_destroyed.dock\",\"made\":{\"from\":\"declared\"},\"container\":\"moved_out_of_destroyed\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"moved_out_of_destroyed.dock.pile\",\"made\":{\"from\":\"declared\"},\"container\":\"moved_out_of_destroyed.dock\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"open\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"moved_out_of_destroyed.dock.pile.boat\",\"made\":{\"from\":\"declared\"},\"container\":\"moved_out_of_destroyed.dock.pile\",\"arrival\":null,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8},\"open\":{\"type\":\"boolean\",\"value\":true}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"moved_out_of_destroyed.dock.pile.boat.label\",\"made\":{\"from\":\"declared\"},\"container\":\"moved_out_of_destroyed.dock.pile.boat\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"moved_out_of_destroyed.dock.pile.pump\",\"made\":{\"from\":\"declared\"},\"container\":\"moved_out_of_destroyed.dock.pile\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"inspector\",\"nickname\":\"Inspector\",\"instance\":\"moved_out_of_destroyed#1\",\"lastPlace\":\"moved_out_of_destroyed.dock\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
+    "visit": "inspector",
+    "instances": [
+      [
+        "moved_out_of_destroyed",
+        "a moved out of destroyed",
+        "moved out of destroyed",
+        "a",
+        null,
+        ["moved out of destroyed", "destroyed"],
+        ["moved", "out", "of"]
+      ],
+      ["moved_out_of_destroyed.dock", "a dock", "dock", "a", null, ["dock"], []],
+      ["moved_out_of_destroyed.dock.pile", "a pile", "pile", "a", null, ["pile"], []],
+      ["moved_out_of_destroyed.dock.pile.boat", "a boat", "boat", "a", null, ["boat"], []],
+      ["moved_out_of_destroyed.dock.pile.pump", "a pump", "pump", "a", null, ["pump"], []],
+      ["moved_out_of_destroyed.dock.pile.boat.label", "a label", "label", "a", null, ["label"], []],
+      ["moved_out_of_destroyed#1", "none inspector", "Inspector", "none", null, ["inspector"], []]
+    ],
+    "candidates": [
+      ["moved_out_of_destroyed#1", 0, false],
+      ["moved_out_of_destroyed.dock", 4, false],
+      ["moved_out_of_destroyed.dock.pile", 1, false],
+      ["moved_out_of_destroyed.dock.pile.boat", 2, false],
+      ["moved_out_of_destroyed.dock.pile.pump", 2, false],
+      ["moved_out_of_destroyed.dock.pile.boat.label", 3, false]
+    ],
+    "steps": 13
+  },
+  {
     "world": "narrowing-and",
     "state": "{\"world\":\"narrowing_and\",\"serial\":2,\"instances\":[{\"id\":\"narrowing_and\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"narrowing_and#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"narrowing_and.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"narrowing_and.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"narrowing_and\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"narrowing_and.hall.basket\",\"made\":{\"from\":\"declared\"},\"container\":\"narrowing_and.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"narrowing_and.hall.nest\",\"made\":{\"from\":\"declared\"},\"container\":\"narrowing_and.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"narrowing_and.hall.nest.egg\",\"made\":{\"from\":\"declared\"},\"container\":\"narrowing_and.hall.nest\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"narrowing_and.hall.perch\",\"made\":{\"from\":\"declared\"},\"container\":\"narrowing_and.hall\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"inspector\",\"nickname\":\"Inspector\",\"instance\":\"narrowing_and#1\",\"lastPlace\":\"narrowing_and.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
     "visit": "inspector",

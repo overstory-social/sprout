@@ -1,0 +1,43 @@
+// A declared boat, with a label declared inside it, is moved out of a
+// declared pile, and the pile is then destroyed. The destroy takes what
+// is still inside the pile, the pump, and leaves the boat where it was
+// moved, with its label inside it, however the world is read back.
+// `transcripts/inflate.json` plays it.
+import * as sprout from 'sprout'
+
+world moved_out_of_destroyed is sprout.World {
+  visitors are Person
+  visitors arrive at dock
+
+  object dock is sprout.Place {
+    object pile is Pile {
+      object boat is Boat {
+        object label is Label
+      }
+      object pump is Pump
+    }
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+verb inflate { role target  "inflate [target]" }
+verb read { role target  "read [target]" }
+
+kind Pile is sprout.Container {
+  as target for inflate {
+    do {
+      move dock.pile.boat to dock
+      destroy self
+      say "The pile swells into a boat, and the scraps of plastic blow away."
+    }
+  }
+}
+
+kind Boat is sprout.Container { }
+
+kind Pump { }
+
+kind Label {
+  as target for read { do { say "!!!!FROBOZZ MAGIC BOAT COMPANY!!!!" } }
+}

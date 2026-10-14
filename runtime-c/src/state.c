@@ -746,15 +746,18 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
     const sprout_declared *entry = &world->declared[i];
     sprout_str id;
     size_t j;
+    bool stored;
     id.bytes = entry->id;
     id.length = strlen(entry->id);
     if (sprout_state_tombstoned(state, id)) {
       gone[i] = true;
       continue;
     }
+    /* Gone reaches only what is still where it was declared: a stored one is where its record says. */
+    stored = sprout_state_find(state, id) != NULL;
     j = declared_index(ids, world->declared_count, entry->container);
-    if (j != (size_t)-1 && gone[j]) gone[i] = true;
-    if (gone[i] || entry->kind == NULL || sprout_state_find(state, id) != NULL) continue;
+    if (!stored && j != (size_t)-1 && gone[j]) gone[i] = true;
+    if (gone[i] || entry->kind == NULL || stored) continue;
     PASS(new_instance(&o, entry->id, SPROUT_MADE_DECLARED, entry->kind, entry->container, &made_instances[extra]));
     PASS(add_id(arena, &created, &created_count, &created_cap, made_instances[extra].id));
     extra++;
