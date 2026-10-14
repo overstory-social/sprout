@@ -179,7 +179,12 @@ scratch (the caverns: 5.16 MB at the peak and 4.36 MB loaded, on x86-64 with
 32 KB pages), and the
 graph's nodes are small (a union for the payload, 32 bytes on a 64-bit host
 and 20 on the console) with every distinct scalar cell and field name held
-once, so a word the table writes a thousand times is one node.
+once, so a word the table writes a thousand times is one node. The
+catalogue holds one record for each thing the graph shares (a kind, a
+property, a group of plays) and keeps the name table and the option slots
+by entry index for only the entries they name: on `underground_caverns`
+it is about 0.35 MB on the console (0.63 MB of a 64-bit host's arena), and
+its build adds about 0.13 MB of scratch.
 
 **Determinism.** Nothing a turn does reads the clock, the filesystem or
 the network. The only time is the `elapsed` the host passes. Every draw

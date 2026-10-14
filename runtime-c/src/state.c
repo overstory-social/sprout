@@ -499,9 +499,9 @@ static bool keep(const opening *o, const sprout_property *declared, bool remembe
 static const sprout_property *declared_property(const sprout_kind_def *kind, sprout_str name) {
   size_t i;
   for (i = 0; i < kind->property_count; i++)
-    if (strlen(kind->properties[i].name) == name.length &&
-        memcmp(kind->properties[i].name, name.bytes, name.length) == 0)
-      return &kind->properties[i];
+    if (strlen(kind->properties[i]->name) == name.length &&
+        memcmp(kind->properties[i]->name, name.bytes, name.length) == 0)
+      return kind->properties[i];
   return NULL;
 }
 
@@ -563,11 +563,11 @@ static sprout_status reconcile_properties(opening *o, sprout_stored_instance *in
     if (!kept[i]) PASS(drop(o, in->id, sorted_stored[i].name, NULL, why));
   }
   for (i = 0; i < kind->property_count; i++)
-    if (!kind->properties[i].remembered) plain++;
+    if (!kind->properties[i]->remembered) plain++;
   next = (sprout_stored_property *)sprout_arena_take(arena, (plain + 1) * sizeof *next);
   if (next == NULL) return SPROUT_NO_MEMORY;
   for (i = 0; i < kind->property_count; i++) {
-    const sprout_property *declared = &kind->properties[i];
+    const sprout_property *declared = kind->properties[i];
     const sprout_stored_property *found;
     bool same = false;
     if (declared->remembered) continue;

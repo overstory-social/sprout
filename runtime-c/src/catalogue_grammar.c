@@ -50,18 +50,15 @@ sprout_status cat_read_phrases(loader *l, const sprout_node *list, size_t *count
 sprout_status cat_read_verb(loader *l, const sprout_node *node, sprout_verb **out) {
   sprout_verb *verb;
   const sprout_node *roles;
-  size_t i, at;
+  size_t i;
   *out = NULL;
-  at = sprout_graph_index(l->graph, node);
-  if (node == NULL || node->kind != SPROUT_NODE_OBJECT || at == SPROUT_NOT_AN_ENTRY)
+  if (node == NULL || node->kind != SPROUT_NODE_OBJECT || sprout_graph_index(l->graph, node) == SPROUT_NOT_AN_ENTRY)
     return cat_shaped(l, "a verb");
-  if (l->read[at] != NULL) {
-    *out = (sprout_verb *)l->read[at];
-    return SPROUT_OK;
-  }
+  *out = (sprout_verb *)cat_read_as(l, node);
+  if (*out != NULL) return SPROUT_OK;
   verb = (sprout_verb *)cat_array(l, 1, sizeof *verb);
   MEMORY(verb);
-  l->read[at] = verb;
+  NEED(cat_keep(l, node, verb));
   verb->library = cat_text(l->graph, node, "library");
   verb->name = cat_text(l->graph, node, "name");
   if (verb->library == NULL || verb->name == NULL) return cat_shaped(l, "a verb");
@@ -141,12 +138,15 @@ sprout_status cat_read_intent(loader *l, const sprout_node *node, sprout_intent 
  * single spaces between), so they are cut at the spaces and compared as bytes.
  */
 sprout_status cat_typed_words(loader *l, const char *text, size_t *count, const char ***words) {
-  size_t length = strlen(text), n = 0, i = 0;
+  size_t length = strlen(text), n = 0, i = 0, total = 0;
   char *buffer;
   const char **out;
+  for (i = 0; i < length; i++)
+    if (text[i] != ' ' && (i == 0 || text[i - 1] == ' ')) total++;
+  i = 0;
   buffer = (char *)cat_array(l, length + 1, 1);
   MEMORY(buffer);
-  out = (const char **)cat_array(l, length + 1, sizeof(char *));
+  out = (const char **)sprout_arena_take_aligned(l->arena, (total == 0 ? 1 : total) * sizeof(char *), sizeof(char *));
   MEMORY(out);
   while (i < length) {
     size_t start;

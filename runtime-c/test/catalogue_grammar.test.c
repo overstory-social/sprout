@@ -187,6 +187,8 @@ static void final_words_are_cut_at_their_single_spaces_and_kept_byte_for_byte(vo
   CHECK_STR(words[5], "HONEY");
   CHECK_STR(words[6], "\xc3\x89");
   CHECK_STR(words[7], ",");
+  /* The list holds a pointer a word and no more: the next piece taken begins where the eighth ends. */
+  CHECK((const char *)sprout_arena_take_aligned(&arena, 1, 1) == (const char *)(words + 8));
   CHECK_INT(cat_typed_words(&l, "   ", &count, &words), SPROUT_OK);
   CHECK_INT(count, 0);
   sprout_arena_reset(&arena);
