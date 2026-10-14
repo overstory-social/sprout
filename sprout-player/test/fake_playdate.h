@@ -10,7 +10,7 @@
  * are drawn as a black block of that size, each draw recorded; synths keep what they were set to and
  * record each note played. The network serves canned answers: each address a test gives is answered
  * with its status, headers and body, a piece a frame, behind the permission the test says the person
- * gives; an address it does not know is answered 404. The system menu holds one item a test can choose. The SDK's headers are the declarations;
+ * gives; an address it does not know is answered 404. The system menu holds up to three items, as the device's does, which a test can choose. The SDK's headers are the declarations;
  * nothing of the SDK is linked.
  */
 #ifndef FAKE_PLAYDATE_H
@@ -31,6 +31,7 @@
 #define FAKE_DRAWS 32
 #define FAKE_ANSWERS 16
 #define FAKE_CONNECTIONS 8
+#define FAKE_MENU_ITEMS 3
 
 /* The fonts the fake loads; a run says which it was drawn in. */
 typedef enum fake_font { FAKE_FONT_NONE, FAKE_FONT_SYSTEM, FAKE_FONT_BIG, FAKE_FONT_SMALL } fake_font;
@@ -94,6 +95,13 @@ typedef struct fake_connection {
   int complete;
 } fake_connection;
 
+/* An item of the system menu: its title, empty while the slot holds none, its callback and its userdata. */
+typedef struct fake_menu_item {
+  char title[64];
+  PDMenuItemCallbackFunction *callback;
+  void *ctx;
+} fake_menu_item;
+
 typedef struct fake_playdate {
   PlaydateAPI api;
   struct playdate_sys sys;
@@ -151,10 +159,8 @@ typedef struct fake_playdate {
   int docked;
   PDCallbackFunction *update;
   void *update_ctx;
-  /* the system menu's one item: its title (empty while there is none), callback and userdata */
-  char menu_title[64];
-  PDMenuItemCallbackFunction *menu_callback;
-  void *menu_ctx;
+  /* the system menu's items, in the order added: a title is empty while its slot holds none */
+  fake_menu_item menu[FAKE_MENU_ITEMS];
 } fake_playdate;
 
 /* A fake over the two folders. */
@@ -178,6 +184,10 @@ void fake_network_step(fake_playdate *fake);
 
 /* Chooses the system menu's item titled `title`, as the person does from the menu; whether there is one. */
 int fake_menu(fake_playdate *fake, const char *title);
+
+/* Whether the system menu holds an item titled `title`, and how many it holds. */
+int fake_menu_holds(const fake_playdate *fake, const char *title);
+int fake_menu_count(const fake_playdate *fake);
 
 /* Runs one frame through the update callback the game set, with `pushed` pressed and the crank turned `crank` degrees. */
 int fake_frame(fake_playdate *fake, PDButtons pushed, float crank);

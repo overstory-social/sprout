@@ -18,7 +18,7 @@ import {
   type StoredChanges,
   type WrittenAt,
 } from '@overstory/sprout/lang';
-import { LogEntry, type TurnEntry } from '@overstory/sprout/core';
+import { LogEntry, type Account, type TurnEntry } from '@overstory/sprout/core';
 
 // What the WebAssembly engine answers, read as the language's shapes (the
 // runtime-c/wasm/engine/ exports): every answer is JSON, checked here once
@@ -105,6 +105,15 @@ const ReadingTree = z.object({
   bindings: z.array(z.unknown()),
 });
 
+/** What a turn ran, as core's account: each handler and hook in order, the line a command was answered with, and a consent refusal. */
+export const AccountSchema: z.ZodType<Account, unknown> = z.object({
+  ran: z.array(
+    z.object({ origin: z.string().min(1), on: z.string().min(1), at: z.string().min(1) }),
+  ),
+  answered: z.string().nullable(),
+  refused: z.boolean(),
+});
+
 /** What one write turn came to (engine/turns.c `told`). */
 export const ToldSchema = z.object({
   result: z.enum(['done', 'faulted', 'refused', 'closed', 'idle']),
@@ -117,6 +126,7 @@ export const ToldSchema = z.object({
   stale: z.array(Visit).nullable(),
   entry: EntrySchema.nullable(),
   changes: ChangesSchema.nullable(),
+  account: AccountSchema,
   answered: z.boolean().optional(),
   displaced: z.boolean().optional(),
   drawn: z.number().int().positive().nullable().optional(),

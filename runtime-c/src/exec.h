@@ -84,13 +84,6 @@ typedef struct sprout_owed {
   size_t after;
 } sprout_owed;
 
-/* A handler or hook that ran, for an author's tools: the kind that wrote it, what it answers, and where. */
-typedef struct sprout_ran {
-  const char *origin;
-  const char *on; /* a message's key, or `changed :p` for a hook */
-  const sprout_node *at;
-} sprout_ran;
-
 /* ---- bus.c: the queue ---- */
 
 typedef enum sprout_message_kind {
@@ -179,6 +172,7 @@ typedef struct sprout_exec {
   size_t effect_count, effect_capacity;
   sprout_owed *owed;
   size_t owed_count, owed_capacity;
+  bool accounts; /* each handler and hook a delivery runs is kept in `ran`, for the turn's account */
   sprout_ran *ran;
   size_t ran_count, ran_capacity;
   sprout_reading_fn reading; /* the reading pass an `act` runs on the spot */

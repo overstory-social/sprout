@@ -237,11 +237,14 @@ static sprout_eval_status deliver(sprout_exec *x, const sprout_send *send) {
     const sprout_node *declaration = sprout_node_get(&x->world->graph, sprout_item(&x->world->graph, bodies, i), "declaration");
     /* `destroy self` takes effect as the body that ran it ends, so a composed handler after it has no `self`. */
     if (sprout_draft_instance(x->draft, send->recipient) == NULL) break;
-    ran = (sprout_ran *)sprout_exec_grow(x->turn, (void **)&x->ran, &x->ran_count, &x->ran_capacity, sizeof *x->ran);
-    if (ran == NULL) return SPROUT_EVAL_NO_MEMORY;
-    ran->origin = sprout_node_text(&x->world->graph, sprout_item(&x->world->graph, bodies, i), "origin");
-    ran->on = on;
-    ran->at = declaration;
+    if (x->accounts) {
+      ran = (sprout_ran *)sprout_exec_grow(x->turn, (void **)&x->ran, &x->ran_count, &x->ran_capacity, sizeof *x->ran);
+      if (ran == NULL) return SPROUT_EVAL_NO_MEMORY;
+      ran->origin = sprout_node_text(&x->world->graph, sprout_item(&x->world->graph, bodies, i), "origin");
+      ran->on = on;
+      ran->at = sprout_place_text(&x->world->graph, sprout_node_get(&x->world->graph, declaration, "at"), x->turn);
+      if (ran->at == NULL) return SPROUT_EVAL_NO_MEMORY;
+    }
     EXPR_NEED(frame_for(x, send, sprout_item(&x->world->graph, bodies, i), &frame));
     x->depth = send->depth + 1;
     EXPR_NEED(sprout_exec_body(x, sprout_node_get(&x->world->graph, declaration, "body"), &frame, SPROUT_BODY_ACT, &ended));

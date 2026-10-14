@@ -206,6 +206,51 @@ export const STAIR = compiled('stair', {
 export const STAIR_CELLAR = declaredId('stair', ['cellar']);
 
 /**
+ * The belfry: ringing the bell sends its clapper `:struck`, whose handler
+ * swings it, and a hook on the swing answers that; the chest's `permit`
+ * refuses to be opened; and the tower, where visitors arrive, answers
+ * whatever enters it.
+ */
+export const BELFRY = compiled('belfry', {
+  'belfry.sprout': `world belfry is sprout.World {
+  visitors are Person
+  visitors arrive at tower
+  object tower is Tower {
+    object bell is Bell
+    object chest is Chest
+  }
+}
+message :struck
+verb ring { role target  "ring [target]" }
+verb open { role target  "open [target]" }
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'tower.sprout': 'kind Tower is sprout.Place {\n  on :entered (thing, from) { }\n}\n',
+  'bell.sprout': `kind Bell {
+  contains
+  as target for ring { do { send clapper :struck  say "Dong." } }
+  object clapper is Clapper
+}
+`,
+  'clapper.sprout': `kind Clapper {
+  :swings 0 min 0 max 99
+  on :struck (from) { self.adjust(:swings, 1) }
+  changed :swings (was) { }
+}
+`,
+  'chest.sprout': `kind Chest {
+  as target for open {
+    permit { refuse "It is locked." }
+    do { say "It opens." }
+  }
+}
+`,
+});
+export const TOWER = declaredId('belfry', ['tower']);
+/** Where no place stands in the belfry: a visitor seeded there is displaced by their next command. */
+export const BELFRY_GONE = declaredId('belfry', ['gone']);
+
+/**
  * The dock: inflating the pile moves its boat out to the dock and destroys
  * the pile, and the label declared inside the boat goes with the boat.
  */

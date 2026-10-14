@@ -71,6 +71,8 @@ typedef struct sprout_host {
   bool (*emit)(void *ctx, const char *recipient, size_t recipient_length, const char *text,
                size_t text_length);
   sprout_budgets budgets;
+  /* Whether each turn's outcome gives its account (`sprout_outcome`'s `ran` and `answer`), which an author's tools read. */
+  bool accounts;
 } sprout_host;
 
 /* The kinds of turn (the spec's The runtime > Turns, Limits > Runtime budgets). */
@@ -766,6 +768,16 @@ typedef struct sprout_stored_changes {
 } sprout_stored_changes;
 
 /*
+ * A handler or hook a turn ran: the kind that wrote it, what it answers (a message by its key, or `changed :p` for
+ * a hook), and where it is written, `file:line:column`, which tells two apart.
+ */
+typedef struct sprout_ran {
+  const char *origin;
+  const char *on;
+  const char *at;
+} sprout_ran;
+
+/*
  * What a turn came to. The lines, effects and cuts are the turn's own, in the order told, valid until
  * sprout_outcome_free; a faulted turn tells nothing but what the world says of the fault to the one who
  * typed. `committed` is that the turn's own draft was committed; `state_changed` that the stored state is
@@ -782,6 +794,11 @@ typedef struct sprout_stored_changes {
  * no reading ran, the parser having answered or an intent having planned no step; how many readings tied where
  * the one run was drawn from them; the reading it ran as a step of a line of several, an intent's, `all`'s or a
  * run's, which a host logs at info; the turns the line runs after it, in order; and whether the line goes on.
+ *
+ * Its account, for an author's tools that ask what a playthrough reached, is given where the host `accounts`:
+ * `ran`, every handler and hook the turn's commits ran, in the order run, and, for a command the parser answered,
+ * `answer`, its line's passage name or its words. `refused` is that the consent pass refused a command's reading,
+ * told apart from a body's refusal, and is given whatever the host asks.
  */
 typedef struct sprout_outcome {
   sprout_turn_result result;
@@ -811,6 +828,10 @@ typedef struct sprout_outcome {
   size_t next_count;
   const sprout_following *next;
   bool goes_on;
+  bool refused;
+  size_t ran_count;
+  const sprout_ran *ran;
+  const char *answer;
   void *held;
 } sprout_outcome;
 

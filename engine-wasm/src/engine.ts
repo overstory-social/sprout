@@ -80,11 +80,13 @@ function notesOf(told: Told): CommandNotes {
   };
 }
 
-/**
- * `turn`, with what `told` says the store writes and the log keeps. Runtime-c
- * does not say what a turn ran, so there is no account until it does (#665).
- */
+/** `turn`, with what `told` says the store writes, the log keeps and the turn ran. */
 function stepOf<T>(told: Told, turn: T): Step<T> {
+  return { turn, changes: told.changes, entry: told.entry, account: told.account };
+}
+
+/** A turn that ran nothing, an idle tick or wake or an arrival to a world that admits no one, which has no account. */
+function idleStep<T>(told: Told, turn: T): Step<T> {
   return { turn, changes: told.changes, entry: told.entry, account: null };
 }
 
@@ -213,7 +215,7 @@ export function wasmEngine(host: WasmEngineHost): Engine {
     tick: (stored, tick) => {
       const told = turn(stored, tick.mayHold, () => instance.tick(tick.place, at(tick)));
       if (told.result === 'idle')
-        return stepOf<GivenTick>(told, { committed: false, unoccupied: true });
+        return idleStep<GivenTick>(told, { committed: false, unoccupied: true });
       if (told.result === 'done') return stepOf<GivenTick>(told, committed(told));
       if (told.result === 'faulted')
         return stepOf<GivenTick>(told, { committed: false, fault: faultOf(told) });
@@ -225,7 +227,7 @@ export function wasmEngine(host: WasmEngineHost): Engine {
         instance.wake(wake.object, wake.serial, at(wake)),
       );
       if (told.result === 'idle')
-        return stepOf<GivenWake>(told, { committed: false, unwoken: true });
+        return idleStep<GivenWake>(told, { committed: false, unwoken: true });
       if (told.result === 'done') return stepOf<GivenWake>(told, committed(told));
       if (told.result === 'faulted')
         return stepOf<GivenWake>(told, { committed: false, fault: faultOf(told) });
@@ -254,7 +256,7 @@ export function wasmEngine(host: WasmEngineHost): Engine {
             effects: told.effects,
           });
         case 'closed':
-          return stepOf<GivenArrival>(told, {
+          return idleStep<GivenArrival>(told, {
             committed: false,
             closed: { reason: closedByBundle(host.catalogue) ?? 'arrival-place-gone', words },
           });

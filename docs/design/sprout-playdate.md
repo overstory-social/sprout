@@ -293,7 +293,14 @@ until a save of it succeeds. The shelf's cues go through `player_cue` like
 every screen's. "leave world" in the system menu, chosen while a reader is
 open, leaves the world as B on the nickname screen does: the visitor leaves,
 the save is written and the app goes back to the shelf; chosen elsewhere it
-does nothing. The signed index is read by `src/signed_index.h`, over the
+does nothing. "start over" beside it, chosen while a reader is open, puts a
+question over the screen on show, which waits under it: "Start this world
+over?" and "All you did here will be forgotten.", with A to start over and B
+to go back to the screen as it was. A removes the world's save and log under
+`saves/` (and any `.tmp` a write cut short left beside them), lets the state
+go while the world stays read, and shows the nickname screen for a fresh
+arrival, with no loading line between; no departure runs, since nothing of
+the world is kept to depart from. Chosen elsewhere it does nothing. The signed index is read by `src/signed_index.h`, over the
 canonical text of `src/canonical.h`, which orders an object's names as the
 signer's JavaScript sort does, by UTF-16 code unit, and writes an empty
 object as `{}`, as the signer does.
@@ -443,7 +450,10 @@ under `Source/fonts/`.
 The console has no keyboard, so a visitor picks from a pool of plain words
 (Alder, Aster, Birch, …) filtered by the cartridge's word set, folded as the
 TypeScript host folds (lower case, split on white space), and by who is
-present. A returning visitor is offered their last name first. The engine's
+present. A returning visitor is offered their last name first. The device
+keeps no list of names apart from the saves: the last name is the visitor's
+record in the world's save, and starting a world over carries it across to
+the fresh nickname screen, so it is still offered first. The engine's
 own admission, `sprout_admit`, is the authority: it also refuses a reserved
 word.
 
@@ -457,7 +467,8 @@ the old save unused. A save that will not read is set aside as `.damaged`
 and the world starts again, in words. A save that cannot be written stops
 play with the words on the screen, the world is let go, and the shelf greys
 it with the reason until a save of it succeeds: a move that is not kept is
-not played.
+not played. "start over" in the system menu removes a world's save and log,
+so its next arrival is a fresh one.
 
 One visit per world, keyed by the world alone, with no token. A world left
 open (the battery, a kill) is put away by a departure that tells nothing
@@ -644,7 +655,9 @@ Not yet checked:
   `Content-Length`, and whether the network calls need the main stack as
   the file calls do, are unchecked (they are put there to be safe);
 - that a console waking from low-power sleep sends `kEventUnlock`;
-- the time a picture takes to load on a console.
+- the time a picture takes to load on a console;
+- "start over" in the system menu and its question, which the C tests drive
+  over the fake.
 
 ## Verified SDK facts (SDK 3.1.2)
 

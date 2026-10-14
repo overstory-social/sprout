@@ -156,6 +156,7 @@ static inline void exec_case_open(exec_bench *b, exec_case *c, const sprout_json
   sprout_draws_begin(&c->draws, exec_has_number(golden, "seed") ? (uint64_t)exec_number(golden, "seed") : 1);
   sprout_exec_begin(&c->x, c->world, &c->draft, &c->turn, &c->meter, &c->draws, &c->fault,
                     (uint64_t)exec_number(golden, "instant"));
+  c->x.accounts = true;
   c->x.heard_count = sprout_json_get(golden, "heard")->count;
   c->x.heard_by = exec_ids(c, sprout_json_get(golden, "heard"));
   c->x.left_out_count = sprout_json_get(golden, "leftOut")->count;
@@ -314,6 +315,7 @@ static inline void exec_check_trail(exec_case *c, const sprout_json *expect) {
   for (i = 0; i < c->x.ran_count && i < ran->count; i++) {
     CHECK_STR(c->x.ran[i].origin, exec_text(ran->items[i], "origin"));
     CHECK_STR(c->x.ran[i].on, exec_text(ran->items[i], "on"));
+    CHECK_STR(c->x.ran[i].at, exec_text(ran->items[i], "at"));
   }
   CHECK_INT(c->x.owed_count, owed->count);
   for (i = 0; i < c->x.owed_count && i < owed->count; i++) {

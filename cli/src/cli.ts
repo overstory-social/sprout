@@ -190,29 +190,14 @@ function reportFile(flags: Parsed['flags']): string | null {
   return report ?? null;
 }
 
-/**
- * Write what `runs` reached over `world` to `file`; only a folder's source
- * says what there was to reach. Where the engine gave no account of what
- * its turns ran, the report leaves those parts null, and `warn` says so.
- */
-function writeReached(
-  world: PlayableWorld,
-  runs: readonly PlayedRun[],
-  file: string,
-  warn: (text: string) => void,
-): void {
+/** Write what `runs` reached over `world` to `file`; only a folder's source says what there was to reach. */
+function writeReached(world: PlayableWorld, runs: readonly PlayedRun[], file: string): void {
   if (!('manifest' in world)) {
     throw new Error(
       '--report counts what the world declares, which a cartridge does not keep: report over the world folder.',
     );
   }
-  const report = reportOf(world, runs);
-  if (report.reach.handlers === null) {
-    warn(
-      'sprout: this engine does not say which handlers a turn ran or what answered a line, so the report leaves them null; --engine ts reports them\n',
-    );
-  }
-  writeFileSync(file, writeReport(report));
+  writeFileSync(file, writeReport(reportOf(world, runs)));
 }
 
 /** The engine `--engine` names, or the default, its note said on `io`'s stderr where there is one. */
@@ -351,9 +336,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const read = readScript(readFileSync(script, 'utf8'), name);
         const steps = playSteps(checked, read, name, engineOf(flags, io));
         const played = writeScript(filledIn(read, steps));
-        // Printed, the page is the transcript alone, so it can be kept as a golden.
-        const warn = (text: string) => io.stderr.write(text);
-        if (report !== null) writeReached(checked, [{ name, played: steps }], report, warn);
+        if (report !== null) writeReached(checked, [{ name, played: steps }], report);
         if (flags['write'] !== undefined) {
           writeFileSync(script, played);
           say(`wrote ${script}\n`);
@@ -374,7 +357,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const tested = runTests(checked, testFiles(dir, named), engineOf(flags, io));
         say(tested.page);
         if (report !== null) {
-          writeReached(checked, tested.runs, report, (text) => io.stderr.write(text));
+          writeReached(checked, tested.runs, report);
           say(`wrote ${report}\n`);
         }
         return tested.ok ? 0 : 1;

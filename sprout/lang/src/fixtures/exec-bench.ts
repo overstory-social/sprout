@@ -600,7 +600,7 @@ function run(
         spawns: budget.spentSpawns,
         events: drained.events,
         effects: effects.map(saidJson),
-        ran: drained.ran.map((r) => ({ origin: r.origin, on: r.on })),
+        ran: drained.ran.map((r) => ({ origin: r.origin, on: r.on, at: r.at })),
         owed: [...owed, ...owedAfter(drained.described, acted.said.length)].map((o) => ({
           mover: o.mover,
           place: o.place,

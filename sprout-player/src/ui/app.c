@@ -3,12 +3,15 @@
 
 #include <string.h>
 
+#include "arrival.h"
+#include "message.h"
 #include "shelf.h"
 #include "host/files.h"
 #include "host/stack.h"
 
 /* The system menu's callback, outside any frame: the leaving waits for the next one, which runs on the own stack. */
 static void leave_world_chosen(void *userdata) { ((player_app *)userdata)->leave_asked = true; }
+static void start_over_chosen(void *userdata) { ((player_app *)userdata)->restart_asked = true; }
 
 player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   player_app *app = (player_app *)player_alloc(pd, sizeof *app);
@@ -36,6 +39,7 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   app->screen = &player_shelf_screen;
   app->ctx = app->shelf;
   app->leave_item = pd->system->addMenuItem("leave world", leave_world_chosen, app);
+  app->restart_item = pd->system->addMenuItem("start over", start_over_chosen, app);
   return app;
 }
 
@@ -51,6 +55,7 @@ static void *close_thunk(void *ctx) {
 void player_app_free(player_app *app) {
   if (app == NULL) return;
   if (app->leave_item != NULL) app->pd->system->removeMenuItem(app->leave_item);
+  if (app->restart_item != NULL) app->pd->system->removeMenuItem(app->restart_item);
   player_on_own_stack(app->pd, close_thunk, app);
   player_shelf_free(app, app->shelf);
   player_session_free(app->session);
@@ -81,12 +86,61 @@ static void leave_world(player_app *app) {
     player_shelf_unsaved(app);
 }
 
+/*
+ * The world begun again: its save is gone and the nickname screen asks who the visitor is, the name
+ * they had offered first. The world stays read, so no loading line comes between.
+ */
+static void start_over(player_app *app) {
+  char title[128], remembered[64];
+  player_restart restart = player_start_over(app->session);
+  size_t length;
+  if (!restart.ok) {
+    player_message_show(app, restart.reason);
+    player_close(app->session);
+    return;
+  }
+  player_cue(app, PLAYER_CUE_PICK);
+  player_world_title(restart.name, title, sizeof title);
+  /* The name is the session's until its next call, which the load below is. */
+  length = restart.nickname == NULL ? 0 : restart.nickname->length;
+  if (length >= sizeof remembered) length = sizeof remembered - 1;
+  if (length > 0) memcpy(remembered, restart.nickname->bytes, length);
+  remembered[length] = '\0';
+  player_arrival_pick(app, app->shelf->opened, title, restart.words, restart.word_count,
+                      restart.nickname != NULL ? remembered : NULL);
+}
+
+/* The question whether to start over: A does, B goes back to the screen on show. */
+static void ask_restart(player_app *app, const player_input *input) {
+  if (input->pushed & kButtonA) {
+    app->restart_question = false;
+    start_over(app);
+  } else if (input->pushed & kButtonB) {
+    app->restart_question = false;
+    player_cue(app, PLAYER_CUE_BACK);
+  }
+}
+
+static void draw_restart_question(player_app *app) {
+  const player_pen *pen = &app->pen;
+  player_pen_say(pen, PLAYER_RESTART_QUESTION, PLAYER_MARGIN, MESSAGE_TOP);
+  player_pen_say(pen, PLAYER_RESTART_WARNING, PLAYER_MARGIN, MESSAGE_TOP + pen->line_height);
+  player_pen_say(pen, PLAYER_RESTART_KEYS, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->line_height - 2);
+}
+
 void player_app_frame(player_app *app, const player_input *input) {
-  if (app->leave_asked && app->reading)
+  if (app->leave_asked && app->reading) {
+    app->restart_question = false;
     leave_world(app);
-  else
+  } else if (app->restart_question) {
+    ask_restart(app, input);
+  } else if (app->restart_asked && app->reading) {
+    app->restart_question = true;
+  } else {
     app->screen->update(app, app->ctx, input);
+  }
   app->leave_asked = false;
+  app->restart_asked = false;
   if (app->next != NULL) {
     app->screen->leave(app, app->ctx);
     app->screen = app->next;
@@ -95,7 +149,10 @@ void player_app_frame(player_app *app, const player_input *input) {
     app->next_ctx = NULL;
   }
   app->pd->graphics->clear(kColorWhite);
-  app->screen->draw(app, app->ctx);
+  if (app->restart_question)
+    draw_restart_question(app);
+  else
+    app->screen->draw(app, app->ctx);
 }
 
 typedef struct frame_call {

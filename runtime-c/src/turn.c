@@ -82,6 +82,7 @@ sprout_status turn_open(turn_run *run, sprout_world *world, sprout_state *state,
     run->draws = &run->own_draws;
   }
   sprout_exec_begin(&run->x, world, &run->draft, &run->scratch, run->meter, run->draws, &run->fault, instant);
+  run->x.accounts = host->accounts;
   return SPROUT_OK;
 }
 
@@ -242,17 +243,41 @@ sprout_eval_status turn_render(turn_run *run, const sprout_str *actor, sprout_ou
   return turn_handed(turn_keep(outcome), &run->draft, &rendered, outcome);
 }
 
+/* What the attempt ran, after what the turn's earlier commits ran, copied into the outcome's arena. */
+static sprout_status ran_kept(const turn_run *run, sprout_outcome *outcome) {
+  sprout_arena *keep = turn_keep(outcome);
+  sprout_ran *ran;
+  size_t i;
+  if (run->x.ran_count == 0) return SPROUT_OK;
+  ran = (sprout_ran *)sprout_arena_take(keep, (outcome->ran_count + run->x.ran_count) * sizeof *ran);
+  if (ran == NULL) return SPROUT_NO_MEMORY;
+  if (outcome->ran_count > 0) memcpy(ran, outcome->ran, outcome->ran_count * sizeof *ran);
+  for (i = 0; i < run->x.ran_count; i++) {
+    const sprout_ran *one = &run->x.ran[i];
+    sprout_ran *kept = &ran[outcome->ran_count + i];
+    kept->origin = sprout_arena_copy(keep, one->origin, strlen(one->origin));
+    kept->on = sprout_arena_copy(keep, one->on, strlen(one->on));
+    kept->at = sprout_arena_copy(keep, one->at, strlen(one->at));
+    if (kept->origin == NULL || kept->on == NULL || kept->at == NULL) return SPROUT_NO_MEMORY;
+  }
+  outcome->ran = ran;
+  outcome->ran_count += run->x.ran_count;
+  return SPROUT_OK;
+}
+
 sprout_status turn_commit(turn_run *run, sprout_outcome *outcome) {
   sprout_changes changes;
   sprout_str *made;
   size_t made_count = 0, i;
+  sprout_status status;
   /* Which records the draft adds is read before the commit, while the state is still what the draft read. */
   made = (sprout_str *)sprout_arena_take(&run->scratch, (run->draft.written_count + 1) * sizeof *made);
   if (made == NULL) return SPROUT_NO_MEMORY;
   for (i = 0; i < run->draft.written_count; i++)
     if (sprout_state_find(run->state, run->draft.written[i].id) == NULL) made[made_count++] = run->draft.written[i].id;
   if (sprout_draft_commit(&run->draft, &changes) != SPROUT_DRAFT_OK) return SPROUT_NO_MEMORY;
-  return turn_changes_add(outcome, &changes, made, made_count);
+  status = turn_changes_add(outcome, &changes, made, made_count);
+  return status == SPROUT_OK ? ran_kept(run, outcome) : status;
 }
 
 sprout_status turn_log(turn_run *run, sprout_outcome *outcome, const char *who, size_t who_length) {

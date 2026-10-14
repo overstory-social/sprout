@@ -559,21 +559,46 @@ static float fake_crank_change(void) { return current->crank; }
 static int fake_crank_docked(void) { return current->docked; }
 
 static PDMenuItem *fake_add_menu_item(const char *title, PDMenuItemCallbackFunction *callback, void *userdata) {
-  if (current->menu_title[0] != '\0') return NULL;
-  snprintf(current->menu_title, sizeof current->menu_title, "%s", title);
-  current->menu_callback = callback;
-  current->menu_ctx = userdata;
-  return (PDMenuItem *)current->menu_title;
+  int i;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++) {
+    fake_menu_item *item = &current->menu[i];
+    if (item->title[0] != '\0') continue;
+    snprintf(item->title, sizeof item->title, "%s", title);
+    item->callback = callback;
+    item->ctx = userdata;
+    return (PDMenuItem *)item;
+  }
+  return NULL;
 }
 
 static void fake_remove_menu_item(PDMenuItem *item) {
-  if (item == (PDMenuItem *)current->menu_title) current->menu_title[0] = '\0';
+  int i;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++)
+    if (item == (PDMenuItem *)&current->menu[i]) current->menu[i].title[0] = '\0';
+}
+
+static const fake_menu_item *menu_item(const fake_playdate *fake, const char *title) {
+  int i;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++)
+    if (fake->menu[i].title[0] != '\0' && strcmp(fake->menu[i].title, title) == 0) return &fake->menu[i];
+  return NULL;
 }
 
 int fake_menu(fake_playdate *fake, const char *title) {
-  if (fake->menu_title[0] == '\0' || strcmp(fake->menu_title, title) != 0) return 0;
-  fake->menu_callback(fake->menu_ctx);
+  const fake_menu_item *item = menu_item(fake, title);
+  if (item == NULL) return 0;
+  item->callback(item->ctx);
   return 1;
+}
+
+int fake_menu_holds(const fake_playdate *fake, const char *title) {
+  return menu_item(fake, title) != NULL;
+}
+
+int fake_menu_count(const fake_playdate *fake) {
+  int i, count = 0;
+  for (i = 0; i < FAKE_MENU_ITEMS; i++) count += fake->menu[i].title[0] != '\0';
+  return count;
 }
 
 static void fake_set_update(PDCallbackFunction *update, void *userdata) {

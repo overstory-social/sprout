@@ -94,6 +94,9 @@ static inline unsigned sprout_place_column(const sprout_graph *graph, const spro
   return graph->table.places[place->first].column;
 }
 
+/* `file:line:column` of a place, in `arena`; `?` where the cartridge kept none, and NULL where the host refuses a page. */
+const char *sprout_place_text(const sprout_graph *graph, const sprout_node *place, sprout_arena *arena);
+
 /* ---- the cartridge's graph ---- */
 
 /*

@@ -5,6 +5,8 @@ import type { SproutStore } from '../store.js';
 import { runCommand, runCommandLine, runMaintenance, runTick, runWake } from '../turns.js';
 import { equal, match, ok, rejects } from './check.js';
 import {
+  BELFRY,
+  BELFRY_GONE,
   COUNTER,
   countOf,
   GAUGE,
@@ -15,6 +17,7 @@ import {
   seeded,
   storedIn,
   TALLY,
+  TOWER,
   type EngineCase,
   type MakeEngine,
 } from './worlds.js';
@@ -354,6 +357,62 @@ export const turnCases: EngineCase[] = [
       equal(await countOf(store), 75, 'the counter, whose wake faulted');
       equal(await countOf(store, GAUGE), 70, 'the gauge');
       equal(host.engine!.dueWakes(await storedIn(store), 10_000), [], 'the wakes left');
+    },
+  },
+  {
+    name: 'a command accounts for what it ran',
+    proves:
+      'a command’s account names every handler and hook it ran, in order, by the kind that wrote it, what it answers and where',
+    async run(make) {
+      const store = await seeded(BELFRY, [[MARTA, TOWER, 'Marta']]);
+      const host = played(make, BELFRY);
+      const step = host.engine!.command(await storedIn(store), command('ring bell'));
+      equal(
+        step.account,
+        {
+          ran: [
+            { origin: 'belfry.Clapper', on: 'belfry.struck', at: 'clapper.sprout:3:3' },
+            { origin: 'belfry.Clapper', on: 'changed :swings', at: 'clapper.sprout:4:3' },
+          ],
+          answered: null,
+          refused: false,
+        },
+        'the account of ringing the bell',
+      );
+    },
+  },
+  {
+    name: 'a command accounts for the line it was answered with and a refusal',
+    proves:
+      'a line the parser answers is accounted for by the engine line it said, and a reading the consent pass refused is told apart from one that ran',
+    async run(make) {
+      const store = await seeded(BELFRY, [[MARTA, TOWER, 'Marta']]);
+      const host = played(make, BELFRY);
+      const stored = await storedIn(store);
+      const answered = host.engine!.command(stored, command('xyzzy'));
+      equal(answered.account, { ran: [], answered: 'unknown', refused: false }, 'an unread line');
+      const refused = host.engine!.command(stored, command('open chest'));
+      equal(refused.account, { ran: [], answered: null, refused: true }, 'a refused reading');
+    },
+  },
+  {
+    name: 'a displaced command accounts for coming in',
+    proves:
+      'a command whose visitor’s place is gone reads nothing they typed, and accounts for what their coming in at the arrival place ran',
+    async run(make) {
+      const store = await seeded(BELFRY, [[MARTA, BELFRY_GONE, 'Marta']]);
+      const host = played(make, BELFRY);
+      const step = host.engine!.command(await storedIn(store), command('ring bell'));
+      match(step.turn, { committed: true, value: { displaced: {} } }, 'the command');
+      equal(
+        step.account,
+        {
+          ran: [{ origin: 'belfry.Tower', on: 'entered', at: 'tower.sprout:2:3' }],
+          answered: null,
+          refused: false,
+        },
+        'the account of coming in',
+      );
     },
   },
   {
