@@ -37,15 +37,18 @@ why). Older files under `docs/design/` are dated and superseded.
 that names what it does. A file in one layer imports from the layers above
 it and never from the ones below.
 
-| layer      | holds                                                                          | may import from                  |
-| ---------- | ------------------------------------------------------------------------------ | -------------------------------- |
-| `source/`  | spans, the AST node rule, diagnostics, hashing                                 | nothing                          |
-| `syntax/`  | lexer, AST, parser                                                             | `source/`, `bundle/limits`       |
-| `declare/` | what a declaration means: types, enums, kinds, properties, messages, the world | `source/`, `syntax/`             |
-| `check/`   | bindings, scope, the expression and statement checker                          | `source/`, `syntax/`, `declare/` |
-| `bundle/`  | limits, the manifest, the bundle, `compileBundle`, absence                     | everything above                 |
-| `runtime/` | the budget meter, values, and (from B22 on) the engine                         | everything above                 |
-| `prose/`   | (from B29) passages, slots, rendering                                          | everything above                 |
+| layer      | holds                                                                                                                                            | may import from                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| `source/`  | spans, the AST node rule, diagnostics, hashing                                                                                                   | nothing                          |
+| `syntax/`  | lexer, AST, parser                                                                                                                               | `source/`, `bundle/limits`       |
+| `declare/` | what a declaration means: types, enums, kinds, properties, messages, the world                                                                   | `source/`, `syntax/`             |
+| `check/`   | bindings, scope, the expression and statement checker                                                                                            | `source/`, `syntax/`, `declare/` |
+| `bundle/`  | limits, the manifest, the bundle, `compileBundle`, absence                                                                                       | everything above                 |
+| `host/`    | what a host and its engine exchange: ids, the stored form, the catalogue and the cartridge reader, each turn's inputs, effects, faults, the view | everything above                 |
+
+The engine itself is `runtime-c/`, outside the table: the C runtime that
+every host runs, on the console directly and elsewhere built for
+WebAssembly (`engine-wasm/`).
 
 Rules that follow from the table:
 
@@ -103,13 +106,18 @@ for. The short form:
   `node scripts/check-corpus.mjs --write` and read the diff before
   committing it: a golden that was rewritten to whatever the code now says,
   with no judgement of whether it is right, is a finding in review.
+  `corpus/goldens` are fixtures the C tests replay; one changes through
+  `node scripts/write-goldens.mjs <golden>` or by hand, and the same rule
+  applies.
 - **Invariants over generated input** live in the spec of the module they
   guard (the parser's "a well-formed item never vanishes silently" is the
   model). A recovery or resync change without such a test is not done.
 - **The boundary specs** pin what each package may import. They are never
   fenced or loosened to make something build.
-- **The conformance suite** (`sprout/core/src/conformance.ts`) is what every
-  store adapter passes, under any test runner. It is never fenced.
+- **The conformance suites** are what every store adapter passes
+  (`sprout/core/src/conformance.ts`) and what the engine passes
+  (`sprout/core/src/engine-conformance/`, run in `engine-wasm/`), under any
+  test runner. They are never fenced.
 
 ## The gate, locally
 

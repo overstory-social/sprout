@@ -1,0 +1,10 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Room} from 'room'
+
+world media_value_not_image is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is Room { }
+}
