@@ -445,6 +445,24 @@ export function remedyFor(
     case 'list':
       return `Write a list in brackets, as in \`[…]\`, holding ${showType(expected.element)}.`;
     case 'extension':
-      return `Write it as text in quotes, which the extension \`${expected.extension}\` reads.`;
+      return where === 'declared'
+        ? `Write it as text in quotes, which the extension \`${expected.extension}\` reads.`
+        : extensionValueRemedy(expected, quoted);
   }
+}
+
+/**
+ * What to give an expression that wants an extension's value: a property
+ * that holds one. Its literal is written only as a property's default or a
+ * statement's argument (the spec's Extensions › Activation and absence),
+ * so text in quotes is moved to one of those.
+ */
+function extensionValueRemedy(expected: ExtensionType, quoted: string | null): string {
+  const type = showType(expected);
+  const property = `:${expected.name.toLowerCase()}`;
+  if (quoted === null) {
+    return `Write a property that holds \`${type}\` here, as in \`self.get(${property})\`, and give that property its value in quotes as its default.`;
+  }
+  const text = JSON.stringify(quoted);
+  return `Text in quotes is a \`${type}\` only as a property's default or in a \`${expected.extension}\` statement: declare \`${property} ${type} default ${text}\` and write \`self.get(${property})\` here, or write ${text} in the \`${expected.extension}\` statement that uses it.`;
 }

@@ -1,0 +1,7 @@
+room.sprout:18:35  `:picture_shown` carries `media.Image`, and 3 is a number.
+                   Write a property that holds `media.Image` here, as in `self.get(:image)`, and give that property its value in quotes as its default.
+
+room.sprout:19:35  `:picture_shown` carries `media.Image`, and this is text.
+                   Write a property that holds `media.Image` here, as in `self.get(:image)`, and give that property its value in quotes as its default.
+
+refused: 2 problems
