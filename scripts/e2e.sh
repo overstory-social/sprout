@@ -48,7 +48,7 @@ npx sprout parse "$grammar" >/dev/null
 npx sprout parse "$grammar" "take metal"
 npx sprout view "$grammar" --at cellar
 if npx sprout view shed --quiet 2> flag.txt; then exit 1; fi
-grep -qx 'sprout: view takes no --quiet; it takes --at, --as, --scene and --verb.' flag.txt
+grep -qx 'sprout: view takes no --quiet; it takes --at, --as, --scene, --verb and --poll-steps.' flag.txt
 echo "a flag view does not take is refused in words"
 npx sprout check "$shop"
 for transcript in "$shop"/transcripts/*.json; do

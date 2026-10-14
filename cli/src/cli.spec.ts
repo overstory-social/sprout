@@ -172,6 +172,57 @@ describe('main', () => {
     );
   });
 
+  it('view polls under --poll-steps in place of the host default, and says how to raise it where the poll runs out', () => {
+    const pebbles = Array.from({ length: 800 }, (_, n) => `    object pebble_${n} is Pebble`);
+    const dir = worldFolder('heap', {
+      'heap.sprout': `world heap is sprout.World {
+  visitors are Walker
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    describe { text "A heap of pebbles." }
+${pebbles.join('\n')}
+  }
+}
+`,
+      'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+      'pebble.sprout': 'kind Pebble {\n  grammar { nouns "pebble" }\n}\n',
+    });
+    const standing = captured();
+    expect(main(['view', dir], standing)).toBe(1);
+    const steps = DEFAULT_LIMITS.budgets.pollSteps;
+    expect(standing.out()).toMatch(
+      new RegExp(
+        `\\nwhat they could type\\n {2}nothing\\n\\nthe poll faulted, against yard, BudgetExhausted: ` +
+          `pollSteps: a poll turn may take ${steps} steps\\.\\n` +
+          `A poll stops at its first step past ${steps}, so how many this one needs is not known: ` +
+          `give it more with --poll-steps, as in \`--poll-steps ${steps * 2}\`\\.\\n$`,
+      ),
+    );
+    const raised = captured();
+    expect(main(['view', dir, '--poll-steps', '100000'], raised)).toBe(0);
+    expect(raised.out()).toContain('\n  examine pebble 799  (sprout.examine)\n');
+    expect(raised.out()).not.toContain('the poll faulted');
+  });
+
+  it('view refuses a --poll-steps that is not a whole number', () => {
+    const dir = worldFolder('lane', LANE);
+    for (const argv of [
+      ['view', dir, '--poll-steps', 'many'],
+      ['view', dir, '--poll-steps=1.5'],
+      ['view', dir, '--poll-steps=-3'],
+      ['view', dir, '--poll-steps=99999999999999999999'],
+      ['view', dir, '--poll-steps'],
+    ]) {
+      const io = captured();
+      expect(main(argv, io)).toBe(1);
+      expect(io.out()).toBe('');
+      expect(io.err()).toBe(
+        'sprout: --poll-steps wants a whole number after it, as in `--poll-steps 200`.\n',
+      );
+    }
+  });
+
   it('parse and view on a refused world print what check prints, and fail', () => {
     const dir = worldFolder('lane', { ...LANE, 'dial.sprout': 'kind Dial {\n' });
     for (const argv of [
@@ -282,7 +333,11 @@ describe('main', () => {
     const dir = worldFolder('lane', LANE);
     const refusals = [
       [['parse', dir, 'look', '--quiet'], 'parse takes no --quiet; it takes --at and --as.'],
-      [['view', dir, '--quiet'], 'view takes no --quiet; it takes --at, --as, --scene and --verb.'],
+      [['parse', dir, '--poll-steps', '9'], 'parse takes no --poll-steps; it takes --at and --as.'],
+      [
+        ['view', dir, '--quiet'],
+        'view takes no --quiet; it takes --at, --as, --scene, --verb and --poll-steps.',
+      ],
       [
         ['play', dir, 'walk.json', '--quiet'],
         'play takes no --quiet; it takes --write, --report, --at, --as, --seed, --debug and --record.',
