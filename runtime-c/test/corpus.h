@@ -1,8 +1,9 @@
 /*
  * The corpus as the C tests use it: every `corpus/good` world packed as a
  * cartridge (the CMake setup test packs them under SPROUT_CARTRIDGES), and
- * `corpus/goldens/catalogues.json`, the dump of what each world declares as
- * the language reads it back from the cartridge (`scripts/write-goldens.mjs`).
+ * `catalogues.json` beside them, the dump of what each world declares as the
+ * language reads it back from the cartridge, written by the setup's
+ * `dump-catalogues.mjs` each run and never committed.
  */
 #ifndef SPROUT_TEST_CORPUS_H
 #define SPROUT_TEST_CORPUS_H
@@ -45,10 +46,10 @@ static inline char *corpus_cartridge(const char *name, size_t *length) {
   return corpus_read(path, length);
 }
 
-/* The dump of every corpus world's catalogue, read into `arena`. */
+/* The language's dump of every corpus world's catalogue, read into `arena`. */
 static inline const sprout_json *corpus_dump(sprout_arena *arena) {
   size_t length;
-  char *text = test_golden("catalogues.json", &length);
+  char *text = corpus_read(SPROUT_CARTRIDGES "/catalogues.json", &length);
   sprout_json *root = NULL;
   sprout_json_error error;
   if (sprout_json_read(arena, text, length, &root, &error) != SPROUT_OK) {

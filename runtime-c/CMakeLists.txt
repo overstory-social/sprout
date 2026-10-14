@@ -110,16 +110,22 @@ target_link_libraries(sproutc PRIVATE sproutc_host)
 
 enable_testing()
 
-# Every corpus world packed as a cartridge, once, for the tests that load them.
+# Every corpus world packed as a cartridge, once, for the tests that load them; then what each
+# cartridge declares as the language reads it back (catalogues.json beside them), which the catalogue
+# tests hold the runtime's load to. Either setup failing stops every test, in the words it printed.
 find_program(SPROUT_NODE node)
 set(SPROUT_CARTRIDGES_DIR ${CMAKE_CURRENT_BINARY_DIR}/cartridges)
 if(SPROUT_NODE)
   add_test(NAME corpus-cartridges
            COMMAND ${SPROUT_NODE} ${CMAKE_CURRENT_SOURCE_DIR}/test/pack-corpus.mjs ${SPROUT_CARTRIDGES_DIR})
+  add_test(NAME corpus-catalogues
+           COMMAND ${SPROUT_NODE} ${CMAKE_CURRENT_SOURCE_DIR}/test/dump-catalogues.mjs ${SPROUT_CARTRIDGES_DIR})
 else()
   add_test(NAME corpus-cartridges COMMAND ${CMAKE_COMMAND} -E false)
+  add_test(NAME corpus-catalogues COMMAND ${CMAKE_COMMAND} -E false)
 endif()
 set_tests_properties(corpus-cartridges PROPERTIES FIXTURES_SETUP cartridges)
+set_tests_properties(corpus-catalogues PROPERTIES FIXTURES_REQUIRED cartridges FIXTURES_SETUP catalogues)
 
 foreach(module ${SPROUT_MODULES})
   add_executable(${module}.test test/${module}.test.c)
@@ -129,7 +135,7 @@ foreach(module ${SPROUT_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME ${module} COMMAND ${module}.test)
-  set_tests_properties(${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 foreach(module ${SPROUT_EXPR_MODULES})
@@ -140,7 +146,7 @@ foreach(module ${SPROUT_EXPR_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME expr_${module} COMMAND expr_${module}.test)
-  set_tests_properties(expr_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(expr_${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 foreach(module ${SPROUT_STMT_MODULES})
@@ -151,7 +157,7 @@ foreach(module ${SPROUT_STMT_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME stmt_${module} COMMAND stmt_${module}.test)
-  set_tests_properties(stmt_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(stmt_${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 foreach(module ${SPROUT_READING_MODULES})
@@ -162,7 +168,7 @@ foreach(module ${SPROUT_READING_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME reading_${module} COMMAND reading_${module}.test)
-  set_tests_properties(reading_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(reading_${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 foreach(module ${SPROUT_PROSE_MODULES})
@@ -173,7 +179,7 @@ foreach(module ${SPROUT_PROSE_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME prose_${module} COMMAND prose_${module}.test)
-  set_tests_properties(prose_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(prose_${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 foreach(module ${SPROUT_TURN_MODULES})
@@ -184,7 +190,7 @@ foreach(module ${SPROUT_TURN_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME turn_${module} COMMAND turn_${module}.test)
-  set_tests_properties(turn_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(turn_${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 # Without the parser, parse_command.test checks that every typed line is refused.
@@ -199,7 +205,7 @@ foreach(module ${SPROUT_PARSE_MODULES})
     target_compile_definitions(parse_${module}.test PRIVATE SPROUT_NO_PARSER)
   endif()
   add_test(NAME parse_${module} COMMAND parse_${module}.test)
-  set_tests_properties(parse_${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(parse_${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()
 
 foreach(module ${SPROUTC_MODULES})
@@ -210,5 +216,5 @@ foreach(module ${SPROUTC_MODULES})
     SPROUT_GOLDENS="${CMAKE_CURRENT_SOURCE_DIR}/../corpus/goldens"
     SPROUT_CARTRIDGES="${SPROUT_CARTRIDGES_DIR}")
   add_test(NAME host-${module} COMMAND ${module}.host.test)
-  set_tests_properties(host-${module} PROPERTIES FIXTURES_REQUIRED cartridges)
+  set_tests_properties(host-${module} PROPERTIES FIXTURES_REQUIRED "cartridges;catalogues")
 endforeach()

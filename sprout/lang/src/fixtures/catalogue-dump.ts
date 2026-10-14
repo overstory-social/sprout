@@ -1,8 +1,8 @@
 // A catalogue as plain JSON: the ids, kinds, properties, verbs and typed
 // phrases a loaded world declares, in the order the runtime tries them. The
-// C runtime loads the same worlds from their cartridges and is held to this
-// dump (`corpus/goldens/catalogues.json`), so the two readers agree on what a
-// cartridge says.
+// C runtime loads the corpus worlds from their cartridges and is held to the
+// same dump, which `runtime-c/test/dump-catalogues.mjs` writes at ctest setup,
+// so the two readers agree on what a cartridge says.
 
 import type { StaticCaps } from '../bundle/limits.js';
 import type { Literal } from '../syntax/ast.js';

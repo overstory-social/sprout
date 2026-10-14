@@ -165,7 +165,8 @@ different job. The design they test is
 [`sprout-playdate.md`](sprout-playdate.md). The C runtime is held to the
 spec through its own tests, the frozen goldens and the engine conformance
 suite; no other runtime is its oracle. The C tests need the build first
-(`npm run build`): ctest packs every corpus world through the built CLI.
+(`npm run build`): ctest's setup packs every corpus world through the built
+CLI, and dumps what each cartridge declares through the built language.
 
 #### 7a. The C unit layer and the goldens
 
@@ -187,12 +188,12 @@ judgement of whether that is right, is a finding in review. Run
 use the built CLI, the built `engine.wasm` and that script's `sproutc`.
 
 Each golden is written by whatever owns what it says. The C runtime writes
-what a turn or a poll gives. The language writes what a cartridge declares.
-The host writes the turn seed. The rest are hand-kept.
+what a turn or a poll gives. The host writes the turn seed. The rest are
+hand-kept. What a corpus cartridge declares is not a committed golden at all
+(below).
 
 | golden                                             | written by                                                                                    | what it holds                                                                                                                  |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `catalogues.json`                                  | the script, from the language: each corpus world packed, its cartridge read back              | every corpus world's ids, kinds, properties, verbs and typed phrases                                                           |
 | `stored-worlds.json`                               | the script, from the WebAssembly engine: each world opened empty, and its transcripts played  | each world's initial state and states from its transcripts                                                                     |
 | `views.json`                                       | the script, from `sproutc view --golden`, over states the WebAssembly engine's arrival leaves | a bench world's polls and a visitor's arrival in every corpus world: the view's JSON, the chip tree, steps and fault           |
 | `seeds.json`                                       | the script, from the host's `turnSeed`                                                        | the turn seed of a tick or a wake                                                                                              |
@@ -219,13 +220,33 @@ replays the case fails, naming the case. Find the entry again by reading
 the cartridge's preamble and graph for the body the case's name and text
 describe, then edit the index by hand and read the diff.
 
-**The corpus-built goldens.** `addresses.json` and `stored-reopened.json`
-are built from the corpus worlds, as `catalogues.json` and the rest are,
-but nothing writes them yet. They keep their check: an edit to a corpus
-world they cover breaks the C test until the world's entry is edited by
-hand, or removed with the diff read. Whether to generate the corpus-built
-goldens at ctest setup from the packed corpus instead is its own decision,
-which #686 owns.
+**The corpus-built goldens.** Five goldens hold what the corpus worlds
+give. Which of them is generated at ctest setup and which is committed
+turns on one question: is its producer something other than the C runtime?
+
+- **Generated at setup: `catalogues.json`.** Its producer is the language:
+  `runtime-c/test/dump-catalogues.mjs` reads each freshly packed cartridge
+  back with `loadCartridge` and writes the dump beside the cartridges in
+  the build folder, where the catalogue tests read it. The test then holds
+  the runtime's load to the language's, a real cross-check between two
+  readers, and an edit to a corpus world or to the standard library needs
+  no golden change. Nothing is committed. The setup never leaves an empty
+  or partial dump for a test to pass against: a CLI or language that is not
+  built, a world that does not pack, or a cartridge the language refuses
+  fails the setup in words, and ctest runs none of the tests after it.
+- **Committed, written by the script: `stored-worlds.json` and
+  `views.json`.** Their only producer is the C runtime (through the
+  WebAssembly engine, and `sproutc`). Generated at setup, each would
+  compare the runtime with itself and pin nothing across a change, so they
+  stay fixtures a reviewer reads. The native tests and the WebAssembly step
+  (7b) both replay the one committed `stored-worlds.json`, which already
+  holds the two builds to each other.
+- **Committed, hand-kept: `addresses.json` and `stored-reopened.json`.**
+  The parser's reach and the load's report on an edited stored world have
+  no producer but the C runtime; the language has the stored world's
+  schema, not its reconciliation against a world. An edit to a corpus world
+  they cover breaks the C test until the world's entry is edited by hand,
+  or removed with the diff read.
 
 Four rules keep the layer honest.
 
