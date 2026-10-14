@@ -74,6 +74,10 @@ describe('the engine a host runs', () => {
     await runView(store, 'w', named, MARTA, 0);
     await runScene(store, 'w', named, MARTA, 0);
     await runReadings(store, 'w', named, MARTA, 'tally.bump', 0);
+    // `acted` is a host's to ask, as a shared console does, and core asks it nothing.
+    expect(engineOf(named).acted(await stored(store), MARTA, ines, 'bump counter')).toEqual([
+      'Ines tries to bump counter.',
+    ]);
     await runDeparture(store, 'w', named, { ...at(1), visit: ines });
     expect([...asked].sort()).toEqual(Object.keys(own).sort());
   });

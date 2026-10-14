@@ -448,6 +448,24 @@ sprout_status sprout_scene(sprout_world *world, sprout_state *state, const sprou
 sprout_status sprout_readings_for(sprout_world *world, sprout_state *state, const sprout_host *host, const char *visit,
                                   const char *verb, sprout_arena *keep, sprout_seen_view *view);
 
+/* The engine's `acted` as one reader reads it: its paragraphs, or none and `faulted` where rendering it faulted. */
+typedef struct sprout_acted_line {
+  size_t paragraph_count;
+  const sprout_str *paragraphs;
+  bool faulted; /* the rendering spent the poll's budget or broke a rule: there are no paragraphs */
+} sprout_acted_line;
+
+/*
+ * The engine's `acted` (the spec's Prose > Engine lines; The command line): the line `typed` (`typed_length` bytes
+ * of UTF-8) the visitor under the key `actor` typed, as the visitor under `reader` reads it where both play from
+ * one console, rendered as a poll renders: over the committed `state`, under the poll's own budget, drawing
+ * nothing and writing nothing. Nobody in the world reads it. The paragraphs are taken from `keep`, which the host
+ * owns. A visit the state does not hold is SPROUT_BAD_INPUT.
+ */
+sprout_status sprout_acted(sprout_world *world, sprout_state *state, const sprout_host *host, const char *reader,
+                           const char *actor, const char *typed, size_t typed_length, sprout_arena *keep,
+                           sprout_acted_line *out);
+
 /*
  * Reading a typed line (the spec's Parsing; The runtime > Turns): what the words a visitor typed make, read as
  * the command turn they begin reads them, over the committed state, under that turn's step budget and with

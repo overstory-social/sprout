@@ -1,6 +1,5 @@
 import {
   parseCommand,
-  renderActed,
   SEED_MAX,
   storedId,
   visitKey,
@@ -15,7 +14,6 @@ import {
 import {
   applyChanges,
   emptyState,
-  loaded,
   type GivenCommand,
   type LoggedFault,
   type Step as EngineStep,
@@ -674,10 +672,8 @@ export function typedStep(stage: Stage, raw: string, where: string): Typed {
 
 /**
  * What `nickname` typing `text` looks like to `viewer` at the same
- * console: the world's `acted`, rendered for them, or the typed line
- * itself where that renders nothing. No engine renders `acted` for a host
- * yet, so it is rendered over the TypeScript runtime's reading of the
- * stored state, whichever engine runs the turns.
+ * console: the world's `acted`, which the engine renders for them, or the
+ * typed line itself where that renders nothing.
  */
 export function actedBy(
   stage: Stage,
@@ -686,11 +682,11 @@ export function actedBy(
   text: string,
 ): readonly string[] {
   const visit = stage.visits.get(viewer);
-  const actor = visitorOf(stage, stage.visits.get(nickname)!)?.instance as InstanceId | undefined;
+  const actor = stage.visits.get(nickname);
   const rendered =
     visit === undefined || actor === undefined
       ? null
-      : renderActed(loaded(stage.stored, stage.host), stage.host, visit, actor, text);
+      : stage.engine.acted(stage.stored, visit, actor, text);
   return rendered !== null && rendered.length > 0 ? rendered : [`${nickname}: ${text}`];
 }
 

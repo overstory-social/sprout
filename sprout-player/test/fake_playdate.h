@@ -7,7 +7,7 @@
  * otherwise) and FAKE_LINE tall, and the sentence builder's big and small fonts from the pdx's
  * fonts/; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
  * to the screen as the device's is. Bitmaps load from PNG files, the size their header declares, and
- * are drawn as a black block of that size, each draw recorded; synths keep what they were set to and
+ * are drawn as a black block of that size, each draw recorded; the file calls that change the Data folder are logged; synths keep what they were set to and
  * record each note played. The network serves canned answers: each address a test gives is answered
  * with its status, headers and body, a piece a frame, behind the permission the test says the person
  * gives; an address it does not know is answered 404. The system menu holds up to three items, as the device's does, which a test can choose. The SDK's headers are the declarations;
@@ -159,6 +159,9 @@ typedef struct fake_playdate {
   int docked;
   PDCallbackFunction *update;
   void *update_ctx;
+  /* the Data folder's opens for writing, unlinks and renames, in order, one a line: "write <path>",
+     "unlink <path>", "rename <from> <to>"; a test empties it to watch from a moment on */
+  char file_log[8192];
   /* the system menu's items, in the order added: a title is empty while its slot holds none */
   fake_menu_item menu[FAKE_MENU_ITEMS];
 } fake_playdate;

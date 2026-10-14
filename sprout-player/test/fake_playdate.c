@@ -44,11 +44,19 @@ static void joined(char *out, size_t size, const char *folder, const char *path)
   snprintf(out, size, "%s/%s", folder, path);
 }
 
+/* Adds a line to the file log, while there is room for it. */
+static void log_file(const char *verb, const char *a, const char *b) {
+  size_t used = strlen(current->file_log);
+  snprintf(current->file_log + used, sizeof current->file_log - used, "%s %s%s%s\n", verb, a, b != NULL ? " " : "",
+           b != NULL ? b : "");
+}
+
 static SDFile *fake_open(const char *path, FileOptions mode) {
   char full[1100];
   FILE *file = NULL;
   if (mode & kFileWrite) {
     if (current->fail_writes) return NULL;
+    log_file("write", path, NULL);
     joined(full, sizeof full, current->data, path);
     return fopen(full, "wb");
   }
@@ -81,6 +89,7 @@ static int fake_mkdir(const char *path) {
 
 static int fake_unlink(const char *path, int recursive) {
   char full[1100], command[1200];
+  log_file("unlink", path, NULL);
   joined(full, sizeof full, current->data, path);
   if (unlink(full) == 0) return 0;
   if (!recursive || strchr(full, '\'') != NULL) return -1;
@@ -90,6 +99,7 @@ static int fake_unlink(const char *path, int recursive) {
 
 static int fake_rename(const char *from, const char *to) {
   char a[1100], b[1100];
+  log_file("rename", from, to);
   joined(a, sizeof a, current->data, from);
   joined(b, sizeof b, current->data, to);
   return rename(a, b);

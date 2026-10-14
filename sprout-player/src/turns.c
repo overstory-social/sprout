@@ -2,8 +2,9 @@
  * The write turns this host runs (the spec's The runtime > Turns; The host contract > Admission
  * and identity, Time): arrival, preceded by the catch-up that tells nothing, a command from a
  * reading the sentence builder made, the ticks and due wakes the reader asks for, and departure.
- * Every turn runs at the host's seconds under a seed drawn from the clock when it begins, is
- * written to the log tail with that seed, and marks the state to be saved when it committed.
+ * Every turn waits for the save under way to be written, runs at the host's seconds under a seed
+ * drawn from the clock when it begins, is written to the log tail with that seed, and marks the
+ * state to be saved when it committed.
  */
 #include <string.h>
 
@@ -23,6 +24,8 @@
 static sprout_status run_for(player_session *session, sprout_turn_input *input, const char *thing, uint64_t nth,
                              sprout_outcome *outcome) {
   sprout_status status;
+  /* The save under way is written out first: the state must not change under the writer. */
+  session_save_finish(session);
   input->instant = player_host_seconds(&session->host);
   player_host_begin_step(&session->host);
   if (thing != NULL) {
@@ -111,7 +114,7 @@ player_told player_admit(player_session *session, const char *nickname) {
     }
     sprout_outcome_free(&outcome);
   }
-  answer.saved = session_save_if_dirty(session);
+  answer.saved = session_save_soon(session);
   sprout_admission_free(&admission);
   return answer;
 }
@@ -152,7 +155,7 @@ player_told player_turn(player_session *session, const sprout_reading *reading, 
     told_collect(arena, &answer.lines, &outcome, PLAYER_VISIT);
   }
   sprout_outcome_free(&outcome);
-  answer.saved = session_save_if_dirty(session);
+  answer.saved = session_save_soon(session);
   return answer;
 }
 
@@ -165,7 +168,7 @@ player_told player_misread(player_session *session, const char *why) {
   answer.result = SPROUT_RESULT_REFUSED;
   answer.words = session_keep(session, why);
   told_add(arena, &answer.lines, PLAYER_VISIT, "notice", answer.words);
-  answer.saved = session_save_if_dirty(session);
+  answer.saved = session_save_soon(session);
   return answer;
 }
 
@@ -254,6 +257,6 @@ player_told player_tick(player_session *session) {
   answer.words = "";
   answer.ran = wake_due(session, arena, &answer.lines, player_host_seconds(&session->host));
   answer.ran = tick_places(session, arena, &answer.lines) || answer.ran;
-  answer.saved = session_save_if_dirty(session);
+  answer.saved = session_save_soon(session);
   return answer;
 }

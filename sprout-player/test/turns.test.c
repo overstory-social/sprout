@@ -110,6 +110,7 @@ static void a_reading_the_world_cannot_take_is_told_in_words_and_writes_nothing(
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   player_load(s);
   player_admit(s, "Marta");
+  player_save_settle(s);
   before = file_text(state_path);
   told = turn_of(s, "sprout.nonesuch", NULL, 0, NULL);
   CHECK(told.ok && !told.committed && told.result == SPROUT_RESULT_REFUSED && told.words != NULL && told.lines.count == 1 &&
@@ -120,6 +121,8 @@ static void a_reading_the_world_cannot_take_is_told_in_words_and_writes_nothing(
             strcmp(told_kind(&told, 0), "notice") == 0 &&
             strcmp(told.words, "The reading was not written as the player writes one.") == 0,
         "a reading the UI could not make: %s", told.words);
+  CHECK(!player_saving(s), "nothing is owed");
+  player_save_settle(s);
   after = file_text(state_path);
   CHECK(before != NULL && after != NULL && strcmp(before, after) == 0, "nothing was written");
   free(before);
@@ -188,6 +191,7 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   CHECK(told.admitted && told.lines.count == 1 && strcmp(told_kind(&told, 0), "described") == 0,
         "the arrival is all that is told: %s", told_text(&told, 0));
   CHECK(!told_has(&told, "chamber") && !told_has(&told, "seedling"), "the catch-up narrated: %s", told_text(&told, 0));
+  CHECK(player_save_settle(s).ok, "the arrival's save is written");
   after = file_text(state_path);
   CHECK(after != NULL && !HAS(after, "firing") && HAS(after, "cool"), "the kiln cooled in the catch-up");
   log = file_text(log_path);

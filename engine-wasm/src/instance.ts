@@ -3,6 +3,7 @@ import { performance } from 'node:perf_hooks';
 import type { InstanceId, RuntimeBudgets, VisitKey } from '@overstory/sprout/lang';
 
 import {
+  ActedSchema,
   DueWakesSchema,
   HearersSchema,
   LineCommandSchema,
@@ -236,6 +237,15 @@ export class WasmInstance {
       StandingSchema,
       this.call('sw_standing', ...this.strings(visit)),
       'where one stands',
+    );
+  }
+
+  /** The engine's `acted` for the line `actor` typed, as `reader` reads it. */
+  acted(reader: VisitKey, actor: VisitKey, typed: string) {
+    return read(
+      ActedSchema,
+      this.call('sw_acted', ...this.strings(reader, actor, typed)),
+      'what someone did',
     );
   }
 

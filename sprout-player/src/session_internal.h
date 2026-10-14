@@ -16,6 +16,18 @@
 #define LOG_KEEP 32
 #define PATH_BYTES 128
 
+/*
+ * The state being written a slice a frame: its bytes, made when the write begins, in an arena of
+ * their own, and the file `<state>.part` they go into.
+ */
+typedef struct session_writer {
+  bool live;
+  sprout_arena arena;
+  const char *bytes;
+  size_t length, written;
+  SDFile *file;
+} session_writer;
+
 struct player_session {
   PlaydateAPI *pd;
   player_host host;
@@ -27,7 +39,10 @@ struct player_session {
   char title[96];
   char state_path[PATH_BYTES];
   char log_path[PATH_BYTES];
-  bool dirty;          /* a turn committed since the last save */
+  bool dirty;          /* a turn committed since the last save was begun */
+  bool owed;           /* the state is to be written: its log tail is on disk and its bytes not yet begun */
+  bool unsaved;        /* a write failed since the last save that was whole */
+  session_writer writer;
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
   sprout_arena answer; /* what the last call handed back, released when the next begins */
@@ -54,8 +69,21 @@ const sprout_stored_visitor *session_visitor(const player_session *session);
 /* Whether a visitor's instance stands in the world now (away visitors have no container). */
 bool session_visitor_present(const player_session *session, const sprout_stored_visitor *visitor);
 
-/* Writes the state and the log tail if a turn has committed since the last save. */
-bool session_save_if_dirty(player_session *session);
+/*
+ * After a write turn: where it committed, the log tail is written now and the state is owed, to be
+ * written a slice a frame by `player_save_step`. False when a write has failed since the last
+ * whole save, which stops play.
+ */
+bool session_save_soon(player_session *session);
+
+/* Writes the state owed or under way, all of it now; false when it could not be. */
+bool session_save_finish(player_session *session);
+
+/* As `session_save_finish`, after what the turns since the last save owe is made owed. */
+bool session_save_settle(player_session *session);
+
+/* Drops the save under way, its `.part` removed, and whatever was owed; the world is being let go. */
+void session_save_abandon(player_session *session);
 
 /* savelog.c */
 void savelog_clear(player_session *session);

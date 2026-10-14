@@ -1,6 +1,7 @@
 import { admissionCases } from './admission.js';
 import { pollCases } from './polls.js';
 import { questionCases } from './questions.js';
+import { replayCases } from './replay.js';
 import { tickerCases } from './ticker.js';
 import { turnCases } from './turns.js';
 import type { EngineCase, MakeEngine } from './worlds.js';
@@ -12,17 +13,20 @@ import type { EngineCase, MakeEngine } from './worlds.js';
 // for a world, and throws on failure; a host runs it under any test
 // runner with a three-line loop. The TypeScript runtime's engine passes
 // it in core's own specs, and the WebAssembly engine in its package's.
-// The worlds the cases run are exported too, for an engine's own specs.
+// The worlds the cases run, and the log the replay cases play, are
+// exported too, for an engine's own specs.
 
 export * from './worlds.js';
+export { bundleOn, playedTally } from './replay.js';
 
-/** Every case, by area: turns, admission and the log, polls, rounds of ticks, and the engine reached directly. */
+/** Every case, by area: turns, admission and the log, polls, rounds of ticks, the engine reached directly, and replay. */
 export const engineCases: readonly EngineCase[] = [
   ...turnCases,
   ...admissionCases,
   ...pollCases,
   ...tickerCases,
   ...questionCases,
+  ...replayCases,
 ];
 
 /** Run every case against the engines `make` makes, throwing on the first failure. */
