@@ -1,17 +1,9 @@
-import type { CommandHost } from '@overstory/sprout/lang';
+import type { Catalogue, RuntimeBudgets } from '@overstory/sprout/lang';
 
+import type { Engine } from '../engine.js';
 import { emptyState, type StoredState } from '../records.js';
 import { applyChanges } from '../state.js';
-import {
-  arrivalStep,
-  commandStep,
-  departureStep,
-  loaded,
-  maintenanceStep,
-  tickStep,
-  wakeStep,
-  type Step,
-} from '../steps.js';
+import type { Step } from '../steps.js';
 import { arrivalOf } from './arrival.js';
 import { commandOf } from './command.js';
 import { departureOf } from './departure.js';
@@ -24,24 +16,27 @@ import { wakeOf } from './wake.js';
 import type { WithholdingEntry } from './withholding.js';
 
 // Replaying a world's log (the spec's The runtime › The log; The host
-// contract › What the host may not do): every turn entry run again, in
-// order, over what the turns before it wrote since the publish or
-// withholding before it, which redeployed the world, against that one's
-// bundle, from its own seed, instant and bound
-// and under the budgets it logged, with no clock, so the wall-clock
-// backstop cannot fire where it did not. A turn reproduces when running
-// it again gives exactly the entry logged, its effects and fault among
-// it, a play-depth entry's effects compared by their digest (The log ›
-// Depth); any other outcome is a divergence, which is what a moderator is
-// looking for. A line a visitor said and a poll's fault are not run
-// again, since neither changed the world: a replay reproduces it exactly
-// with or without them.
+// contract › What the host may not do): every turn entry handed again, in
+// order, to an engine's turn of its kind, over what the turns before it
+// wrote since the publish or withholding before it, which redeployed the
+// world, against that one's bundle, from its own seed, instant and bound,
+// under the budgets it logged, and, for a command, with the words, the
+// planned step and the item re-read it logged. A turn reproduces when
+// running it again gives exactly the entry logged, its effects and fault
+// among it, a play-depth entry's effects compared by their digest (The
+// log › Depth); any other outcome is a divergence, which is what a
+// moderator is looking for. A line a visitor said and a poll's fault are
+// not run again, since neither changed the world: a replay reproduces it
+// exactly with or without them. Any engine replays any engine's log.
 
-/** What a replay runs one bundle's turns under; each turn's budgets are its own. */
-export type ReplayHost = Pick<CommandHost, 'catalogue' | 'render' | 'parse'>;
+/** One bundle's turns as a replay runs them: the catalogue its entries are read against, and its engine under a turn's budgets. */
+export interface ReplayBundle {
+  readonly catalogue: Catalogue;
+  engine(budgets: RuntimeBudgets): Engine;
+}
 
-/** The host for the bundle a publish or a withholding says the world runs from there on. */
-export type ReplayHosts = (opening: PublishEntry | WithholdingEntry) => ReplayHost;
+/** The bundle a publish or a withholding says the world runs from there on. */
+export type ReplayBundles = (opening: PublishEntry | WithholdingEntry) => ReplayBundle;
 
 /** A logged turn that did not reproduce: what it logged, and what running it again gave, null where it ran nothing or threw. */
 export interface Divergence {
@@ -58,36 +53,44 @@ export interface Replayed {
 }
 
 /**
- * Replay `log`, oldest first, from `from`, each segment against the host
- * `hosts` gives for the publish or withholding that opens it. A turn
- * logged before any publish is refused, since nothing says which bundle
- * it ran against.
+ * Replay `log`, oldest first, from `from`, each segment on the engines
+ * the bundle `bundles` gives for the publish or withholding that opens it,
+ * one for each set of budgets its turns logged. A turn logged before any
+ * publish is refused, since nothing says which bundle it ran against.
  */
 export function replayLog(
   log: readonly Logged[],
-  hosts: ReplayHosts,
+  bundles: ReplayBundles,
   from: StoredState = emptyState(),
 ): Replayed {
-  let host: ReplayHost | null = null;
+  let bundle: ReplayBundle | null = null;
+  let engines = new Map<string, Engine>();
   let state = from;
   let turns = 0;
   const diverged: Divergence[] = [];
   for (const { seq, entry } of log) {
     if (entry.kind === 'publish' || entry.kind === 'withholding') {
       // Each redeploys the world: what follows starts from the bundle's initial state.
-      host = hosts(entry);
+      bundle = bundles(entry);
+      engines = new Map();
       state = emptyState();
       continue;
     }
     if (entry.kind === 'said' || entry.kind === 'poll-fault') continue;
-    if (host === null) {
+    if (bundle === null) {
       throw new Error(
         `The log's entry ${seq}, of kind \`${entry.kind}\`, comes before any publish, so nothing says which bundle it ran against.`,
       );
     }
     turns += 1;
-    const step = rerun(state, { ...host, budgets: entry.budgets }, entry);
-    if (step?.changes) state = applyChanges(state, step.changes);
+    const budgets = JSON.stringify(canonical(entry.budgets));
+    const engine = engines.get(budgets) ?? bundle.engine(entry.budgets);
+    engines.set(budgets, engine);
+    const step = rerun(engine, bundle.catalogue, state, entry);
+    if (step !== null) {
+      if (step.changes !== null) state = applyChanges(state, step.changes);
+      engine.landed?.(state);
+    }
     const replayed = step?.entry ?? null;
     if (replayed === null || !sameEntry(atDepthOf(entry, replayed), entry)) {
       diverged.push({ seq, logged: entry, replayed });
@@ -96,24 +99,27 @@ export function replayLog(
   return { state, turns, diverged };
 }
 
-/** `entry`'s turn run again by `as` over `stored`, or null where it throws before it opens. */
-function rerun(stored: StoredState, as: CommandHost, entry: TurnEntry): Step<unknown> | null {
-  const world = as.catalogue.world;
+/** `entry`'s turn handed again to `engine` over `stored`, or null where it throws before it opens. */
+function rerun(
+  engine: Engine,
+  catalogue: Catalogue,
+  stored: StoredState,
+  entry: TurnEntry,
+): Step<unknown> | null {
   try {
-    const state = loaded(stored, as);
     switch (entry.kind) {
       case 'command':
-        return commandStep(state, as, commandOf(entry, as.catalogue));
+        return engine.command(stored, commandOf(entry, catalogue));
       case 'tick':
-        return tickStep(state, as, tickOf(world, entry));
+        return engine.tick(stored, tickOf(catalogue.world, entry));
       case 'wake':
-        return wakeStep(state, as, wakeOf(world, entry));
+        return engine.wake(stored, wakeOf(catalogue.world, entry));
       case 'maintenance':
-        return maintenanceStep(state, as, maintenanceOf(entry));
+        return engine.maintenance(stored, maintenanceOf(entry));
       case 'arrival':
-        return arrivalStep(state, as, arrivalOf(entry));
+        return engine.arrival(stored, arrivalOf(entry));
       case 'departure':
-        return departureStep(state, as, departureOf(entry));
+        return engine.departure(stored, departureOf(entry));
     }
   } catch {
     return null;

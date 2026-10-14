@@ -9,6 +9,7 @@ import {
   DOCK,
   GAUGE,
   HALL,
+  INES,
   LAMPLIGHT,
   LAMPLIT_HALL,
   LABEL,
@@ -23,8 +24,8 @@ import {
 
 // The suite's engine as a host reaches it directly (core's engine.ts):
 // a turn as a step, a line's commands one at a time, what a host asks
-// of the committed world between turns, and every answer for the stored
-// state it is handed, whatever it was handed before.
+// of the committed world between turns, the world's `acted`, and every
+// answer for the stored state it is handed, whatever it was handed before.
 
 const command = (text: string) => ({ visit: MARTA, text, seed: 1, mayHold: null, now: 0 });
 
@@ -154,6 +155,53 @@ export const questionCases: EngineCase[] = [
       ok(
         engine.command(bright, command('light lamp')).turn.committed,
         'a command on the state it wrote',
+      );
+    },
+  },
+  {
+    name: 'what someone typed, as another reads it',
+    proves:
+      'the world’s `acted` is the line one visitor typed, named for another, in the standard library’s words or the world’s own; nothing for a visit the world has not, or where it runs out',
+    async run(make) {
+      const tally = await storedIn(
+        await seeded(TALLY, [
+          [MARTA, HALL, 'Marta'],
+          [INES, HALL, 'Ines'],
+        ]),
+      );
+      const engine = played(make, TALLY).engine!;
+      equal(
+        engine.acted(tally, MARTA, INES, 'bump counter'),
+        ['Ines tries to bump counter.'],
+        'Ines bumping, as Marta reads it',
+      );
+      equal(
+        engine.acted(tally, INES, MARTA, 'smash gauge'),
+        ['Marta tries to smash gauge.'],
+        'Marta smashing, as Ines reads it',
+      );
+      equal(engine.acted(tally, visitKey('v-nobody'), INES, 'look'), null, 'for a stranger');
+      equal(engine.acted(tally, MARTA, visitKey('v-nobody'), 'look'), null, 'by a stranger');
+      equal(
+        played(make, TALLY, { budgets: { pollSteps: 1 } }).engine!.acted(
+          tally,
+          MARTA,
+          INES,
+          'look',
+        ),
+        null,
+        'where it runs out',
+      );
+      const lamplight = await storedIn(
+        await seeded(LAMPLIGHT, [
+          [MARTA, LAMPLIT_HALL, 'Marta'],
+          [INES, LAMPLIT_HALL, 'Ines'],
+        ]),
+      );
+      equal(
+        played(make, LAMPLIGHT).engine!.acted(lamplight, MARTA, INES, 'light lamp'),
+        ['Ines has a go at "light lamp".'],
+        'in the world’s own words',
       );
     },
   },

@@ -2,23 +2,22 @@ import {
   compileBundle,
   declaredId,
   DEFAULT_LIMITS,
-  Draft,
   emitCartridge,
-  initialState,
   libraryHash,
   loadCartridge,
+  mintedId,
   neededImports,
-  newInstance,
   parseCommand,
   renderEffects,
   SourceFile,
   STANDARD_LIBRARY,
-  storedChanges,
   visitKey,
   type CommandHost,
   type InstanceId,
   type Manifest,
   type RuntimeBudgets,
+  type StoredInstance,
+  type StoredVisitor,
   type VisitKey,
 } from '@overstory/sprout/lang';
 
@@ -30,9 +29,10 @@ import type { LogHost } from '../turns.js';
 
 // The worlds the engine conformance suite runs, each compiled as a host
 // publishes one and read back from its cartridge, and the stores they
-// start from: written with no turn and no log, so every engine is handed
-// the same stored state. A declared object no turn has written is not
-// stored, and reads as its declaration says.
+// start from: stored records written with no turn and no log, so every
+// engine is handed the same stored state and nothing runs the world to
+// make it. A declared object no turn has written is not stored, and reads
+// as its declaration says.
 
 /** One world as an engine is made for it: the host's terms, and its cartridge. */
 export interface EngineWorld {
@@ -135,11 +135,15 @@ export const HALL = declaredId('tally', ['hall']);
 export const COUNTER = declaredId('tally', ['hall', 'counter']);
 export const GAUGE = declaredId('tally', ['hall', 'gauge']);
 
-/** The lamplight: a hall that says whether its lamp is lit, and lighting the lamp lights it. */
+/**
+ * The lamplight: a hall that says whether its lamp is lit, and lighting
+ * the lamp lights it. The world writes its own `acted`.
+ */
 export const LAMPLIGHT = compiled('lamplight', {
   'lamplight.sprout': `world lamplight is sprout.World {
   visitors are Person
   visitors arrive at hall
+  passage acted { {actor} has a go at "{reading}". }
   object hall is sprout.Place {
     describe {
       if (lamp.get(:lit)) { text "The hall is bright." } else { text "The hall is dim." }
@@ -251,38 +255,52 @@ export function played(
   };
 }
 
-/** A store holding `world` as `microworldId`, each visit standing where it says under its nickname. */
+/**
+ * A store holding `world` as `microworldId`, each visit standing where it
+ * says under its nickname, written as a store keeps them: for each, in
+ * order, a visitor instance minted from the world's serial and arrived on
+ * the next, and their visitor record. Nothing else is stored, and what is
+ * not stored reads as the bundle declares it: every declared object, and
+ * every property of a visitor's kind.
+ */
 export async function seeded(
   world: EngineWorld,
   standing: readonly (readonly [VisitKey, InstanceId, string])[],
   store: SproutStore = memoryStore(),
   microworldId = 'w',
 ): Promise<SproutStore> {
-  const { catalogue } = world.host;
-  const draft = new Draft(initialState(catalogue));
-  for (const [visit, where, nickname] of standing) {
-    const id = draft.mint();
-    draft.add(
-      newInstance(
-        id,
-        { from: 'visitor' },
-        catalogue.visitorKind!,
-        where,
-        draft.nextSerial(),
-        catalogue.caps,
-      ),
-    );
-    draft.putVisitor({
+  const name = world.host.catalogue.world;
+  const people = standing.map(([visit, where, nickname], at) => {
+    const instance: StoredInstance = {
+      id: mintedId(name, 2 * at + 1),
+      made: { from: 'visitor' },
+      container: where,
+      arrival: 2 * at + 2,
+      properties: {},
+      links: {},
+      wakes: [],
+      memory: {},
+      lastTick: null,
+    };
+    const visitor: StoredVisitor = {
       visit,
       nickname,
-      instance: id,
+      instance: instance.id,
       lastPlace: where,
       referents: [],
       lastReading: null,
-    });
-  }
-  const { state, changes } = draft.commit();
-  await store.transaction(microworldId, (tx) => tx.putState(storedChanges(state, changes)));
+    };
+    return { instance, visitor };
+  });
+  await store.transaction(microworldId, (tx) =>
+    tx.putState({
+      serial: 2 * standing.length,
+      upsert: people.map((one) => one.instance),
+      remove: [],
+      tombstones: [],
+      visitors: people.map((one) => one.visitor),
+    }),
+  );
   return store;
 }
 

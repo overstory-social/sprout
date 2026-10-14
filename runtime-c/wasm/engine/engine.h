@@ -7,7 +7,7 @@
  * handed in with each turn, and is the turn's own whatever its kind.
  *
  * The modules share one context, `wasm_engine`: crossing.c (the buffers, loading, opening, saving and the host's
- * budgets), turns.c (the write turns), lines.c (the commands of a typed line), polls.c (the view in its parts) and
+ * budgets), turns.c (the write turns), lines.c (the commands of a typed line), polls.c (the view in its parts, and `acted`) and
  * questions.c (what a host asks of the committed world between turns).
  */
 #ifndef SPROUT_WASM_ENGINE_H

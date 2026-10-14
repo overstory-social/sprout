@@ -251,6 +251,8 @@ export const HearersSchema = z.object({ place: Id, to: z.array(Visit) }).nullabl
 
 export const StandingSchema = z.object({ place: Thing, here: z.array(Thing) }).nullable();
 
+export const ActedSchema = z.array(z.string()).nullable();
+
 /** `text` read as JSON and checked against `schema`, or an error naming what the engine answered. */
 export function read<T>(schema: z.ZodType<T, unknown>, text: string, what: string): T {
   const checked = schema.safeParse(JSON.parse(text));

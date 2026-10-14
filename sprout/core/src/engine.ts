@@ -9,6 +9,7 @@ import {
   pollScene,
   pollView,
   readerOf,
+  renderActed,
   type Arrival,
   type Closed,
   type Command,
@@ -129,10 +130,10 @@ export interface Standing {
  * The commands one typed line runs, each a turn of its own: `next` is
  * handed the turn the last command gave, and gives the command after it,
  * or null once the line is done (the spec's Parsing › Intents; Sequences).
- * A command is lang's, and one an intent planned carries the reading it
- * planned, which only the TypeScript parser makes until each engine has a
- * parser of its own; core only hands each command and each turn back to
- * the engine that gave it.
+ * A command is lang's, and one a line planned carries the reading it
+ * planned and any item it re-reads. Core hands each command and each turn
+ * of a line back to the engine that gave it; a replay hands any engine a
+ * planned step as the log kept it, which it runs as it is.
  */
 export interface CommandLine {
   next(previous: GivenCommand | null): Command | null;
@@ -161,6 +162,18 @@ export interface Engine {
   hearers(stored: StoredState, visit: VisitKey): Heard | null;
   /** Where `visit` stands and what is there, named for them; null where they are away or their place is gone. */
   standing(stored: StoredState, visit: VisitKey): Standing | null;
+  /**
+   * The world's `acted` for the line `actor` typed, as `reader` reads it
+   * over a console they share (the spec's The command line): its
+   * paragraphs, rendered as a poll renders; null where either visit is not
+   * the world's or rendering it faulted.
+   */
+  acted(
+    stored: StoredState,
+    reader: VisitKey,
+    actor: VisitKey,
+    typed: string,
+  ): readonly string[] | null;
   /**
    * The stored state a write turn's commit landed, read back in the same
    * transaction: an engine that keeps the world live notes it as the state
@@ -265,6 +278,11 @@ export function tsEngine(host: TurnHost | CommandHost): Engine {
     dueWakes: (stored, now) => dueWakes(state(stored), now),
     hearers: (stored, visit) => hearers(state(stored), visit),
     standing: (stored, visit) => standingIn(state(stored), visit),
+    acted: (stored, reader, actor, typed) => {
+      const world = state(stored);
+      const acting = world.visitors.get(actor)?.instance;
+      return acting === undefined ? null : renderActed(world, host, reader, acting, typed);
+    },
   };
 }
 

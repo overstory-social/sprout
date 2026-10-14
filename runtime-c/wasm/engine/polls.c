@@ -2,7 +2,8 @@
  * The view in its parts (the spec's The runtime > The view), polled over the live state, each answered in the
  * language's shape with the poll's fault laid against the visitor's place, or null: the whole view
  * `{"view", "fault"}`; the scene `{"scene", "fault"}`, the view but its readings with the verbs whose readings may be
- * asked for, each with the phrases a visitor types it by; and one verb's readings `{"readings", "fault"}`.
+ * asked for, each with the phrases a visitor types it by; one verb's readings `{"readings", "fault"}`; and the
+ * engine's `acted`, what one visitor typed as another reads it, which renders as a poll does.
  */
 #include <string.h>
 
@@ -164,4 +165,33 @@ EXPORT("sw_readings") int sw_readings(size_t visit_length, size_t verb_length) {
   tree = sprout_view_tree(&e->scratch, &view);
   if (tree == NULL) return SPROUT_NO_MEMORY;
   return answer_polled(e, "readings", (sprout_json *)sprout_json_get(tree, "readings"), fault_of(e, &view));
+}
+
+/*
+ * The engine's `acted` (src/acted.c), the input holding the reader's visit, then the actor's, then the line the
+ * actor typed: its paragraphs as the reader reads them, or null where either visit is not the world's or
+ * rendering it faulted.
+ */
+EXPORT("sw_acted") int sw_acted(size_t reader_length, size_t actor_length, size_t typed_length) {
+  wasm_engine *e = &the_engine;
+  sprout_acted_line line;
+  sprout_json *paragraphs;
+  const char *reader, *actor, *typed;
+  sprout_status status;
+  size_t i;
+  int said;
+  engine_begin(e, 0);
+  if ((reader = visit_of(e, reader_length, &said)) == NULL) return said;
+  actor = engine_input_string(e, reader_length, actor_length);
+  typed = engine_input_string(e, reader_length + actor_length, typed_length);
+  if (actor == NULL || typed == NULL)
+    return engine_refuse(e, "Hand the reader's visit, the actor's and the line in through sw_input first.");
+  status = sprout_acted(e->world, e->state, &e->host, reader, actor, typed, typed_length, &e->scratch, &line);
+  if (status == SPROUT_BAD_INPUT || (status == SPROUT_OK && line.faulted))
+    return engine_answer_json(e, engine_null(e));
+  if (status != SPROUT_OK) return engine_answer_text(e, status, sprout_status_text(status));
+  if ((paragraphs = sprout_json_make(&e->scratch, SPROUT_JSON_ARRAY, line.paragraph_count)) == NULL) return SPROUT_NO_MEMORY;
+  for (i = 0; i < line.paragraph_count; i++)
+    sprout_json_adopt(paragraphs, NULL, engine_text(e, line.paragraphs[i].bytes, line.paragraphs[i].length));
+  return paragraphs->count == line.paragraph_count ? engine_answer_json(e, paragraphs) : SPROUT_NO_MEMORY;
 }
