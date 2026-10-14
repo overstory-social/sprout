@@ -62,7 +62,7 @@ static sprout_eval_status spoken_by(const sprout_frame *frame, const sprout_node
     out->node = said;
     return sprout_origin_library(frame, origin, &out->library);
   }
-  out->name = sprout_node_text(&frame->world->graph, said, "text");
+  out->name = sprout_name(&frame->world->graph, said);
   if (place != NULL && sprout_passage_on(&frame->world->graph, place->kind, out->name, out)) return SPROUT_EVAL_OK;
   out->kind = SPROUT_SPEECH_ABSENT;
   return SPROUT_EVAL_OK;
@@ -104,7 +104,7 @@ static sprout_eval_status destination_of(const sprout_frame *frame, const sprout
       }
   } else {
     const sprout_node *leads = sprout_node_get(&frame->world->graph, line, "leads");
-    if (sprout_node_is(&frame->world->graph, sprout_node_get(&frame->world->graph, leads, "kind"), "path")) EXPR_NEED(path_end(frame, place->id, leads, to, found));
+    if (sprout_name(&frame->world->graph, leads) != NULL) EXPR_NEED(path_end(frame, place->id, leads, to, found));
   }
   if (!*found || !expr_live(frame, *to)) {
     *found = false;

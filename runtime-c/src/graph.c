@@ -84,9 +84,11 @@ sprout_status sprout_graph_map(sprout_graph *graph, const unsigned char *block, 
     graph->files[i] = sprout_arena_copy(arena, files->items[i]->bytes, files->items[i]->length);
     if (graph->files[i] == NULL) return SPROUT_NO_MEMORY;
   }
-  for (i = 0; i < graph->table.place_count; i++)
-    if (graph->table.places[i].file >= 0 && (size_t)graph->table.places[i].file >= files->count)
+  for (i = graph->count; i < graph->table.node_count; i++) {
+    const sprout_node *node = &graph->table.nodes[i];
+    if (node->kind == SPROUT_NODE_PLACE && node->shape != SPROUT_TABLE_NO_FILE && node->shape >= files->count)
       return refuse(error, error_capacity, "the cartridge names a file it does not list.", NULL);
+  }
   return SPROUT_OK;
 }
 
@@ -145,4 +147,14 @@ bool sprout_node_is(const sprout_graph *graph, const sprout_node *node, const ch
 const char *sprout_node_text(const sprout_graph *graph, const sprout_node *object, const char *key) {
   const sprout_node *field = sprout_node_get(graph, object, key);
   return field != NULL && field->kind == SPROUT_NODE_STRING ? sprout_text(graph, field) : NULL;
+}
+
+const char *sprout_name(const sprout_graph *graph, const sprout_node *node) {
+  if (node == NULL) return NULL;
+  if (node->kind == SPROUT_NODE_STRING) return sprout_text(graph, node);
+  return sprout_node_text(graph, node, "text");
+}
+
+const char *sprout_node_name(const sprout_graph *graph, const sprout_node *object, const char *key) {
+  return sprout_name(graph, sprout_node_get(graph, object, key));
 }

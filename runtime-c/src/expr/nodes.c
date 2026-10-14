@@ -21,10 +21,6 @@ expr_kind expr_kind_of(const sprout_graph *graph, const sprout_node *node) {
   return EXPR_OTHER;
 }
 
-const char *expr_ident(const sprout_graph *graph, const sprout_node *node, const char *field) {
-  return sprout_node_text(graph, sprout_node_get(graph, node, field), "text");
-}
-
 bool expr_is_and(const sprout_graph *graph, const sprout_node *node) {
   return expr_kind_of(graph, node) == EXPR_BINARY && sprout_node_is(graph, sprout_node_get(graph, node, "operator"), "&&");
 }
@@ -52,25 +48,25 @@ sprout_eval_status expr_written_members(const sprout_frame *frame, const sprout_
   char *text, *end;
   *out = NULL;
   for (; expr_kind_of(frame->graph, node) == EXPR_MEMBER; node = sprout_node_get(frame->graph, node, "receiver")) {
-    length += strlen(expr_ident(frame->graph, node, "member")) + 1;
+    length += strlen(sprout_node_name(frame->graph, node, "member")) + 1;
     steps++;
   }
   if (expr_kind_of(frame->graph, node) != EXPR_BINDING) return SPROUT_EVAL_OK;
-  length += strlen(expr_ident(frame->graph, node, "name"));
+  length += strlen(sprout_node_name(frame->graph, node, "name"));
   text = (char *)sprout_arena_take(frame->turn, length + 1);
   if (text == NULL) return SPROUT_EVAL_NO_MEMORY;
   /* Written from the end: the last member first, the binding's name last. */
   end = text + length;
   *end = '\0';
   for (node = member, i = 0; i < steps; i++, node = sprout_node_get(frame->graph, node, "receiver")) {
-    const char *name = expr_ident(frame->graph, node, "member");
+    const char *name = sprout_node_name(frame->graph, node, "member");
     size_t n = strlen(name);
     end -= n;
     memcpy(end, name, n);
     *--end = '.';
   }
   {
-    const char *name = expr_ident(frame->graph, node, "name");
+    const char *name = sprout_node_name(frame->graph, node, "name");
     end -= strlen(name);
     memcpy(end, name, strlen(name));
   }
@@ -97,11 +93,11 @@ static const sprout_kind_def *find_kind(const sprout_world *world, const char *l
 }
 
 const sprout_kind_def *expr_kind_named(const sprout_frame *frame, const sprout_node *written) {
-  const char *name = expr_ident(frame->graph, written, "name");
+  const char *name = sprout_node_name(frame->graph, written, "name");
   const sprout_node *library = sprout_node_get(frame->graph, written, "library");
   if (name == NULL) return NULL;
   if (library != NULL && library->kind != SPROUT_NODE_NULL) {
-    const char *text = sprout_node_text(frame->graph, library, "text");
+    const char *text = sprout_name(frame->graph, library);
     return text == NULL ? NULL : find_kind(frame->world, text, strlen(text), name);
   }
   {

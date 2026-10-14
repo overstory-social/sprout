@@ -10,8 +10,8 @@
 // The table is three runs laid end to end under one numbering: the prose
 // nodes, the statements and expressions, and everything else. A span
 // survives as its file, line and column on every node but an expression,
-// which never faults on its own; it reads back as a place in a file that
-// holds no text, which is all a fault is told.
+// which never faults on its own, and a name (`cartridge-names.ts`); it reads
+// back as a place in a file that holds no text, which is all a fault is told.
 
 import { SourceFile, type Span } from '../source/source.js';
 import type { Expr, Statement } from '../syntax/ast.js';
@@ -328,8 +328,11 @@ export interface Graph {
 /** Read `tables` back into objects, a reference to one entry being one object wherever it is read. */
 export function readGraph(
   tables: GraphTables,
-  /** Told of each plain object once it holds all its fields, so a host can give back what did not travel. */
-  onObject?: (object: Record<string, unknown>) => void,
+  /**
+   * Told of each plain object once every entry holds its fields, so a host can give back what
+   * did not travel; `nowhere` is the span a node that kept no place reads back with.
+   */
+  onObject?: (object: Record<string, unknown>, nowhere: Span) => void,
 ): Graph {
   const entries = [...tables.prose, ...tables.bodies, ...tables.rest];
 
@@ -388,12 +391,16 @@ export function readGraph(
     if ('o' in entry) {
       const target = shell as Record<string, unknown>;
       for (const [key, cell] of Object.entries(entry.o)) target[key] = read(cell);
-      onObject?.(target);
     } else if ('a' in entry) entry.a.forEach((cell, at) => ((shell as unknown[])[at] = read(cell)));
     else if ('s' in entry) for (const cell of entry.s) (shell as Set<unknown>).add(read(cell));
     else
       for (const [key, cell] of entry.m)
         (shell as Map<unknown, unknown>).set(read(key), read(cell));
   });
+  if (onObject !== undefined) {
+    entries.forEach((entry, i) => {
+      if ('o' in entry) onObject(shells[i] as Record<string, unknown>, nowhere);
+    });
+  }
   return { read };
 }

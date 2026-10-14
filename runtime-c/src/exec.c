@@ -88,7 +88,7 @@ static sprout_eval_status wake_statement(sprout_run *run, const sprout_frame *fr
 /* A `let`: the value, or the new instance of a `spawn`, bound for the rest of the block. */
 static sprout_eval_status let_statement(sprout_run *run, sprout_frame *scope, const sprout_node *node) {
   const sprout_node *value = sprout_node_get(scope->graph, node, "value");
-  const char *name = expr_ident(scope->graph, node, "name");
+  const char *name = sprout_node_name(scope->graph, node, "name");
   sprout_evaluated bound;
   const sprout_binding *added;
   if (sprout_node_is(scope->graph, sprout_node_get(scope->graph, value, "kind"), "spawn")) {

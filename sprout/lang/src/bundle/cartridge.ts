@@ -9,7 +9,7 @@
 // then, eight-aligned, the table of `cartridge-table.ts`, which a runtime
 // reads in place. Libraries are statically linked, so the cartridge is
 // closed: it holds the world's declarations resolved, its bodies and prose
-// as trees with every name bound, and the caps it was checked against, and
+// as trees with every name bound (`cartridge-names.ts`), and the caps it was checked against, and
 // neither source text nor diagnostics. A runtime refuses a format or a
 // level newer than it reads, naming the number.
 
@@ -20,13 +20,14 @@ import { gunzip, gzip } from '../source/gzip.js';
 import { LANGUAGE_LEVEL, type Bundle } from './bundle.js';
 import { PreambleSchema, type Cartridge, type Preamble } from './cartridge-schema.js';
 import { writeGraph, type Entry, type GraphTables, type Rewrite } from './cartridge-graph.js';
+import { namesWritten } from './cartridge-names.js';
 import { readTable, TableUnreadable, writeTable } from './cartridge-table.js';
 
 /** The four bytes every cartridge begins with. */
 export const CARTRIDGE_MAGIC = 'SPRT';
 
 /** The layout of the file this code writes and reads; raised only when the layout changes, and only the current one is read. */
-export const CARTRIDGE_FORMAT = 3;
+export const CARTRIDGE_FORMAT = 4;
 
 /** The bytes before the compressed body. */
 export const CARTRIDGE_HEADER_BYTES = 16;
@@ -248,6 +249,7 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
       `${bundle.manifest.name} has ${bundle.absent.length} gap(s) in what it needs, and a cartridge holds a world whole. Compile it strictly, and fix what \`sprout check\` says.`,
     );
   }
+  const names = namesWritten(new Set(bundle.names.keys()));
   const { roots, tables } = writeGraph(
     {
       kinds: bundle.kinds,
@@ -259,10 +261,10 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
       holds: bundle.tree.holds,
       scoped: bundle.synonyms,
       intents: bundle.intents,
-      names: bundle.names,
+      names: new Map([...bundle.names].map(([node, named]) => [names.key(node), named])),
       optionSlots: bundle.optionSlots,
     },
-    composed(withoutSynonyms(), withTypedWords()),
+    composed(withoutSynonyms(), withTypedWords(), names.rewrite),
   );
   const manifest = bundle.manifest;
   return {

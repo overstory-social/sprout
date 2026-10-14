@@ -1,5 +1,6 @@
 /* Tests for host/play.c: `sproutc play` on a corpus world, with and without a script, and its refusals in words. */
 #include "play.h"
+#include "load.h"
 #include "cartridge_fixture.h"
 #include "check.h"
 
@@ -213,7 +214,7 @@ static void a_cartridge_the_runtime_refuses_is_refused_with_its_words(void) {
   unsigned char *bytes;
   size_t length;
   char *argv[] = {"play", (char *)WORLD};
-  bytes = build_cartridge(EMPTY_BODIED_JSON, 3, 1, &length);
+  bytes = build_cartridge(EMPTY_BODIED_JSON, SPROUT_CARTRIDGE_FORMAT, 1, &length);
   put(WORLD, bytes, length);
   free(bytes);
   CHECK_INT(run(2, argv), 1);

@@ -20,7 +20,7 @@ static bool has_link(const sprout_graph *graph, const sprout_kind_def *kind, con
 }
 
 sprout_eval_status stmt_connect(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
-  const char *name = expr_ident(frame->graph, statement, "link");
+  const char *name = sprout_node_name(frame->graph, statement, "link");
   const sprout_stored_instance *self, *place;
   sprout_str to;
   sprout_stored_instance next;

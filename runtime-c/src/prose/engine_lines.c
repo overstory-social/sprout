@@ -85,12 +85,8 @@ static const sprout_node *one_field(reader *r, const char *kind, const char *key
   return object_of(r, kind, &key, &value, 1);
 }
 
-static const sprout_node *ident_of(reader *r, const char *text, size_t length) {
-  return one_field(r, "ident", "text", string_of(r, text, length));
-}
-
 static const sprout_node *binding_of(reader *r, const char *text, size_t length) {
-  return one_field(r, "binding", "name", ident_of(r, text, length));
+  return one_field(r, "binding", "name", string_of(r, text, length));
 }
 
 /* The expression the words between braces, or after `if` or `in`, read as. */
@@ -109,13 +105,13 @@ static const sprout_node *expression(reader *r, const char *text, size_t length)
     values[2] = one_field(r, "integer", "value", sprout_build_number(&r->builder, (double)(equals[4] - '0')));
     return object_of(r, "binary", keys, values, 3);
   }
-  if (length > 6 && memcmp(text, "bound ", 6) == 0) return one_field(r, "bound", "name", ident_of(r, text + 6, length - 6));
+  if (length > 6 && memcmp(text, "bound ", 6) == 0) return one_field(r, "bound", "name", string_of(r, text + 6, length - 6));
   for (i = 0; i < length; i++)
     if (text[i] == '.') {
       static const char *const keys[] = {"receiver", "member"};
       const sprout_node *values[2];
       values[0] = expression(r, text, i);
-      values[1] = ident_of(r, text + i + 1, length - i - 1);
+      values[1] = string_of(r, text + i + 1, length - i - 1);
       return object_of(r, "member", keys, values, 2);
     }
   return binding_of(r, text, length);
@@ -171,7 +167,7 @@ static const sprout_node *loop(reader *r) {
   word = r->at + 5;
   over = word;
   while (over < close && *over != ' ') over++;
-  values[0] = ident_of(r, word, (size_t)(over - word));
+  values[0] = string_of(r, word, (size_t)(over - word));
   of = (size_t)(close - over) > 4 && memcmp(over, " of ", 4) == 0;
   values[1] = sprout_build_null(&r->builder);
   values[2] = string_of(r, of ? "of" : "in", 2);

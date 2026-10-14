@@ -78,8 +78,25 @@ describe('the table', () => {
     expect(word(bytes, 4 + 1 * 4)).toBe(7); // entries
     expect(word(bytes, 4 + 0 * 4)).toBe(7 + 16); // nodes
     expect(word(bytes, 4 + 8 * 4)).toBe(2); // doubles: 2^40 and 0.5
-    expect(word(bytes, 4 + 9 * 4)).toBe(2); // places
-    expect(word(bytes, 4 + 10 * 4)).toBe(3); // shapes: {kind,next,at}, {kind,value,at,big,half,negative} (written twice), {}
+    expect(word(bytes, 4 + 9 * 4)).toBe(3); // shapes: {kind,next,at}, {kind,value,at,big,half,negative} (written twice), {}
+  });
+
+  it('holds a place in its node: the file as its shape, the line as its first word, the column as its count', () => {
+    const bytes = writeTable(tables([], [], [{ a: [{ p: [0, 3, 4] }, { p: [-1, 0, 0] }] }]));
+    const view = new DataView(bytes.buffer, bytes.byteOffset);
+    const node = (i: number) => 48 + i * 12;
+    const places = [1, 2].map(node).filter((at) => view.getUint8(at) === 4);
+    expect(
+      places.map((at) => [
+        view.getUint16(at + 2, true),
+        view.getUint32(at + 8, true),
+        view.getUint32(at + 4, true),
+      ]),
+    ).toEqual([
+      [0, 3, 4],
+      [0xffff, 0, 0],
+    ]);
+    expect(readTable(bytes).rest).toEqual([{ a: [{ p: [0, 3, 4] }, { p: [-1, 0, 0] }] }]);
   });
 
   it('is eight-aligned in every section and starts with the counts', () => {
@@ -106,7 +123,7 @@ describe('the table', () => {
   });
 
   it('refuses, in words, bytes that are not a table', () => {
-    expect(refusal(() => readTable(new Uint8Array(8)))).toBe('it does not begin with `TBL3`');
+    expect(refusal(() => readTable(new Uint8Array(8)))).toBe('it does not begin with `TBL4`');
     const bytes = writeTable(sample);
     const short = bytes.subarray(0, bytes.length - 16);
     expect(refusal(() => readTable(short))).toBe('it ends before its sections do');
@@ -114,7 +131,7 @@ describe('the table', () => {
     new DataView(counts.buffer).setUint32(4 + 1 * 4, 1, true); // one entry, but the runs say six
     expect(refusal(() => readTable(counts))).toBe('its counts do not agree');
     const child = Uint8Array.from(bytes);
-    const children = 4 + 11 * 4 + Math.ceil((word(bytes, 4) * 12) / 8) * 8;
+    const children = 48 + Math.ceil((word(bytes, 4) * 12) / 8) * 8;
     new DataView(child.buffer).setUint32(children, 9999, true);
     expect(refusal(() => readTable(child))).toBe('it refers to a node it does not hold');
   });

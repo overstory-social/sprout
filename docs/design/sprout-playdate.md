@@ -87,8 +87,11 @@ the layout is hole 462.
   (`bundle/cartridge-table.ts`, `runtime-c/src/table.h`): the three runs of
   entries (passages; statements and expressions; everything else) as
   twelve-byte nodes, one pool of child indexes, one run of strings, the
-  doubles, the places and the shapes objects share, with one node per
-  distinct scalar after the entries. The runtime inflates the body into one
+  doubles and the shapes objects share, with one node per distinct scalar
+  after the entries, a place among them holding its file, line and column.
+  An identifier is written as its text and an object path as its steps
+  joined by dots; only a name the name table binds stays an entry, with no
+  place (`bundle/cartridge-names.ts`). The runtime inflates the body into one
   block and reads the table where it lies, so a shared object is one node
   and nothing is built from it. The preamble's cells refer to entries by
   index.

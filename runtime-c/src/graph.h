@@ -81,17 +81,20 @@ static inline double sprout_node_number(const sprout_graph *graph, const sprout_
 
 static inline bool sprout_truth(const sprout_node *node) { return (node->flags & SPROUT_TABLE_TRUE) != 0; }
 
-/* A place's file (-1 where none was kept), line and column. */
+/* A place's file (-1 where none was kept), line and column, which its node holds. */
 static inline int sprout_place_file(const sprout_graph *graph, const sprout_node *place) {
-  return graph->table.places[place->first].file;
+  (void)graph;
+  return place->shape == SPROUT_TABLE_NO_FILE ? -1 : (int)place->shape;
 }
 
 static inline long sprout_place_line(const sprout_graph *graph, const sprout_node *place) {
-  return graph->table.places[place->first].line;
+  (void)graph;
+  return (long)place->first;
 }
 
 static inline unsigned sprout_place_column(const sprout_graph *graph, const sprout_node *place) {
-  return graph->table.places[place->first].column;
+  (void)graph;
+  return (unsigned)place->count;
 }
 
 /* `file:line:column` of a place, in `arena`; `?` where the cartridge kept none, and NULL where the host refuses a page. */
@@ -130,6 +133,16 @@ bool sprout_node_is(const sprout_graph *graph, const sprout_node *node, const ch
 
 /* A string field of an object as a C string, or NULL when absent or not a string. */
 const char *sprout_node_text(const sprout_graph *graph, const sprout_node *object, const char *key);
+
+/*
+ * A name as the cartridge writes one (an identifier, or an object path's steps
+ * joined by dots): a string, or, where the name table binds it, an entry whose
+ * `text` field is the name. NULL for anything else.
+ */
+const char *sprout_name(const sprout_graph *graph, const sprout_node *node);
+
+/* An object's field read as a name (sprout_name), or NULL. */
+const char *sprout_node_name(const sprout_graph *graph, const sprout_node *object, const char *key);
 
 /*
  * ---- graph_build.c: nodes made at run time ----

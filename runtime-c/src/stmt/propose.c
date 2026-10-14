@@ -33,10 +33,10 @@ sprout_eval_status stmt_act(sprout_run *run, const sprout_frame *frame, const sp
   filled = (sprout_pending_role *)sprout_arena_take(frame->turn, (count + 1) * sizeof *filled);
   if (filled == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {
-    filled[i].role = expr_ident(frame->graph, sprout_item(frame->graph, roles, i), "role");
+    filled[i].role = sprout_node_name(frame->graph, sprout_item(frame->graph, roles, i), "role");
     EXPR_NEED(stmt_evaluated_at(frame, sprout_node_get(frame->graph, sprout_item(frame->graph, roles, i), "filler"), &filled[i].filler));
   }
-  EXPR_NEED(run->x->reading(run->x, frame, frame->self, expr_ident(frame->graph, statement, "verb"), count, filled, &end));
+  EXPR_NEED(run->x->reading(run->x, frame, frame->self, sprout_node_name(frame->graph, statement, "verb"), count, filled, &end));
   switch (end) {
     case SPROUT_READING_REFUSED:
       run->stopped = SPROUT_STOPPED_REFUSED;
