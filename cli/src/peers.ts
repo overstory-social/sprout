@@ -1,7 +1,6 @@
 import type { Readable, Writable } from 'node:stream';
 
 import type { Bundle } from '@overstory/sprout/lang';
-import type { EngineName } from '@overstory/sprout-player';
 import type { Io } from '@overstory/sprout-repl';
 
 // The commands the CLI hands to another package, loaded only when the
@@ -79,11 +78,10 @@ export async function serverStart(argv: readonly string[], io: Io): Promise<numb
   return server.main(argv, { stdout: io.stdout, stderr: io.stderr, stopped });
 }
 
-/** `sprout mcp <dir> [--http host:port] [--seed n] [--record file] [--turn-cap n] [--advance-per-turn 30s]`, over the world `bundle` on `engine`. */
+/** `sprout mcp <dir> [--http host:port] [--seed n] [--record file] [--turn-cap n] [--advance-per-turn 30s]`, over the world `bundle`. */
 export async function mcpServe(
   bundle: Bundle,
   flags: Readonly<Record<string, string | true>>,
-  engine: EngineName,
   io: Io,
 ): Promise<number> {
   const mcp = await peer(
@@ -98,7 +96,7 @@ export async function mcpServe(
     process.once('SIGTERM', resolve);
   });
   try {
-    return await mcp.serve(bundle, { ...mcp.sessionOptions(flags), engine }, mcp.listenAt(flags), {
+    return await mcp.serve(bundle, mcp.sessionOptions(flags), mcp.listenAt(flags), {
       stdin: (io.stdin ?? process.stdin) as Readable,
       stdout: io.stdout as Writable,
       stderr: io.stderr as Writable,

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // The server imports the language and core, the player's folder reading,
-// the WebAssembly engine its `engine` config may name, the two packages
+// the WebAssembly engine every world runs on, the two packages
 // its design names, `ws` and `smol-toml`, zod and node:*, and nothing of
 // any client.
 

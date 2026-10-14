@@ -1,12 +1,18 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 
 import { PROTOCOL, ServerMessage } from '@overstory/sprout/core';
-import { engineBuilt, NOT_BUILT } from '@overstory/sprout-engine-wasm';
+import { NOT_BUILT } from '@overstory/sprout-engine-wasm';
 
-import type { ServerConfig } from './config.js';
 import { configFor, corpusWorld, keptLog, manualClock } from './fixtures/server.js';
 import { startServer, type RunningServer } from './server.js';
+
+/** Whether this spec's WebAssembly engine counts as built: as it is, where null. */
+const counts = vi.hoisted(() => ({ built: null as boolean | null }));
+vi.mock(import('@overstory/sprout-engine-wasm'), async (actual) => {
+  const real = await actual();
+  return { ...real, engineBuilt: () => counts.built ?? real.engineBuilt() };
+});
 
 type Message = ServerMessage;
 type Of<T extends Message['t']> = Extract<Message, { t: T }>;
@@ -73,9 +79,9 @@ afterEach(async () => {
 const TOKEN_MARTA = 'marta-token-0123456789';
 const TOKEN_INES = 'ines-token-0123456789';
 
-async function serve(engine: ServerConfig['engine'] = 'ts') {
+async function serve() {
   running = await startServer({
-    config: { ...configFor(corpusWorld('sequences')), engine },
+    config: configFor(corpusWorld('sequences')),
     log: keptLog(),
     clock: manualClock(),
     seed: () => 7,
@@ -94,9 +100,9 @@ async function admitted(port: number, token: string, nickname: string): Promise<
   return client;
 }
 
-/** A client welcomed, admitted and running what it types, on the server serving `sequences` on `engine`. */
-async function welcomesAndRuns(engine: ServerConfig['engine']): Promise<void> {
-  const { port } = await serve(engine);
+/** A client welcomed, admitted and running what it types, on the server serving `sequences`. */
+async function welcomesAndRuns(): Promise<void> {
+  const { port } = await serve();
   const marta = await Client.open(port);
   marta.send({ t: 'hello', protocol: PROTOCOL, client: 'spec', token: TOKEN_MARTA, renders: [] });
   expect(await marta.take('welcome')).toEqual({
@@ -140,19 +146,16 @@ async function welcomesAndRuns(engine: ServerConfig['engine']): Promise<void> {
 
 describe('the server, over a real socket', () => {
   it('welcomes a client with the worlds it serves, admits it, and runs what it types', () =>
-    welcomesAndRuns('ts'));
+    welcomesAndRuns());
 
-  it.skipIf(!engineBuilt())(
-    `does the same on the \`wasm\` engine${engineBuilt() ? '' : ` (skipped: ${NOT_BUILT})`}`,
-    () => welcomesAndRuns('wasm'),
-  );
-
-  it.runIf(!engineBuilt())(
-    'refuses to start on the `wasm` engine without it, in words naming the package and the toolchain',
-    async () => {
-      await expect(serve('wasm')).rejects.toThrow(NOT_BUILT);
-    },
-  );
+  it('refuses to start without the WebAssembly engine, in words naming the package and the toolchain', async () => {
+    counts.built = false;
+    try {
+      await expect(serve()).rejects.toThrow(NOT_BUILT);
+    } finally {
+      counts.built = null;
+    }
+  });
 
   it('tells everyone in the world what reaches them, and carries chat to those standing together', async () => {
     const { port } = await serve();

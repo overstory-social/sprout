@@ -51,8 +51,8 @@ export interface RunningServer {
 /** Start the server: its worlds published, its socket listening, its clock running. */
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const { config, log } = options;
-  // A server told to run the WebAssembly engine without one does not start at all.
-  if (config.engine === 'wasm' && !engineBuilt()) throw new Error(NOT_BUILT);
+  // A server without the WebAssembly engine has nothing to run a world on, and does not start at all.
+  if (!engineBuilt()) throw new Error(NOT_BUILT);
   const clock = options.clock ?? REAL_CLOCK;
   const store = options.store ?? memoryStore({ keepLog: config.keepLog });
   const worlds = new Map<string, WorldRun>();

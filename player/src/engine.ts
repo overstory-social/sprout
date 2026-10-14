@@ -13,14 +13,13 @@ import { tsEngine, type Engine } from '@overstory/sprout/core';
 import { engineBuilt, NOT_BUILT, wasmEngine } from '@overstory/sprout-engine-wasm';
 
 // The engine the player and the inspectors run a world on, through core's
-// `Engine` (the spec's The runtime; The host contract): the TypeScript
-// runtime, or the C runtime built for WebAssembly. The caller names one; a
-// tool that names none runs the WebAssembly engine where its module is
-// built, and otherwise the TypeScript one, and says so in one line.
+// `Engine` (the spec's The runtime; The host contract). A tool runs the C
+// runtime built for WebAssembly (`toolEngine`), and refuses in words where
+// its module is not built; the TypeScript runtime is named only by the
+// specs that compare the two.
 
-/** The engines a tool may name. */
-export const ENGINES = ['ts', 'wasm'] as const;
-export type EngineName = (typeof ENGINES)[number];
+/** The engines a world may run on: the tools' own, and the TypeScript one the specs compare it with. */
+export type EngineName = 'ts' | 'wasm';
 
 /** A world loaded from its cartridge: the catalogue a host reads, and the bytes an engine opens. */
 export interface Cartridge {
@@ -36,29 +35,10 @@ export function catalogueFor(world: PlayableWorld): Catalogue {
   return 'cartridge' in world ? world.catalogue : catalogueOf(world, DEFAULT_LIMITS.caps);
 }
 
-/** The engine a tool runs, and the line it says of why, where it was not the one asked for or the default. */
-export interface ChosenEngine {
-  readonly name: EngineName;
-  readonly note: string | null;
-}
-
-/**
- * The engine `asked` names; where it names none, the WebAssembly engine
- * where it is built, else the TypeScript one, with a note saying why.
- * Thrown, in words, where `asked` is no engine or names the WebAssembly
- * engine and it is not built.
- */
-export function chooseEngine(asked?: string): ChosenEngine {
-  if (asked === undefined) {
-    return engineBuilt()
-      ? { name: 'wasm', note: null }
-      : { name: 'ts', note: `running on the TypeScript engine: ${NOT_BUILT}` };
-  }
-  if (!(ENGINES as readonly string[]).includes(asked)) {
-    throw new Error(`--engine wants ts or wasm: --engine ts`);
-  }
-  if (asked === 'wasm' && !engineBuilt()) throw new Error(NOT_BUILT);
-  return { name: asked as EngineName, note: null };
+/** The engine every tool runs a world on: the WebAssembly one, thrown in words where it is not built. */
+export function toolEngine(): EngineName {
+  if (!engineBuilt()) throw new Error(NOT_BUILT);
+  return 'wasm';
 }
 
 /** A host for `world` under the host's default budgets less any `budgets` given, its parser `parse`. */

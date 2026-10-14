@@ -13,7 +13,6 @@ import {
 } from '@overstory/sprout/lang';
 import {
   catalogueFor,
-  chooseEngine,
   filledIn,
   INSTALLED_EXTENSIONS,
   playSteps,
@@ -22,9 +21,9 @@ import {
   runTests,
   standIn,
   testFiles,
+  toolEngine,
   writeReport,
   writeScript,
-  type EngineName,
   type PlayableWorld,
   type PlayedRun,
   type StandOptions,
@@ -43,9 +42,9 @@ import { inspectReadings, inspectScene, inspectView } from './view.js';
 // `client`, `server` and `mcp`, handed to the terminal client, the server
 // and the MCP host where they are installed. `mcp` says a refused world's
 // page on stderr, since its stdout may be the protocol's. `parse` with a
-// line, `view`, `play`, `test` and `mcp` run the world on the engine `--engine` names, and, where
-// it names none, on the WebAssembly engine where it is built; where it is
-// not, they say so on stderr and run the TypeScript one.
+// line, `view`, `play`, `test` and `mcp` run the world on the C engine
+// built for WebAssembly, and refuse in words where it is not built; each
+// of them refuses a flag it does not take, naming the ones it does.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
 // `--json`, `--debug`, `--write`, `--plain`, `--watch` and `--scene` are always alone. The first bare word
 // is the command, the next the path. Every command but `play` with no
@@ -60,40 +59,36 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       runtime loads in place of the source; without -o, <name>.sproutworld;
                                       the image files it names are copied into <file>.assets/
   sprout parse [dir]                  every phrase the world accepts
-  sprout parse dir "line" [--at place] [--as name] [--engine ts|wasm]
+  sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
-  sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--engine ts|wasm]
+  sprout view [dir] [--at place] [--as name] [--scene | --verb name]
                                       what a visitor standing there is shown and could type; --scene the
                                       scene, which lists the verbs in place of the readings; --verb one
                                       verb's readings, by its qualified name (sprout.take)
-  sprout play dir script.json [--write] [--report file.json] [--engine ts|wasm]
+  sprout play dir script.json [--write] [--report file.json]
                                       (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
                                       --write saves that over the script; --report writes what it reached, what
                                       was misread or faulted, and the prose it never showed, as JSON
-  sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json] [--engine ts|wasm]
+  sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json]
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
                                       the host's; every turn draws from a seed of its own, from a stream begun
                                       at --seed or, without it, the clock; --record writes the session as a
                                       script, the seed of each turn kept, so it plays back as it played
-  sprout test [dir] [script ...] [--report file.json] [--engine ts|wasm]
+  sprout test [dir] [script ...] [--report file.json]
                                       (dir may be a .sproutworld; name its scripts)
                                       run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
-                                      parse, view, play, test and mcp run the world on the TypeScript engine (ts)
-                                      or the C engine built for WebAssembly (wasm): wasm where it is built, and
-                                      ts, said on stderr, where it is not, unless --engine names one
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]
                                       play on a server as one visitor, in the terminal client; --plain for
                                       lines in and out; needs @overstory/sprout-tui installed
   sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
-                 [--engine ts|wasm]
                                       serve the world to an agent as a visitor and only as a visitor, over MCP:
                                       tools to arrive, say a line and leave, answered with the prose that visitor
                                       reads; stdio for one visitor, --http for several in one world; --record
@@ -200,13 +195,24 @@ function writeReached(world: PlayableWorld, runs: readonly PlayedRun[], file: st
   writeFileSync(file, writeReport(reportOf(world, runs)));
 }
 
-/** The engine `--engine` names, or the default, its note said on `io`'s stderr where there is one. */
-function engineOf(flags: Parsed['flags'], io: Io): EngineName {
-  const asked = flags['engine'];
-  if (asked === true) throw new Error('--engine wants ts or wasm after it: --engine ts');
-  const chosen = chooseEngine(asked);
-  if (chosen.note !== null) io.stderr.write(`sprout: ${chosen.note}\n`);
-  return chosen.name;
+/** The flags each command that runs a world takes; any other is refused. */
+const TAKES: Readonly<Record<string, readonly string[]>> = {
+  parse: ['at', 'as'],
+  view: ['at', 'as', 'scene', 'verb'],
+  play: ['write', 'report', 'at', 'as', 'seed', 'debug', 'record'],
+  test: ['report'],
+  mcp: ['http', 'seed', 'record', 'turn-cap', 'advance-per-turn'],
+};
+
+/** Thrown, in words naming the flags `command` takes, where `flags` holds one it does not. */
+function onlyFlagsOf(command: string, flags: Parsed['flags']): void {
+  const takes = TAKES[command]!;
+  const stray = Object.keys(flags).find((flag) => !takes.includes(flag));
+  if (stray === undefined) return;
+  const named = takes.map((flag) => `--${flag}`);
+  const list =
+    named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
+  throw new Error(`${command} takes no --${stray}; it takes ${list}.`);
 }
 
 /** Where `--at` stands the visitor, and the nickname `--as` gives them. */
@@ -267,6 +273,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         return 0;
       }
       case 'parse': {
+        onlyFlagsOf('parse', flags);
         const [dir = '.', line] = positional;
         const checked = compiled(dir, say);
         if (checked === null) return 1;
@@ -274,11 +281,12 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           say(formatGrammar(catalogueFor(checked)));
           return 0;
         }
-        const parsed = parseLine(line, standIn(checked, engineOf(flags, io), standing(flags)));
+        const parsed = parseLine(line, standIn(checked, toolEngine(), standing(flags)));
         say(parsed.page);
         return parsed.ok ? 0 : 1;
       }
       case 'view': {
+        onlyFlagsOf('view', flags);
         const checked = compiled(positional[0] ?? '.', say);
         if (checked === null) return 1;
         const verb = flags['verb'];
@@ -288,7 +296,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           );
         if (verb !== undefined && flags['scene'] !== undefined)
           throw new Error('Write one of --scene and --verb: each prints a poll of its own.');
-        const stood = standIn(checked, engineOf(flags, io), standing(flags));
+        const stood = standIn(checked, toolEngine(), standing(flags));
         const inspected =
           verb !== undefined
             ? inspectReadings(stood, verb)
@@ -299,6 +307,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         return inspected.ok ? 0 : 1;
       }
       case 'play': {
+        onlyFlagsOf('play', flags);
         const [dir = '.', script] = positional;
         const checked = playable(dir, say);
         if (checked === null) return 1;
@@ -318,7 +327,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
             checked,
             {
               ...standing(flags),
-              engine: engineOf(flags, io),
+              engine: toolEngine(),
               debug,
               seed: sessionSeed(flags),
               ...(record === undefined ? {} : { record }),
@@ -333,7 +342,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         }
         const name = basename(script);
         const read = readScript(readFileSync(script, 'utf8'), name);
-        const steps = playSteps(checked, read, name, engineOf(flags, io));
+        const steps = playSteps(checked, read, name, toolEngine());
         const played = writeScript(filledIn(read, steps));
         if (report !== null) writeReached(checked, [{ name, played: steps }], report);
         if (flags['write'] !== undefined) {
@@ -344,6 +353,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         return 0;
       }
       case 'test': {
+        onlyFlagsOf('test', flags);
         const [dir = '.', ...named] = positional;
         const checked = playable(dir, say);
         if (checked === null) return 1;
@@ -353,7 +363,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           );
         }
         const report = reportFile(flags);
-        const tested = runTests(checked, testFiles(dir, named), engineOf(flags, io));
+        const tested = runTests(checked, testFiles(dir, named), toolEngine());
         say(tested.page);
         if (report !== null) {
           writeReached(checked, tested.runs, report);
@@ -369,9 +379,10 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
       case 'server':
         return serverStart(argv.slice(1), io);
       case 'mcp': {
+        onlyFlagsOf('mcp', flags);
         const checked = compiled(positional[0] ?? '.', (text) => io.stderr.write(text));
         if (checked === null) return 1;
-        return mcpServe(checked, flags, engineOf(flags, io), io);
+        return mcpServe(checked, flags, io);
       }
       default:
         io.stderr.write(`sprout: no such command "${command}"\n\n${USAGE}`);

@@ -5,18 +5,13 @@
 // corpus/skill/SKILL.md, so a change to any table the skill is generated
 // from shows as a diff of it. A good world with a `view.txt` also prints
 // exactly that page from `sprout view`, so what a visitor is offered and
-// what fills each role cannot drift; `sprout view` runs on one engine
-// (`corpus-engine.mjs`), and `--engine ts|wasm` names it. `--write`
-// regenerates the expected pages and the skill; review the diff like any
+// what fills each role cannot drift. `--write` regenerates the expected pages and the skill; review the diff like any
 // other change.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { corpusEngine } from './corpus-engine.mjs';
-
 const write = process.argv.includes('--write');
-const engine = corpusEngine(process.argv);
 const cli = join('cli', 'bin', 'sprout.js');
 const check = (dir) => {
   try {
@@ -57,7 +52,7 @@ for (const dir of dirs('corpus/good')) {
   if (!existsSync(viewFile)) continue;
   let out;
   try {
-    out = execFileSync('node', [cli, 'view', dir, '--engine', engine], { encoding: 'utf8' });
+    out = execFileSync('node', [cli, 'view', dir], { encoding: 'utf8' });
   } catch (err) {
     failed++;
     console.error(
@@ -73,7 +68,7 @@ for (const dir of dirs('corpus/good')) {
     console.error(
       `✗ ${viewFile}: \`sprout view\` prints something else; run with --write and read the diff`,
     );
-  } else console.log(`✓ ${viewFile} is what \`sprout view\` prints on the ${engine} engine`);
+  } else console.log(`✓ ${viewFile} is what \`sprout view\` prints`);
 }
 for (const dir of dirs('corpus/bad')) {
   const { code, out } = check(dir);
@@ -110,5 +105,5 @@ if (failed > 0) {
   process.exit(1);
 }
 console.log(
-  `✓ corpus: every good world passes, every bad one fails as expected, every view is current on the ${engine} engine, and the skill is current`,
+  `✓ corpus: every good world passes, every bad one fails as expected, every view is current, and the skill is current`,
 );
