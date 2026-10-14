@@ -81,7 +81,7 @@ editors/language-server  the language server: the whole world checked as it is e
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm` from the modules of `engine/`, one world per instance driven from JavaScript (`@overstory/sprout-engine-wasm`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
 sprout-player/    the Playdate app, pure C over the C runtime: the session, the host adapter (`src/host`) and the screens (`src/ui`: shelf, reader, crank sentence builder, nickname picker, pictures, downloads); built by CMake against the Playdate SDK, with C tests over a fake `PlaydateAPI`
-scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the corpus replay, the view comparison, the WebAssembly engine, the player), `fuzz-runtime.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
+scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the WebAssembly engine against the goldens, the player), `write-goldens.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
@@ -117,26 +117,21 @@ WSL2); without `setarch` it prints the remedy, `setarch -R npm run e2e`.
 ```sh
 sprout pack corpus/good/chip-tree -o chip-tree.sproutworld   # compile strictly, write the cartridge (and <cartridge>.assets/)
 sprout play chip-tree.sproutworld                            # play, test and view take a cartridge where they take a folder
-npm run build && node scripts/check-runtime-c.mjs            # build runtime-c/, run ctest, replay every transcript, compare every view and every parse
-node scripts/fuzz-runtime.mjs --corpus --readings 2000       # the C runtime against the TypeScript one over generated plays
-node --expose-gc scripts/profile-runtime.mjs <world>         # the TypeScript runtime's heap over a long play
-node --expose-gc scripts/profile-store.mjs <world>           # a world served as the server serves it: turns, views, the log
+npm run build && node scripts/check-runtime-c.mjs            # build runtime-c/, run ctest, play the corpus on the WebAssembly engine against the goldens
+node scripts/write-goldens.mjs <golden>                      # rewrite one file under corpus/goldens on purpose, and print its diff
 node scripts/profile-runtime-c.mjs <world>                   # the C runtime's bytes held and peak per step over a long play
-node --expose-gc scripts/profile-wasm.mjs <engine.wasm> <world>  # the same workload as profile-store, through the C runtime built for WebAssembly
+node --expose-gc scripts/profile-wasm.mjs <engine.wasm> <world>  # a world served as a server serves it, many visitors, through the C runtime built for WebAssembly
 sh runtime-c/wasm/build.sh                                   # build engine.wasm (and, given WASI_SYSROOT, sproutc.wasm) into runtime-c/wasm/out
 ```
 
 `sproutc` is the C runtime's desktop host, built under `${TMPDIR}/sprout-runtime-c-<hash>/`:
-`sproutc play <cartridge> [--state f] [--script s] [--offered] [--poll-steps n] [--profile f]` (reads each typed line
-as the command turns it runs; with `--offered` the view is polled before each command turn and must offer the reading
-the TypeScript runtime ran, as the Playdate's sentence builder needs; `--profile` writes each step's bytes held and
-peak),
+`sproutc play <cartridge> [--state f] [--script s] [--trace f] [--offered] [--poll-steps n] [--profile f]` (plays a
+script, reading each typed line as the command turns it runs; `--trace` writes what each step told readers; with
+`--offered` the view is polled before each command turn and must offer the reading the runtime reads the turn as, as
+the Playdate's sentence builder needs; `--profile` writes each step's bytes held and peak),
 `sproutc view <cartridge> --state f [--visit k] [--poll-steps n] [--json | --scene | --verb name]` (`--scene` prints the
 scene, which lists the verbs in place of the readings, and `--verb` one verb's readings, by its qualified name, as
 `sprout view --scene` and `--verb` do),
-`sproutc parse <cartridge> --readings f [--each]` (reads every line the readings file says the TypeScript parser
-read, over the stored world its turn began from and under its seed, and compares the two, printing the first
-difference and how many turns agree; `--each` prints every turn's verdict)
 and `sproutc eval`. [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md) is the
 design; [`docs/design/sprout-test-harness.md`](docs/design/sprout-test-harness.md) says what each
 check holds the C runtime to.

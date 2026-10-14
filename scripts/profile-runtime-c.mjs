@@ -1,6 +1,6 @@
-// Profiles the C runtime over a long play of one world, as the console plays it: one visitor, every step a
-// reading the TypeScript runtime resolved, played through `sproutc play --profile`, which writes the bytes the
-// runtime holds after each step and the most it held during it. The play is a script, played over and over,
+// Profiles the C runtime over a long play of one world, as the console plays it: one visitor, played through
+// `sproutc play --profile`, which writes the bytes the runtime holds after each step and the most it held
+// during it. The play is a script, played over and over,
 // or a random one built a step at a time from what the visitor's view offers, with ticks, time moving on, the
 // visitor leaving and coming back. A held figure that keeps climbing while the world does not is a leak.
 //
@@ -15,18 +15,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import {
-  freshStage,
-  isPresent,
-  playStep,
-  readScript,
-  resolveScript,
-  writeReadings,
-  writeScript,
-} from '@overstory/sprout-player';
+import { emitCartridge } from '@overstory/sprout/lang';
+import { checkWorld, formatCheck } from '@overstory/sprout-cli';
+import { freshStage, isPresent, playStep, readScript, writeScript } from '@overstory/sprout-player';
 
-import { packWorld } from './replay-runtime-c.mjs';
-import { playableWorld } from './resolve-script.mjs';
 import { runtimeCBuild } from './runtime-c-build.mjs';
 
 const VISITOR = 'Marta';
@@ -75,7 +67,7 @@ function nextStep(stage, random) {
 /** A random play of `steps` steps over `playable`, as a script. */
 function randomScript(playable, steps, seed) {
   const random = generator(seed);
-  const stage = freshStage(playable, 'ts');
+  const stage = freshStage(playable, 'wasm');
   const made = [{ seed: random.below(4294967296) }, { arrive: VISITOR }];
   for (const step of made) playStep(stage, step, 'profile');
   for (let i = 0; i < steps; i++) {
@@ -98,7 +90,12 @@ function main() {
   const sproutc = flags.sproutc ?? join(runtimeCBuild, 'sproutc');
   const scratch = flags.keep ?? mkdtempSync(join(tmpdir(), 'sprout-profile-'));
   try {
-    const playable = playableWorld(world);
+    const checked = checkWorld(world);
+    if (checked.bundle === null) {
+      console.error(formatCheck(checked));
+      return 1;
+    }
+    const playable = checked.bundle;
     const script =
       flags.script === undefined
         ? randomScript(playable, Number(flags.steps), Number(flags.seed))
@@ -106,10 +103,8 @@ function main() {
     const cartridge = join(scratch, 'world.sproutworld');
     const scriptFile = join(scratch, 'play.json');
     const profile = join(scratch, 'profile.jsonl');
-    packWorld(world, cartridge);
+    writeFileSync(cartridge, emitCartridge(playable));
     writeFileSync(scriptFile, writeScript(script));
-    const readings = resolveScript(playable, script, scriptFile, {}, { worlds: false });
-    writeFileSync(join(scratch, 'play.readings.json'), writeReadings(readings));
     const ran = spawnSync(
       sproutc,
       ['play', cartridge, '--script', scriptFile, '--profile', profile],

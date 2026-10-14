@@ -14,6 +14,7 @@ import {
   readGraduated,
   stageWorlds,
   TEST_PUBLIC_KEY,
+  unmetExpectation,
   WORLDS_FILE,
   readPublicKey,
 } from './playdate-player.mjs';
@@ -208,4 +209,65 @@ test('a public key file that is not a key is refused', () => {
       /should hold the public key as 64 lowercase hexadecimal digits/,
     );
   }
+});
+
+test("a play's expectations are held to the lines sproutc's trace says each step told, as `sprout test` holds them", () => {
+  const trace = [
+    { step: 0, says: [{ reader: 'Ines', kind: 'described', words: 'A cave.' }] },
+    {
+      step: 2,
+      says: [
+        { reader: 'Ines', kind: 'said', words: 'You take the lamp.' },
+        { reader: 'Marta', kind: 'told', words: 'Ines takes the lamp.' },
+      ],
+    },
+    { step: 3, says: [] },
+  ]
+    .map((one) => JSON.stringify(one))
+    .join('\n');
+  const script = (expects) => ({
+    steps: [
+      { arrive: 'Ines', expect: expects[0] },
+      { comment: 'then' },
+      { as: 'Ines', type: 'take lamp', expect: expects[1] },
+      { tick: true, expect: expects[2] },
+    ],
+  });
+  const met = script([
+    [{ words: 'A cave.' }],
+    [
+      { words: 'You take the lamp.' },
+      { reader: 'Marta', kind: 'told', words: 'Ines takes the lamp.' },
+      { level: 'info', text: 'a host line, which sproutc does not write' },
+    ],
+    [],
+  ]);
+  assert.equal(unmetExpectation(met, trace), null);
+  const outOfOrder = script([
+    undefined,
+    [{ words: 'Ines takes the lamp.' }, { words: 'You take the lamp.' }],
+    undefined,
+  ]);
+  assert.match(
+    unmetExpectation(outOfOrder, trace),
+    /^step 3 expects You take the lamp\., and said\n/,
+  );
+  const wrongReader = script([
+    [{ reader: 'Marta', kind: 'described', words: 'A cave.' }],
+    undefined,
+    undefined,
+  ]);
+  assert.match(
+    unmetExpectation(wrongReader, trace),
+    /^step 1 expects Marta \(described\): A cave\./,
+  );
+  const silence = script([undefined, [], undefined]);
+  assert.match(
+    unmetExpectation(silence, trace),
+    /^step 3 expects silence and said\nInes \(said\): You take the lamp\./,
+  );
+  assert.match(
+    unmetExpectation(script([undefined, undefined, [{ words: 'x' }]]), ''),
+    /^step 4 did not play$/,
+  );
 });

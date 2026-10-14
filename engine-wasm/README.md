@@ -45,14 +45,13 @@ Every entry is made at debug depth, and core keeps it at the host's.
 ## What it passes
 
 - Core's engine conformance suite (`@overstory/sprout/engine-conformance`):
-  every case the TypeScript engine passes — commands, lines and intents,
-  ticks, wakes, catch-up, arrival, departure, nicknames, the log, the
-  view in whole and in parts with the cache, rounds of ticks, and the
-  host's questions.
-- The corpus differential (`src/differential.spec.ts`): every script of
-  every `corpus/good` world, played through core over both engines, gives
-  the same turns, log, stored world, polls and questions after every
-  step.
+  commands, lines and intents, ticks, wakes, catch-up, arrival,
+  departure, nicknames, the log and its replay, the view in whole and in
+  parts with the cache, rounds of ticks, and the host's questions.
+- The frozen goldens (`runtime-c/wasm/engine.test.mjs`, in the gate's C
+  step): every corpus world opens empty to the state
+  `corpus/goldens/stored-worlds.json` holds, and every transcript plays
+  as it expects, its stored world after each pinned step the golden's.
 
 Nothing is listed as failing. What it does not do, by design:
 

@@ -7,16 +7,11 @@ import { describe, expect, it } from 'vitest';
 // The WebAssembly engine imports the language, core, zod and node:* —
 // never runtime-c's sources, which reach it only as the engine.wasm its
 // build copies in, and never a host or a client. Its specs may also
-// import the engine conformance suite, the player (to read the corpus)
-// and vitest.
+// import the engine conformance suite and vitest.
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const ALLOWED = ['@overstory/sprout/lang', '@overstory/sprout/core', 'zod'];
-const ALLOWED_IN_SPECS = [
-  'vitest',
-  '@overstory/sprout/engine-conformance',
-  '@overstory/sprout-player',
-];
+const ALLOWED_IN_SPECS = ['vitest', '@overstory/sprout/engine-conformance'];
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
@@ -35,8 +30,7 @@ describe('@overstory/sprout-engine-wasm imports the language, core, zod and node
     it(relative(SRC, file), () => {
       const text = readFileSync(file, 'utf8');
       const specifiers = [...text.matchAll(/(?:from|import)\s+'([^']+)'/g)].map((m) => m[1]!);
-      const support = file.endsWith('.spec.ts') || relative(SRC, file).startsWith('fixtures');
-      const allowed = support ? [...ALLOWED, ...ALLOWED_IN_SPECS] : ALLOWED;
+      const allowed = file.endsWith('.spec.ts') ? [...ALLOWED, ...ALLOWED_IN_SPECS] : ALLOWED;
       const foreign = specifiers.filter(
         (s) =>
           !(s.startsWith('./') || s.startsWith('../')) &&

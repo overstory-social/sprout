@@ -470,7 +470,7 @@ sprout_status sprout_acted(sprout_world *world, sprout_state *state, const sprou
  * Reading a typed line (the spec's Parsing; The runtime > Turns): what the words a visitor typed make, read as
  * the command turn they begin reads them, over the committed state, under that turn's step budget and with
  * the stream begun from the seed the host draws for it (`seed`), and nothing written. A host previews a line
- * with it, and the harness compares it with the TypeScript parser line by line. A runtime built without the
+ * with it, as `sprout parse` does, and `sproutc play --offered` looks for what it reads in the view. A runtime built without the
  * parser (CMake's SPROUT_PARSER, which the Playdate leaves off) reads no typed line: every call is
  * SPROUT_BAD_INPUT.
  */

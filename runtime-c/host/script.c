@@ -5,12 +5,10 @@
 #include <string.h>
 
 #include "json.h"
-#include "logged.h"
-#include "reading_json.h"
 #include "seeds.h"
 #include "state.h"
 
-/* What a step has told so far: the lines readers read and the entries of the turns that ran, as JSON text. */
+/* What a step has told so far: the lines readers read, as JSON text. */
 typedef struct texts {
   const char **items;
   size_t count, capacity;
@@ -22,7 +20,7 @@ typedef struct play {
   sprout_state *state;
   FILE *out, *err;
   sprout_arena arena; /* what one step holds, reset when it ends */
-  texts says, turns;
+  texts says;
   uint64_t now;       /* seconds on the script's clock */
   int failure;        /* an exit code, once a call the host should not have made was refused */
   bool offered;       /* each command's reading is looked for in the view first */
@@ -49,14 +47,6 @@ static const char *push(play *p, texts *list, const char *text) {
 static sprout_json *jtext(play *p, const char *text, size_t length) { return sprout_json_text(&p->arena, text, length); }
 static sprout_json *jstr(play *p, const char *text) { return jtext(p, text, strlen(text)); }
 static sprout_json *jstr_of(play *p, sprout_str text) { return jtext(p, text.bytes, text.length); }
-
-static sprout_json *jnumber(play *p, double number) {
-  sprout_json *node = sprout_json_make(&p->arena, SPROUT_JSON_NUMBER, 0);
-  if (node != NULL) node->number = number;
-  return node;
-}
-
-static sprout_json *jnull(play *p) { return sprout_json_make(&p->arena, SPROUT_JSON_NULL, 0); }
 
 static const char *written(play *p, const sprout_json *node) {
   const char *bytes;
@@ -103,22 +93,6 @@ static const char *line_kind_name(sprout_line_kind kind) {
   return "";
 }
 
-static const char *outcome_name(sprout_turn_result result) {
-  switch (result) {
-    case SPROUT_RESULT_DONE:
-      return "done";
-    case SPROUT_RESULT_FAULTED:
-      return "faulted";
-    case SPROUT_RESULT_REFUSED:
-      return "refused";
-    case SPROUT_RESULT_CLOSED:
-      return "closed";
-    case SPROUT_RESULT_IDLE:
-      return "idle";
-  }
-  return "";
-}
-
 /* The visitor a visit key names, by the nickname they came in with. */
 static sprout_str nickname_of(play *p, const char *visit, size_t length) {
   sprout_str key;
@@ -127,91 +101,6 @@ static sprout_str nickname_of(play *p, const char *visit, size_t length) {
   key.length = length;
   record = sprout_state_find_visitor(p->state, key);
   return record == NULL ? key : record->nickname;
-}
-
-/* A fault as the trace keeps it, in the language's shape: its name, words, object, whether it is the engine's, and its extension. */
-static sprout_json *fault_json(play *p, const char *name, sprout_str detail, const sprout_fault_about *about) {
-  return sprout_logged_fault(&p->arena, name, detail, about, false);
-}
-
-/* A list of wakes as the entry names them. */
-static sprout_json *wakes_json(play *p, size_t count, const sprout_logged_wake *wakes, bool with_fault) {
-  sprout_json *list = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, count);
-  size_t i;
-  for (i = 0; list != NULL && i < count; i++) {
-    sprout_json *one = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 3);
-    if (one == NULL) return NULL;
-    sprout_json_adopt(one, "object", jstr_of(p, wakes[i].object));
-    sprout_json_adopt(one, "serial", jnumber(p, (double)wakes[i].serial));
-    if (with_fault) sprout_json_adopt(one, "fault", fault_json(p, wakes[i].fault_name, wakes[i].fault_detail, &wakes[i].fault_about));
-    sprout_json_adopt(list, NULL, one);
-  }
-  return list;
-}
-
-static sprout_json *ids_json(play *p, size_t count, const sprout_str *ids) {
-  sprout_json *list = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, count);
-  size_t i;
-  for (i = 0; list != NULL && i < count; i++) sprout_json_adopt(list, NULL, jstr_of(p, ids[i]));
-  return list;
-}
-
-/* What the turn changed of the stored state, read back from the state it left; null where it changed nothing. */
-static sprout_json *changes_json(play *p, const sprout_outcome *outcome) {
-  sprout_json *tree = NULL;
-  sprout_json_error error;
-  const char *bytes;
-  size_t length;
-  if (!outcome->has_changes) return jnull(p);
-  if (sprout_changes_write(p->state, &outcome->changes, &p->arena, &bytes, &length) != SPROUT_OK ||
-      sprout_json_read(&p->arena, bytes, length, &tree, &error) != SPROUT_OK)
-    return NULL;
-  return tree;
-}
-
-/*
- * The entry the log keeps of a turn that ran, in the shape the TypeScript player records (player/src/readings.ts),
- * with what a host is given beside it: whose views it made stale and what the store writes; a command's words, the
- * step a line planned for it, the item it re-read and the draw its reading was; and the entry in the log's own form
- * at play depth.
- */
-static const char *record_of(play *p, const sprout_turn_input *input, const sprout_outcome *outcome) {
-  sprout_json *record = sprout_json_make(&p->arena, SPROUT_JSON_OBJECT, 18), *cuts, *logged = NULL;
-  const sprout_log_entry *log = &outcome->log;
-  size_t i;
-  (void)input;
-  if (record == NULL) return NULL;
-  sprout_json_adopt(record, "kind", jstr(p, kind_name(log->kind)));
-  sprout_json_adopt(record, "seed", jnumber(p, (double)log->seed));
-  sprout_json_adopt(record, "seconds", jnumber(p, (double)log->seconds));
-  sprout_json_adopt(record, "who", log->who.length == 0 ? jnull(p) : jstr_of(p, log->who));
-  sprout_json_adopt(record, "outcome", jstr(p, outcome_name(outcome->result)));
-  sprout_json_adopt(record, "fault", log->faulted ? fault_json(p, log->fault_name, log->fault_detail, &log->fault_about) : jnull(p));
-  sprout_json_adopt(record, "serial", jnumber(p, (double)log->serial));
-  if (log->kind == SPROUT_TURN_ARRIVAL) sprout_json_adopt(record, "nickname", jstr_of(p, log->nickname));
-  if (log->kind == SPROUT_TURN_WAKE) sprout_json_adopt(record, "wake", jnumber(p, (double)log->wake_serial));
-  cuts = sprout_json_make(&p->arena, SPROUT_JSON_ARRAY, outcome->cut_count);
-  if (cuts == NULL) return NULL;
-  for (i = 0; i < outcome->cut_count; i++) sprout_json_adopt(cuts, NULL, jstr_of(p, outcome->cuts[i].id));
-  sprout_json_adopt(record, "effects", sprout_logged_effects(&p->arena, outcome, false));
-  sprout_json_adopt(record, "cutShort", cuts);
-  sprout_json_adopt(record, "stale", outcome->committed ? ids_json(p, outcome->stale_count, outcome->stale) : jnull(p));
-  sprout_json_adopt(record, "changes", changes_json(p, outcome));
-  if (log->kind == SPROUT_TURN_COMMAND) {
-    sprout_json_adopt(record, "text", jstr_of(p, log->text));
-    sprout_json_adopt(record, "planned",
-                      log->planned == NULL ? jnull(p) : sprout_reading_tree(&p->arena, "verb", log->planned));
-    sprout_json_adopt(record, "reread", log->reread == NULL ? jnull(p) : sprout_reread_tree(&p->arena, log->reread));
-    sprout_json_adopt(record, "drawn", log->drawn_among == 0 ? jnull(p) : jnumber(p, (double)log->drawn_among));
-  }
-  if (sprout_logged_entry(&p->arena, &p->host->record, outcome, SPROUT_LOG_PLAY, &logged) != SPROUT_OK) return NULL;
-  sprout_json_adopt(record, "logged", logged);
-  if (log->kind == SPROUT_TURN_MAINTENANCE) {
-    sprout_json_adopt(record, "delivered", wakes_json(p, log->delivered_count, log->delivered, false));
-    sprout_json_adopt(record, "faulted", wakes_json(p, log->faulted_count, log->faulted_wakes, true));
-    sprout_json_adopt(record, "abandoned", wakes_json(p, log->abandoned_count, log->abandoned, false));
-  }
-  return written(p, record);
 }
 
 /* ---- one turn ---- */
@@ -234,7 +123,7 @@ static bool tell(play *p, const sprout_outcome *outcome) {
   return true;
 }
 
-/* Runs one turn of the runtime, tells what it said and notes its entry; false once the play cannot go on. */
+/* Runs one turn of the runtime and tells what it said; false once the play cannot go on. */
 static bool run(play *p, sprout_turn_input *input, uint64_t seed, sprout_outcome *outcome) {
   sprout_status status;
   input->instant = p->now;
@@ -247,13 +136,6 @@ static bool run(play *p, sprout_turn_input *input, uint64_t seed, sprout_outcome
     return false;
   }
   if (outcome->faulted) fprintf(p->out, "!! a %s turn faulted, %s: %s\n", kind_name(input->kind), outcome->fault_name, outcome->fault.text);
-  if (outcome->has_log) {
-    const char *record = record_of(p, input, outcome);
-    if (record == NULL || push(p, &p->turns, record) == NULL) {
-      p->failure = 1;
-      return false;
-    }
-  }
   return tell(p, outcome);
 }
 
@@ -500,28 +382,33 @@ static void offered(play *p, const char *visit, const sprout_reading *read, cons
   if (!found) p->unoffered++;
 }
 
-/* Before turn `t` of a command step, the view polled for the reading the TypeScript runtime ran on that turn, if one ran. */
-static bool offered_turn(play *p, const sproutc_step *step, size_t t, const char *visit) {
-  sproutc_turn_reading reading;
-  sprout_reading read;
-  sprout_filling *fillings;
-  size_t count;
-  const char *why;
-  if (t >= step->turns) return true;
-  why = sproutc_readings_turn(step, t, &reading);
-  if (why == NULL && reading.skip) return true;
-  if (why == NULL) why = sprout_fillings_of_tree(&p->arena, reading.fillers, &fillings, &count);
-  if (why != NULL) {
-    fprintf(p->err, "sproutc: %s\n", why);
+/*
+ * Before a command turn, the view polled for the reading the runtime reads the turn as, read under the turn's seed
+ * over the state the turn begins from: a typed line as it is typed, a later turn of a line as it was handed. A
+ * turn that reads no reading (the parser answered, or an intent planned the steps that follow) has nothing to
+ * look for; a turn the runtime refuses to read says so when it runs.
+ */
+static bool offered_turn(play *p, const sprout_turn_input *input, uint64_t seed, const char *visit, size_t index) {
+  sprout_parsed parsed;
+  sprout_handed handed;
+  sprout_status status;
+  handed.planned = input->planned;
+  handed.reread = input->reread;
+  sproutc_host_set_seed(p->host, seed);
+  status = sprout_parse(p->world, p->state, &p->host->record, visit, input->text, input->text_length,
+                        input->planned == NULL ? NULL : &handed, &p->arena, &parsed);
+  if (status == SPROUT_BAD_INPUT) return true;
+  if (status != SPROUT_OK) {
+    fprintf(p->err, "sproutc: step %zu: `%.*s` could not be read: %s\n", index, (int)input->text_length, input->text,
+            sprout_status_text(status));
     p->failure = 1;
     return false;
   }
-  memset(&read, 0, sizeof read);
-  read.verb = reading.verb;
-  read.actor = reading.actor;
-  read.filling_count = count;
-  read.fillings = fillings;
-  offered(p, visit, &read, reading.typed, step->index);
+  if (parsed.end == SPROUT_PARSED_READING) {
+    char *typed = sprout_arena_copy(&p->arena, input->text, input->text_length);
+    if (typed == NULL) return false;
+    offered(p, visit, &parsed.reading, typed, index);
+  }
   return true;
 }
 
@@ -531,7 +418,7 @@ static bool command(play *p, const sproutc_step *step) {
   sprout_commands line;
   sprout_turn_input input;
   bool more = false;
-  size_t t;
+  uint64_t t;
   if (visit == NULL) return false;
   if (sprout_line_begin(&line, &p->arena, visit, step->typed, strlen(step->typed)) != SPROUT_OK ||
       sprout_line_next(&line, NULL, &input, &more) != SPROUT_OK)
@@ -539,8 +426,9 @@ static bool command(play *p, const sproutc_step *step) {
   for (t = 0; more; t++) {
     sprout_outcome outcome;
     sprout_status status;
-    if (p->offered && !offered_turn(p, step, t, visit)) return false;
-    if (!run(p, &input, (step->seed + t) & 0xffffffffu, &outcome)) {
+    uint64_t seed = (step->seed + t) & 0xffffffffu;
+    if (p->offered && !offered_turn(p, &input, seed, visit, step->index)) return false;
+    if (!run(p, &input, seed, &outcome)) {
       sprout_outcome_free(&outcome);
       return false;
     }
@@ -554,26 +442,17 @@ static bool command(play *p, const sproutc_step *step) {
 /* ---- the trace ---- */
 
 static void trace_step(play *p, const sproutc_step *step, FILE *trace) {
-  const char *world;
-  size_t length, i;
+  size_t i;
   if (trace == NULL) return;
-  if (sprout_state_write(p->state, &p->arena, &world, &length) != SPROUT_OK) return;
   fprintf(trace, "{\"step\":%zu,\"says\":[", step->index);
   for (i = 0; i < p->says.count; i++) fprintf(trace, "%s%s", i > 0 ? "," : "", p->says.items[i]);
-  fprintf(trace, "],\"turns\":[");
-  for (i = 0; i < p->turns.count; i++) fprintf(trace, "%s%s", i > 0 ? "," : "", p->turns.items[i]);
-  fprintf(trace, "],\"world\":%.*s}\n", (int)length, world);
+  fprintf(trace, "]}\n");
 }
 
-int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *state, sproutc_readings *readings,
+int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *state, const sproutc_steps *steps,
                         const sproutc_play_options *options, FILE *out, FILE *err, FILE *trace) {
   play p;
-  size_t i, n = sproutc_readings_count(readings);
-  const char *why = sproutc_readings_budgets(&host->record.budgets, readings->budgets);
-  if (why != NULL) {
-    fprintf(err, "sproutc: %s\n", why);
-    return 1;
-  }
+  size_t i;
   if (options->has_poll_steps) host->record.budgets.poll_steps = (sprout_limit){true, options->poll_steps};
   memset(&p, 0, sizeof p);
   p.offered = options->offered;
@@ -583,14 +462,9 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
   p.out = out;
   p.err = err;
   fprintf(out, "--- play\n");
-  for (i = 0; i < n; i++) {
-    sproutc_step step;
-    const char *why = sproutc_readings_step(readings, i, &step);
+  for (i = 0; i < steps->count; i++) {
+    const sproutc_step step = steps->steps[i];
     bool ok = true;
-    if (why != NULL) {
-      fprintf(err, "sproutc: %s\n", why);
-      return 1;
-    }
     if (step.kind == SPROUTC_STEP_COMMENT || step.kind == SPROUTC_STEP_SEED) continue;
     fprintf(out, "## step %zu: %s\n", step.index, step.line);
     p.now = step.at_seconds;
@@ -598,7 +472,6 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
     host->bytes_peak = host->bytes_held;
     if (sprout_arena_init(&p.arena, &host->record) != SPROUT_OK) return 1;
     memset(&p.says, 0, sizeof p.says);
-    memset(&p.turns, 0, sizeof p.turns);
     switch (step.kind) {
       case SPROUTC_STEP_ARRIVE:
         ok = arrive(&p, &step);

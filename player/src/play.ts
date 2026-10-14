@@ -1,5 +1,4 @@
 import {
-  parseCommand,
   SEED_MAX,
   storedId,
   visitKey,
@@ -31,18 +30,16 @@ import {
   type Script,
   type Step,
 } from './script.js';
+import { keptReadingOf } from './play/reading.js';
 import {
-  loggedOf,
   recordsOf,
   trace,
-  type Logged,
   type Made,
   type PlayedStep,
   type Stage,
   type Traced,
 } from './play/traced.js';
 import { engineFor, hostFor, type EngineName, type PlayableWorld } from './engine.js';
-import { faultedParseOf, keptReadingOf, parseRecordOf, type Handed } from './parsed.js';
 import { turnSeed } from './seeds.js';
 import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 
@@ -69,7 +66,8 @@ import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 // typed line at a time, read into the same steps, so what a session
 // records is a script by construction.
 
-export type { Logged, Made, PlayedStep, Stage, Traced } from './play/traced.js';
+export type { Made, PlayedStep, Stage, Traced } from './play/traced.js';
+export type { TurnFiller, TurnReading } from './play/reading.js';
 
 /** One interactive line read: the line as the grammar writes it, and the step it is. */
 export interface Typed {
@@ -193,12 +191,15 @@ function loggedFaultOf(stage: Stage, fault: LoggedFault): Fault {
   };
 }
 
+/** What catch-up did of each wake: delivered, consumed by a fault, or left pending. */
+interface CaughtUp {
+  readonly delivered: readonly DueWake[];
+  readonly faulted: readonly { readonly wake: DueWake; readonly fault: Fault }[];
+  readonly abandoned: readonly DueWake[];
+}
+
 /** What catch-up did of each wake, as its entry records them, each read whole from the state it began from. */
-function caughtUp(
-  stage: Stage,
-  entry: TurnEntry | null,
-  from: StoredState,
-): NonNullable<Logged['wakes']> {
+function caughtUp(stage: Stage, entry: TurnEntry | null, from: StoredState): CaughtUp {
   if (entry === null || entry.kind !== 'maintenance') {
     throw new Error('The engine ran catch-up and logged no maintenance entry for it.');
   }
@@ -243,16 +244,11 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
   const step = stage.engine.maintenance(stage.stored, inputs(stage));
   const caught = land(stage, step);
   const wakes = caughtUp(stage, step.entry, from);
-  trace(
-    stage,
-    'maintenance',
-    loggedOf(stage, { seed: stage.seed, stale: caught.stale, changes: step.changes, wakes }),
-    {
-      effects: caught.effects,
-      account: step.account,
-      faults: wakes.faulted.map(({ fault }) => fault),
-    },
-  );
+  trace(stage, 'maintenance', {
+    effects: caught.effects,
+    account: step.account,
+    faults: wakes.faulted.map(({ fault }) => fault),
+  });
   const world = worldOf(stage);
   const out = [
     ...wakes.delivered.map((wake) =>
@@ -269,21 +265,10 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
   stage.stored = before;
   const arrival = stage.engine.arrival(stage.stored, { ...inputs(stage), visit, nickname });
   const arrived = land(stage, arrival);
-  const traceArrival = (
-    logged: Partial<Logged>,
-    parts: Partial<Omit<Traced, 'turn' | 'standing' | 'logged'>>,
-  ) =>
-    trace(
-      stage,
-      'arrival',
-      loggedOf(stage, { seed: stage.seed, who: visit, nickname, ...logged }),
-      { as: nickname, account: arrival.account, ...parts },
-    );
+  const traceArrival = (parts: Partial<Omit<Traced, 'turn' | 'standing'>>) =>
+    trace(stage, 'arrival', { as: nickname, account: arrival.account, ...parts });
   if (arrived.committed) {
-    traceArrival(
-      { cut: arrived.cutShort, stale: arrived.stale, changes: arrival.changes },
-      { effects: arrived.effects },
-    );
+    traceArrival({ effects: arrived.effects });
     const place = stage.engine.standing(stage.stored, visit)?.place.id ?? null;
     if (wanted !== null && place !== wanted) {
       throw seatingMismatch(world, at!, place ?? world);
@@ -291,14 +276,14 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     return [...out, ...turnLines(stage, arrived)];
   }
   if ('closed' in arrived) {
-    traceArrival({ outcome: 'closed' }, {});
+    traceArrival({});
     return [...out, refusedLineOf('closed', arrived.closed.words)];
   }
   if ('refused' in arrived) {
-    traceArrival({ outcome: 'refused' }, { effects: arrived.effects });
+    traceArrival({ effects: arrived.effects });
     return [...out, ...effectLines(stage, arrived.effects)];
   }
-  traceArrival({ outcome: 'faulted' }, { faults: [arrived.fault] });
+  traceArrival({ faults: [arrived.fault] });
   return [
     ...out,
     refusedLineOf('not admitted', arrived.words),
@@ -312,50 +297,16 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
   const step = stage.engine.departure(stage.stored, { ...inputs(stage), visit });
   const left = land(stage, step);
   if (left.committed) {
-    trace(
-      stage,
-      'departure',
-      loggedOf(stage, {
-        seed: stage.seed,
-        who: visit,
-        cut: left.cutShort,
-        stale: left.stale,
-        changes: step.changes,
-      }),
-      { as: nickname, effects: left.effects, account: step.account },
-    );
+    trace(stage, 'departure', { as: nickname, effects: left.effects, account: step.account });
     return turnLines(stage, left);
   }
-  trace(
-    stage,
-    'departure',
-    loggedOf(stage, {
-      seed: stage.seed,
-      who: visit,
-      outcome: 'faulted',
-      cut: left.quietly.cutShort,
-      changes: step.changes,
-    }),
-    { as: nickname, effects: left.quietly.effects, faults: [left.fault], account: step.account },
-  );
+  trace(stage, 'departure', {
+    as: nickname,
+    effects: left.quietly.effects,
+    faults: [left.fault],
+    account: step.account,
+  });
   return [...turnLines(stage, left.quietly), faultLine(stage, 'the departure', left.fault)];
-}
-
-/** What a later turn of a line was handed in place of words, as its entry in the log keeps it; null for a line read. */
-function handedOf(entry: TurnEntry | null): Handed | null {
-  if (entry === null || entry.kind !== 'command' || entry.planned === null) return null;
-  const planned = keptReadingOf(entry.planned, entry.planned.actor as InstanceId);
-  if (entry.reread === null) return { planned };
-  const { role, words, values, referents } = entry.reread;
-  return {
-    planned,
-    reread: {
-      role,
-      words,
-      values: values.map((one) => ({ role: one.role, words: one.words })),
-      referents: referents.map((id) => id as InstanceId),
-    },
-  };
 }
 
 /**
@@ -372,50 +323,18 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
   );
   let previous: GivenCommand | null = null;
   for (let typed = line.next(null); typed !== null; typed = line.next(previous)) {
-    const before = previous === null ? null : stage.stored;
-    // What the parser read is the turn's own, a step a line planned read as it was handed, never the parse before it.
-    stage.parsed.length = 0;
-    stage.read = null;
-    stage.parse = null;
     const step = stage.engine.command(stage.stored, typed);
     const turn = land(stage, step);
     previous = turn;
-    const handed = handedOf(step.entry);
-    const traceCommand = (
-      logged: Partial<Logged>,
-      parts: Partial<Omit<Traced, 'turn' | 'standing' | 'logged'>>,
-      drawn: number | null = null,
-    ) =>
-      trace(
-        stage,
-        'command',
-        loggedOf(stage, {
-          seed: typed.seed,
-          now: typed.now,
-          who: visit,
-          command: {
-            text: typed.text,
-            planned: handed?.planned ?? null,
-            reread: handed?.reread ?? null,
-            drawn,
-          },
-          ...logged,
-        }),
-        {
-          as: nickname,
-          typed: typed.text,
-          account: step.account,
-          parsed: stage.parse,
-          handed,
-          before,
-          ...parts,
-        },
-      );
+    const traceCommand = (parts: Partial<Omit<Traced, 'turn' | 'standing'>>) =>
+      trace(stage, 'command', {
+        as: nickname,
+        typed: typed.text,
+        account: step.account,
+        ...parts,
+      });
     if (!turn.committed) {
-      traceCommand(
-        { outcome: 'faulted' },
-        { effects: turn.effects, faults: [turn.fault], read: stage.read },
-      );
+      traceCommand({ effects: turn.effects, faults: [turn.fault] });
       out.push(...effectLines(stage, turn.effects), faultLine(stage, 'the command', turn.fault));
       continue;
     }
@@ -424,14 +343,10 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
     // A reading that ran, allowed or refused, is the visitor's last.
     const last = read === null ? null : (visitorOf(stage, visit)?.lastReading ?? null);
     const actor = visitorOf(stage, visit)?.instance as InstanceId | undefined;
-    traceCommand(
-      { cut: turn.cutShort, stale: turn.stale, changes: step.changes },
-      {
-        effects: turn.effects,
-        reading: last === null || actor === undefined ? null : keptReadingOf(last, actor),
-      },
-      read?.drawn?.among ?? null,
-    );
+    traceCommand({
+      effects: turn.effects,
+      reading: last === null || actor === undefined ? null : keptReadingOf(last, actor),
+    });
     // A step of an intent that runs is the host's to log at info.
     if (read !== null && read.step !== null) {
       out.push(hostLineOf(`step: ${read.step.verb.library}.${read.step.verb.name}`));
@@ -460,25 +375,11 @@ function tick(stage: Stage): Made[] {
     const turn = land(stage, step);
     if ('unoccupied' in turn) continue;
     if (!turn.committed) {
-      trace(stage, 'tick', loggedOf(stage, { seed, who: place, outcome: 'faulted' }), {
-        faults: [turn.fault],
-        account: step.account,
-      });
+      trace(stage, 'tick', { faults: [turn.fault], account: step.account });
       out.push(faultLine(stage, `the tick of ${pathOf(world, place)}`, turn.fault));
       continue;
     }
-    trace(
-      stage,
-      'tick',
-      loggedOf(stage, {
-        seed,
-        who: place,
-        cut: turn.cutShort,
-        stale: turn.stale,
-        changes: step.changes,
-      }),
-      { effects: turn.effects, account: step.account },
-    );
+    trace(stage, 'tick', { effects: turn.effects, account: step.account });
     out.push(...turnLines(stage, turn));
   }
   return out;
@@ -513,34 +414,11 @@ function advance(stage: Stage, seconds: number): Made[] {
     const turn = land(stage, step);
     if ('unwoken' in turn) continue;
     if (!turn.committed) {
-      trace(
-        stage,
-        'wake',
-        loggedOf(stage, {
-          seed,
-          who: next.object,
-          wake: next.serial,
-          outcome: 'faulted',
-          changes: step.changes,
-        }),
-        { faults: [turn.fault], account: step.account },
-      );
+      trace(stage, 'wake', { faults: [turn.fault], account: step.account });
       out.push(faultLine(stage, `the wake of ${woken}`, turn.fault));
       continue;
     }
-    trace(
-      stage,
-      'wake',
-      loggedOf(stage, {
-        seed,
-        who: next.object,
-        wake: next.serial,
-        cut: turn.cutShort,
-        stale: turn.stale,
-        changes: step.changes,
-      }),
-      { effects: turn.effects, account: step.account },
-    );
+    trace(stage, 'wake', { effects: turn.effects, account: step.account });
     out.push(hostLineOf(`${woken} woke, ${stage.now - next.askedAt} seconds after it asked`));
     out.push(...turnLines(stage, turn));
   }
@@ -611,28 +489,8 @@ export function freshStage(
   engine: EngineName,
   budgets: Partial<RuntimeBudgets> = {},
 ): Stage {
-  // What the parser drew, spent and made is noted, since a runtime that does not parse begins its
-  // stream with the draws, and one that does compares its parse with all of it. Only an engine that
-  // reads a line through the host's parser, as the TypeScript one does, calls it.
-  const host = hostFor(world, budgets, (text, actor, context) => {
-    const recording = {
-      below: (n: number): number => {
-        stage.parsed.push(n);
-        return context.draws.below(n);
-      },
-    };
-    const from = context.budget.spentSteps;
-    try {
-      const parsed = parseCommand(text, actor, { ...context, draws: recording });
-      if ('reading' in parsed) stage.read = parsed.reading;
-      stage.parse = parseRecordOf(parsed, stage.parsed, context.budget.spentSteps - from);
-      return parsed;
-    } catch (thrown) {
-      stage.parse = faultedParseOf(thrown, stage.parsed, context.budget.spentSteps - from);
-      throw thrown;
-    }
-  });
-  const stage: Stage = {
+  const host = hostFor(world, budgets);
+  return {
     host,
     engine: engineFor(engine, world, host),
     stored: emptyState(),
@@ -640,11 +498,7 @@ export function freshStage(
     seed: 0,
     visits: new Map(),
     turns: [],
-    parsed: [],
-    read: null,
-    parse: null,
   };
-  return stage;
 }
 
 /**

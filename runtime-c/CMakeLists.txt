@@ -94,7 +94,7 @@ endif()
 
 # The desktop host: a fake clock, a seed from a script, a file of stored bytes, an emit that prints,
 # and `sproutc`, which plays a cartridge's script through the public API. It may use libc; the library may not.
-set(SPROUTC_MODULES cartridge evaluate host parsing play readings script viewing)
+set(SPROUTC_MODULES cartridge evaluate host play script steps viewing)
 
 set(SPROUTC_SOURCES "")
 foreach(module ${SPROUTC_MODULES})

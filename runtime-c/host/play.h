@@ -1,8 +1,9 @@
 /*
  * `sproutc play <world.sproutworld> [--state save.json] [--script script.json]
- * [--readings file] [--trace file] [--clock N]`: prints the cartridge's header
- * and manifest, loads it, and, given a script, plays the script's readings (see
- * readings.h) through the runtime's public API on the desktop host (host.h).
+ * [--trace file] [--clock N] [--offered] [--poll-steps N] [--profile file]`:
+ * prints the cartridge's header and manifest, loads it, and, given a script,
+ * plays its steps (steps.h) through the runtime's public API on the desktop
+ * host (host.h).
  *
  * Output: the header and manifest, then, with a script, a line `--- play`
  * and a block per step: `## step <index>: <typed line>` and under it each

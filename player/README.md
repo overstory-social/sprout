@@ -14,9 +14,6 @@ lines misread, every fault, the places, objects, verbs, handlers and
 passages reached of those the world declares, and the prose never
 rendered — for `--report`; which handlers ran and which lines were
 misread or refused are the engine's account of each turn.
-`resolveScript` writes a script's readings file, the TypeScript runtime's
-record of it that the C runtime's replay is compared with, so it always
-plays on that engine.
 The [`sprout` command](../cli/README.md) is how most people run it; the
 script format is described there.
 

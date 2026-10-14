@@ -1,12 +1,10 @@
-// Profiles a world run by the C runtime compiled to WebAssembly (runtime-c/wasm/engine/), the way
-// scripts/profile-store.mjs profiles the TypeScript runtime as the server runs it: many visitors
-// admitted, then each step one visitor chooses a verb of their scene, its readings are polled, and one
-// of them is run as a command, after which every visitor's scene is polled again. The state stays
-// live inside the instance; it is saved as the store would keep it only at each sample, to time that.
-// Prints, every so many turns, what the engine's page pool holds and has held at most, what the
-// instance's memory has grown to (it never shrinks), the JavaScript heap beside it, and the time a
-// turn, a scene and a verb's readings took. Lines the TypeScript parser would answer are not run:
-// parsing is the host's, and this engine is handed readings.
+// Profiles a world run by the C runtime compiled to WebAssembly (runtime-c/wasm/engine/), as a server
+// runs it: many visitors admitted, then each step one visitor chooses a verb of their scene, its readings
+// are polled, and one of them is run as a command, after which every visitor's scene is polled again. The
+// state stays live inside the instance; it is saved as the store would keep it only at each sample, to
+// time that. Prints, every so many turns, what the engine's page pool holds and has held at most, what the
+// instance's memory has grown to (it never shrinks), the JavaScript heap beside it, and the time a turn, a
+// scene and a verb's readings took.
 //
 //   node --expose-gc scripts/profile-wasm.mjs <engine.wasm> <world folder> [--turns 1000]
 //        [--visitors 8] [--seed 1] [--sample 100] [--json out.json]
@@ -17,8 +15,7 @@ import { performance } from 'node:perf_hooks';
 import { DEFAULT_LIMITS, emitCartridge, loadCartridge } from '@overstory/sprout/lang';
 import { WasmInstance } from '@overstory/sprout-engine-wasm';
 import { INSTALLED_EXTENSIONS } from '@overstory/sprout-player';
-
-import { playableWorld } from './resolve-script.mjs';
+import { checkWorld, formatCheck } from '@overstory/sprout-cli';
 
 function argsOf(argv) {
   const flags = { turns: 1000, visitors: 8, seed: 1, sample: 100 };
@@ -61,7 +58,12 @@ async function main() {
     );
     return 2;
   }
-  const cartridge = emitCartridge(playableWorld(world));
+  const checked = checkWorld(world);
+  if (checked.bundle === null) {
+    console.error(formatCheck(checked));
+    return 1;
+  }
+  const cartridge = emitCartridge(checked.bundle);
   const worldId = loadCartridge(cartridge, {
     caps: DEFAULT_LIMITS.caps,
     installed: INSTALLED_EXTENSIONS,

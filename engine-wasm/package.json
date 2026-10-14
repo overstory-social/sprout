@@ -29,9 +29,6 @@
     "@overstory/sprout": "0.1.0",
     "zod": "^4.4.2"
   },
-  "devDependencies": {
-    "@overstory/sprout-player": "0.1.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/overstory-social/sprout.git",

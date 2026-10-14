@@ -2,25 +2,22 @@ import {
   contentAt,
   type Catalogue,
   type CommandHost,
-  type DueWake,
   type Effect,
   type Fault,
   type HostSeconds,
   type InstanceId,
   type Level,
-  type Reading,
-  type StoredChanges,
   type StoredInstance,
   type VisitKey,
 } from '@overstory/sprout/lang';
 import type { Account, Engine, StoredState } from '@overstory/sprout/core';
 
-import type { Handed, ParseRecord, ReadReading, ReadReread } from '../parsed.js';
+import type { TurnReading } from './reading.js';
 import type { Step } from '../script.js';
 
-// What playing a script records (the spec's The runtime › The log, Levels):
-// each line a step made at its level, each turn it ran with what the log
-// keeps of it, and the stage a play runs against. `trace` notes a turn once
+// What playing a script records (the spec's The runtime › Levels): each
+// line a step made at its level, each turn it ran, and the stage a play
+// runs against. `trace` notes a turn once
 // the stage's stored state is that turn's outcome, so what it records is
 // read from the world as the turn left it. Everything a turn records is
 // what the stage's engine gave of it (core's `Given…` and `Step`) or what
@@ -70,62 +67,15 @@ export interface Traced {
   readonly effects: readonly Effect[];
   /** What the engine says the turn ran; null where it does not say, or the turn ran nothing. */
   readonly account: Account | null;
-  readonly reading: ReadReading | null;
+  readonly reading: TurnReading | null;
   readonly faults: readonly Fault[];
   readonly standing: readonly InstanceId[];
-  /** What the log keeps of the turn, which a runtime working from the log's inputs reproduces (`readings.ts`). */
-  readonly logged: Logged;
-  /** What the TypeScript parser made of the line, which a turn that faults performs none of; null where it made none. */
-  readonly read: Reading | null;
-  /** What the TypeScript parser, `host.parse`, returned for a command turn, and what it spent; null where it was not parsed. */
-  readonly parsed: ParseRecord | null;
-  /** What a later turn of a line was handed in place of words; null for every other turn. */
-  readonly handed: Handed | null;
-  /** The stored world a command turn after the first in its step began from; null for every other turn. */
-  readonly before: StoredState | null;
-}
-
-/**
- * The inputs and outcome a turn's entry in the log keeps beside what it said (the spec's The runtime ›
- * The log): the seed it drew from, the instant, whom it was for, how it ended, who it cut short, the
- * world's last serial once it ended, and, for catch-up, each wake it delivered, consumed or left pending;
- * and what a host is given beside the entry: what the store writes, where the turn wrote anything (The host
- * contract › Storage), and every visitor present after it, whose views it made stale, where it committed
- * (The view; a faulted turn names nobody).
- */
-export interface Logged {
-  readonly seed: number;
-  readonly now: HostSeconds;
-  readonly who: string | null;
-  /** An arrival's nickname, as the visitor came in with it; null for every other turn. */
-  readonly nickname: string | null;
-  /** A wake's serial, as it was asked under; null for every other turn. */
-  readonly wake: number | null;
-  readonly outcome: 'done' | 'faulted' | 'refused' | 'closed';
-  readonly cut: readonly InstanceId[];
-  readonly serial: number;
-  readonly stale: readonly VisitKey[] | null;
-  readonly changes: StoredChanges | null;
-  readonly wakes: {
-    readonly delivered: readonly DueWake[];
-    readonly faulted: readonly { readonly wake: DueWake; readonly fault: Fault }[];
-    readonly abandoned: readonly DueWake[];
-  } | null;
-  /** A command's words, the step a line planned for it, the item it re-read, and how many readings tied where its reading was drawn; null for every other turn. */
-  readonly command: {
-    readonly text: string;
-    readonly planned: ReadReading | null;
-    readonly reread: ReadReread | null;
-    readonly drawn: number | null;
-  } | null;
 }
 
 /**
  * The host's side of one play: the engine it runs on and the host it runs
  * for, the world as a store would hold it, the instant, the seed, each
- * nickname's visit, and every turn run. What the parser read of the
- * command turn now running is noted where the host's own parser reads it,
- * as the TypeScript engine's does.
+ * nickname's visit, and every turn run.
  */
 export interface Stage {
   readonly host: CommandHost;
@@ -135,12 +85,6 @@ export interface Stage {
   seed: number;
   readonly visits: Map<string, VisitKey>;
   readonly turns: Traced[];
-  /** The bounds the parser drew below reading the command turn now running. */
-  readonly parsed: number[];
-  /** What the parser made of the command turn now running, which a turn that faults leaves nowhere else. */
-  read: Reading | null;
-  /** What `host.parse` returned for the command turn now running, null until it reads words. */
-  parse: ParseRecord | null;
 }
 
 /** Each stored instance of `stored`, by its id. */
@@ -207,30 +151,11 @@ function standing(stage: Stage): InstanceId[] {
   return places;
 }
 
-/** What a turn leaves in the log beside what it said, as `stage` stands once it is over. */
-export function loggedOf(stage: Stage, parts: Partial<Logged> & Pick<Logged, 'seed'>): Logged {
-  return {
-    now: stage.now,
-    who: null,
-    nickname: null,
-    wake: null,
-    outcome: 'done',
-    cut: [],
-    serial: stage.stored.serial,
-    wakes: null,
-    stale: null,
-    changes: null,
-    command: null,
-    ...parts,
-  };
-}
-
 /** Note a turn `stage` ran, once its stored state is the turn's outcome. */
 export function trace(
   stage: Stage,
   turn: Traced['turn'],
-  logged: Logged,
-  parts: Partial<Omit<Traced, 'turn' | 'standing' | 'logged'>>,
+  parts: Partial<Omit<Traced, 'turn' | 'standing'>>,
 ): void {
   stage.turns.push({
     turn,
@@ -240,12 +165,7 @@ export function trace(
     account: null,
     reading: null,
     faults: [],
-    read: null,
-    parsed: null,
-    handed: null,
-    before: null,
     ...parts,
     standing: standing(stage),
-    logged,
   });
 }

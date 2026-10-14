@@ -7,7 +7,6 @@
  * the best of its readings, a tie drawn from the turn's stream; a line no reading reads is answered as answers.c
  * says; a line `and` splits, `again` and a turn a line handed are read as sequences are (their own cases are
  * parse_chain, parse_again, parse_planned, parse_item and parse_later's).
- * The harness (`sproutc parse`) holds every outcome to the TypeScript parser's, steps included.
  */
 #include "turn_fixture.h"
 

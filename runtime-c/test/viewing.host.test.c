@@ -46,7 +46,7 @@ static void release(run *r) {
   free(r->err);
 }
 
-/* The page of `corpus/good/<world>/view.txt`, which the TypeScript runtime writes. */
+/* The page of `corpus/good/<world>/view.txt`, which `sprout view` writes. */
 static char *page_of(const char *world) {
   char path[1024];
   size_t length;

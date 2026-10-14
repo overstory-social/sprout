@@ -19,8 +19,8 @@
 // shelves every graduated world, plays the save the session's end-to-end test wrote through
 // `sproutc`, and plays each graduated world's listed plays (`"plays"` in worlds.json, scripts under
 // the world's folder) through `sproutc` with the view polled first under the app's poll budget, so
-// every reading a play makes is one the sentence builder could build; it also builds the device
-// binary. It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
+// every reading a play makes is one the sentence builder could build, each step saying what the
+// play expects of it; it also builds the device binary. It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -38,8 +38,8 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { playAndCompare } from './replay-runtime-c.mjs';
-import { readingsPath, resolveFile } from './resolve-script.mjs';
+import { readScript } from '@overstory/sprout-player';
+
 import { runtimeCBuild, sanitizedHere } from './runtime-c-build.mjs';
 
 const root = join(fileURLToPath(import.meta.url), '../..');
@@ -137,11 +137,55 @@ export function appPollSteps() {
   return Number(match[1]);
 }
 
+/** A line a reader read, as `sproutc`'s trace and a script's `expect` both write one. */
+const shownLine = (one) =>
+  'reader' in one ? `${one.reader} (${one.kind}): ${one.words}` : one.words;
+
+/**
+ * The first step of `script` whose `expect` the trace `traced` (`sproutc play --trace`, one line a step)
+ * does not meet, in words; null where every one is met. As `sprout test` holds a test, each line a step
+ * expects must be among the lines readers read, in the order written: a reader's line whole, or the words
+ * alone, which any reader's line matches; `[]` expects silence. A host's line, at its level, is not a
+ * reader's, and `sproutc` does not write one, so it is not looked for.
+ */
+export function unmetExpectation(script, traced) {
+  const says = new Map(
+    traced
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => JSON.parse(line))
+      .map((one) => [one.step, one.says]),
+  );
+  for (const [index, step] of script.steps.entries()) {
+    if (!('expect' in step) || step.expect === undefined) continue;
+    const said = says.get(index);
+    if (said === undefined) return `step ${index + 1} did not play`;
+    const wanted = step.expect.filter((one) => !('level' in one));
+    if (step.expect.length === 0 && said.length > 0) {
+      return `step ${index + 1} expects silence and said\n${said.map(shownLine).join('\n')}`;
+    }
+    let at = 0;
+    for (const one of wanted) {
+      const found = said.findIndex(
+        (line, i) =>
+          i >= at &&
+          line.words === one.words &&
+          (!('reader' in one) || (line.reader === one.reader && line.kind === one.kind)),
+      );
+      if (found < 0) {
+        return `step ${index + 1} expects ${shownLine(one)}, and said\n${said.map(shownLine).join('\n') || '(nothing)'}`;
+      }
+      at = found + 1;
+    }
+  }
+  return null;
+}
+
 /**
  * Plays each graduated world's listed plays through `sproutc` over the cartridge the build packed, the
- * view polled before each command under the app's poll budget: every reading must be offered and every
- * line must be the TypeScript runtime's. Returns one line of what ran; throws naming the first play that
- * did not.
+ * view polled before each command under the app's poll budget: every reading the runtime reads must be
+ * offered, no turn may fault, and each step must say what the play expects of it (`unmetExpectation`).
+ * Returns one line of what ran; throws naming the first play that did not.
  */
 export function checkPlays(staged, cartridges, sproutcDir, scratch, prefix = []) {
   const steps = appPollSteps();
@@ -149,23 +193,40 @@ export function checkPlays(staged, cartridges, sproutcDir, scratch, prefix = [])
   let widest = 0;
   for (const { dir, file, plays, title } of staged) {
     for (const play of plays) {
-      const script = join(scratch, `${basename(dir)}-${basename(play)}`);
-      copyFileSync(join(dir, play), script);
-      const result = playAndCompare(
-        join(sproutcDir, 'sproutc'),
+      const script = join(dir, play);
+      const trace = join(scratch, `${basename(dir)}-${basename(play)}.trace`);
+      const args = [
+        'play',
         join(cartridges, file),
+        '--script',
         script,
-        false,
-        {},
-        { offered: true, pollSteps: steps, prefix },
-      );
-      if (result.how !== 'passed') {
-        throw new Error(
-          `${title}: ${play} ${result.how} through the app's view and sproutc:\n${result.why}`,
-        );
+        '--trace',
+        trace,
+        '--offered',
+        '--poll-steps',
+        String(steps),
+      ];
+      const [command, ...before] = [...prefix, join(sproutcDir, 'sproutc')];
+      const done = spawnSync(command, [...before, ...args], {
+        encoding: 'utf8',
+        maxBuffer: 1 << 28,
+      });
+      const failed =
+        done.status !== 0
+          ? (done.stderr || done.stdout || `exit ${done.status}`).trim()
+          : (/^!! .*$/m.exec(done.stdout)?.[0] ??
+            unmetExpectation(
+              readScript(readFileSync(script, 'utf8'), play),
+              readFileSync(trace, 'utf8'),
+            ));
+      if (failed !== null) {
+        throw new Error(`${title}: ${play} through the app's view and sproutc:\n${failed}`);
       }
       count++;
-      widest = Math.max(widest, result.widest);
+      widest = Math.max(
+        widest,
+        Number(/^--- offered: .* the widest poll (\d+) steps$/m.exec(done.stdout)?.[1] ?? 0),
+      );
     }
   }
   return count === 0
@@ -545,8 +606,8 @@ function roundTrip(keep, cartridges, buildDir, prefix) {
 /**
  * The turns the session's end-to-end test built from readings, as the sentence builder hands them over, leave the stored
  * world the same lines typed leave: each save is compared with the save `sproutc` leaves when it
- * plays the lines the TypeScript parser read. `tune` declares its value role first and a parser
- * binds it last; `take` leaves a role out.
+ * plays the lines typed. `tune` declares its value role first and a parser binds it last; `take`
+ * leaves a role out.
  */
 const BUILT_AND_TYPED = [
   {
@@ -569,7 +630,6 @@ export function builtMatchesTyped(keep, cartridges, buildDir, prefix = []) {
         steps: [{ arrive: 'player' }, ...lines.map((type) => ({ as: 'player', type }))],
       }),
     );
-    writeFileSync(readingsPath(script), resolveFile(cartridge, script, {}));
     const typed = join(keep, `${world}.typed.state.json`);
     run(
       join(buildDir, 'sproutc'),

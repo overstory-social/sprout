@@ -12,159 +12,32 @@
 // high-entropy address-space randomisation; the script prints one line saying so, or the remedy
 // (`setarch -R npm run e2e`) when `setarch` is missing (player/src/aslr.ts).
 //
-// Run `npm run build` first: the C tests pack every corpus world into a
-// cartridge through the built CLI (`cli/dist`), and the replay uses the built
-// player. Without it the packing setup fails and the tests that need it do not run.
+// Run `npm run build` first: the C tests pack every corpus world into a cartridge through the built CLI
+// (`cli/dist`), and the WebAssembly step plays through the built player. Without it the packing setup fails
+// and the tests that need it do not run.
+//
+// After the unit tests it checks that `sproutc play` prints a packed world's header and manifest. Then the
+// WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and runtime-c/wasm/engine.test.mjs
+// plays the corpus through it against the frozen goldens. Without clang's wasm32 target and wasm-ld the step
+// is skipped, and its line says so.
 //
 // The last step, in both modes, is sprout-player/ (the Playdate app, scripts/playdate-player.mjs):
-// the Simulator target built with the SDK, the player's C tests over a fake PlaydateAPI, and the
-// saves they wrote played through `sproutc`; with `--sanitize` the player's tests are built and run
-// under the sanitizers too. The plain mode also builds the runtime optimised (-O2) under
-// -Wall -Wextra -Werror, as the device and the shipped Simulator build do, and once more without the parser
-// (-DSPROUT_PARSER=OFF), as the Playdate takes the runtime, running the one test that build has. The player step needs
-// PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh fetches the SDK); without it the step is skipped and
-// the last line says so. Where the variable is set, a failing step fails this script, in the gate
-// and in the e2e alike.
-//
-// After the unit tests it runs the replay (scripts/replay-runtime-c.mjs):
-// every corpus world with transcripts is packed, its scripts played by the
-// TypeScript runtime and then through `sproutc`, which reads each typed line
-// itself, and diffed with what the TypeScript runtime did. It prints one line
-// per world and the list of worlds that pass, and fails when that list is not
-// EXPECTED_PASSING.
-//
-// Then the parser (`replayParses`): every line of those scripts the TypeScript parser read is read again by
-// `sproutc parse`, over the stored world its turn began from, and compared turn by turn. It prints one line per
-// world with how many turns read alike, and fails when the worlds whose every turn reads alike are not
-// EXPECTED_PARSING, or when the comparison itself cannot run.
-//
-// After the replay, the WebAssembly step: runtime-c/wasm/build.sh builds the runtime for wasm32, and
-// runtime-c/wasm/engine.test.mjs plays the corpus through it against the TypeScript runtime. Without
-// clang's wasm32 target and wasm-ld the step is skipped, and its line says so.
+// the Simulator target built with the SDK, the player's C tests over a fake PlaydateAPI, the saves they
+// wrote played through `sproutc`, and the graduated worlds' plays through `sproutc --offered`; with
+// `--sanitize` the player's tests are built and run under the sanitizers too. The plain mode also builds
+// the runtime optimised (-O2) under -Wall -Wextra -Werror, as the device and the shipped Simulator build
+// do, and once more without the parser (-DSPROUT_PARSER=OFF), as the Playdate takes the runtime, running
+// the one test that build has. The player step needs PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh fetches
+// the SDK); without it the step is skipped and the last line says so. Where the variable is set, a failing
+// step fails this script, in the gate and in the e2e alike.
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runtimeCBuild as build, runtimeCRoot as root, sanitizedHere } from './runtime-c-build.mjs';
 
 const required = process.argv.includes('--required');
 const sanitize = process.argv.includes('--sanitize');
-
-// The corpus worlds whose transcripts the C runtime replays to the byte, sorted.
-// Every corpus world with transcripts or tests does.
-const EXPECTED_PASSING = [
-  'all-in-order',
-  'all-leaves-out-refused',
-  'allowed-first',
-  'arrival-order',
-  'brief',
-  'cancel-wakes',
-  'cannot',
-  'carried',
-  'carried-across',
-  'chip-tree',
-  'comma-commands',
-  'darkness',
-  'destroy-declared',
-  'dotted-paths',
-  'drop-here',
-  'embedded-passage',
-  'engine_lines',
-  'exit-labels',
-  'exit-say',
-  'help_and_wait',
-  'imports',
-  'instance-scope',
-  'intents',
-  'media-pictures',
-  'media-room',
-  'move',
-  'moved-out-of-destroyed',
-  'narrowing-and',
-  'nested-offers',
-  'no-way',
-  'notices-through-gate',
-  'out-of-reach-exit',
-  'out-of-reach-synonym',
-  'own-place',
-  'printers_shop',
-  'pronouns',
-  'refusal-hands',
-  'relatives',
-  'requires-held',
-  'roaming',
-  'rounds',
-  'runs',
-  'sequences',
-  'shut-contents',
-  'standard-library',
-  'synonyms',
-  'take-from',
-  'teashop',
-  'troll_room',
-  'turn-faults',
-  'unknown-word',
-  'value-first',
-  'visitor-contents',
-];
-
-// The corpus worlds whose every typed line `sproutc parse` reads as the TypeScript parser does, sorted.
-const EXPECTED_PARSING = [
-  'all-in-order',
-  'all-leaves-out-refused',
-  'allowed-first',
-  'arrival-order',
-  'brief',
-  'cancel-wakes',
-  'cannot',
-  'carried',
-  'carried-across',
-  'chip-tree',
-  'comma-commands',
-  'darkness',
-  'destroy-declared',
-  'dotted-paths',
-  'drop-here',
-  'embedded-passage',
-  'engine_lines',
-  'exit-labels',
-  'exit-say',
-  'help_and_wait',
-  'imports',
-  'instance-scope',
-  'intents',
-  'media-pictures',
-  'media-room',
-  'move',
-  'moved-out-of-destroyed',
-  'narrowing-and',
-  'nested-offers',
-  'no-way',
-  'notices-through-gate',
-  'out-of-reach-exit',
-  'out-of-reach-synonym',
-  'own-place',
-  'printers_shop',
-  'pronouns',
-  'refusal-hands',
-  'relatives',
-  'requires-held',
-  'roaming',
-  'rounds',
-  'runs',
-  'sequences',
-  'shut-contents',
-  'standard-library',
-  'synonyms',
-  'take-from',
-  'teashop',
-  'troll_room',
-  'turn-faults',
-  'unknown-word',
-  'value-first',
-  'visitor-contents',
-];
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -194,7 +67,7 @@ function run(command, args, env) {
 }
 
 /**
- * The runtime built for WebAssembly (runtime-c/wasm/build.sh) and checked against the TypeScript runtime
+ * The runtime built for WebAssembly (runtime-c/wasm/build.sh) and checked against the frozen goldens
  * (runtime-c/wasm/engine.test.mjs). It needs clang with the wasm32 target and wasm-ld; without them it
  * is skipped, in words, as the Playdate step is without its SDK.
  */
@@ -213,10 +86,12 @@ async function wasmStep() {
   const failed = checks.filter((one) => !one.passed);
   for (const one of failed) console.log(`runtime-c wasm: ${one.name}: fails, ${one.words}`);
   console.log(
-    `runtime-c wasm: ${checks.length - failed.length} of ${checks.length} checks pass against the TypeScript runtime`,
+    `runtime-c wasm: ${checks.length - failed.length} of ${checks.length} checks pass against the frozen goldens`,
   );
   if (failed.length > 0) {
-    console.log('runtime-c: FAILED, the WebAssembly engine differs from the TypeScript runtime');
+    console.log(
+      'runtime-c: FAILED, the WebAssembly engine does not play the corpus as the goldens hold',
+    );
     process.exit(1);
   }
 }
@@ -286,24 +161,12 @@ console.log(
 );
 
 // `sproutc play` on a packed corpus world prints the cartridge's header and manifest.
-const sproutc = join(build, 'sproutc');
-const scratch = join(build, 'replay');
-rmSync(scratch, { recursive: true, force: true });
-mkdirSync(scratch, { recursive: true });
-
-let tools;
-try {
-  tools = await import('./replay-runtime-c.mjs');
-} catch (err) {
-  console.log(`runtime-c: FAILED to load the replay (run \`npm run build\` first): ${err.message}`);
-  process.exit(1);
-}
-
 const headerWorld = 'arrival-order';
-tools.packWorld(join('corpus/good', headerWorld), join(scratch, 'header.sproutworld'));
-const header = spawnSync(sproutc, ['play', join(scratch, 'header.sproutworld')], {
-  encoding: 'utf8',
-});
+const header = spawnSync(
+  join(build, 'sproutc'),
+  ['play', join(build, 'cartridges', `${headerWorld}.sproutworld`)],
+  { encoding: 'utf8' },
+);
 if (
   header.status !== 0 ||
   !/^name: arrival_order$/m.test(header.stdout) ||
@@ -316,63 +179,5 @@ if (
   process.exit(1);
 }
 
-const results = tools.replayWorlds(sproutc, scratch);
-for (const result of results) {
-  const words = result.words.replace(/\s*\n\s*/g, ' / ');
-  console.log(`runtime-c replay: ${result.name}: ${result.passed ? 'passes' : 'fails'}, ${words}`);
-}
-const views = tools.replayViews(sproutc, scratch);
-const unlike = views.filter((r) => !r.passed);
-console.log(
-  `runtime-c view: ${views.length - unlike.length} of ${views.length} worlds print the pages \`sprout view\` prints: the view, the scene and each verb's readings`,
-);
-for (const r of unlike)
-  console.log(`runtime-c view: ${r.name}: ${r.words.replace(/\s*\n\s*/g, ' / ')}`);
-if (unlike.length > 0) {
-  console.log(
-    'runtime-c: FAILED, `sproutc view` prints another page than `sprout view` for the worlds above',
-  );
-  process.exit(1);
-}
-const parses = tools.replayParses(sproutc, scratch);
-const sum = (key) => parses.reduce((total, one) => total + one[key], 0);
-for (const one of parses) {
-  const words =
-    one.failed ?? (one.first === null ? 'every turn alike' : `first difference: ${one.first}`);
-  console.log(
-    `runtime-c parse: ${one.name}: ${one.agree} of ${one.agree + one.differ} turns alike (${one.unknownAlike} of ${one.unknown} \`unknown\`), ${words.replace(/\s*\n\s*/g, ' / ')}`,
-  );
-}
-const broken = parses.filter((one) => one.failed !== undefined);
-const alike = parses
-  .filter((one) => one.failed === undefined && one.differ === 0 && one.agree > 0)
-  .map((one) => one.name);
-console.log(
-  `runtime-c parse: ${sum('agree')} of ${sum('agree') + sum('differ')} turns the TypeScript parser read are read alike (${sum('unknownAlike')} of ${sum('unknown')} \`unknown\`), ${sum('unrecorded')} unrecorded; worlds alike in full: ${alike.join(', ') || 'none'}`,
-);
-if (broken.length > 0) {
-  console.log(
-    `runtime-c: FAILED, \`sproutc parse\` could not compare ${broken.map((one) => one.name).join(', ')}`,
-  );
-  process.exit(1);
-}
-if (alike.join(',') !== EXPECTED_PARSING.join(',')) {
-  console.log(
-    `runtime-c: FAILED, the worlds that parse alike are not the expected ones (expected: ${EXPECTED_PARSING.join(', ') || 'none'}); update EXPECTED_PARSING in scripts/check-runtime-c.mjs if the change is meant`,
-  );
-  process.exit(1);
-}
 await wasmStep();
-
-const passing = results.filter((r) => r.passed).map((r) => r.name);
-console.log(
-  `runtime-c replay: ${passing.length} of ${results.length} worlds pass${passing.length > 0 ? `: ${passing.join(', ')}` : ''}`,
-);
-if (passing.join(',') !== EXPECTED_PASSING.join(',')) {
-  console.log(
-    `runtime-c: FAILED, the worlds that pass are not the expected ones (expected: ${EXPECTED_PASSING.join(', ') || 'none'}); update EXPECTED_PASSING in scripts/check-runtime-c.mjs if the change is meant`,
-  );
-  process.exit(1);
-}
-
 await playerStep(false);

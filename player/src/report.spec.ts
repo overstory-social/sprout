@@ -23,8 +23,8 @@ Marta> look
 Marta> look
 @advance 1 hours`;
 
-describe('what a playthrough reached', () => {
-  const report = reportOf(kilnYard, [run(WALK)]);
+describe.each(ENGINES_BUILT)('what a playthrough on the %s engine reached', (engine) => {
+  const report = reportOf(kilnYard, [run(WALK, 'yard.json', engine)]);
 
   it('counts the lines typed, and each visitor’s command turns', () => {
     expect(report.scripts).toEqual(['yard.json']);
@@ -194,19 +194,6 @@ describe('what several playthroughs reached', () => {
     expect(report.reach.passages.never).toHaveLength(report.reach.passages.declared);
   });
 });
-
-describe.each(ENGINES_BUILT.filter((engine) => engine !== 'ts'))(
-  'what a playthrough on the %s engine reached',
-  (engine) => {
-    const report = reportOf(kilnYard, [run(WALK, 'yard.json', engine)]);
-    const onTs = reportOf(kilnYard, [run(WALK)]);
-
-    it('is what it reached on the TypeScript engine, the handlers it ran and the lines misread included', () => {
-      expect(onTs.reach.handlers.reached.length).toBeGreaterThan(0);
-      expect(report).toEqual(onTs);
-    });
-  },
-);
 
 describe('a report, written', () => {
   it('is JSON, as it reads back', () => {
