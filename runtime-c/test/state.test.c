@@ -465,6 +465,36 @@ static void a_destroyed_container_takes_every_declared_child_with_it_by_exact_id
   sprout_world_free(world);
 }
 
+static void a_declared_object_moved_out_before_its_container_was_destroyed_is_where_stored_and_holds_its_own(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("moved-out-of-destroyed", &host);
+  sprout_state *state = NULL;
+  sprout_opened report;
+  const sprout_stored_instance *boat, *label;
+  /* The store a turn wrote: the boat moved to the dock, the pile and the pump in it destroyed, the label never written. */
+  const char *text =
+      "{\"world\":\"moved_out_of_destroyed\",\"serial\":0,\"instances\":["
+      "{\"id\":\"moved_out_of_destroyed.dock.pile.boat\",\"made\":{\"from\":\"declared\"},"
+      "\"container\":\"moved_out_of_destroyed.dock\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],"
+      "\"memory\":{},\"lastTick\":null}],\"visitors\":[],"
+      "\"tombstones\":[\"moved_out_of_destroyed.dock.pile\",\"moved_out_of_destroyed.dock.pile.pump\"]}";
+  open_store(&host, world, text, &state, &report);
+  boat = sprout_state_find(state, S("moved_out_of_destroyed.dock.pile.boat"));
+  label = sprout_state_find(state, S("moved_out_of_destroyed.dock.pile.boat.label"));
+  CHECK(boat != NULL && !boat->dormant);
+  if (boat != NULL) CHECK(sprout_str_is(boat->container, "moved_out_of_destroyed.dock"));
+  CHECK(label != NULL && !label->dormant);
+  if (label != NULL) CHECK(sprout_str_is(label->container, "moved_out_of_destroyed.dock.pile.boat"));
+  CHECK(listed(report.created, report.created_count, "moved_out_of_destroyed.dock.pile.boat.label"));
+  CHECK(!listed(report.created, report.created_count, "moved_out_of_destroyed.dock.pile.boat"));
+  CHECK(!listed(report.created, report.created_count, "moved_out_of_destroyed.dock.pile.pump"));
+  CHECK(sprout_state_find(state, S("moved_out_of_destroyed.dock.pile")) == NULL);
+  CHECK(sprout_state_find(state, S("moved_out_of_destroyed.dock.pile.pump")) == NULL);
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
 int main(void) {
   RUN(a_new_worlds_store_reconciled_is_the_initial_state_the_typescript_load_makes);
   RUN(an_opened_record_keeps_only_what_holds_other_than_its_default);
@@ -480,5 +510,6 @@ int main(void) {
   RUN(a_value_that_no_longer_fits_reports_it_and_a_retyped_one_reports_that);
   RUN(an_actor_stored_where_nothing_holds_actors_is_reported_stranded);
   RUN(a_destroyed_container_takes_every_declared_child_with_it_by_exact_id_set);
+  RUN(a_declared_object_moved_out_before_its_container_was_destroyed_is_where_stored_and_holds_its_own);
   return REPORT();
 }

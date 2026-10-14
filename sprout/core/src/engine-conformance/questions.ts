@@ -6,12 +6,15 @@ import { runCommand } from '../turns.js';
 import { equal, match, ok } from './check.js';
 import {
   COUNTER,
+  DOCK,
   GAUGE,
   HALL,
   LAMPLIGHT,
   LAMPLIT_HALL,
+  LABEL,
   MARTA,
   played,
+  QUAY,
   seeded,
   storedIn,
   TALLY,
@@ -151,6 +154,32 @@ export const questionCases: EngineCase[] = [
       ok(
         engine.command(bright, command('light lamp')).turn.committed,
         'a command on the state it wrote',
+      );
+    },
+  },
+  {
+    name: 'a declared object moved out of one since destroyed, read afresh',
+    proves:
+      'read afresh, a stored state finds a declared object where its record put it, out of a destroyed container, with what is declared inside it and never written',
+    async run(make) {
+      const store = await seeded(DOCK, [[MARTA, QUAY, 'Marta']]);
+      const host = played(make, DOCK);
+      ok((await runCommand(store, 'w', host, command('inflate pile'))).committed, 'the inflate');
+      const stored = await storedIn(store);
+      equal(
+        stored.instances.some((one) => one.id === LABEL),
+        false,
+        'whether the label, which never moved, is stored',
+      );
+      // A copy is a stored state no engine has read, as a host reading its store afresh holds.
+      const step = played(make, DOCK).engine!.command(
+        structuredClone(stored),
+        command('read label'),
+      );
+      match(
+        step.turn.effects,
+        [{ kind: 'said', from: LABEL, visit: MARTA, paragraphs: ['Frobozz.'] }],
+        'reading the label',
       );
     },
   },

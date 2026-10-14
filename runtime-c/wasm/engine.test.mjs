@@ -77,6 +77,7 @@ const EXPECTED_WORLDS = [
   'intents',
   'media-room',
   'move',
+  'moved-out-of-destroyed',
   'narrowing-and',
   'nested-offers',
   'no-way',
