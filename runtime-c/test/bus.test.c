@@ -63,8 +63,28 @@ static void the_queue_drains_breadth_first_and_a_handlers_sends_wait_behind_it(v
   CHECK_STR(c.x.ran[1].origin, "exec_bench.Lamp");
   CHECK_STR(c.x.ran[2].origin, "exec_bench.Runner");
   CHECK_STR(c.x.ran[2].on, "exec_bench.pong");
+  /* Where each is written, which tells two handlers of one kind apart. */
+  CHECK(strncmp(c.x.ran[0].at, "exec_bench.sprout:", 18) == 0);
   CHECK_INT(c.x.events, 3);
   CHECK_INT(c.x.queue_head, c.x.queue_count);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
+static void a_turn_whose_host_asks_for_no_account_keeps_no_record_of_what_ran(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_send send;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "sends are delivered in the order queued, breadth-first"));
+  c.x.accounts = false;
+  send = authored(&c, "ping", "exec_bench.hall.runner", "exec_bench.hall.bell");
+  CHECK_INT(sprout_exec_queue(&c.x, &send), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_exec_drain(&c.x), SPROUT_EVAL_OK);
+  /* The handlers ran, and nothing was taken from the turn to say so. */
+  CHECK_INT(c.x.events, 2);
+  CHECK_INT(c.x.ran_count, 0);
+  CHECK(c.x.ran == NULL);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -179,6 +199,7 @@ static void the_golden_bus_cases_end_as_the_typescript_runtime_did(void) {
 int main(void) {
   RUN(a_queued_message_carries_the_depth_of_the_body_that_queued_it);
   RUN(the_queue_drains_breadth_first_and_a_handlers_sends_wait_behind_it);
+  RUN(a_turn_whose_host_asks_for_no_account_keeps_no_record_of_what_ran);
   RUN(a_delivery_to_something_with_no_handler_costs_nothing);
   RUN(a_queue_drained_and_filled_again_takes_no_more_room);
   RUN(a_destroyed_objects_sends_and_deliveries_are_dropped);

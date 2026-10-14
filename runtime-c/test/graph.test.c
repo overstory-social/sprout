@@ -1,8 +1,8 @@
 /*
  * Tests for src/graph.c: a cartridge's table maps into a graph whose entries
  * are its first nodes and whose scalar cells lie past them, read in place
- * through the accessors; a cell names an entry; the lookups find fields and
- * map values; a block that is not a table, or a place naming a file not
+ * through the accessors, a place as `file:line:column`; a cell names an entry;
+ * the lookups find fields and map values; a block that is not a table, or a place naming a file not
  * listed, is refused in words.
  */
 #include "check.h"
@@ -75,10 +75,22 @@ static void a_packed_world_maps_with_its_entries_first_and_its_cells_after(void)
       places++;
       CHECK(sprout_place_file(&graph, n) >= -1 && sprout_place_file(&graph, n) < (int)graph.file_count);
       CHECK(sprout_place_line(&graph, n) >= 0);
+      if (sprout_place_file(&graph, n) >= 0) {
+        /* A kept place reads as its file, its line and its column. */
+        char want[200];
+        snprintf(want, sizeof want, "%s:%ld:%u", graph.files[sprout_place_file(&graph, n)], sprout_place_line(&graph, n),
+                 sprout_place_column(&graph, n));
+        CHECK_STR(sprout_place_text(&graph, n, &arena), want);
+      } else {
+        CHECK_STR(sprout_place_text(&graph, n, &arena), "?");
+      }
     }
     if (n->kind == SPROUT_NODE_STRING) strings++;
   }
   CHECK(places > 0 && strings > 0);
+  /* What is no place reads as none kept. */
+  CHECK_STR(sprout_place_text(&graph, NULL, &arena), "?");
+  CHECK_STR(sprout_place_text(&graph, &graph.table.nodes[0], &arena), "?");
   CHECK(sprout_graph_index(&graph, NULL) == SPROUT_NOT_AN_ENTRY);
   CHECK(sprout_graph_index(NULL, &graph.table.nodes[0]) == SPROUT_NOT_AN_ENTRY);
   CHECK(sprout_graph_cell(&graph, NULL) == NULL);

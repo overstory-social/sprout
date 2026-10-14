@@ -262,25 +262,24 @@ describe('main', () => {
     expect(saved.out()).toBe(`wrote ${script}\nwrote ${report}\n`);
   });
 
-  it.runIf(ENGINES_BUILT.includes('wasm'))(
-    'play --report on the WebAssembly engine leaves what it gives no account of null, and says so',
-    () => {
-      const dir = worldFolder('lane', LANE);
-      const folder = mkdtempSync(join(tmpdir(), 'sprout-play-'));
-      const script = join(folder, 'walk.json');
-      const report = join(folder, 'reached.json');
-      writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
-      const io = captured();
-      expect(main(['play', dir, script, '--report', report, '--engine', 'wasm'], io)).toBe(0);
-      expect(io.err()).toBe(
-        'sprout: this engine does not say which handlers a turn ran or what answered a line, so the report leaves them null; --engine ts reports them\n',
-      );
-      const reached = JSON.parse(readFileSync(report, 'utf8'));
-      expect(reached.reach.places.reached).toEqual(['yard', 'shed']);
-      expect(reached.reach.handlers).toBeNull();
-      expect(reached.reading.unread).toBeNull();
-    },
-  );
+  it('play --report and test --report write the same report on every engine, and say nothing of it', () => {
+    const dir = worldFolder('lane', LANE);
+    const folder = mkdtempSync(join(tmpdir(), 'sprout-play-'));
+    const script = join(folder, 'walk.json');
+    writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
+    for (const command of ['play', 'test']) {
+      const reports = ENGINES_BUILT.map((engine) => {
+        const report = join(folder, `${command}-${engine}.json`);
+        const io = captured();
+        main([command, dir, script, '--report', report, '--engine', engine], io);
+        expect(io.err()).toBe('');
+        return readFileSync(report, 'utf8');
+      });
+      const reached = JSON.parse(reports[0]!);
+      expect(reached.reading.unread.map((one: { typed: string }) => one.typed)).toEqual(['xyzzy']);
+      for (const report of reports.slice(1)) expect(report).toBe(reports[0]);
+    }
+  });
 
   it('plays, tests and views on the engine --engine names, each printing the same pages', () => {
     const dir = worldFolder('lane', LANE);

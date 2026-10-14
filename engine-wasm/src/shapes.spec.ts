@@ -26,6 +26,11 @@ const told = {
   stale: ['visit:marta'],
   entry: null,
   changes: null,
+  account: {
+    ran: [{ origin: 'tally.Counter', on: 'changed :n', at: 'counter.sprout:5:3' }],
+    answered: null,
+    refused: false,
+  },
 };
 
 describe('the shapes the engine answers in', () => {
@@ -33,6 +38,15 @@ describe('the shapes the engine answers in', () => {
     const read_ = read(ToldSchema, JSON.stringify(told), 'a turn');
     expect(read_.effects[0]?.paragraphs).toEqual(['Click.']);
     expect(read_.stale).toEqual(['visit:marta']);
+    expect(read_.account.ran.map((one) => one.on)).toEqual(['changed :n']);
+  });
+
+  it('reads what a turn ran as core’s account, and refuses one with a part missing', () => {
+    expect(read(ToldSchema, JSON.stringify(told), 'a turn').account).toEqual(told.account);
+    const unnamed = { ...told, account: { ...told.account, ran: [{ origin: 'tally.Counter' }] } };
+    expect(() => read(ToldSchema, JSON.stringify(unnamed), 'a turn')).toThrow(
+      /answered a turn in a shape it does not have: account\.ran\.0\.on/,
+    );
   });
 
   it('refuses a shape the language does not have, naming where', () => {

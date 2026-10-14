@@ -201,18 +201,9 @@ describe.each(ENGINES_BUILT.filter((engine) => engine !== 'ts'))(
     const report = reportOf(kilnYard, [run(WALK, 'yard.json', engine)]);
     const onTs = reportOf(kilnYard, [run(WALK)]);
 
-    it('is what it reached on the TypeScript engine, but what the engine gives no account of', () => {
-      expect(report).toEqual({
-        ...onTs,
-        reading: {
-          typed: onTs.reading.typed,
-          unread: null,
-          refused: null,
-          unreadRate: null,
-          refusedRate: null,
-        },
-        reach: { ...onTs.reach, handlers: null },
-      });
+    it('is what it reached on the TypeScript engine, the handlers it ran and the lines misread included', () => {
+      expect(onTs.reach.handlers.reached.length).toBeGreaterThan(0);
+      expect(report).toEqual(onTs);
     });
   },
 );

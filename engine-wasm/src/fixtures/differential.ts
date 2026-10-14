@@ -23,6 +23,7 @@ import {
   runWake,
   Ticker,
   tsEngine,
+  type Account,
   type Engine,
   type LogHost,
   type SproutStore,
@@ -42,17 +43,35 @@ import { wasmEngine } from '../engine.js';
 // The corpus played through both engines, for the differential spec: each
 // script of a `corpus/good` world driven step by step through core's turns
 // over a memory store of each engine's own, the two given the same inputs,
-// and after each step what a host reads compared: every turn's given, the
-// log's entries at debug depth, the stored world, and every poll and
-// question a host asks of it. The driver is the same for both engines, so
+// and after each step what a host reads compared: every turn's given and
+// its account, the log's entries at debug depth, the stored world, and
+// every poll and question a host asks of it. The driver is the same for both engines, so
 // how it plays a script (its seeds, when wakes fall due) is its own and
 // needs no other host's agreement.
 
-/** One world's two hosts, each naming its engine, and the store each plays into. */
+/** One world's two hosts, each naming its engine, the store each plays into, and the accounts each engine gave. */
 interface Pair {
   readonly ts: CommandHost & LogHost;
   readonly wasm: CommandHost & LogHost;
   readonly stores: { readonly ts: SproutStore; readonly wasm: SproutStore };
+  readonly accounts: { readonly ts: (Account | null)[]; readonly wasm: (Account | null)[] };
+}
+
+/** `engine`, keeping in `accounts` the account of every write turn it runs, in the order run. */
+function accounting(engine: Engine, accounts: (Account | null)[]): Engine {
+  const kept = <S extends { readonly account: Account | null }>(step: S): S => {
+    accounts.push(step.account);
+    return step;
+  };
+  return {
+    ...engine,
+    command: (stored, command) => kept(engine.command(stored, command)),
+    tick: (stored, tick) => kept(engine.tick(stored, tick)),
+    wake: (stored, wake) => kept(engine.wake(stored, wake)),
+    maintenance: (stored, inputs) => kept(engine.maintenance(stored, inputs)),
+    arrival: (stored, arrival) => kept(engine.arrival(stored, arrival)),
+    departure: (stored, departure) => kept(engine.departure(stored, departure)),
+  };
 }
 
 /** What the corpus world in `dir` is, compiled as a host publishes it, or the words of why it is not. */
@@ -211,17 +230,22 @@ export async function playBoth(
     render: renderEffects,
     logDepth: 'debug',
   };
+  const accounts = { ts: [] as (Account | null)[], wasm: [] as (Account | null)[] };
   const pair: Pair = {
-    ts: { ...base, engine: tsEngine(base) },
+    ts: { ...base, engine: accounting(tsEngine(base), accounts.ts) },
     wasm: {
       ...base,
-      engine: wasmEngine({
-        cartridge: world.cartridge,
-        catalogue: world.catalogue,
-        budgets: base.budgets,
-      }),
+      engine: accounting(
+        wasmEngine({
+          cartridge: world.cartridge,
+          catalogue: world.catalogue,
+          budgets: base.budgets,
+        }),
+        accounts.wasm,
+      ),
     },
     stores: { ts: memoryStore(), wasm: memoryStore() },
+    accounts,
   };
   const script = readScript(readFileSync(file, 'utf8'), file);
   const tickers = { ts: new Ticker(), wasm: new Ticker() };
@@ -249,6 +273,7 @@ export async function playBoth(
     const storedWasm = await pair.stores.wasm.read('w', (tx) => tx.state());
     const found =
       differs(`${where}'s turns`, turns.ts.map(given), turns.wasm.map(given)) ??
+      differs(`${where}'s accounts`, pair.accounts.ts.splice(0), pair.accounts.wasm.splice(0)) ??
       differs(
         `${where}'s log`,
         await readLog(pair.stores.ts, 'w', { limit: 10_000 }),

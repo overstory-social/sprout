@@ -11,6 +11,7 @@ import {
   type CaughtUp,
   type Command,
   type CommandHost,
+  type Commanded,
   type CommandTurn,
   type Committed,
   type Departure,
@@ -56,7 +57,7 @@ export interface Account {
   readonly refused: boolean;
 }
 
-/** What one write turn did, what it writes, its log entry and its account; null for any it has none of, or the engine does not say. */
+/** What one write turn did, what it writes, its log entry and its account; null for any it has none of, a turn that ran nothing having no account. */
 export interface Step<T> {
   readonly turn: T;
   readonly changes: StoredChanges | null;
@@ -77,12 +78,17 @@ function answeredBy(said: Said): string {
   return 'absent' in speech ? speech.absent : speech.recorded.transcript;
 }
 
+/** What a command turn that ran no reading ran: a displaced visitor's coming in, or nothing. */
+function ranDisplaced(value: Commanded): readonly Ran[] {
+  return 'displaced' in value ? (value.displaced.drained?.ran ?? []) : [];
+}
+
 /** What a command turn ran, answered with, or refused. */
 function commandAccount(turn: CommandTurn): Account {
   if (!turn.committed) return ranOnly([]);
   const { value } = turn;
   return {
-    ran: 'drained' in value ? value.drained.ran : [],
+    ran: 'drained' in value ? value.drained.ran : ranDisplaced(value),
     answered: 'answered' in value ? answeredBy(value.answered) : null,
     refused: 'refused' in value,
   };

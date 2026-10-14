@@ -3,7 +3,8 @@
  * turn and runs what they make, in a draft that commits when the turn ends and is dropped when it faults; a fault
  * tells the actor so in the world's words and leaves the stored world byte for byte as it was (the spec's The
  * runtime > Turns). A typed line's turns are driven through src/line.c as a host drives them: an intent's steps,
- * each a turn, a refusal or an answer ending the line (Parsing > Intents; Sequences, again and all).
+ * each a turn, a refusal or an answer ending the line (Parsing > Intents; Sequences, again and all). Where the host
+ * asks, a command accounts for the handlers it ran and the line it was answered with; a consent refusal is told apart.
  */
 #include "turn_fixture.h"
 
@@ -177,6 +178,59 @@ static void a_typed_line_the_parser_answers_is_answered_and_ends_the_line(void) 
   tw_close(&w);
 }
 
+static void a_command_accounts_for_the_handlers_it_ran_where_the_host_asks(void) {
+  turn_world w;
+  sprout_outcome out;
+  size_t i;
+  bool lamp = false;
+  tw_open(&w, "handlers");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "strike", "hall.lighter", 1, &out);
+  CHECK(out.committed);
+  CHECK_INT(out.ran_count, 0);
+  sprout_outcome_free(&out);
+  w.host.accounts = true;
+  tw_do(&w, "v-marta", "strike", "hall.lighter", 2, &out);
+  CHECK(out.committed && !out.refused && out.answer == NULL);
+  CHECK(out.ran_count > 0);
+  for (i = 0; i < out.ran_count; i++) {
+    if (strcmp(out.ran[i].origin, "handlers.Lamp") == 0 && strcmp(out.ran[i].on, "handlers.illuminating") == 0) {
+      lamp = true;
+      CHECK(strncmp(out.ran[i].at, "lamp.sprout:", 12) == 0);
+    }
+  }
+  CHECK(lamp);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_command_tells_a_consent_refusal_apart_and_names_the_line_it_was_answered_with(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_turn_input input = tw_input(SPROUT_TURN_COMMAND, 2);
+  tw_open(&w, "never-runs");
+  w.host.accounts = true;
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "pry", "hall.lid", 1, &out);
+  CHECK(out.committed && out.refused && !out.answered && out.answer == NULL);
+  CHECK(tw_told(&out, "v-marta", "The lid is stuck fast."));
+  sprout_outcome_free(&out);
+  input.visit = "v-marta";
+  input.text = "xyzzy";
+  input.text_length = 5;
+  CHECK_INT(tw_run(&w, input, 4, &out), SPROUT_OK);
+  CHECK(out.committed && out.answered && !out.refused);
+  CHECK_STR(out.answer, "unknown");
+  sprout_outcome_free(&out);
+  w.host.accounts = false;
+  CHECK_INT(tw_run(&w, input, 5, &out), SPROUT_OK);
+  CHECK(out.answered && out.answer == NULL);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void a_command_is_one_of_a_reading_typed_words_or_a_planned_step(void) {
   turn_world w;
   sprout_outcome out;
@@ -221,5 +275,7 @@ int main(void) {
   RUN(a_typed_intent_runs_its_first_step_and_hands_the_rest_on_each_a_turn);
   RUN(a_typed_line_the_parser_answers_is_answered_and_ends_the_line);
   RUN(a_command_is_one_of_a_reading_typed_words_or_a_planned_step);
+  RUN(a_command_accounts_for_the_handlers_it_ran_where_the_host_asks);
+  RUN(a_command_tells_a_consent_refusal_apart_and_names_the_line_it_was_answered_with);
   return REPORT();
 }

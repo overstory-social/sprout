@@ -436,6 +436,20 @@ static sprout_status read_command(turn_run *run, const sprout_frame *frame, cons
 #endif
 }
 
+/* What a command the parser answered was answered with, for its account: its line's passage name, or its words. */
+static const char *answer_of(sprout_arena *keep, const sprout_graph *graph, const sprout_speech *said) {
+  const sprout_node *value;
+  switch (said->kind) {
+    case SPROUT_SPEECH_TEXT:
+      value = sprout_node_get(graph, said->node, "value");
+      return sprout_arena_copy(keep, sprout_text(graph, value), sprout_text_length(graph, value));
+    case SPROUT_SPEECH_RECORDED:
+      return sprout_arena_copy(keep, said->transcript.bytes == NULL ? "" : said->transcript.bytes, said->transcript.length);
+    default:
+      return sprout_arena_copy(keep, said->name, strlen(said->name));
+  }
+}
+
 /* Whether the effect pass said a refusal to the actor among the lines from `from` on, which stops a line's steps. */
 static bool refused_actor(const sprout_exec *x, size_t from, sprout_str actor) {
   size_t i, j;
@@ -588,7 +602,12 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
       /* A turn of a line of several readings planned at once, an intent's, `all`'s or a run's, is a step the host logs. */
       if (input->planned != NULL || c.several) outcome->step = c.read;
     }
+    if (c.answered && host->accounts && (outcome->answer = answer_of(turn_keep(outcome), &world->graph, &c.said.said)) == NULL) {
+      turn_drop(&run);
+      return turn_abort(outcome, SPROUT_NO_MEMORY);
+    }
     if (end == SPROUT_READING_REFUSED) {
+      outcome->refused = true;
       outcome->goes_on = false;
     } else {
       outcome->next = c.next;

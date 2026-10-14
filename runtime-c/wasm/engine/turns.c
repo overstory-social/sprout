@@ -53,19 +53,41 @@ static bool commanded(wasm_engine *e, const sprout_outcome *outcome, bool displa
   return next->count == outcome->next_count;
 }
 
+/* What the turn ran, as core's account: each handler and hook in order, the answered line's name or words, and a consent refusal. */
+static sprout_json *account(wasm_engine *e, const sprout_outcome *outcome) {
+  sprout_json *root = sprout_json_make(&e->scratch, SPROUT_JSON_OBJECT, 3);
+  sprout_json *ran = sprout_json_make(&e->scratch, SPROUT_JSON_ARRAY, outcome->ran_count);
+  size_t i;
+  if (root == NULL || ran == NULL) return NULL;
+  for (i = 0; i < outcome->ran_count; i++) {
+    const sprout_ran *one = &outcome->ran[i];
+    sprout_json *body = sprout_json_make(&e->scratch, SPROUT_JSON_OBJECT, 3);
+    if (body == NULL) return NULL;
+    sprout_json_adopt(body, "origin", engine_text(e, one->origin, strlen(one->origin)));
+    sprout_json_adopt(body, "on", engine_text(e, one->on, strlen(one->on)));
+    sprout_json_adopt(body, "at", engine_text(e, one->at, strlen(one->at)));
+    if (body->count != 3) return NULL;
+    sprout_json_adopt(ran, NULL, body);
+  }
+  sprout_json_adopt(root, "ran", ran);
+  sprout_json_adopt(root, "answered", outcome->answer == NULL ? engine_null(e) : engine_text(e, outcome->answer, strlen(outcome->answer)));
+  sprout_json_adopt(root, "refused", engine_bool(e, outcome->refused));
+  return root->count == 3 && ran->count == outcome->ran_count ? root : NULL;
+}
+
 /*
  * A turn's outcome as JSON: what it came to, whether the stored state changed, its fault in the language's
  * shape, the words a host tells a person outside the world where an arrival was closed or faulted, every
  * line by reader, what it said as the language's effects, and who it cut short, by instance. `changes` is
  * what the store writes, null where it wrote nothing; `stale` whose views it made stale, null where it faulted.
- * `entry` is what the log keeps of it at this instance's depth. A command also gives `answered`, that no reading
+ * `entry` is what the log keeps of it at this instance's depth, and `account` what it ran. A command also gives `answered`, that no reading
  * ran; `displaced`, that its visitor's place was gone, so what they typed was not read; `drawn`, how many readings
  * tied where its reading was drawn, or null; `step`, the reading it ran as a step of a line of several, or null;
  * `next`, the turns its line runs after it; and `goesOn`, that the line goes on.
  */
 static int told(wasm_engine *e, const sprout_outcome *outcome, bool displaced) {
   bool command = outcome->has_log && outcome->log.kind == SPROUT_TURN_COMMAND;
-  sprout_json *root = sprout_json_make(&e->scratch, SPROUT_JSON_OBJECT, 15);
+  sprout_json *root = sprout_json_make(&e->scratch, SPROUT_JSON_OBJECT, 16);
   sprout_json *lines = sprout_json_make(&e->scratch, SPROUT_JSON_ARRAY, outcome->line_count);
   sprout_json *cuts = sprout_json_make(&e->scratch, SPROUT_JSON_ARRAY, outcome->cut_count);
   sprout_json *stale = sprout_json_make(&e->scratch, outcome->committed ? SPROUT_JSON_ARRAY : SPROUT_JSON_NULL,
@@ -107,8 +129,9 @@ static int told(wasm_engine *e, const sprout_outcome *outcome, bool displaced) {
     if (status != SPROUT_OK) return status;
   }
   sprout_json_adopt(root, "entry", entry != NULL ? entry : engine_null(e));
+  sprout_json_adopt(root, "account", account(e, outcome));
   if (command && !commanded(e, outcome, displaced, root)) return SPROUT_NO_MEMORY;
-  if (root->count != (command ? 15 : 9) || lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
+  if (root->count != (command ? 16 : 10) || lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
       (outcome->committed && stale->count != outcome->stale_count))
     return SPROUT_NO_MEMORY;
   status = sprout_json_write(&e->scratch, root, &head, &head_length);
