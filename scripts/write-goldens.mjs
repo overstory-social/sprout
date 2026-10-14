@@ -2,8 +2,9 @@
 // prints its diff, which is read before it is committed; the gate never runs it. The goldens are
 // fixtures the C tests replay (docs/design/sprout-test-harness.md, the golden layer), so each is
 // written by what owns its content: the C runtime (`sproutc`, and the WebAssembly engine) for what
-// a turn or a poll gives, the language for what a cartridge declares, the host for the turn seed.
-// A golden with no writer here is hand-kept, and the script says so.
+// a turn or a poll gives, the host for the turn seed, the compiler for the bench cartridges. A
+// golden with no writer here is hand-kept, and the script says so. What a corpus cartridge
+// declares is not a committed golden: ctest's setup dumps it from the language each run.
 //
 // Run `npm run build` and `node scripts/check-runtime-c.mjs` first: the writers use the built CLI,
 // the built engine.wasm and the `sproutc` that script builds.
@@ -19,16 +20,13 @@ import {
   DEFAULT_BLESSED,
   DEFAULT_LIMITS,
   emitCartridge,
-  kindName,
   libraryHash,
-  loadCartridge,
   MEDIA,
   readCartridge,
   readStoredWorld,
   SEED_MAX,
   SourceFile,
   STANDARD_LIBRARY,
-  typeKey,
 } from '@overstory/sprout/lang';
 import { shippedModule, WasmInstance } from '@overstory/sprout-engine-wasm';
 import {
@@ -77,110 +75,6 @@ function sproutc() {
     );
   }
   return path;
-}
-
-// ---- catalogues.json: what each corpus cartridge declares, read back by the language ----
-
-function defaultOf(literal) {
-  switch (literal.kind) {
-    case 'boolean':
-      return { boolean: literal.value };
-    case 'integer':
-      return { number: literal.value };
-    case 'string':
-      return { string: literal.value };
-    case 'option-literal':
-      return { option: literal.name.text };
-    case 'list-literal':
-      return { list: literal.elements.map(defaultOf) };
-  }
-  throw new Error(`a default of kind ${literal.kind} has no form in the dump.`);
-}
-
-function kindOf(kind, spawnable) {
-  return {
-    name: kindName(kind),
-    spawnable,
-    order: [...kind.order],
-    contains: kind.contains,
-    containsActors: kind.containsActors,
-    roams: kind.roams,
-    properties: [...kind.properties.values()].map((property) => ({
-      name: property.name,
-      type: typeKey(property.type),
-      remembered: property.remembered,
-      origin: property.origin,
-      default: defaultOf(property.declaration.default),
-    })),
-    passages: [...kind.passages.keys()],
-    plays: [...kind.plays].map(([key, plays]) => [key, plays.length]),
-  };
-}
-
-const phraseText = (phrase) =>
-  phrase.parts.map((part) => (part.part === 'slot' ? `{${part.role}}` : part.text)).join('');
-const partsText = (parts) =>
-  parts.map((part) => ('slot' in part ? `{${part.slot}}` : part.words.join(' '))).join('|');
-const verbName = (verb) => `${verb.library}.${verb.name}`;
-
-/** A loaded catalogue as the dump the C catalogue tests compare with; `recorded` is the caps the cartridge was checked against. */
-function dumpCatalogue(catalogue, recorded) {
-  const spawnable = new Set(catalogue.kinds.keys());
-  return {
-    world: catalogue.world,
-    arrival: catalogue.arrival,
-    worldKind: catalogue.worldKind === null ? null : kindName(catalogue.worldKind),
-    visitorKind: catalogue.visitorKind === null ? null : kindName(catalogue.visitorKind),
-    declared: [...catalogue.declared.values()]
-      .sort((a, b) => a.rank - b.rank)
-      .map((one) => [
-        one.id,
-        one.container,
-        one.kind === null ? null : kindName(one.kind),
-        one.rank,
-      ]),
-    kinds: catalogue.lookup.all().map((kind) => kindOf(kind, spawnable.has(kindName(kind)))),
-    verbs: catalogue.verbs.all().map((verb) => ({
-      name: verbName(verb),
-      roles: verb.roles.map((role) => [
-        role.name,
-        role.filler === null
-          ? 'none'
-          : role.filler.fills === 'kind'
-            ? `kind ${kindName(role.filler.kind)}`
-            : role.filler.fills,
-        role.many,
-        role.optional,
-        role.carried,
-      ]),
-      phrases: verb.phrases.map(phraseText),
-    })),
-    phrases: catalogue.phrases.map((one) => [verbName(one.verb), partsText(one.parts), one.only]),
-    intentPhrases: catalogue.intentPhrases.map((one) => [
-      `${one.intent.library}.${one.intent.name}`,
-      partsText(one.parts),
-    ]),
-    messages: catalogue.messages
-      .all()
-      .map((one) => [
-        `${one.library}.${one.name}`,
-        one.carries === null ? null : typeKey(one.carries),
-      ]),
-    words: [...catalogue.words],
-    extensions: [...catalogue.extensions.values()].map((one) => [one.name, one.major]),
-    caps: { ...recorded },
-  };
-}
-
-async function catalogues(scratch) {
-  await packCorpus(scratch);
-  const lines = corpusWorlds().map((name) => {
-    const bytes = readFileSync(join(scratch, `${name}.sproutworld`));
-    const read = readCartridge(bytes);
-    const loaded = dumpCatalogue(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }), read.caps);
-    return `${JSON.stringify(name)}:${JSON.stringify({ level: read.header.level, ...loaded })}`;
-  });
-  return `{\n${lines.join(',\n')}\n}\n`;
 }
 
 // ---- stored-worlds.json: each world's initial state and states from its transcripts ----
@@ -421,7 +315,6 @@ async function writeFormatted(file, text) {
 // ---- the command ----
 
 const WRITERS = {
-  'catalogues.json': catalogues,
   'stored-worlds.json': storedWorlds,
   'views.json': views,
   'seeds.json': seeds,

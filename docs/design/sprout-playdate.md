@@ -219,15 +219,17 @@ core's engine conformance suite; no other runtime is its oracle.
 ([`sprout-test-harness.md`](sprout-test-harness.md), 7).
 
 - **Goldens under `corpus/goldens/`**, fixtures the C tests replay byte for
-  byte: `catalogues.json` (every world's ids, kinds, properties, verbs and
-  phrases), `stored-worlds.json` and `stored-reopened.json` (stored worlds,
+  byte: `stored-worlds.json` and `stored-reopened.json` (stored worlds,
   and stored worlds edited against their world, with the load report),
   `eval.json`, `exec.json`, `readings.json`, `views.json`, `prose.json`,
   and `seeds.json`, `nicknames.json`, `budgets.json`, `draws.json`,
   `numbers.json`, `stored-canon.json`. No spec writes them.
   `node scripts/write-goldens.mjs <golden>` rewrites the ones that have a
   writer, and the rest are hand-kept. Either way, the diff is read like any
-  golden ([`sprout-test-harness.md`](sprout-test-harness.md), 7a).
+  golden ([`sprout-test-harness.md`](sprout-test-harness.md), 7a). What each
+  corpus world declares (its ids, kinds, properties, verbs and phrases) is
+  not committed: ctest's setup dumps it from the language over the packed
+  cartridges, and the catalogue tests hold the runtime's load to it.
 - **The corpus on the WebAssembly engine.** `runtime-c/wasm/engine.test.mjs`
   opens every corpus world empty to the state `stored-worlds.json` holds,
   and plays every transcript through the engine, each step making what it
