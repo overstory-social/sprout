@@ -67,8 +67,8 @@ static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const s
     CHECK_STR(kind->passages[i].name, passages->items[i]->bytes);
   CHECK_INT(kind->play_group_count, plays->count);
   for (i = 0; i < kind->play_group_count && i < plays->count; i++) {
-    CHECK_STR(kind->plays[i].key, plays->items[i]->items[0]->bytes);
-    CHECK_INT(kind->plays[i].count, plays->items[i]->items[1]->number);
+    CHECK_STR(kind->plays[i]->key, plays->items[i]->items[0]->bytes);
+    CHECK_INT(kind->plays[i]->count, plays->items[i]->items[1]->number);
   }
 }
 
@@ -100,7 +100,7 @@ static bool same_plays(const sprout_play_group *a, const sprout_play_group *b) {
   return true;
 }
 
-static void plays_two_kinds_hold_alike_are_one_array(void) {
+static void plays_two_kinds_hold_alike_are_one_record(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
   sprout_world *world = corpus_load("standard-library", &host);
@@ -109,9 +109,9 @@ static void plays_two_kinds_hold_alike_are_one_array(void) {
     for (j = i + 1; j < world->kind_count; j++)
       for (g = 0; g < world->kinds[i]->play_group_count; g++)
         for (h = 0; h < world->kinds[j]->play_group_count; h++) {
-          const sprout_play_group *a = &world->kinds[i]->plays[g], *b = &world->kinds[j]->plays[h];
+          const sprout_play_group *a = world->kinds[i]->plays[g], *b = world->kinds[j]->plays[h];
           if (!same_plays(a, b)) continue;
-          CHECK(a->plays == b->plays);
+          CHECK(a == b);
           shared++;
         }
   /* A kind that composes another and adds no play of a role holds what it composed. */
@@ -212,7 +212,7 @@ static void the_contents_a_kind_gives_are_found_by_the_path_in_its_body(void) {
 
 int main(void) {
   RUN(every_kind_of_every_corpus_world_matches_the_dump);
-  RUN(plays_two_kinds_hold_alike_are_one_array);
+  RUN(plays_two_kinds_hold_alike_are_one_record);
   RUN(a_property_two_kinds_list_is_one_record);
   RUN(a_property_is_found_by_name_with_its_type_range_and_options);
   RUN(the_world_and_visitor_kinds_are_never_spawnable);

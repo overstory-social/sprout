@@ -173,44 +173,55 @@ static sprout_status read_passages(loader *l, const sprout_node *map, sprout_pas
   return SPROUT_OK;
 }
 
-/* One key's plays, in the order they run. */
-static sprout_status read_plays(loader *l, const sprout_node *group, sprout_play **out) {
-  sprout_play *plays = (sprout_play *)already(l, group);
+/* One key's plays, in the order they run: one record for each group entry and key, however many kinds hold it. */
+static sprout_status read_group(loader *l, const sprout_node *key, const sprout_node *group,
+                                const sprout_play_group **out) {
+  const sprout_play_group *kept = (const sprout_play_group *)already(l, group);
+  sprout_play_group *made;
+  sprout_play *plays;
   size_t j;
-  if (plays == NULL) {
-    plays = (sprout_play *)cat_array(l, group->count, sizeof(sprout_play));
-    MEMORY(plays);
-    for (j = 0; j < group->count; j++) {
-      const sprout_node *one = sprout_item(l->graph, group, j);
-      sprout_play *play = &plays[j];
-      play->origin = cat_text(l->graph, one, "origin");
-      play->library = cat_text(l->graph, one, "library");
-      play->verb = cat_text(l->graph, one, "verb");
-      play->role = cat_text(l->graph, one, "role");
-      play->any = cat_bool(l->graph, one, "any");
-      play->node = one;
-      if (play->origin == NULL || play->library == NULL || play->verb == NULL || play->role == NULL)
-        return cat_shaped(l, "a play");
-    }
-    NEED(keep(l, group, plays));
+  if (kept != NULL && strcmp(kept->key, sprout_text(l->graph, key)) == 0) {
+    *out = kept;
+    return SPROUT_OK;
   }
-  *out = plays;
-  return SPROUT_OK;
+  made = (sprout_play_group *)cat_array(l, 1, sizeof *made);
+  MEMORY(made);
+  made->key = sprout_text(l->graph, key);
+  made->count = group->count;
+  *out = made;
+  if (kept != NULL) {
+    made->plays = kept->plays;
+    return SPROUT_OK;
+  }
+  plays = (sprout_play *)cat_array(l, group->count, sizeof(sprout_play));
+  MEMORY(plays);
+  made->plays = plays;
+  for (j = 0; j < group->count; j++) {
+    const sprout_node *one = sprout_item(l->graph, group, j);
+    sprout_play *play = &plays[j];
+    play->origin = cat_text(l->graph, one, "origin");
+    play->library = cat_text(l->graph, one, "library");
+    play->verb = cat_text(l->graph, one, "verb");
+    play->role = cat_text(l->graph, one, "role");
+    play->any = cat_bool(l->graph, one, "any");
+    play->node = one;
+    if (play->origin == NULL || play->library == NULL || play->verb == NULL || play->role == NULL)
+      return cat_shaped(l, "a play");
+  }
+  return keep(l, group, made);
 }
 
-static sprout_status read_play_groups(loader *l, const sprout_node *map, sprout_play_group **out) {
-  sprout_play_group *groups = (sprout_play_group *)already(l, map);
+static sprout_status read_play_groups(loader *l, const sprout_node *map, const sprout_play_group ***out) {
+  const sprout_play_group **groups = (const sprout_play_group **)already(l, map);
   size_t i;
   if (groups == NULL) {
-    groups = (sprout_play_group *)cat_array(l, map->count, sizeof(sprout_play_group));
+    groups = (const sprout_play_group **)cat_array(l, map->count, sizeof(sprout_play_group *));
     MEMORY(groups);
     for (i = 0; i < map->count; i++) {
       const sprout_node *group = sprout_item(l->graph, map, i);
       if (sprout_map_key(l->graph, map, i)->kind != SPROUT_NODE_STRING || !cat_is_array(group))
         return cat_shaped(l, "a kind's plays");
-      groups[i].key = sprout_text(l->graph, sprout_map_key(l->graph, map, i));
-      groups[i].count = group->count;
-      NEED(read_plays(l, group, &groups[i].plays));
+      NEED(read_group(l, sprout_map_key(l->graph, map, i), group, &groups[i]));
     }
     NEED(keep(l, map, groups));
   }

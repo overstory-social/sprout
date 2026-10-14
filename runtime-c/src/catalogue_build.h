@@ -16,9 +16,10 @@ typedef struct loader {
   char *error;
   size_t capacity;
   /*
-   * What each graph entry the build reads was read as, by its index: a kind, a verb, a type, or the
-   * array a kind's properties, passages, plays or one group of plays became. An entry is only ever one
-   * of these, and the compiler shares what kinds inherit, so each is read once. It lives in `scratch`.
+   * What each graph entry the build reads was read as, by its index: a kind, a verb, a type, a
+   * property, a group of plays, or the array a kind's properties, passages or plays became. An entry is
+   * only ever one of these, and the compiler shares what kinds inherit, so each is read once. It lives
+   * in `scratch`.
    */
   sprout_entry_map read;
 } loader;

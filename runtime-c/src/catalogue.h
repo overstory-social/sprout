@@ -89,7 +89,7 @@ typedef struct sprout_kind_def {
   size_t passage_count;
   sprout_passage *passages;
   size_t play_group_count;
-  sprout_play_group *plays;
+  const sprout_play_group **plays; /* a group two kinds hold is one record */
   bool contains, contains_actors;
   bool roams; /* an NPC of it moves itself to any place */
   bool composes_world, composes_visitor, composes_actor;
