@@ -1,4 +1,4 @@
-/* host/files.c: whole files over the Playdate's filesystem, and files written a piece at a time. */
+/* host/files.c: whole files over the Playdate's filesystem, and files read and written a piece at a time. */
 #include <stdlib.h>
 
 #include "host/files.h"
@@ -155,8 +155,39 @@ static void a_file_written_in_pieces_is_moved_into_place_and_removed(void) {
   end();
 }
 
+static void a_file_is_read_a_piece_at_a_time(void) {
+  size_t i, at = 0;
+  char *big = (char *)malloc(70000), piece[8192];
+  SDFile *file;
+  int got;
+  begin("pieces");
+  for (i = 0; i < 70000; i++) big[i] = (char)('a' + i % 26);
+  CHECK(player_write_file(&fake->api, "big.bin", big, 70000), "writing");
+  CHECK(player_file_open(&fake->api, "absent") == NULL, "a missing file");
+  file = player_file_open(&fake->api, "big.bin");
+  CHECK(file != NULL, "opening");
+  while (file != NULL && (got = player_file_read(&fake->api, file, piece, sizeof piece)) > 0) {
+    CHECK(at + (size_t)got <= 70000 && memcmp(piece, big + at, (size_t)got) == 0, "the piece at %zu", at);
+    at += (size_t)got;
+  }
+  CHECK(at == 70000, "read %zu", at);
+  fake->fail_reads = 1;
+  CHECK(file != NULL && player_file_read(&fake->api, file, piece, sizeof piece) < 0, "a read that fails says so");
+  fake->fail_reads = 0;
+  if (file != NULL) player_file_close(&fake->api, file);
+  /* A file whose write was cut short before the swap is found, as the whole read finds it. */
+  write_text("cut.json.tmp", "whole");
+  file = player_file_open(&fake->api, "cut.json");
+  CHECK(file != NULL && player_file_read(&fake->api, file, piece, sizeof piece) == 5 && memcmp(piece, "whole", 5) == 0,
+        "the leftover");
+  if (file != NULL) player_file_close(&fake->api, file);
+  free(big);
+  end();
+}
+
 int main(void) {
   test_program("files");
+  a_file_is_read_a_piece_at_a_time();
   a_file_is_found_and_an_image_loaded_where_reading_looks();
   a_file_is_written_whole_and_read_back();
   a_file_bigger_than_a_chunk_is_read_whole();

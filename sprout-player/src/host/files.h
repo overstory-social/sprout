@@ -1,5 +1,5 @@
 /*
- * Whole files over the Playdate's filesystem. Reading looks in the Data folder first and then
+ * Files over the Playdate's filesystem, most of them whole. Reading looks in the Data folder first and then
  * the app (a cartridge is in either); writing always goes to `/Data/<bundleID>/`. A write is
  * made whole or not at all: the bytes go to `<path>.tmp` first and replace the file only once
  * written, and a read finds a `.tmp` left by a write that was cut short before the swap.
@@ -23,6 +23,15 @@ char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length);
  * held in memory; false when it cannot be read. Looks where `player_read_file` looks.
  */
 bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32], size_t *length);
+
+/*
+ * A file read a piece at a time, for a cartridge too big to hold whole while it loads:
+ * `player_file_open` opens the file at `path` where `player_read_file` looks, or gives NULL;
+ * `player_file_read` puts its next bytes, up to `bytes`, in `buffer` and gives how many, 0 at its
+ * end and negative when they could not be read. It is closed with `player_file_close`.
+ */
+SDFile *player_file_open(PlaydateAPI *pd, const char *path);
+int player_file_read(PlaydateAPI *pd, SDFile *file, void *buffer, size_t bytes);
 
 /* Writes `bytes` as the file at `path`, whole; false when it could not be. */
 bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length);

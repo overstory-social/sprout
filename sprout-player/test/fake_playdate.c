@@ -74,6 +74,9 @@ static SDFile *fake_open(const char *path, FileOptions mode) {
 static int fake_close(SDFile *file) { return fclose((FILE *)file); }
 
 static int fake_read(SDFile *file, void *buffer, unsigned length) {
+  current->reads++;
+  if (length > current->read_largest) current->read_largest = length;
+  if (current->fail_reads) return -1;
   return (int)fread(buffer, 1, length, (FILE *)file);
 }
 

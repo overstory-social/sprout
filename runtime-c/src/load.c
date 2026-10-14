@@ -2,7 +2,9 @@
  * Loading a cartridge (the spec's The compiler > What compiling produces;
  * Language levels): the sixteen header bytes are checked, the body is
  * inflated into one block in the world's arena, as many bytes a step as the
- * host allows, and then read where it lies: the preamble as a JSON tree in
+ * host allows, from the cartridge held whole or from a source read a piece
+ * at a time (so the compressed bytes are never whole in memory), and then
+ * read where it lies: the preamble as a JSON tree in
  * the load's scratch, the table mapped in place and checked once, the
  * catalogue built beside them; then the scratch is released. A peek inflates
  * only as far as the preamble. The host's code is not in a cartridge, so the
@@ -94,6 +96,10 @@ sprout_status sprout_cartridge_check_header(const unsigned char *bytes, size_t l
 }
 
 #define NOT_SIZED "This cartridge cannot be read: its body is not the size its header says."
+#define UNREAD "This cartridge cannot be read: its file could not be read to the end."
+
+/* How much of a source's cartridge is read at once: small enough to share the load's scratch pages, about a read a step. */
+#define PIECE_BYTES 8192u
 
 /* The state of one body being read. */
 typedef struct body_reader {
@@ -109,10 +115,14 @@ typedef struct body_reader {
   char error[320];
 } body_reader;
 
-/* Begins a body's reader over the compressed `body`, its state in `scratch`. */
+/*
+ * Begins a body's reader over the compressed `body` held whole, or over what
+ * `source` gives when it is not NULL, its state in `scratch`.
+ */
 static sprout_status begin_body(body_reader **out, sprout_world *world, sprout_arena *scratch,
-                                const unsigned char *body, size_t body_length, size_t body_bytes, size_t table_at,
-                                sprout_refusal *refusal, bool peek) {
+                                const unsigned char *body, size_t body_length, const sprout_source *source,
+                                size_t body_bytes, size_t table_at, sprout_refusal *refusal, bool peek) {
+  sprout_status inflating;
   body_reader *b = (body_reader *)sprout_arena_take(scratch, sizeof *b);
   const char *why = NULL;
   *out = NULL;
@@ -129,7 +139,14 @@ static sprout_status begin_body(body_reader **out, sprout_world *world, sprout_a
     say(refusal, NOT_SIZED, NULL, NULL, NULL, NULL);
     return SPROUT_BAD_INPUT;
   }
-  if (sprout_inflate_begin(&b->inflater, body, body_length, &why) != SPROUT_OK) {
+  if (source == NULL) {
+    inflating = sprout_inflate_begin(&b->inflater, body, body_length, &why);
+  } else {
+    unsigned char *piece = (unsigned char *)sprout_arena_take_aligned(scratch, PIECE_BYTES, 1);
+    if (piece == NULL) return SPROUT_NO_MEMORY;
+    inflating = sprout_inflate_begin_source(&b->inflater, source, piece, PIECE_BYTES, &why);
+  }
+  if (inflating != SPROUT_OK) {
     say(refusal, "This cartridge cannot be read: ", why, ".", NULL, NULL);
     return SPROUT_BAD_INPUT;
   }
@@ -235,8 +252,8 @@ struct sprout_loading {
 };
 
 /* The world record in its own arena, the header's format and level checked. */
-static sprout_status begin_world(const sprout_host *host, const char *cartridge, size_t length, sprout_world **out,
-                                 size_t *body_bytes, size_t *table_at, sprout_refusal *refusal) {
+static sprout_status begin_world(const sprout_host *host, const unsigned char *header, size_t length,
+                                 sprout_world **out, size_t *body_bytes, size_t *table_at, sprout_refusal *refusal) {
   sprout_arena boot;
   sprout_world *world;
   sprout_status status;
@@ -244,9 +261,8 @@ static sprout_status begin_world(const sprout_host *host, const char *cartridge,
   *out = NULL;
   status = sprout_arena_init(&boot, host);
   if (status != SPROUT_OK) return status;
-  if (cartridge == NULL) length = 0;
-  status = sprout_cartridge_check_header((const unsigned char *)cartridge, length, &format, &level, body_bytes,
-                                         table_at, refusal);
+  if (header == NULL) length = 0;
+  status = sprout_cartridge_check_header(header, length, &format, &level, body_bytes, table_at, refusal);
   if (status != SPROUT_OK) return status;
   world = (sprout_world *)sprout_arena_take(&boot, sizeof *world);
   if (world == NULL) {
@@ -263,17 +279,39 @@ static sprout_status begin_world(const sprout_host *host, const char *cartridge,
   return SPROUT_OK;
 }
 
+/* As many of the cartridge's first bytes as its header is, read from `source`; false when the source failed. */
+static bool read_header(const sprout_source *source, unsigned char *header, size_t *length) {
+  *length = 0;
+  while (*length < SPROUT_CARTRIDGE_HEADER_BYTES) {
+    size_t got = 0;
+    if (!source->read(source->ctx, header + *length, SPROUT_CARTRIDGE_HEADER_BYTES - *length, &got)) return false;
+    if (got == 0) break;
+    *length += got;
+  }
+  return true;
+}
+
+/* Begins a load of the cartridge held whole in `cartridge`, or read from `source` when it is not NULL. */
 static sprout_status begin_load(const sprout_host *host, const char *cartridge, size_t length,
-                                sprout_loading **out, sprout_refusal *refusal, bool peek) {
+                                const sprout_source *source, sprout_loading **out, sprout_refusal *refusal, bool peek) {
   sprout_arena scratch;
   sprout_loading *loading;
   sprout_world *world;
   sprout_status status;
-  size_t body_bytes = 0, table_at = 0;
+  unsigned char header[SPROUT_CARTRIDGE_HEADER_BYTES];
+  const unsigned char *head = (const unsigned char *)cartridge;
+  size_t head_length = length, body_bytes = 0, table_at = 0;
   if (out != NULL) *out = NULL;
   if (refusal != NULL) refusal->text[0] = '\0';
-  if (host == NULL || out == NULL) return SPROUT_BAD_HOST;
-  status = begin_world(host, cartridge, length, &world, &body_bytes, &table_at, refusal);
+  if (host == NULL || out == NULL || (source != NULL && source->read == NULL)) return SPROUT_BAD_HOST;
+  if (source != NULL) {
+    if (!read_header(source, header, &head_length)) {
+      say(refusal, UNREAD, NULL, NULL, NULL, NULL);
+      return SPROUT_BAD_INPUT;
+    }
+    head = header;
+  }
+  status = begin_world(host, head, head_length, &world, &body_bytes, &table_at, refusal);
   if (status == SPROUT_NO_MEMORY) say(refusal, sprout_status_text(status), NULL, NULL, NULL, NULL);
   if (status != SPROUT_OK) return status;
   sprout_arena_init(&scratch, &world->host);
@@ -288,8 +326,9 @@ static sprout_status begin_load(const sprout_host *host, const char *cartridge, 
   loading->scratch = scratch;
   loading->world = world;
   status = begin_body(&loading->reader, world, &loading->scratch,
-                      (const unsigned char *)cartridge + SPROUT_CARTRIDGE_HEADER_BYTES,
-                      length - SPROUT_CARTRIDGE_HEADER_BYTES, body_bytes, table_at, &loading->refusal, peek);
+                      source != NULL ? NULL : (const unsigned char *)cartridge + SPROUT_CARTRIDGE_HEADER_BYTES,
+                      source != NULL ? 0 : length - SPROUT_CARTRIDGE_HEADER_BYTES, source, body_bytes, table_at,
+                      &loading->refusal, peek);
   if (status != SPROUT_OK) {
     if (refusal != NULL) *refusal = loading->refusal;
     if (status == SPROUT_NO_MEMORY) say(refusal, sprout_status_text(status), NULL, NULL, NULL, NULL);
@@ -300,9 +339,10 @@ static sprout_status begin_load(const sprout_host *host, const char *cartridge, 
   return SPROUT_OK;
 }
 
-sprout_status sprout_load_begin(const sprout_host *host, const char *cartridge, size_t length,
-                                sprout_loading **loading, sprout_refusal *refusal) {
-  return begin_load(host, cartridge, length, loading, refusal, false);
+sprout_status sprout_load_begin(const sprout_host *host, const sprout_source *source, sprout_loading **loading,
+                                sprout_refusal *refusal) {
+  if (source == NULL) return SPROUT_BAD_HOST;
+  return begin_load(host, NULL, 0, source, loading, refusal, false);
 }
 
 sprout_status sprout_load_step(sprout_loading *loading, size_t budget, bool *done, sprout_refusal *refusal) {
@@ -359,7 +399,7 @@ static sprout_status load_whole(const sprout_host *host, const char *cartridge, 
   sprout_status status;
   bool done = false;
   if (out != NULL) *out = NULL;
-  status = begin_load(host, cartridge, length, &loading, refusal, peek);
+  status = begin_load(host, cartridge, length, NULL, &loading, refusal, peek);
   if (status != SPROUT_OK) return status;
   status = sprout_load_step(loading, (size_t)-1, &done, refusal);
   if (status != SPROUT_OK) return status;

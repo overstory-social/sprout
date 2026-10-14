@@ -2,8 +2,12 @@
  * Inflate (RFC 1951) and the gzip member around it (RFC 1952). The decoder
  * is a small state machine (between blocks, in a stored block, in a coded
  * block, at the end) so it can stop when the caller's buffer is full and go
- * on from there; every byte it gives is counted against the trailer's ISIZE,
- * so a stream that lies about its length is refused rather than overrun.
+ * on from there. Its input is read a byte at a time from `in`, and a source's
+ * next piece is pulled when `in` is spent, so a refill never stops the decoder
+ * part way through a code. A member held whole has every byte it gives counted
+ * against the trailer's ISIZE, so a stream that lies about its length is
+ * refused rather than overrun; a member from a source has its length checked
+ * when it ends. Nothing may follow a member's trailer.
  * Huffman decoding is the canonical count-and-symbol walk: no tables beyond
  * the code lengths.
  */
@@ -50,12 +54,34 @@ static long refuse(sprout_inflater *s, const char *why) {
   return -1;
 }
 
+/* Whether `in` holds a byte, the source's next piece pulled when it is spent. */
+static bool more(sprout_inflater *s) {
+  size_t got = 0;
+  if (s->in_at < s->in_length) return true;
+  if (s->source.read == NULL) return false;
+  if (!s->source.read(s->source.ctx, s->piece, s->piece_bytes, &got)) {
+    refuse(s, "its file could not be read to the end");
+    return false;
+  }
+  s->in = s->piece;
+  s->in_length = got < s->piece_bytes ? got : s->piece_bytes;
+  s->in_at = 0;
+  return s->in_length > 0;
+}
+
+/* The next byte of the member; -1 when it ends. */
+static long byte(sprout_inflater *s) {
+  if (!more(s)) return refuse(s, "the compressed data ends early");
+  return s->in[s->in_at++];
+}
+
 /* The next `need` bits, least significant first; -1 when the stream ends. */
 static long bits(sprout_inflater *s, int need) {
   long value;
   while (s->bit_count < need) {
-    if (s->in_at >= s->in_length) return refuse(s, "the compressed data ends early");
-    s->bit_buffer |= (unsigned long)s->in[s->in_at++] << s->bit_count;
+    long next = byte(s);
+    if (next < 0) return -1;
+    s->bit_buffer |= (unsigned long)next << s->bit_count;
     s->bit_count += 8;
   }
   value = (long)(s->bit_buffer & ((1ul << need) - 1ul));
@@ -189,10 +215,9 @@ static int begin_block(sprout_inflater *s) {
     unsigned len, nlen;
     s->bit_buffer = 0;
     s->bit_count = 0;
-    if (s->in_at + 4 > s->in_length) return (int)refuse(s, "the compressed data ends early");
-    len = s->in[s->in_at] | ((unsigned)s->in[s->in_at + 1] << 8);
-    nlen = s->in[s->in_at + 2] | ((unsigned)s->in[s->in_at + 3] << 8);
-    s->in_at += 4;
+    len = (unsigned)bits(s, 16);
+    nlen = (unsigned)bits(s, 16);
+    if (s->why != NULL) return -1;
     if (len != (~nlen & 0xFFFFu)) return (int)refuse(s, "a stored block's length does not match its check");
     s->stored_left = len;
     s->state = STORED;
@@ -221,70 +246,49 @@ static uint32_t le32(const unsigned char *p) {
   return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
-/* The offset of the deflate data past the member header (RFC 1952 section 2.3), or 0 with `why` set. */
-static size_t header_end(const unsigned char *b, size_t n, const char **why) {
-  size_t at = 10;
-  unsigned flags;
-  if (n < 18 || b[0] != 0x1F || b[1] != 0x8B) {
-    *why = "the data is not gzip: it does not begin with its magic number";
-    return 0;
+/* Reads `count` bytes of the member into `out` (or past them where `out` is NULL); false when it ends first. */
+static bool take(sprout_inflater *s, unsigned char *out, size_t count) {
+  size_t i;
+  for (i = 0; i < count; i++) {
+    long next = byte(s);
+    if (next < 0) return false;
+    if (out != NULL) out[i] = (unsigned char)next;
   }
-  if (b[2] != 8) {
-    *why = "the data is gzip with a method other than deflate";
-    return 0;
-  }
-  flags = b[3];
-  if (flags & 0xE0u) {
-    *why = "the gzip header sets flags that are reserved";
-    return 0;
-  }
-  if (flags & 4u) {
-    size_t extra;
-    if (at + 2 > n) {
-      *why = "the compressed data ends early";
-      return 0;
-    }
-    extra = b[at] | ((size_t)b[at + 1] << 8);
-    at += 2 + extra;
-  }
-  if (flags & 8u) {
-    while (at < n && b[at] != 0) at++;
-    at++;
-  }
-  if (flags & 16u) {
-    while (at < n && b[at] != 0) at++;
-    at++;
-  }
-  if (flags & 2u) at += 2;
-  if (at + 8 > n) {
-    *why = "the compressed data ends early";
-    return 0;
-  }
-  return at;
+  return true;
 }
 
+/* Reads up to and past a NUL the member holds; false when it ends first. */
+static bool past_nul(sprout_inflater *s) {
+  long next;
+  do next = byte(s);
+  while (next > 0);
+  return next == 0;
+}
 
-sprout_status sprout_inflate_begin(sprout_inflater *s, const unsigned char *bytes, size_t length,
-                                   const char **why) {
-  const char *reason = NULL;
-  size_t start = header_end(bytes, length, &reason);
+/* Reads the member's header (RFC 1952 section 2.3), leaving `in` at the deflate data; false with `why` set. */
+static bool read_header(sprout_inflater *s) {
+  unsigned char head[10], extra[2];
+  unsigned flags;
+  const char *wrong = NULL;
+  if (!take(s, head, sizeof head)) return false;
+  flags = head[3];
+  if (head[0] != 0x1F || head[1] != 0x8B) wrong = "the data is not gzip: it does not begin with its magic number";
+  else if (head[2] != 8) wrong = "the data is gzip with a method other than deflate";
+  else if (flags & 0xE0u) wrong = "the gzip header sets flags that are reserved";
+  if (wrong != NULL) {
+    refuse(s, wrong);
+    return false;
+  }
+  if ((flags & 4u) && (!take(s, extra, 2) || !take(s, NULL, extra[0] | ((size_t)extra[1] << 8)))) return false;
+  if ((flags & 8u) && !past_nul(s)) return false;
+  if ((flags & 16u) && !past_nul(s)) return false;
+  if ((flags & 2u) && !take(s, NULL, 2)) return false;
+  return true;
+}
+
+/* The decoder's state before its header is read: nothing given yet, and the CRC's table built. */
+static void begin_state(sprout_inflater *s) {
   uint32_t n;
-  *why = NULL;
-  if (start == 0) {
-    *why = reason;
-    return SPROUT_BAD_INPUT;
-  }
-  memset(s, 0, sizeof *s);
-  s->size_said = le32(bytes + length - 4);
-  /* Deflate cannot expand more than 1032 to 1, so a longer ISIZE is a damaged trailer, not a size to reserve. */
-  if (s->size_said / 1032u > length) {
-    *why = "the gzip trailer gives a length that data this small cannot expand to";
-    return SPROUT_BAD_INPUT;
-  }
-  s->crc_said = le32(bytes + length - 8);
-  s->in = bytes;
-  s->in_length = length - 8;
-  s->in_at = start;
   s->state = BLOCK;
   s->crc = 0xFFFFFFFFu;
   for (n = 0; n < 256; n++) {
@@ -292,7 +296,72 @@ sprout_status sprout_inflate_begin(sprout_inflater *s, const unsigned char *byte
     for (k = 0; k < 8; k++) c = (c & 1u) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
     s->crc_table[n] = c;
   }
+}
+
+sprout_status sprout_inflate_begin(sprout_inflater *s, const unsigned char *bytes, size_t length,
+                                   const char **why) {
+  *why = NULL;
+  memset(s, 0, sizeof *s);
+  /* A header of ten bytes and a trailer of eight is the least a member is. */
+  if (length < 18 || bytes[0] != 0x1F || bytes[1] != 0x8B) {
+    *why = "the data is not gzip: it does not begin with its magic number";
+    return SPROUT_BAD_INPUT;
+  }
+  s->size_said = le32(bytes + length - 4);
+  /* Deflate cannot expand more than 1032 to 1, so a longer ISIZE is a damaged trailer, not a size to reserve. */
+  if (s->size_said / 1032u > length) {
+    *why = "the gzip trailer gives a length that data this small cannot expand to";
+    return SPROUT_BAD_INPUT;
+  }
+  s->in = bytes;
+  s->in_length = length;
+  begin_state(s);
+  if (!read_header(s)) {
+    *why = s->why;
+    return SPROUT_BAD_INPUT;
+  }
   return SPROUT_OK;
+}
+
+sprout_status sprout_inflate_begin_source(sprout_inflater *s, const sprout_source *source, unsigned char *piece,
+                                          size_t piece_bytes, const char **why) {
+  *why = NULL;
+  memset(s, 0, sizeof *s);
+  s->source = *source;
+  s->piece = piece;
+  s->piece_bytes = piece_bytes;
+  /* Unknown until the trailer is read, so no byte is refused for passing it. */
+  s->size_said = 0xFFFFFFFFu;
+  begin_state(s);
+  if (!read_header(s)) {
+    *why = s->why;
+    return SPROUT_BAD_INPUT;
+  }
+  return SPROUT_OK;
+}
+
+/* Reads and checks the trailer once the last block has ended; the member is done, or `why` set. */
+static void end_member(sprout_inflater *s) {
+  unsigned char trailer[8];
+  uint32_t length;
+  s->bit_buffer = 0;
+  s->bit_count = 0;
+  if (!take(s, trailer, sizeof trailer)) return;
+  length = le32(trailer + 4);
+  if ((uint32_t)s->total != length || (s->source.read == NULL && s->total != s->size_said)) {
+    refuse(s, (uint32_t)s->total < length ? "the compressed data is shorter than it says"
+                                          : "the compressed data is longer than it says");
+    return;
+  }
+  if (~s->crc != le32(trailer)) {
+    refuse(s, "the compressed data does not match its checksum");
+    return;
+  }
+  if (more(s)) {
+    refuse(s, "the compressed data goes on past its end");
+    return;
+  }
+  if (s->why == NULL) s->state = DONE;
 }
 
 bool sprout_inflate_done(const sprout_inflater *s) { return s->state == DONE; }
@@ -305,15 +374,7 @@ sprout_status sprout_inflate_next(sprout_inflater *s, unsigned char *out, size_t
   for (;;) {
     if (s->state == DONE) break;
     if (s->state == END) {
-      if (s->total != s->size_said) {
-        refuse(s, "the compressed data is shorter than it says");
-        break;
-      }
-      if (~s->crc != s->crc_said) {
-        refuse(s, "the compressed data does not match its checksum");
-        break;
-      }
-      s->state = DONE;
+      end_member(s);
       break;
     }
     if (s->state == BLOCK) {
@@ -328,10 +389,11 @@ sprout_status sprout_inflate_next(sprout_inflater *s, unsigned char *out, size_t
     if (s->state == STORED) {
       size_t n = s->stored_left < cap - produced ? s->stored_left : cap - produced;
       size_t i;
-      if (s->in_at + n > s->in_length) {
+      if (!more(s)) {
         refuse(s, "the compressed data ends early");
         break;
       }
+      if (n > s->in_length - s->in_at) n = s->in_length - s->in_at;
       if (s->total + n > s->size_said) {
         refuse(s, "the compressed data is longer than it says");
         break;

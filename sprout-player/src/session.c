@@ -22,14 +22,28 @@ player_session *player_session_new(PlaydateAPI *pd) {
   return session;
 }
 
+/* Closes the cartridge being read, if one is. */
+static void close_cartridge(player_session *session) {
+  if (session->loading_file != NULL) player_file_close(session->pd, session->loading_file);
+  session->loading_file = NULL;
+}
+
+/* The loader's source: the cartridge's next bytes, read from its file on the main stack. */
+static bool read_cartridge(void *ctx, unsigned char *buffer, size_t bytes, size_t *got) {
+  player_session *session = (player_session *)ctx;
+  int n = player_file_read(session->pd, session->loading_file, buffer, bytes);
+  if (n < 0) return false;
+  *got = (size_t)n;
+  return true;
+}
+
 /* Releases the world, its state and the log tail; the session is ready to open another. */
 static void release_world(player_session *session) {
   session_save_abandon(session);
   session_drop_view(session);
   if (session->loading != NULL) sprout_load_abandon(session->loading);
-  player_free(session->pd, session->loading_bytes);
   session->loading = NULL;
-  session->loading_bytes = NULL;
+  close_cartridge(session);
   if (session->state != NULL) sprout_state_free(session->state);
   if (session->world != NULL) sprout_world_free(session->world);
   session->state = NULL;
@@ -145,26 +159,37 @@ player_opening player_open(player_session *session, const char *path) {
   sprout_world *peeked = NULL;
   sprout_refusal refusal;
   sprout_status status;
+  sprout_source source;
   char *bytes = NULL;
   size_t length = 0;
   char reason[512];
+  text_buffer out;
   session_answer(session);
   release_world(session);
+  /* The peek's copy of the file is let go before the load begins, which reads it again a piece at a time. */
   if (!peek(session, path, &bytes, &length, &peeked, reason, sizeof reason)) {
     player_free(session->pd, bytes);
     return not_opened(session, reason);
   }
+  player_free(session->pd, bytes);
   name_files(session, &peeked->header);
   sprout_world_free(peeked);
-  status = sprout_load_begin(&session->host.record, bytes, length, &session->loading, &refusal);
-  if (status != SPROUT_OK) {
-    text_buffer out;
-    text_begin(&out, reason, sizeof reason);
-    load_failed(status, &refusal, &out);
-    player_free(session->pd, bytes);
+  text_begin(&out, reason, sizeof reason);
+  session->loading_file = player_file_open(session->pd, path);
+  if (session->loading_file == NULL) {
+    text_add(&out, "The file ");
+    text_add(&out, path);
+    text_add(&out, " cannot be read.");
     return not_opened(session, reason);
   }
-  session->loading_bytes = bytes;
+  source.ctx = session;
+  source.read = read_cartridge;
+  status = sprout_load_begin(&session->host.record, &source, &session->loading, &refusal);
+  if (status != SPROUT_OK) {
+    load_failed(status, &refusal, &out);
+    close_cartridge(session);
+    return not_opened(session, reason);
+  }
   memset(&answer, 0, sizeof answer);
   answer.ok = true;
   answer.name = session->title;
@@ -173,9 +198,10 @@ player_opening player_open(player_session *session, const char *path) {
 }
 
 /*
- * How much of a world one step reads: bytes of its body inflated. The caverns' 4.8 MB body takes
- * about 150 steps, which the app spreads one a frame behind its loading line, each well inside
- * what the system allows a frame on the console.
+ * How much of a world one step reads: bytes of its body inflated, from the pieces of the file the
+ * loader reads as it needs them. The caverns' 2.7 MB body takes about 85 steps, which the app
+ * spreads one a frame behind its loading line, each well inside what the system allows a frame on
+ * the console.
  */
 #define STEP_BYTES (32u * 1024u)
 
@@ -194,16 +220,14 @@ player_opening player_step(player_session *session) {
     text_begin(&out, reason, sizeof reason);
     load_failed(status, &refusal, &out);
     session->loading = NULL;
-    player_free(session->pd, session->loading_bytes);
-    session->loading_bytes = NULL;
+    close_cartridge(session);
     return not_opened(session, reason);
   }
   sprout_load_progress(session->loading, &read, &counted);
   if (done) {
     session->world = sprout_load_finish(session->loading);
     session->loading = NULL;
-    player_free(session->pd, session->loading_bytes);
-    session->loading_bytes = NULL;
+    close_cartridge(session);
   }
   memset(&answer, 0, sizeof answer);
   answer.ok = true;

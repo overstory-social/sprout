@@ -171,9 +171,12 @@ still takes the visitor out and a faulted wake is consumed (hole 499).
 **Memory.** Every allocation comes from the host's `alloc`, in pages of the
 host's size. A turn's arena is dropped whole at its end, and dropping it
 drops the draft. The Playdate host gives it `system->realloc` and a 32 KB
-page. A loaded world is its graph and catalogue alone: the body is read as
-a stream, an entry at a time, into scratch that is released as it goes, so a
-load's peak is about the loaded world itself, and the
+page. A loaded world is its body's block, with the table read where it
+lies, and its catalogue. The host need not hold the cartridge either:
+`sprout_load_begin` reads it from a `sprout_source`, front to back, 8 KB at a
+time into the load's scratch, so a load's peak is the loaded world and its
+scratch (the caverns: 5.16 MB at the peak and 4.36 MB loaded, on x86-64 with
+32 KB pages), and the
 graph's nodes are small (a union for the payload, 32 bytes on a 64-bit host
 and 20 on the console) with every distinct scalar cell and field name held
 once, so a word the table writes a thousand times is one node.
@@ -555,8 +558,13 @@ header and caps, and then `sprout.step` once a frame, each inflating 32 KB
 of the body into the block the world is read from, behind
 `Loading Underground Caverns... 37%` with a bar, until the step that is
 done maps the table, builds the catalogue and brings the world's words, and
-the nickname picker follows. The caverns take about 150 steps. A step that fails
-says why on the shelf, as a refused open does.
+the nickname picker follows. The open reads the file whole for the peek and
+lets it go; the load then reads it again with `pd->file->read`, a piece as
+the inflater asks, on the main stack, so the cartridge is never whole in
+memory beside the world being built (on the console that is the file's
+0.98 MB off the load's peak for the caverns). The caverns' 2.7 MB body takes
+about 83 steps. A step that fails, a read of the file among them, says why
+on the shelf, as a refused open does.
 
 ### The shelf
 
@@ -693,7 +701,7 @@ Not yet checked:
   guesses);
 - the budgets, tuned on hardware (the Simulator is far faster);
 - the memory and the time of a big world on a console's 16 MB and 168 MHz:
-  `underground_caverns` packs to 1.8 MB, its stored world is 480 KB, and
+  `underground_caverns` packs to 0.98 MB, its stored world is 480 KB, and
   its fullest room polls 344,254 steps into a chip tree of 12,153 readings
   that stays in the session and is read a level at a time; it plays whole
   through `sproutc` and the Simulator;

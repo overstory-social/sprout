@@ -16,7 +16,7 @@
 //
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
 // shipping scripts, builds the Simulator target, runs the player's C tests, checks that the app
-// shelves every graduated world, plays the save the session's end-to-end test wrote through
+// shelves and opens every graduated world, plays the save the session's end-to-end test wrote through
 // `sproutc`, and plays each graduated world's listed plays (`"plays"` in worlds.json, scripts under
 // the world's folder) through `sproutc` with the view polled first under the app's poll budget, so
 // every reading a play makes is one the sentence builder could build, each step saying what the
@@ -555,7 +555,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       throw new Error(`ctest did not pass the player's tests ${missing.join(', ')}:\n${tests}`);
     }
     ran.push(`${wanted.length} C test programs passed`);
-    ran.push(`the app shelves all ${staged.length} graduated worlds`);
+    ran.push(`the app shelves and opens all ${staged.length} graduated worlds`);
 
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
     ran.push(roundTrip(keep, cartridges, sproutcDir, prefix));
