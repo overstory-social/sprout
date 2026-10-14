@@ -1,6 +1,6 @@
 import {
-  isPlace,
-  readerOf,
+  contentAt,
+  type Catalogue,
   type CommandHost,
   type DueWake,
   type Effect,
@@ -8,12 +8,12 @@ import {
   type HostSeconds,
   type InstanceId,
   type Level,
-  type Ran,
   type Reading,
   type StoredChanges,
+  type StoredInstance,
   type VisitKey,
-  type WorldState,
 } from '@overstory/sprout/lang';
+import type { Account, Engine, StoredState } from '@overstory/sprout/core';
 
 import type { Handed, ParseRecord, ReadReading, ReadReread } from '../parsed.js';
 import type { Step } from '../script.js';
@@ -21,8 +21,10 @@ import type { Step } from '../script.js';
 // What playing a script records (the spec's The runtime › The log, Levels):
 // each line a step made at its level, each turn it ran with what the log
 // keeps of it, and the stage a play runs against. `trace` notes a turn once
-// the stage's state is that turn's outcome, so what it records is read from
-// the world as the turn left it.
+// the stage's stored state is that turn's outcome, so what it records is
+// read from the world as the turn left it. Everything a turn records is
+// what the stage's engine gave of it (core's `Given…` and `Step`) or what
+// the stored state holds.
 
 /**
  * One line of what a line made, at its level (the spec's The runtime ›
@@ -56,31 +58,31 @@ export interface PlayedStep {
 /**
  * One turn a step ran, as a report of what a playthrough reached reads it
  * (`report.ts`): its kind; who typed what, for a command; what it said;
- * the handlers and hooks it ran; the reading it performed, the engine
- * line the parser answered with instead, or whether the consent pass
- * refused; its faults, a maintenance turn's one for each part; and every place that held a visitor once it was over, at any depth.
+ * the engine's account of what it ran, answered with or refused; the
+ * reading it performed, as the visitor's stored last reading keeps it;
+ * its faults, a maintenance turn's one for each part; and every place
+ * that held a visitor once it was over, at any depth.
  */
 export interface Traced {
   readonly turn: 'arrival' | 'departure' | 'command' | 'tick' | 'wake' | 'maintenance';
   readonly as: string | null;
   readonly typed: string | null;
   readonly effects: readonly Effect[];
-  readonly ran: readonly Ran[];
-  readonly reading: Reading | null;
-  readonly answered: string | null;
-  readonly refused: boolean;
+  /** What the engine says the turn ran; null where it does not say, or the turn ran nothing. */
+  readonly account: Account | null;
+  readonly reading: ReadReading | null;
   readonly faults: readonly Fault[];
   readonly standing: readonly InstanceId[];
   /** What the log keeps of the turn, which a runtime working from the log's inputs reproduces (`readings.ts`). */
   readonly logged: Logged;
-  /** What the parser made of the line, which a turn that faults performs none of; null where it made none. */
+  /** What the TypeScript parser made of the line, which a turn that faults performs none of; null where it made none. */
   readonly read: Reading | null;
-  /** What `host.parse` returned for a command turn, and what it spent; null where it was not parsed. */
+  /** What the TypeScript parser, `host.parse`, returned for a command turn, and what it spent; null where it was not parsed. */
   readonly parsed: ParseRecord | null;
   /** What a later turn of a line was handed in place of words; null for every other turn. */
   readonly handed: Handed | null;
-  /** The world a command turn after the first in its step began from; null for every other turn. */
-  readonly before: WorldState | null;
+  /** The stored world a command turn after the first in its step began from; null for every other turn. */
+  readonly before: StoredState | null;
 }
 
 /**
@@ -118,10 +120,17 @@ export interface Logged {
   } | null;
 }
 
-/** The host's side of one play: the world as it stands, the instant, the seed, each nickname's visit, and every turn run. */
+/**
+ * The host's side of one play: the engine it runs on and the host it runs
+ * for, the world as a store would hold it, the instant, the seed, each
+ * nickname's visit, and every turn run. What the parser read of the
+ * command turn now running is noted where the host's own parser reads it,
+ * as the TypeScript engine's does.
+ */
 export interface Stage {
   readonly host: CommandHost;
-  state: WorldState;
+  readonly engine: Engine;
+  stored: StoredState;
   now: HostSeconds;
   seed: number;
   readonly visits: Map<string, VisitKey>;
@@ -134,21 +143,65 @@ export interface Stage {
   parse: ParseRecord | null;
 }
 
+/** Each stored instance of `stored`, by its id. */
+export function recordsOf(stored: StoredState): Map<string, StoredInstance> {
+  return new Map(stored.instances.map((one) => [one.id, one]));
+}
+
 /**
- * Every place that holds a visitor present under `stage`'s state, at any
- * depth out to the world, so one riding a boat is in each river reach the
- * boat stands in; visitors in arrival order, each from their own place out.
+ * What holds `id` as `records` keep it: its record's container, or, for a
+ * declared object no turn has written, where it was declared.
+ */
+export function containerOf(
+  records: ReadonlyMap<string, StoredInstance>,
+  catalogue: Catalogue,
+  id: InstanceId,
+): InstanceId | null {
+  const record = records.get(id);
+  if (record !== undefined) return record.container as InstanceId | null;
+  return catalogue.declared.get(id)?.container ?? null;
+}
+
+/** Whether `id` is a place: an instance other than the world whose kind holds people. */
+function isPlaceIn(
+  records: ReadonlyMap<string, StoredInstance>,
+  catalogue: Catalogue,
+  id: InstanceId,
+): boolean {
+  if (id === catalogue.world) return false;
+  const made = records.get(id)?.made ?? (catalogue.declared.has(id) ? { from: 'declared' } : null);
+  if (made === null) return false;
+  switch (made.from) {
+    case 'world':
+      return false;
+    case 'declared':
+      return catalogue.declared.get(id)?.kind?.containsActors === true;
+    case 'visitor':
+      return catalogue.visitorKind?.containsActors === true;
+    case 'spawned':
+      return catalogue.kinds.get(made.kind)?.containsActors === true;
+    case 'given':
+      return contentAt(catalogue.contents, made.kind, made.path)?.kind?.containsActors === true;
+  }
+}
+
+/**
+ * Every place that holds a visitor present under `stage`'s stored state, at
+ * any depth out to the world, so one riding a boat is in each river reach
+ * the boat stands in; visitors in arrival order, each from their own place
+ * out.
  */
 function standing(stage: Stage): InstanceId[] {
-  const reader = readerOf(stage.state);
+  const { catalogue } = stage.host;
+  const records = recordsOf(stage.stored);
   const places: InstanceId[] = [];
   for (const visit of stage.visits.values()) {
-    const record = stage.state.visitors.get(visit);
+    const record = stage.stored.visitors.find((one) => one.visit === visit);
     let at =
-      record === undefined ? null : (stage.state.instances.get(record.instance)?.container ?? null);
+      record === undefined ? null : containerOf(records, catalogue, record.instance as InstanceId);
     while (at !== null) {
-      if (isPlace(reader, at) && !places.includes(at)) places.push(at);
-      at = stage.state.instances.get(at)?.container ?? null;
+      if (isPlaceIn(records, catalogue, at) && !places.includes(at)) places.push(at);
+      at = containerOf(records, catalogue, at);
     }
   }
   return places;
@@ -163,7 +216,7 @@ export function loggedOf(stage: Stage, parts: Partial<Logged> & Pick<Logged, 'se
     wake: null,
     outcome: 'done',
     cut: [],
-    serial: stage.state.serial,
+    serial: stage.stored.serial,
     wakes: null,
     stale: null,
     changes: null,
@@ -172,7 +225,7 @@ export function loggedOf(stage: Stage, parts: Partial<Logged> & Pick<Logged, 'se
   };
 }
 
-/** Note a turn `stage` ran, once its state is the turn's outcome. */
+/** Note a turn `stage` ran, once its stored state is the turn's outcome. */
 export function trace(
   stage: Stage,
   turn: Traced['turn'],
@@ -184,10 +237,8 @@ export function trace(
     as: null,
     typed: null,
     effects: [],
-    ran: [],
+    account: null,
     reading: null,
-    answered: null,
-    refused: false,
     faults: [],
     read: null,
     parsed: null,

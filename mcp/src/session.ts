@@ -5,10 +5,12 @@ import { Draws, keeps, SEED_MAX, type Bundle, type Draw } from '@overstory/sprou
 import {
   expectationsOf,
   freshStage,
+  isPresent as standsIn,
   playStep,
   plays,
   readScript,
   writeScript,
+  type EngineName,
   type Made,
   type Stage,
   type Step,
@@ -31,6 +33,8 @@ import {
 
 /** What the host sets when a session opens. */
 export interface SessionOptions {
+  /** The engine the world runs on; the TypeScript one where none is named, as `sprout mcp` always names one. */
+  readonly engine?: EngineName;
   /** The seed the session's stream of turn seeds begins from, recorded as its first step; 0 where not given. */
   readonly seed?: number;
   /** Where the session is written as a script after every step, each step expecting all it made. */
@@ -131,7 +135,7 @@ function freshSession(
   seed: number,
 ): Session {
   return {
-    stage: freshStage(bundle),
+    stage: freshStage(bundle, options.engine ?? 'ts'),
     options,
     warn,
     inboxes: new Map(),
@@ -143,10 +147,7 @@ function freshSession(
 
 /** Whether `name` stands in the world. */
 export function isPresent(session: Session, name: string): boolean {
-  const { state } = session.stage;
-  const visit = session.stage.visits.get(name);
-  const record = visit === undefined ? undefined : state.visitors.get(visit);
-  return record !== undefined && Boolean(state.instances.get(record.instance)?.container);
+  return standsIn(session.stage, name);
 }
 
 /**

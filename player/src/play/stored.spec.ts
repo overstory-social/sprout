@@ -14,6 +14,7 @@ import {
   type StoredInstance,
   type StoredWorld,
 } from '@overstory/sprout/lang';
+import { loaded } from '@overstory/sprout/core';
 import { describe, expect, it } from 'vitest';
 
 import { freshStage, playStep } from '../play.js';
@@ -53,10 +54,11 @@ describe('the stored worlds the C runtime reads and writes back', () => {
       if (!existsSync(folder)) continue;
       for (const transcript of readdirSync(folder).sort()) {
         const script = readScript(readFileSync(join(folder, transcript), 'utf8'), transcript);
-        const stage = freshStage(bundle);
+        // The TypeScript runtime's whole reading of each stored state is what the C runtime is held to.
+        const stage = freshStage(bundle, 'ts');
         const states = script.steps.map((step, i) => {
           playStep(stage, step, `${transcript}, step ${i + 1}`);
-          return canonical(stage.state);
+          return canonical(loaded(stage.stored, stage.host));
         });
         const distinct = states
           .map((text, step) => ({ text, step }))
@@ -190,24 +192,24 @@ describe('the stored worlds the C runtime reads and writes back', () => {
       const catalogue = catalogueOf(bundle, DEFAULT_LIMITS.caps);
       const transcript = readdirSync(folder).sort()[0]!;
       const script = readScript(readFileSync(join(folder, transcript), 'utf8'), transcript);
-      const stage = freshStage(bundle);
+      const stage = freshStage(bundle, 'ts');
       script.steps.forEach((step, i) => playStep(stage, step, `${transcript}, step ${i + 1}`));
-      const saved: StoredWorld = readStoredWorld(saveWorld(stage.state));
+      const saved: StoredWorld = readStoredWorld(saveWorld(loaded(stage.stored, stage.host)));
       for (const [what, edit] of edits) {
         const stored = JSON.parse(JSON.stringify(saved)) as Mutable<StoredWorld>;
         if (!edit(stored, [...stored.instances] as Mutable<StoredInstance>[])) continue;
         const input = readStoredWorld(stored);
-        const loaded = loadWorld(input, catalogue);
+        const opened = loadWorld(input, catalogue);
         cases.push(
           JSON.stringify({
             world: name,
             edit: what,
             input,
-            saved: readStoredWorld(saveWorld(loaded.state)),
-            created: loaded.created,
-            dormant: loaded.dormant,
-            dropped: loaded.dropped.map((d) => [d.id, d.property, d.actor, d.why]),
-            stranded: loaded.stranded,
+            saved: readStoredWorld(saveWorld(opened.state)),
+            created: opened.created,
+            dormant: opened.dormant,
+            dropped: opened.dropped.map((d) => [d.id, d.property, d.actor, d.why]),
+            stranded: opened.stranded,
           }),
         );
       }

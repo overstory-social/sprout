@@ -132,32 +132,38 @@ sprout — a Sprout microworld on the command line
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused
-  sprout view [dir] [--at place] [--as name] [--scene | --verb name]
+  sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--engine ts|wasm]
                                       what a visitor standing there is shown and could type; --scene the
                                       scene, which lists the verbs in place of the readings; --verb one
                                       verb's readings, by its qualified name (sprout.take)
-  sprout play dir script.json [--write] [--report file.json]    (dir may be a .sproutworld cartridge)
+  sprout play dir script.json [--write] [--report file.json] [--engine ts|wasm]
+                                      (dir may be a .sproutworld cartridge)
                                       play a script, JSON steps of what visitors type and what the host does,
                                       through real turns, and print it with every step expecting all it made;
                                       --write saves that over the script; --report writes what it reached, what
                                       was misread or faulted, and the prose it never showed, as JSON
-  sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json]
+  sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json] [--engine ts|wasm]
                                       play interactively from stdin under one visitor's own prompt, showing
                                       only what that visitor reads, or, with --debug, every reader's lines and
                                       the host's; every turn draws from a seed of its own, from a stream begun
                                       at --seed or, without it, the clock; --record writes the session as a
                                       script, the seed of each turn kept, so it plays back as it played
-  sprout test [dir] [script ...] [--report file.json]    (dir may be a .sproutworld; name its scripts)
+  sprout test [dir] [script ...] [--report file.json] [--engine ts|wasm]
+                                      (dir may be a .sproutworld; name its scripts)
                                       run the world's tests, dir/tests/*.json or the scripts named: each a script
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
+                                      view, play, test and mcp run the world on the TypeScript engine (ts) or the
+                                      C engine built for WebAssembly (wasm): wasm where it is built, and ts,
+                                      said on stderr, where it is not, unless --engine names one
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]
                                       play on a server as one visitor, in the terminal client; --plain for
                                       lines in and out; needs @overstory/sprout-tui installed
   sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
+                 [--engine ts|wasm]
                                       serve the world to an agent as a visitor and only as a visitor, over MCP:
                                       tools to arrive, say a line and leave, answered with the prose that visitor
                                       reads; stdio for one visitor, --http for several in one world; --record

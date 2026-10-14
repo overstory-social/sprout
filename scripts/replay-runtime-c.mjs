@@ -38,11 +38,12 @@ import {
   atDepth,
   commandEntry,
   departureEntry,
+  loaded,
   maintenanceEntry,
   tickEntry,
   wakeEntry,
 } from '@overstory/sprout/core';
-import { DEFAULT_LIMITS, emitCartridge, pollScene, saveWorld } from '@overstory/sprout/lang';
+import { DEFAULT_LIMITS, emitCartridge, saveWorld } from '@overstory/sprout/lang';
 import {
   checkWorld,
   formatCheck,
@@ -352,9 +353,9 @@ export function comparePolls(sproutc, cartridge, stored, standing) {
     'the scene',
   );
   if (sceneDiffers !== null) return { differs: sceneDiffers, verbs: 0 };
-  const verbs = pollScene(standing.state, standing.host, standing.visit).scene.verbs.map(
-    (one) => one.verb,
-  );
+  const verbs = standing.engine
+    .scene(standing.stored, standing.visit)
+    .scene.verbs.map((one) => one.verb);
   for (const verb of verbs) {
     const differs = pollDiffers(
       sproutc,
@@ -385,8 +386,9 @@ export function replayViews(sproutc, scratch, corpus = 'corpus/good') {
     try {
       const world = join(corpus, name);
       packWorld(world, cartridge);
-      const standing = standIn(checkWorld(world).bundle);
-      writeFileSync(stored, JSON.stringify(saveWorld(standing.state)));
+      // The TypeScript runtime's pages, over its whole reading of the stored world, are what sproutc's are held to.
+      const standing = standIn(checkWorld(world).bundle, 'ts');
+      writeFileSync(stored, JSON.stringify(saveWorld(loaded(standing.stored, standing.host))));
       const differs = pollDiffers(
         sproutc,
         cartridge,

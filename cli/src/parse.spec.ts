@@ -6,7 +6,8 @@ import { catalogueFor, standIn, type Standing } from '@overstory/sprout-player';
 import { LANE, worldFolder } from '@overstory/sprout-player/fixtures';
 
 const lane = () => checkWorld(worldFolder('lane', LANE)).bundle!;
-const at = (place?: string): Standing => standIn(lane(), place === undefined ? {} : { at: place });
+const at = (place?: string): Standing =>
+  standIn(lane(), 'ts', place === undefined ? {} : { at: place });
 const read = (line: string, standing = at()) => parseLine(line, standing);
 
 describe('formatGrammar', () => {
@@ -201,7 +202,8 @@ every participant consents
     read('pry crate', standing);
     read('go in', standing);
     expect(read('pry crate', standing).page).toContain('refused by a crate');
-    expect(standing.state.instances.get(standing.actor)!.container).toBe(standing.place);
+    const actor = standing.stored.instances.find((one) => one.id === standing.actor);
+    expect(actor!.container).toBe(standing.place);
   });
 
   it('says a line that costs more than a command turn’s steps faults, as its turn would', () => {
@@ -233,7 +235,7 @@ describe('parseLine, for an intent', () => {
     ).bundle!;
 
   it('names the intent, what fills each slot, and the steps it plans now, each as a reading', () => {
-    expect(parseLine('open chest with ring key', standIn(vault(), {})).page).toBe(
+    expect(parseLine('open chest with ring key', standIn(vault(), 'ts')).page).toBe(
       `in yard, "open chest with ring key" reads as the intent sprout.open_with
   y: a chest (yard.chest)
   x: a ring key (lane#2)
@@ -248,7 +250,7 @@ it runs 2 steps, each a turn of its own:
   });
 
   it('says a key lying in the yard is not carried, since `unlock`’s tool is', () => {
-    expect(parseLine('open chest with brass key', standIn(vault(), {})).page).toBe(
+    expect(parseLine('open chest with brass key', standIn(vault(), 'ts')).page).toBe(
       `in yard, "open chest with brass key" not understood; the world answers with \`not_carrying\`:
   You aren't carrying a brass key.
 `,
@@ -256,7 +258,7 @@ it runs 2 steps, each a turn of its own:
   });
   it('says where it plans no step, and that the line is answered with `nothing_happens`', () => {
     // The gate is unlocked, so no unlocking, and is no container, so no opening.
-    const page = parseLine('open gate with ring key', standIn(vault(), {})).page;
+    const page = parseLine('open gate with ring key', standIn(vault(), 'ts')).page;
     expect(page).toContain(
       'it plans no step that can run, and is answered with `nothing_happens`\n',
     );

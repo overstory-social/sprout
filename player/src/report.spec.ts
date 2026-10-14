@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import type { EngineName } from './engine.js';
 import { bundleOf, KILN_YARD, RIVER, scriptOf } from './fixtures/index.js';
+import { ENGINES_BUILT } from './fixtures/play.js';
 import { playSteps } from './play.js';
 import { reportOf, writeReport, type PlayedRun } from './report.js';
 
 const kilnYard = bundleOf('kiln_yard', KILN_YARD);
 
-/** `lines` played over the kiln yard, as a run named `name`. */
-function run(lines: string, name = 'yard.json'): PlayedRun {
-  return { name, played: playSteps(kilnYard, scriptOf(lines, name), name) };
+/** `lines` played over the kiln yard on `engine`, the TypeScript one where none is named, as a run named `name`. */
+function run(lines: string, name = 'yard.json', engine: EngineName = 'ts'): PlayedRun {
+  return { name, played: playSteps(kilnYard, scriptOf(lines, name), name, engine) };
 }
 
 const WALK = `@arrive Marta
@@ -118,7 +120,7 @@ describe('what a turn that faulted reached', () => {
     expect(report.faults.map((fault) => fault.name)).toEqual(['IntegerOverflow']);
     expect(report.reach.objects.reached).toEqual([]);
     expect(report.reach.verbs.reached).toEqual([]);
-    expect(report.reach.handlers.reached).toEqual([]);
+    expect(report.reach.handlers?.reached).toEqual([]);
     // What the arrival read, and not the `say "Clang."` the kick never finished.
     expect(report.reach.passages.reached).toEqual(['yard.sprout:2:20 "A kiln yard."']);
   });
@@ -136,7 +138,7 @@ describe('a passage that printed nothing', () => {
 }
 `,
     });
-    const played = playSteps(quiet, scriptOf('@arrive Marta\nMarta> look'), 'yard.json');
+    const played = playSteps(quiet, scriptOf('@arrive Marta\nMarta> look'), 'yard.json', 'ts');
     const report = reportOf(quiet, [{ name: 'yard.json', played }]);
     expect(report.reach.passages.never).toContain('kiln_yard.Yard.lamp (yard.sprout:4:11)');
     expect(report.reach.passages.reached).toContain('yard.sprout:3:31 "A kiln yard."');
@@ -150,6 +152,7 @@ describe('the places a playthrough reached', () => {
       river,
       scriptOf('@arrive Marta\nMarta> go in', 'river.json'),
       'river.json',
+      'ts',
     );
     const report = reportOf(river, [{ name: 'river.json', played }]);
     expect(report.reach.places).toEqual({
@@ -191,6 +194,28 @@ describe('what several playthroughs reached', () => {
     expect(report.reach.passages.never).toHaveLength(report.reach.passages.declared);
   });
 });
+
+describe.each(ENGINES_BUILT.filter((engine) => engine !== 'ts'))(
+  'what a playthrough on the %s engine reached',
+  (engine) => {
+    const report = reportOf(kilnYard, [run(WALK, 'yard.json', engine)]);
+    const onTs = reportOf(kilnYard, [run(WALK)]);
+
+    it('is what it reached on the TypeScript engine, but what the engine gives no account of', () => {
+      expect(report).toEqual({
+        ...onTs,
+        reading: {
+          typed: onTs.reading.typed,
+          unread: null,
+          refused: null,
+          unreadRate: null,
+          refusedRate: null,
+        },
+        reach: { ...onTs.reach, handlers: null },
+      });
+    });
+  },
+);
 
 describe('a report, written', () => {
   it('is JSON, as it reads back', () => {

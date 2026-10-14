@@ -122,7 +122,7 @@ describe('what the host sets', () => {
     leave(session, 'Marta');
     const script = readScript(readFileSync(record, 'utf8'), 'run.json');
     expect(script.steps[0]).toEqual({ seed: 9 });
-    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+    expect(playScript(kilnYard, script, 'run.json', 'ts')).toEqual(script);
     // The recording holds the fault in full, as a visitor never reads it.
     expect(readFileSync(record, 'utf8')).toContain('2147483648');
   });
@@ -240,7 +240,7 @@ describe('a session resumed from its recording', () => {
     expect(warned).toEqual([]);
     const script = readScript(readFileSync(record, 'utf8'), 'run.json');
     expect(script.steps[0]).toEqual({ seed: 4 });
-    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+    expect(playScript(kilnYard, script, 'run.json', 'ts')).toEqual(script);
   });
 
   it('gives a returning visitor nothing that was written to them before the restart', () => {
@@ -268,7 +268,7 @@ describe('a session resumed from its recording', () => {
       arrive: 'Marta',
       expect: [{ reader: 'Marta', kind: expect.any(String), words: 'A kiln yard.' }],
     });
-    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+    expect(playScript(kilnYard, script, 'run.json', 'ts')).toEqual(script);
   });
 
   it('refuses to resume, keeping the recording, where a step cannot be played again', () => {
@@ -286,7 +286,7 @@ describe('a session resumed from its recording', () => {
     resumeSession(kilnYard, { record }, (words) => warned.push(words));
     expect(warned).toEqual([]);
     const script = readScript(readFileSync(record, 'utf8'), 'run.json');
-    expect(playScript(kilnYard, script, 'run.json')).toEqual(script);
+    expect(playScript(kilnYard, script, 'run.json', 'ts')).toEqual(script);
   });
 
   it('opens as a new session where nothing is recorded yet', () => {

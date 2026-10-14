@@ -37,6 +37,7 @@ import {
   arrivalStep,
   commandStep,
   departureStep,
+  kept,
   loaded,
   maintenanceStep,
   tickStep,
@@ -107,8 +108,15 @@ export type GivenArrival =
   | { readonly committed: false; readonly closed: Closed }
   | (GivenFaulted & { readonly words: string });
 
-/** A departure turn: committed, or faulted, the visitor then gone away quietly. */
-export type GivenDeparture = GivenCommitted | GivenFaulted;
+/** A departure turn: committed, or faulted, the visitor then gone away quietly, with what that told them and who it cut short. */
+export type GivenDeparture =
+  | GivenCommitted
+  | (GivenFaulted & {
+      readonly quietly: {
+        readonly effects: readonly Effect[];
+        readonly cutShort: readonly InstanceId[];
+      };
+    });
 
 /** Where a visitor stands, as the host's status line names it for them: the place, and what else it holds. */
 export interface Standing {
@@ -181,15 +189,31 @@ export function engineOf(host: TurnHost & EngineHost): Engine {
 
 /**
  * The TypeScript runtime as one world's engine: `steps.ts` over each stored
- * state, read once. Commands need the host's parser, so a host without one
- * runs every turn but a command.
+ * state, read once. It keeps the world each write turn left, and once core
+ * reads back the stored state that turn landed (`landed`), the next turn
+ * runs on that world as it is, as the WebAssembly engine runs on its live
+ * state. Commands need the host's parser, so a host without one runs every
+ * turn but a command.
  */
 export function tsEngine(host: TurnHost | CommandHost): Engine {
   const state = (stored: StoredState): WorldState => loaded(stored, host);
+  /** The world the last write turn left, until core hands back the stored state it landed as. */
+  let left: WorldState | null = null;
+  /** `step`, its turn having left `world`. */
+  const leaving = <T>(step: Step<T>, world: WorldState): Step<T> => {
+    left = world;
+    return step;
+  };
   return {
+    landed: (stored) => {
+      if (left !== null && left.serial === stored.serial) kept(stored, host, left);
+      left = null;
+    },
     command: (stored, command) => {
       if (!('parse' in host)) throw new Error('This host has no parser, so runs no command.');
-      return commandStep(state(stored), host, command);
+      const before = state(stored);
+      const step = commandStep(before, host, command);
+      return leaving(step, step.turn.committed ? step.turn.state : before);
     },
     line: (command, seed) => {
       const commands = commandsOfLine(command, seed);
@@ -203,11 +227,35 @@ export function tsEngine(host: TurnHost | CommandHost): Engine {
         },
       };
     },
-    tick: (stored, tick) => tickStep(state(stored), host, tick),
-    wake: (stored, wake) => wakeStep(state(stored), host, wake),
-    maintenance: (stored, inputs) => maintenanceStep(state(stored), host, inputs),
-    arrival: (stored, arrival) => arrivalStep(state(stored), host, arrival),
-    departure: (stored, departure) => departureStep(state(stored), host, departure),
+    tick: (stored, tick) => {
+      const before = state(stored);
+      const step = tickStep(before, host, tick);
+      const { turn } = step;
+      return leaving(step, 'unoccupied' in turn || !turn.committed ? before : turn.state);
+    },
+    wake: (stored, wake) => {
+      const before = state(stored);
+      const step = wakeStep(before, host, wake);
+      const { turn } = step;
+      return leaving(
+        step,
+        'unwoken' in turn ? before : turn.committed ? turn.state : turn.consumed.state,
+      );
+    },
+    maintenance: (stored, inputs) => {
+      const step = maintenanceStep(state(stored), host, inputs);
+      return leaving(step, step.turn.state);
+    },
+    arrival: (stored, arrival) => {
+      const before = state(stored);
+      const step = arrivalStep(before, host, arrival);
+      return leaving(step, step.turn.committed ? step.turn.state : before);
+    },
+    departure: (stored, departure) => {
+      const step = departureStep(state(stored), host, departure);
+      const { turn } = step;
+      return leaving(step, turn.committed ? turn.state : turn.quietly.state);
+    },
     nicknameRefusal: (stored, visit, nickname) =>
       nicknameRefusal(state(stored), host.catalogue, host.budgets, visit, nickname),
     view: (stored, visit) => pollView(state(stored), host, visit),

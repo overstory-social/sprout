@@ -7,6 +7,7 @@
 // folder read from disk as the compiler reads it.
 
 export * from './aslr.js';
+export * from './engine.js';
 export * from './installed.js';
 export * from './parsed.js';
 export * from './play.js';

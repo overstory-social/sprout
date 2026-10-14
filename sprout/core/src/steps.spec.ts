@@ -83,4 +83,21 @@ describe('one write turn as a step', () => {
     const closed = { ...host, catalogue: { ...host.catalogue, arrival: null } };
     expect(arrivalStep(await state(), closed, ines)).toMatchObject({ changes: null, entry: null });
   });
+
+  it('accounts for what each turn ran, and for a command that ran a reading, neither answered nor refused', async () => {
+    const bumped = commandStep(await state(), host, command('bump counter'));
+    expect(bumped.account).toMatchObject({ answered: null, refused: false });
+    const smashed = commandStep(await state(), host, command('smash counter'));
+    expect(smashed.account).toEqual({ ran: [], answered: null, refused: false });
+
+    const store = await seeded(host);
+    await runCommand(store, 'w', host, command('rest counter', 0));
+    const rested = await committedState(store, 'w', host);
+    const [due] = dueWakes(rested, 60);
+    const woke = wakeStep(rested, host, { object: due!.object, serial: due!.serial, ...at(60) });
+    expect(woke.account?.ran.map((one) => one.on)).toEqual(['woke']);
+    const closed = { ...host, catalogue: { ...host.catalogue, arrival: null } };
+    const ines = { visit: visitKey('v-ines'), nickname: 'Ines', ...at(1) };
+    expect(arrivalStep(await state(), closed, ines).account).toBeNull();
+  });
 });

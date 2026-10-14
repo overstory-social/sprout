@@ -183,6 +183,24 @@ export const NORTH = declaredId('heath', ['north']);
 export const SOUTH = declaredId('heath', ['south']);
 export const CELLAR = declaredId('heath', ['cellar']);
 
+/** The stair: a cellar that faults whatever leaves it, since its `:left` adds past the end of the integers. */
+export const STAIR = compiled('stair', {
+  'stair.sprout': `world stair is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+  object cellar is Cellar { }
+}
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'cellar.sprout': `kind Cellar is sprout.Place {
+  on :left (item, to) {
+    if (2147483647 + 1 > 0) { tell "Nobody hears this." }
+  }
+}
+`,
+});
+export const STAIR_CELLAR = declaredId('stair', ['cellar']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');

@@ -121,6 +121,9 @@ function given(turn: unknown): unknown {
     'nicknameRefused',
   ])
     if (key in one) read[key] = one[key];
+  const quietly = one['quietly'] as { effects: unknown; cutShort: unknown } | undefined;
+  if (quietly !== undefined)
+    read['quietly'] = { effects: quietly.effects, cutShort: quietly.cutShort };
   if ('refused' in one) read['refused'] = true;
   const value = one['value'];
   if (value !== null && typeof value === 'object') {

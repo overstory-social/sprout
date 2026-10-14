@@ -34,6 +34,7 @@ export * from './declare/actors.js';
 export * from './declare/kinds.js';
 export * from './declare/file-names.js';
 export * from './declare/compose.js';
+export * from './declare/contents.js';
 export * from './declare/objects.js';
 export * from './declare/tree.js';
 export * from './declare/properties.js';

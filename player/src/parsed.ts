@@ -10,6 +10,7 @@ import {
   type Reading,
   type Reread,
   type Said,
+  type StoredBound,
   type Value,
 } from '@overstory/sprout/lang';
 
@@ -147,6 +148,35 @@ export function fillerOf(role: string, bound: Bound | undefined): ReadFiller {
     return { role, binds: 'exit', direction, label, to };
   }
   return { role, binds: 'value', value: readValueOf(bound.value) };
+}
+
+/** What a stored or logged reading's role holds, as the reading's filler of `role`. */
+function storedFillerOf(role: string, bound: StoredBound): ReadFiller {
+  if ('object' in bound) return { role, binds: 'object', id: bound.object as InstanceId };
+  if ('set' in bound) return { role, binds: 'set', ids: bound.set.map((id) => id as InstanceId) };
+  if ('exit' in bound) {
+    const { direction, label, to } = bound.exit;
+    return { role, binds: 'exit', direction, label, to: to as InstanceId };
+  }
+  return { role, binds: 'value', value: bound.value };
+}
+
+/**
+ * A reading as a store or the log keeps it, `actor`'s: its verb by library
+ * and name, and what fills each role it binds, in the order it bound them.
+ */
+export function keptReadingOf(
+  kept: {
+    readonly verb: { readonly library: string; readonly name: string };
+    readonly bindings: readonly (readonly [string, StoredBound])[];
+  },
+  actor: InstanceId,
+): ReadReading {
+  return {
+    verb: `${kept.verb.library}.${kept.verb.name}`,
+    actor,
+    bindings: kept.bindings.map(([role, bound]) => storedFillerOf(role, bound)),
+  };
 }
 
 /** `reading` with every role it binds, in the order it bound them. */
