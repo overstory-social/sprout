@@ -175,7 +175,7 @@ page. A loaded world is its body's block, with the table read where it
 lies, and its catalogue. The host need not hold the cartridge either:
 `sprout_load_begin` reads it from a `sprout_source`, front to back, 8 KB at a
 time into the load's scratch, so a load's peak is the loaded world and its
-scratch (the caverns: 5.16 MB at the peak and 4.36 MB loaded, on x86-64 with
+scratch (the caverns: 3.69 MB at the peak and 3.36 MB loaded, on x86-64 with
 32 KB pages), and the
 graph's nodes are small (a union for the payload, 32 bytes on a 64-bit host
 and 20 on the console) with every distinct scalar cell and field name held
