@@ -1,5 +1,5 @@
 /*
- * The sentence builder (ui/builder.c, ui/sentence.c, ui/drum.c) driven a frame at a time through
+ * The sentence builder (ui/builder.c, ui/sentence.c, ui/everything.c, ui/drum.c) driven a frame at a time through
  * the fake PlaydateAPI in the chip_tree world's hall, and judged by what was drawn. The rules: the
  * drum's front is the selected entry in the big font, its neighbours curve away in the smaller
  * fonts in the entries' order; the root lists the scene's verbs in the view's order; a greyed
@@ -7,10 +7,14 @@
  * joined; a confirmed sentence runs and the reader is told it and then what the turn told, and one
  * whose save fails stops play and greys the world on the shelf; the sentence line fits the screen
  * whatever its length, keeping its end in view; and however the crank turned, the word in the
- * window is the one the panel speaks of and A picks.
+ * window is the one the panel speaks of and A picks. `everything` comes first on a level whose role
+ * would read `all` where two or more things can be done: a set role binds them all, and a role that
+ * takes one thing runs a turn for each in the level's order, leaving out what the view refuses,
+ * stopping at the first refusal and bounded by what a set role may bind.
  */
 #include <stdlib.h>
 
+#include "session_internal.h"
 #include "support.h"
 #include "ui/app.h"
 #include "ui/builder.h"
@@ -58,9 +62,9 @@ static const char *phrase(void) {
   return run != NULL ? run->text : "(no line)";
 }
 
-/* The app over the chip_tree world, the only one on the shelf, opened and run until the reader is up. */
-static void arrive(const char *scenario) {
-  static const char *const shipped[] = {"chip-tree.sproutworld"};
+/* The app over the cartridge `world`, the only one on the shelf, opened and run until the reader is up. */
+static void arrive_in(const char *scenario, const char *world) {
+  const char *const shipped[] = {world};
   const char *why = NULL;
   int n;
   begin(scenario);
@@ -74,6 +78,8 @@ static void arrive(const char *scenario) {
   for (n = 0; n < 10000 && !on_reader(); n++) fake_frame(fake, app->screen == &player_nickname_screen ? kButtonA : 0, 0);
   CHECK(on_reader(), "the reader came up");
 }
+
+static void arrive(const char *scenario) { arrive_in(scenario, "chip-tree.sproutworld"); }
 
 static void leave(void) {
   player_app_free(app);
@@ -202,7 +208,8 @@ static void descending_into_a_verb_and_back(void) {
   CHECK(step_to(kButtonUp, "ask", 1), "up from the first verb wraps to the last");
   fake_frame(fake, kButtonA, 0);
   CHECK(strcmp(phrase(), "ask") == 0, "the sentence so far: %s", phrase());
-  CHECK(strcmp(front(), "a hall") == 0, "what can be asked, in the view's order: %s", front());
+  CHECK(strcmp(front(), "everything") == 0, "everything first, as `ask` reads `all`: %s", front());
+  CHECK(step_to(kButtonDown, "a hall", 1), "then what can be asked, in the view's order: %s", front());
   CHECK(step_to(kButtonDown, "a guard", 1), "the guard is next");
   fake_frame(fake, kButtonA, 0);
   CHECK(strcmp(phrase(), "ask -> a guard") == 0, "%s", phrase());
@@ -348,6 +355,154 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
       CHECK(fake->runs[i].x >= 0 && fake->runs[i].x + (int)strlen(fake->runs[i].text) * fake_glyph(fake, fake->runs[i].font) <= 400,
             "%s is drawn inside the screen", fake->runs[i].text);
   }
+  leave();
+}
+
+/* ---- everything ---- */
+
+static sentence *built(void) { return &((player_builder *)app->ctx)->sentence; }
+
+/* Whether the drum's first entry is `everything`. */
+static bool everything_first(void) {
+  size_t count;
+  const sentence_entry *entries = sentence_entries(built(), &count);
+  return entries[0].kind == SENTENCE_ENTRY_EVERYTHING && strcmp(entries[0].label, "everything") == 0;
+}
+
+/* Whether any entry on the drum is `everything`. */
+static bool everything_offered(void) {
+  size_t count, i;
+  const sentence_entry *entries = sentence_entries(built(), &count);
+  for (i = 0; i < count; i++)
+    if (entries[i].kind == SENTENCE_ENTRY_EVERYTHING) return true;
+  return false;
+}
+
+/* The reader's transcript, every line of every paragraph oldest first, joined by spaces. */
+static const char *told_so_far(void) {
+  static char all[32768];
+  const transcript *t = &((player_reader *)app->ctx)->lines;
+  size_t at = 0, i, k;
+  all[0] = '\0';
+  for (i = 0; i < t->count; i++) {
+    const wrapped *paragraph = &t->paragraphs[(t->first + i) % TRANSCRIPT_KEEP];
+    const char *line = paragraph->bytes;
+    for (k = 0; k < paragraph->line_count; k++, line = wrap_next(line))
+      at += (size_t)snprintf(all + at, sizeof all - at, "%s ", line);
+  }
+  return all;
+}
+
+/* Whether `texts` are each in `whole`, in order. */
+static bool in_order(const char *whole, const char *const *texts, size_t count) {
+  size_t i;
+  for (i = 0; i < count; i++) {
+    const char *found = strstr(whole, texts[i]);
+    if (found == NULL) return false;
+    whole = found + strlen(texts[i]);
+  }
+  return true;
+}
+
+static void everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stops_at_a_refusal(void) {
+  static const char *const turns[] = {"> examine -> an apple", "A red apple.", "> examine -> a bell", "A brass bell.",
+                                      "> examine -> a lamp", "Too bright to look at."};
+  size_t logged, i, alike = 0;
+  const char *whole;
+  arrive_in("each", "all-in-order.sproutworld");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "examine", 20), "examine");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(everything_first() && strcmp(front(), "everything") == 0, "everything comes first, in the window: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(phrase(), "examine -> everything") == 0, "the sentence so far says everything: %s", phrase());
+  CHECK(strcmp(front(), "examine -> everything") == 0, "and is the sentence to confirm: %s", front());
+  CHECK(sentence_each_count(built()) == 5, "a turn for each thing but the place: %zu", sentence_each_count(built()));
+  logged = app->session->log_count;
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader(), "the reader takes over");
+  whole = told_so_far();
+  /* The bell's glint dazzles the lamp after the line was read, so the lamp refuses on its turn and the line stops. */
+  CHECK(in_order(whole, turns, sizeof turns / sizeof turns[0]), "each turn told as its own sentence, in the walk's order: %s", whole);
+  CHECK(strstr(whole, "a mirror") == NULL && strstr(whole, "a pear") == NULL, "nothing after the refusal runs: %s", whole);
+  CHECK(app->session->log_count == logged + 3, "three turns are logged: %zu", app->session->log_count - logged);
+  for (i = logged; i < app->session->log_count; i++) alike += strstr(app->session->log[i], "\"text\":\"examine -> everything\"") != NULL;
+  CHECK(alike == 3, "each under the whole sentence, as a line of `all` logs each turn under the line typed: %zu", alike);
+  leave();
+}
+
+static void everything_for_a_set_role_binds_them_all(void) {
+  const sentence_state *state;
+  arrive("set");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "juggle", 0), "juggle");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(everything_first(), "everything comes first: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  state = &built()->state;
+  CHECK(strcmp(phrase(), "juggle -> everything") == 0, "the sentence so far says everything: %s", phrase());
+  /* The hall is the place and the guard someone here: the dial, the pebble and the shell. */
+  CHECK(state->pick_count == 1 && state->picks[0].everything && state->picks[0].count == 3 &&
+            strcmp(state->joined[0]->name.bytes, "a dial") == 0 && strcmp(state->joined[2]->name.bytes, "a shell") == 0,
+        "the set role binds every thing it takes at once: %zu", state->picks[0].count);
+  CHECK(sentence_each_count(built()) == 0, "and is one turn");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader() && shown_text("> juggle -> everything"), "run as the one sentence");
+  leave();
+}
+
+static void everything_leaves_out_what_is_greyed_and_needs_two_things(void) {
+  arrive_in("left out", "all-leaves-out-refused.sproutworld");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "examine", 20), "examine");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(everything_first(), "everything comes first: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(sentence_each_count(built()) == 3, "the sack, the lunch and the ball, the lamp's refusal left out: %zu",
+        sentence_each_count(built()));
+  {
+    size_t k;
+    for (k = 0; k < sentence_each_count(built()); k++)
+      CHECK(strcmp(built()->each[k]->thing.name.bytes, "a lamp") != 0, "the greyed lamp is not among them");
+  }
+  fake_frame(fake, kButtonB, 0);
+  fake_frame(fake, kButtonB, 0);
+  CHECK(step_to(kButtonDown, "drop", 20), "drop");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!everything_offered(), "nothing is held, so nothing can be dropped and nothing is everything");
+  fake_frame(fake, kButtonB, 0);
+  CHECK(step_to(kButtonDown, "take", 20), "take");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "a ball", 5), "a ball");
+  fake_frame(fake, kButtonA, 0);
+  while (strcmp(front(), "take -> a ball") != 0 && !on_reader() && step_to(kButtonDown, "that's all", 5)) fake_frame(fake, kButtonA, 0);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader() && shown_text("> take -> a ball"), "the ball taken");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "drop", 20), "drop");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!everything_offered(), "only the ball can be dropped: one thing is no everything");
+  leave();
+}
+
+static void everything_runs_at_most_what_a_set_role_may_bind(void) {
+  arrive_in("bound", "all-leaves-out-refused.sproutworld");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "go", 20), "go");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!everything_offered(), "a way out is no thing");
+  CHECK(step_to(kButtonDown, "down", 5), "down");
+  fake_frame(fake, kButtonA, 0);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader(), "gone down");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "take", 20), "take");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(everything_first(), "everything comes first: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  while (strcmp(front(), "take -> everything") != 0 && step_to(kButtonDown, "that's all", 5)) fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "take -> everything") == 0, "the sentence: %s", front());
+  CHECK(sentence_each_count(built()) == 8, "nine marbles, and a set role binds eight: %zu", sentence_each_count(built()));
   leave();
 }
 
@@ -523,6 +678,10 @@ int main(void) {
   a_completed_reading_runs_and_the_reader_is_told();
   a_turn_whose_save_fails_stops_play_and_greys_the_world();
   the_sentence_line_fits_the_screen_and_keeps_its_end();
+  everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stops_at_a_refusal();
+  everything_for_a_set_role_binds_them_all();
+  everything_leaves_out_what_is_greyed_and_needs_two_things();
+  everything_runs_at_most_what_a_set_role_may_bind();
   after_any_crank_turn_the_window_is_what_a_picks();
   return finish();
 }

@@ -8,6 +8,11 @@
  * first member. A finished reading lists the roles a thing fills in the tree's order and then the
  * value roles. Nothing here draws; the entries and the phrase are what the screen shows.
  *
+ * `everything` stands where the parser would read `all` (the spec's Parsing › Sequences, again and
+ * all): first on a level whose role binds things and where two or more of them can be done. A set
+ * role joins them all; a role that takes one thing is one turn for each, the roles after it offered
+ * under the first, and only one such role in a sentence says `everything`.
+ *
  * The fillers and leaves the sentence points at live in the session's view, so a sentence lives
  * only until the next view is polled.
  */
@@ -41,6 +46,7 @@ typedef enum sentence_kind {
   SENTENCE_ENTRY_VERB,
   SENTENCE_ENTRY_FILLER,
   SENTENCE_ENTRY_MEMBER,
+  SENTENCE_ENTRY_EVERYTHING,
   SENTENCE_ENTRY_DONE,
   SENTENCE_ENTRY_OPTION,
   SENTENCE_ENTRY_NUMBER,
@@ -68,6 +74,7 @@ typedef struct sentence_member {
 typedef struct sentence_filled {
   const sprout_seen_filler *filler;
   size_t first, count; /* a set: its members in the state's `joined` */
+  bool everything;     /* picked as `everything`; for a role that takes one thing, `filler` is the first of them */
 } sentence_filled;
 
 /* A value role filled: a symbol role's option, or an integer role's number. */
@@ -88,6 +95,10 @@ typedef struct sentence_state {
   size_t pick_count;
   const sprout_seen_thing *joined[SENTENCE_MOST_MEMBERS]; /* the members of the sets picked */
   size_t joined_count;
+  /* a role that takes one thing filled with `everything`: 1 + its pick, and its things as 1-based picks of its level */
+  size_t each_pick;
+  size_t each_choices[SENTENCE_MOST_MEMBERS];
+  size_t each_count;
   sentence_value values[SENTENCE_MOST_PARTS];
   size_t value_count;
   /* a set role being joined */
@@ -121,6 +132,7 @@ typedef struct sentence_choice {
 typedef struct sentence {
   PlaydateAPI *pd;
   player_session *session;
+  const sprout_seen_view *view; /* whose place and people `everything` leaves out */
   sentence_state state;
   sentence_state *history;
   size_t history_count, history_room;
@@ -140,6 +152,10 @@ typedef struct sentence {
   /* the reading built on confirming */
   sprout_filling fillings[2 * SENTENCE_MOST_PARTS];
   const char *ids[SENTENCE_MOST_MEMBERS];
+  /* at the confirmation of a sentence with `everything` for a role that takes one thing: the turns it runs */
+  const sprout_seen_filler *each[SENTENCE_MOST_MEMBERS];
+  size_t each_count;
+  sentence_text each_phrase;
 } sentence;
 
 /* What a pick came to. */
@@ -150,10 +166,10 @@ typedef enum sentence_end {
 } sentence_end;
 
 /*
- * A sentence at the verbs of the last view, the first of them asked for at once. False with the
- * words in `*why` when the verbs cannot be had or there is no memory for them.
+ * A sentence at the verbs of `view`, the session's last, the first of them asked for at once. False with
+ * the words in `*why` when the verbs cannot be had or there is no memory for them.
  */
-bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const char **why);
+bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const sprout_seen_view *view, const char **why);
 void sentence_free(sentence *s);
 
 /* The entries on the drum, in order; there is always at least one. */
@@ -198,5 +214,15 @@ bool sentence_back(sentence *s);
 
 /* The reading confirmed, its actor left for the session; it points into the sentence and the view. */
 void sentence_reading(sentence *s, sprout_reading *reading);
+
+/*
+ * The turns a confirmed sentence with `everything` for a role that takes one thing runs, one after another:
+ * one for each of its things whose reading the view offers and does not refuse, in its level's order, at most
+ * as many as the host lets a set role bind. 0 for any other sentence, which is the one reading.
+ */
+size_t sentence_each_count(const sentence *s);
+
+/* The reading of turn `k` of those, as sentence_reading gives one, and the sentence as it is told for that turn. */
+void sentence_each(sentence *s, size_t k, sprout_reading *reading, const char **phrase);
 
 #endif

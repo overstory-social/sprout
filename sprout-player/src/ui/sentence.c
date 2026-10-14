@@ -3,6 +3,7 @@
 
 #include <string.h>
 
+#include "everything.h"
 #include "host/files.h"
 
 #define NO_MEMORY "The player ran out of memory building that."
@@ -10,6 +11,7 @@
 #define CANNOT "That cannot be done."
 #define NOTHING_HERE "Nothing can be done here."
 #define NOTHING_FITS "Nothing here fits that."
+#define EVERYTHING "everything"
 
 /* What the drum shows when there was no memory to say more. */
 static const sentence_entry LOST = {SENTENCE_ENTRY_NONE, "", true, NO_MEMORY, 0, 0, 0};
@@ -237,9 +239,12 @@ static size_t label_of(sentence *s, const char *text) {
   return close_at(s->pd, &s->shown, start, add_text(s->pd, &s->shown, text));
 }
 
-static bool make_phrase(sentence *s) {
+/*
+ * The sentence so far into `t`: a pick made as `everything` says so, but where `each` names the thing a turn of
+ * a role that takes one thing is run for, which stands in its place.
+ */
+static bool phrase_into(sentence *s, sentence_text *t, const sprout_seen_filler *each) {
   const sentence_state *state = &s->state;
-  sentence_text *t = &s->phrase;
   bool ok = true;
   size_t i, parts = 0;
   t->length = 0;
@@ -250,8 +255,15 @@ static bool make_phrase(sentence *s) {
   }
   for (i = 0; ok && i < state->pick_count; i++, parts++) {
     const sentence_filled *pick = &state->picks[i];
-    ok = (parts == 0 || add_text(s->pd, t, " -> ")) &&
-         (pick->filler->binds == SPROUT_SEEN_SET ? add_names(s->pd, t, &state->joined[pick->first], pick->count) : add_filler(s->pd, t, pick->filler));
+    ok = parts == 0 || add_text(s->pd, t, " -> ");
+    if (!ok) break;
+    if (each != NULL && i + 1 == state->each_pick)
+      ok = add_filler(s->pd, t, each);
+    else if (pick->everything)
+      ok = add_text(s->pd, t, EVERYTHING);
+    else
+      ok = pick->filler->binds == SPROUT_SEEN_SET ? add_names(s->pd, t, &state->joined[pick->first], pick->count)
+                                                   : add_filler(s->pd, t, pick->filler);
   }
   for (i = 0; ok && i < state->member_count; i++)
     ok = add_text(s->pd, t, i == 0 ? (parts++ == 0 ? "" : " -> ") : ", ") &&
@@ -264,6 +276,8 @@ static bool make_phrase(sentence *s) {
   }
   return ok;
 }
+
+static bool make_phrase(sentence *s) { return phrase_into(s, &s->phrase, NULL); }
 
 /* Whether the set being joined holds the thing `id` already. */
 static bool joined_already(const sentence_state *state, sprout_str id) {
@@ -288,6 +302,8 @@ static bool make_entries(sentence *s) {
     }
   } else if (state->stage == SENTENCE_FILLER || state->stage == SENTENCE_MORE) {
     bool more = state->stage == SENTENCE_MORE;
+    if (!more && everything_offered(s) && !push_entry(s, SENTENCE_ENTRY_EVERYTHING, label_of(s, EVERYTHING), false, NULL, 0))
+      return false;
     for (i = 0; i < s->choice_count; i++) {
       const sentence_choice *choice = &s->choices[i];
       bool greyed = choice->greyed == PLAYER_GREYED_YES;
@@ -334,7 +350,11 @@ static bool make_entries(sentence *s) {
     }
   } else {
     const char *reason = NULL;
-    if (state->leaf != NULL && state->leaf->refused) {
+    bool each = state->each_pick != 0, runs;
+    if (each) everything_plan(s);
+    /* With `everything`, the first thing's reading may be refused where another's is not: those that can run, run. */
+    runs = each && s->each_count > 0;
+    if (state->leaf != NULL && state->leaf->refused && !runs) {
       start = s->kept.length;
       reason = words_at(&s->kept, close_at(s->pd, &s->kept, start, add_refusal(s->pd, &s->kept, state->leaf)));
       s->kept.length = start;
@@ -343,6 +363,8 @@ static bool make_entries(sentence *s) {
       reason = words_at(&s->kept, state->refusal);
     } else if (state->leaf == NULL) {
       reason = state->empty_reason != 0 ? words_at(&s->kept, state->empty_reason) : NOTHING_FITS;
+    } else if (each && !runs) {
+      reason = NOTHING_FITS;
     }
     start = s->shown.length;
     if (!push_entry(s, SENTENCE_ENTRY_CONFIRM, close_at(s->pd, &s->shown, start, add_text(s->pd, &s->shown, sentence_phrase(s))),
@@ -420,7 +442,7 @@ static const char *join(sentence *s, sentence_state *state, const sentence_choic
 }
 
 /* The set joined becomes a pick, its first refused member's words the sentence's refusal, and the roles after it follow. */
-static const char *close_set(sentence *s, sentence_state *state) {
+static const char *close_set(sentence *s, sentence_state *state, bool everything) {
   sentence_filled *pick;
   size_t i;
   if (state->pick_count == SENTENCE_MOST_PARTS || state->joined_count + state->member_count > SENTENCE_MOST_MEMBERS) return TOO_LONG;
@@ -428,6 +450,7 @@ static const char *close_set(sentence *s, sentence_state *state) {
   pick->filler = state->set;
   pick->first = state->joined_count;
   pick->count = state->member_count;
+  pick->everything = everything;
   for (i = 0; i < state->member_count; i++) {
     const sentence_member *member = &state->members[i];
     state->joined[state->joined_count++] = member->thing;
@@ -457,10 +480,53 @@ static const char *pick_value(sentence_state *state, const sprout_seen_option *o
   return NULL;
 }
 
-bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const char **why) {
+/*
+ * `everything` picked: a set role joins every thing it takes, at most as many as a set role may bind, and goes
+ * on; a role that takes one thing keeps them for the turns and goes on under the first.
+ */
+static const char *pick_everything(sentence *s, sentence_state *state) {
+  size_t i, first = 0, count = 0, most = everything_most();
+  bool set = false;
+  const char *why;
+  state->member_count = 0;
+  for (i = 0; i < s->choice_count; i++) {
+    const sentence_choice *choice = &s->choices[i];
+    if (!everything_takes(s, choice)) continue;
+    if (count == 0) {
+      first = i;
+      set = choice->filler->binds == SPROUT_SEEN_SET;
+    }
+    if (set) {
+      if (count == most) break;
+      why = join(s, state, choice);
+      if (why != NULL) return why;
+    } else {
+      if (count == SENTENCE_MOST_MEMBERS) return TOO_LONG;
+      state->each_choices[count] = i + 1;
+    }
+    count++;
+  }
+  if (count == 0) return CANNOT;
+  if (set) {
+    state->set = s->choices[first].filler;
+    state->set_choice = first + 1;
+    return close_set(s, state, true);
+  }
+  if (state->pick_count == SENTENCE_MOST_PARTS) return TOO_LONG;
+  state->each_count = count;
+  state->each_pick = state->pick_count + 1;
+  state->picks[state->pick_count].filler = s->choices[first].filler;
+  state->picks[state->pick_count].first = state->picks[state->pick_count].count = 0;
+  state->picks[state->pick_count].everything = true;
+  state->pick_count++;
+  return arrive(s, state, first + 1);
+}
+
+bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const sprout_seen_view *view, const char **why) {
   memset(s, 0, sizeof *s);
   s->pd = pd;
   s->session = session;
+  s->view = view;
   s->state.stage = SENTENCE_VERB;
   *why = fetch(s, NULL, 0, NULL);
   if (*why == NULL && s->choice_count == 0) *why = NOTHING_HERE;
@@ -480,6 +546,7 @@ void sentence_free(sentence *s) {
   player_free(s->pd, s->entries);
   player_free(s->pd, s->shown.bytes);
   player_free(s->pd, s->phrase.bytes);
+  player_free(s->pd, s->each_phrase.bytes);
   memset(s, 0, sizeof *s);
 }
 
@@ -605,6 +672,7 @@ sentence_end sentence_pick(sentence *s, const char **words) {
       } else {
         next.picks[next.pick_count].filler = choice->filler;
         next.picks[next.pick_count].first = next.picks[next.pick_count].count = 0;
+        next.picks[next.pick_count].everything = false;
         next.pick_count++;
         why = arrive(s, &next, entry->index + 1);
       }
@@ -612,9 +680,12 @@ sentence_end sentence_pick(sentence *s, const char **words) {
     case SENTENCE_ENTRY_MEMBER:
       why = join(s, &next, choice);
       break;
+    case SENTENCE_ENTRY_EVERYTHING:
+      why = pick_everything(s, &next);
+      break;
     case SENTENCE_ENTRY_DONE:
       if (next.stage == SENTENCE_MORE)
-        why = close_set(s, &next);
+        why = close_set(s, &next, false);
       else
         at_leaf(&next, s->leaf);
       break;
@@ -689,4 +760,14 @@ void sentence_reading(sentence *s, sprout_reading *reading) {
   }
   reading->filling_count = count;
   reading->fillings = s->fillings;
+}
+
+size_t sentence_each_count(const sentence *s) { return s->state.stage == SENTENCE_CONFIRM && s->state.each_pick != 0 ? s->each_count : 0; }
+
+void sentence_each(sentence *s, size_t k, sprout_reading *reading, const char **phrase) {
+  sprout_filling *filling;
+  sentence_reading(s, reading);
+  filling = &s->fillings[s->state.each_pick - 1];
+  filling->id = s->each[k]->thing.id.bytes;
+  *phrase = phrase_into(s, &s->each_phrase, s->each[k]) ? s->each_phrase.bytes : sentence_phrase(s);
 }
