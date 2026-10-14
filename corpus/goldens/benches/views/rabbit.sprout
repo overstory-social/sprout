@@ -1,0 +1,2 @@
+kind Rabbit is sprout.Actor { }
+import * as sprout from 'sprout'

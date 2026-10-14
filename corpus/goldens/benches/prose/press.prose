@@ -1,0 +1,18 @@
+passage inked {
+  {actor} inks {self} with {for t of tools}{t}{if $last}.{else}, {/if}{/for}
+}
+passage mood { {self.get(:mood)}, {self.get(:sheets)} sheets, labelled {self.get(:label)}. }
+passage moods { {for m of self.get(:moods)}{$index} of {$count}: {m}{if !$last}; {/if}{/for} }
+passage sheets {
+  {if self.get(:sheets) > 5}
+  Many sheets.
+  {else if self.get(:sheets) > 0}
+  Some sheets.
+  {else}
+  No sheets.
+  {/if}
+
+  {if self.get(:sheets) == 0}Nothing at all.{/if}
+
+  the end,\nand a line kept. A brace: \{.
+}

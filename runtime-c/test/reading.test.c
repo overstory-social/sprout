@@ -21,6 +21,25 @@ static void every_golden_reading_ends_as_the_typescript_runtime_did(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+/* The golden is hand-kept: it still holds a reading that ends each way one can. */
+static void the_golden_ends_a_reading_each_way_one_can(void) {
+  static const char *const ways[] = {"acted", "refused", "gone", "fault"};
+  exec_bench b;
+  const sprout_json *cases;
+  size_t w, i;
+  reading_bench_open(&b);
+  cases = sprout_json_get(b.golden, "cases");
+  for (w = 0; w < sizeof ways / sizeof ways[0]; w++) {
+    size_t found = 0;
+    for (i = 0; i < cases->count; i++)
+      if (strcmp(exec_text(sprout_json_get(cases->items[i], "expect"), "how"), ways[w]) == 0) found++;
+    CHECK(found > 0);
+    if (found == 0) fprintf(stderr, "  no reading ends %s\n", ways[w]);
+  }
+  exec_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
 static void a_verb_is_reached_from_its_own_library_first_and_then_the_standard_library(void) {
   exec_bench b;
   exec_case c;
@@ -95,6 +114,7 @@ static void a_reading_that_ends_with_its_actor_destroyed_is_gone(void) {
 
 int main(void) {
   RUN(every_golden_reading_ends_as_the_typescript_runtime_did);
+  RUN(the_golden_ends_a_reading_each_way_one_can);
   RUN(a_verb_is_reached_from_its_own_library_first_and_then_the_standard_library);
   RUN(a_role_takes_a_set_a_value_an_exit_or_a_thing);
   RUN(a_set_role_binding_more_than_the_host_allows_exhausts_the_budget);

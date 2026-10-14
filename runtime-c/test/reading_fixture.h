@@ -1,7 +1,7 @@
 /*
- * The reading bench as the C tests use it: the cartridge and the stored
- * worlds `corpus/goldens/readings.json` was written against (the TypeScript
- * spec reading-goldens.spec.ts writes them), a world loaded under each case's
+ * The reading bench as the C tests use it: the cartridge
+ * (`corpus/goldens/readings.sproutworld`, compiled from `benches/readings`)
+ * and the stored worlds `corpus/goldens/readings.json` holds, a world loaded under each case's
  * figures, and a turn to run a reading in. A case is a reading, as the
  * parser's file holds it, in a state; replaying one runs it through the
  * consent pass and the effect pass, drains the queue, and compares how it

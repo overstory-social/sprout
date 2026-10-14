@@ -1,0 +1,98 @@
+world eval_bench is sprout.World { contains visitors are Person visitors arrive at hall
+  object hall is Room {
+    object probe is Probe
+    object shelf is Shelf {
+      object jar is Jar
+      object cup is Lidded
+    }
+    object vault is Vault { object coin is Jar  object box is Shelf }
+  }
+  object nook is Place
+  object dim is Dim { object lamp is sprout.LightSource }
+}
+enum Glaze { none, shino, tenmoku }
+kind Place { contains actors }
+kind Room is sprout.Place { :lit true }
+kind Dim is sprout.Place { grammar { lit (self.sees(sprout.LightSource, :lit)) } }
+kind Shelf { contains :capacity 3 min 0 max 9 }
+kind Vault { contains :open false  pass any (self.get(:open)) }
+kind Jar {
+  :glaze Glaze default shino
+  :fill 3 min 0 max 9
+  :wards [Glaze] default [shino, tenmoku]
+  :label string default "salt"
+  remembers { :seen false :visits 2 min 0 max 9 }
+}
+kind Lidded is Jar { :lid true }
+kind Crate { contains object lid is Jar object tray is Shelf { object seed is Jar } }
+kind Person is sprout.Visitor { :score 0 }
+verb tap { role target: Probe  role tool: Jar  "tap [target] with [tool]"  "tap [target]" }
+kind Probe is Lidded {
+  on :spawned (from) {
+    let c0 = true
+    let c1 = 7
+    let c2 = "salt"
+    let c3 = self.get(:fill) + 4 - 2
+    let c4 = -self.get(:fill)
+    let c5 = 1 - 2 - 3
+    let c6 = -(1 - 1)
+    let c7 = 2 < 3
+    let c8 = 3 <= 3
+    let c9 = 3 > 3
+    let c10 = 2 >= 3
+    let c11 = 1 + 2 < 4 && !false || 1 < 0
+    let c12 = self.get(:glaze) == :shino
+    let c13 = :shino != self.get(:glaze)
+    let c14 = self.get(:glaze) == :tenmoku
+    let c15 = self.get(:label) == "salt"
+    let c16 = self.get(:label) != "sugar"
+    let c17 = self.get(:lid) == true
+    let c18 = eval_bench.hall.shelf.jar == eval_bench.hall.shelf.jar
+    let c19 = eval_bench.hall.shelf.jar != eval_bench.hall.shelf.cup
+    let c20 = true || self.get(:fill) > 5
+    let c21 = false && self.get(:fill) > 5
+    let c22 = 2147483647 - 1 + 1
+    let c23 = 2147483647 + 1
+    let c24 = -2147483647 - 2
+    let c25 = self.get(:fill)
+    let c26 = self.get(:fill) + 1
+    let c27 = self.get(:glaze) != :none
+    let c28 = self.get(:wards)
+    let c29 = self.get(:label)
+    let c30 = self.get(:wards).count
+    let c31 = self.get(:wards).includes(:tenmoku)
+    let c32 = self.get(:wards).includes(:none)
+    let c33 = eval_bench.hall.shelf.count
+    let c34 = eval_bench.hall.shelf.count(Lidded)
+    let c35 = eval_bench.hall.shelf.count(Jar)
+    let c36 = eval_bench.hall.count
+    let c37 = eval_bench.hall.shelf.cup.is(Jar)
+    let c38 = eval_bench.hall.shelf.jar.is(Lidded)
+    let c39 = eval_bench.hall.shelf.holds(eval_bench.hall.shelf.jar)
+    let c40 = eval_bench.hall.holds(eval_bench.hall.shelf.jar)
+    let c41 = self == self
+    let c42 = eval_bench.hall == eval_bench.hall
+    let c43 = eval_bench == eval_bench
+    let c44 = shelf.is(Shelf) && shelf.count > 1
+    let c45 = shelf.is(Shelf) && shelf.count(Jar) == 2
+    let c46 = shelf.cup.is(Lidded) && shelf.cup.get(:lid)
+    let c47 = vault.coin.is(Jar)
+    let c48 = chance(3)
+    let c49 = random(6)
+    let c50 = random(1)
+    let c51 = random(9) + random(9)
+    let c52 = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1
+  }
+  as target for tap {
+    do {
+    let p0 = actor.recall(:visits)
+    let p1 = actor.recall(:visits) + 1
+    let p2 = actor.recall(:seen)
+    let p3 = actor.is(Person)
+    let p4 = actor == actor
+    let p5 = bound tool
+    let p6 = bound tool && tool.get(:fill) > 1
+    }
+  }
+}
+import * as sprout from 'sprout'

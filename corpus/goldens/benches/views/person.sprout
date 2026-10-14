@@ -1,0 +1,2 @@
+kind Person is sprout.Visitor { }
+import * as sprout from 'sprout'

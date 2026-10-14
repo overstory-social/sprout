@@ -1,0 +1,16 @@
+world harbour is sprout.World {
+  visitors are Person
+  visitors arrive at quay
+
+  object quay is Quay {
+    object gull is Gull
+  }
+  object loft is Gated { }
+  object cellar is Cellar { }
+}
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Quay} from 'quay'
+import {Gull} from 'gull'
+import {Gated} from 'gated'
+import {Cellar} from 'cellar'

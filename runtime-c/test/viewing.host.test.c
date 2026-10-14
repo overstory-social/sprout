@@ -1,7 +1,8 @@
 /*
  * Tests for host/viewing.c: `sproutc view` polls the view of a visitor in a stored world and prints the page
  * `sprout view` prints (corpus/good/chip-tree/view.txt is that page for the visitor arriving in the chip-tree
- * world), or, with --json, the view's canonical JSON and the chip tree over it; a poll that faults is shown as the
+ * world), or, with --json, the view's canonical JSON and the chip tree over it, and with --golden one object of
+ * those, the steps and the fault, as corpus/goldens/views.json holds a poll; a poll that faults is shown as the
  * visitor would see it, then the fault, and exits 1; a command line or a stored world it cannot follow exits 2
  * with words for what is wrong. `--scene` is that page with the scene's verbs in place of the readings, and
  * `--verb` one verb's readings, which are the readings the whole page gives that verb.
@@ -151,6 +152,31 @@ static void a_poll_that_faults_is_shown_as_the_visitor_sees_it_then_the_fault_an
   release(&r);
 }
 
+static void golden_prints_the_poll_as_one_object_with_its_steps_and_its_fault(void) {
+  char *whole[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--golden"};
+  char *json[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--json"};
+  char *spent[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--poll-steps", "30", "--golden"};
+  run r = sproutc(5, whole), j = sproutc(5, json);
+  char *chips = strstr(j.out, "}\n[");
+  CHECK_INT(r.code, 0);
+  CHECK(strncmp(r.out, "{\"view\":{\"description\":", 23) == 0);
+  /* the view and the chip tree are the ones --json prints, then the steps, and no fault */
+  CHECK(chips != NULL);
+  if (chips != NULL) {
+    CHECK(strncmp(r.out + 8, j.out, (size_t)(chips + 1 - j.out)) == 0);
+    CHECK(strstr(r.out, ",\"chips\":[") != NULL);
+  }
+  CHECK(strstr(r.out, ",\"steps\":") != NULL);
+  CHECK(strstr(r.out, ",\"fault\":null}\n") != NULL);
+  release(&r);
+  release(&j);
+  /* a poll that runs out has no steps, and names the fault and the object it faulted against; it exits 0 */
+  r = sproutc(7, spent);
+  CHECK_INT(r.code, 0);
+  CHECK(strstr(r.out, ",\"steps\":null,\"fault\":{\"name\":\"BudgetExhausted\",\"object\":\"chip_tree.hall\"}}\n") != NULL);
+  release(&r);
+}
+
 static void the_scene_is_the_page_with_its_verbs_in_place_of_the_readings(void) {
   char *argv[] = {"view", cartridge_of("chip-tree"), "--state", (char *)state_file("chip-tree"), "--scene"};
   char *wanted = page_of("chip-tree");
@@ -238,7 +264,7 @@ static void a_command_line_it_cannot_follow_exits_2_with_words(void) {
   release(&r);
   r = sproutc(6, two);
   CHECK_INT(r.code, 2);
-  CHECK(strstr(r.err, "write one of --json, --scene and --verb: each prints a poll of its own.") != NULL);
+  CHECK(strstr(r.err, "write one of --json, --golden, --scene and --verb: each prints a poll of its own.") != NULL);
   release(&r);
   r = sproutc(5, no_verb);
   CHECK_INT(r.code, 2);
@@ -258,6 +284,7 @@ int main(void) {
   RUN(a_picture_in_the_description_is_an_effect_with_its_payload_and_its_transcript_line);
   RUN(the_page_lists_the_effect_after_the_description);
   RUN(a_poll_that_faults_is_shown_as_the_visitor_sees_it_then_the_fault_and_exits_1);
+  RUN(golden_prints_the_poll_as_one_object_with_its_steps_and_its_fault);
   RUN(the_scene_is_the_page_with_its_verbs_in_place_of_the_readings);
   RUN(a_verb_gives_the_readings_the_whole_page_gives_it);
   RUN(a_scene_or_a_verb_that_runs_out_shows_the_fault_and_exits_1);

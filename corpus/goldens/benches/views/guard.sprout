@@ -1,0 +1,18 @@
+kind Guard is sprout.Actor {
+  :knows [Topic] default [bridge, toll]
+  as target for ask {
+    topic from :knows
+    do { say "The guard nods." }
+  }
+  as target for vouch {
+    topic from :knows
+    do { say "Heard." }
+  }
+  as witness for vouch {
+    topic from :knows
+    permit { refuse "Not before me." }
+  }
+}
+import * as sprout from 'sprout'
+import {Topic, vouch} from 'viewbench'
+import {ask} from 'sprout'

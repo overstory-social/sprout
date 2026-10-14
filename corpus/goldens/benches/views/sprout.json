@@ -1,0 +1,31 @@
+{
+  "name": "viewbench",
+  "namespace": "viewbench",
+  "version": "0.1.0",
+  "author": "Eric Eslinger",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "e07a01d353c34e10d14044970e85c1fc1a1b0ebba0078fa69a2bec86936b95da"
+    }
+  ],
+  "files": [
+    "viewbench.sprout",
+    "yard.sprout",
+    "guard.sprout",
+    "keypad.sprout",
+    "dial.sprout",
+    "stern.sprout",
+    "pebble.sprout",
+    "purse.sprout",
+    "sack.sprout",
+    "wardrobe.sprout",
+    "rabbit.sprout",
+    "lamp.sprout",
+    "person.sprout"
+  ]
+}

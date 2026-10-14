@@ -1,0 +1,705 @@
+extension media 1
+extension slides 1
+world exec_bench is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is Hall {
+    object runner is Runner
+    object shelf is Shelf {
+      object jar is Jar
+      object cup is Cup
+    }
+    object chest is Chest {
+      object coin is Jar
+      object bin is Box
+    }
+    object glass is Glass { object moth is Moth }
+    object lamp is Lamp
+    object bell is Bell
+    object stubborn is Stubborn
+    object keeper is Keeper { object kept is Jar }
+    object basket is Basket
+    object gate is Gate
+    object box is Box { object inner is Box }
+    object tent is Tent
+    object lodge is Lodge
+    object wardrobe is Wardrobe
+    object cell is Cell
+    object dog is Dog
+  }
+}
+kind Person is sprout.Visitor { }
+enum Glaze { none, shino, tenmoku }
+message :ping
+message :pong
+message :chain with integer
+message :c0 with integer
+message :c1 with integer
+message :c2 with integer
+message :c3 with integer
+message :c4 with integer
+message :c5 with integer
+message :c6 with integer
+message :c7 with integer
+message :c8 with integer
+message :c9 with integer
+message :c10 with integer
+message :c11 with integer
+message :c12 with integer
+message :c13 with integer
+message :c14 with integer
+message :c15 with integer
+message :c16 with integer
+message :c17 with integer
+message :c18 with integer
+message :c19 with integer
+message :c20 with integer
+message :c21 with integer
+message :c22 with integer
+message :c23 with integer
+message :c24 with integer
+message :c25 with integer
+message :c26 with integer
+message :c27 with integer
+message :c28 with integer
+message :c29 with integer
+message :c30 with integer
+message :c31 with integer
+message :c32 with integer
+message :c33 with integer
+message :c34 with integer
+message :c35 with integer
+message :c36 with integer
+message :c37 with integer
+message :c38 with integer
+message :c39 with integer
+message :c40 with integer
+message :c41 with integer
+message :c42 with integer
+message :c43 with integer
+message :c44 with integer
+message :c45 with integer
+message :c46 with integer
+message :c47 with integer
+message :c48 with integer
+message :c49 with integer
+message :c50 with integer
+message :c51 with integer
+message :q51 with integer
+message :c52 with integer
+message :q52 with integer
+message :c53 with integer
+message :q53 with integer
+message :c54 with integer
+message :q54 with integer
+message :c55 with integer
+message :c56 with integer
+message :c57 with integer
+message :c58 with integer
+message :c59 with integer
+message :c60 with integer
+message :c61 with integer
+message :c62 with integer
+message :c63 with integer
+message :c64 with integer
+message :c65 with integer
+message :c66 with integer
+message :c67 with integer
+message :c68 with integer
+message :c69 with integer
+message :c70 with integer
+message :c71 with integer
+message :c72 with integer
+message :c73 with integer
+message :c74 with integer
+message :c75 with integer
+message :c76 with integer
+message :c77 with integer
+message :c78 with integer
+message :c79 with integer
+message :c80 with integer
+message :c81 with integer
+message :c82 with integer
+message :c83 with integer
+message :c84 with integer
+message :c85 with integer
+message :c86 with integer
+message :c87 with integer
+message :c88 with integer
+message :c89 with integer
+message :c90 with integer
+message :c91 with integer
+message :c92 with integer
+message :c93 with integer
+message :c94 with integer
+message :c99 with integer
+message :c100 with integer
+message :c101 with integer
+message :c102 with integer
+message :c103 with integer
+message :c104 with integer
+message :c105 with integer
+verb sniff { role target  "sniff [target]" }
+verb bark { role target  "bark at [target]" }
+kind Sender {
+  on :ping (who) {
+    broadcast :c0 with 1
+    broadcast :c1 with 1
+    broadcast :c2 with 1
+    broadcast :c3 with 1
+    broadcast :c4 with 1
+    broadcast :c5 with 1
+    broadcast :c6 with 1
+    broadcast :c7 with 1
+    broadcast :c8 with 1
+    broadcast :c9 with 1
+    broadcast :c10 with 1
+    broadcast :c11 with 1
+    broadcast :c12 with 1
+    broadcast :c13 with 1
+    broadcast :c14 with 1
+    broadcast :c15 with 1
+    broadcast :c16 with 1
+    broadcast :c17 with 1
+    broadcast :c18 with 1
+    broadcast :c19 with 1
+    broadcast :c20 with 1
+    broadcast :c21 with 1
+    broadcast :c22 with 1
+    broadcast :c23 with 1
+    broadcast :c24 with 1
+    broadcast :c25 with 1
+    broadcast :c26 with 1
+    broadcast :c27 with 1
+    broadcast :c28 with 1
+    broadcast :c29 with 1
+    broadcast :c30 with 1
+    broadcast :c31 with 1
+    broadcast :c32 with 1
+    broadcast :c33 with 1
+    broadcast :c34 with 1
+    broadcast :c35 with 1
+    broadcast :c36 with 1
+    broadcast :c37 with 1
+    broadcast :c38 with 1
+    broadcast :c39 with 1
+    broadcast :c40 with 1
+    broadcast :c41 with 1
+    broadcast :c42 with 1
+    broadcast :c43 with 1
+    broadcast :c44 with 1
+    broadcast :c45 with 1
+    broadcast :c46 with 1
+    broadcast :c47 with 1
+    broadcast :c48 with 1
+    broadcast :c49 with 1
+    broadcast :c50 with 1
+    broadcast :c51 with 1
+    broadcast :q51 with 1
+    broadcast :c52 with 1
+    broadcast :q52 with 1
+    broadcast :c53 with 1
+    broadcast :q53 with 1
+    broadcast :c54 with 1
+    broadcast :q54 with 1
+    broadcast :c55 with 1
+    broadcast :c56 with 1
+    broadcast :c57 with 1
+    broadcast :c58 with 1
+    broadcast :c59 with 1
+    broadcast :c60 with 1
+    broadcast :c61 with 1
+    broadcast :c62 with 1
+    broadcast :c63 with 1
+    broadcast :c64 with 1
+    broadcast :c65 with 1
+    broadcast :c66 with 1
+    broadcast :c67 with 1
+    broadcast :c68 with 1
+    broadcast :c69 with 1
+    broadcast :c70 with 1
+    broadcast :c71 with 1
+    broadcast :c72 with 1
+    broadcast :c73 with 1
+    broadcast :c74 with 1
+    broadcast :c75 with 1
+    broadcast :c76 with 1
+    broadcast :c77 with 1
+    broadcast :c78 with 1
+    broadcast :c79 with 1
+    broadcast :c80 with 1
+    broadcast :c81 with 1
+    broadcast :c82 with 1
+    broadcast :c83 with 1
+    broadcast :c84 with 1
+    broadcast :c85 with 1
+    broadcast :c86 with 1
+    broadcast :c87 with 1
+    broadcast :c88 with 1
+    broadcast :c89 with 1
+    broadcast :c90 with 1
+    broadcast :c91 with 1
+    broadcast :c92 with 1
+    broadcast :c93 with 1
+    broadcast :c94 with 1
+    broadcast :c99 with 1
+    broadcast :c100 with 1
+    broadcast :c101 with 1
+    broadcast :c102 with 1
+    broadcast :c103 with 1
+    broadcast :c104 with 1
+    broadcast :c105 with 1
+  }
+}
+verb p95 { role target  "p95 [target]" }
+verb p96 { role target  "p96 [target]" }
+verb p97 { role target  "p97 [target]" }
+verb p98 { role target  "p98 [target]" }
+kind Hall is sprout.Place {
+  :arrivals 0 min 0 max 99
+  on :entered (item, from) { self.adjust(:arrivals, 1) }
+}
+kind Tent is sprout.Place { }
+kind Lodge is sprout.Place {
+  :closed false
+  accept (item, from) { if (self.get(:closed)) { refuse "Not tonight." } }
+}
+kind Wardrobe is sprout.Place {
+  :open false
+  pass any (self.get(:open))
+  on :c91 (who, value) {
+    tell inside "Welcome in."
+  }
+  on :c92 (who, value) {
+    tell outside "Muffled."
+  }
+  on :c93 (who, value) {
+    tell "A voice."
+  }
+}
+kind Cell is sprout.Place {
+  grammar { link onward "on" }
+  on :c65 (who, value) {
+    let c = spawn Cell in exec_bench.hall
+    connect onward to c
+  }
+  on :c66 (who, value) {
+    let c = spawn Cell in exec_bench.hall
+    connect onward to c
+    let d = spawn Cell in exec_bench.hall
+    connect onward to d
+  }
+  on :c67 (who, value) {
+    each t in exec_bench.hall.shelf { connect onward to t }
+  }
+}
+kind Runner {
+  contains
+  :count 0 min 0 max 9
+  :trail 0 min 0 max 99
+  :pongs 0 min 0 max 99
+  :label string default "salt"
+  :glaze Glaze default shino
+  :wards [Glaze] default [shino]
+  remembers { :visits 0 min 0 max 9 }
+  changed :count (was) { self.adjust(:trail, 1) }
+  on :pong (from) { self.adjust(:pongs, 1) }
+  on :woke (elapsed) { self.adjust(:count, 1) }
+  passage named { Salt. }
+  on :c0 (who, value) {
+    let n = self.get(:count) + 2
+    self.set(:count, n)
+  }
+  on :c1 (who, value) {
+    self.set(:label, "sugar")
+  }
+  on :c2 (who, value) {
+    self.set(:glaze, :tenmoku)
+  }
+  on :c3 (who, value) {
+    self.adjust(:count, 5 + 5)
+  }
+  on :c4 (who, value) {
+    self.adjust(:count, 0 - 9)
+  }
+  on :c5 (who, value) {
+    self.add(:wards, :tenmoku)
+  }
+  on :c6 (who, value) {
+    self.add(:wards, :shino)
+  }
+  on :c7 (who, value) {
+    self.remove(:wards, :shino)
+  }
+  on :c8 (who, value) {
+    self.remove(:wards, :tenmoku)
+  }
+  on :c9 (who, value) {
+    self.add(:wards, :none)
+  }
+  on :c10 (who, value) {
+    if (who.is(sprout.Actor)) { who.remember(:visits, 3) }
+  }
+  on :c11 (who, value) {
+    if (who.is(sprout.Actor)) { who.adjust(:visits, 2) }
+  }
+  on :c12 (who, value) {
+    if (who.is(sprout.Actor)) { who.adjust(:visits, 3) }
+  }
+  on :c13 (who, value) {
+    self.set(:count, 6)
+  }
+  on :c14 (who, value) {
+    self.set(:count, 4)
+  }
+  on :c15 (who, value) {
+    self.set(:count, 1)
+    self.set(:count, 2)
+  }
+  on :c16 (who, value) {
+    self.set(:count, self.get(:count) + 12)
+  }
+  on :c17 (who, value) {
+    self.set(:count, 7)
+  }
+  on :c18 (who, value) {
+    tell "Text stands in."
+  }
+  on :c19 (who, value) {
+    if (self.get(:count) == 0) { self.set(:label, "zero") } else { self.set(:label, "more") }
+  }
+  on :c20 (who, value) {
+    if (self.get(:count) == 0) { self.set(:label, "none") } else { self.set(:label, "some") }
+  }
+  on :c21 (who, value) {
+    if (self.get(:count) > 5) { self.set(:label, "big") } else if (self.get(:count) > 2) { self.set(:label, "mid") } else { self.set(:label, "low") }
+  }
+  on :c22 (who, value) {
+    let a = 1
+    if (a == 1) { let b = a + 1
+    self.set(:count, b) }
+  }
+  on :c23 (who, value) {
+    if (exec_bench.hall.shelf.is(Shelf)) { self.set(:count, exec_bench.hall.shelf.count) }
+  }
+  on :c24 (who, value) {
+    each pot: Jar in exec_bench.hall.shelf { self.adjust(:count, 1) }
+  }
+  on :c25 (who, value) {
+    each thing in exec_bench.hall.shelf { self.adjust(:count, 1) }
+  }
+  on :c26 (who, value) {
+    each thing in exec_bench.hall.chest { self.adjust(:count, 2) }
+  }
+  on :c27 (who, value) {
+    each thing in exec_bench.hall.chest { self.adjust(:count, 2) }
+  }
+  on :c28 (who, value) {
+    each a in exec_bench.hall.shelf { each b in exec_bench.hall.shelf { self.adjust(:count, 1) } }
+  }
+  on :c29 (who, value) {
+    each a in exec_bench.hall.shelf { each b in exec_bench.hall.shelf { self.adjust(:count, 3) } }
+  }
+  on :c30 (who, value) {
+    each thing in exec_bench.hall.shelf { move thing to exec_bench.hall.basket }
+  }
+  on :c31 (who, value) {
+    each thing in exec_bench.hall.shelf { move thing to exec_bench.hall.gate
+    self.adjust(:count, 1) }
+  }
+  on :c32 (who, value) {
+    move exec_bench.hall.shelf.jar to exec_bench.hall.basket
+  }
+  on :c33 (who, value) {
+    move exec_bench.hall.lamp to exec_bench.hall.shelf
+  }
+  on :c34 (who, value) {
+    move exec_bench.hall.stubborn to exec_bench.hall.shelf
+  }
+  on :c35 (who, value) {
+    move exec_bench.hall.keeper.kept to exec_bench.hall.shelf
+  }
+  on :c36 (who, value) {
+    move exec_bench.hall.keeper.kept to exec_bench.hall.basket
+  }
+  on :c37 (who, value) {
+    move exec_bench.hall.shelf.jar to exec_bench.hall.gate
+  }
+  on :c38 (who, value) {
+    move exec_bench.hall.lamp to exec_bench.hall.gate
+  }
+  on :c39 (who, value) {
+    move exec_bench.hall.lamp to exec_bench.hall.shelf
+    self.set(:label, "after")
+  }
+  on :c40 (who, value) {
+    move exec_bench.hall.box to exec_bench.hall.box.inner
+  }
+  on :c41 (who, value) {
+    move exec_bench.hall.lamp to who
+  }
+  on :c42 (who, value) {
+    move who to exec_bench.hall.shelf
+  }
+  on :c43 (who, value) {
+    move exec_bench.hall.lamp to who
+  }
+  on :c49 (who, value) {
+    spawn Crate in exec_bench.hall
+  }
+  on :c50 (who, value) {
+    spawn Crate in exec_bench.hall
+  }
+  on :c51 (who, value) {
+    if (who.is(Spark)) { self.set(:count, who.get(:n) + 3) }
+  }
+  on :c53 (who, value) {
+    move who to exec_bench.hall.basket
+  }
+  on :c54 (who, value) {
+    spawn Jar in who
+  }
+  on :c55 (who, value) {
+    spawn Jar in exec_bench.hall
+  }
+  on :c56 (who, value) {
+    let j = spawn Jar in exec_bench.hall.shelf
+    send j :ping
+  }
+  on :c57 (who, value) {
+    spawn Crate in exec_bench.hall
+  }
+  on :c58 (who, value) {
+    spawn Crate in exec_bench.hall
+    spawn Jar in exec_bench.hall
+  }
+  on :c59 (who, value) {
+    spawn Jar in who
+  }
+  on :c60 (who, value) {
+    spawn Jar in who
+  }
+  on :c68 (who, value) {
+    send exec_bench.hall.bell :ping
+  }
+  on :c69 (who, value) {
+    send exec_bench.hall.bell :ping
+    send exec_bench.hall.lamp :ping
+  }
+  on :c70 (who, value) {
+    send exec_bench.hall.chest.coin :ping
+  }
+  on :c71 (who, value) {
+    send exec_bench.hall.chest.coin :ping
+  }
+  on :c72 (who, value) {
+    broadcast :ping
+  }
+  on :c73 (who, value) {
+    broadcast :ping
+  }
+  on :c74 (who, value) {
+    each thing in exec_bench.hall.glass { self.adjust(:count, 2) }
+  }
+  on :c75 (who, value) {
+    send exec_bench.hall.bell :chain with 1
+  }
+  on :c76 (who, value) {
+    send exec_bench.hall.bell :chain with 2
+  }
+  on :c77 (who, value) {
+    send exec_bench.hall.bell :chain with 3
+  }
+  on :c78 (who, value) {
+    self.set(:count, 3)
+    send exec_bench.hall.bell :ping
+  }
+  on :c79 (who, value) {
+    wake in 5 seconds
+  }
+  on :c80 (who, value) {
+    wake in 3 hours
+  }
+  on :c81 (who, value) {
+    wake in 2 minutes
+    wake in 3 minutes
+  }
+  on :c82 (who, value) {
+    wake in 3 hours
+    wake in 2 minutes
+  }
+  on :c83 (who, value) {
+    wake in 90 seconds
+  }
+  on :c84 (who, value) {
+    cancel wakes
+  }
+  on :c85 (who, value) {
+    cancel wakes
+    wake in 3 minutes
+  }
+  on :c86 (who, value) {
+    cancel wakes
+    cancel wakes
+  }
+  on :c87 (who, value) {
+    tell "Hello there."
+  }
+  on :c88 (who, value) {
+    tell who "For you."
+  }
+  on :c89 (who, value) {
+    tell who "Not for you."
+  }
+  on :c90 (who, value) {
+    tell named
+  }
+  on :c94 (who, value) {
+    let n = self.get(:count)
+    tell "Count is {n}."
+  }
+  as target for p95 {
+    do {
+    say "You tap the runner."
+    }
+  }
+  as target for p96 {
+    do {
+    say named
+    }
+  }
+  as target for p97 {
+    do {
+    say "Aside."
+    tell "Overheard."
+    }
+  }
+  on :c103 (who, value) {
+    media.show("purr.png", "a purr")
+  }
+  on :c104 (who, value) {
+    media.show("purr.png", "a purr")
+  }
+  on :c105 (who, value) {
+    slides.show("purr.png")
+  }
+}
+kind Spark {
+  :n 0 min 0 max 9
+  on :q51 (who, value) {
+    self.set(:n, 4)
+    destroy self
+  }
+  on :q52 (who, value) {
+    destroy self
+  }
+  on :c52 (who, value) {
+    destroy self
+  }
+  on :q53 (who, value) {
+    destroy self
+  }
+  on :c61 (who, value) {
+    destroy self
+    self.set(:n, 2)
+  }
+  on :c62 (who, value) {
+    send exec_bench.hall.bell :pong
+    finally destroy self
+  }
+}
+kind Bubble {
+  on :c63 (who, value) {
+    send exec_bench.hall.bell :pong
+    destroy self
+  }
+}
+kind Crate {
+  contains
+  :n 0 min 0 max 9
+  object lid is Jar
+  on :q54 (who, value) {
+    destroy self
+  }
+  on :c64 (who, value) {
+    self.set(:n, 5)
+    destroy self
+  }
+}
+kind Dog is sprout.Actor {
+  :sniffed 0 min 0 max 99
+  as actor for sniff { do { self.adjust(:sniffed, 1) } }
+  on :c44 (who, value) {
+    move self to exec_bench.hall.tent
+  }
+  on :c45 (who, value) {
+    move self to exec_bench.hall.lodge
+  }
+  on :c46 (who, value) {
+    move self to exec_bench.hall.chest
+  }
+  on :c47 (who, value) {
+    move who to exec_bench.hall.lodge
+  }
+  on :c48 (who, value) {
+    move who to exec_bench.hall.lodge
+  }
+  as target for p98 {
+    do {
+    say "Woof."
+    }
+  }
+  on :c99 (who, value) {
+    act sniff (target: exec_bench.hall.lamp)
+  }
+  on :c100 (who, value) {
+    act bark (target: exec_bench.hall.lamp)
+    self.adjust(:sniffed, 5)
+  }
+  on :c101 (who, value) {
+    act sniff (target: who)
+  }
+  on :c102 (who, value) {
+    act sniff (target: exec_bench.hall.lamp)
+  }
+}
+kind Shelf {
+  contains
+  :capacity 2 min 0 max 9
+  :filled false
+  accept (item, from) { if (self.count >= self.get(:capacity)) { refuse full } }
+  passage full { No room on {self}. }
+  on :entered (item, from) { self.set(:filled, true) }
+  on :left (item, to) { self.set(:filled, false) }
+}
+kind Chest { contains  :open false  pass any (self.get(:open)) }
+kind Box { contains }
+kind Glass { contains  pass :ping (true)  pass any (false) }
+kind Moth { :drawn false  on :ping (from) { self.set(:drawn, true) } }
+kind Basket { contains  accept (item, from) { allow } }
+kind Gate { contains  accept (item, from) { if (item.is(Jar)) { allow }
+ refuse "Jars only." } }
+kind Keeper { contains  release (item, to) { refuse "The keeper holds on." } }
+kind Stubborn { depart (to) { refuse "It will not budge." } }
+kind Lamp {
+  :lit false
+  on :ping (from) { self.set(:lit, true) }
+  as target for bark { permit { refuse "The lamp is not listening." } }
+}
+kind Bell {
+  :answers 0 min 0 max 99
+  :depth 0 min 0 max 99
+  on :ping (from) { self.adjust(:answers, 1)
+ send from :pong }
+  on :pong (from) { self.adjust(:answers, 5) }
+  on :chain (_, n) { self.set(:depth, n)
+ send self :chain with n + 1 }
+}
+kind Jar {
+  :fill 3 min 0 max 9
+  on :ping (from) { self.adjust(:fill, 1) }
+  on :spawned (from) { self.set(:fill, 4) }
+  on :moved (from, to) { self.adjust(:fill, 1) }
+}
+kind Cup { :fill 3 min 0 max 9 }
+import * as sprout from 'sprout'

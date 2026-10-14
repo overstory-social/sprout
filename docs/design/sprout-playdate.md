@@ -176,8 +176,8 @@ once, so a word the table writes a thousand times is one node.
 the network. The only time is the `elapsed` the host passes. Every draw
 comes from the turn's seed, by the spec's rule: SHA-256 for a turn's seed,
 mulberry32 and the rejection draw for the draws; the same inputs give the
-same bytes on every platform (`seeds.c`, `draws.c`, held to goldens the
-TypeScript specs write).
+same bytes on every platform (`seeds.c`, `draws.c`, held to the goldens in
+`corpus/goldens/`).
 
 **Faults.** A budget that runs out faults the turn naming the row, the
 figure and what a turn may do, in words the runtime holds (hole 499; they
@@ -198,8 +198,10 @@ device.
 - `sproutc play <cartridge> [--state f] [--script s] [--readings f] [--trace f] [--clock N]`
   plays a script on a fake clock, with the script's seeds, through
   `sprout_run_turn`.
-- `sproutc view <cartridge> --state f [--visit KEY] [--poll-steps N] [--json]`
-  prints the page `sprout view` prints, over a stored world.
+- `sproutc view <cartridge> --state f [--visit KEY] [--poll-steps N] [--json | --golden]`
+  prints the page `sprout view` prints, over a stored world. `--golden`
+  prints the poll as `views.json` holds one: the view, its chip tree, the
+  steps it spent and its fault.
 - `sproutc eval` evaluates one expression of a goldens cartridge against a
   stored world.
 
@@ -210,16 +212,16 @@ what the TypeScript runtime does, and the checks below say how that is
 shown. `npm run gate` runs all of them except the fuzzer; `npm run e2e`
 runs the plain check, then the sanitized check, then the fuzzer (plain).
 
-- **Goldens under `corpus/goldens/`**, written by TypeScript specs from the
-  oracle and replayed by the C tests byte for byte: `catalogues.json`
-  (every world's ids, kinds, properties, verbs and phrases),
-  `stored-worlds.json` and `stored-reopened.json` (stored worlds, and
-  stored worlds edited against their world, with the load report),
+- **Goldens under `corpus/goldens/`**, fixtures the C tests replay byte for
+  byte: `catalogues.json` (every world's ids, kinds, properties, verbs and
+  phrases), `stored-worlds.json` and `stored-reopened.json` (stored worlds,
+  and stored worlds edited against their world, with the load report),
   `eval.json`, `exec.json`, `readings.json`, `views.json`, `prose.json`,
   and `seeds.json`, `nicknames.json`, `budgets.json`, `draws.json`,
-  `numbers.json`, `stored-canon.json`. A TypeScript spec compares what it
-  computes with the file; `SPROUT_WRITE_GOLDENS=1 npx vitest run …`
-  rewrites it, and the diff is read like any golden.
+  `numbers.json`, `stored-canon.json`. No spec writes them.
+  `node scripts/write-goldens.mjs <golden>` rewrites the ones that have a
+  writer, and the rest are hand-kept. Either way, the diff is read like any
+  golden ([`sprout-test-harness.md`](sprout-test-harness.md), 7a).
 - **The replay of every transcript.** `scripts/check-runtime-c.mjs` packs
   every `corpus/good` world with transcripts or tests and plays each script
   through `sproutc`. The C side has no parser, so

@@ -1,0 +1,71 @@
+world viewbench is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+  passage unseen { Too much {if true}happens{/if} here to take in. }
+
+  object yard is Yard {
+    grammar {
+      exit north "through the gate" -> tower when (self.get(:gate_open))
+      exit up    "up the ladder"    -> tower
+      exit down  "down the cellar steps" -> cellar
+      exit east  "into the gallery" -> gallery
+      exit west  "into the cloakroom" -> cloakroom
+      exit south "into the store" -> store
+    }
+    object guard is Guard
+    object pebble is Pebble
+    object purse is Purse { object coin is Pebble }
+    object lamp is Lamp
+  }
+  object gallery is sprout.Place {
+    object sentry is Guard
+    object usher is Guard
+    object keypad is Keypad
+    object dial is Dial
+  }
+  object cloakroom is sprout.Place {
+    object wardrobe is Wardrobe { :open true  object hare is Rabbit }
+    object trunk is Wardrobe { object mole is Rabbit }
+  }
+  object store is sprout.Place {
+    object big is Sack { object small is Sack }
+    object tin is Pebble
+    object tin_too is Pebble { grammar { name "tin" } }
+  }
+  object vault is sprout.Place {
+    object warden is Stern
+  }
+  object tower is sprout.Place {
+    grammar { link stair "down the Café Stair" }
+    describe { text "Wind, and a long view." }
+  }
+  object cellar is sprout.Place {
+    grammar {
+      lit (self.sees(sprout.LightSource, :lit))
+      exit up "up to the yard" -> yard
+    }
+    describe { text "Damp stone." }
+    object coal is sprout.Fixture
+  }
+}
+
+verb vouch { role target: Guard  role witness: Guard  role topic: symbol  "vouch to [target] before [witness] for [topic]" }
+verb punch { role pad: Keypad  role code: integer  "punch [code] on [pad]" }
+verb turn  { role knob: Dial  role notch: integer  "turn [knob] to [notch]" }
+verb juggle { role things many  "juggle [things]" }
+verb daub { role target  role paint: Pebble  "daub [target] with [paint]"  "daub [target]" }
+verb stuff { role item: Sack  role box: Sack  "stuff [item] into [box]" }
+enum Topic { bridge, toll, weather, old_road }
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Yard} from 'yard'
+import {Guard} from 'guard'
+import {Pebble} from 'pebble'
+import {Purse} from 'purse'
+import {Lamp} from 'lamp'
+import {Keypad} from 'keypad'
+import {Dial} from 'dial'
+import {Wardrobe} from 'wardrobe'
+import {Rabbit} from 'rabbit'
+import {Sack} from 'sack'
+import {Stern} from 'stern'

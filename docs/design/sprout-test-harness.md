@@ -150,23 +150,56 @@ nothing from libc but `memcmp`, `memcpy`, `memset`, `strlen`, `floor` and
 `-O2` under `-Wall -Wextra -Werror -pedantic`, as the device does.
 
 The tests that load worlds, stores, expressions, statements, readings, prose
-or views are held to **goldens the TypeScript specs write**, in
-`corpus/goldens/`. A TypeScript spec computes the value from the oracle,
-compares it with the file and fails on a difference; the C test replays the
-file. `SPROUT_WRITE_GOLDENS=1 npx vitest run …` rewrites a file, and the
-diff is read like any golden.
+or views replay **goldens**, the fixtures in `corpus/goldens/`. A golden is
+committed data, not the output of a spec: nothing in the gate writes one.
+It changes only on purpose, with `node scripts/write-goldens.mjs <golden>`
+where a writer exists, or by hand where none does. The script rewrites one
+file and prints its diff, and the diff is read before the file is
+committed. A golden rewritten to whatever the code now says, with no
+judgement of whether that is right, is a finding in review. Run
+`npm run build` and `node scripts/check-runtime-c.mjs` first: the writers
+use the built CLI, the built `engine.wasm` and that script's `sproutc`.
 
-| golden                                             | written by                        | what it holds                                                                                                                  |
-| -------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `draws.json`, `numbers.json`, `stored-canon.json`  | the `draws`, `values`, `stored` specs | the first sixteen draws from a seed, number text, the stored canon read and written back                                    |
-| `catalogues.json`                                  | `cartridge.spec.ts`               | every corpus world's ids, kinds, properties, verbs and typed phrases                                                           |
-| `stored-worlds.json`, `stored-reopened.json`       | `play.spec.ts`                    | each world's initial state and states from its transcripts; stored worlds edited against their world, with `loadWorld`'s report |
-| `eval.json`, `eval.sproutworld`                    | `eval-goldens.spec.ts`            | about seventy expression cases and the spawns: the value or the fault, and the steps spent                                     |
-| `exec.json`, `readings.json`                       | the exec and reading golden specs | statements and range walks; readings (carried, wildcards, each engine verb, exits, value roles, a fault)                       |
-| `prose.json`, `prose.sproutworld`                  | `prose-goldens.spec.ts`           | every kind of slot, `{if}`, `{for}`, `{one of}`, reflow; the edge of every run of letters and every upper-case change          |
-| `views.json`, `views.sproutworld`                  | `view-goldens.spec.ts`            | a bench world's polls and a visitor's arrival in every corpus world: the view's JSON, the chip tree, steps and fault           |
-| `seeds.json`, `nicknames.json`, `budgets.json`     | the turn specs                    | the turn seed, nickname admission, the budget faults' words                                                                    |
-| `parser-words.json`, `addresses.json`              | `parser/goldens.spec.ts`          | the parser's word lists; a visitor's arrival in every corpus world: each live thing's address, what they may name, near and carried |
+Each golden is written by whatever owns what it says. The C runtime writes
+what a turn or a poll gives. The language writes what a cartridge declares.
+The host writes the turn seed. The rest are hand-kept.
+
+| golden                                             | written by                                                                                    | what it holds                                                                                                                  |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `catalogues.json`                                  | the script, from the language: each corpus world packed, its cartridge read back              | every corpus world's ids, kinds, properties, verbs and typed phrases                                                           |
+| `stored-worlds.json`                               | the script, from the WebAssembly engine: each world opened empty, and its transcripts played  | each world's initial state and states from its transcripts                                                                     |
+| `views.json`                                       | the script, from `sproutc view --golden`, over states the WebAssembly engine's arrival leaves | a bench world's polls and a visitor's arrival in every corpus world: the view's JSON, the chip tree, steps and fault           |
+| `seeds.json`                                       | the script, from the host's `turnSeed`                                                        | the turn seed of a tick or a wake                                                                                              |
+| `eval`, `exec`, `nicknames`, `prose`, `readings`, `views` `.sproutworld` | the script, compiled from `benches/<name>/`                                | the bench worlds the cases below run in                                                                                        |
+| `eval.json`                                        | hand-kept                                                                                     | about seventy expression cases and the spawns: the value or the fault, and the steps spent                                     |
+| `exec.json`, `readings.json`                       | hand-kept                                                                                     | statements and range walks; readings (carried, wildcards, each engine verb, exits, value roles, a fault)                       |
+| `prose.json`                                       | hand-kept                                                                                     | every kind of slot, `{if}`, `{for}`, `{one of}`, reflow; the edge of every run of letters and every upper-case change          |
+| `nicknames.json`, `budgets.json`                   | hand-kept                                                                                     | nickname admission and refusal; the budget faults' words                                                                       |
+| `draws.json`, `numbers.json`, `stored-canon.json`  | hand-kept                                                                                     | the first sixteen draws from a seed, number text, the stored canon read and written back                                       |
+| `parser-words.json`, `addresses.json`              | hand-kept                                                                                     | the parser's word lists; a visitor's arrival in every corpus world: each live thing's address, what they may name, near and carried |
+| `stored-reopened.json`                             | hand-kept                                                                                     | stored worlds edited against their world, with the load's report                                                              |
+
+**The bench worlds.** Each bench cartridge is compiled from a real world
+folder, `corpus/goldens/benches/<name>/`: a manifest and its `.sprout` and
+`.prose` files. A change to the cartridge format, or to the standard
+library a bench pins, re-emits the cartridges with the script. Most benches
+are packable by `sprout pack`. The exec bench pins an extension no host
+installs, and two of its cases run a body the checker refuses, so the
+script compiles every bench itself and rewrites those two nodes after
+compiling. A case file (`eval.json`, `exec.json`, and the rest) names a body
+by its entry in the cartridge's graph. A re-emitted cartridge can move
+those entries, and nothing finds them again for you. The C test that
+replays the case fails, naming the case. Find the entry again by reading
+the cartridge's preamble and graph for the body the case's name and text
+describe, then edit the index by hand and read the diff.
+
+**The corpus-built goldens.** `addresses.json` and `stored-reopened.json`
+are built from the corpus worlds, as `catalogues.json` and the rest are,
+but nothing writes them yet. They keep their check: an edit to a corpus
+world they cover breaks the C test until the world's entry is edited by
+hand, or removed with the diff read. Whether to generate the corpus-built
+goldens at ctest setup from the packed corpus instead is its own decision,
+which #686 owns.
 
 Four rules keep the layer honest.
 

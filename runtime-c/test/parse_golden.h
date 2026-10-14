@@ -1,5 +1,5 @@
 /*
- * `corpus/goldens/addresses.json`, written by runtime/parser/goldens.spec.ts: for a visitor arriving in every corpus
+ * `corpus/goldens/addresses.json`, a hand-kept golden: for a visitor arriving in every corpus
  * world, the state they arrive in, each live instance's address, and what the visitor may name. Each world is opened
  * on a bench in that state for a check to run.
  */

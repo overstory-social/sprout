@@ -81,6 +81,76 @@ static void polled(view_bench *b, const char *needle, view_case *c, sprout_seen_
   CHECK_INT(sprout_view(c->world, c->state, &c->host, view_text(golden, "visit"), view), SPROUT_OK);
 }
 
+/* Whether the view offers `verb` typed as `typed` (NULL for any line). */
+static bool offers(const sprout_seen_view *view, const char *verb, const char *typed) {
+  size_t i;
+  for (i = 0; i < view->reading_count; i++) {
+    const sprout_seen_reading *r = &view->readings[i];
+    if (strcmp(r->verb, verb) == 0 &&
+        (typed == NULL || (r->typed.length == strlen(typed) && memcmp(r->typed.bytes, typed, r->typed.length) == 0)))
+      return true;
+  }
+  return false;
+}
+
+/* Whether some reading is refused in words that hold `words`. */
+static bool refused_in(const sprout_seen_view *view, const char *words) {
+  size_t i;
+  for (i = 0; i < view->reading_count; i++) {
+    const sprout_seen_reading *r = &view->readings[i];
+    if (r->refused && r->refusal_count > 0 && r->refusal[0].length >= strlen(words)) {
+      size_t at;
+      for (at = 0; at + strlen(words) <= r->refusal[0].length; at++)
+        if (memcmp(r->refusal[0].bytes + at, words, strlen(words)) == 0) return true;
+    }
+  }
+  return false;
+}
+
+static void the_bench_shows_each_part_a_view_is_for(void) {
+  view_bench b;
+  view_case c;
+  sprout_seen_view view;
+  size_t i, goes = 0;
+  view_bench_open(&b);
+  /* an exit and a link, each typed as a way to go */
+  polled(&b, "gate that stands open", &c, &view);
+  CHECK(offers(&view, "sprout.go", "go north"));
+  sprout_view_free(&view);
+  view_case_close(&c);
+  polled(&b, "link set", &c, &view);
+  CHECK(offers(&view, "sprout.go", "go down the caf\xc3\xa9 stair"));
+  for (i = 0; i < view.reading_count; i++) goes += strcmp(view.readings[i].verb, "sprout.go") == 0;
+  CHECK_INT(goes, 1);
+  sprout_view_free(&view);
+  view_case_close(&c);
+  polled(&b, "link not set", &c, &view);
+  CHECK(!offers(&view, "sprout.go", NULL));
+  sprout_view_free(&view);
+  view_case_close(&c);
+  /* a set role, a refusal in the world's words and the engine's inside_itself */
+  polled(&b, "set role", &c, &view);
+  CHECK(offers(&view, "viewbench.juggle", NULL));
+  sprout_view_free(&view);
+  view_case_close(&c);
+  polled(&b, "witness", &c, &view);
+  CHECK(refused_in(&view, "Not before me."));
+  sprout_view_free(&view);
+  view_case_close(&c);
+  polled(&b, "inside_itself", &c, &view);
+  CHECK(refused_in(&view, "inside itself"));
+  sprout_view_free(&view);
+  view_case_close(&c);
+  /* the dark */
+  polled(&b, "cellar is dark", &c, &view);
+  CHECK_INT(view.description_count, 1);
+  CHECK_BYTES(view.description[0].bytes, view.description[0].length, "It is too dark to see.");
+  sprout_view_free(&view);
+  view_case_close(&c);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
 static void a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing(void) {
   view_bench b;
   view_case c;
@@ -383,6 +453,7 @@ int main(void) {
   RUN(every_bench_case_is_polled_as_the_oracle_polled_it);
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_oracles);
   RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);
+  RUN(the_bench_shows_each_part_a_view_is_for);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);
   RUN(a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived);
   RUN(a_poll_draws_nothing_and_reads_no_clock);

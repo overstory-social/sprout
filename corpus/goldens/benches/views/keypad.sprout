@@ -1,0 +1,7 @@
+kind Keypad {
+  as pad for punch {
+    code from 1 to 12
+    do { say "Beep." }
+  }
+}
+import {punch} from 'viewbench'

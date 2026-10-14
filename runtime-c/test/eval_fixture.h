@@ -1,8 +1,8 @@
 /*
- * The evaluator's bench as the C tests use it: the cartridge and the stored
- * worlds `corpus/goldens/eval.json` was written against (the TypeScript spec
- * eval-goldens.spec.ts writes them), a world loaded from the cartridge, and a
- * turn to evaluate in.
+ * The evaluator's bench as the C tests use it: the cartridge
+ * (`corpus/goldens/eval.sproutworld`, compiled from `benches/eval`) and the
+ * stored worlds `corpus/goldens/eval.json` holds, a world loaded from the
+ * cartridge, and a turn to evaluate in.
  */
 #ifndef SPROUT_TEST_EVAL_FIXTURE_H
 #define SPROUT_TEST_EVAL_FIXTURE_H

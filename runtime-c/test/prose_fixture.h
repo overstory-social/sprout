@@ -1,7 +1,7 @@
 /*
- * The prose bench as the C tests use it: the cartridge and the stored worlds
- * `corpus/goldens/prose.json` was written against (the TypeScript spec prose-goldens.spec.ts
- * writes them), a world loaded under each case's figures, and a turn with the lines the case says
+ * The prose bench as the C tests use it: the cartridge (`corpus/goldens/prose.sproutworld`, compiled
+ * from `benches/prose`) and the stored worlds `corpus/goldens/prose.json` holds, a world loaded under
+ * each case's figures, and a turn with the lines the case says
  * recorded as its effects. Replaying a case renders them, and the case ends as the oracle ended
  * it: the same words for each reader, the same cuts or the same fault, and the same steps.
  */

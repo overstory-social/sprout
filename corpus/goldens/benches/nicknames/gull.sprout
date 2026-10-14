@@ -1,0 +1,7 @@
+kind Gull is sprout.Actor {
+  :seen 0 min 0 max 99
+  :gone 0 min 0 max 99
+  on :arrived (actor, from) { self.adjust(:seen, 1) }
+  on :departed (actor, to) { self.adjust(:gone, 1) }
+}
+import * as sprout from 'sprout'

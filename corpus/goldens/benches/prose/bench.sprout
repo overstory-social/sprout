@@ -1,0 +1,108 @@
+world bench is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+  object yard is sprout.Place {
+    object press is Press
+    object brass_key is Key
+    object oak_door is Plain
+    object crate is Crate {
+      grammar { article the }
+      object apple is Plain { grammar { article an } }
+      object rib is Rib
+      object spare_rib is Rib
+    }
+    object echo is Echo
+    object cat is Cat
+    object owl is Plain
+    object tin_cup is Plain { grammar { name "dented cup" } }
+    object dune is Plain { grammar { article none } }
+    object sayer is Sayer
+  }
+  object shed is sprout.Place { object mole is Plain }
+}
+enum Mood { bone_dry, drowsy }
+verb ink { role target  role tools many  "ink [target] with [tools]"  "ink [target]" }
+message :t0 with integer
+message :t1 with integer
+kind Person is sprout.Visitor {
+  passage carrying { You are carrying {for thing in self}{thing}{if $last}.{else}, {/if}{/for} }
+}
+kind Plain { }
+kind Key { }
+kind MazeCell { passage named { {self} } }
+kind Rib { passage short { a rib } }
+kind Cat is sprout.Actor {
+  grammar { name "tabby cat" }
+  passage purr { {one of}Mrrp{or}Prrrr{or}Mew{/one of} }
+}
+kind Crate {
+  contains
+  passage listing {
+    In the crate:
+    {for thing in self}{thing}{if $last}.{else}, {/if}{/for}
+
+    {for rib: Rib in self}{rib.short}{if $first} first{/if}{if !$last}, {/if}{/for}
+  }
+}
+kind Press {
+  prose "press.prose"
+  :mood Mood default bone_dry
+  :sheets 3 min 0 max 9
+  :label string default "the_albion"
+  :moods [Mood] default [bone_dry, drowsy]
+  as target for ink { do { say inked } }
+}
+kind Echo {
+  passage ring { {self.ring} }
+  passage tier1 { one, {self.tier2} }
+  passage tier2 { two, {self.tier3} }
+  passage tier3 { three }
+  passage call { {one of}Hello{or}Halloo{or}Who is there{/one of}, {actor}. }
+  passage calls { {for t of tools}{one of}ah{or}oh{/one of}{if !$last} {/if}{/for} }
+  passage toss { {if chance(2)}Heads{else}Tails{/if}, and {self.call} }
+  passage hum { {one of}Hmm{/one of}, {actor}. }
+  passage things { {crate}, {owl}, {tin_cup}, {dune}, {brass_key} }
+  passage nearby { {if press.is(Press)}{press.get(:label)}{else}no press{/if} }
+  passage pathed { {bench.yard.crate} holds {bench.yard.crate.count}, {bench.yard.crate.rib.short} first }
+  passage short {  an echo  }
+  passage long {
+
+    it rings,
+
+    it fades,
+
+  }
+  passage heard { You hear {self.short}. }
+  passage faded { First {self.long} then quiet. }
+  passage tail { \n\nit carries. }
+  passage carried { It rings.{self.tail} }
+  passage turn { \nit carries. }
+  passage lined { It rings.{self.turn} }
+  :loud false
+  passage aside {
+
+    {if self.get(:loud)}it is loud.{/if}
+
+  }
+  passage room { Quiet here.{self.aside} }
+  passage quoted { “hello there,” she said. }
+  passage bracketed { (the wooden rib) stands. }
+  passage dashed { —and then silence. }
+  passage digit { 3 pots stand. }
+  passage wide { 　　a  b﻿　c   d.  }
+  passage sharp { ßeta is not sharp. }
+  passage digraph { ǆungla grows. }
+  passage apostrophe { ŉ is odd. }
+  passage ligature { ﬃ is a ligature. }
+  passage greek { ΐ is a vowel. }
+  passage dotless { ıi is dotless. }
+  passage astral { 𐐨 is deseret. }
+  passage emoji { 😀 smile }
+  passage cased { ǅ is title. }
+  as target for ink { do { say call  say calls  say toss  say hum } }
+}
+kind Sayer {
+  on :t0 (who, value) { tell "You count {value}, and {who} nods." }
+  on :t1 (who, value) { tell "plain words, “quoted” ones" }
+}
+import * as sprout from 'sprout'

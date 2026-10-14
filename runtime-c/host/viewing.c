@@ -13,15 +13,15 @@
 
 #define USAGE                                                                                         \
   "sproutc: write `sproutc view <world.sproutworld> --state save.json [--visit KEY] [--poll-steps N]\n" \
-  "         [--json | --scene | --verb NAME]`. --visit names the visit to poll (default `inspector`);\n" \
-  "         --scene polls the scene and --verb one verb's readings, by its qualified name.\n"
+  "         [--json | --golden | --scene | --verb NAME]`. --visit names the visit to poll (default\n"    \
+  "         `inspector`); --scene polls the scene and --verb one verb's readings, by its qualified name.\n"
 
 #define EXIT_FAULT 1
 #define EXIT_USAGE 2
 
 typedef struct options {
   const char *world, *state, *visit, *verb;
-  bool json, scene, has_steps;
+  bool json, golden, scene, has_steps;
   uint64_t steps;
 } options;
 
@@ -43,6 +43,8 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
     const char *flag = argv[i];
     if (strcmp(flag, "--json") == 0) {
       o->json = true;
+    } else if (strcmp(flag, "--golden") == 0) {
+      o->golden = true;
     } else if (strcmp(flag, "--scene") == 0) {
       o->scene = true;
     } else if (strcmp(flag, "--state") == 0 || strcmp(flag, "--visit") == 0 || strcmp(flag, "--poll-steps") == 0 ||
@@ -67,8 +69,8 @@ static const char *options_of(int argc, char **argv, options *o, char *words, si
     }
   }
   if (o->state == NULL) return "write --state, the stored world the visitor stands in.";
-  if ((o->json ? 1 : 0) + (o->scene ? 1 : 0) + (o->verb != NULL ? 1 : 0) > 1)
-    return "write one of --json, --scene and --verb: each prints a poll of its own.";
+  if ((o->json ? 1 : 0) + (o->golden ? 1 : 0) + (o->scene ? 1 : 0) + (o->verb != NULL ? 1 : 0) > 1)
+    return "write one of --json, --golden, --scene and --verb: each prints a poll of its own.";
   return NULL;
 }
 
@@ -276,6 +278,43 @@ static int put_json(sprout_seen_view *view, FILE *out, FILE *err) {
   return 0;
 }
 
+/* The poll as `corpus/goldens/views.json` holds one: the view, its chip tree, the steps it spent and its fault. */
+static int put_golden(sprout_seen_view *view, FILE *out, FILE *err) {
+  sprout_chip_tree tree;
+  sprout_arena *arena = sprout_view_arena(view);
+  sprout_json *root = sprout_json_make(arena, SPROUT_JSON_OBJECT, 4), *seen, *chips = NULL, *steps, *fault;
+  const char *bytes;
+  size_t length;
+  if (view->faulted) {
+    steps = sprout_json_make(arena, SPROUT_JSON_NULL, 0);
+    fault = sprout_json_make(arena, SPROUT_JSON_OBJECT, 2);
+    if (fault != NULL) {
+      sprout_json_adopt(fault, "name", sprout_json_text(arena, view->fault_name, strlen(view->fault_name)));
+      sprout_json_adopt(fault, "object", sprout_json_text(arena, view->fault_object.bytes, view->fault_object.length));
+    }
+  } else {
+    steps = sprout_json_make(arena, SPROUT_JSON_NUMBER, 0);
+    if (steps != NULL) steps->number = (double)view->steps;
+    fault = sprout_json_make(arena, SPROUT_JSON_NULL, 0);
+  }
+  seen = sprout_view_tree(arena, view);
+  if (sprout_chip_tree_of(arena, view, &tree) == SPROUT_OK) chips = sprout_chip_tree_json(arena, &tree);
+  if (root == NULL || seen == NULL || chips == NULL || steps == NULL || fault == NULL) {
+    fprintf(err, "sproutc: the view could not be written out.\n");
+    return EXIT_USAGE;
+  }
+  sprout_json_adopt(root, "view", seen);
+  sprout_json_adopt(root, "chips", chips);
+  sprout_json_adopt(root, "steps", steps);
+  sprout_json_adopt(root, "fault", fault);
+  if (sprout_json_write(arena, root, &bytes, &length) != SPROUT_OK) {
+    fprintf(err, "sproutc: the view could not be written out.\n");
+    return EXIT_USAGE;
+  }
+  fprintf(out, "%.*s\n", (int)length, bytes);
+  return 0;
+}
+
 int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
   options o;
   char words[200];
@@ -337,6 +376,11 @@ int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
     const sprout_stored_visitor *visitor = sprout_state_find_visitor(state, (sprout_str){o.visit, strlen(o.visit)});
     const sprout_stored_instance *person = visitor == NULL ? NULL : sprout_state_find(state, visitor->instance);
     if (person != NULL && person->has_container) place = person->container;
+  }
+  if (o.golden) {
+    code = put_golden(&view, out, err);
+    sprout_view_free(&view);
+    goto done;
   }
   if (o.json) code = put_json(&view, out, err);
   else if (o.verb != NULL) put_verb(out, world_id, place, o.verb, &view);

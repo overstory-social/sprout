@@ -1,0 +1,107 @@
+import * as sprout from 'sprout'
+import {prop} from 'verbs'
+
+world bench is sprout.World {
+  visitors are Person
+  visitors arrive at shop
+
+  object shop is sprout.Place {
+    grammar {
+      article the
+      exit north "to the yard" -> yard
+      exit east "into the vault" -> vault say "The door groans."
+      exit west "through the wall" refuse "The wall is solid."
+      link onward "onward"
+    }
+    object chest is Chest { :open false }
+    object brass_key is Key { grammar { name "brass key" } }
+    object torch is Torch
+    object book is Book
+    object pouch is Pouch
+    object satchel is Pouch { :open false }
+    object crate is sprout.Container {
+      object spare_key is Key { grammar { name "spare key" } }
+    }
+    object gauge is Gauge
+    object shelf is Shelf
+    object cat is Cat
+    object guard is Guard
+    object dial is Dial
+    object safe is Safe
+    object both is Both
+    object tool is Tool
+    object w1 is Weight
+    object w2 is Weight
+    object butler is Butler
+  }
+  object yard is sprout.Place {
+    grammar { exit south "back to the shop" -> shop }
+  }
+  object vault is Vault
+}
+
+kind Person is sprout.Visitor { }
+kind Chest is sprout.Container, sprout.Lockable { }
+kind Key is sprout.RequiresHeld { grammar { nouns "key" } }
+kind Torch is sprout.RequiresHeld { }
+kind Book { }
+kind Pouch is sprout.Container { }
+kind Cat is sprout.Actor { }
+
+// Guards every verb it is a tool in, and `prop` besides, each refusing
+// when its flag is set.
+kind Gauge {
+  :stuck false
+  :bent false
+  as tool for any  { permit { if (self.get(:stuck)) { refuse "The gauge is stuck." } } }
+  as tool for prop { permit { if (self.get(:bent)) { refuse "The gauge is bent." } } }
+}
+
+// Refuses to be the target of anything while it is wobbly.
+kind Shelf {
+  :wobbly false
+  as target for any { permit { if (self.get(:wobbly)) { refuse "The shelf wobbles." } } }
+  as target for prop { do { say "The shelf stays put." } }
+}
+enum Topic { bridge, toll, weather }
+verb nod { role target  "nod at [target]" }
+verb fetch { "fetch" }
+verb pry { "pry" }
+verb burn { "burn" }
+verb dial { role target  role number: integer  "turn [target] to [number]" }
+verb order {
+  role target  role tool  role weights many
+  "order [target] with [tool] using [weights]"  "order [target] using [weights]"  "order [target]"
+}
+
+// A vault is shut until a case opens it.
+kind Vault is sprout.Place {
+  :shut true
+  accept (item, from) { if (self.get(:shut)) { refuse "The vault is shut." } }
+}
+// Acts for others: fetches the book, and pries the chest with a key it does not carry.
+kind Butler is sprout.Actor {
+  as actor for fetch { do { act take (target: book) } }
+  as actor for pry { do { if (chest.is(Chest)) { act unlock (target: chest, tool: brass_key) } } }
+}
+kind Fuse is sprout.Actor { as actor for burn { do { say "Fzzt."  destroy self } } }
+kind Guard {
+  :knows [Topic] default [bridge, toll]
+  as target for ask {
+    topic from :knows
+    do { if (bound topic) { say "bound" } else { say "unbound" } }
+  }
+}
+kind Dial {
+  as target for dial { number from 1 to 12  do { if (bound number) { say "bound" } else { say "unbound" } } }
+}
+kind Safe {
+  :combo 0 min 0 max 99
+  as target for dial { number from :combo  do { if (bound number) { say "bound" } else { say "unbound" } } }
+}
+kind First  { :a false  as target for order { permit { if (self.get(:a)) { refuse "First balks." } }  do { say "first" } } }
+kind Second { :b false  as target for order { permit { if (self.get(:b)) { refuse "Second balks." } } do { say "second" } } }
+kind Both is First, Second { :c false  as target for order { permit { if (self.get(:c)) { refuse "Both balks." } }  do { say "both" } } }
+kind Tool { :t false  as tool for order { permit { if (self.get(:t)) { refuse "The tool balks." } } do { say "tool" } } }
+kind Weight { as weights for order { do { say "weight" } } }
+import {take, unlock, ask} from 'sprout'
