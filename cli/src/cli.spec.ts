@@ -25,7 +25,6 @@ import {
   writeScript,
 } from '@overstory/sprout-player';
 import {
-  ENGINES_BUILT,
   KILN_YARD,
   LANE,
   scriptOf,
@@ -55,7 +54,7 @@ describe('parseArgs', () => {
 
 /** What a session of `lines` prints with --debug in the world at `dir`: the transcript of that script played. */
 const transcript = (dir: string, lines: string) =>
-  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json', 'ts'));
+  transcriptOf(playScript(checkWorld(dir).bundle!, scriptOf(lines), 'yard.json', 'wasm'));
 
 /** `lines` as a session begun at seed 0 seeds them: `@seed 0` first, then the stream's next before every line that plays. */
 const seeded = (lines: string): string => {
@@ -246,7 +245,7 @@ describe('main', () => {
     const report = join(folder, 'reached.json');
     writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
     const io = captured();
-    expect(main(['play', dir, script, '--report', report, '--engine', 'ts'], io)).toBe(0);
+    expect(main(['play', dir, script, '--report', report], io)).toBe(0);
     const plain = captured();
     main(['play', dir, script], plain);
     expect(io.out()).toBe(plain.out());
@@ -262,49 +261,50 @@ describe('main', () => {
     expect(saved.out()).toBe(`wrote ${script}\nwrote ${report}\n`);
   });
 
-  it('play --report and test --report write the same report on every engine, and say nothing of it', () => {
+  it('play --report and test --report write the same report, and say nothing of it', () => {
     const dir = worldFolder('lane', LANE);
     const folder = mkdtempSync(join(tmpdir(), 'sprout-play-'));
     const script = join(folder, 'walk.json');
     writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> xyzzy')));
-    for (const command of ['play', 'test']) {
-      const reports = ENGINES_BUILT.map((engine) => {
-        const report = join(folder, `${command}-${engine}.json`);
-        const io = captured();
-        main([command, dir, script, '--report', report, '--engine', engine], io);
-        expect(io.err()).toBe('');
-        return readFileSync(report, 'utf8');
-      });
-      const reached = JSON.parse(reports[0]!);
-      expect(reached.reading.unread.map((one: { typed: string }) => one.typed)).toEqual(['xyzzy']);
-      for (const report of reports.slice(1)) expect(report).toBe(reports[0]);
-    }
+    const reports = ['play', 'test'].map((command) => {
+      const report = join(folder, `${command}.json`);
+      const io = captured();
+      main([command, dir, script, '--report', report], io);
+      expect(io.err()).toBe('');
+      return readFileSync(report, 'utf8');
+    });
+    const reached = JSON.parse(reports[0]!);
+    expect(reached.reading.unread.map((one: { typed: string }) => one.typed)).toEqual(['xyzzy']);
+    expect(reports[1]).toBe(reports[0]);
   });
 
-  it('plays, tests and views on the engine --engine names, each printing the same pages', () => {
+  it('refuses a flag the command does not take, naming those it does', () => {
     const dir = worldFolder('lane', LANE);
-    const folder = mkdtempSync(join(tmpdir(), 'sprout-engine-'));
-    const script = join(folder, 'walk.json');
-    writeFileSync(script, writeScript(scriptOf('@arrive Marta\nMarta> go in\nMarta> pry crate')));
-    const pages = ENGINES_BUILT.map((engine) =>
+    const refusals = [
       [
-        ['play', dir, script],
-        ['test', dir, script],
-        ['view', dir, '--at', 'shed'],
-      ].map((argv) => {
-        const io = captured();
-        main([...argv, '--engine', engine], io);
-        expect(io.err()).toBe('');
-        return io.out();
-      }),
-    );
-    for (const page of pages) expect(page).toEqual(pages[0]);
-    const bad = captured();
-    expect(main(['view', dir, '--engine', 'rust'], bad)).toBe(1);
-    expect(bad.err()).toBe('sprout: --engine wants ts or wasm: --engine ts\n');
-    const bare = captured();
-    expect(main(['view', dir, '--engine'], bare)).toBe(1);
-    expect(bare.err()).toBe('sprout: --engine wants ts or wasm after it: --engine ts\n');
+        ['parse', dir, 'look', '--engine', 'ts'],
+        'parse takes no --engine; it takes --at and --as.',
+      ],
+      [
+        ['view', dir, '--engine', 'ts'],
+        'view takes no --engine; it takes --at, --as, --scene and --verb.',
+      ],
+      [
+        ['play', dir, 'walk.json', '--engine', 'ts'],
+        'play takes no --engine; it takes --write, --report, --at, --as, --seed, --debug and --record.',
+      ],
+      [['test', dir, '--engine=ts'], 'test takes no --engine; it takes --report.'],
+      [
+        ['mcp', dir, '--engine', 'ts'],
+        'mcp takes no --engine; it takes --http, --seed, --record, --turn-cap and --advance-per-turn.',
+      ],
+    ] as const;
+    for (const [argv, words] of refusals) {
+      const io = captured();
+      expect(main(argv, io)).toBe(1);
+      expect(io.out()).toBe('');
+      expect(io.err()).toBe(`sprout: ${words}\n`);
+    }
   });
 
   it('play --report wants a file, and a script to have been played', async () => {

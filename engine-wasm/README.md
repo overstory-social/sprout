@@ -16,7 +16,8 @@ const host = { catalogue, budgets, render, parse, engine: wasmEngine({ cartridge
 // runCommand(store, id, host, command), runView(…), new Ticker().round(…), … as with any engine.
 ```
 
-`sprout-server` names it with `engine = "wasm"` in its config.
+`sprout-server` runs every world it serves on it, as the `sprout` command
+does.
 
 ## The module
 

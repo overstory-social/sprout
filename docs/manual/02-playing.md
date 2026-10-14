@@ -341,9 +341,6 @@ Both take `--at` and `--as` like `play` does.
 
 ## Which engine runs the world
 
-`play`, `test`, `view` and `parse` run the world on one of two engines
-that play it alike: the C runtime built for WebAssembly (`--engine
-wasm`), which is what a server and the Playdate run, and the TypeScript
-runtime (`--engine ts`). Without `--engine` they use the WebAssembly one when it
-was built with your install, and otherwise the TypeScript one, saying so
-in one line first.
+`play`, `test`, `view` and `parse` run the world on the C runtime built
+for WebAssembly, which is also what a server and the Playdate run. If
+your install was built without it, they say so in one line and stop.

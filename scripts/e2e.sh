@@ -3,8 +3,9 @@
 # The installed CLI scaffolds a world, a kind and an object in it, checks it and runs its first test,
 # checks a corpus world the same way, and inspects the new world and a corpus world: the grammar a
 # world accepts, a line read where a visitor stands, and that visitor's
-# view. It checks the worked microworld and plays each of its golden
-# transcripts on each engine, which must print exactly what they hold; runs its own tests,
+# view, and that a flag a command does not take, as --engine, is refused in words. It checks the
+# worked microworld and plays each of its golden transcripts, which must print exactly what they
+# hold; runs its own tests,
 # which must pass, and its transcripts as tests, which must pass too, with a
 # report of what they reached between them; and
 # runs a test that must fail, printing what the world said. It plays the
@@ -14,9 +15,8 @@
 # shows only the prose the visitor reads. It prints the generated skill
 # exactly as corpus/skill/SKILL.md
 # holds it. The installed MCP host plays a visitor over stdio, recording the
-# session, and the recording plays back as written. It serves the new world from the installed `sprout-server`, on
-# the TypeScript engine and then the WebAssembly one, and the installed terminal client, plain from a pipe, comes
-# in, looks and leaves before each server is stopped. The installed `sprout-language-server`
+# session, and the recording plays back as written. It serves the new world from the installed `sprout-server`,
+# and the installed terminal client, plain from a pipe, comes in, looks and leaves before the server is stopped. The installed `sprout-language-server`
 # is sent an edit that breaks the new kind and answers with the refusal on
 # its file. The C runtime is fuzzed against the TypeScript one over the corpus. Runs locally only — there is no CI on this repository.
 set -euo pipefail
@@ -47,13 +47,14 @@ npx sprout view shed
 npx sprout parse "$grammar" >/dev/null
 npx sprout parse "$grammar" "take metal"
 npx sprout view "$grammar" --at cellar
+if npx sprout view shed --engine ts 2> engine.txt; then exit 1; fi
+grep -qx 'sprout: view takes no --engine; it takes --at, --as, --scene and --verb.' engine.txt
+echo "a flag view does not take is refused in words"
 npx sprout check "$shop"
 for transcript in "$shop"/transcripts/*.json; do
-  for engine in wasm ts; do
-    npx sprout play "$shop" "$transcript" --engine "$engine" > played.json
-    diff -u "$transcript" played.json
-    echo "played $(basename "$transcript") as written on the $engine engine"
-  done
+  npx sprout play "$shop" "$transcript" > played.json
+  diff -u "$transcript" played.json
+  echo "played $(basename "$transcript") as written"
 done
 npx sprout test "$shop"
 npx sprout test "$shop" "$shop"/transcripts/*.json --report reached.json | tail -2
@@ -112,32 +113,29 @@ grep -qx 'sprout mcp: There is nothing special about a hall.' mcp.txt
 npx sprout play shed mcp.json > mcp-played.json
 diff -u mcp.json mcp-played.json
 echo "the installed MCP host played a visitor over stdio, and its recording plays back as written"
-# The installed server on each engine its config may name: the TypeScript runtime, and the C runtime built for
-# WebAssembly, which the installed @overstory/sprout-engine-wasm carries.
+# The installed server, on the C runtime built for WebAssembly, which the installed
+# @overstory/sprout-engine-wasm carries.
 port=47931
-for engine in ts wasm; do
-  printf 'listen = "127.0.0.1:%s"\nengine = "%s"\n[[worlds]]\npath = "./shed"\n' "$port" "$engine" > server.toml
-  ./node_modules/.bin/sprout-server start --config server.toml > server.log 2>&1 &
-  server=$!
-  # Whatever fails from here, the server does not outlive the run.
-  trap 'kill "$server" 2>/dev/null || true' EXIT
-  for _ in $(seq 1 50); do grep -q 'listening' server.log && break; sleep 0.2; done
-  if ! grep -q 'listening' server.log; then
-    echo "sprout-server on the $engine engine never said it was listening:" >&2
-    cat server.log >&2
-    exit 1
-  fi
-  # The installed terminal client, plain from a pipe, its token kept in the sandbox and not the real home.
-  printf 'look\n' | HOME="$sandbox" timeout 20 npx sprout client connect "127.0.0.1:$port" --as Marta --plain > client.txt
-  grep -qx 'There is nothing special about a hall.' client.txt
-  grep -qx '\[a hall\]' client.txt
-  kill -INT "$server"
-  wait "$server"
-  trap - EXIT
-  grep -q 'info: stopped' server.log
-  echo "the installed sprout-server on the $engine engine served shed to the installed terminal client, and stopped when asked"
-  port=$((port + 1))
-done
+printf 'listen = "127.0.0.1:%s"\n[[worlds]]\npath = "./shed"\n' "$port" > server.toml
+./node_modules/.bin/sprout-server start --config server.toml > server.log 2>&1 &
+server=$!
+# Whatever fails from here, the server does not outlive the run.
+trap 'kill "$server" 2>/dev/null || true' EXIT
+for _ in $(seq 1 50); do grep -q 'listening' server.log && break; sleep 0.2; done
+if ! grep -q 'listening' server.log; then
+  echo "sprout-server never said it was listening:" >&2
+  cat server.log >&2
+  exit 1
+fi
+# The installed terminal client, plain from a pipe, its token kept in the sandbox and not the real home.
+printf 'look\n' | HOME="$sandbox" timeout 20 npx sprout client connect "127.0.0.1:$port" --as Marta --plain > client.txt
+grep -qx 'There is nothing special about a hall.' client.txt
+grep -qx '\[a hall\]' client.txt
+kill -INT "$server"
+wait "$server"
+trap - EXIT
+grep -q 'info: stopped' server.log
+echo "the installed sprout-server served shed to the installed terminal client, and stopped when asked"
 # The installed language server, over stdio: an unsaved edit to the kind is checked with the whole world.
 cat > lsp.cjs <<'LSP'
 const { spawn } = require('node:child_process');
@@ -180,4 +178,4 @@ grep -q 'Fixtur' lsp.txt
 (cd "$repo" && node scripts/check-runtime-c.mjs --required | tail -1 && node scripts/fuzz-runtime.mjs --corpus --readings 2000 | tee "$packs/fuzz.txt" | tail -1)
 grep -q 'no divergence' "$packs/fuzz.txt"
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server on each engine to the installed client, the installed language server, and the C runtime against the TypeScript one over fuzzed plays, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server to the installed client, the installed language server, and the C runtime against the TypeScript one over fuzzed plays, at $sha)"

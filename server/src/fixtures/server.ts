@@ -19,13 +19,12 @@ import { compileWorld } from '../worlds.js';
 export const corpusWorld = (name: string): string =>
   join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'corpus', 'good', name);
 
-/** A config serving `worlds` on any free port, at the spec's limits, logging everything, on the TypeScript engine. */
+/** A config serving `worlds` on any free port, at the spec's limits, logging everything. */
 export const configFor = (...worlds: string[]): ServerConfig => ({
   host: '127.0.0.1',
   port: 0,
   logLevel: 'debug',
   logDepth: 'play',
-  engine: 'ts',
   keepLog: 2_000,
   tickSeconds: 5,
   wakesWhileEmpty: false,

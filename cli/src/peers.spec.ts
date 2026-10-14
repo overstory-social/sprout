@@ -41,7 +41,6 @@ describe('`sprout client`', () => {
         port: 0,
         logLevel: 'error',
         logDepth: 'play',
-        engine: 'ts',
         keepLog: 2_000,
         tickSeconds: 3600,
         wakesWhileEmpty: false,
@@ -85,7 +84,7 @@ describe('`sprout server`', () => {
 describe('`sprout mcp`', () => {
   it('serves the world over stdio until stdin ends, saying nothing on stderr', async () => {
     const t = io();
-    const served = mcpServe(bundleOf('kiln_yard', KILN_YARD), {}, 'ts', t);
+    const served = mcpServe(bundleOf('kiln_yard', KILN_YARD), {}, t);
     t.stdin.end();
     expect(await served).toBe(0);
     expect(t.err()).toBe('');
@@ -96,9 +95,9 @@ describe('`sprout mcp`', () => {
     await new Promise<void>((resolve) => taken.listen(0, '127.0.0.1', resolve));
     const { port } = taken.address() as AddressInfo;
     const t = io();
-    expect(
-      await mcpServe(bundleOf('kiln_yard', KILN_YARD), { http: `127.0.0.1:${port}` }, 'ts', t),
-    ).toBe(1);
+    expect(await mcpServe(bundleOf('kiln_yard', KILN_YARD), { http: `127.0.0.1:${port}` }, t)).toBe(
+      1,
+    );
     expect(t.err()).toMatch(
       /^sprout: listen EADDRINUSE: address already in use 127\.0\.0\.1:\d+\n$/,
     );
@@ -107,9 +106,7 @@ describe('`sprout mcp`', () => {
 
   it('refuses what the host is told that it cannot use, in words that say what to write', async () => {
     const t = io();
-    expect(await mcpServe(bundleOf('kiln_yard', KILN_YARD), { 'turn-cap': 'lots' }, 'ts', t)).toBe(
-      1,
-    );
+    expect(await mcpServe(bundleOf('kiln_yard', KILN_YARD), { 'turn-cap': 'lots' }, t)).toBe(1);
     expect(t.err()).toBe('sprout: --turn-cap wants a whole number from 1: --turn-cap 200\n');
   });
 });

@@ -6,23 +6,19 @@
 // from the cartridge `sprout pack` makes of it, and the two must print the
 // same: a cartridge is complete when it plays what the source plays.
 // `--write` replays each from the folder and writes what it printed; review
-// the diff like any other change. Every play is on one engine
-// (`corpus-engine.mjs`), and `--engine ts|wasm` names it.
+// the diff like any other change.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { corpusEngine } from './corpus-engine.mjs';
-
 const write = process.argv.includes('--write');
-const engine = corpusEngine(process.argv);
 const cli = join('cli', 'bin', 'sprout.js');
 const play = (world, script) => {
   try {
     return {
       code: 0,
-      out: execFileSync('node', [cli, 'play', world, script, '--engine', engine], {
+      out: execFileSync('node', [cli, 'play', world, script], {
         encoding: 'utf8',
       }),
     };
@@ -88,4 +84,4 @@ if (failed > 0) {
   console.error(`✗ ${failed} transcript(s) did not play as written`);
   process.exit(1);
 }
-console.log(`✓ transcripts: all ${played} play as written, on the ${engine} engine`);
+console.log(`✓ transcripts: all ${played} play as written`);
