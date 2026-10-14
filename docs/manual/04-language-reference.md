@@ -2545,6 +2545,12 @@ extension media 2
 
 Then it may use the extension's types and statements, which begin with
 its name: `media.show(self.get(:image), "a cat")`, type `media.Image`.
+A value of an extension's type is written in quotes, and only as a
+property's default or a statement's argument. So a kind can hold a
+picture as a property, `:picture media.Image default "pictures/hall.png"`,
+each object restating its own, `:picture "pictures/garden.png"`, and one
+shared `describe` shows it with `media.show(self.get(:picture))`. Every
+file a default or a statement names is checked and sent with the world.
 
 An extension statement only _records_ an effect; it never does anything
 to the world. A world must still read correctly with every effect

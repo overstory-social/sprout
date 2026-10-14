@@ -1,0 +1,11 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Room} from 'room'
+
+world media_picture_property is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  object cellar is Room { :picture "" }
+  object vault is Room { :picture "pictures/vault.png" }
+}

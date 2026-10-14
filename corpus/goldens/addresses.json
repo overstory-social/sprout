@@ -1422,6 +1422,31 @@
     "steps": 3
   },
   {
+    "world": "media-pictures",
+    "state": "{\"world\":\"media_pictures\",\"serial\":2,\"instances\":[{\"id\":\"media_pictures\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_pictures#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"media_pictures.hall\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_pictures.garden\",\"made\":{\"from\":\"declared\"},\"container\":\"media_pictures\",\"arrival\":null,\"properties\":{\"picture\":{\"type\":\"media.Image\",\"value\":\"pictures/garden.png\"}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_pictures.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"media_pictures\",\"arrival\":null,\"properties\":{\"picture\":{\"type\":\"media.Image\",\"value\":\"pictures/hall.png\"}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_pictures.shed\",\"made\":{\"from\":\"declared\"},\"container\":\"media_pictures\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"inspector\",\"nickname\":\"Inspector\",\"instance\":\"media_pictures#1\",\"lastPlace\":\"media_pictures.hall\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
+    "visit": "inspector",
+    "instances": [
+      [
+        "media_pictures",
+        "a media pictures",
+        "media pictures",
+        "a",
+        null,
+        ["media pictures", "pictures"],
+        ["media"]
+      ],
+      ["media_pictures.hall", "a hall", "hall", "a", null, ["hall"], []],
+      ["media_pictures.garden", "a garden", "garden", "a", null, ["garden"], []],
+      ["media_pictures.shed", "a shed", "shed", "a", null, ["shed"], []],
+      ["media_pictures#1", "none inspector", "Inspector", "none", null, ["inspector"], []]
+    ],
+    "candidates": [
+      ["media_pictures#1", 0, false],
+      ["media_pictures.hall", 1, false]
+    ],
+    "steps": 3
+  },
+  {
     "world": "media-room",
     "state": "{\"world\":\"media_room\",\"serial\":2,\"instances\":[{\"id\":\"media_room\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_room#1\",\"made\":{\"from\":\"visitor\"},\"container\":\"media_room.cellar\",\"arrival\":2,\"properties\":{\"capacity\":{\"type\":\"integer\",\"value\":8}},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_room.cellar\",\"made\":{\"from\":\"declared\"},\"container\":\"media_room\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null},{\"id\":\"media_room.cellar.cabinet\",\"made\":{\"from\":\"declared\"},\"container\":\"media_room.cellar\",\"arrival\":null,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[{\"visit\":\"inspector\",\"nickname\":\"Inspector\",\"instance\":\"media_room#1\",\"lastPlace\":\"media_room.cellar\",\"referents\":[],\"lastReading\":null}],\"tombstones\":[]}",
     "visit": "inspector",

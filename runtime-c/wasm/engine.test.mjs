@@ -75,6 +75,7 @@ const EXPECTED_WORLDS = [
   'imports',
   'instance-scope',
   'intents',
+  'media-pictures',
   'media-room',
   'move',
   'narrowing-and',
