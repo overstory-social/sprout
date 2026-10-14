@@ -138,12 +138,15 @@ sprout_status cat_read_intent(loader *l, const sprout_node *node, sprout_intent 
  * single spaces between), so they are cut at the spaces and compared as bytes.
  */
 sprout_status cat_typed_words(loader *l, const char *text, size_t *count, const char ***words) {
-  size_t length = strlen(text), n = 0, i = 0;
+  size_t length = strlen(text), n = 0, i = 0, total = 0;
   char *buffer;
   const char **out;
+  for (i = 0; i < length; i++)
+    if (text[i] != ' ' && (i == 0 || text[i - 1] == ' ')) total++;
+  i = 0;
   buffer = (char *)cat_array(l, length + 1, 1);
   MEMORY(buffer);
-  out = (const char **)cat_array(l, length + 1, sizeof(char *));
+  out = (const char **)sprout_arena_take_aligned(l->arena, (total == 0 ? 1 : total) * sizeof(char *), sizeof(char *));
   MEMORY(out);
   while (i < length) {
     size_t start;

@@ -150,6 +150,8 @@ static void lookups_find_what_the_tree_and_the_kinds_hold(void) {
   CHECK(cabinet != NULL);
   if (cabinet != NULL) {
     CHECK_STR(cabinet->container, "printers_shop.composing_room");
+    /* A container's id is the holder's own, not a copy. */
+    CHECK(cabinet->container == sprout_world_declared(world, "printers_shop.composing_room")->id);
     CHECK_INT(cabinet->path_count, 2);
     CHECK_STR(cabinet->path[1], "cabinet");
   }
