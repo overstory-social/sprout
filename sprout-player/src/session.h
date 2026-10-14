@@ -130,6 +130,23 @@ typedef struct player_result {
 /* Writes the save now. */
 player_result player_save(player_session *session);
 
+/* The open world begun again; `ok` false with `reason` saying why it could not be. */
+typedef struct player_restart {
+  bool ok;
+  const char *reason;
+  const char *name;           /* the world's name */
+  size_t word_count;
+  const char *const *words;   /* the words the world reads, which no nickname may be */
+  const sprout_str *nickname; /* the name the visitor had, which the device offers first again, or NULL */
+} player_restart;
+
+/*
+ * Starts the open world over: its state and log are removed from `saves/`, with any `.tmp` a
+ * write cut short left beside them, and the state is let go while the world stays read, so the
+ * next `player_load` finds no save and the world starts anew. Nothing is told and no turn runs.
+ */
+player_restart player_start_over(player_session *session);
+
 /* The visitor leaves, the save is written, and the world is released; never refused. */
 player_told player_close(player_session *session);
 

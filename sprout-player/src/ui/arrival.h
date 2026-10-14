@@ -30,6 +30,14 @@ extern const player_screen player_arrival_screen;
 player_arrival *player_arrival_new(player_app *app, const char *path, const char *title);
 
 /*
+ * The world at `path`, titled `title`, is read, and `words` are those it reads: its save is
+ * loaded and the nickname screen offers the names those words and the others present leave free,
+ * the save's last name first, else `remembered` (NULL or a name the device kept for the world).
+ */
+void player_arrival_pick(player_app *app, const char *path, const char *title, const char *const *words,
+                         size_t word_count, const char *remembered);
+
+/*
  * The visitor was admitted as `nickname` into the world titled `title`, and the admission told
  * `lines`: the reader is shown with the arrival and `notice` (NULL or what the save had to say)
  * told, behind its pictures. False, with nothing shown, when there is no memory for it.

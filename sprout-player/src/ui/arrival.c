@@ -82,13 +82,11 @@ bool player_arrival_tell(player_app *app, const char *title, const char *nicknam
   return true;
 }
 
-/*
- * The world is read, and `words` are those it reads: its save is loaded and the nickname screen
- * offers the names those words and the others present leave free, the last name first.
- */
-static void arrive(player_app *app, player_arrival *arrival, const char *const *words, size_t word_count) {
+void player_arrival_pick(player_app *app, const char *path, const char *title, const char *const *words,
+                         size_t word_count, const char *remembered) {
   player_loaded loaded;
-  player_nickname *picker = player_nickname_new(app, arrival->title);
+  sprout_str last;
+  player_nickname *picker = player_nickname_new(app, title);
   if (picker == NULL) {
     stop(app, NO_MEMORY);
     return;
@@ -102,7 +100,13 @@ static void arrive(player_app *app, player_arrival *arrival, const char *const *
     return;
   }
   picker->count = nickname_without_present(picker->names, picker->count, loaded.present, loaded.present_count);
-  picker->selected = nickname_preferred(picker->names, picker->count, loaded.nickname);
+  if (loaded.nickname != NULL) {
+    last = *loaded.nickname;
+  } else {
+    last.bytes = remembered;
+    last.length = remembered != NULL ? strlen(remembered) : 0;
+  }
+  picker->selected = nickname_preferred(picker->names, picker->count, last.bytes != NULL ? &last : NULL);
   if (loaded.words[0] != '\0') {
     /* What the load said is the session's until its next call, so it is kept before the save below. */
     size_t length = strlen(loaded.words);
@@ -114,13 +118,13 @@ static void arrive(player_app *app, player_arrival *arrival, const char *const *
     }
     memcpy(picker->notice, loaded.words, length + 1);
   }
-  if (player_shelf_blocked(app->shelf, arrival->path) && !player_save(app->session).ok) {
+  if (player_shelf_blocked(app->shelf, path) && !player_save(app->session).ok) {
     /* A world greyed for its save is played again only once a save of it is written. */
     player_nickname_screen.leave(app, picker);
     player_shelf_unsaved(app);
     return;
   }
-  player_shelf_unblock(app->shelf, arrival->path);
+  player_shelf_unblock(app->shelf, path);
   player_app_show(app, &player_nickname_screen, picker);
 }
 
@@ -145,7 +149,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   }
   arrival->read = step.read;
   arrival->counted = step.counted;
-  if (step.done) arrive(app, arrival, step.words, step.word_count);
+  if (step.done) player_arrival_pick(app, arrival->path, arrival->title, step.words, step.word_count, NULL);
 }
 
 static void draw(player_app *app, void *ctx) {

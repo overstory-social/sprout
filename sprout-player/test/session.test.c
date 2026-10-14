@@ -1,4 +1,4 @@
-/* session.c: shelving a cartridge, opening it, reading and writing its save, closing it. */
+/* session.c: shelving a cartridge, opening it, reading and writing its save, starting it over, closing it. */
 #include <stdlib.h>
 
 #include "session.h"
@@ -204,6 +204,57 @@ static void a_save_that_cannot_be_written_is_told(void) {
   end();
 }
 
+/*
+ * Starting over removes the save and the log and any `.tmp` beside them, lets the state go while
+ * the world stays read, and hands back the name the visitor had; the next load arrives fresh.
+ */
+static void starting_over_forgets_the_world_and_keeps_the_name(void) {
+  player_session *s;
+  char state_path[200], log_path[200], state_temp[220], log_temp[220];
+  player_restart restart;
+  player_loaded loaded;
+  player_told admitted;
+  const sprout_seen_view *view;
+  const char *words;
+  begin("restart");
+  s = session_new();
+  restart = player_start_over(s);
+  CHECK(!restart.ok && strcmp(restart.reason, "No world is open.") == 0, "nothing open: %s", restart.reason);
+  save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
+  player_load(s);
+  player_admit(s, "Marta");
+  CHECK(go_north(s).saved && exists(state_path) && exists(log_path), "the visitor moved and the world is saved");
+  snprintf(state_temp, sizeof state_temp, "%s.tmp", state_path);
+  snprintf(log_temp, sizeof log_temp, "%s.tmp", log_path);
+  write_text(state_temp, "a write cut short");
+  write_text(log_temp, "a write cut short");
+
+  restart = player_start_over(s);
+  CHECK(restart.ok && restart.reason == NULL, "%s", restart.reason);
+  CHECK(restart.nickname != NULL && sprout_str_is(*restart.nickname, "Marta"), "the name the visitor had is handed back");
+  CHECK(strcmp(restart.name, "chip_tree") == 0 && restart.word_count > 0, "with the world's name and words: %zu words",
+        restart.word_count);
+  CHECK(!exists(state_path) && !exists(log_path) && !exists(state_temp) && !exists(log_temp),
+        "the save, the log and what a cut-short write left are gone");
+  CHECK(player_view(s, &words) == NULL, "the state is let go: nothing can be seen");
+  admitted = player_admit(s, "Marta");
+  CHECK(!admitted.ok && strcmp(admitted.words, "No world is open.") == 0, "and nobody can arrive until it loads: %s",
+        admitted.words);
+  CHECK(!player_start_over(s).ok, "starting over again before the load has no state to forget");
+
+  loaded = player_load(s);
+  CHECK(loaded.ok && loaded.fresh && !loaded.recovered && loaded.nickname == NULL && loaded.present_count == 0 &&
+            loaded.last == 0,
+        "the next load arrives fresh: %s", loaded.words);
+  CHECK(!exists(state_path) && !exists(log_path), "a fresh world writes nothing until a turn commits");
+  admitted = player_admit(s, "Marta");
+  CHECK(admitted.admitted && admitted.saved, "%s", admitted.words);
+  view = player_view(s, &words);
+  CHECK(view != NULL && sprout_str_is(view->place.id, "chip_tree.hall"),
+        "the visitor begins where the world begins, not where they left: %s", words);
+  end();
+}
+
 /* What a call hands back lives until the next call on the session, which releases it. */
 static void an_answer_lives_until_the_next_call(void) {
   player_session *s;
@@ -229,6 +280,7 @@ int main(void) {
   the_clock_going_back_is_clamped_to_the_save();
   a_damaged_save_is_set_aside_in_words();
   a_save_that_cannot_be_written_is_told();
+  starting_over_forgets_the_world_and_keeps_the_name();
   an_answer_lives_until_the_next_call();
   return finish();
 }
