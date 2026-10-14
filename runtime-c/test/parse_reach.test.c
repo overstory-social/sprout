@@ -84,6 +84,8 @@ static void reached_alike(bench *b, const sprout_json *world) {
   size_t count, i;
   uint64_t before = b->run.meter->steps;
   reach(b, &candidates, &count);
+  /* The golden is hand-kept; whatever it holds, the visitor is the first thing they may name. */
+  CHECK(count > 0 && sprout_str_same(candidates[0].instance->id, b->actor));
   CHECK_INT(b->run.meter->steps - before, (long long)sprout_json_get(world, "steps")->number);
   CHECK_INT(count, expected->count);
   for (i = 0; i < count && i < expected->count; i++) {

@@ -1,0 +1,2 @@
+kind Lamp is sprout.LightSource { grammar { nouns "lamp" } }
+import * as sprout from 'sprout'

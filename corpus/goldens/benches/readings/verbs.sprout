@@ -1,0 +1,1 @@
+verb prop { role target  role tool carried  "prop [target] with [tool]" }

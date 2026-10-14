@@ -1,8 +1,8 @@
 /*
  * The corpus as the C tests use it: every `corpus/good` world packed as a
  * cartridge (the CMake setup test packs them under SPROUT_CARTRIDGES), and
- * `corpus/goldens/catalogues.json`, the dump the TypeScript catalogue spec
- * writes of what each world declares.
+ * `corpus/goldens/catalogues.json`, the dump of what each world declares as
+ * the language reads it back from the cartridge (`scripts/write-goldens.mjs`).
  */
 #ifndef SPROUT_TEST_CORPUS_H
 #define SPROUT_TEST_CORPUS_H

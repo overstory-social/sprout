@@ -1,0 +1,8 @@
+kind Yard is sprout.Place {
+  :gate_open false
+  describe {
+    text "A cobbled yard."
+    if (self.get(:gate_open)) { text "The gate stands open." }
+  }
+}
+import * as sprout from 'sprout'

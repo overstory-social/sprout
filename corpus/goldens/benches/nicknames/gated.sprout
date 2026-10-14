@@ -1,0 +1,5 @@
+kind Gated is sprout.Place {
+  :shut false
+  accept (item, from) { if (self.get(:shut)) { refuse "The door is barred." } }
+}
+import * as sprout from 'sprout'

@@ -1,7 +1,7 @@
 /*
- * The statements' bench as the C tests use it: the cartridge and the stored
- * worlds `corpus/goldens/exec.json` was written against (the TypeScript spec
- * exec-goldens.spec.ts writes them), a world loaded under each case's
+ * The statements' bench as the C tests use it: the cartridge
+ * (`corpus/goldens/exec.sproutworld`, compiled from `benches/exec`) and the
+ * stored worlds `corpus/goldens/exec.json` holds, a world loaded under each case's
  * figures, and a turn to run a body in. A case names its body by the entry of
  * the cartridge's graph that holds it; replaying one runs the body, drains
  * the queue, and compares what it ended in with what the TypeScript runtime

@@ -1,0 +1,8 @@
+kind Dial {
+  :notch 0 min 0 max 9
+  as knob for turn {
+    notch from :notch
+    do { say "Click." }
+  }
+}
+import {turn} from 'viewbench'

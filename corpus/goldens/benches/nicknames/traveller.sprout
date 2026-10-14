@@ -1,0 +1,5 @@
+kind Traveller is sprout.Actor {
+  :moves 0 min 0 max 99
+  on :moved (from, to) { self.adjust(:moves, 1) }
+}
+import * as sprout from 'sprout'

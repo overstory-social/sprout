@@ -1,0 +1,5 @@
+kind Sack {
+  contains
+  as box for stuff { do { move item to self } }
+}
+import {stuff} from 'viewbench'

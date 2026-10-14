@@ -44,6 +44,7 @@ static void every_nickname_in_the_golden_is_admitted_or_refused_as_the_typescrip
   sprout_state *state;
   sprout_refusal refusal;
   size_t refused = 0, admitted = 0, i;
+  bool seen[SPROUT_NICKNAME_HELD + 1] = {false};
   sprout_arena_init(&arena, &host);
   CHECK_INT(sprout_json_read(&arena, text, length, &root, &error), SPROUT_OK);
   CHECK_INT(sprout_load_explained(&host, cartridge, cartridge_length, &world, &refusal), SPROUT_OK);
@@ -75,10 +76,16 @@ static void every_nickname_in_the_golden_is_admitted_or_refused_as_the_typescrip
         CHECK_BYTES(admission.collides[c].bytes, admission.collides[c].length, collides->items[c]->bytes);
     }
     if (check_failures > 0) fprintf(stderr, "  in case %zu: %s asks %s\n", i, sprout_json_get(one, "visit")->bytes, nickname->bytes);
+    if ((size_t)admission.reason <= SPROUT_NICKNAME_HELD) seen[admission.reason] = true;
     sprout_admission_free(&admission);
     if (check_failures > 0) break;
   }
   CHECK(refused > 100 && admitted > 100);
+  /* The golden is hand-kept: it still asks after every way a nickname is admitted or refused. */
+  for (i = 0; i <= SPROUT_NICKNAME_HELD; i++) {
+    CHECK(seen[i]);
+    if (!seen[i]) fprintf(stderr, "  no case ends in nickname reason %zu\n", i);
+  }
   CHECK_INT(heap.pages > 0 ? 1 : 0, 1);
   sprout_state_free(state);
   sprout_world_free(world);

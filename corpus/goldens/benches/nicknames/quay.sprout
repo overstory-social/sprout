@@ -1,0 +1,16 @@
+kind Quay is sprout.Place {
+  :arrivals 0 min 0 max 99
+  :departures 0 min 0 max 99
+  :boom false
+  :closed false
+  accept (item, from) { if (self.get(:closed)) { refuse "The quay is closed for the tide." } }
+  on :entered (item, from) {
+    self.adjust(:arrivals, 1)
+    if (self.get(:boom) && 2147483647 + 1 > 0) { self.adjust(:arrivals, 1) }
+  }
+  on :left (item, to) {
+    self.adjust(:departures, 1)
+    if (self.get(:boom) && 2147483647 + 1 > 0) { self.adjust(:departures, 1) }
+  }
+}
+import * as sprout from 'sprout'

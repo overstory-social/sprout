@@ -1,6 +1,6 @@
 /*
  * Tests for src/parse/words.c: the parser's word lists are the TypeScript parser's, list by list and in order
- * (`corpus/goldens/parser-words.json`, written by runtime/parser/goldens.spec.ts), and a typed word is read
+ * (`corpus/goldens/parser-words.json`, a hand-kept golden), and a typed word is read
  * against them as that parser reads it.
  */
 #include "parse_fixture.h"

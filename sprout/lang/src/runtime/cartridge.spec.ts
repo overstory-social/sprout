@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -91,15 +91,9 @@ describe('a cartridge loads to the catalogue compiling the source makes', () => 
   }
 });
 
-describe('the catalogue of every corpus world, as the C runtime reads it from the cartridge', () => {
-  const file = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '../../../../corpus/goldens/catalogues.json',
-  );
-
-  /** One line per world, so a change to one world is one changed line. */
-  const dumps = (): string => {
-    const lines = WORLDS.map((name) => {
+describe('every part of a catalogue a cartridge carries', () => {
+  it('loads as compiling made it, in every corpus world', () => {
+    for (const name of WORLDS) {
       const bundle = compiled(name);
       const bytes = emitCartridge(bundle);
       const recorded = readCartridge(bytes).caps;
@@ -116,15 +110,7 @@ describe('the catalogue of every corpus world, as the C runtime reads it from th
           made.verbs[i]!.phrases,
         ),
       );
-      return `${JSON.stringify(name)}:${JSON.stringify({ level: bundle.level, ...loaded })}`;
-    });
-    return `{\n${lines.join(',\n')}\n}\n`;
-  };
-
-  it('is the golden: regenerate with SPROUT_WRITE_GOLDENS=1 and read the diff', () => {
-    const text = dumps();
-    if (process.env['SPROUT_WRITE_GOLDENS'] === '1') writeFileSync(file, text);
-    expect(text).toBe(readFileSync(file, 'utf8'));
+    }
   }, 60_000);
 
   it('carries the words of every phrase final, as the tokeniser reads a typed line', () => {

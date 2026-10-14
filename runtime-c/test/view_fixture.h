@@ -1,6 +1,6 @@
 /*
- * The view bench as the C tests use it: the cartridge and the stored worlds `corpus/goldens/views.json` was
- * written against (the TypeScript spec view-goldens.spec.ts writes them), a world loaded under each case's
+ * The view bench as the C tests use it: the cartridge (`corpus/goldens/views.sproutworld`, compiled from
+ * `benches/views`) and the stored worlds `corpus/goldens/views.json` holds, a world loaded under each case's
  * figures, and the visitor's view polled over it. A case is a stored world, a visit and the figures the poll ran
  * under; replaying one polls the view and compares it with the oracle's: the view as canonical JSON, the tree a
  * chip client walks over it, the steps the poll spent and the fault it raised.

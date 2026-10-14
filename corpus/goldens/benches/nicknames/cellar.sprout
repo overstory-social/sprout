@@ -1,0 +1,2 @@
+kind Cellar is sprout.Place { }
+import * as sprout from 'sprout'

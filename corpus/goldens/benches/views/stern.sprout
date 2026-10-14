@@ -1,0 +1,10 @@
+kind Stern is sprout.Actor {
+  passage long { {if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if}{if true}.{/if} }
+  passage longer { {self.long}{self.long}{self.long}{self.long} }
+  passage heavy { {self.longer}{self.longer}{self.longer}{self.longer} }
+  as target for ask {
+    permit { refuse heavy }
+  }
+}
+import * as sprout from 'sprout'
+import {ask} from 'sprout'
