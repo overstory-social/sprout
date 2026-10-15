@@ -1,0 +1,62 @@
+{
+  "about": "A candle set down in the chapel is heard by everyone there as it burns. Carried, it is heard by the one carrying it and by nobody else; in the open tin they carry, they still hear it; in the tin shut, nobody does. A candle in someone else's hands is never heard.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A whitewashed chapel, cold as a well." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "A whitewashed chapel, cold as a well." }
+    ] },
+    { "as": "Wren", "type": "light candle", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "The wick catches." },
+      { "reader": "Marta", "kind": "told", "words": "Wren lights a candle." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "chapel.candle woke, 60 seconds after it asked" },
+      { "reader": "Wren", "kind": "told", "words": "The candle grows shorter." },
+      { "reader": "Marta", "kind": "told", "words": "The candle grows shorter." }
+    ] },
+    { "as": "Wren", "type": "take candle", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You take a candle." },
+      { "reader": "Marta", "kind": "told", "words": "Wren takes a candle." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "chapel.candle woke, 60 seconds after it asked" },
+      { "reader": "Wren", "kind": "told", "words": "The candle grows shorter." }
+    ] },
+    { "as": "Wren", "type": "put candle in tin", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You put a candle in a tin." },
+      { "reader": "Marta", "kind": "told", "words": "Wren puts a candle in a tin." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "chapel.candle woke, 60 seconds after it asked" },
+      { "reader": "Wren", "kind": "told", "words": "The candle grows shorter." }
+    ] },
+    { "as": "Wren", "type": "close tin", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You shut a tin." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "chapel.candle woke, 60 seconds after it asked" }
+    ] },
+    { "as": "Wren", "type": "open tin", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You open a tin. Inside: a candle." }
+    ] },
+    { "as": "Wren", "type": "take candle", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You take a candle." },
+      { "reader": "Marta", "kind": "told", "words": "Wren takes a candle." }
+    ] },
+    { "as": "Wren", "type": "drop candle", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You put a candle down." },
+      { "reader": "Marta", "kind": "told", "words": "Wren puts a candle down." }
+    ] },
+    { "as": "Marta", "type": "take candle", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a candle." },
+      { "reader": "Wren", "kind": "told", "words": "Marta takes a candle." }
+    ] },
+    { "advance": "1 minute", "expect": [
+      { "level": "info", "text": "chapel.candle woke, 60 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The candle grows shorter." }
+    ] }
+  ]
+}

@@ -53,6 +53,8 @@ bool parse_is_determiner(sprout_str word);
 bool parse_is_connector(sprout_str word);
 /* `all`, or `everything` for it. */
 bool parse_is_all(sprout_str word);
+/* `through`, `into`, `down` or `up`, a word that may stand between a direction and a way's label: `south through the crawlway`. */
+bool parse_is_way_word(sprout_str word);
 /* A word the parser reads in a noun: a determiner, a connector, a relative phrase's word, a pronoun, `all`, `everything` or `except`. */
 bool parse_is_noun_word(sprout_str word);
 /* The pronoun a typed word is, `them` being `they`; PARSE_PRONOUN_NONE where it is none a visitor types. */
@@ -213,7 +215,13 @@ sprout_eval_status parse_names_outright(const parse_noun_context *context, parse
 /* A label's words without the article, `my`, `this` or `that` it starts with; a lone word is kept. */
 parse_words parse_label_words(parse_words words);
 
-/* The way `words` name among `ways`, in the order the place declares them: the first in the direction named, else the first whose label they are; NULL for none. */
+/* Where `words` are a direction, a way word and more, `south through the crawlway`: the direction, and in `label` the words from the way word on; NULL otherwise. */
+const char *parse_direction_through(parse_words words, parse_words *label);
+
+/* Whether `label`, from its way word on, names a label: the words after the way word, or with it, `up the ladder`. */
+bool parse_through_label(const sprout_world *world, parse_words label);
+
+/* The way `words` name among `ways`, in the order the place declares them: the first in the direction named, the first in the direction named through its own label, else the first whose label they are; NULL for none. */
 const sprout_way *parse_exit_named(const sprout_graph *graph, parse_words words, const sprout_way *ways, size_t count);
 
 /* Whether `words`, less a leading article, are the label some exit or link in the world is written with. Charges nothing. */

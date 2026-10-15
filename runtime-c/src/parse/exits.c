@@ -1,7 +1,9 @@
 /*
  * The words that fill an exit role (the spec's Verbs > Exits, Links; Names > Articles): a direction, written out or
  * abbreviated, or the label of an exit or a link typed, so what a screen reader speaks can be spoken back. A link
- * has no direction, and is taken by its label alone. An article, `my`, `this` or `that` at a label's start is
+ * has no direction, and is taken by its label alone. A direction followed by `through`, `into`, `down` or `up` and
+ * that way's own label names it too, `south through the crawlway`; with any other way's label it names the direction
+ * alone, which answers as a wrong way does. An article, `my`, `this` or `that` at a label's start is
  * dropped, as typed and as written. Only the ways out that apply where the actor stands are asked (exits.h); an
  * exit that refuses is among them, named as any exit is. A label some way out in the world is written with, typed
  * where none that applies carries it, names a way out of reach. Labels are read by the words the cartridge carries
@@ -54,12 +56,38 @@ static const char *typed_label(const sprout_graph *graph, const sprout_node *exi
   return sprout_node_text(graph, sprout_node_get(graph, sprout_node_get(graph, exit, "line"), "label"), "typed");
 }
 
+const char *parse_direction_through(parse_words words, parse_words *label) {
+  if (words.count < 3 || !parse_is_way_word(words.words[1])) return NULL;
+  label->words = words.words + 1;
+  label->count = words.count - 1;
+  return parse_direction_of(words.words[0]);
+}
+
+/* The words after a way word, `the crawlway` of `through the crawlway`. */
+static parse_words after_way_word(parse_words label) {
+  label.words++;
+  label.count--;
+  return label;
+}
+
+/* Whether `label`, from its way word on, is `typed`: the words after the way word, or with it. */
+static bool is_through_label(parse_words label, const char *typed) {
+  return typed != NULL && (is_label(after_way_word(label), typed) || is_label(label, typed));
+}
+
 const sprout_way *parse_exit_named(const sprout_graph *graph, parse_words words, const sprout_way *ways, size_t count) {
   const char *direction = words.count == 1 ? parse_direction_of(words.words[0]) : NULL;
+  parse_words label;
+  const char *through = parse_direction_through(words, &label);
   size_t i;
   if (direction != NULL)
     for (i = 0; i < count; i++)
       if (ways[i].direction != NULL && strcmp(ways[i].direction, direction) == 0) return &ways[i];
+  if (through != NULL)
+    for (i = 0; i < count; i++)
+      if (ways[i].direction != NULL && strcmp(ways[i].direction, through) == 0 &&
+          is_through_label(label, typed_label(graph, ways[i].exit)))
+        return &ways[i];
   for (i = 0; i < count; i++) {
     const char *typed = typed_label(graph, ways[i].exit);
     if (typed != NULL && is_label(words, typed)) return &ways[i];
@@ -67,22 +95,27 @@ const sprout_way *parse_exit_named(const sprout_graph *graph, parse_words words,
   return NULL;
 }
 
-/* Whether a kind's own exits and links hold one labelled `words`. */
-static bool kind_labels(const sprout_graph *graph, const sprout_kind_def *kind, parse_words words) {
+/* Whether a kind's own exits and links hold one labelled `words`, or, `through` set, `words` from a way word on. */
+static bool kind_labels(const sprout_graph *graph, const sprout_kind_def *kind, parse_words words, bool through) {
   const sprout_node *exits = kind == NULL ? NULL : sprout_node_get(graph, kind->node, "exits");
   size_t i;
   for (i = 0; exits != NULL && exits->kind == SPROUT_NODE_ARRAY && i < exits->count; i++) {
     const char *typed = typed_label(graph, sprout_item(graph, exits, i));
-    if (typed != NULL && is_label(words, typed)) return true;
+    if (through ? is_through_label(words, typed) : typed != NULL && is_label(words, typed)) return true;
   }
   return false;
 }
 
-bool parse_way_label(const sprout_world *world, parse_words words) {
+/* Whether some exit or link in the world is labelled `words`, or, `through` set, `words` from a way word on. */
+static bool world_labels(const sprout_world *world, parse_words words, bool through) {
   size_t i;
   for (i = 0; i < world->kind_count; i++)
-    if (kind_labels(&world->graph, world->kinds[i], words)) return true;
+    if (kind_labels(&world->graph, world->kinds[i], words, through)) return true;
   for (i = 0; i < world->declared_count; i++)
-    if (kind_labels(&world->graph, world->declared[i].kind, words)) return true;
+    if (kind_labels(&world->graph, world->declared[i].kind, words, through)) return true;
   return false;
 }
+
+bool parse_way_label(const sprout_world *world, parse_words words) { return world_labels(world, words, false); }
+
+bool parse_through_label(const sprout_world *world, parse_words label) { return world_labels(world, label, true); }

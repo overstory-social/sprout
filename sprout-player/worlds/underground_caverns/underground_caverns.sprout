@@ -14,7 +14,7 @@ import {:shatter, :open_gate, :gate_open, :close_gate, :trap_sync, :window_sync,
 world underground_caverns is sprout.World {
   visitors are Person
   visitors arrive at west_of_house
-  synonyms go: "climb", "run", "proceed", "crawl"
+  synonyms go: "climb", "proceed"
 
   :gate false
   pass any (self.get(:gate))

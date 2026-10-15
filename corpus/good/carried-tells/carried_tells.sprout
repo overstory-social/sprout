@@ -1,0 +1,40 @@
+// A thing in a person's hands is heard by them (the spec's Other people ›
+// Who hears it; Range). A lit candle asks to be woken a minute on, and
+// each time it wakes tells whoever hears it that it burns down. Set down
+// in the chapel, everyone there hears it; carried, only the one carrying
+// it does, since a person passes nothing and their hands are a wall to
+// the rest of the place; in the open tin they carry, they still hear it,
+// and in the tin shut, nobody does.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world carried_tells is sprout.World {
+  visitors are Person
+  visitors arrive at chapel
+
+  object chapel is sprout.Place {
+    grammar { article the }
+    describe { text "A whitewashed chapel, cold as a well." }
+
+    object candle is Candle
+  }
+}
+
+verb light { role target: Candle  "light [target]" }
+
+kind Candle {
+  grammar { name "candle"  article a }
+
+  as target for light {
+    do {
+      wake in 1 minutes
+      say "The wick catches."
+      tell "{actor} lights a candle."
+    }
+  }
+
+  on :woke (elapsed) {
+    tell "The candle grows shorter."
+    wake in 1 minutes
+  }
+}

@@ -18,6 +18,7 @@
     "in",
     "out"
   ],
+  "wayWords": ["through", "into", "down", "up"],
   "typedPronouns": [
     ["it", "it"],
     ["them", "they"],
