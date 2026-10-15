@@ -277,6 +277,33 @@ verb read    { role target  "read [target]" }
 export const QUAY = declaredId('dock', ['quay']);
 export const LABEL = declaredId('dock', ['quay', 'pile', 'boat', 'label']);
 
+/**
+ * The chapel: a candle that, lit, asks to be woken a minute on and tells
+ * whoever hears it that it burns down each time it wakes, and asks again;
+ * and a tin to carry it in.
+ */
+export const CHAPEL = compiled('chapel', {
+  'chapel.sprout': `world chapel is sprout.World {
+  visitors are Person
+  visitors arrive at nave
+  object nave is sprout.Place {
+    object candle is Candle
+    object tin is sprout.Container { grammar { name "tin" } }
+  }
+}
+verb light { role target  "light [target]" }
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'candle.sprout': `kind Candle {
+  grammar { name "candle" }
+  as target for light { do { wake in 1 minutes  say "The wick catches." } }
+  on :woke (elapsed) { tell "The candle grows shorter."  wake in 1 minutes }
+}
+`,
+});
+export const NAVE = declaredId('chapel', ['nave']);
+export const CANDLE = declaredId('chapel', ['nave', 'candle']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');

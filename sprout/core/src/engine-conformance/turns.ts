@@ -7,12 +7,15 @@ import { equal, match, ok, rejects } from './check.js';
 import {
   BELFRY,
   BELFRY_GONE,
+  CANDLE,
+  CHAPEL,
   COUNTER,
   countOf,
   GAUGE,
   HALL,
   INES,
   MARTA,
+  NAVE,
   played,
   seeded,
   storedIn,
@@ -433,6 +436,51 @@ export const turnCases: EngineCase[] = [
         [[COUNTER, 10]],
         'the wakes due',
       );
+    },
+  },
+  {
+    name: 'a carried thing tells its holder',
+    proves:
+      'a `tell` from a thing in a person’s hands reaches that person and nobody else in the place, and from inside a shut container they carry reaches nobody',
+    async run(make) {
+      const store = await seeded(CHAPEL, [
+        [MARTA, NAVE, 'Marta'],
+        [INES, NAVE, 'Ines'],
+      ]);
+      const host = played(make, CHAPEL);
+      const typed = async (text: string, now: number) =>
+        ok((await runCommand(store, 'w', host, command(text, now))).committed, `Marta's ${text}`);
+      const woken = async (now: number) => {
+        const [due] = host.engine!.dueWakes(await storedIn(store), now);
+        ok(due !== undefined && due.object === CANDLE, 'the lit candle asks for a wake');
+        const turn = await runWake(store, 'w', host, {
+          object: due.object,
+          serial: due.serial,
+          now,
+          seed: 5,
+          mayHold: null,
+        });
+        ok(turn.committed, 'the wake commits');
+        return turn.effects;
+      };
+      await typed('take candle', 0);
+      await typed('light candle', 0);
+      match(
+        await woken(60),
+        [
+          {
+            kind: 'told',
+            from: CANDLE,
+            visit: MARTA,
+            paragraphs: ['The candle grows shorter.'],
+          },
+        ],
+        'what the candle in Marta’s hands tells, and to whom',
+      );
+      await typed('take tin', 60);
+      await typed('put candle in tin', 60);
+      await typed('close tin', 60);
+      equal(await woken(120), [], 'what the candle in the shut tin she carries tells');
     },
   },
 ];

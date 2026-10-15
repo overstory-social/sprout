@@ -1717,8 +1717,11 @@ In the actor's own part it is the other way round: the target is told
 with `tell target` (see The actor's own part), which is how a character's
 act reaches the person it is aimed at.
 
-A thing inside a shut chest is heard by nothing outside it. `tell x` to
-someone out of range, or to a character, goes nowhere.
+A thing inside a shut chest is heard by nothing outside it. A thing in
+someone's hands is heard by them and by nobody else, so a candle can tell
+whoever carries it that it is burning down; in a shut box they carry, it
+is heard by nobody. `tell x` to someone out of range, or to a character,
+goes nowhere.
 
 **`actor` and `here`** are bound only where someone is acting: in a
 `permit`, a `do`, a `describe` (where the actor is whoever is looking),
