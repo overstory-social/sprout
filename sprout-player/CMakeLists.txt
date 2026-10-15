@@ -99,14 +99,18 @@ target_include_directories(${PLAYER_GAME} PRIVATE ../runtime-c/src)
 if(NOT TOOLCHAIN STREQUAL "armgcc")
   enable_testing()
   set(PLAYER_CARTRIDGES "" CACHE PATH "Folder of packed corpus cartridges the tests open")
-  # One test program for each module of src/, beside the session played end to end.
-  add_library(player_test_support STATIC test/support.c test/fake_playdate.c)
+  # One test program for each module of src/ (the sentence builder's three, by concern), beside the session
+  # played end to end.
+  add_library(player_test_support STATIC test/support.c test/builder_support.c test/fake_playdate/system.c
+    test/fake_playdate/files.c test/fake_playdate/screen.c test/fake_playdate/bitmaps.c test/fake_playdate/sound.c
+    test/fake_playdate/network.c)
   target_link_libraries(player_test_support PUBLIC sprout_player_core)
   target_include_directories(player_test_support PUBLIC test ../runtime-c/src)
   target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack pd_host budgets told savelog session turns seen played
-    wrap transcript ui builder disc gallery pictures sound canonical signed_index shelf nickname clock net downloads)
+    wrap transcript ui builder_disc builder_sentence builder_crank disc gallery pictures sound canonical signed_index shelf
+    nickname clock net downloads)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)

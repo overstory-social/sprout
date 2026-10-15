@@ -15,7 +15,7 @@
  * record each note played. The network serves canned answers: each address a test gives is answered
  * with its status, headers and body, a piece a frame, behind the permission the test says the person
  * gives; an address it does not know is answered 404. The system menu holds up to three items, as the device's does, which a test can choose. The SDK's headers are the declarations;
- * nothing of the SDK is linked.
+ * nothing of the SDK is linked. It is built from fake_playdate/, a module for each of the API's areas.
  */
 #ifndef FAKE_PLAYDATE_H
 #define FAKE_PLAYDATE_H
