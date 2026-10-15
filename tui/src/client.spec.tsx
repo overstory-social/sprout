@@ -51,6 +51,26 @@ describe('connecting a client', () => {
     expect(t.out()).toContain('You take a key.');
   });
 
+  it('reads the end of a pipe that closes at once as `/quit`: the line in it is answered, and the visitor leaves in words', async () => {
+    server = await serving();
+    const t = terminal();
+    t.stdin.end('look\n');
+    expect(
+      await connect({
+        address: `127.0.0.1:${server.port}`,
+        nickname: 'Marta',
+        tokens: tokensFile(),
+        stdin: t.stdin,
+        stdout: t.stdout,
+        stderr: t.stderr,
+      }),
+    ).toBe(0);
+    const lines = t.out().split('\n');
+    expect(lines).toContain('> look');
+    expect(lines.at(-2)).toBe('You leave.');
+    expect(t.out()).not.toContain('lost');
+  });
+
   it('says it cannot connect, and ends 1, where nothing is listening', async () => {
     const t = terminal();
     expect(

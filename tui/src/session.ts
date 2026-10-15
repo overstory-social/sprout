@@ -137,7 +137,12 @@ export class Session {
           return true;
         case 'quit':
           if (this.state.world !== null) this.connection?.send({ t: 'leave' });
-          else this.connection?.close();
+          else if (this.connection !== null) {
+            // Not yet in a world, there is no `bye` to wait for: the client closes, and says so.
+            const connection = this.connection;
+            this.change({ ...add(this.state, 'client', 'You disconnect.'), closed: 'left' });
+            connection.close();
+          }
           return false;
       }
     }
@@ -211,6 +216,19 @@ export class Session {
       this.connection === null ||
       this.state.closed !== null ||
       (!this.admitting && this.waiting.length === 0 && this.answering.size === 0);
+    return new Promise((resolve) => {
+      if (done()) return resolve();
+      const stop = this.onChange(() => {
+        if (!done()) return;
+        stop();
+        resolve();
+      });
+    });
+  }
+
+  /** Resolves once the connection is gone: closed, or its close announced by the server's `bye`. */
+  gone(): Promise<void> {
+    const done = () => this.connection === null || this.state.closed !== null;
     return new Promise((resolve) => {
       if (done()) return resolve();
       const stop = this.onChange(() => {

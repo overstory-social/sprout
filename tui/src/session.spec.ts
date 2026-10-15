@@ -99,6 +99,17 @@ describe('a session with a server', () => {
     await until(session, () => session.state.closed === 'left');
   });
 
+  it('disconnects in words on a `/quit` before it is in a world, never as a connection lost', async () => {
+    server = await serving();
+    const session = await connected(server);
+    await until(session, () => shows(session, 'Type the nickname to be known by here.'));
+    expect(await session.type('/quit')).toBe(false);
+    await session.gone();
+    expect(session.state.closed).toBe('left');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(session.state.lines.at(-1)!.text).toBe('You disconnect.');
+  });
+
   it('says so, and sends nothing, when it is not connected', async () => {
     server = await serving();
     const session = await connected(server, 'Marta');
