@@ -199,7 +199,7 @@ player_told turn_of(player_session *session, const char *verb, const char *text,
   reading.verb = verb;
   reading.filling_count = count;
   reading.fillings = fillings;
-  return player_turn(session, &reading, text);
+  return player_turn(session, &reading, text, false);
 }
 
 const char *told_text(const player_told *answer, size_t index) {
