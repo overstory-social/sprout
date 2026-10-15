@@ -1,6 +1,6 @@
 /*
  * The view in its parts (the spec's The runtime > The view), polled over the live state, each answered in the
- * language's shape with the poll's fault laid against the visitor's place, or null: the whole view
+ * language's shape with the poll's fault laid against its object, or null: the whole view
  * `{"view", "fault"}`; the scene `{"scene", "fault"}`, the view but its readings with the verbs whose readings may be
  * asked for, each with the phrases a visitor types it by; one verb's readings `{"readings", "fault"}`; and the
  * engine's `acted`, what one visitor typed as another reads it, which renders as a poll does.
@@ -12,7 +12,7 @@
 #include "view_json.h"
 #include "world.h"
 
-/* The poll's fault in the language's shape, laid against the visitor's place, or null where it did not fault. */
+/* The poll's fault in the language's shape, laid against its object, or null where it did not fault. */
 static sprout_json *fault_of(wasm_engine *e, const sprout_seen_view *view) {
   sprout_fault_about about;
   if (!view->faulted) return engine_null(e);

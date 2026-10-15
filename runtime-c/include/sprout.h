@@ -430,7 +430,7 @@ typedef struct sprout_seen_view {
   bool faulted;            /* the poll ran out: the description is `unseen`, the rest is what it derived before */
   sprout_fault fault;
   const char *fault_name;  /* the rule broken, for the host's log: `BudgetExhausted` */
-  sprout_str fault_object; /* the visitor's place, which the fault is laid against */
+  sprout_str fault_object; /* what the fault is laid against: the object it names, or the visitor's place */
   void *held;
 } sprout_seen_view;
 

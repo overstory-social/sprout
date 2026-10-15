@@ -475,24 +475,29 @@ static sprout_eval_status whole_poll(poll *p, derived *d, wanted want, const spr
   return render_parts(p, d, want != WANT_READINGS_OF_ONE, keep, out);
 }
 
-static void note_fault(const poll *p, sprout_eval_status status, sprout_seen_view *view) {
+/*
+ * The first attempt's fault, for the host's log: its rule, its words, and what it is laid against (the spec's The
+ * runtime > The view), the object it names, or the visitor's place where it names none, as a budget run out or an
+ * engine error does.
+ */
+static bool note_fault(const poll *p, sprout_arena *keep, sprout_seen_view *view) {
+  sprout_str against = p->place;
   view->faulted = true;
   view->steps = p->meter.steps;
   if (p->meter.faulted) {
     view->fault = p->meter.fault;
     view->fault_name = "BudgetExhausted";
-    return;
-  }
-  view->fault.budget = p->fault.name;
-  view->fault.message = p->meter.message;
-  {
+  } else {
     size_t kept = strlen(p->fault.text);
+    view->fault.budget = p->fault.name;
+    view->fault.message = p->meter.message;
     if (kept > sizeof view->fault.text - 1) kept = sizeof view->fault.text - 1;
     memcpy(view->fault.text, p->fault.text, kept);
     view->fault.text[kept] = '\0';
+    view->fault_name = p->fault.name;
+    if (p->fault.has_object && p->fault.name != NULL && strcmp(p->fault.name, "Error") != 0) against = p->fault.object;
   }
-  view->fault_name = p->fault.name;
-  (void)status;
+  return put(keep, against, &view->fault_object);
 }
 
 static held *keep_for(const sprout_host *host) {
@@ -554,7 +559,7 @@ static sprout_status polled(poll *p, wanted want, const sprout_verb *only, sprou
     view->steps = p->meter.steps;
     return SPROUT_OK;
   }
-  note_fault(p, status, view);
+  if (!note_fault(p, keep, view)) return SPROUT_NO_MEMORY;
   view->description = NULL;
   view->description_count = 0;
   view->exit_count = view->occupant_count = view->carried_count = view->reading_count = view->verb_count = 0;
@@ -649,10 +654,6 @@ static sprout_status poll_for(sprout_world *world, sprout_state *state, const sp
     keep = &own->arena;
   }
   status = polled(&p, want, only, keep, view);
-  if (status == SPROUT_OK) {
-    view->fault_object = (sprout_str){NULL, 0};
-    if (view->faulted && !put(keep, p.place, &view->fault_object)) status = SPROUT_NO_MEMORY;
-  }
   sprout_arena_reset(&turn);
   if (status != SPROUT_OK) {
     if (own != NULL) sprout_view_free(view);
