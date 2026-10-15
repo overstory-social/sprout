@@ -12,6 +12,7 @@
 
 #include "support.h"
 #include "ui/app.h"
+#include "ui/builder.h"
 #include "ui/images.h"
 #include "ui/nickname.h"
 #include "ui/pictures.h"
@@ -155,12 +156,15 @@ static void the_crank_steps_between_pictures_slat_by_slat(void) {
   leave();
 }
 
-/* Presses `button` until the word in the builder's window, the one drawn large, reads `label`. */
+/* Presses `button` until the word at the front of the builder's disc, its selected entry, reads `label`. */
 static bool step_to(PDButtons button, const char *label, int most) {
-  int n, i;
+  int n;
   for (n = 0; n <= most; n++) {
-    for (i = 0; i < fake->run_count; i++)
-      if (fake->runs[i].font == FAKE_FONT_BIG && strcmp(fake->runs[i].text, label) == 0) return true;
+    if (app->screen == &player_builder_screen) {
+      const sentence *s = &((player_builder *)app->ctx)->sentence;
+      size_t count;
+      if (strcmp(sentence_entries(s, &count)[s->state.selected].label, label) == 0) return true;
+    }
     fake_frame(fake, button, 0);
   }
   return false;

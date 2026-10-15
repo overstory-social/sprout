@@ -11,8 +11,8 @@
 #include "pd_api.h"
 
 typedef enum player_cue_name {
-  PLAYER_CUE_TICK,    /* a slat of the wheel passing the window, a picture stepped */
-  PLAYER_CUE_CLACK,   /* the drum settling on a slat, a picture landing */
+  PLAYER_CUE_TICK,    /* a sector of the disc passing the front, a picture stepped */
+  PLAYER_CUE_CLACK,   /* the disc settling on a sector, a picture landing */
   PLAYER_CUE_PICK,    /* a word picked */
   PLAYER_CUE_BACK,    /* a step back */
   PLAYER_CUE_REFUSED, /* a reading that cannot be confirmed */

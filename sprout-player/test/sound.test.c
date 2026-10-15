@@ -2,7 +2,7 @@
  * The app's sounds (ui/sound.c) and the builder's cues through them, over the fake's synths. The
  * rules: each cue is a synth of its own, set to its waveform and envelope (player_cue_notes), and a
  * cue played is one note of its pitch, volume and length, now; with no sound API every cue is
- * silent; a world picked on the shelf picks; and the builder's drum ticks as a slat passes and clacks as it settles, and a pick and a
+ * silent; a world picked on the shelf picks; and the builder's disc ticks as a sector passes and clacks as it settles, and a pick and a
  * step back each sound their cue, one note each.
  */
 #include <stdlib.h>
@@ -86,9 +86,9 @@ static void the_shelfs_and_the_builders_cues_sound(void) {
   fake_frame(fake, kButtonA, 0);
   CHECK(fake->note_count == 0, "opening the builder is quiet");
   fake_frame(fake, 0, 30.0f);
-  CHECK(fake->note_count == 1 && sounded(kWaveformNoise, 3000.0f), "a slat past the window ticks");
+  CHECK(fake->note_count == 1 && sounded(kWaveformNoise, 3000.0f), "a sector past the front ticks");
   for (n = 0; n < 60 && fake->note_count == 1; n++) fake_frame(fake, 0, 0);
-  CHECK(fake->note_count == 2 && sounded(kWaveformSquare, 160.0f), "the drum settles on a slat with a clack");
+  CHECK(fake->note_count == 2 && sounded(kWaveformSquare, 160.0f), "the disc settles on a sector with a clack");
   fake_frame(fake, kButtonA, 0);
   CHECK(fake->note_count == 3 && sounded(kWaveformTriangle, 660.0f), "a verb picked");
   fake_frame(fake, kButtonB, 0);
