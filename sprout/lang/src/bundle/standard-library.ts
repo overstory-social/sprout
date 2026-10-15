@@ -9,9 +9,12 @@
 // as the worked microworld names them, `sprout/actor.sprout`, so a
 // diagnostic in library source never reads as one in the world's own.
 //
-// It is the worked microworld's library, declaration for declaration, with one
-// difference: `Lockable` is in `sprout/lockable.sprout`, the file named
-// for it, where the worked microworld writes `sprout/lock.sprout`.
+// It is the worked microworld's library, declaration for declaration, with two
+// differences: `Lockable` is in `sprout/lockable.sprout`, the file named
+// for it, where the worked microworld writes `sprout/lock.sprout`; and `go`
+// reads `go into [way]` and takes `walk`, `crawl` and `run` as synonyms, a
+// change to the spec's listing that awaits Eric (the working notes' Holes,
+// 479).
 
 import type { LibrarySource } from './bundle.js';
 import { SourceFile } from '../source/source.js';
@@ -52,7 +55,7 @@ kind World {
 const ENGINE = `// The phrases for the verbs whose behaviour is the engine's (the spec's
 // Engine verbs). They have no \`do\`: the engine answers them, and only
 // \`go\` may have a role an exit fills.
-verb go        { role way: exit  "go [way]"  "[way]"  "walk [way]"  "go through [way]"  "enter [way]" }
+verb go        { role way: exit  "go [way]"  "[way]"  "go through [way]"  "go into [way]"  "enter [way]"  synonyms "walk", "crawl", "run" }
 verb look      { "look"  "l"  "look around" }
 verb examine   { role target  "examine [target]"  "x [target]"  "look at [target]"  "inspect [target]"  "describe [target]"  "check [target]" }
 verb inventory { "inventory"  "i"  "inv" }

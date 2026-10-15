@@ -566,7 +566,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'e07a01d353c34e10d14044970e85c1fc1a1b0ebba0078fa69a2bec86936b95da',
+      '658d6c6e707552a3095275c85ceeceadbea0ecb358c1031ff8021b8d682e654a',
     );
   });
 });

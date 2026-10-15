@@ -44,17 +44,19 @@ describe('the standard library as the skill describes it', () => {
     ]);
   });
 
-  it('lists every verb with each of its phrases, and who answers it', () => {
+  it('lists every verb with each of its phrases, its synonyms, and who answers it', () => {
     const section = verbsSection(library);
     for (const verb of libraryVerbs(library)) {
       const row = section.split('\n').find((line) => line.startsWith(`| \`${verb.name}\` |`));
       expect(row, verb.name).toBeDefined();
       for (const phrase of verb.phrases) expect(row).toContain(`\`"${phrase.text}"\``);
+      for (const synonym of verb.synonyms) expect(row).toContain(`\`"${synonym}"\``);
       if (ENGINE_VERBS.includes(verb.name)) expect(row).toContain('| the engine |');
     }
     expect(section).toContain(
-      '| `open` | `target: Container` | `"open [target]"` | `sprout.Container` as `target`, `sprout.Lockable` as `target` |',
+      '| `open` | `target: Container` | `"open [target]"` | — | `sprout.Container` as `target`, `sprout.Lockable` as `target` |',
     );
+    expect(section).toContain('| `"walk"` `"crawl"` `"run"` | the engine |');
   });
 
   it('says what each kind composes, holds, declares and says, from its own body alone', () => {

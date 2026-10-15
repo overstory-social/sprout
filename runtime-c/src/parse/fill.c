@@ -1,8 +1,9 @@
 /*
  * What the words a slot took fill its role with (the spec's Verbs > Slots, Set roles, Carried roles, Value roles, A
  * role-player narrows its own options, Exits; Parsing > Sequences, again and all): a thing role takes one noun, or a
- * run of them it runs once for each; a set role a run of them at once; an exit role a direction or a label, an exit
- * that refuses and a direction no exit answers being answered rather than read; a value role any words, which bind
+ * run of them it runs once for each; a set role a run of them at once; an exit role a direction, a label, or a
+ * direction through that way's own label, an exit that refuses and a direction no exit answers being answered rather
+ * than read; a value role any words, which bind
  * once the reading's things are, and only a value some participant's `from` hears, so nothing typed reaches a body
  * unless a role-player declared it an option. A carried role takes only what the one typing carries: where what they
  * carry does not answer and something further out would fill the role, the slot is outward, and a carried thing the
@@ -154,11 +155,16 @@ static sprout_eval_status set_filled(const parse_fill_context *context, const sp
 static sprout_eval_status exit_filled(const parse_fill_context *context, parse_words words, parse_filled *out) {
   const sprout_frame *frame = context->nouns.frame;
   const sprout_way *way;
+  const char *through;
+  parse_words label;
   memset(out, 0, sizeof *out);
   EXPR_NEED(expr_spend(frame));
   way = parse_exit_named(&frame->world->graph, words, context->ways, context->way_count);
+  through = parse_direction_through(words, &label);
   if (way == NULL) {
     const char *direction = words.count == 1 ? parse_direction_of(words.words[0]) : NULL;
+    /* A direction through a label that way does not carry is the direction alone, a wrong way. */
+    if (direction == NULL && through != NULL && parse_through_label(frame->world, label)) direction = through;
     if (direction != NULL) {
       out->fills = PARSE_FILLS_NO_WAY;
       out->direction = direction;
@@ -176,7 +182,14 @@ static sprout_eval_status exit_filled(const parse_fill_context *context, parse_w
     return SPROUT_EVAL_OK;
   }
   out->fills = PARSE_FILLS_OPTIONS;
-  out->literal = parse_label_words(words).count;
+  /* The words matched literally are those the way was named by, less a label's article, as typed alone or after a way word. */
+  if (through != NULL && way->direction != NULL && strcmp(way->direction, through) == 0) {
+    label.words++;
+    label.count--;
+    out->literal = 2 + parse_label_words(label).count;
+  } else {
+    out->literal = parse_label_words(words).count;
+  }
   return SPROUT_EVAL_OK;
 }
 

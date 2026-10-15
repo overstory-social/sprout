@@ -1,7 +1,8 @@
 /*
  * Tests for src/parse/exits.c: the way out a slot's words name (the spec's Verbs > Exits, Links; Names >
  * Articles), over ways out built here as the cartridge carries them, a
- * label beside its typed words, and the labels of the corpus worlds `exit-labels` and `out-of-reach-exit`.
+ * label beside its typed words, and the labels of the corpus worlds `exit-labels`, `out-of-reach-exit` and
+ * `movement-phrasing`.
  */
 #include "parse_fixture.h"
 
@@ -140,6 +141,47 @@ static void it_is_none_where_nothing_applies_in_that_direction_or_answers_to_the
   sprout_arena_reset(&w.arena);
 }
 
+static void a_direction_through_into_down_or_up_its_own_label_names_that_way(void) {
+  static const char *const crawlway[] = {"south through the crawlway", "s through crawlway", "south into the crawlway",
+                                         "south down the crawlway", "south up that crawlway"};
+  test_heap heap;
+  sprout_host host;
+  ways w;
+  size_t i;
+  begin(&w, &heap, &host);
+  add(&w, "south", "the crawlway", "the crawlway");
+  add(&w, "north", "up the ladder", "up the ladder");
+  add(&w, "east", "the crack", "the crack");
+  add(&w, "east", "the crawlway", "the crawlway");
+  for (i = 0; i < 5; i++) CHECK_INT(named(&w, crawlway[i]), 0);
+  /* A label that begins with the way word is typed with it once. */
+  CHECK_INT(named(&w, "north up the ladder"), 1);
+  /* Of two ways in one direction, the one whose label was typed. */
+  CHECK_INT(named(&w, "east through the crawlway"), 3);
+  /* Another way's label, a label in no direction, or a word between that is no way word, names none. */
+  CHECK_INT(named(&w, "south through the crack"), -1);
+  CHECK_INT(named(&w, "west through the crack"), -1);
+  CHECK_INT(named(&w, "south past the crawlway"), -1);
+  CHECK_INT(named(&w, "south through"), -1);
+  sprout_arena_reset(&w.arena);
+}
+
+static void a_direction_through_is_read_only_where_a_way_word_follows_a_direction(void) {
+  test_heap heap;
+  sprout_host host;
+  ways w;
+  parse_words label;
+  begin(&w, &heap, &host);
+  CHECK_STR(parse_direction_through(words(&w, "s through the crawlway"), &label), "south");
+  CHECK_INT(label.count, 3);
+  CHECK_STR(parse_direction_through(words(&w, "north up the ladder"), &label), "north");
+  CHECK(parse_direction_through(words(&w, "through the crawlway"), &label) == NULL);
+  CHECK(parse_direction_through(words(&w, "south through"), &label) == NULL);
+  CHECK(parse_direction_through(words(&w, "south past the crawlway"), &label) == NULL);
+  CHECK(parse_direction_through(words(&w, "crawl through the crawlway"), &label) == NULL);
+  sprout_arena_reset(&w.arena);
+}
+
 static void the_worlds_labels_are_every_exits_and_links_as_typed_without_their_article(void) {
   bench b;
   bench_open(&b, "exit-labels", "Marta");
@@ -156,6 +198,18 @@ static void the_worlds_labels_are_every_exits_and_links_as_typed_without_their_a
   bench_close(&b);
 }
 
+static void a_label_after_a_way_word_is_the_worlds_with_or_without_that_word(void) {
+  bench b;
+  bench_open(&b, "movement-phrasing", "Marta");
+  CHECK(parse_through_label(b.w.world, bench_words(&b, "through the crawlway")));
+  CHECK(parse_through_label(b.w.world, bench_words(&b, "into hole")));
+  CHECK(parse_through_label(b.w.world, bench_words(&b, "up the ladder")));
+  CHECK(parse_through_label(b.w.world, bench_words(&b, "down the ladder")));
+  CHECK(!parse_through_label(b.w.world, bench_words(&b, "through the bananas")));
+  CHECK(!parse_through_label(b.w.world, bench_words(&b, "into the up ladder")));
+  bench_close(&b);
+}
+
 int main(void) {
   RUN(it_is_the_first_that_applies_in_the_direction_named_written_out_or_abbreviated);
   RUN(it_is_the_one_whose_label_was_typed_however_cased);
@@ -163,6 +217,9 @@ int main(void) {
   RUN(a_label_of_one_word_is_kept_whole_though_it_is_an_article);
   RUN(a_link_is_taken_by_its_label_alone);
   RUN(it_is_none_where_nothing_applies_in_that_direction_or_answers_to_the_words);
+  RUN(a_direction_through_into_down_or_up_its_own_label_names_that_way);
+  RUN(a_direction_through_is_read_only_where_a_way_word_follows_a_direction);
   RUN(the_worlds_labels_are_every_exits_and_links_as_typed_without_their_article);
+  RUN(a_label_after_a_way_word_is_the_worlds_with_or_without_that_word);
   return REPORT();
 }

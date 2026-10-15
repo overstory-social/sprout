@@ -46,25 +46,28 @@ function playedBy(verb: ResolvedVerb, kinds: readonly KindRef[]): string[] {
   return played;
 }
 
-/** What a visitor can type: every verb of the library's, its roles, its phrases and who answers it. */
+/** What a visitor can type: every verb of the library's, its roles, its phrases, its synonyms and who answers it. */
 export function verbsSection(bundle: Bundle): string {
   const kinds = libraryKinds(bundle);
   const rows = libraryVerbs(bundle).map((verb) => {
     const roles =
       verb.roles.length === 0 ? '—' : verb.roles.map((role) => code(roleWritten(role))).join(', ');
     const phrases = verb.phrases.map((phrase) => code(`"${phrase.text}"`)).join(' ');
+    const synonyms =
+      verb.synonyms.length === 0 ? '—' : verb.synonyms.map((word) => code(`"${word}"`)).join(' ');
     const engine = ENGINE_VERBS.includes(verb.name);
     const answers = engine
       ? 'the engine'
       : playedBy(verb, kinds).join(', ') || 'a world’s own kinds';
-    return [code(verb.name), roles, phrases, answers];
+    return [code(verb.name), roles, phrases, synonyms, answers];
   });
   return blocks(
     heading(2, 'What a visitor can type'),
     'These are the standard library’s verbs; a world adds its own with `verb`, and a kind takes part ' +
       'in one with `as <role> for <verb> { permit { … } do { … } }`. A phrase’s `[slot]` is filled by ' +
-      'the role of that name, and phrases are tried in the order written.',
-    table(['verb', 'roles', 'phrases', 'answered by'], rows),
+      'the role of that name, and phrases are tried in the order written. A synonym takes every ' +
+      'phrase that writes the verb’s name: `walk` gives `"walk [way]"` and `"walk through [way]"`.',
+    table(['verb', 'roles', 'phrases', 'synonyms', 'answered by'], rows),
   );
 }
 
