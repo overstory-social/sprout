@@ -371,13 +371,15 @@ export interface BroadcastStatement extends Node {
 export type WakeUnit = 'seconds' | 'minutes' | 'hours';
 
 /**
- * `wake in 3 hours` — `self` asks to be woken once, the count a whole
- * number written out (the spec's Time › Wakes). How long it waits at
- * least is the host's floor, and whether it may ask is the host's cap.
+ * `wake in 3 hours`, `wake in (self.get(:delay)) minutes` — `self` asks to
+ * be woken once, the count a whole number written out or an expression in
+ * brackets, worked out when the statement runs (the spec's Time › Wakes).
+ * How long it waits at least is the host's floor, and whether it may ask
+ * is the host's cap.
  */
 export interface WakeStatement extends Node {
   readonly kind: 'wake';
-  readonly count: IntegerLiteral;
+  readonly count: Expr;
   readonly unit: WakeUnit;
 }
 

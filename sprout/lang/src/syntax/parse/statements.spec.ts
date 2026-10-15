@@ -659,7 +659,12 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
       };
     case 8:
       return {
-        text: ['wake', 'in', c.one(['1', '3', '90', '0']), c.one(['seconds', 'minutes', 'hours'])]
+        text: [
+          'wake',
+          'in',
+          c.one(['1', '3', '90', '0', '(n)', '(self.count + 1)', '( n )']),
+          c.one(['seconds', 'minutes', 'hours']),
+        ]
           .map((word, i) => (i === 0 ? word : gap() + word))
           .join(''),
         kind: 'wake',

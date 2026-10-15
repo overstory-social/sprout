@@ -1,12 +1,13 @@
 /*
  * The wakes an object holds (the spec's Time > Wakes; Limits > Runtime
  * budgets). A `wake` asks for one under the world's next serial, due no
- * sooner than the host's floor; one asked past the host's cap on pending
- * wakes faults, and nothing is charged while it waits. `cancel wakes` empties
- * the list, so what it held never arrives and no longer counts toward the
- * cap. An object's list is kept oldest first: by when each falls due, then by
- * the serial it was asked under. Nothing here reads a clock: every instant is
- * the one the host handed the turn.
+ * sooner than the host's floor. A count worked out below nothing, or longer
+ * than `elapsed` can carry, faults, and so does one asked past the host's cap
+ * on pending wakes; nothing is charged while a wake waits. `cancel wakes`
+ * empties the list, so what it held never arrives and no longer counts toward
+ * the cap. An object's list is kept oldest first: by when each falls due, then
+ * by the serial it was asked under. Nothing here reads a clock: every instant
+ * is the one the host handed the turn.
  */
 #include <string.h>
 
@@ -58,6 +59,21 @@ sprout_eval_status sprout_wake_ask(sprout_exec *x, const sprout_frame *frame, ui
   next.wakes = wakes;
   next.wake_count = self->wake_count + 1;
   return sprout_draft_write(x->draft, &next) == SPROUT_DRAFT_OK ? SPROUT_EVAL_OK : SPROUT_EVAL_NO_MEMORY;
+}
+
+sprout_eval_status sprout_wake_in(sprout_exec *x, const sprout_frame *frame, double count, const char *unit) {
+  double seconds = count * (strcmp(unit, "hours") == 0 ? 3600 : strcmp(unit, "minutes") == 0 ? 60 : 1);
+  expr_text text;
+  if (seconds >= 0 && seconds <= INTEGER_MAX) return sprout_wake_ask(x, frame, (uint64_t)seconds);
+  text = expr_text_begin(frame);
+  expr_put(&text, "`");
+  expr_put_str(&text, frame->self);
+  expr_put(&text, "` asked for a wake in ");
+  expr_put_number(&text, count);
+  expr_put(&text, " ");
+  expr_put(&text, unit);
+  expr_put(&text, seconds < 0 ? ", which is less than no time at all." : ", longer than a wake can wait: 2147483647 seconds at most.");
+  return expr_fail_on(frame, "WakeFault", frame->self);
 }
 
 sprout_eval_status sprout_wake_cancel(sprout_exec *x, const sprout_frame *frame) {

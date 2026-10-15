@@ -383,10 +383,12 @@ variable is not set).
   at a time and stop at either end. `wrap.test.c` holds word wrap to its rules
   over generated text (no line wider than the column but a single character, no
   character lost or moved, every break as late as it can be, none inside a
-  character), and `transcript.test.c` the scrollback. `builder.test.c` drives
-  the sentence builder (a greyed chip drawn greyed with its reason, a verb
-  descended into and back, a completed reading run and told, the sentence line
-  fitting the screen, the window always what A picks after any crank turn),
+  character), and `transcript.test.c` the scrollback. Three programs drive
+  the sentence builder over `builder_support.c`: `builder_disc.test.c` the disc
+  as drawn (a greyed chip drawn greyed with its reason, the sentence line
+  fitting the screen), `builder_sentence.test.c` the picks and runs (a verb
+  descended into and back, a completed reading run and told, `everything`), and
+  `builder_crank.test.c` the front always what A picks after any crank turn;
   `shelf.test.c` and `nickname.test.c` their screens (the filters folding as
   the host folds, a name the engine refuses told in its words), and
   `pictures.test.c` the pictures.

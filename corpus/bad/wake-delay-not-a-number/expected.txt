@@ -1,0 +1,7 @@
+timer.sprout:11:16  How long a wake waits is a whole number, and this is text.
+                    Work it out as a whole number, as in `wake in (self.get(:delay)) minutes`, where `:delay` is an integer.
+
+timer.sprout:12:16  How long a wake waits is a whole number, and this is true or false.
+                    Work it out as a whole number, as in `wake in (self.get(:delay)) minutes`, where `:delay` is an integer.
+
+refused: 2 problems

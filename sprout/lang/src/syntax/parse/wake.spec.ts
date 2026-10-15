@@ -6,6 +6,8 @@ import { atCancel, cancelStatement, wakeStatement } from './wake.js';
 
 const EXAMPLE =
   'Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.';
+const WORKED_OUT =
+  'Write a whole number, as in `wake in 3 hours`, or put what it is worked out from in brackets, as in `wake in (self.get(:delay)) minutes`.';
 
 /** One `wake`, read by `wakeStatement` from the start of `text`. */
 const readWake = (text: string) => readWith(wakeStatement, text, { name: 'body.sprout' });
@@ -53,7 +55,47 @@ describe('`wake in <n> seconds | minutes | hours`', () => {
     ]);
   });
 
-  it('refuses a count that is not a whole number written out, at what was written', () => {
+  it('reads a count worked out in brackets as the expression it holds, leaving the type to the checker', () => {
+    const { read, p, refusals } = readWake('wake in (self.get(:delay) + 1) minutes\nsay "Later."');
+    expect(refusals).toEqual([]);
+    expect(rest(p)).toBe('say "Later."');
+    expect(read).toMatchObject({
+      kind: 'wake',
+      count: { kind: 'binary', operator: '+', right: { kind: 'integer', value: 1 } },
+      unit: 'minutes',
+    });
+    expect(textOf(read!.count.at)).toBe('self.get(:delay) + 1');
+    expect(textOf(read!.at)).toBe('wake in (self.get(:delay) + 1) minutes');
+    const typed = readWake('wake in ("soon") hours');
+    expect(typed.refusals).toEqual([]);
+    expect(typed.read).toMatchObject({ count: { kind: 'string', value: 'soon' }, unit: 'hours' });
+  });
+
+  it('names a bracketed count as written where the unit is missing', () => {
+    expect(refused('wake in (self.get(:delay))')).toEqual([
+      [
+        'body.sprout:1:27',
+        '`wake in (self.get(:delay))` does not say seconds, minutes or hours.',
+        'Write `wake in (self.get(:delay)) hours`, `wake in (self.get(:delay)) minutes` or `wake in (self.get(:delay)) seconds`.',
+      ],
+    ]);
+  });
+
+  it('refuses empty brackets, and a bracket never closed, and takes nothing past its line', () => {
+    expect(refused('wake in () minutes')).toEqual([
+      [
+        'body.sprout:1:9',
+        'These brackets hold nothing, and a wake needs to know how long to wait.',
+        WORKED_OUT,
+      ],
+    ]);
+    const open = readWake('wake in (self.get(:delay) minutes');
+    expect(open.refusals.map((d) => [textOf(d.at), d.message])).toEqual([
+      ['minutes', 'How long the wake waits ends here, and its bracket is never closed.'],
+    ]);
+  });
+
+  it('refuses a count that is neither written out nor in brackets, at what was written', () => {
     for (const [text, at] of [
       ['wake in self.delay minutes', 'self'],
       ['wake in "3" hours', '"3"'],
@@ -63,7 +105,13 @@ describe('`wake in <n> seconds | minutes | hours`', () => {
       expect(
         refusals.map((d) => [textOf(d.at), d.message, d.remedy]),
         text,
-      ).toEqual([[at, 'How long a wake waits is a whole number, written out.', EXAMPLE]]);
+      ).toEqual([
+        [
+          at,
+          'How long a wake waits is a whole number written out, or worked out in brackets.',
+          WORKED_OUT,
+        ],
+      ]);
     }
   });
 

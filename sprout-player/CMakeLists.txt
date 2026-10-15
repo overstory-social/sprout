@@ -61,7 +61,7 @@ set(PLAYER_SOURCES
   src/budgets.c src/canonical.c src/ed25519.c src/host/files.c src/host/net.c src/host/pd_host.c
   src/host/stack.c src/savelog.c src/seen.c src/session.c src/shipping.c
   src/signed_index.c src/text.c src/told.c src/turns.c src/ui/app.c src/ui/arrival.c src/ui/builder.c src/ui/clock.c
-  src/ui/downloads.c src/ui/drum.c src/ui/everything.c src/ui/gallery.c src/ui/images.c src/ui/message.c src/ui/nickname.c src/ui/pen.c
+  src/ui/disc.c src/ui/downloads.c src/ui/everything.c src/ui/gallery.c src/ui/images.c src/ui/message.c src/ui/nickname.c src/ui/pen.c
   src/ui/pictures.c src/ui/reader.c src/ui/sentence.c src/ui/shelf.c src/ui/sound.c src/ui/transcript.c src/ui/wrap.c)
 
 # The publisher's public key, whose signature the download screen requires on the index of worlds,
@@ -99,14 +99,18 @@ target_include_directories(${PLAYER_GAME} PRIVATE ../runtime-c/src)
 if(NOT TOOLCHAIN STREQUAL "armgcc")
   enable_testing()
   set(PLAYER_CARTRIDGES "" CACHE PATH "Folder of packed corpus cartridges the tests open")
-  # One test program for each module of src/, beside the session played end to end.
-  add_library(player_test_support STATIC test/support.c test/fake_playdate.c)
+  # One test program for each module of src/ (the sentence builder's three, by concern), beside the session
+  # played end to end.
+  add_library(player_test_support STATIC test/support.c test/builder_support.c test/fake_playdate/system.c
+    test/fake_playdate/files.c test/fake_playdate/screen.c test/fake_playdate/bitmaps.c test/fake_playdate/sound.c
+    test/fake_playdate/network.c)
   target_link_libraries(player_test_support PUBLIC sprout_player_core)
   target_include_directories(player_test_support PUBLIC test ../runtime-c/src)
   target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack pd_host budgets told savelog session turns seen played
-    wrap transcript ui builder gallery pictures sound canonical signed_index shelf nickname clock net downloads)
+    wrap transcript ui builder_disc builder_sentence builder_crank disc gallery pictures sound canonical signed_index shelf
+    nickname clock net downloads)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)
