@@ -8,8 +8,9 @@
  * Time is host seconds, clamped so it never goes below the last the save recorded
  * (host/pd_host.h). After every committed turn the log tail is written at once and the state is
  * owed: `player_save_step` writes it a slice a frame, and every call that runs a turn, loads or
- * closes writes what is owed first, so the state never changes under the writer. `saved` false
- * says a write failed, and the UI stops play and says so.
+ * closes writes what is owed first, so the state never changes under the writer. One input is one
+ * save: the later steps of a line of turns write nothing of the state before they run, so the line
+ * owes it once when it ends. `saved` false says a write failed, and the UI stops play and says so.
  */
 #ifndef PLAYER_SESSION_H
 #define PLAYER_SESSION_H
@@ -114,9 +115,11 @@ player_chip_level player_chips(player_session *session, const size_t *picks, siz
 
 /*
  * A command turn from a reading the sentence builder made, performed by the visitor (the session
- * fills in the actor); `text` is the line it stands for, logged, or NULL.
+ * fills in the actor); `text` is the line it stands for, logged, or NULL. `continues` says it is a
+ * later step of the line the call before began (the spec's Parsing › Sequences): what the steps
+ * before it owe is left owed, not written first.
  */
-player_told player_turn(player_session *session, const sprout_reading *reading, const char *text);
+player_told player_turn(player_session *session, const sprout_reading *reading, const char *text, bool continues);
 
 /* A reading the UI could not make: `why` is told as a notice, as a turn's answer, and nothing runs. */
 player_told player_misread(player_session *session, const char *why);

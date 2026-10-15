@@ -10,7 +10,8 @@
  * window is the one the panel speaks of and A picks. `everything` comes first on a level whose role
  * would read `all` where two or more things can be done: a set role binds them all, and a role that
  * takes one thing runs a turn for each in the level's order, leaving out what the view refuses,
- * stopping at the first refusal and bounded by what a set role may bind.
+ * stopping at the first refusal and bounded by what a set role may bind; such a line is one save, its state
+ * written once after its last step, and a failure of that save stops play.
  */
 #include <stdlib.h>
 
@@ -404,6 +405,25 @@ static bool in_order(const char *whole, const char *const *texts, size_t count) 
   return true;
 }
 
+/* How many lines of the fake's file log write a file whose path holds `part`. */
+static int writes_of(const char *part) {
+  const char *line = fake->file_log;
+  int count = 0;
+  for (; *line != '\0'; line = strchr(line, '\n') + 1) {
+    const char *end = strchr(line, '\n');
+    const char *found = strstr(line, part);
+    if (strncmp(line, "write ", 6) == 0 && found != NULL && found < end) count++;
+  }
+  return count;
+}
+
+/* Runs frames until the save owed is written; whether it was. */
+static bool saved_out(void) {
+  int n;
+  for (n = 0; n < 10000 && player_saving(app->session); n++) fake_frame(fake, 0, 0);
+  return !player_saving(app->session);
+}
+
 static void everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stops_at_a_refusal(void) {
   static const char *const turns[] = {"> examine -> an apple", "A red apple.", "> examine -> a bell", "A brass bell.",
                                       "> examine -> a lamp", "Too bright to look at."};
@@ -419,8 +439,13 @@ static void everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stop
   CHECK(strcmp(front(), "examine -> everything") == 0, "and is the sentence to confirm: %s", front());
   CHECK(sentence_each_count(built()) == 5, "a turn for each thing but the place: %zu", sentence_each_count(built()));
   logged = app->session->log_count;
+  CHECK(player_save_settle(app->session).ok, "nothing is owed before the line");
+  fake->file_log[0] = '\0';
   fake_frame(fake, kButtonA, 0);
   CHECK(on_reader(), "the reader takes over");
+  CHECK(writes_of(".json.part") == 0, "no step of the line writes the state:\n%s", fake->file_log);
+  CHECK(saved_out() && writes_of(".json.part") == 1, "the line stopped at a refusal writes it once, after:\n%s",
+        fake->file_log);
   whole = told_so_far();
   /* The bell's glint dazzles the lamp after the line was read, so the lamp refuses on its turn and the line stops. */
   CHECK(in_order(whole, turns, sizeof turns / sizeof turns[0]), "each turn told as its own sentence, in the walk's order: %s", whole);
@@ -428,6 +453,50 @@ static void everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stop
   CHECK(app->session->log_count == logged + 3, "three turns are logged: %zu", app->session->log_count - logged);
   for (i = logged; i < app->session->log_count; i++) alike += strstr(app->session->log[i], "\"text\":\"examine -> everything\"") != NULL;
   CHECK(alike == 3, "each under the whole sentence, as a line of `all` logs each turn under the line typed: %zu", alike);
+  leave();
+}
+
+/* The examine of the sack, the ball and the lunch, run as one line in the left-out world's hall. */
+static void examine_everything(void) {
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "examine", 20), "examine");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(everything_first(), "everything comes first: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(sentence_each_count(built()) == 3, "three things: %zu", sentence_each_count(built()));
+  CHECK(player_save_settle(app->session).ok, "nothing is owed before the line");
+  fake->file_log[0] = '\0';
+  fake_frame(fake, kButtonA, 0);
+}
+
+/* One input is one save: a line's steps append the log tail each, and the state is written once, after the last. */
+static void a_line_of_turns_writes_the_state_once(void) {
+  static const char *const turns[] = {"> examine -> a sack", "> examine -> a ball", "> examine -> a lunch"};
+  arrive_in("one save", "all-leaves-out-refused.sproutworld");
+  examine_everything();
+  CHECK(on_reader() && in_order(told_so_far(), turns, 3), "every step ran: %s", told_so_far());
+  CHECK(writes_of(".log") == 3, "the log tail is written at each step:\n%s", fake->file_log);
+  CHECK(writes_of(".json.part") == 0 && player_saving(app->session), "and the state is owed, not written:\n%s",
+        fake->file_log);
+  CHECK(saved_out() && writes_of(".json.part") == 1, "then written once:\n%s", fake->file_log);
+  leave();
+}
+
+/* The save a line owes failing stops play, as a single turn's does. */
+static void a_line_whose_save_fails_stops_play(void) {
+  const fake_run *said;
+  arrive_in("line unsaved", "all-leaves-out-refused.sproutworld");
+  examine_everything();
+  CHECK(on_reader() && player_saving(app->session), "the line ran and owes its state");
+  fake->fail_writes = 1;
+  fake_frame(fake, 0, 0);
+  said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
+  CHECK(app->screen == &player_message_screen && said != NULL && HAS(said->text, "The save could not be written"),
+        "play stops on the message screen: %s", said != NULL ? said->text : "(nothing)");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(app->screen == &player_shelf_screen && player_shelf_blocked(app->shelf, "worlds/all-leaves-out-refused.sproutworld"),
+        "and the world is greyed on the shelf");
+  fake->fail_writes = 0;
   leave();
 }
 
@@ -679,6 +748,8 @@ int main(void) {
   a_turn_whose_save_fails_stops_play_and_greys_the_world();
   the_sentence_line_fits_the_screen_and_keeps_its_end();
   everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stops_at_a_refusal();
+  a_line_of_turns_writes_the_state_once();
+  a_line_whose_save_fails_stops_play();
   everything_for_a_set_role_binds_them_all();
   everything_leaves_out_what_is_greyed_and_needs_two_things();
   everything_runs_at_most_what_a_set_role_may_bind();
