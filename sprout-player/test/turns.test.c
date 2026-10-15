@@ -164,6 +164,61 @@ static void a_turn_whose_save_cannot_be_written_says_so(void) {
   end();
 }
 
+/* How many state writes the fake's file log records: each opens `<state>.part`. */
+static int state_writes(void) {
+  const char *at = fake->file_log;
+  int count = 0;
+  while ((at = strstr(at, ".json.part\n")) != NULL) {
+    const char *line = at;
+    while (line > fake->file_log && line[-1] != '\n') line--;
+    count += strncmp(line, "write ", 6) == 0;
+    at++;
+  }
+  return count;
+}
+
+/* The guard asked about the weather as a step of a line: `continues` past its first. */
+static player_told ask_in_line(player_session *s, bool continues) {
+  sprout_filling fillings[2];
+  sprout_reading reading;
+  fillings[0] = fill_object("target", "chip_tree.hall.guard");
+  fillings[1] = fill_word("topic", "weather");
+  memset(&reading, 0, sizeof reading);
+  reading.verb = "sprout.ask";
+  reading.filling_count = 2;
+  reading.fillings = fillings;
+  return player_turn(s, &reading, "ask -> everything", continues);
+}
+
+/*
+ * One input is one save: the later steps of a line leave the state owed and write the log tail each, so the line
+ * writes the state once; the first step of the next line writes what that one owed before it runs.
+ */
+static void a_line_of_turns_owes_the_state_once(void) {
+  player_session *s;
+  int k;
+  begin("line");
+  s = session_new();
+  player_open_whole(s, "chip-tree.sproutworld");
+  player_load(s);
+  CHECK(player_admit(s, "Marta").saved && player_save_settle(s).ok, "arrived, and nothing is owed");
+  fake->file_log[0] = '\0';
+  for (k = 0; k < 4; k++) {
+    player_told told = ask_in_line(s, k > 0);
+    CHECK(told.committed && told.saved, "step %d", k);
+  }
+  CHECK(state_writes() == 0 && player_saving(s), "four steps write none of the state, and owe it:\n%s", fake->file_log);
+  CHECK(player_save_settle(s).ok && state_writes() == 1, "settled, it is written once:\n%s", fake->file_log);
+  ask_in_line(s, false);
+  ask_in_line(s, true);
+  fake->file_log[0] = '\0';
+  CHECK(ask_in_line(s, false).saved && state_writes() == 1, "the next line's first step writes what this one owed:\n%s",
+        fake->file_log);
+  CHECK(player_save_step(s, (size_t)-1).ok && player_save_step(s, (size_t)-1).ok && state_writes() == 2,
+        "and its own is written after:\n%s", fake->file_log);
+  end();
+}
+
 /* The wakes world: a kiln fired, the player closed, four hours on. Catch-up says nothing. */
 static void catching_up_after_an_absence_narrates_nothing(void) {
   player_session *s;
@@ -178,7 +233,7 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   player_admit(s, "Marta");
   CHECK(player_view(s, &words) != NULL, "the view: %s", words);
   CHECK(reading_from(s, "fire", "a kiln", &reading), "a reading from the chips");
-  told = player_turn(s, &reading, NULL);
+  told = player_turn(s, &reading, NULL, false);
   CHECK(told_has(&told, "The chamber takes the flame."), "%s", told_text(&told, 0));
   player_close(s);
   before = file_text(state_path);
@@ -227,6 +282,7 @@ int main(void) {
   a_reading_the_world_cannot_take_is_told_in_words_and_writes_nothing();
   a_command_or_tick_outside_the_world_runs_nothing();
   a_turn_whose_save_cannot_be_written_says_so();
+  a_line_of_turns_owes_the_state_once();
   catching_up_after_an_absence_narrates_nothing();
   a_tick_tells_what_the_place_says();
   return finish();

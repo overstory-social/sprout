@@ -2,9 +2,9 @@
  * The write turns this host runs (the spec's The runtime > Turns; The host contract > Admission
  * and identity, Time): arrival, preceded by the catch-up that tells nothing, a command from a
  * reading the sentence builder made, the ticks and due wakes the reader asks for, and departure.
- * Every turn waits for the save under way to be written, runs at the host's seconds under a seed
- * drawn from the clock when it begins, is written to the log tail with that seed, and marks the
- * state to be saved when it committed.
+ * Every turn but a later step of one input's line waits for what is owed to be written, runs at
+ * the host's seconds under a seed drawn from the clock when it begins, is written to the log tail
+ * with that seed, and marks the state to be saved when it committed.
  */
 #include <string.h>
 
@@ -19,13 +19,13 @@
 /*
  * Runs one turn under a seed drawn now; a tick or a wake, for `thing` its `nth` this call, takes its own from
  * that seed and the thing's path, as every host makes one (seeds.h), so adding a clock leaves every other
- * object's draws as they were.
+ * object's draws as they were. `settle` false leaves what earlier steps of the same line owe unwritten.
  */
 static sprout_status run_for(player_session *session, sprout_turn_input *input, const char *thing, uint64_t nth,
-                             sprout_outcome *outcome) {
+                             bool settle, sprout_outcome *outcome) {
   sprout_status status;
-  /* The save under way is written out first: the state must not change under the writer. */
-  session_save_finish(session);
+  /* What is owed is written out first, and always a save under way: the state must not change under the writer. */
+  if (settle || session->writer.live) session_save_finish(session);
   input->instant = player_host_seconds(&session->host);
   player_host_begin_step(&session->host);
   if (thing != NULL) {
@@ -41,7 +41,7 @@ static sprout_status run_for(player_session *session, sprout_turn_input *input, 
 }
 
 sprout_status turns_run(player_session *session, sprout_turn_input *input, sprout_outcome *outcome) {
-  return run_for(session, input, NULL, 0, outcome);
+  return run_for(session, input, NULL, 0, true, outcome);
 }
 
 bool turns_depart(player_session *session, sprout_outcome *outcome) {
@@ -121,7 +121,7 @@ player_told player_admit(player_session *session, const char *nickname) {
 
 /* ---- a command ---- */
 
-player_told player_turn(player_session *session, const sprout_reading *reading, const char *text) {
+player_told player_turn(player_session *session, const sprout_reading *reading, const char *text, bool continues) {
   player_told answer;
   sprout_arena *arena = session_answer(session);
   sprout_outcome outcome;
@@ -143,7 +143,7 @@ player_told player_turn(player_session *session, const sprout_reading *reading, 
   input.reading = &read;
   input.text = text;
   input.text_length = text == NULL ? 0 : strlen(text);
-  status = turns_run(session, &input, &outcome);
+  status = run_for(session, &input, NULL, 0, !continues, &outcome);
   if (status != SPROUT_OK) {
     /* A reading the world cannot take: said in words, and nothing was written. */
     answer.words = session_keep(session, status == SPROUT_BAD_INPUT ? outcome.fault.text : sprout_status_text(status));
@@ -214,7 +214,7 @@ static bool wake_due(player_session *session, sprout_arena *arena, told_list *li
     input.serial = due.wakes[0].serial;
     sprout_wakes_free(&due);
     if (object == NULL) break;
-    if (run_for(session, &input, object, woken_count(arena, table, &kept, object), &outcome) == SPROUT_OK) {
+    if (run_for(session, &input, object, woken_count(arena, table, &kept, object), true, &outcome) == SPROUT_OK) {
       ran = ran || outcome.result != SPROUT_RESULT_IDLE;
       told_collect(arena, lines, &outcome, PLAYER_VISIT);
     }
@@ -237,7 +237,7 @@ static bool tick_places(player_session *session, sprout_arena *arena, told_list 
     memset(&input, 0, sizeof input);
     input.kind = SPROUT_TURN_TICK;
     input.place = place;
-    if (run_for(session, &input, place, 0, &outcome) == SPROUT_OK) {
+    if (run_for(session, &input, place, 0, true, &outcome) == SPROUT_OK) {
       ran = ran || outcome.result != SPROUT_RESULT_IDLE;
       told_collect(arena, lines, &outcome, PLAYER_VISIT);
     }
