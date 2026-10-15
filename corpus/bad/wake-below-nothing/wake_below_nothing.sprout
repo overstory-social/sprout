@@ -1,0 +1,14 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Timer} from 'timer'
+
+world wake_below_nothing is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    object timer is Timer
+  }
+}
+
+verb start { role target  "start [target]" }

@@ -1,0 +1,9 @@
+{
+  "about": "A timer started at nothing rings after the host's shortest wake, a minute, rather than at once.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "start timer", "expect": [{ "words": "The timer starts ticking." }] },
+    { "advance": "59 seconds", "expect": [] },
+    { "advance": "1 second", "expect": [{ "words": "The timer rings." }] }
+  ]
+}
