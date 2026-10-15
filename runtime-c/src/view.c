@@ -55,6 +55,8 @@ typedef struct poll {
   sprout_frame frame;
   prose_reading reading;
   sprout_str actor, place;
+  sprout_all_rule *rules; /* the rule of `all` for each role a filler has asked of, worked out once a poll */
+  size_t rule_count, rule_capacity;
 } poll;
 
 static void poll_begin(poll *p) {
@@ -70,6 +72,8 @@ static void poll_begin(poll *p) {
   p->reading.fault = &p->fault;
   p->reading.reader = p->actor;
   p->reading.notes = NULL;
+  p->rules = NULL;
+  p->rule_count = p->rule_capacity = 0;
 }
 
 /* ---- deriving ---- */
@@ -274,16 +278,38 @@ static sprout_eval_status seen_things(poll *p, sprout_arena *keep, const sprout_
   return SPROUT_EVAL_OK;
 }
 
-static sprout_eval_status seen_filler(poll *p, sprout_arena *keep, const sprout_role *role, const sprout_filled *filled,
-                                      sprout_seen_filler *out) {
+/* Whether a typed `all` in `role` of `verb` would take `id`, by the parser's own rule, its part for the role worked out once a poll. */
+static sprout_eval_status all_takes(poll *p, const sprout_verb *verb, const sprout_role *role, sprout_str id, bool *takes) {
+  const sprout_stored_instance *thing = expr_instance(&p->frame, id);
+  sprout_all_rule *rule = NULL;
+  bool carried = false;
+  size_t i;
+  *takes = false;
+  if (thing == NULL || thing->kind == NULL) return SPROUT_EVAL_OK;
+  for (i = 0; i < p->rule_count && rule == NULL; i++)
+    if (p->rules[i].role == role) rule = &p->rules[i];
+  if (rule == NULL) {
+    rule = (sprout_all_rule *)sprout_exec_grow(p->turn, (void **)&p->rules, &p->rule_count, &p->rule_capacity, sizeof *rule);
+    if (rule == NULL) return SPROUT_EVAL_NO_MEMORY;
+    EXPR_NEED(sprout_all_rule_of(&p->frame, verb, role, rule));
+  }
+  if (role->carried) EXPR_NEED(sprout_carries(&p->frame, p->actor, id, &carried));
+  *takes = sprout_all_takes(rule, thing, p->actor, p->place, carried);
+  return SPROUT_EVAL_OK;
+}
+
+static sprout_eval_status seen_filler(poll *p, sprout_arena *keep, const sprout_verb *verb, const sprout_role *role,
+                                      const sprout_filled *filled, sprout_seen_filler *out) {
   size_t i;
   out->role = put_text(keep, role->name);
   if (out->role == NULL) return SPROUT_EVAL_NO_MEMORY;
   out->binds = SPROUT_SEEN_UNBOUND;
+  out->all = false;
   if (!filled->filled) return SPROUT_EVAL_OK;
   switch (filled->bound.kind) {
     case SPROUT_BOUND_OBJECT:
       out->binds = SPROUT_SEEN_OBJECT;
+      EXPR_NEED(all_takes(p, verb, role, filled->bound.object, &out->all));
       return seen_thing(p, keep, filled->bound.object, &out->thing);
     case SPROUT_BOUND_SET: {
       sprout_seen_thing *members =
@@ -291,6 +317,7 @@ static sprout_eval_status seen_filler(poll *p, sprout_arena *keep, const sprout_
       if (members == NULL) return SPROUT_EVAL_NO_MEMORY;
       for (i = 0; i < filled->bound.set_count; i++) EXPR_NEED(seen_thing(p, keep, filled->bound.set[i], &members[i]));
       out->binds = SPROUT_SEEN_SET;
+      if (filled->bound.set_count > 0) EXPR_NEED(all_takes(p, verb, role, filled->bound.set[0], &out->all));
       out->members = members;
       out->member_count = filled->bound.set_count;
       return SPROUT_EVAL_OK;
@@ -374,7 +401,7 @@ static sprout_eval_status seen_reading(poll *p, sprout_arena *keep, const sprout
     EXPR_NEED(keep_strs(keep, &lines, &out->refusal, &out->refusal_count));
   }
   for (i = 0; i < verb->role_count; i++)
-    EXPR_NEED(seen_filler(p, keep, &verb->roles[i], &offer->reading.roles[i], &fillers[i]));
+    EXPR_NEED(seen_filler(p, keep, verb, &verb->roles[i], &offer->reading.roles[i], &fillers[i]));
   out->fillers = fillers;
   out->filler_count = verb->role_count;
   EXPR_NEED(seen_options(p, keep, options, option_count, &out->options));

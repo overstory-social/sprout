@@ -10,7 +10,6 @@
 #include <string.h>
 
 #include "../address.h"
-#include "../engine-verbs.h"
 #include "../expr/expr.h"
 #include "../offers.h"
 #include "parse.h"
@@ -85,25 +84,14 @@ static sprout_eval_status left_out(const parse_all_context *context, parse_words
   return SPROUT_EVAL_OK;
 }
 
-/* Whether `all` takes `thing` for `role`: as the role's kind says; where it takes every thing, any not a person; or as the verb's plays do. */
-static bool takes(const sprout_role *role, const sprout_verb *verb, const sprout_stored_instance *thing, bool every_thing) {
-  size_t r;
-  if (role->filler == SPROUT_FILLER_KIND) return parse_fits(role, thing);
-  if (every_thing) return !thing->kind->composes_actor;
-  for (r = 0; r < verb->role_count; r++) {
-    const sprout_play_group *group = sprout_own_plays(verb, verb->roles[r].name, thing->kind);
-    if (group != NULL && group->count > 0) return true;
-  }
-  return false;
-}
-
 sprout_eval_status parse_all_in(const parse_all_context *context, parse_words words, const sprout_role *role,
                                 const sprout_verb *verb, bool *is_all, parse_filled *out) {
   const parse_fill_context *fill = &context->fill;
   const sprout_frame *frame = fill->nouns.frame;
   const sprout_limit *cap = &frame->meter->budgets->set_role_objects;
   size_t literal = 1, i, reached = 0;
-  bool *left, every_thing = true;
+  bool *left;
+  sprout_all_rule rule;
   parse_named *things;
   memset(out, 0, sizeof *out);
   *is_all = words.count > 0 && parse_is_all(words.words[0]) &&
@@ -139,17 +127,13 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
       literal += nouns[n].end - nouns[n].start;
     }
   }
-  if (!sprout_is_engine_verb(verb)) EXPR_NEED(sprout_only_the_actor_plays(frame, verb, role, &every_thing));
+  EXPR_NEED(sprout_all_rule_of(frame, verb, role, &rule));
   things = (parse_named *)sprout_arena_take(frame->turn, (fill->candidate_count + 1) * sizeof *things);
   if (things == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < fill->candidate_count; i++) {
     const parse_candidate *candidate = &fill->candidates[i];
     EXPR_NEED(expr_spend(frame));
-    if (left[i] || sprout_str_same(candidate->instance->id, context->actor) ||
-        sprout_str_same(candidate->instance->id, context->here))
-      continue;
-    if (role->carried && !candidate->carried) continue;
-    if (!takes(role, verb, candidate->instance, every_thing)) continue;
+    if (left[i] || !sprout_all_takes(&rule, candidate->instance, context->actor, context->here, candidate->carried)) continue;
     things[reached].candidate = candidate;
     things[reached].near = candidate->near;
     things[reached].literal = literal;

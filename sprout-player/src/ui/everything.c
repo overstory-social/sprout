@@ -16,28 +16,17 @@ size_t everything_most(void) {
   return budgets.set_role_objects.set ? (size_t)budgets.set_role_objects.value : (size_t)-1;
 }
 
-bool everything_takes(const sentence *s, const sentence_choice *choice) {
+bool everything_takes(const sentence_choice *choice) {
   const sprout_seen_filler *filler = choice->filler;
-  sprout_str id;
-  size_t i;
   if (choice->greyed == PLAYER_GREYED_YES) return false;
-  if (filler->binds == SPROUT_SEEN_OBJECT)
-    id = filler->thing.id;
-  else if (filler->binds == SPROUT_SEEN_SET && filler->member_count == 1)
-    id = filler->members[0].id;
-  else
-    return false;
-  if (s->view == NULL) return true;
-  if (same_str(id, s->view->place.id)) return false;
-  for (i = 0; i < s->view->occupant_count; i++)
-    if (same_str(id, s->view->occupants[i].id)) return false;
-  return true;
+  if (filler->binds == SPROUT_SEEN_SET) return filler->member_count == 1 && filler->all;
+  return filler->binds == SPROUT_SEEN_OBJECT && filler->all;
 }
 
 bool everything_offered(const sentence *s) {
   size_t i, count = 0;
   for (i = 0; i < s->choice_count && count < 2; i++)
-    if (everything_takes(s, &s->choices[i]) &&
+    if (everything_takes(&s->choices[i]) &&
         (s->choices[i].filler->binds == SPROUT_SEEN_SET || s->state.each_pick == 0))
       count++;
   return count >= 2;

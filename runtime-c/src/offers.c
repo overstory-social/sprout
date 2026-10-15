@@ -10,6 +10,7 @@
 
 #include "address.h"
 #include "describe.h"
+#include "engine-verbs.h"
 #include "expr/expr.h"
 
 /* One way to fill one role: bound, with the words that type it, or left unbound. */
@@ -405,4 +406,30 @@ sprout_eval_status sprout_only_the_actor_plays(const sprout_frame *frame, const 
     }
   }
   return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_all_rule_of(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                      sprout_all_rule *out) {
+  out->verb = verb;
+  out->role = role;
+  out->every_thing = true;
+  if (sprout_is_engine_verb(verb)) return SPROUT_EVAL_OK;
+  return sprout_only_the_actor_plays(frame, verb, role, &out->every_thing);
+}
+
+bool sprout_all_takes(const sprout_all_rule *rule, const sprout_stored_instance *thing, sprout_str actor, sprout_str here,
+                      bool carried) {
+  const sprout_role *role = rule->role;
+  const sprout_verb *verb = rule->verb;
+  size_t r;
+  if (role->filler != SPROUT_FILLER_OPEN && role->filler != SPROUT_FILLER_KIND) return false;
+  if (thing->kind == NULL || sprout_str_same(thing->id, actor) || sprout_str_same(thing->id, here)) return false;
+  if (role->carried && !carried) return false;
+  if (role->filler == SPROUT_FILLER_KIND) return role->filler_kind != NULL && expr_composes(thing->kind, role->filler_kind->qualified);
+  if (rule->every_thing) return !thing->kind->composes_actor;
+  for (r = 0; r < verb->role_count; r++) {
+    const sprout_play_group *group = sprout_own_plays(verb, verb->roles[r].name, thing->kind);
+    if (group != NULL && group->count > 0) return true;
+  }
+  return false;
 }

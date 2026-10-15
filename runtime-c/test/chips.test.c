@@ -8,7 +8,7 @@
 #include "check.h"
 #include "chips.h"
 
-static const sprout_seen_filler UNBOUND_TOPIC = {"topic", SPROUT_SEEN_UNBOUND, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, NULL, {NULL, 0}}};
+static const sprout_seen_filler UNBOUND_TOPIC = {"topic", SPROUT_SEEN_UNBOUND, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, NULL, {NULL, 0}}, false};
 
 static sprout_seen_filler object(const char *role, const char *id, const char *name) {
   sprout_seen_filler filler;
@@ -146,7 +146,7 @@ static void the_tree_is_written_as_json_in_the_form_the_view_specs_write(void) {
   CHECK_BYTES(bytes, length,
               "[{\"verb\":\"w.look\",\"next\":{\"choices\":[],\"leaf\":{\"typed\":\"look\",\"refused\":null,\"options\":[]}}},"
               "{\"verb\":\"w.say\",\"next\":{\"choices\":[{\"filler\":{\"role\":\"target\",\"binds\":\"object\",\"id\":\"w.pear\","
-              "\"name\":\"a pear\"},\"next\":{\"choices\":[],\"leaf\":{\"typed\":\"say pear \xe2\x80\xa6\",\"refused\":null,"
+              "\"name\":\"a pear\",\"all\":false},\"next\":{\"choices\":[],\"leaf\":{\"typed\":\"say pear \xe2\x80\xa6\",\"refused\":null,"
               "\"options\":[]}}}],\"leaf\":null}}]");
   sprout_arena_reset(&arena);
   CHECK_INT(heap.pages, 0);

@@ -101,9 +101,17 @@ const Thing = z.object({ id: text, name: text }).strict();
 
 /** What fills one role of a reading (`lang`'s `SeenFiller`). */
 const SentFiller = z.discriminatedUnion('binds', [
-  z.object({ role: named, binds: z.literal('object'), id: text, name: text }).strict(),
   z
-    .object({ role: named, binds: z.literal('set'), ids: z.array(text), names: z.array(text) })
+    .object({ role: named, binds: z.literal('object'), id: text, name: text, all: z.boolean() })
+    .strict(),
+  z
+    .object({
+      role: named,
+      binds: z.literal('set'),
+      ids: z.array(text),
+      names: z.array(text),
+      all: z.boolean(),
+    })
     .strict(),
   z
     .object({

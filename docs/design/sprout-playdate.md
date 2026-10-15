@@ -437,9 +437,11 @@ the roles after it are offered under the first member. Where the parser
 would read `all` for a role (Parsing › Sequences, again and all), the wheel
 offers "everything" first, before the things themselves, so it is found
 without cranking (`src/ui/everything.h`): on a level whose role binds things,
-when two or more of them can be done; a greyed thing, the visitor's own place
-and the people the view lists as here are left out, and with one thing or
-none it is not offered. For a set role it joins them all at once, at most as
+when two or more of them can be done and the view says `all` would take
+them; each filler of a thing says so, by the parser's own rule, so a greyed
+thing and what a typed `all` would pass over (the visitor's own place, the
+people here in an open role, scenery that plays no part in a world verb) are
+left out, and with one thing or none it is not offered. For a set role it joins them all at once, at most as
 many as the host lets a set role bind, and the sentence goes on to its next
 role or "that's all". For a role that takes one thing the sentence goes on
 under the first of them, and once confirmed it runs one turn for each thing,

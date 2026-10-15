@@ -388,6 +388,7 @@ typedef struct sprout_seen_filler {
   size_t member_count;
   const sprout_seen_thing *members; /* SET, one at a time as the view offers them */
   sprout_seen_exit exit;            /* EXIT */
+  bool all; /* OBJECT and SET: whether a typed `all` in the role would take the thing, or the set's first */
 } sprout_seen_filler;
 
 /* One reading a visitor could make now. */

@@ -37,6 +37,12 @@ static sprout_json *number(writer *w, double value) {
 
 static sprout_json *nothing(writer *w) { return made(w, SPROUT_JSON_NULL, 0); }
 
+static sprout_json *truth(writer *w, bool value) {
+  sprout_json *node = made(w, SPROUT_JSON_BOOL, 0);
+  if (node != NULL) node->boolean = value;
+  return node;
+}
+
 static sprout_json *paragraphs(writer *w, const sprout_str *items, size_t count) {
   sprout_json *list = made(w, SPROUT_JSON_ARRAY, count);
   size_t i;
@@ -67,7 +73,7 @@ static sprout_json *things(writer *w, const sprout_seen_thing *items, size_t cou
 }
 
 static sprout_json *filler_node(writer *w, const sprout_seen_filler *filler) {
-  sprout_json *object = made(w, SPROUT_JSON_OBJECT, 4);
+  sprout_json *object = made(w, SPROUT_JSON_OBJECT, 5);
   size_t i;
   sprout_json_adopt(object, "role", cstring(w, filler->role));
   switch (filler->binds) {
@@ -75,6 +81,7 @@ static sprout_json *filler_node(writer *w, const sprout_seen_filler *filler) {
       sprout_json_adopt(object, "binds", cstring(w, "object"));
       sprout_json_adopt(object, "id", str(w, filler->thing.id));
       sprout_json_adopt(object, "name", str(w, filler->thing.name));
+      sprout_json_adopt(object, "all", truth(w, filler->all));
       break;
     case SPROUT_SEEN_SET: {
       sprout_json *ids = made(w, SPROUT_JSON_ARRAY, filler->member_count);
@@ -86,6 +93,7 @@ static sprout_json *filler_node(writer *w, const sprout_seen_filler *filler) {
       sprout_json_adopt(object, "binds", cstring(w, "set"));
       sprout_json_adopt(object, "ids", ids);
       sprout_json_adopt(object, "names", names);
+      sprout_json_adopt(object, "all", truth(w, filler->all));
       break;
     }
     case SPROUT_SEEN_EXIT:

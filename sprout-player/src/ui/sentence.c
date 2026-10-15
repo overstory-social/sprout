@@ -492,7 +492,7 @@ static const char *pick_everything(sentence *s, sentence_state *state) {
   state->member_count = 0;
   for (i = 0; i < s->choice_count; i++) {
     const sentence_choice *choice = &s->choices[i];
-    if (!everything_takes(s, choice)) continue;
+    if (!everything_takes(choice)) continue;
     if (count == 0) {
       first = i;
       set = choice->filler->binds == SPROUT_SEEN_SET;

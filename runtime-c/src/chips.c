@@ -18,7 +18,7 @@ static bool same_text(const char *a, const char *b) { return a == NULL || b == N
 /* Whether two fillers are written alike, field for field. */
 static bool same_filler(const sprout_seen_filler *a, const sprout_seen_filler *b) {
   size_t i;
-  if (strcmp(a->role, b->role) != 0 || a->binds != b->binds) return false;
+  if (strcmp(a->role, b->role) != 0 || a->binds != b->binds || a->all != b->all) return false;
   switch (a->binds) {
     case SPROUT_SEEN_OBJECT:
       return same_thing(&a->thing, &b->thing);
