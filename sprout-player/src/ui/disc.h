@@ -5,9 +5,8 @@
  * circle would hold are a longer wheel that wraps, since only a part of it is ever shown. The crank
  * turns it, and once the crank rests it settles on the nearest sector. The sentence (sentence.h)
  * holds the entries and the selection; this is where each sits this frame, when the disc comes to
- * rest, and how a word's pixels are turned to lie along its ray. Nothing here draws: the firmware's
- * own rotation is not used (it corrupts the player's memory on the device), so a label is turned here,
- * a pixel at a time.
+ * rest, and how a word's pixels are turned to lie along its ray. Nothing here draws: the player
+ * turns a label itself, a pixel at a time, and never calls the firmware's `drawRotatedBitmap`.
  */
 #ifndef PLAYER_UI_DISC_H
 #define PLAYER_UI_DISC_H

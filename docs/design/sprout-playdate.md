@@ -471,9 +471,8 @@ with the crank, every word with it; once the crank has rested for a few
 frames it settles on the nearest sector, completing a step the crank took
 past halfway rather than sliding back. Each word is drawn once into a
 one-bit label while its level stands and turned to its ray in the player's
-own code, a pixel at a time, while its angle stands; the firmware's
-`drawRotatedBitmap` corrupts the player's memory on the console and is not
-used. Each sector passing the front ticks, the disc settling clacks, a pick
+own code, a pixel at a time, while its angle stands, and never with the
+firmware's `drawRotatedBitmap`. Each sector passing the front ticks, the disc settling clacks, a pick
 and a step back each sound a note and a refusal a buzz (`src/ui/sound.h`: short notes on the
 SDK's synths, silent where there is no sound to play on). The fonts are
 Panic's Asheville Sans 24 Light and Roobert 10 Bold (CC BY 4.0), shipped
