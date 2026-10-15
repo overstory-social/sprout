@@ -485,10 +485,14 @@ word.
 
 ### Saves
 
-A world is saved after every committed turn: `saves/<bundle hash>.json` is
-the stored world, byte for byte what `sproutc` reads and writes, and
-`saves/<bundle hash>.log` is the last 32 log entries and the clamp's
-seconds.
+A world is saved after every input that committed a turn:
+`saves/<bundle hash>.json` is the stored world, byte for byte what `sproutc`
+reads and writes, and `saves/<bundle hash>.log` is the last 32 log entries
+and the clamp's seconds. One input is one save however many turns it runs: a
+sentence with `everything` for a role that takes one thing runs a turn for
+each thing in one frame, the log written at each, and the state is written
+once, after the last, as a single turn's is. A crash part way through such a
+line loses the line.
 
 A bundle with another hash is a redeploy and starts afresh, with the old
 save unused. A save that will not read is set aside as `.damaged` and the
@@ -511,7 +515,8 @@ replaces a file; a read that finds no save reads the `.tmp`, so a save cut
 short at any point leaves the last whole state readable, and a half-written
 `.part` is never read. The state does not change under the writer: a turn
 asked before the save is done (a command, a tick, an arrival, a departure)
-first writes the rest of it in that frame, then runs. Leaving the world,
+first writes the rest of it in that frame, then runs; the later turns of a
+line, which nothing writes between, are the exception. Leaving the world,
 "start over" (which drops the save rather than finishing it), opening the
 system menu (`kEventPause`), locking the device and its low-power sleep all
 write what is owed first, so the state is on disk whenever the app could be

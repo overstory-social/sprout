@@ -136,15 +136,15 @@ static void close_builder(player_app *app, player_builder *b) {
 
 /*
  * One turn of the sentence: the reader is told `phrase` as typed and then what the turn told; `text`, where not
- * NULL, is the line the log keeps for it. `*goes_on` whether a line of turns goes on past it. False where play
- * stopped, as the save failed.
+ * NULL, is the line the log keeps for it, and `continues` says it is a later step of the line. `*goes_on` whether
+ * a line of turns goes on past it. False where play stopped, as the save failed.
  */
 static bool take_turn(player_app *app, player_builder *b, const sprout_reading *reading, const char *phrase,
-                      const char *text, bool *kept, bool *goes_on) {
+                      const char *text, bool continues, bool *kept, bool *goes_on) {
   transcript *t = &b->reader->lines;
   player_told told;
   *kept = transcript_push(t, "typed", phrase, strlen(phrase)) && *kept;
-  told = player_turn(app->session, reading, text);
+  told = player_turn(app->session, reading, text, continues);
   if (told.ok && !told.saved) {
     player_shelf_unsaved(app);
     return false;
@@ -160,7 +160,8 @@ static bool take_turn(player_app *app, player_builder *b, const sprout_reading *
 /*
  * Runs the sentence confirmed and the reader takes over. A sentence with `everything` for a role that takes one
  * thing is a turn for each of its things, each told as its own sentence and logged under the whole one, until one
- * does not let the line go on (the spec's Parsing › Sequences, again and all).
+ * does not let the line go on (the spec's Parsing › Sequences, again and all). The line is one input and one save:
+ * its state is written once, after its last step.
  */
 static void run(player_app *app, player_builder *b) {
   transcript *t = &b->reader->lines;
@@ -170,11 +171,11 @@ static void run(player_app *app, player_builder *b) {
   bool kept = true, goes_on = true;
   if (turns == 0) {
     sentence_reading(&b->sentence, &reading);
-    if (!take_turn(app, b, &reading, sentence_phrase(&b->sentence), NULL, &kept, &goes_on)) return;
+    if (!take_turn(app, b, &reading, sentence_phrase(&b->sentence), NULL, false, &kept, &goes_on)) return;
   }
   for (k = 0; k < turns && goes_on; k++) {
     sentence_each(&b->sentence, k, &reading, &phrase);
-    if (!take_turn(app, b, &reading, phrase, sentence_phrase(&b->sentence), &kept, &goes_on)) return;
+    if (!take_turn(app, b, &reading, phrase, sentence_phrase(&b->sentence), k > 0, &kept, &goes_on)) return;
   }
   kept = player_reader_look(app, b->reader, NULL) && kept;
   transcript_scroll(t, -(long)t->offset);
