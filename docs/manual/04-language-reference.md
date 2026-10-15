@@ -480,6 +480,13 @@ grammar {
   `this` or `that` at the label's start may be typed or left out, so with
   the label `"the trap door"`, `go trap door` works, and with `"tree"`,
   `go the tree`.
+- A direction may be followed by `through`, `into`, `down` or `up` and the
+  way's own label: with `exit south "the crawlway"`, `go south through the
+  crawlway` works, and so does `go through the crawlway` or `go into the
+  crawlway`. A label that some other way carries, `go south through the
+  window`, is answered as a wrong way is.
+- `walk`, `crawl` and `run` are the standard library's other words for
+  `go`: `crawl south`, `walk through the crawlway`.
 - The destination is a place, by identifier or dotted path. An exit may
   only be written on a place, and may only lead to one.
 - A place has at most 8 exits by default.
@@ -1332,7 +1339,7 @@ you can add words or translate them.
 
 | verb        | phrases                                         | answer                                                                |
 | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- |
-| `go`        | `go [way]`, `[way]`, `walk [way]`, `go through [way]`, `enter [way]` | moves the actor through an exit or link, then describes the new place |
+| `go`        | `go [way]`, `[way]`, `go through [way]`, `go into [way]`, `enter [way]`; synonyms `walk`, `crawl`, `run` | moves the actor through an exit or link, then describes the new place |
 | `look`      | `look`, `l`, `look around`                      | the actor's place's `describe`                                        |
 | `examine`   | `examine [x]`, `x [x]`, `look at [x]`, `inspect [x]`, `describe [x]`, `check [x]` | the thing's `describe`, or the world's `unremarkable`, then its `contents` |
 | `inventory` | `inventory`, `i`, `inv`                         | the actor's `inventory` passage                                       |

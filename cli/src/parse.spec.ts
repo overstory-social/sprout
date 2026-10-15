@@ -22,9 +22,18 @@ lane.turn (target, notch: integer optional)
 sprout.go (way: exit)
   go [way]
   [way]
-  walk [way]
   go through [way]
+  go into [way]
   enter [way]
+  walk [way]
+  walk through [way]
+  walk into [way]
+  crawl [way]
+  crawl through [way]
+  crawl into [way]
+  run [way]
+  run through [way]
+  run into [way]
 
 sprout.look
   look

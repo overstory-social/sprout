@@ -14,6 +14,7 @@ static const char *const ALL_WORDS[] = {"all", "everything"};
 static const char *const PARSER_WORDS[] = {"then", "again", "g", "all", "everything", "except"};
 static const char *const DIRECTIONS[] = {"north", "south",     "east",      "west", "northeast", "northwest",
                                          "southeast", "southwest", "up", "down",      "in",        "out"};
+static const char *const WAY_WORDS[] = {"through", "into", "down", "up"};
 static const char *const PRONOUN_WORDS[] = {"it", "them", "him", "her"};
 static const char *const PRONOUNS_MEANT[] = {"it", "they", "he", "she"};
 static const char *const ABBREVIATED[] = {"n", "s", "e", "w", "ne", "nw", "se", "sw", "u", "d"};
@@ -24,7 +25,8 @@ static const char *const ABBREVIATES[] = {"north",     "south",     "east",     
 
 const parse_list parse_lists[] = {LIST("determiners", DETERMINERS),      LIST("connectors", CONNECTORS),
                                   LIST("relativeWords", RELATIVE_WORDS), LIST("allWords", ALL_WORDS),
-                                  LIST("parserWords", PARSER_WORDS),     LIST("directions", DIRECTIONS)};
+                                  LIST("parserWords", PARSER_WORDS),     LIST("directions", DIRECTIONS),
+                                  LIST("wayWords", WAY_WORDS)};
 const size_t parse_list_count = sizeof parse_lists / sizeof *parse_lists;
 
 const parse_pairs parse_pair_lists[] = {
@@ -46,6 +48,8 @@ static bool among(sprout_str word, const char *const *words, size_t count) {
 bool parse_is_determiner(sprout_str word) { return among(word, DETERMINERS, sizeof DETERMINERS / sizeof *DETERMINERS); }
 
 bool parse_is_connector(sprout_str word) { return among(word, CONNECTORS, sizeof CONNECTORS / sizeof *CONNECTORS); }
+
+bool parse_is_way_word(sprout_str word) { return among(word, WAY_WORDS, sizeof WAY_WORDS / sizeof *WAY_WORDS); }
 
 bool parse_is_all(sprout_str word) { return among(word, ALL_WORDS, sizeof ALL_WORDS / sizeof *ALL_WORDS); }
 

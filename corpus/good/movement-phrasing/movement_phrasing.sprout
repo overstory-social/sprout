@@ -1,0 +1,41 @@
+// Movement as players phrase it (the spec's Verbs › Exits; Parsing ›
+// Synonyms): a direction followed by `through`, `into`, `down` or `up`
+// and that way's own label, `go through` or `go into` a label, and the
+// standard library's `walk`, `crawl` and `run` for `go`. A direction
+// with a label some other way carries is a wrong way, `no_way`; words
+// that are no way at all are `unknown`, as is `climb`, which the
+// library leaves to a world.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world movement_phrasing is sprout.World {
+  visitors are Person
+  visitors arrive at chamber
+
+  object chamber is sprout.Place {
+    grammar {
+      name "low chamber"
+      exit south "the crawlway"  -> den
+      exit west  "a hole"        -> pit
+      exit east  "the crack"     -> ledge
+      exit north "up the ladder" -> loft
+      exit down  "the grate"     refuse "The grate is locked."
+    }
+  }
+
+  object den is sprout.Place {
+    grammar { exit north "the crawlway" -> chamber }
+  }
+
+  object pit is sprout.Place {
+    grammar { exit up "out" -> chamber }
+  }
+
+  object ledge is sprout.Place {
+    grammar { exit west "the crack" -> chamber }
+  }
+
+  object loft is sprout.Place {
+    grammar { exit down "the ladder" -> chamber }
+  }
+}

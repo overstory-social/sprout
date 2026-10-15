@@ -1,0 +1,65 @@
+{
+  "about": "Movement as players phrase it: a direction through, into or up that way's own label, or a label that begins with that word, and through or into a label alone; `walk`, `crawl` and `run` as `go`. A way that refuses answers with its words however it is named. A direction with a label another way carries is `no_way`; a direction through words no way carries is `unknown`, as `climb` is, a world's word.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "go south through the crawlway", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a den." }
+    ] },
+    { "as": "Marta", "type": "go north into the crawlway", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "go west into the hole", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a pit." }
+    ] },
+    { "as": "Marta", "type": "go up", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "go through the crack", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a ledge." }
+    ] },
+    { "as": "Marta", "type": "go west through the crack", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "go into the crack", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a ledge." }
+    ] },
+    { "as": "Marta", "type": "walk west", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "crawl south", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a den." }
+    ] },
+    { "as": "Marta", "type": "crawl through the crawlway", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "run east", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a ledge." }
+    ] },
+    { "as": "Marta", "type": "walk into the crack", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "go north up the ladder", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a loft." }
+    ] },
+    { "as": "Marta", "type": "go down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
+    ] },
+    { "as": "Marta", "type": "go down through the grate", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "The grate is locked." }
+    ] },
+    { "as": "Marta", "type": "go south through the hole", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't go that way." }
+    ] },
+    { "as": "Marta", "type": "go east through the crawlway", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't go that way." }
+    ] },
+    { "as": "Marta", "type": "go south through the bananas", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "climb north", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}
