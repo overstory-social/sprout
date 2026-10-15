@@ -5,8 +5,9 @@
  * for each reader is the prose layer's. Who reads it is found here: `tell x`
  * reaches `x` where `x` is a person in the teller's range, and a plain,
  * `inside` or `outside` `tell` reaches the people around the teller that the
- * pass rules let its voice reach, less whom the reading it stands in already
- * addresses. Only a person reads: a line told to anything else goes nowhere.
+ * pass rules let its voice reach, its holder among them, less whom the reading
+ * it stands in already addresses. Only a person reads: a line told to anything
+ * else goes nowhere.
  */
 #include <string.h>
 
@@ -96,35 +97,49 @@ bool sprout_surround_of(const sprout_frame *frame, sprout_str id, sprout_str *su
   return false;
 }
 
-/* Whether a voice from `teller` carries out to `surround`: every container between, and `surround`, must pass. */
-static sprout_eval_status opens_outward(const sprout_frame *frame, sprout_str teller, sprout_str surround, bool *open) {
-  sprout_str at = teller;
-  *open = false;
-  while (!sprout_str_same(at, surround)) {
+/*
+ * Who hears `teller` around it: each person on the way out to `surround` whom the walk reaches as a surface,
+ * every container between passing, as a holder is reached from what is in their hands; and, where every
+ * container on the way and `surround` pass, the people `surround` holds. A person passes nothing, so a carried
+ * thing is heard by the hands that hold it and by nobody past them.
+ */
+static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *frame, sprout_str teller,
+                                  const sprout_str **out, size_t *count) {
+  sprout_str surround, at = teller;
+  sprout_str *heard = NULL;
+  size_t heard_count = 0, capacity = 0, n, i;
+  bool open = true;
+  const sprout_str *held, *within;
+  size_t within_count = 0;
+  *out = NULL;
+  *count = 0;
+  if (!sprout_surround_of(frame, teller, &surround)) return SPROUT_EVAL_OK;
+  while (open && !sprout_str_same(at, surround)) {
     const sprout_stored_instance *instance = expr_instance(frame, at);
     if (instance == NULL || !instance->has_container) return SPROUT_EVAL_OK;
     at = instance->container;
     EXPR_NEED(expr_spend(frame));
-    EXPR_NEED(expr_passes(frame, at, NULL, open));
-    if (!*open) return SPROUT_EVAL_OK;
+    if (sprout_is_person(frame, at) && !listed(x->left_out, x->left_out_count, at)) {
+      sprout_str *slot = (sprout_str *)sprout_exec_grow(x->turn, (void **)&heard, &heard_count, &capacity, sizeof *heard);
+      if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+      *slot = at;
+    }
+    EXPR_NEED(expr_passes(frame, at, NULL, &open));
   }
-  *open = true;
+  if (open) {
+    EXPR_NEED(children(frame, surround, &held, &n));
+    EXPR_NEED(persons_except(x, frame, held, n, &within, &within_count));
+    for (i = 0; i < within_count; i++) {
+      sprout_str *slot;
+      if (listed(heard, heard_count, within[i])) continue;
+      slot = (sprout_str *)sprout_exec_grow(x->turn, (void **)&heard, &heard_count, &capacity, sizeof *heard);
+      if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
+      *slot = within[i];
+    }
+  }
+  *out = heard;
+  *count = heard_count;
   return SPROUT_EVAL_OK;
-}
-
-static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *frame, sprout_str teller,
-                                  const sprout_str **out, size_t *count) {
-  sprout_str surround;
-  bool open;
-  const sprout_str *held;
-  size_t n;
-  *out = NULL;
-  *count = 0;
-  if (!sprout_surround_of(frame, teller, &surround)) return SPROUT_EVAL_OK;
-  EXPR_NEED(opens_outward(frame, teller, surround, &open));
-  if (!open) return SPROUT_EVAL_OK;
-  EXPR_NEED(children(frame, surround, &held, &n));
-  return persons_except(x, frame, held, n, out, count);
 }
 
 sprout_eval_status sprout_told_to(const sprout_exec *x, const sprout_frame *frame, sprout_str teller,

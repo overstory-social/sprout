@@ -3,11 +3,13 @@
  * Who hears it; Prose > Engine lines): who reads what is told. `tell x`
  * reaches `x` only where it is a person in the teller's range; a plain,
  * `inside` or `outside` `tell` reaches the people around the teller that the
- * pass rules let its voice reach, less whom the reading already addresses.
+ * pass rules let its voice reach, its holder among them, less whom the reading
+ * already addresses.
  * The engine's lines are found on the one they are about, then its place,
  * then the world.
  */
 #include "exec_fixture.h"
+#include "turn_fixture.h"
 
 static bool has(const sprout_str *ids, size_t count, const char *id) {
   size_t i;
@@ -91,6 +93,124 @@ static void a_tell_to_one_reaches_a_person_in_range_and_nobody_else(void) {
   exec_bench_close(&b);
 }
 
+/* The chapel of `corpus/good/carried-tells`, Wren and Marta standing in it, and its candle lit; the wake it asked for. */
+static uint64_t chapel_lit(turn_world *w) {
+  sprout_outcome out;
+  const sprout_stored_instance *candle;
+  tw_open(w, "carried-tells");
+  tw_arrive(w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_arrive(w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_do(w, "v-wren", "light", "chapel.candle", 1000, &out);
+  sprout_outcome_free(&out);
+  candle = tw_instance(w, "carried_tells.chapel.candle");
+  CHECK(candle != NULL && candle->wake_count == 1);
+  return candle != NULL && candle->wake_count == 1 ? candle->wakes[0].serial : 0;
+}
+
+/* Runs `visit`'s `verb` of the standard library on the candle, as its `role`, and with `other` in `other_role`. */
+static void chapel_do(turn_world *w, const char *visit, const char *verb, const char *role, const char *other_role,
+                      const char *other) {
+  sprout_filling fillings[2];
+  sprout_reading reading = tw_reading(verb, tw_person(w, visit), &fillings[0], role, "carried_tells.chapel.candle");
+  sprout_outcome out;
+  if (other_role != NULL) {
+    memset(&fillings[1], 0, sizeof fillings[1]);
+    fillings[1].role = other_role;
+    fillings[1].binds = SPROUT_FILL_OBJECT;
+    fillings[1].id = other;
+    reading.filling_count = 2;
+    reading.fillings = fillings;
+  }
+  tw_command(w, visit, &reading, 1000, &out);
+  CHECK(out.committed);
+  sprout_outcome_free(&out);
+}
+
+/* The thing `visit` was given to carry on their first arrival: the tin. */
+static const char *tin_of(turn_world *w, const char *visit) {
+  const char *person = tw_person(w, visit);
+  size_t i;
+  for (i = 0; i < w->state->instance_count; i++) {
+    const sprout_stored_instance *one = &w->state->instances[i];
+    if (one->has_container && one->container.length == strlen(person) &&
+        memcmp(one->container.bytes, person, one->container.length) == 0)
+      return one->id.bytes;
+  }
+  return "";
+}
+
+/* Delivers the candle's wake `serial` at `instant`; the outcome in `out`. */
+static void candle_woken(turn_world *w, uint64_t serial, uint64_t instant, sprout_outcome *out) {
+  sprout_turn_input wake = tw_input(SPROUT_TURN_WAKE, instant);
+  wake.object = "carried_tells.chapel.candle";
+  wake.serial = serial;
+  CHECK_INT(tw_run(w, wake, 0, out), SPROUT_OK);
+  CHECK(out->committed);
+}
+
+static uint64_t next_wake(turn_world *w) {
+  const sprout_stored_instance *candle = tw_instance(w, "carried_tells.chapel.candle");
+  CHECK(candle != NULL && candle->wake_count == 1);
+  return candle != NULL && candle->wake_count == 1 ? candle->wakes[0].serial : 0;
+}
+
+static void a_thing_in_a_persons_hands_is_heard_by_them_and_nobody_else(void) {
+  turn_world w;
+  sprout_outcome out;
+  uint64_t serial = chapel_lit(&w);
+  /* Set down in the chapel, everyone there hears it. */
+  candle_woken(&w, serial, 1060, &out);
+  CHECK_INT(out.line_count, 2);
+  CHECK(tw_told(&out, "v-wren", "The candle grows shorter."));
+  CHECK(tw_told(&out, "v-marta", "The candle grows shorter."));
+  sprout_outcome_free(&out);
+  chapel_do(&w, "v-wren", "sprout.take", "target", NULL, NULL);
+  candle_woken(&w, next_wake(&w), 1120, &out);
+  CHECK_INT(out.line_count, 1);
+  CHECK(tw_told(&out, "v-wren", "The candle grows shorter."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_thing_in_an_open_container_a_person_carries_is_heard_by_them_and_in_a_shut_one_by_nobody(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading close;
+  uint64_t serial = chapel_lit(&w);
+  const char *tin = tin_of(&w, "v-wren");
+  CHECK(tin[0] != '\0');
+  chapel_do(&w, "v-wren", "sprout.take", "target", NULL, NULL);
+  chapel_do(&w, "v-wren", "sprout.put", "item", "container", tin);
+  candle_woken(&w, serial, 1060, &out);
+  CHECK_INT(out.line_count, 1);
+  CHECK(tw_told(&out, "v-wren", "The candle grows shorter."));
+  sprout_outcome_free(&out);
+  close = tw_reading("sprout.close", tw_person(&w, "v-wren"), &filling, "target", tin);
+  tw_command(&w, "v-wren", &close, 1060, &out);
+  CHECK(out.committed);
+  sprout_outcome_free(&out);
+  candle_woken(&w, next_wake(&w), 1120, &out);
+  CHECK_INT(out.line_count, 0);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_thing_in_someone_elses_hands_is_not_heard(void) {
+  turn_world w;
+  sprout_outcome out;
+  uint64_t serial = chapel_lit(&w);
+  chapel_do(&w, "v-marta", "sprout.take", "target", NULL, NULL);
+  candle_woken(&w, serial, 1060, &out);
+  CHECK_INT(out.line_count, 1);
+  CHECK(tw_told(&out, "v-marta", "The candle grows shorter."));
+  CHECK(!tw_told(&out, "v-wren", "The candle grows shorter."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void an_engine_line_is_found_on_the_one_it_is_about_then_its_place_then_the_world(void) {
   exec_bench b;
   exec_case c;
@@ -153,6 +273,9 @@ int main(void) {
   RUN(a_tell_leaves_out_the_people_the_reading_addresses);
   RUN(a_place_that_holds_actors_has_two_audiences);
   RUN(a_tell_to_one_reaches_a_person_in_range_and_nobody_else);
+  RUN(a_thing_in_a_persons_hands_is_heard_by_them_and_nobody_else);
+  RUN(a_thing_in_an_open_container_a_person_carries_is_heard_by_them_and_in_a_shut_one_by_nobody);
+  RUN(a_thing_in_someone_elses_hands_is_not_heard);
   RUN(an_engine_line_is_found_on_the_one_it_is_about_then_its_place_then_the_world);
   RUN(effects_are_recorded_in_order_with_the_names_in_scope);
   RUN(the_golden_speech_cases_end_as_the_typescript_runtime_did);
