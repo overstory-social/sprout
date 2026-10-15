@@ -12,9 +12,8 @@
 // It is the worked microworld's library, declaration for declaration, with two
 // differences: `Lockable` is in `sprout/lockable.sprout`, the file named
 // for it, where the worked microworld writes `sprout/lock.sprout`; and `go`
-// reads `go into [way]` and takes `walk`, `crawl` and `run` as synonyms, a
-// change to the spec's listing that awaits Eric (the working notes' Holes,
-// 479).
+// reads `go into [way]` and takes `walk`, `crawl` and `run` as synonyms,
+// where the spec's listing writes `walk [way]` as a phrase and has neither.
 
 import type { LibrarySource } from './bundle.js';
 import { SourceFile } from '../source/source.js';
