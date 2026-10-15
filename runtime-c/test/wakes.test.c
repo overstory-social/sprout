@@ -1,7 +1,8 @@
 /*
  * Tests for src/wakes.c (the spec's Time > Wakes; Limits > Runtime budgets):
  * a `wake` asks for one wake under the world's next serial, due no sooner
- * than the host's floor; one past the host's cap faults; wakes are kept
+ * than the host's floor; a count worked out below nothing, or past what
+ * `elapsed` can carry, faults; one past the host's cap faults; wakes are kept
  * oldest first; `cancel wakes` takes back every wake the object has pending
  * and with none does nothing. Nothing reads a clock: the instant is the one
  * the turn was handed.
@@ -51,6 +52,50 @@ static void a_wake_past_the_pending_cap_faults_and_writes_nothing(void) {
   exec_bench_close(&b);
 }
 
+static void a_count_is_counted_in_its_unit_and_a_short_one_raised_to_the_floor(void) {
+  exec_bench b;
+  exec_case c;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a wake asked for longer is kept"));
+  CHECK_INT(sprout_wake_in(&c.x, &c.frame, 0, "minutes"), SPROUT_EVAL_OK);
+  CHECK_INT(runner(&c)->wakes[0].due_at, 1060);
+  exec_case_close(&c);
+  exec_case_open(&b, &c, exec_named(&b, "a wake asked for longer is kept"));
+  CHECK_INT(sprout_wake_in(&c.x, &c.frame, 2, "hours"), SPROUT_EVAL_OK);
+  CHECK_INT(runner(&c)->wakes[0].due_at, 1000 + 2 * 3600);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
+static void a_count_below_nothing_faults_against_the_object_and_asks_for_nothing(void) {
+  exec_bench b;
+  exec_case c;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a wake asked for longer is kept"));
+  CHECK_INT(sprout_wake_in(&c.x, &c.frame, -1, "seconds"), SPROUT_EVAL_FAULT);
+  CHECK_STR(c.fault.name, "WakeFault");
+  CHECK(c.fault.has_object);
+  CHECK_STR(c.fault.text, "`exec_bench.hall.runner` asked for a wake in -1 seconds, which is less than no time at all.");
+  CHECK_INT(runner(&c)->wake_count, 0);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
+static void a_count_longer_than_elapsed_can_carry_faults(void) {
+  exec_bench b;
+  exec_case c;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a wake asked for longer is kept"));
+  CHECK_INT(sprout_wake_in(&c.x, &c.frame, 596524, "hours"), SPROUT_EVAL_FAULT);
+  CHECK_STR(c.fault.name, "WakeFault");
+  CHECK_STR(c.fault.text,
+            "`exec_bench.hall.runner` asked for a wake in 596524 hours, longer than a wake can wait: 2147483647 seconds at most.");
+  CHECK_INT(runner(&c)->wake_count, 0);
+  CHECK_INT(sprout_wake_in(&c.x, &c.frame, 2147483647, "seconds"), SPROUT_EVAL_OK);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void wakes_are_kept_oldest_first_by_when_they_fall_due(void) {
   exec_bench b;
   exec_case c;
@@ -94,6 +139,9 @@ int main(void) {
   RUN(a_wake_is_raised_to_the_hosts_shortest_and_due_from_the_turns_instant);
   RUN(a_wake_asked_for_longer_than_the_floor_is_kept);
   RUN(a_wake_past_the_pending_cap_faults_and_writes_nothing);
+  RUN(a_count_is_counted_in_its_unit_and_a_short_one_raised_to_the_floor);
+  RUN(a_count_below_nothing_faults_against_the_object_and_asks_for_nothing);
+  RUN(a_count_longer_than_elapsed_can_carry_faults);
   RUN(wakes_are_kept_oldest_first_by_when_they_fall_due);
   RUN(cancel_wakes_takes_back_every_pending_wake);
   RUN(the_golden_wake_cases_end_as_the_typescript_runtime_did);

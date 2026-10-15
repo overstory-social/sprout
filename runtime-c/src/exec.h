@@ -343,8 +343,14 @@ sprout_eval_status sprout_record_refusal(sprout_exec *x, const sprout_frame *fra
 
 /* ---- wakes.c ---- */
 
-/* `wake in <count> <unit>` run by `frame->self`: one wake asked at the turn's instant, no sooner than the host's floor. */
+/* One wake asked by `frame->self` at the turn's instant, `seconds` from then or the host's floor, whichever is later. */
 sprout_eval_status sprout_wake_ask(sprout_exec *x, const sprout_frame *frame, uint64_t seconds);
+
+/*
+ * `wake in <count> <unit>` run by `frame->self`, its count worked out: sprout_wake_ask for the seconds it comes
+ * to, or a WakeFault where that is below nothing or past what `elapsed` can carry.
+ */
+sprout_eval_status sprout_wake_in(sprout_exec *x, const sprout_frame *frame, double count, const char *unit);
 
 /* `cancel wakes` run by `frame->self`: every wake it has pending is taken back. */
 sprout_eval_status sprout_wake_cancel(sprout_exec *x, const sprout_frame *frame);

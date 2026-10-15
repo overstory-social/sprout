@@ -104,7 +104,7 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
   {
     word: 'wake',
     example: 'wake in 10 minutes',
-    does: 'asks to be sent `:woke` later, in seconds, minutes or hours',
+    does: 'asks to be sent `:woke` later, in seconds, minutes or hours; how long may be worked out in brackets, as in `wake in (self.get(:delay)) minutes`',
   },
   {
     word: 'cancel',

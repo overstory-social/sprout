@@ -1960,7 +1960,15 @@ wake in 40 minutes
 wake in 90 seconds
 ```
 
-The unit is always plural (`wake in 1 hours`). When the time comes, the
+The unit is always plural (`wake in 1 hours`). How long may also be
+worked out when the statement runs, from any whole-number expression in
+brackets:
+
+```sprout
+wake in (self.get(:delay)) minutes
+```
+
+A worked-out wait below nothing is a fault. When the time comes, the
 object is sent `:woke`, with `elapsed` the seconds since it asked — which
 may be more than it asked for, if the world was empty or busy. Use it:
 

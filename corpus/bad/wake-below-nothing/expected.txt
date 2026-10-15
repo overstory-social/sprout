@@ -1,0 +1,4 @@
+timer.sprout:8:16  `wake in (-5) minutes` waits less than no time at all.
+                   Wait 0 minutes or more; a wait shorter than the host's shortest wake is raised to it.
+
+refused: 1 problem

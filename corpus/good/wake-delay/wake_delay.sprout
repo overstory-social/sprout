@@ -1,0 +1,21 @@
+// A wake whose wait is worked out when it is asked: a kitchen timer rings
+// as many minutes after it is started as it has been wound on, a wait too
+// short for the host is raised to the host's shortest, and one wound back
+// below nothing faults the turn that starts it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Timer} from 'timer'
+
+world wake_delay is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    describe { text "A warm kitchen." }
+    object timer is Timer
+  }
+}
+
+verb wind   { role target  "wind [target]" }
+verb unwind { role target  "unwind [target]" }
+verb start  { role target  "start [target]" }

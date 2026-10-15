@@ -7,8 +7,8 @@ kiln.sprout:10:15         A wake counts in `hours`, always written that way.
 kiln.sprout:11:14         `wake in 3` does not say seconds, minutes or hours.
                           Write `wake in 3 hours`, `wake in 3 minutes` or `wake in 3 seconds`.
 
-kiln.sprout:12:13         How long a wake waits is a whole number, written out.
-                          Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.
+kiln.sprout:12:13         How long a wake waits is a whole number written out, or worked out in brackets.
+                          Write a whole number, as in `wake in 3 hours`, or put what it is worked out from in brackets, as in `wake in (self.get(:delay)) minutes`.
 
 kiln.sprout:13:15         `wake in 2` does not say seconds, minutes or hours.
                           Write `wake in 2 hours`, `wake in 2 minutes` or `wake in 2 seconds`.

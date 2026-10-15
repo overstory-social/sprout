@@ -321,11 +321,11 @@ give back. Text is drawn as written, on the reading that the C API's
 `drawText`, which takes no font family, has no bold or italic to read `*`
 and `_` as; the Simulator has yet to confirm it. A on the reader opens the
 sentence builder (`src/ui/builder.h`, over `src/ui/sentence.h` and
-`src/ui/drum.h`) over the session's chip levels, as The chip tree and the
+`src/ui/disc.h`) over the session's chip levels, as The chip tree and the
 crank sentence builder below describes it; a
 confirmed sentence runs through `player_turn` and is told in the reader, led
 by the sentence as typed. The reader is lent to the builder while it is up.
-The sentence so far above the drum fits the screen however long it grows: in
+The sentence so far above the disc fits the screen however long it grows: in
 the system font, else the small font, else trimmed from the left behind
 `...`, so its end, the part being built, stays in view.
 
@@ -416,7 +416,7 @@ verb's readings alone (`sprout_readings_for`: the offers and consent passes
 for one verb over what is in range, a hundredth of the whole poll), arranges
 them as the verb's subtree and keeps it; at the root a verb not yet reached
 is neither greyed nor not (`PLAYER_GREYED_UNKNOWN`), and the level under a verb says of the
-verb what the root then shows. The sentence builder asks for the verb the drum
+verb what the root then shows. The sentence builder asks for the verb the disc
 settles on, so it is greyed or not before it is picked. The caverns' whole
 tree was 223 KB of JSON and 2,194 nodes built in one poll that reset the
 console; now a level is a few hundred bytes, a verb's readings cost one
@@ -459,14 +459,21 @@ which is the order the parser binds them in
 (`corpus/good/value-first` pins it). The view offers readings and not
 intents, so the wheel has no intents at the top (hole 500).
 
-On the screen the wheel is a drum seen from the side (`src/ui/drum.h`): the
-selected word sits large in a window at the drum's front, the words either
-side curve away above and below in smaller type, and the drum turns with
-the crank, so the words rise and fall as it turns; once the crank has
-rested for a few frames the drum settles on the nearest slat, completing
-a step the crank took past halfway rather than sliding back. Each slat
-passing the window ticks, the drum settling clacks, a pick and a step back
-each sound a note and a refusal a buzz (`src/ui/sound.h`: short notes on the
+On the screen the wheel is a disc of words (`src/ui/disc.h`): a hub on the
+screen's left edge with a marker pointing at the front, and each entry a
+sector of 24 degrees fanning to the right, its word in the large font along
+its ray. The selected word lies level at the front as an inverted label (a
+greyed one dotted, its reason on the panel below); its neighbours tilt away
+above and below in the entries' order and run off the screen's edges, a
+long word cut where the screen ends. The rays dividing the sectors bend
+outward toward the rim and are drawn only where a word sits. The disc turns
+with the crank, every word with it; once the crank has rested for a few
+frames it settles on the nearest sector, completing a step the crank took
+past halfway rather than sliding back. Each word is drawn once into a
+one-bit label while its level stands and turned to its ray in the player's
+own code, a pixel at a time, while its angle stands, and never with the
+firmware's `drawRotatedBitmap`. Each sector passing the front ticks, the disc settling clacks, a pick
+and a step back each sound a note and a refusal a buzz (`src/ui/sound.h`: short notes on the
 SDK's synths, silent where there is no sound to play on). The fonts are
 Panic's Asheville Sans 24 Light and Roobert 10 Bold (CC BY 4.0), shipped
 under `Source/fonts/`.
@@ -697,8 +704,8 @@ compiled script in it; the device target is built too where
 The app has run on the Linux Simulator (SDK 3.1.2, under WSLg): the shelf
 with both graduated worlds, the arrival's loading line and bar, the nickname
 screen with the remembered name first, the reader, the sentence builder's
-fonts, greyed leaves and their reasons, the drum under the d-pad and the
-crank, the arrival's picture with its caption, the download screen's
+fonts, greyed leaves and their reasons, the disc of words under the d-pad
+and the crank, the arrival's picture with its caption, the download screen's
 permission prompt and its refusals in words, and the ticks stopping while the
 Simulator is locked and starting again after. The layout at 400 by 240 reads
 as designed.

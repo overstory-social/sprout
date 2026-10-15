@@ -2,7 +2,7 @@
  * The sentence builder's state, over the session's chip tree a
  * level at a time (player_chips; the design doc's The chip tree and the crank sentence builder).
  * The visitor picks a verb, then what fills each of its roles, then a word or a number for each
- * value role, then confirms. A verb's readings are asked for only when the drum reaches it
+ * value role, then confirms. A verb's readings are asked for only when the disc reaches it
  * (`sentence_prepare`), so at the verbs a choice not yet reached is neither greyed nor not. A set
  * role is joined from the singletons the view offers, and the roles after it are offered under its
  * first member. A finished reading lists the roles a thing fills in the tree's order and then the
@@ -25,7 +25,7 @@
 #include "pd_api.h"
 #include "session.h"
 
-/* Degrees of crank for one step of the drum. */
+/* Degrees of crank for one sector of the disc. */
 #define SENTENCE_DEGREES_PER_STEP 24.0f
 /* Numbers a d-pad left or right moves a number role by. */
 #define SENTENCE_BIG_STEP 10
@@ -54,7 +54,7 @@ typedef enum sentence_kind {
   SENTENCE_ENTRY_CONFIRM
 } sentence_kind;
 
-/* One word on the drum; its strings live until the sentence next changes. */
+/* One word on the disc; its strings live until the sentence next changes. */
 typedef struct sentence_entry {
   sentence_kind kind;
   const char *label;
@@ -87,9 +87,9 @@ typedef struct sentence_value {
 /* Where the builder is; a pick keeps the state it left so B can step back to it. */
 typedef struct sentence_state {
   sentence_stage stage;
-  size_t selected; /* the entry in the drum's window, from 0 */
+  size_t selected; /* the entry at the disc's front, from 0 */
   const char *verb;
-  size_t path[SENTENCE_MOST_PARTS]; /* the level the drum shows: 1-based picks, as player_chips takes them */
+  size_t path[SENTENCE_MOST_PARTS]; /* the level the disc shows: 1-based picks, as player_chips takes them */
   size_t depth;
   sentence_filled picks[SENTENCE_MOST_PARTS];
   size_t pick_count;
@@ -121,7 +121,7 @@ typedef struct sentence_text {
   size_t length, room;
 } sentence_text;
 
-/* One choice of the level the drum shows, copied from the session's answer. */
+/* One choice of the level the disc shows, copied from the session's answer. */
 typedef struct sentence_choice {
   const char *verb;
   const sprout_seen_filler *filler;
@@ -136,7 +136,7 @@ typedef struct sentence {
   sentence_state state;
   sentence_state *history;
   size_t history_count, history_room;
-  float crank; /* degrees the drum is turned past the selected entry, within half a step either way */
+  float crank; /* degrees the disc is turned past the selected entry, within half a step either way */
   /* the level at the state's path */
   sentence_choice *choices;
   size_t choice_count, choice_room;
@@ -144,9 +144,10 @@ typedef struct sentence {
   sentence_text level_words;
   /* words kept while the sentence lives: members' refusals */
   sentence_text kept;
-  /* what the drum shows now */
+  /* what the disc shows now, and how many times the entries have been made, so a screen can tell when they change */
   sentence_entry *entries;
   size_t entry_count, entry_room;
+  unsigned long made;
   sentence_text shown;
   sentence_text phrase;
   /* the reading built on confirming */
@@ -160,7 +161,7 @@ typedef struct sentence {
 
 /* What a pick came to. */
 typedef enum sentence_end {
-  SENTENCE_GOES_ON, /* the sentence moved on, or the drum is at a new step */
+  SENTENCE_GOES_ON, /* the sentence moved on, or the disc is at a new step */
   SENTENCE_DONE,    /* the visitor confirmed: the reading is ready */
   SENTENCE_REFUSED  /* it cannot be picked: the words say why */
 } sentence_end;
@@ -172,41 +173,41 @@ typedef enum sentence_end {
 bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const sprout_seen_view *view, const char **why);
 void sentence_free(sentence *s);
 
-/* The entries on the drum, in order; there is always at least one. */
+/* The entries on the disc, in order; there is always at least one. */
 const sentence_entry *sentence_entries(const sentence *s, size_t *count);
 
 /* The sentence so far: the verb and what has been chosen, joined by arrows. */
 const char *sentence_phrase(const sentence *s);
 
-/* Moves the drum by `steps` entries, wrapping. */
+/* Moves the disc by `steps` entries, wrapping. */
 void sentence_move(sentence *s, long steps);
 
-/* A step of the drum: a number role changes its number by `steps`, any other drum moves. */
+/* A step of the disc: a number role changes its number by `steps`, on any other level the disc moves. */
 void sentence_nudge(sentence *s, long steps);
 
-/* Whether the drum is on an integer role, where steps change the number. */
+/* Whether the disc is on an integer role, where steps change the number. */
 bool sentence_numbered(const sentence *s);
 
 /* Moves the number by `steps`, each of 1 or, when `big`, of SENTENCE_BIG_STEP; a big step past the end goes to the end. */
 void sentence_add_number(sentence *s, long steps, bool big);
 
 /*
- * Turns the crank by `degrees`. The selected entry is always the one nearest the window, so the word
- * the drum shows there is the one the panel speaks of and A picks: the drum steps as the crank passes
+ * Turns the crank by `degrees`. The selected entry is always the one nearest the front, so the word
+ * the disc shows there is the one the panel speaks of and A picks: the disc steps as the crank passes
  * halfway to the next entry, and keeps the rest. The steps.
  */
 long sentence_turn(sentence *s, float degrees);
 
-/* How far the drum is turned past the selected entry toward the next, in steps (-0.5 to 0.5). */
+/* How far the disc is turned past the selected entry toward the next, in steps (-0.5 to 0.5). */
 float sentence_fraction(const sentence *s);
 
-/* Lets the drum come to rest on the selected entry, `share` of the way a call; the fraction is 0 once it has. */
+/* Lets the disc come to rest on the selected entry, `share` of the way a call; the fraction is 0 once it has. */
 void sentence_settle(sentence *s, float share);
 
-/* Asks for the readings of the verb in the window, if the drum is at the verbs and they are not known. Whether it asked. */
+/* Asks for the readings of the verb at the front, if the disc is at the verbs and they are not known. Whether it asked. */
 bool sentence_prepare(sentence *s);
 
-/* Picks the entry in the window; for SENTENCE_REFUSED `*words` says why. A level it opens is at rest. */
+/* Picks the entry at the front; for SENTENCE_REFUSED `*words` says why. A level it opens is at rest. */
 sentence_end sentence_pick(sentence *s, const char **words);
 
 /* Steps back one pick, to its level at rest; false when the builder is already at the verbs. */

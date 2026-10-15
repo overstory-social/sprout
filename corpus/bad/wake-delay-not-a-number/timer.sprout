@@ -1,0 +1,18 @@
+// How long a wake waits may be worked out, but always as a whole number:
+// words or true-or-false are refused where they are written.
+import {start} from 'wake_delay_not_a_number'
+
+kind Timer {
+  :label "soon"
+  :ticking false
+
+  as target for start {
+    do {
+      wake in (self.get(:label)) minutes
+      wake in (self.get(:ticking)) seconds
+      say "The timer starts ticking."
+    }
+  }
+
+  on :woke (elapsed) { tell "The timer rings." }
+}

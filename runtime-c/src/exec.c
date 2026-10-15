@@ -74,15 +74,17 @@ sprout_eval_status stmt_deciding(const sprout_run *run, const sprout_frame *fram
   return SPROUT_EVAL_ENGINE;
 }
 
-/* `wake in <n> <unit>`, as the seconds it asks to wait. */
+/* `wake in <count> <unit>`: the count, written out or in brackets, evaluated here as the expression it is. */
 static sprout_eval_status wake_statement(sprout_run *run, const sprout_frame *frame, const sprout_node *node) {
-  const sprout_node *count = sprout_node_get(frame->graph, sprout_node_get(frame->graph, node, "count"), "value");
+  const sprout_node *count = sprout_node_get(frame->graph, node, "count");
   const char *unit = sprout_node_text(frame->graph, node, "unit");
-  double seconds;
+  sprout_evaluated evaluated;
+  double value;
   EXPR_NEED(stmt_acting(run, frame, "`wake`"));
   if (count == NULL || unit == NULL) return expr_unchecked(frame, "a `wake` with no count");
-  seconds = sprout_node_number(frame->graph, count) * (strcmp(unit, "hours") == 0 ? 3600 : strcmp(unit, "minutes") == 0 ? 60 : 1);
-  return sprout_wake_ask(run->x, frame, (uint64_t)seconds);
+  EXPR_NEED(sprout_eval(frame, count, &evaluated));
+  EXPR_NEED(expr_as_integer(frame, &evaluated, &value));
+  return sprout_wake_in(run->x, frame, value, unit);
 }
 
 /* A `let`: the value, or the new instance of a `spawn`, bound for the rest of the block. */

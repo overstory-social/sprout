@@ -1,5 +1,5 @@
-// A wake says `in`, a whole number written out, and `seconds`, `minutes`
-// or `hours`, always plural.
+// A wake says `in`, how long as a whole number written out or worked
+// out in brackets, and `seconds`, `minutes` or `hours`, always plural.
 import {:stir} from 'wake_syntax'
 
 kind Kiln {
