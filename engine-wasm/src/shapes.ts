@@ -156,12 +156,19 @@ export type LineCommand = z.infer<typeof LineCommandSchema>;
 const Thing = z.object({ id: Id, name: z.string() });
 
 const FillerSchema = z.discriminatedUnion('binds', [
-  z.object({ role: z.string(), binds: z.literal('object'), id: Id, name: z.string() }),
+  z.object({
+    role: z.string(),
+    binds: z.literal('object'),
+    id: Id,
+    name: z.string(),
+    all: z.boolean(),
+  }),
   z.object({
     role: z.string(),
     binds: z.literal('set'),
     ids: z.array(Id),
     names: z.array(z.string()),
+    all: z.boolean(),
   }),
   z.object({
     role: z.string(),

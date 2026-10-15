@@ -8,7 +8,8 @@
  * and the ways out still. A tool is left out and a value role left unbound, which a body reads only
  * inside `if (bound ...)` and a `from` may leave so anyway. Each offer is typed by its verb's first
  * phrase that fits, with the consent pass's answer beside it, or the `inside_itself` its move would
- * meet, and costs a step, so a world too large to list faults as any work does.
+ * meet, and costs a step, so a world too large to list faults as any work does. What `all` takes in a role is
+ * here too, one rule for the parser's `all` and the view's word on each filler.
  */
 #ifndef SPROUT_OFFERS_H
 #define SPROUT_OFFERS_H
@@ -52,5 +53,24 @@ sprout_eval_status sprout_offers_for(sprout_exec *x, const sprout_frame *frame, 
  */
 sprout_eval_status sprout_only_the_actor_plays(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
                                               bool *only);
+
+/* What `all` takes in one role of a verb (the spec's Parsing > Sequences, again and all), its part that is the same for every thing. */
+typedef struct sprout_all_rule {
+  const sprout_verb *verb;
+  const sprout_role *role;
+  bool every_thing; /* an open role takes every thing not a person: an engine verb's, or one only the actor plays */
+} sprout_all_rule;
+
+/* The rule of `all` for `role` of `verb`, worked out once for every thing weighed by it; for a world verb, each kind asked is a step. */
+sprout_eval_status sprout_all_rule_of(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                      sprout_all_rule *out);
+
+/*
+ * Whether `all` takes `thing` by `rule`, `carried` saying whether `actor` carries it: never the actor nor `here`,
+ * their place; for a carried role only what is carried; for a role that takes a value or a way out, nothing. The
+ * parser's `all` weighs each thing in reach by it, and the view each thing it offers.
+ */
+bool sprout_all_takes(const sprout_all_rule *rule, const sprout_stored_instance *thing, sprout_str actor, sprout_str here,
+                      bool carried);
 
 #endif

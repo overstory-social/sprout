@@ -3,10 +3,11 @@
  * fake PlaydateAPI. The rules: the sentence so far is the picks joined, and B steps back to where the
  * disc was; a confirmed sentence runs and the reader is told it and then what the turn told, and one
  * whose save fails stops play and greys the world on the shelf. `everything` comes first on a level
- * whose role would read `all` where two or more things can be done: a set role binds them all, and a
- * role that takes one thing runs a turn for each in the level's order, leaving out what the view
- * refuses, stopping at the first refusal and bounded by what a set role may bind; such a line is one
- * save, its state written once after its last step, and a failure of that save stops play.
+ * whose role would read `all` where two or more things can be done, and takes what the view says a
+ * typed `all` would: a set role binds them all, and a role that takes one thing runs a turn for each
+ * in the level's order, leaving out what the view refuses, stopping at the first refusal and bounded
+ * by what a set role may bind; such a line is one save, its state written once after its last step,
+ * and a failure of that save stops play.
  */
 #include <stdlib.h>
 
@@ -22,8 +23,8 @@ static void descending_into_a_verb_and_back(void) {
   CHECK(step_to(kButtonUp, "ask", 1), "up from the first verb wraps to the last");
   fake_frame(fake, kButtonA, 0);
   CHECK(strcmp(phrase(), "ask") == 0, "the sentence so far: %s", phrase());
-  CHECK(strcmp(front(), "everything") == 0, "everything first, as `ask` reads `all`: %s", front());
-  CHECK(step_to(kButtonDown, "a hall", 1), "then what can be asked, in the view's order: %s", front());
+  /* `ask all` takes the guard alone, who plays `ask`, and one thing is no everything. */
+  CHECK(strcmp(front(), "a hall") == 0, "what can be asked, in the view's order, and no everything: %s", front());
   CHECK(step_to(kButtonDown, "a guard", 1), "the guard is next");
   fake_frame(fake, kButtonA, 0);
   CHECK(strcmp(phrase(), "ask -> a guard") == 0, "%s", phrase());
@@ -275,6 +276,27 @@ static void everything_for_a_set_role_binds_them_all(void) {
   leave();
 }
 
+/* The kitchen of `all-plays-a-part`: the table holds the sack and the bottle, and only those two play `pack`. */
+static void everything_takes_what_the_view_says_all_takes(void) {
+  const sentence_state *state;
+  size_t k;
+  arrive_in("plays a part", "all-plays-a-part.sproutworld");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "pack", 20), "pack");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(everything_first(), "everything comes first: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  state = &built()->state;
+  CHECK(state->pick_count == 1 && state->picks[0].everything && state->picks[0].count == 2,
+        "the sack and the bottle, which `pack all` takes: %zu", state->picks[0].count);
+  for (k = 0; k < state->picks[0].count; k++)
+    CHECK(strcmp(state->joined[k]->name.bytes, "a table") != 0 && strcmp(state->joined[k]->name.bytes, "a kitchen") != 0,
+          "and not the table they are on, nor the kitchen: %s", state->joined[k]->name.bytes);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader() && shown_text("You pack 2 at once."), "packed as `pack all` packs them");
+  leave();
+}
+
 static void everything_leaves_out_what_is_greyed_and_needs_two_things(void) {
   arrive_in("left out", "all-leaves-out-refused.sproutworld");
   fake_frame(fake, kButtonA, 0);
@@ -339,6 +361,7 @@ int main(void) {
   a_line_of_turns_writes_the_state_once();
   a_line_whose_save_fails_stops_play();
   everything_for_a_set_role_binds_them_all();
+  everything_takes_what_the_view_says_all_takes();
   everything_leaves_out_what_is_greyed_and_needs_two_things();
   everything_runs_at_most_what_a_set_role_may_bind();
   return finish();

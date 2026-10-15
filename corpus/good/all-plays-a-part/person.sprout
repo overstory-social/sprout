@@ -1,0 +1,10 @@
+import * as sprout from 'sprout'
+import {pack} from 'all-plays-a-part'
+
+kind Packer is sprout.Actor {
+  as actor for pack {
+    do { say "You pack {things.count} at once." }
+  }
+}
+
+kind Person is Packer, sprout.Visitor { }

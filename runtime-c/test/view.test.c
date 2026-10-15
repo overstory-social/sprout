@@ -3,8 +3,8 @@
  * its canonical JSON, with the tree a chip client walks over it equal to the one the golden holds beside it,
  * the steps it spent and the fault it raised. The goldens are the view of a visitor arriving in every corpus
  * world and the bench cases for what a view is for: the ways out, a set role, a value role's options, a
- * refusal, `inside_itself`, the dark, a visitor whose place is gone and a poll that spends its budget. A poll
- * draws nothing and writes nothing.
+ * refusal, `inside_itself`, the dark, a visitor whose place is gone and a poll that spends its budget. A filler
+ * says whether `all` would take it, by the parser's rule. A poll draws nothing and writes nothing.
  */
 #include "view_fixture.h"
 #include "turn_fixture.h"
@@ -67,6 +67,51 @@ static void a_picture_the_description_shows_is_an_effect_with_its_payload_and_it
     CHECK_STR(view.effects[0].statement, "show");
     CHECK_BYTES(view.effects[0].payload.bytes, view.effects[0].payload.length, "{\"image\":\"cellar.png\"}");
     CHECK_BYTES(view.effects[0].transcript.bytes, view.effects[0].transcript.length, "[cellar.png]");
+    sprout_view_free(&view);
+    view_case_close(&c);
+  }
+  CHECK_INT(found, 1);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
+/* Whether the view's reading of `verb` with its one filler `id` (a thing, or a set of it alone) says `all` takes it. */
+static bool all_takes(const sprout_seen_view *view, const char *verb, const char *id) {
+  size_t i;
+  for (i = 0; i < view->reading_count; i++) {
+    const sprout_seen_reading *r = &view->readings[i];
+    const sprout_seen_filler *f = r->filler_count == 1 ? &r->fillers[0] : NULL;
+    const sprout_seen_thing *thing = f == NULL                         ? NULL
+                                     : f->binds == SPROUT_SEEN_OBJECT  ? &f->thing
+                                     : f->binds == SPROUT_SEEN_SET     ? &f->members[0]
+                                                                       : NULL;
+    if (strcmp(r->verb, verb) == 0 && thing != NULL && thing->id.length == strlen(id) &&
+        memcmp(thing->id.bytes, id, thing->id.length) == 0)
+      return f->all;
+  }
+  CHECK(false && "no such reading");
+  return false;
+}
+
+static void a_filler_says_whether_all_would_take_it_as_the_parser_reads_all(void) {
+  view_bench b;
+  const sprout_json *worlds;
+  size_t i, found = 0;
+  view_bench_open(&b);
+  worlds = sprout_json_get(b.golden, "corpus");
+  for (i = 0; i < worlds->count; i++) {
+    view_case c;
+    sprout_seen_view view;
+    if (strcmp(view_text(worlds->items[i], "world"), "all-plays-a-part") != 0) continue;
+    found++;
+    view_corpus_case_open(&b, &c, worlds->items[i]);
+    CHECK_INT(sprout_view(c.world, c.state, &c.host, view_text(worlds->items[i], "visit"), &view), SPROUT_OK);
+    /* A world verb's set role some kind plays: what plays it, and not the table the actor's part would take. */
+    CHECK(all_takes(&view, "all_plays_a_part.pack", "all_plays_a_part.kitchen.table.sack"));
+    CHECK(all_takes(&view, "all_plays_a_part.pack", "all_plays_a_part.kitchen.table.bottle"));
+    CHECK(!all_takes(&view, "all_plays_a_part.pack", "all_plays_a_part.kitchen.table"));
+    /* An engine verb's open role: every thing not a person. */
+    CHECK(all_takes(&view, "sprout.examine", "all_plays_a_part.kitchen.table"));
     sprout_view_free(&view);
     view_case_close(&c);
   }
@@ -480,6 +525,7 @@ int main(void) {
   RUN(every_bench_case_is_polled_as_the_golden_holds);
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_goldens);
   RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);
+  RUN(a_filler_says_whether_all_would_take_it_as_the_parser_reads_all);
   RUN(the_bench_shows_each_part_a_view_is_for);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);
   RUN(a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived);

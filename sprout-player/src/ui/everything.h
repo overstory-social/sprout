@@ -14,12 +14,8 @@
 /* How many things the host lets a set role bind, which bounds what `everything` takes too. */
 size_t everything_most(void);
 
-/*
- * Whether `everything` takes a choice of the level: a thing, or a set's one thing, that can be done, and neither
- * the visitor's own place nor anyone the view lists as here. The view does not say what kind a thing is, so the
- * people it lists are left out for every role, as `all` leaves them out of an open role.
- */
-bool everything_takes(const sentence *s, const sentence_choice *choice);
+/* Whether `everything` takes a choice of the level: a thing, or a set's one thing, that can be done and that the view says `all` takes. */
+bool everything_takes(const sentence_choice *choice);
 
 /* Whether the level offers `everything`: two or more things it takes, and for a role that takes one thing, none before it in the sentence did. */
 bool everything_offered(const sentence *s);

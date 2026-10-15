@@ -1,8 +1,8 @@
 /*
  * Tests for src/view_json.c: a view is written as canonical JSON in the form the language's view shapes give it
- * (description, effects, exits, occupants, carried, readings), a filler of each kind, a refusal or null, and the
- * options of a symbol role and of an integer role. The writer is also the tree a chip client's leaf and filler
- * are written from.
+ * (description, effects, exits, occupants, carried, readings), a filler of each kind, a thing's or a set's saying
+ * whether `all` takes it, a refusal or null, and the options of a symbol role and of an integer role. The writer is
+ * also the tree a chip client's leaf and filler are written from.
  */
 #include "check.h"
 #include "view_json.h"
@@ -20,11 +20,11 @@ static void build(sprout_seen_view *view) {
   static const sprout_seen_thing members[] = {{{"w.apple", 7}, {"an apple", 8}}, {{"w.pear", 6}, {"a pear", 6}}};
   static const sprout_str refusal[] = {{"Not before me.", 14}};
   static const sprout_seen_filler fillers[] = {
-      {"target", SPROUT_SEEN_OBJECT, {{"w.apple", 7}, {"an apple", 8}}, 0, NULL, {NULL, NULL, {NULL, 0}}},
-      {"things", SPROUT_SEEN_SET, {{NULL, 0}, {NULL, 0}}, 2, members, {NULL, NULL, {NULL, 0}}},
-      {"way", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {"north", "through the gate", {"w.tower", 7}}},
-      {"link", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, "down the stair", {"w.yard", 6}}},
-      {"topic", SPROUT_SEEN_UNBOUND, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, NULL, {NULL, 0}}}};
+      {"target", SPROUT_SEEN_OBJECT, {{"w.apple", 7}, {"an apple", 8}}, 0, NULL, {NULL, NULL, {NULL, 0}}, true},
+      {"things", SPROUT_SEEN_SET, {{NULL, 0}, {NULL, 0}}, 2, members, {NULL, NULL, {NULL, 0}}, false},
+      {"way", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {"north", "through the gate", {"w.tower", 7}}, false},
+      {"link", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, "down the stair", {"w.yard", 6}}, false},
+      {"topic", SPROUT_SEEN_UNBOUND, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, NULL, {NULL, 0}}, false}};
   static const sprout_seen_reading readings[] = {
       {"w.vouch", {"vouch apple \xe2\x80\xa6", 15}, true, 1, refusal, 5, fillers, 2, options},
       {"w.look", {"look", 4}, false, 0, NULL, 0, NULL, 0, NULL}};
@@ -62,8 +62,8 @@ static void a_view_is_written_in_the_canonical_form_the_view_specs_write(void) {
               "\"occupants\":[{\"id\":\"w.pear\",\"name\":\"a pear\"}],"
               "\"carried\":[{\"id\":\"w.apple\",\"name\":\"an apple\"}],"
               "\"readings\":[{\"verb\":\"w.vouch\",\"typed\":\"vouch apple \xe2\x80\xa6\",\"refused\":[\"Not before me.\"],"
-              "\"fillers\":[{\"role\":\"target\",\"binds\":\"object\",\"id\":\"w.apple\",\"name\":\"an apple\"},"
-              "{\"role\":\"things\",\"binds\":\"set\",\"ids\":[\"w.apple\",\"w.pear\"],\"names\":[\"an apple\",\"a pear\"]},"
+              "\"fillers\":[{\"role\":\"target\",\"binds\":\"object\",\"id\":\"w.apple\",\"name\":\"an apple\",\"all\":true},"
+              "{\"role\":\"things\",\"binds\":\"set\",\"ids\":[\"w.apple\",\"w.pear\"],\"names\":[\"an apple\",\"a pear\"],\"all\":false},"
               "{\"role\":\"way\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"through the gate\",\"to\":\"w.tower\"},"
               "{\"role\":\"link\",\"binds\":\"exit\",\"direction\":null,\"label\":\"down the stair\",\"to\":\"w.yard\"},"
               "{\"role\":\"topic\",\"binds\":\"unbound\"}],"

@@ -156,7 +156,13 @@ describe('what a host sends', () => {
           typed: 'turn dial to …',
           refused: null,
           fillers: [
-            { role: 'knob', binds: 'object', id: 'shop.hall.dial' as InstanceId, name: 'a dial' },
+            {
+              role: 'knob',
+              binds: 'object',
+              id: 'shop.hall.dial' as InstanceId,
+              name: 'a dial',
+              all: true,
+            },
             { role: 'notch', binds: 'unbound' },
           ],
           options: [{ role: 'notch', takes: 'integer', ranges: [{ min: 0, max: 9 }] }],
@@ -166,7 +172,13 @@ describe('what a host sends', () => {
           typed: 'ask Oskar about …',
           refused: ['Oskar shrugs.'],
           fillers: [
-            { role: 'target', binds: 'object', id: 'shop#3' as InstanceId, name: 'Oskar' },
+            {
+              role: 'target',
+              binds: 'object',
+              id: 'shop#3' as InstanceId,
+              name: 'Oskar',
+              all: false,
+            },
             { role: 'topic', binds: 'unbound' },
           ],
           options: [
@@ -183,6 +195,7 @@ describe('what a host sends', () => {
               binds: 'set',
               ids: ['shop.hall.key' as InstanceId],
               names: ['a key'],
+              all: true,
             },
           ],
           options: [],
@@ -228,5 +241,17 @@ describe('what a host sends', () => {
       false,
     );
     expect(sent([{ ...reading, fillers: [{ role: 'target', binds: 'value' }] }])).toBe(false);
+    // A thing's filler says whether `all` would take it.
+    expect(
+      sent([{ ...reading, fillers: [{ role: 'target', binds: 'object', id: 'a', name: 'an a' }] }]),
+    ).toBe(false);
+    expect(
+      sent([
+        {
+          ...reading,
+          fillers: [{ role: 'target', binds: 'object', id: 'a', name: 'an a', all: false }],
+        },
+      ]),
+    ).toBe(true);
   });
 });

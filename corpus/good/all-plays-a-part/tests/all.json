@@ -1,0 +1,14 @@
+{
+  "about": "`all` in a world verb's open role some kind plays takes only what plays a part in it, though the actor's own part would take anything: `pack all` packs the sack and the bottle and not the table they are on, which `pack table` still packs.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "pack all", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You pack 2 at once." }
+    ] },
+    { "as": "Marta", "type": "pack table", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You pack 1 at once." }
+    ] }
+  ]
+}

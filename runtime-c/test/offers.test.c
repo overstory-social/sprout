@@ -3,7 +3,8 @@
  * may type is offered once for each way its roles fill from what is in range, in the order the parser tries the
  * verbs, each typed by the verb's first phrase that fits and each a step; a set role is offered one member at a
  * time, `go` by each exit and link, a role only the actor plays is not offered their own place, two things
- * written alike are two offers, and in the dark only what is carried is offered, beside the ways out.
+ * written alike are two offers, and in the dark only what is carried is offered, beside the ways out. What `all`
+ * takes in a role is weighed one thing at a time by the rule the parser and the view share.
  */
 #include "engine-verbs.h"
 #include "expr/expr.h"
@@ -236,8 +237,48 @@ static void a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_ea
   offers_close(&k);
 }
 
+/* Whether `all` takes the yard's thing `id` (or the actor, for NULL) for `role` of `verb`, `carried` as given. */
+static bool all_takes(offers_case *k, const sprout_verb *verb, const sprout_role *role, const char *id, bool carried) {
+  sprout_all_rule rule;
+  sprout_str named = id == NULL ? k->p.actor : (sprout_str){id, strlen(id)};
+  CHECK_INT(sprout_all_rule_of(&k->p.frame, verb, role, &rule), SPROUT_EVAL_OK);
+  return sprout_all_takes(&rule, expr_instance(&k->p.frame, named), k->p.actor, k->p.place, carried);
+}
+
+static void all_takes_by_the_roles_kind_or_by_what_plays_the_verb_and_never_the_actor_or_their_place(void) {
+  offers_case k;
+  const sprout_world *world;
+  const sprout_verb *take, *ask, *daub, *punch;
+  sprout_role paint;
+  CHECK_INT(offers_open(&k, "visitor in the yard"), SPROUT_EVAL_OK);
+  world = k.p.frame.world;
+  take = verb_named(world, "sprout", "take");
+  ask = verb_named(world, "sprout", "ask");
+  daub = verb_named(world, "viewbench", "daub");
+  punch = verb_named(world, "viewbench", "punch");
+  /* A role only the actor plays: every thing not a person, and neither the actor nor their place. */
+  CHECK(all_takes(&k, take, &take->roles[0], "viewbench.yard.pebble", false));
+  CHECK(!all_takes(&k, take, &take->roles[0], "viewbench.yard.guard", false));
+  CHECK(!all_takes(&k, take, &take->roles[0], NULL, false));
+  CHECK(!all_takes(&k, take, &take->roles[0], "viewbench.yard", false));
+  /* An open role some kind plays: what plays a part in the verb, a person among them. */
+  CHECK(all_takes(&k, ask, &ask->roles[0], "viewbench.yard.guard", false));
+  CHECK(!all_takes(&k, ask, &ask->roles[0], "viewbench.yard.pebble", false));
+  /* A role of a kind: what composes it; carried, only what is carried. */
+  paint = daub->roles[1];
+  CHECK(all_takes(&k, daub, &paint, "viewbench.yard.purse.coin", false));
+  CHECK(!all_takes(&k, daub, &paint, "viewbench.yard.lamp", false));
+  paint.carried = true;
+  CHECK(!all_takes(&k, daub, &paint, "viewbench.yard.pebble", false));
+  CHECK(all_takes(&k, daub, &paint, "viewbench.yard.pebble", true));
+  /* A role that takes a value takes nothing. */
+  CHECK(!all_takes(&k, punch, &punch->roles[1], "viewbench.yard.pebble", false));
+  offers_close(&k);
+}
+
 int main(void) {
   RUN(a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_each_asked_a_step);
+  RUN(all_takes_by_the_roles_kind_or_by_what_plays_the_verb_and_never_the_actor_or_their_place);
   RUN(the_offers_are_the_goldens_in_its_order_with_its_typed_lines_and_its_refusals);
   RUN(go_is_offered_by_each_exit_by_its_direction_and_by_each_link_by_its_labels_typed_words);
   RUN(a_way_is_an_exit_filler_naming_where_it_leads);

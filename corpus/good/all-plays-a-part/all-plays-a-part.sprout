@@ -1,0 +1,31 @@
+// `all` in a world verb's open role that some kind plays takes only what
+// plays a part in the verb, though the actor's own part would take
+// anything (the spec's Parsing › Sequences, again and all). Anyone here
+// may pack the table, and `pack table` is offered; `pack all` packs the
+// sack and the bottle on it, which play `pack`'s things, and not the
+// table. The view says so of each thing it offers `pack` with, so a
+// client's `everything` packs what `pack all` would.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world all_plays_a_part is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    grammar { article the }
+    object table is Table {
+      grammar { name "table" }
+      object sack is Portable { grammar { name "sack" } }
+      object bottle is Portable { grammar { name "bottle" } }
+    }
+  }
+}
+
+verb pack { role things many  "pack [things]" }
+
+kind Table is sprout.Container { }
+
+kind Portable {
+  as things for pack { do { } }
+}

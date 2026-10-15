@@ -48,7 +48,10 @@ export type SeenOptions =
  * What fills one role of a reading, as a client offers it: a thing, the
  * things a set role names, the way out `go` takes, or nothing, which is a
  * value role (its options are in the reading's `options`) or a tool left
- * out.
+ * out. A thing or a set says in `all` whether a typed `all` in the role
+ * would take it, or the set's first thing, by the spec's Parsing ›
+ * Sequences, again and all, so a client's `everything` takes what `all`
+ * would.
  */
 export type SeenFiller =
   | {
@@ -56,12 +59,14 @@ export type SeenFiller =
       readonly binds: 'object';
       readonly id: InstanceId;
       readonly name: string;
+      readonly all: boolean;
     }
   | {
       readonly role: string;
       readonly binds: 'set';
       readonly ids: readonly InstanceId[];
       readonly names: readonly string[];
+      readonly all: boolean;
     }
   | {
       readonly role: string;
