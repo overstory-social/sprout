@@ -1,0 +1,12 @@
+{
+  "about": "A timer wound back below nothing faults the turn that starts it: the visitor is told, and no wake is asked for.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "unwind timer" },
+    { "as": "Marta", "type": "start timer", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Something in this world has gone wrong, and nothing has changed." },
+      { "level": "error", "text": "the command faulted, against kitchen.timer, WakeFault: `wake_delay.kitchen.timer` asked for a wake in -1 minutes, which is less than no time at all." }
+    ] },
+    { "advance": "1 hour", "expect": [] }
+  ]
+}

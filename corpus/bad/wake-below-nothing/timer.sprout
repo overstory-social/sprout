@@ -1,0 +1,14 @@
+// A wait written below nothing is refused where it is written; one worked
+// out below nothing can only be told when it runs, and faults then.
+import {start} from 'wake_below_nothing'
+
+kind Timer {
+  as target for start {
+    do {
+      wake in (-5) minutes
+      say "The timer starts ticking."
+    }
+  }
+
+  on :woke (elapsed) { tell "The timer rings." }
+}

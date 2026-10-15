@@ -1,0 +1,11 @@
+{
+  "about": "The timer rings as many minutes after it starts as it was wound on, worked out as it starts.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "wind timer" },
+    { "as": "Marta", "type": "wind timer" },
+    { "as": "Marta", "type": "start timer", "expect": [{ "words": "The timer starts ticking." }] },
+    { "advance": "3 minutes", "expect": [] },
+    { "advance": "1 minute", "expect": [{ "words": "The timer rings." }] }
+  ]
+}

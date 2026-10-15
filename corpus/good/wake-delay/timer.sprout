@@ -1,0 +1,33 @@
+// A timer wound on two minutes at a time, or back one, that rings when
+// the minutes it was wound to have passed: `wake in` reads them from the
+// timer as it is started.
+import {wind, unwind, start} from 'wake_delay'
+
+kind Timer {
+  :minutes 0 min -9 max 9
+
+  as target for wind {
+    do {
+      self.adjust(:minutes, 2)
+      say "You wind the timer on two minutes."
+    }
+  }
+
+  as target for unwind {
+    do {
+      self.adjust(:minutes, -1)
+      say "You wind the timer back a minute."
+    }
+  }
+
+  as target for start {
+    do {
+      wake in (self.get(:minutes)) minutes
+      say "The timer starts ticking."
+    }
+  }
+
+  on :woke (elapsed) {
+    tell "The timer rings."
+  }
+}

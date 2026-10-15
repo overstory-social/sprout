@@ -33,6 +33,64 @@ describe('how long a wake waits', () => {
     expect(wakeSeconds(wake('wake in 90 seconds'))).toBe(90);
     expect(wakeSeconds(wake('wake in 40 minutes'))).toBe(2400);
     expect(wakeSeconds(wake('wake in 3 hours'))).toBe(10_800);
+    expect(wakeSeconds(wake('wake in (-2) minutes'))).toBe(-120);
+  });
+
+  it('leaves a count worked out to the run, where it is not known', () => {
+    expect(wakeSeconds(wake('wake in (self.get(:capacity)) minutes'))).toBeNull();
+  });
+
+  it('takes any integer expression, as it types any integer', () => {
+    for (const text of [
+      'wake in (self.get(:capacity)) minutes',
+      'wake in (self.get(:capacity) + self.get(:capacity) - 1) hours',
+      'wake in (5) seconds',
+    ]) {
+      expect(checked(text), text).toEqual({ passed: true, said: [] });
+    }
+  });
+
+  it('refuses a count that is not an integer, at the count, saying what it is and what to write', () => {
+    const remedy =
+      'Work it out as a whole number, as in `wake in (self.get(:delay)) minutes`, where `:delay` is an integer.';
+    expect(checked('wake in (self.get(:inked)) minutes')).toEqual({
+      passed: false,
+      said: [
+        [
+          'body.sprout:1:10',
+          'self.get(:inked)',
+          'How long a wake waits is a whole number, and this is true or false.',
+          remedy,
+        ],
+      ],
+    });
+    expect(checked('wake in ("soon") hours').said[0]![2]).toBe(
+      'How long a wake waits is a whole number, and "soon" is text in quotes.',
+    );
+    expect(checked('wake in (self) hours').said[0]![2]).toBe(
+      'How long a wake waits is a whole number, and this is shop.Vessel.',
+    );
+  });
+
+  it('refuses a count written below nothing, which the checker can tell', () => {
+    expect(checked('wake in (-2) minutes')).toEqual({
+      passed: false,
+      said: [
+        [
+          'body.sprout:1:10',
+          '-2',
+          '`wake in (-2) minutes` waits less than no time at all.',
+          "Wait 0 minutes or more; a wait shorter than the host's shortest wake is raised to it.",
+        ],
+      ],
+    });
+  });
+
+  it('says only what the expression itself says where it does not type', () => {
+    const { passed, said } = checked('wake in (self.get(:nothing)) minutes');
+    expect(passed).toBe(false);
+    expect(said).toHaveLength(1);
+    expect(said[0]![2]).not.toContain('How long a wake waits');
   });
 
   it('takes any wait `elapsed` can carry, the host’s floor being the host’s to apply', () => {
