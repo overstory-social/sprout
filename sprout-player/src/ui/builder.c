@@ -1,6 +1,8 @@
 /* The sentence builder screen; see builder.h. */
 #include "builder.h"
 
+#include "disc.h"
+
 #include <stdint.h>
 #include <string.h>
 
@@ -56,16 +58,6 @@ const char *player_builder_fit(PlaydateAPI *pd, LCDFont *const *fonts, size_t fo
 }
 
 /* The fonts a slat at `tier` may take, largest first; the ones that could not be loaded are left out. */
-static size_t tier_fonts(const player_app *app, drum_tier tier, LCDFont **fonts) {
-  size_t n = 0;
-  if (tier == DRUM_FRONT && app->big_font != NULL) fonts[n++] = app->big_font;
-  if (tier != DRUM_FAR || app->small_font == NULL) fonts[n++] = app->pen.font;
-  if (app->small_font != NULL) fonts[n++] = app->small_font;
-  return n;
-}
-
-/* ---- words over the drum ---- */
-
 static void drop_words(player_app *app, player_builder *b) {
   if (b->message.bytes != NULL && b->message.bytes != unwrapped) player_free(app->pd, b->message.bytes);
   b->message.bytes = NULL;
@@ -248,31 +240,67 @@ static void draw_lines(player_app *app, const wrapped *lines, int y) {
     player_pen_say(&app->pen, line, PLAYER_MARGIN, y);
 }
 
-/* The drum: the window at its front and the words on it, each in the font of its tier. */
-static void draw_drum(player_app *app, player_builder *b, int top, int bottom) {
+/* A word drawn along the ray leaving the hub at (hx, cy) at `angle`, from DISC_WORD_AT out; the front one as a black label. */
+static void say_along(player_app *app, LCDFont *font, const char *text, bool greyed, bool front, int hx, int cy, float angle) {
   PlaydateAPI *pd = app->pd;
-  int centre = (top + bottom) / 2, room = PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN;
+  size_t length = strlen(text), count = player_utf8_count(text, length);
+  int width = width_in(pd, font, text, length) + 6, height = pd->graphics->getFontHeight(font) + 2, x, y;
+  float along = disc_bent(angle, (float)DISC_WORD_AT + (float)width / 2);
+  LCDBitmap *word = pd->graphics->newBitmap(width, height, front ? kColorWhite : kColorClear);
+  if (word == NULL) return;
+  pd->graphics->pushContext(word);
+  pd->graphics->setFont(font);
+  pd->graphics->drawText(text, count, kUTF8Encoding, 3, 1);
+  if (greyed) pd->graphics->fillRect(0, 0, width, height, (LCDColor)(uintptr_t)&GREY);
+  if (front) pd->graphics->fillRect(0, 0, width, height, kColorXOR);
+  pd->graphics->popContext();
+  pd->graphics->setFont(app->pen.font);
+  disc_point(disc_bent(angle, (float)DISC_WORD_AT), (float)DISC_WORD_AT, &x, &y);
+  pd->graphics->drawRotatedBitmap(word, hx + x, cy + y, along, 0.0f, 0.5f, 1.0f, 1.0f);
+  pd->graphics->freeBitmap(word);
+}
+
+/* A sector's dividing line: the ray leaving the hub at `angle`, bent outward, in segments. */
+static void draw_ray(PlaydateAPI *pd, int hx, int cy, float angle) {
+  int i, x0, y0, x1, y1;
+  float step = (float)(DISC_REACH - DISC_HUB_RADIUS) / DISC_RAY_SEGMENTS;
+  disc_point(angle, (float)DISC_HUB_RADIUS, &x0, &y0);
+  for (i = 1; i <= DISC_RAY_SEGMENTS; i++) {
+    float r = (float)DISC_HUB_RADIUS + step * (float)i;
+    disc_point(disc_bent(angle, r), r, &x1, &y1);
+    pd->graphics->drawLine(hx + x0, cy + y0, hx + x1, cy + y1, 1, kColorBlack);
+    x0 = x1;
+    y0 = y1;
+  }
+}
+
+/* The disc: the hub at the left edge, the sectors' dividing lines, and the words along their rays. */
+static void draw_disc(player_app *app, player_builder *b, int top, int bottom) {
+  PlaydateAPI *pd = app->pd;
+  int cy = (top + bottom) / 2, hx = DISC_HUB_X, k;
   size_t count, made, i;
   const sentence_entry *entries = sentence_entries(&b->sentence, &count);
-  drum_row rows[DRUM_MOST_ROWS];
-  pd->graphics->drawLine(0, centre - BUILDER_WINDOW, PLAYER_SCREEN_WIDTH, centre - BUILDER_WINDOW, 1, kColorBlack);
-  pd->graphics->drawLine(0, centre + BUILDER_WINDOW, PLAYER_SCREEN_WIDTH, centre + BUILDER_WINDOW, 1, kColorBlack);
-  pd->graphics->fillTriangle(PLAYER_MARGIN, centre - 6, PLAYER_MARGIN, centre + 6, PLAYER_MARGIN + 8, centre, kColorBlack);
-  pd->graphics->fillTriangle(PLAYER_SCREEN_WIDTH - PLAYER_MARGIN, centre - 6, PLAYER_SCREEN_WIDTH - PLAYER_MARGIN, centre + 6,
-                             PLAYER_SCREEN_WIDTH - PLAYER_MARGIN - 8, centre, kColorBlack);
-  made = drum_rows(count, b->sentence.state.selected, sentence_fraction(&b->sentence), rows);
+  float fraction = sentence_fraction(&b->sentence);
+  LCDFont *font = app->big_font != NULL ? app->big_font : app->pen.font;
+  disc_row rows[DISC_MOST_ROWS];
+  pd->graphics->setClipRect(0, top, PLAYER_SCREEN_WIDTH, bottom - top);
+  pd->graphics->drawEllipse(hx - DISC_HUB_RADIUS, cy - DISC_HUB_RADIUS, 2 * DISC_HUB_RADIUS, 2 * DISC_HUB_RADIUS, 2, 0.0f,
+                            0.0f, kColorBlack);
+  pd->graphics->fillTriangle(hx + DISC_HUB_RADIUS - 2, cy - 6, hx + DISC_HUB_RADIUS - 2, cy + 6, hx + DISC_HUB_RADIUS + 8, cy,
+                             kColorBlack);
+  made = disc_rows(count, b->sentence.state.selected, fraction, rows);
   for (i = 0; i < made; i++) {
-    const sentence_entry *entry = &entries[rows[i].index];
-    LCDFont *fonts[3], *font = NULL;
-    char fitted[512];
-    const char *text = player_builder_fit(pd, fonts, tier_fonts(app, rows[i].tier, fonts), entry->label, room, fitted,
-                                          sizeof fitted, &font);
-    int width = width_in(pd, font, text, strlen(text)), height = pd->graphics->getFontHeight(font);
-    int x = PLAYER_SCREEN_WIDTH / 2 - width / 2, y = centre + rows[i].y - height / 2;
-    if (y < top || y + height > bottom) continue;
-    say_in(app, font, text, x, y);
-    if (entry->greyed) pd->graphics->fillRect(x, y, width, height, (LCDColor)(uintptr_t)&GREY);
+    for (k = -1; k <= 1; k += 2) {
+      float edge = rows[i].angle + (float)k * DISC_SECTOR_DEGREES / 2;
+      if (edge > -90.0f && edge < 90.0f) draw_ray(pd, hx, cy, edge);
+    }
   }
+  for (i = made; i > 0; i--) {
+    const disc_row *row = &rows[i - 1];
+    const sentence_entry *entry = &entries[row->index];
+    say_along(app, font, entry->label, entry->greyed, row->front, hx, cy, row->angle);
+  }
+  pd->graphics->clearClipRect();
 }
 
 static void draw(player_app *app, void *ctx) {
@@ -295,7 +323,7 @@ static void draw(player_app *app, void *ctx) {
                             b->line, sizeof b->line, &font);
   say_in(app, font, line, PLAYER_MARGIN, 0);
   pd->graphics->drawLine(0, header - 1, PLAYER_SCREEN_WIDTH, header - 1, 1, kColorBlack);
-  draw_drum(app, b, header, bottom);
+  draw_disc(app, b, header, bottom);
   pd->graphics->drawLine(0, bottom, PLAYER_SCREEN_WIDTH, bottom, 1, kColorBlack);
   entry = &sentence_entries(&b->sentence, &count)[b->sentence.state.selected];
   words = entry->reason != NULL ? entry->reason : BUILDER_KEYS;
