@@ -7,6 +7,7 @@
  * draws nothing and writes nothing.
  */
 #include "view_fixture.h"
+#include "turn_fixture.h"
 
 static void every_bench_case_is_polled_as_the_golden_holds(void) {
   view_bench b;
@@ -447,6 +448,32 @@ static void a_verbs_readings_that_spend_their_budget_are_no_readings(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+/* A poll's fault is laid against the object the faulting rule names, as a command's is, and not the visitor's place. */
+static void a_poll_that_faults_on_an_object_lays_the_fault_against_it(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading take;
+  sprout_seen_view view;
+  tw_open(&w, "shut-contents");
+  tw_arrive(&w, "ines", "Ines", 0, &out);
+  sprout_outcome_free(&out);
+  tw_arrive(&w, "pell", "Pell", 1, &out);
+  sprout_outcome_free(&out);
+  /* Held, the box is out of the cellar's range, where the cellar's description reads it. */
+  take = tw_reading("sprout.take", tw_person(&w, "ines"), &filling, "target", "shut_contents.cellar.box");
+  tw_command(&w, "ines", &take, 2, &out);
+  CHECK(!out.faulted);
+  sprout_outcome_free(&out);
+  CHECK_INT(sprout_view(w.world, w.state, &w.host, "pell", &view), SPROUT_OK);
+  CHECK(view.faulted);
+  CHECK_STR(view.fault_name, "NameOutOfRange");
+  CHECK_BYTES(view.place.id.bytes, view.place.id.length, "shut_contents.cellar");
+  CHECK_BYTES(view.fault_object.bytes, view.fault_object.length, "shut_contents.cellar.box");
+  sprout_view_free(&view);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_scene_lists_the_verbs_and_a_verbs_readings_come_alone_as_the_whole_poll_gives_them);
   RUN(a_verbs_readings_that_spend_their_budget_are_no_readings);
@@ -456,6 +483,7 @@ int main(void) {
   RUN(the_bench_shows_each_part_a_view_is_for);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);
   RUN(a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived);
+  RUN(a_poll_that_faults_on_an_object_lays_the_fault_against_it);
   RUN(a_poll_draws_nothing_and_reads_no_clock);
   RUN(a_poll_that_cannot_afford_unseen_says_the_engines_own_words);
   RUN(a_poll_whose_kept_parts_cannot_be_rendered_either_keeps_nothing);
