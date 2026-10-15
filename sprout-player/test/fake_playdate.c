@@ -134,9 +134,32 @@ static int fake_listfiles(const char *path, void (*callback)(const char *path, v
 
 /* ---- the screen ---- */
 
+/* The made bitmap drawn into now, or -1 for the screen. */
+static int context(void) { return current->context_count > 0 ? current->contexts[current->context_count - 1] : -1; }
+
+static void put_bit(uint8_t *bytes, int rowbytes, int x, int y, int set) {
+  uint8_t *byte = &bytes[y * rowbytes + x / 8], bit = (uint8_t)(0x80u >> (x % 8));
+  if (set)
+    *byte |= bit;
+  else
+    *byte &= (uint8_t)~bit;
+}
+
+/* Sets a pixel of the context: on the screen inside the clip rect, or in a made bitmap, where it is then drawn. */
 static void set_pixel(int x, int y, int black) {
   uint8_t *byte;
+  int into = context();
+  if (into >= 0) {
+    fake_made *made = &current->made[into];
+    if (x < 0 || y < 0 || x >= made->width || y >= made->height) return;
+    put_bit(made->data, made->rowbytes, x, y, !black);
+    if (made->mask != NULL) put_bit(made->mask, made->rowbytes, x, y, 1);
+    return;
+  }
   if (x < 0 || y < 0 || x >= LCD_COLUMNS || y >= LCD_ROWS) return;
+  if (current->clipped && (x < current->clip_x || y < current->clip_y || x >= current->clip_x + current->clip_width ||
+                           y >= current->clip_y + current->clip_height))
+    return;
   byte = &current->frame[y * LCD_ROWSIZE + x / 8];
   if (black)
     *byte |= (uint8_t)(0x80u >> (x % 8));
@@ -153,6 +176,9 @@ static void fake_clear(LCDColor color) {
   memset(current->frame, color == kColorBlack ? 0xFF : 0x00, sizeof current->frame);
   current->run_count = 0;
   current->draw_count = 0;
+  current->placed_count = 0;
+  current->ellipses = 0;
+  current->triangles = 0;
 }
 
 static void fill(int x, int y, int width, int height, LCDColor color) {
@@ -185,6 +211,7 @@ static void fake_fill_triangle(int x1, int y1, int x2, int y2, int x3, int y3, L
   int lo_x = x1 < x2 ? (x1 < x3 ? x1 : x3) : (x2 < x3 ? x2 : x3), hi_x = x1 > x2 ? (x1 > x3 ? x1 : x3) : (x2 > x3 ? x2 : x3);
   int lo_y = y1 < y2 ? (y1 < y3 ? y1 : y3) : (y2 < y3 ? y2 : y3), hi_y = y1 > y2 ? (y1 > y3 ? y1 : y3) : (y2 > y3 ? y2 : y3);
   int x, y;
+  current->triangles++;
   for (y = lo_y; y <= hi_y; y++)
     for (x = lo_x; x <= hi_x; x++) {
       long a = turn_of(x1, y1, x2, y2, x, y), b = turn_of(x2, y2, x3, y3, x, y), c = turn_of(x3, y3, x1, y1, x, y);
@@ -192,21 +219,65 @@ static void fake_fill_triangle(int x1, int y1, int x2, int y2, int x3, int y3, L
     }
 }
 
-/* Lines across or down the screen, which is all the screens draw. */
+/* A line across or down `width` thick; any other a pixel wide, by Bresenham's walk. */
 static void fake_draw_line(int x1, int y1, int x2, int y2, int width, LCDColor color) {
-  int lo, hi;
+  int lo, hi, dx, dy, sx, sy, err;
   if (y1 == y2) {
     lo = x1 < x2 ? x1 : x2;
     hi = x1 < x2 ? x2 : x1;
     fill(lo, y1, hi - lo + 1, width, color);
-  } else if (x1 == x2) {
+    return;
+  }
+  if (x1 == x2) {
     lo = y1 < y2 ? y1 : y2;
     hi = y1 < y2 ? y2 : y1;
     fill(x1, lo, width, hi - lo + 1, color);
-  } else {
-    abort();
+    return;
+  }
+  dx = x2 > x1 ? x2 - x1 : x1 - x2;
+  dy = y2 > y1 ? y1 - y2 : y2 - y1;
+  sx = x1 < x2 ? 1 : -1;
+  sy = y1 < y2 ? 1 : -1;
+  err = dx + dy;
+  for (;;) {
+    int twice = 2 * err;
+    set_pixel(x1, y1, color == kColorBlack);
+    if (x1 == x2 && y1 == y2) return;
+    if (twice >= dy) {
+      err += dy;
+      x1 += sx;
+    }
+    if (twice <= dx) {
+      err += dx;
+      y1 += sy;
+    }
   }
 }
+
+/* An ellipse in the rect, stroked `width` thick inside it; only whole ones are drawn. */
+static void fake_draw_ellipse(int x, int y, int width, int height, int line, float start, float end, LCDColor color) {
+  double a = width / 2.0, b = height / 2.0, cx = x + a, cy = y + b, ia = a - line, ib = b - line;
+  int i, j;
+  if (start != end) abort();
+  current->ellipses++;
+  for (j = y; j < y + height; j++)
+    for (i = x; i < x + width; i++) {
+      double px = i + 0.5 - cx, py = j + 0.5 - cy;
+      int outer = px * px / (a * a) + py * py / (b * b) <= 1.0;
+      int inner = ia > 0 && ib > 0 && px * px / (ia * ia) + py * py / (ib * ib) < 1.0;
+      if (outer && !inner) set_pixel(i, j, color == kColorBlack);
+    }
+}
+
+static void fake_set_clip_rect(int x, int y, int width, int height) {
+  current->clipped = 1;
+  current->clip_x = x;
+  current->clip_y = y;
+  current->clip_width = width;
+  current->clip_height = height;
+}
+
+static void fake_clear_clip_rect(void) { current->clipped = 0; }
 
 /* The bytes of the first `count` UTF-8 characters of `text`, stopping at a NUL; reads nothing past them. */
 static size_t utf8_bytes(const char *text, size_t count) {
@@ -258,8 +329,14 @@ static int fake_draw_text(const void *text, size_t len, PDStringEncoding encodin
   fake_run *run;
   (void)encoding;
   if (current->font_set == FAKE_FONT_NONE) abort(); /* the screens draw in a font they loaded, never the default */
-  if (current->run_count == FAKE_RUNS) abort();
-  run = &current->runs[current->run_count++];
+  if (context() >= 0) {
+    fake_made *made = &current->made[context()];
+    if (made->run_count == FAKE_MADE_RUNS) abort();
+    run = &made->runs[made->run_count++];
+  } else {
+    if (current->run_count == FAKE_RUNS) abort();
+    run = &current->runs[current->run_count++];
+  }
   if (n >= sizeof run->text) abort();
   memcpy(run->text, bytes, n);
   run->text[n] = '\0';
@@ -294,6 +371,70 @@ const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
 }
 
 /* ---- bitmaps ---- */
+
+int fake_made_index(const fake_playdate *fake, const LCDBitmap *bitmap) {
+  int index = (int)((const fake_made *)bitmap - fake->made);
+  if (index < 0 || index >= FAKE_MADE) return -1;
+  return (const fake_made *)bitmap == &fake->made[index] && fake->made[index].live ? index : -1;
+}
+
+LCDSolidColor fake_made_pixel(const fake_playdate *fake, int made, int x, int y) {
+  const fake_made *m = &fake->made[made];
+  if (x < 0 || y < 0 || x >= m->width || y >= m->height) return kColorClear;
+  if (m->mask != NULL && !((m->mask[y * m->rowbytes + x / 8] >> (7 - x % 8)) & 1)) return kColorClear;
+  return (m->data[y * m->rowbytes + x / 8] >> (7 - x % 8)) & 1 ? kColorWhite : kColorBlack;
+}
+
+/* Whether `bitmap` points into the made bitmaps, live or not. */
+static int is_made(LCDBitmap *bitmap) {
+  const fake_made *m = (const fake_made *)bitmap;
+  return m >= current->made && m < current->made + FAKE_MADE;
+}
+
+/* The live made bitmap `bitmap` is; anything else is a fault. */
+static int made_of(LCDBitmap *bitmap) {
+  int index = fake_made_index(current, bitmap);
+  if (index < 0) abort();
+  return index;
+}
+
+/* A bitmap filled with `color`; a clear one has a mask, all of it undrawn. */
+static LCDBitmap *fake_new_bitmap(int width, int height, LCDColor color) {
+  int i;
+  for (i = 0; i < FAKE_MADE; i++) {
+    fake_made *made = &current->made[i];
+    size_t bytes;
+    if (made->live) continue;
+    if (width <= 0 || height <= 0 || color > kColorClear) abort();
+    memset(made, 0, sizeof *made);
+    made->width = width;
+    made->height = height;
+    made->rowbytes = (width + 31) / 32 * 4; /* padded, so a reader that assumes the width's bytes is caught */
+    bytes = (size_t)made->rowbytes * (size_t)height;
+    made->data = (uint8_t *)malloc(bytes);
+    if (made->data == NULL) abort();
+    memset(made->data, color == kColorBlack ? 0x00 : 0xFF, bytes);
+    if (color == kColorClear) {
+      made->mask = (uint8_t *)calloc(1, bytes);
+      if (made->mask == NULL) abort();
+    }
+    made->live = 1;
+    current->made_live++;
+    current->made_total++;
+    return (LCDBitmap *)made;
+  }
+  abort(); /* more bitmaps held at once than any screen should */
+}
+
+static void fake_push_context(LCDBitmap *target) {
+  if (current->context_count == FAKE_CONTEXTS) abort();
+  current->contexts[current->context_count++] = target == NULL ? -1 : made_of(target);
+}
+
+static void fake_pop_context(void) {
+  if (current->context_count == 0) abort();
+  current->context_count--;
+}
 
 static int bitmap_of(LCDBitmap *bitmap) {
   int index = (int)((fake_bitmap *)bitmap - current->bitmaps);
@@ -334,12 +475,34 @@ static LCDBitmap *fake_load_bitmap(const char *path, const char **error) {
 }
 
 static void fake_free_bitmap(LCDBitmap *bitmap) {
+  if (is_made(bitmap)) {
+    fake_made *made = &current->made[made_of(bitmap)];
+    int i;
+    for (i = 0; i < current->context_count; i++)
+      if (current->contexts[i] == made - current->made) abort(); /* freed while drawn into */
+    free(made->data);
+    free(made->mask);
+    made->data = made->mask = NULL;
+    made->live = 0;
+    current->made_live--;
+    return;
+  }
   current->bitmaps[bitmap_of(bitmap)].live = 0;
   current->bitmaps_live--;
 }
 
 static void fake_bitmap_data(LCDBitmap *bitmap, int *width, int *height, int *rowbytes, uint8_t **mask, uint8_t **data) {
-  const fake_bitmap *held = &current->bitmaps[bitmap_of(bitmap)];
+  const fake_bitmap *held;
+  if (is_made(bitmap)) {
+    fake_made *made = &current->made[made_of(bitmap)];
+    if (width != NULL) *width = made->width;
+    if (height != NULL) *height = made->height;
+    if (rowbytes != NULL) *rowbytes = made->rowbytes;
+    if (mask != NULL) *mask = made->mask;
+    if (data != NULL) *data = made->data;
+    return;
+  }
+  held = &current->bitmaps[bitmap_of(bitmap)];
   if (width != NULL) *width = held->width;
   if (height != NULL) *height = held->height;
   if (rowbytes != NULL) *rowbytes = (held->width + 7) / 8;
@@ -360,8 +523,34 @@ static void drawn_at(LCDBitmap *bitmap, int x, int y, float scale) {
        kColorBlack);
 }
 
+/* A made bitmap copied onto the context through its mask, and its placement recorded. */
+static void placed_at(LCDBitmap *bitmap, int x, int y) {
+  int index = made_of(bitmap), i, j;
+  const fake_made *made = &current->made[index];
+  fake_placed *placed;
+  if (current->placed_count == FAKE_PLACED) abort();
+  placed = &current->placed[current->placed_count++];
+  placed->made = index;
+  placed->x = x;
+  placed->y = y;
+  placed->clipped = current->clipped;
+  placed->clip_x = current->clip_x;
+  placed->clip_y = current->clip_y;
+  placed->clip_width = current->clip_width;
+  placed->clip_height = current->clip_height;
+  for (j = 0; j < made->height; j++)
+    for (i = 0; i < made->width; i++) {
+      LCDSolidColor pixel = fake_made_pixel(current, index, i, j);
+      if (pixel != kColorClear) set_pixel(x + i, y + j, pixel == kColorBlack);
+    }
+}
+
 static void fake_draw_bitmap(LCDBitmap *bitmap, int x, int y, LCDBitmapFlip flip) {
   if (flip != kBitmapUnflipped) abort();
+  if (is_made(bitmap)) {
+    placed_at(bitmap, x, y);
+    return;
+  }
   drawn_at(bitmap, x, y, 1.0f);
 }
 
@@ -665,6 +854,12 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->gfx.fillRect = fake_fill_rect;
   fake->gfx.fillTriangle = fake_fill_triangle;
   fake->gfx.drawLine = fake_draw_line;
+  fake->gfx.drawEllipse = fake_draw_ellipse;
+  fake->gfx.setClipRect = fake_set_clip_rect;
+  fake->gfx.clearClipRect = fake_clear_clip_rect;
+  fake->gfx.newBitmap = fake_new_bitmap;
+  fake->gfx.pushContext = fake_push_context;
+  fake->gfx.popContext = fake_pop_context;
   fake->gfx.drawText = fake_draw_text;
   fake->gfx.getTextWidth = fake_text_width;
   fake->gfx.loadFont = fake_load_font;

@@ -1,9 +1,9 @@
 /*
  * The sentence builder screen (the design doc's The chip tree and the crank sentence builder): the
- * sentence so far at the top, the drum of choices in the middle with the selected
- * one in its window, and the selected choice's refusal or the keys at the bottom. The crank turns
- * the drum and up and down step it; A picks, and on the whole sentence runs it; B steps back, and at
- * the verbs closes the builder. A run sentence is told in the reader, led by the sentence as typed,
+ * sentence so far at the top, the disc of choices in the middle (disc.h) with the selected one
+ * level at its front as an inverted label, and the selected choice's refusal or the keys at the
+ * bottom. The crank turns the disc and up and down step it; A picks, and on the whole sentence
+ * runs it; B steps back, and at the verbs closes the builder. A run sentence is told in the reader, led by the sentence as typed,
  * and the pictures its turn asked for are shown (pictures.h) once the builder has closed; one with
  * `everything` for a role that takes one thing is a turn for each thing, each told as its own
  * sentence, until one ends the line. Its cues sound through `player_cue`.
@@ -19,26 +19,41 @@
 #include <stdbool.h>
 
 #include "app.h"
-#include "drum.h"
+#include "disc.h"
 #include "gallery.h"
 #include "reader.h"
 #include "sentence.h"
 #include "wrap.h"
 
-/* The drum's fonts, packaged into the pdx from Source/fonts/. */
+/* The builder's fonts, packaged into the pdx from Source/fonts/: the disc's words, and the sentence line where it is long. */
 #define BUILDER_BIG_FONT "fonts/Asheville-Sans-24-Light.pft"
 #define BUILDER_SMALL_FONT "fonts/Roobert-10-Bold.pft"
-/* Half the height of the window at the drum's front. */
-#define BUILDER_WINDOW 18
 /* What leads a sentence trimmed from the left. */
 #define BUILDER_TRIMMED "..."
 #define BUILDER_KEYS "A picks   B steps back   the crank turns the wheel"
 
+/*
+ * A word on the disc: drawn flat once while its level's entries stand, and turned to its ray while
+ * its angle stands. A long word is cut at the screen's width, as the screen's edge would cut it.
+ */
+typedef struct builder_label {
+  LCDBitmap *flat;   /* the word black on white, greyed in a checker where it is; NULL until first shown */
+  LCDBitmap *turned; /* `flat` turned to `along`, inverted where `front`; NULL while the word is not shown */
+  float angle;       /* its sector's angle from the front, as disc_rows gave it */
+  float along;       /* the angle its word is turned to: its ray's, bent, at the word's middle */
+  bool front;
+  bool shown;        /* placed in the frame last drawn */
+  int x, y;          /* where `turned` was placed */
+} builder_label;
+
 typedef struct player_builder {
   player_reader *reader; /* lent while the builder is up */
   sentence sentence;
-  drum drum;
-  wrapped message; /* words shown over the drum until A or B; no bytes when there are none */
+  disc disc;
+  builder_label *labels; /* one for each entry of the sentence's level */
+  size_t label_count;
+  unsigned long labels_of; /* the sentence's `made` the labels were drawn for */
+  wrapped message; /* words shown over the disc until A or B; no bytes when there are none */
   bool closing;    /* the builder closes once the words are read */
   gallery pictures; /* what the sentence run asked to show, shown once the builder closes */
   char line[512];  /* the sentence so far as it fits the screen */

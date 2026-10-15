@@ -1,13 +1,17 @@
 /*
- * The sentence builder (ui/builder.c, ui/sentence.c, ui/everything.c, ui/drum.c) driven a frame at a time through
- * the fake PlaydateAPI in the chip_tree world's hall, and judged by what was drawn. The rules: the
- * drum's front is the selected entry in the big font, its neighbours curve away in the smaller
- * fonts in the entries' order; the root lists the scene's verbs in the view's order; a greyed
- * chip is drawn greyed and its reason is the panel's words; the sentence so far is the picks
- * joined; a confirmed sentence runs and the reader is told it and then what the turn told, and one
- * whose save fails stops play and greys the world on the shelf; the sentence line fits the screen
- * whatever its length, keeping its end in view; and however the crank turned, the word in the
- * window is the one the panel speaks of and A picks. `everything` comes first on a level whose role
+ * The sentence builder (ui/builder.c, ui/sentence.c, ui/everything.c, ui/disc.c) driven a frame at a time through
+ * the fake PlaydateAPI in the chip_tree world's hall, and judged by what was drawn. The rules: each
+ * word on the disc is a label drawn once into a bitmap in the big font and placed along its ray; the
+ * front is the selected entry, the only label drawn inverted, level at the hub's height at rest, its
+ * neighbours a sector either side in the entries' order, each entry placed once, and the crank's
+ * fraction turns every word alike; the dividing rays are drawn only where a word sits; the labels
+ * are let go with the builder; the root lists the scene's verbs in the view's order; a greyed
+ * chip is drawn greyed (at the front, a dotted inverted label) and its reason is the panel's words;
+ * the sentence so far is the picks joined; a confirmed sentence runs and the reader is told it and
+ * then what the turn told, and one whose save fails stops play and greys the world on the shelf; the
+ * sentence line fits the screen whatever its length, keeping its end in view, while a long word on
+ * the disc is cut at the screen's edge; and however the crank turned, the word at the front is the
+ * one the panel speaks of and A picks. `everything` comes first on a level whose role
  * would read `all` where two or more things can be done: a set role binds them all, and a role that
  * takes one thing runs a turn for each in the level's order, leaving out what the view refuses,
  * stopping at the first refusal and bounded by what a set role may bind; such a line is one save, its state
@@ -19,7 +23,7 @@
 #include "support.h"
 #include "ui/app.h"
 #include "ui/builder.h"
-#include "ui/drum.h"
+#include "ui/disc.h"
 #include "ui/message.h"
 #include "ui/nickname.h"
 #include "ui/reader.h"
@@ -29,8 +33,11 @@
 #define HEADER (LINE + 4)
 #define BOTTOM (240 - (LINE * 3 + 8))
 #define CENTRE ((HEADER + BOTTOM) / 2)
-#define FRONT_Y (CENTRE - FAKE_BIG_LINE / 2)
 #define ROOM (400 - 2 * PLAYER_MARGIN)
+/* A label: the big font's line and a pixel above and below; at rest the front one is placed level with the hub's centre, from where words start. */
+#define LABEL_HEIGHT (FAKE_BIG_LINE + 2)
+#define FRONT_X (DISC_HUB_X + DISC_WORD_AT)
+#define FRONT_Y (CENTRE - LABEL_HEIGHT / 2)
 
 static const char READER_KEYS[] = "A: build a sentence   crank: scroll back";
 
@@ -43,21 +50,78 @@ static bool on_reader(void) { return panel() != NULL && strcmp(panel()->text, RE
 /* Whether the builder's keys are the panel's words; wrapped, their runs of spaces are one. */
 static bool keys_shown(void) { return panel() != NULL && strcmp(panel()->text, "A picks B steps back the crank turns the wheel") == 0; }
 
-/* The run drawn in `font`, the first at `y` where y is not -1; NULL where there is none. */
-static const fake_run *run_in(fake_font font, int y) {
-  int i;
-  for (i = 0; i < fake->run_count; i++)
-    if (fake->runs[i].font == font && (y == -1 || fake->runs[i].y == y)) return &fake->runs[i];
+/* ---- the disc as drawn ---- */
+
+/* The builder, where it is the screen up; else NULL. */
+static player_builder *builder(void) { return app != NULL && app->screen == &player_builder_screen ? (player_builder *)app->ctx : NULL; }
+
+/* The label of the builder's whose turned bitmap is placement `n` of this frame, or NULL. */
+static const builder_label *label_placed(int n) {
+  player_builder *b = builder();
+  size_t i;
+  if (b == NULL || n >= fake->placed_count) return NULL;
+  for (i = 0; i < b->label_count; i++)
+    if (b->labels[i].turned != NULL && fake_made_index(fake, b->labels[i].turned) == fake->placed[n].made) return &b->labels[i];
   return NULL;
 }
 
-/* The word in the window: the one drawn large, wherever the turning drum has carried it. */
-static const char *front(void) {
-  const fake_run *run = run_in(FAKE_FONT_BIG, -1);
-  return run != NULL ? run->text : "(no front)";
+/* The entry a label stands for. */
+static size_t entry_of(const builder_label *label) { return (size_t)(label - builder()->labels); }
+
+/* The text drawn into a label's flat bitmap, and the font it was drawn in. */
+static const fake_run *label_run(const builder_label *label) {
+  int made = label != NULL && label->flat != NULL ? fake_made_index(fake, label->flat) : -1;
+  return made >= 0 && fake->made[made].run_count > 0 ? &fake->made[made].runs[0] : NULL;
 }
 
-/* The sentence so far, as drawn above the drum. */
+static const char *label_text(const builder_label *label) {
+  const fake_run *run = label_run(label);
+  return run != NULL ? run->text : "(no text)";
+}
+
+/* Whether placement `n` has a white pixel drawn: the inverted label, as an unturned one has only black. */
+static bool inverted(int n) {
+  const fake_made *made = &fake->made[fake->placed[n].made];
+  int x, y;
+  for (y = 0; y < made->height; y++)
+    for (x = 0; x < made->width; x++)
+      if (fake_made_pixel(fake, fake->placed[n].made, x, y) == kColorWhite) return true;
+  return false;
+}
+
+/* The placement of the front label this frame: the one drawn inverted; -1 where there is none. */
+static int front_placed(void) {
+  int n;
+  for (n = 0; n < fake->placed_count; n++)
+    if (inverted(n)) return n;
+  return -1;
+}
+
+/* The word at the front: the inverted label's, wherever the turning disc has carried it. */
+static const char *front(void) {
+  int n = front_placed();
+  return n >= 0 ? label_text(label_placed(n)) : "(no front)";
+}
+
+/* The placement of the label for entry `index` this frame, or -1. */
+static int placed_entry(size_t index) {
+  int n;
+  for (n = 0; n < fake->placed_count; n++)
+    if (label_placed(n) != NULL && entry_of(label_placed(n)) == index) return n;
+  return -1;
+}
+
+/* Whether a ray at `angle` is drawn: a black pixel at, or a pixel from, where its bent line passes 100 pixels from the hub. */
+static bool ray_at(float angle) {
+  int x, y, dx, dy;
+  disc_point(disc_bent(angle, 100.0f), 100.0f, &x, &y);
+  for (dy = -1; dy <= 1; dy++)
+    for (dx = -1; dx <= 1; dx++)
+      if (fake_pixel(fake, DISC_HUB_X + x + dx, CENTRE + y + dy)) return true;
+  return false;
+}
+
+/* The sentence so far, as drawn above the disc. */
 static const char *phrase(void) {
   const fake_run *run = fake_run_at(fake, PLAYER_MARGIN, 0);
   return run != NULL ? run->text : "(no line)";
@@ -85,6 +149,7 @@ static void arrive(const char *scenario) { arrive_in(scenario, "chip-tree.sprout
 static void leave(void) {
   player_app_free(app);
   app = NULL;
+  CHECK(fake->made_live == 0, "no label is held once the app ends: %d", fake->made_live);
   end();
 }
 
@@ -98,7 +163,7 @@ static bool step_to(PDButtons button, const char *label, int most) {
   return strcmp(front(), label) == 0;
 }
 
-/* A verb's name without its library, as the drum shows it. */
+/* A verb's name without its library, as the disc shows it. */
 static const char *bare(const char *verb) {
   const char *dot = strrchr(verb, '.');
   return dot != NULL ? dot + 1 : verb;
@@ -106,14 +171,15 @@ static const char *bare(const char *verb) {
 
 /* ---- the scenarios ---- */
 
-static void the_root_is_the_scenes_verbs_on_a_drum_turned_by_the_crank(void) {
+static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
   static char verbs[32][64];
   player_chip_level root;
   size_t count, i;
-  const fake_run *above, *below, *far_above, *far_below;
+  int n, front_at;
+  float rest_angle[32];
   arrive("root");
   fake_frame(fake, kButtonA, 0);
-  CHECK(!on_reader() && keys_shown(), "A opens the builder, its keys below the drum");
+  CHECK(!on_reader() && keys_shown(), "A opens the builder, its keys below the disc");
   CHECK(strcmp(phrase(), "") == 0, "nothing is built yet: %s", phrase());
   root = player_chips(app->session, NULL, 0);
   CHECK(root.ok && root.choice_count >= 12, "the scene's verbs");
@@ -121,31 +187,59 @@ static void the_root_is_the_scenes_verbs_on_a_drum_turned_by_the_crank(void) {
   for (i = 0; i < count; i++) snprintf(verbs[i], sizeof verbs[0], "%s", bare(root.choices[i].verb));
   CHECK(strcmp(verbs[0], "juggle") == 0 && strcmp(verbs[11], "ask") == 0, "the chip_tree hall's verbs: %s ... %s", verbs[0], verbs[11]);
 
-  /* The front is the first verb, large and centred in the window; the ones beside and beyond it in smaller type. */
+  /* The front is the first verb, the one label drawn inverted, unturned and level with the hub, its word from where words start. */
+  front_at = front_placed();
   CHECK(strcmp(front(), verbs[0]) == 0, "the front is %s, the first verb: %s", verbs[0], front());
-  CHECK(run_in(FAKE_FONT_BIG, FRONT_Y)->x == 200 - (int)strlen(verbs[0]) * FAKE_BIG_GLYPH / 2, "centred");
-  below = run_in(FAKE_FONT_SYSTEM, CENTRE + 41 - LINE / 2);
-  above = run_in(FAKE_FONT_SYSTEM, CENTRE - 41 - LINE / 2);
-  far_below = run_in(FAKE_FONT_SMALL, CENTRE + 67 - FAKE_SMALL_LINE / 2);
-  far_above = run_in(FAKE_FONT_SMALL, CENTRE - 67 - FAKE_SMALL_LINE / 2);
-  CHECK(below != NULL && strcmp(below->text, verbs[1]) == 0, "the next verb below, in the system font");
-  CHECK(above != NULL && strcmp(above->text, verbs[count - 1]) == 0, "the last verb above it, the drum wrapping round");
-  CHECK(far_below != NULL && strcmp(far_below->text, verbs[2]) == 0, "two along, curving away small");
-  CHECK(far_above != NULL && strcmp(far_above->text, verbs[count - 2]) == 0, "two back, curving away small");
-  {
-    int x, inside = 1;
-    for (x = 0; x < 400; x++) inside = inside && fake_pixel(fake, x, CENTRE - BUILDER_WINDOW) && fake_pixel(fake, x, CENTRE + BUILDER_WINDOW);
-    CHECK(inside, "the window's edges cross the screen");
-    CHECK(fake_pixel(fake, PLAYER_MARGIN + 1, CENTRE) && fake_pixel(fake, 400 - PLAYER_MARGIN - 1, CENTRE), "the pointers at the window");
+  CHECK(front_at >= 0 && fake->placed[front_at].x == FRONT_X && fake->placed[front_at].y == FRONT_Y &&
+            fake->made[fake->placed[front_at].made].height == LABEL_HEIGHT,
+        "level at the front: %d %d", front_at >= 0 ? fake->placed[front_at].x : -1, front_at >= 0 ? fake->placed[front_at].y : -1);
+  CHECK(fake_pixel(fake, FRONT_X + 1, FRONT_Y + 1) && !fake_pixel(fake, FRONT_X + 4, FRONT_Y + 4),
+        "a black label with its word in white");
+  /* A sector either side in the entries' order, the disc wrapping; every word a label in the big font, placed once. */
+  CHECK(fake->placed_count == DISC_MOST_ROWS, "as many words as sectors are shown: %d", fake->placed_count);
+  for (n = 0; n < fake->placed_count; n++) {
+    const builder_label *label = label_placed(n);
+    long k;
+    int m;
+    CHECK(label != NULL && label_run(label) != NULL && label_run(label)->font == FAKE_FONT_BIG, "placement %d is a word in the big font", n);
+    if (label == NULL) continue;
+    k = label->angle > 0 ? (long)(label->angle / DISC_SECTOR_DEGREES + 0.5f) : -(long)(-label->angle / DISC_SECTOR_DEGREES + 0.5f);
+    CHECK(label->angle == (float)k * DISC_SECTOR_DEGREES, "on a sector: %f", (double)label->angle);
+    CHECK(strcmp(label_text(label), verbs[(size_t)((long)count + k) % count]) == 0, "%ld sectors round is %s: %s", k,
+          verbs[(size_t)((long)count + k) % count], label_text(label));
+    CHECK((k == 0) == (n == front_at), "only the front is inverted");
+    CHECK(k == 0 || (k > 0) == (fake->placed[n].y > FRONT_Y), "below the front further on, above it further back");
+    for (m = n + 1; m < fake->placed_count; m++) CHECK(label_placed(m) != label, "%s placed once", label_text(label));
+    if (entry_of(label) < 32) rest_angle[entry_of(label)] = label->angle;
   }
+  CHECK(placed_entry(1) >= 0 && label_placed(placed_entry(1))->angle == DISC_SECTOR_DEGREES, "the next verb a sector below");
+  CHECK(placed_entry(count - 1) >= 0 && label_placed(placed_entry(count - 1))->angle == -DISC_SECTOR_DEGREES, "the last a sector above");
+  /* The hub, its marker at the front, and the rays between the sectors that hold words. */
+  CHECK(fake->ellipses == 1 && fake_pixel(fake, DISC_HUB_X + DISC_HUB_RADIUS / 2, CENTRE - DISC_HUB_RADIUS * 7 / 8 + 1) &&
+            !fake_pixel(fake, DISC_HUB_X + DISC_HUB_RADIUS / 2, CENTRE - DISC_HUB_RADIUS * 7 / 8 + 6),
+        "the hub on the left edge, a ring");
+  CHECK(fake_pixel(fake, DISC_HUB_X + DISC_HUB_RADIUS + 2, CENTRE), "its marker pointing at the front");
+  CHECK(ray_at(DISC_SECTOR_DEGREES / 2) && ray_at(-DISC_SECTOR_DEGREES / 2) && ray_at(1.5f * DISC_SECTOR_DEGREES),
+        "rays between the front and its neighbours, and beyond");
 
-  /* Each 24 degrees of crank is a verb, round the whole drum and back to the first; less is not yet one. */
+  /* Each 24 degrees of crank is a verb, round the whole disc and back to the first; less is not yet one. */
   for (i = 1; i <= count; i++) {
     fake_frame(fake, 0, 24.0f);
     CHECK(strcmp(front(), verbs[i % count]) == 0, "after %zu steps the front is %s: %s", i, verbs[i % count], front());
   }
+  /* Ten degrees turns every word ten degrees up, the front off level; the labels stay the ones drawn at rest. */
   fake_frame(fake, 0, 10.0f);
   CHECK(strcmp(front(), verbs[0]) == 0, "ten degrees is not a step");
+  CHECK(fake->placed_count == DISC_MOST_ROWS, "the same words shown");
+  for (n = 0; n < fake->placed_count; n++) {
+    const builder_label *label = label_placed(n);
+    if (label == NULL || entry_of(label) >= 32) continue;
+    CHECK(label->angle > rest_angle[entry_of(label)] - 10.01f && label->angle < rest_angle[entry_of(label)] - 9.99f,
+          "%s turned ten degrees up: %f from %f", label_text(label), (double)label->angle, (double)rest_angle[entry_of(label)]);
+  }
+  front_at = front_placed();
+  CHECK(front_at >= 0 && fake->made[fake->placed[front_at].made].height > LABEL_HEIGHT && fake->placed[front_at].y < FRONT_Y,
+        "the front word tilts up off level");
   fake_frame(fake, 0, -34.0f);
   CHECK(strcmp(front(), verbs[count - 1]) == 0, "twenty-four back is a step back: %s", front());
   fake_frame(fake, kButtonDown, 0);
@@ -153,36 +247,89 @@ static void the_root_is_the_scenes_verbs_on_a_drum_turned_by_the_crank(void) {
   fake_frame(fake, kButtonUp, 0);
   CHECK(strcmp(front(), verbs[count - 1]) == 0, "up steps back");
 
-  /* Left past halfway, the next verb is the one in the window, and the drum rolls it to the centre once the crank rests. */
+  /* Left past halfway, the next verb is the front, still turned below level, and the disc rolls it level once the crank rests. */
   fake_frame(fake, 0, 14.0f);
-  CHECK(run_in(FAKE_FONT_BIG, FRONT_Y) == NULL && run_in(FAKE_FONT_BIG, FRONT_Y + 18) != NULL &&
-            strcmp(run_in(FAKE_FONT_BIG, FRONT_Y + 18)->text, verbs[0]) == 0,
-        "fourteen degrees on, the next verb has turned most of the way into the window");
-  for (i = 0; i < DRUM_REST_FRAMES + 20; i++) fake_frame(fake, 0, 0);
-  CHECK(strcmp(front(), verbs[0]) == 0, "settled on the next verb: %s", front());
+  front_at = front_placed();
+  CHECK(strcmp(front(), verbs[0]) == 0 && front_at >= 0 && label_placed(front_at)->angle > 9.99f &&
+            label_placed(front_at)->angle < 10.01f && fake->placed[front_at].y > FRONT_Y,
+        "fourteen degrees on, the next verb has turned most of the way to the front: %s", front());
+  for (i = 0; i < DISC_REST_FRAMES + 20; i++) fake_frame(fake, 0, 0);
+  front_at = front_placed();
+  CHECK(strcmp(front(), verbs[0]) == 0 && front_at >= 0 && fake->placed[front_at].x == FRONT_X && fake->placed[front_at].y == FRONT_Y,
+        "settled level on the next verb: %s", front());
 
   fake_frame(fake, kButtonB, 0);
   CHECK(on_reader(), "B at the verbs closes the builder");
+  CHECK(fake->made_live == 0, "and lets go of its labels: %d held", fake->made_live);
   leave();
 }
 
+/* A label made for each word shown, drawn again only when the level's entries change. */
+static void a_label_is_drawn_once_while_its_level_stands(void) {
+  const builder_label *front_label;
+  int n, made;
+  arrive("labels");
+  fake_frame(fake, kButtonA, 0);
+  for (n = 0; n < DISC_REST_FRAMES + 20; n++) fake_frame(fake, 0, 0);
+  front_label = label_placed(front_placed());
+  CHECK(front_label != NULL, "a front");
+  if (front_label == NULL) {
+    leave();
+    return;
+  }
+  made = fake->made_total;
+  fake_frame(fake, 0, 0);
+  CHECK(fake->made_total == made && fake->placed_count == DISC_MOST_ROWS, "at rest, nothing is drawn again: %d made",
+        fake->made_total - made);
+  made = fake->made_total;
+  fake_frame(fake, 0, 5.0f);
+  CHECK(fake->made_total - made == fake->placed_count, "turned, each word shown is turned again but not drawn again: %d made for %d",
+        fake->made_total - made, fake->placed_count);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(builder()->labels_of == builder()->sentence.made && fake->made_live <= 2 * DISC_MOST_ROWS,
+        "a level picked, its labels are new and the last level's let go: %d held", fake->made_live);
+  leave();
+}
+
+/* The white and black pixels of the first character of the label at the front, at rest. */
+static void first_character(int *white, int *black) {
+  const fake_run *run = label_run(label_placed(front_placed()));
+  int x, y, x0 = FRONT_X + (run != NULL ? run->x : 0), y0 = FRONT_Y + (run != NULL ? run->y : 0);
+  *white = *black = 0;
+  for (y = y0 + 3; y < y0 + FAKE_BIG_LINE - 3; y++)
+    for (x = x0 + 1; x < x0 + FAKE_BIG_GLYPH - 1; x++) {
+      *black += fake_pixel(fake, x, y);
+      *white += !fake_pixel(fake, x, y);
+    }
+}
+
 static void a_greyed_chip_is_drawn_greyed_and_says_why(void) {
-  const fake_run *drop;
-  int x, y, white = 0, black = 0;
+  const int area = (FAKE_BIG_GLYPH - 2) * (FAKE_BIG_LINE - 6);
+  int white, black, n, greyed_below = 0;
   arrive("greyed");
   fake_frame(fake, kButtonA, 0);
-  CHECK(step_to(kButtonDown, "drop", 20), "the drum reaches drop");
-  /* Nothing is held, so nothing can be dropped: the verb is greyed once the drum reaches it. */
+  first_character(&white, &black);
+  CHECK(white == area && black == 0, "a word that can be done is solid white on the black label: %d white, %d black", white, black);
+  CHECK(step_to(kButtonDown, "drop", 20), "the disc reaches drop");
+  for (n = 0; n < DISC_REST_FRAMES + 20; n++) fake_frame(fake, 0, 0);
+  /* Nothing is held, so nothing can be dropped: the verb is greyed once the disc reaches it. */
   CHECK(panel() != NULL && strcmp(panel()->text, "You are not holding a guard.") == 0, "the panel says why: %s",
         panel() ? panel()->text : "(none)");
-  drop = run_in(FAKE_FONT_BIG, FRONT_Y);
-  for (y = drop->y + 3; y < drop->y + FAKE_BIG_LINE - 3; y++)
-    for (x = drop->x + 1; x < drop->x + FAKE_BIG_GLYPH - 1; x++) {
-      if ((x + y) % 2 == 0) white += !fake_pixel(fake, x, y);
-      else black += fake_pixel(fake, x, y);
-    }
-  CHECK(white == (FAKE_BIG_GLYPH - 2) * (FAKE_BIG_LINE - 6) / 2 && black == white, "the word is drawn in a checker: %d white, %d black",
-        white, black);
+  /* At the front a greyed word is dotted: half its pixels white, half the label's black, in a checker. */
+  first_character(&white, &black);
+  CHECK(white == area / 2 && black == area / 2, "the word is drawn in a checker: %d white, %d black", white, black);
+  CHECK(fake_pixel(fake, FRONT_X + 1, FRONT_Y + 1), "on a black label");
+  CHECK(step_to(kButtonUp, "take", 1), "back to take");
+  for (n = 0; n < DISC_REST_FRAMES + 20; n++) fake_frame(fake, 0, 0);
+  /* Off the front a greyed word keeps its checker: half the pixels of each of its characters are black. */
+  n = placed_entry(builder()->sentence.state.selected + 1);
+  if (n >= 0 && strcmp(label_text(label_placed(n)), "drop") == 0) {
+    int made = fake_made_index(fake, label_placed(n)->flat), x, y, drawn = 0;
+    for (y = 0; y < fake->made[made].height; y++)
+      for (x = 0; x < fake->made[made].width; x++) drawn += fake_made_pixel(fake, made, x, y) == kColorBlack;
+    greyed_below = drawn == 4 * area / 2;
+  }
+  CHECK(greyed_below, "drop, a sector below, is drawn greyed");
   CHECK(step_to(kButtonUp, "take", 1), "back to take");
   CHECK(keys_shown(), "a chip that can be done shows the keys");
 
@@ -193,7 +340,7 @@ static void a_greyed_chip_is_drawn_greyed_and_says_why(void) {
   fake_frame(fake, kButtonA, 0);
   fake_frame(fake, kButtonA, 0);
   CHECK(HAS(phrase(), "give -> "), "two picks: %s", phrase());
-  CHECK(run_in(FAKE_FONT_BIG, FRONT_Y) != NULL && HAS(front(), "give -> "), "the whole sentence at the front: %s", front());
+  CHECK(HAS(front(), "give -> "), "the whole sentence at the front: %s", front());
   CHECK(panel() != NULL && HAS(panel()->text, "You are not holding"), "and why it cannot be: %s", panel() ? panel()->text : "");
   fake_frame(fake, kButtonA, 0);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 40) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, 40)->text, "You are not holding"),
@@ -216,7 +363,7 @@ static void descending_into_a_verb_and_back(void) {
   CHECK(strcmp(phrase(), "ask -> a guard") == 0, "%s", phrase());
   CHECK(strcmp(front(), "bridge") == 0, "the words the guard hears: %s", front());
   fake_frame(fake, kButtonB, 0);
-  CHECK(strcmp(phrase(), "ask") == 0 && strcmp(front(), "a guard") == 0, "B steps back to where the drum was: %s", front());
+  CHECK(strcmp(phrase(), "ask") == 0 && strcmp(front(), "a guard") == 0, "B steps back to where the disc was: %s", front());
   fake_frame(fake, kButtonB, 0);
   CHECK(strcmp(phrase(), "") == 0 && strcmp(front(), "ask") == 0, "and back to the verbs: %s", front());
   fake_frame(fake, kButtonB, 0);
@@ -349,12 +496,26 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
     CHECK(shown < length && strcmp(line->text + strlen(BUILDER_TRIMMED), built + length - shown) == 0, "it ends as the sentence does: %s",
           line->text);
   }
-  /* The drum's own words fit too: the front, each slat, inside the screen. */
+  /* The rest of the screen's text fits it too. */
   {
     int i;
     for (i = 0; i < fake->run_count; i++)
       CHECK(fake->runs[i].x >= 0 && fake->runs[i].x + (int)strlen(fake->runs[i].text) * fake_glyph(fake, fake->runs[i].font) <= 400,
             "%s is drawn inside the screen", fake->runs[i].text);
+  }
+  /* A word on the disc is not fitted: the whole sentence at the front runs off the screen's edge, cut there. */
+  CHECK(step_to(kButtonDown, "that's all", 10), "that's all");
+  fake_frame(fake, kButtonA, 0);
+  {
+    int n = front_placed(), i;
+    const builder_label *label = n >= 0 ? label_placed(n) : NULL;
+    CHECK(label != NULL && strcmp(label_text(label), built) == 0, "the whole sentence is drawn at the front: %s", front());
+    CHECK(n >= 0 && fake->made[fake->placed[n].made].width == 400, "into a label as wide as the screen, past which nothing shows: %d",
+          n >= 0 ? fake->made[fake->placed[n].made].width : 0);
+    for (i = 0; i < fake->placed_count; i++)
+      CHECK(fake->placed[i].clipped && fake->placed[i].clip_x == 0 && fake->placed[i].clip_y == HEADER &&
+                fake->placed[i].clip_width == 400 && fake->placed[i].clip_height == BOTTOM - HEADER,
+            "every word is drawn clipped to the disc, between the sentence line and the panel");
   }
   leave();
 }
@@ -363,14 +524,14 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
 
 static sentence *built(void) { return &((player_builder *)app->ctx)->sentence; }
 
-/* Whether the drum's first entry is `everything`. */
+/* Whether the disc's first entry is `everything`. */
 static bool everything_first(void) {
   size_t count;
   const sentence_entry *entries = sentence_entries(built(), &count);
   return entries[0].kind == SENTENCE_ENTRY_EVERYTHING && strcmp(entries[0].label, "everything") == 0;
 }
 
-/* Whether any entry on the drum is `everything`. */
+/* Whether any entry on the disc is `everything`. */
 static bool everything_offered(void) {
   size_t count, i;
   const sentence_entry *entries = sentence_entries(built(), &count);
@@ -433,7 +594,7 @@ static void everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stop
   fake_frame(fake, kButtonA, 0);
   CHECK(step_to(kButtonDown, "examine", 20), "examine");
   fake_frame(fake, kButtonA, 0);
-  CHECK(everything_first() && strcmp(front(), "everything") == 0, "everything comes first, in the window: %s", front());
+  CHECK(everything_first() && strcmp(front(), "everything") == 0, "everything comes first, at the front: %s", front());
   fake_frame(fake, kButtonA, 0);
   CHECK(strcmp(phrase(), "examine -> everything") == 0, "the sentence so far says everything: %s", phrase());
   CHECK(strcmp(front(), "examine -> everything") == 0, "and is the sentence to confirm: %s", front());
@@ -575,10 +736,10 @@ static void everything_runs_at_most_what_a_set_role_may_bind(void) {
   leave();
 }
 
-/* Rests the crank long enough for the drum to settle. */
+/* Rests the crank long enough for the disc to settle. */
 static void rest(void) {
   int n;
-  for (n = 0; n < DRUM_REST_FRAMES + 60; n++) fake_frame(fake, 0, 0);
+  for (n = 0; n < DISC_REST_FRAMES + 60; n++) fake_frame(fake, 0, 0);
 }
 
 /* Turns the crank by `degrees` a frame, `frames` times, `still` frames of rest after each. */
@@ -597,22 +758,21 @@ static bool ends_with(const char *text, const char *tail) {
 }
 
 /*
- * The drum agrees with itself: the word in the window, drawn in the big font, has its reason in the
- * panel (or the keys, where it has none), and A picks it. `shape` names how the drum got there.
+ * The disc agrees with itself: the word at the front, the inverted label, has its reason in the
+ * panel (or the keys, where it has none), and A picks it. `shape` names how the disc got there.
  * Whether A moved the builder on a level; a sentence to confirm is not run.
  */
-static bool window_is_the_pick(const char *shape) {
+static bool front_is_the_pick(const char *shape) {
   char word[512];
-  const fake_run *window = run_in(FAKE_FONT_BIG, -1);
   const sentence_entry *entries, *entry = NULL;
   size_t count, i, depth;
-  CHECK(window != NULL, "%s: a word in the window", shape);
-  if (window == NULL) return false;
-  snprintf(word, sizeof word, "%s", window->text);
+  CHECK(front_placed() >= 0, "%s: a word at the front", shape);
+  if (front_placed() < 0) return false;
+  snprintf(word, sizeof word, "%s", front());
   entries = sentence_entries(&((player_builder *)app->ctx)->sentence, &count);
   for (i = 0; i < count; i++)
     if (strcmp(entries[i].label, word) == 0) entry = &entries[i];
-  CHECK(entry != NULL, "%s: %s is on the drum", shape, word);
+  CHECK(entry != NULL, "%s: %s is on the disc", shape, word);
   if (entry == NULL) return false;
   if (entry->reason != NULL)
     CHECK(panel() != NULL && strncmp(entry->reason, panel()->text, strlen(panel()->text)) == 0, "%s: the panel is %s's reason: %s",
@@ -627,13 +787,13 @@ static bool window_is_the_pick(const char *shape) {
   return ((player_builder *)app->ctx)->sentence.history_count == depth + 1;
 }
 
-/* At rest on the verbs, the verb in the window has been asked after, so its reason, if it has one, is known. */
+/* At rest on the verbs, the verb at the front has been asked after, so its reason, if it has one, is known. */
 static void asked_after(const char *shape) {
   const sentence *sentence = &((player_builder *)app->ctx)->sentence;
   size_t count;
   const sentence_entry *entry = &sentence_entries(sentence, &count)[sentence->state.selected];
   CHECK(entry->kind == SENTENCE_ENTRY_VERB && sentence->choices[entry->index].greyed != PLAYER_GREYED_UNKNOWN,
-        "%s: the verb at rest in the window, %s, has been asked after", shape, entry->label);
+        "%s: the verb at rest at the front, %s, has been asked after", shape, entry->label);
 }
 
 /* Steps back to the verbs. */
@@ -643,8 +803,8 @@ static void back_to_the_verbs(const char *shape) {
   CHECK(strcmp(phrase(), "") == 0 && !on_reader(), "%s: back at the verbs: %s", shape, phrase());
 }
 
-static void after_any_crank_turn_the_window_is_what_a_picks(void) {
-  /* Shapes of turn: steady, jumpy with rests between, reversing, stopped between slats, a crank that never quite rests. */
+static void after_any_crank_turn_the_front_is_what_a_picks(void) {
+  /* Shapes of turn: steady, jumpy with rests between, reversing, stopped between sectors, a crank that never quite rests. */
   static const struct {
     const char *name;
     float degrees[3];
@@ -654,8 +814,8 @@ static void after_any_crank_turn_the_window_is_what_a_picks(void) {
       {"a steady turn back", {-7.0f, 0, 0}, {9, 0, 0}, {0, 0, 0}},
       {"twelve quick presses back", {-14.0f, 0, 0}, {12, 0, 0}, {1, 0, 0}},
       {"twelve presses back, a rest between", {-14.0f, 0, 0}, {12, 0, 0}, {3, 0, 0}},
-      {"presses on, resting almost long enough to settle", {14.0f, 0, 0}, {7, 0, 0}, {DRUM_REST_FRAMES - 1, 0, 0}},
-      {"presses on, settling between", {14.0f, 0, 0}, {5, 0, 0}, {DRUM_REST_FRAMES + 2, 0, 0}},
+      {"presses on, resting almost long enough to settle", {14.0f, 0, 0}, {7, 0, 0}, {DISC_REST_FRAMES - 1, 0, 0}},
+      {"presses on, settling between", {14.0f, 0, 0}, {5, 0, 0}, {DISC_REST_FRAMES + 2, 0, 0}},
       {"on and then back", {20.0f, -14.0f, 0}, {3, 4, 0}, {0, 2, 0}},
       {"back and then on", {-9.0f, 13.0f, -3.0f}, {5, 3, 1}, {1, 0, 0}},
       {"stopped short of halfway", {11.0f, 0, 0}, {1, 0, 0}, {0, 0, 0}},
@@ -673,21 +833,21 @@ static void after_any_crank_turn_the_window_is_what_a_picks(void) {
   for (i = 0; i < sizeof shapes / sizeof shapes[0]; i++) {
     const char *shape = shapes[i].name;
     for (j = 0; j < 3; j++) turn(shapes[i].degrees[j], shapes[i].frames[j], shapes[i].still[j]);
-    window_is_the_pick(shape);
+    front_is_the_pick(shape);
     /* Turned and let rest, and then on the level A opened: from the start, and after a turn of its own. */
     back_to_the_verbs(shape);
     for (j = 0; j < 3; j++) turn(shapes[i].degrees[j], shapes[i].frames[j], shapes[i].still[j]);
     rest();
     asked_after(shape);
-    if (window_is_the_pick(shape)) {
-      window_is_the_pick("the level opened after the turn");
+    if (front_is_the_pick(shape)) {
+      front_is_the_pick("the level opened after the turn");
       fake_frame(fake, kButtonB, 0);
       rest();
-      window_is_the_pick("the level opened, at rest");
+      front_is_the_pick("the level opened, at rest");
       fake_frame(fake, kButtonB, 0);
       for (j = 0; j < 3; j++) turn(shapes[i].degrees[j], shapes[i].frames[j], shapes[i].still[j]);
       rest();
-      window_is_the_pick("a turn on the level opened");
+      front_is_the_pick("a turn on the level opened");
     }
     back_to_the_verbs(shape);
   }
@@ -714,34 +874,11 @@ static void the_fit_trims_a_character_at_a_time_and_never_inside_one(void) {
   end();
 }
 
-static void the_drum_places_each_entry_once_and_settles(void) {
-  drum_row rows[DRUM_MOST_ROWS];
-  size_t made;
-  begin("drum");
-  made = drum_rows(1, 0, 0.0f, rows);
-  CHECK(made == 1 && rows[0].index == 0 && rows[0].y == 0 && rows[0].tier == DRUM_FRONT, "one entry sits at the front");
-  made = drum_rows(3, 0, 0.0f, rows);
-  CHECK(made == 3 && rows[2].index == 0, "three entries: the front drawn last");
-  CHECK(rows[0].index == 2 && rows[0].y < 0 && rows[1].index == 1 && rows[1].y > 0, "the last above, the next below");
-  /* Half a step turned: the selected slat is still the front one, the window nearest it, and the one two back has turned past the drum's edge. */
-  made = drum_rows(12, 5, 0.5f, rows);
-  CHECK(made == 4, "four slats: %zu", made);
-  CHECK(rows[0].index == 4 && rows[0].angle == -54.0f && rows[0].y == -57 && rows[0].tier == DRUM_FAR, "the furthest above first, curving away: %zu %f %d",
-        rows[0].index, (double)rows[0].angle, rows[0].y);
-  CHECK(rows[1].index == 7 && rows[1].angle == 54.0f && rows[1].y == 57, "then the furthest below");
-  CHECK(rows[2].index == 6 && rows[2].angle == 18.0f && rows[2].tier == DRUM_NEAR, "then the next, beside the window");
-  CHECK(rows[3].index == 5 && rows[3].angle == -18.0f && rows[3].tier == DRUM_FRONT, "and the selected last, in the window");
-  made = drum_rows(12, 5, -0.5f, rows);
-  CHECK(made == 4 && rows[3].index == 5 && rows[3].tier == DRUM_FRONT && rows[2].index == 4 && rows[2].tier == DRUM_NEAR,
-        "half a step back too");
-  end();
-}
-
 int main(void) {
   test_program("builder");
-  the_drum_places_each_entry_once_and_settles();
   the_fit_trims_a_character_at_a_time_and_never_inside_one();
-  the_root_is_the_scenes_verbs_on_a_drum_turned_by_the_crank();
+  the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank();
+  a_label_is_drawn_once_while_its_level_stands();
   a_greyed_chip_is_drawn_greyed_and_says_why();
   descending_into_a_verb_and_back();
   a_completed_reading_runs_and_the_reader_is_told();
@@ -753,6 +890,6 @@ int main(void) {
   everything_for_a_set_role_binds_them_all();
   everything_leaves_out_what_is_greyed_and_needs_two_things();
   everything_runs_at_most_what_a_set_role_may_bind();
-  after_any_crank_turn_the_window_is_what_a_picks();
+  after_any_crank_turn_the_front_is_what_a_picks();
   return finish();
 }

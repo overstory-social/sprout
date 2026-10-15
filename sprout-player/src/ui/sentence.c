@@ -13,7 +13,7 @@
 #define NOTHING_FITS "Nothing here fits that."
 #define EVERYTHING "everything"
 
-/* What the drum shows when there was no memory to say more. */
+/* What the disc shows when there was no memory to say more. */
 static const sentence_entry LOST = {SENTENCE_ENTRY_NONE, "", true, NO_MEMORY, 0, 0, 0};
 
 /* ---- memory ---- */
@@ -85,7 +85,7 @@ static bool add_names(PlaydateAPI *pd, sentence_text *t, const sprout_seen_thing
   return true;
 }
 
-/* What a filler is called on the drum: a thing's name, a set's names, a way out's direction or label. */
+/* What a filler is called on the disc: a thing's name, a set's names, a way out's direction or label. */
 static bool add_filler(PlaydateAPI *pd, sentence_text *t, const sprout_seen_filler *filler) {
   size_t i;
   switch (filler->binds) {
@@ -171,7 +171,7 @@ static const sprout_seen_options *role_of(const sentence_state *state) {
   return state->leaf != NULL && state->role < state->leaf->options_count ? &state->leaf->options[state->role] : NULL;
 }
 
-/* ---- the level the drum shows ---- */
+/* ---- the level the disc shows ---- */
 
 /* Copies the level at `path` from the session; NULL, or the words for why it cannot be had. */
 static const char *fetch(sentence *s, const size_t *path, size_t depth, size_t *empty_reason) {
@@ -210,7 +210,7 @@ static const char *fetch(sentence *s, const size_t *path, size_t depth, size_t *
   return NULL;
 }
 
-/* ---- what the drum shows ---- */
+/* ---- what the disc shows ---- */
 
 /* One entry, its label made by `label` beforehand at `label_at`; its reason copied when it has one. */
 static bool push_entry(sentence *s, sentence_kind kind, size_t label_at, bool greyed, const char *reason, size_t index) {
@@ -377,6 +377,7 @@ static bool make_entries(sentence *s) {
 /* Makes the phrase and the entries again after the state changed. */
 static void refresh(sentence *s) {
   size_t i;
+  s->made++;
   s->entry_count = 0;
   s->shown.length = 0;
   if (!make_phrase(s)) s->phrase.length = 0;

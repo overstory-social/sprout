@@ -539,6 +539,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'transcript',
       'ui',
       'builder',
+      'disc',
       'gallery',
       'pictures',
       'sound',
