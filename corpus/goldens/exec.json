@@ -4554,7 +4554,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 1,
+        "steps": 2,
         "spawns": 0,
         "events": 0,
         "effects": [],
@@ -4593,7 +4593,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 1,
+        "steps": 2,
         "spawns": 0,
         "events": 0,
         "effects": [],
@@ -4634,7 +4634,7 @@
       "expect": {
         "fault": "WakeFault",
         "detail": "`exec_bench.hall.runner` asked for a wake with 1 pending, and this host allows 1.",
-        "steps": 2
+        "steps": 4
       }
     },
     {
@@ -4666,7 +4666,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 2,
+        "steps": 4,
         "spawns": 0,
         "events": 0,
         "effects": [],
@@ -4705,7 +4705,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 1,
+        "steps": 2,
         "spawns": 0,
         "events": 0,
         "effects": [],
@@ -4783,7 +4783,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 2,
+        "steps": 3,
         "spawns": 0,
         "events": 0,
         "effects": [],

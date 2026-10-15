@@ -1,20 +1,24 @@
 // `wake in 3 hours` and `cancel wakes`, read (the spec's Time › Wakes).
 // The object whose body runs either asks or takes back for itself, so
-// there is no target to write: `wake` takes `in`, a whole number written
-// out, and `seconds`, `minutes` or `hours`; `cancel` takes `wakes` alone.
-// Neither `cancel` nor `wakes` is reserved, so `cancel` starts a
-// statement unless punctuation follows it on its line. Whether the wait
-// fits what `elapsed` can carry, and where each may stand, are the
-// checker's.
+// there is no target to write: `wake` takes `in`, how long to wait, and
+// `seconds`, `minutes` or `hours`; `cancel` takes `wakes` alone. How long
+// is a whole number written out or an expression in brackets,
+// `wake in (self.get(:delay)) minutes`, so the unit after it is never
+// read as part of it. Neither `cancel` nor `wakes` is reserved, so
+// `cancel` starts a statement unless punctuation follows it on its line.
+// The count's type, whether the wait fits what `elapsed` can carry, and
+// where each may stand, are the checker's.
 //
 // A refused one costs only itself: a word the next statement or the
 // body's next member starts with, or anything starting a line of its
 // own, is never taken for any part of it.
 
-import type { CancelWakesStatement, WakeStatement, WakeUnit } from '../ast.js';
+import type { CancelWakesStatement, Expr, WakeStatement, WakeUnit } from '../ast.js';
 import type { Token } from '../lexer.js';
-import { spanning } from '../../source/source.js';
+import { spanning, textOf, type Span } from '../../source/source.js';
+import { expression } from './expressions.js';
 import { punct, type Parser } from './parser.js';
+import { skipBracketed } from './recovery.js';
 import {
   firstOnItsLine,
   notAStatement,
@@ -35,7 +39,10 @@ const SINGULAR: ReadonlyMap<string, WakeUnit> = new Map([
 const EXAMPLE =
   'Write how long to wait, as in `wake in 3 hours`, `wake in 10 minutes` or `wake in 90 seconds`.';
 
-/** `wake in 3 hours`. Null having said why. */
+const WORKED_OUT =
+  'Write a whole number, as in `wake in 3 hours`, or put what it is worked out from in brackets, as in `wake in (self.get(:delay)) minutes`.';
+
+/** `wake in 3 hours`, `wake in (self.get(:delay)) minutes`. Null having said why. */
 export function wakeStatement(p: Parser, within: Enclosing = onItsOwn()): WakeStatement | null {
   const keyword = p.take('name', 'wake');
   if (keyword === null) {
@@ -48,20 +55,9 @@ export function wakeStatement(p: Parser, within: Enclosing = onItsOwn()): WakeSt
     return null;
   }
 
-  const count = p.peek();
-  if (count.kind !== 'integer') {
-    const nothing = !partOf(p, within, count);
-    if (!nothing && count.kind !== 'punct') p.next();
-    p.diagnostics.refuse(
-      nothing ? p.source.span(word.at.end) : count.at,
-      nothing
-        ? '`wake in` does not say how long to wait.'
-        : 'How long a wake waits is a whole number, written out.',
-      EXAMPLE,
-    );
-    return null;
-  }
-  p.next();
+  const count = waitCount(p, within, word);
+  if (count === null) return null;
+  const written = textOf(count.written);
 
   const unit = p.peek();
   const plural = unit.kind === 'name' ? UNITS.find((u) => u === unit.text) : undefined;
@@ -70,7 +66,7 @@ export function wakeStatement(p: Parser, within: Enclosing = onItsOwn()): WakeSt
     return {
       kind: 'wake',
       at: spanning(keyword.at, unit.at),
-      count: { kind: 'integer', at: count.at, value: Number(count.text) },
+      count: count.count,
       unit: plural,
     };
   }
@@ -78,15 +74,83 @@ export function wakeStatement(p: Parser, within: Enclosing = onItsOwn()): WakeSt
   const taken = partOf(p, within, unit) && unit.kind !== 'punct';
   if (taken) p.next();
   p.diagnostics.refuse(
-    taken ? unit.at : p.source.span(count.at.end),
+    taken ? unit.at : p.source.span(count.written.end),
     singular === undefined
-      ? `\`wake in ${count.text}\` does not say seconds, minutes or hours.`
+      ? `\`wake in ${written}\` does not say seconds, minutes or hours.`
       : `A wake counts in \`${singular}\`, always written that way.`,
     singular === undefined
-      ? `Write \`wake in ${count.text} hours\`, \`wake in ${count.text} minutes\` or \`wake in ${count.text} seconds\`.`
-      : `Write \`wake in ${count.text} ${singular}\`.`,
+      ? `Write \`wake in ${written} hours\`, \`wake in ${written} minutes\` or \`wake in ${written} seconds\`.`
+      : `Write \`wake in ${written} ${singular}\`.`,
   );
   return null;
+}
+
+/**
+ * How long a `wake` waits, after its `in`: a whole number written out, or
+ * an expression in brackets, with the span written. Null having said why.
+ */
+function waitCount(
+  p: Parser,
+  within: Enclosing,
+  word: Token,
+): { readonly count: Expr; readonly written: Span } | null {
+  const count = p.peek();
+  if (count.kind === 'integer') {
+    p.next();
+    return {
+      count: { kind: 'integer', at: count.at, value: Number(count.text) },
+      written: count.at,
+    };
+  }
+  if (punct(count, '(')) return bracketedCount(p);
+  const nothing = !partOf(p, within, count);
+  if (!nothing && count.kind !== 'punct') p.next();
+  p.diagnostics.refuse(
+    nothing ? p.source.span(word.at.end) : count.at,
+    nothing
+      ? '`wake in` does not say how long to wait.'
+      : 'How long a wake waits is a whole number written out, or worked out in brackets.',
+    nothing ? EXAMPLE : WORKED_OUT,
+  );
+  return null;
+}
+
+/** `(self.get(:delay))` after `wake in`: one expression in brackets. Null having said why. */
+function bracketedCount(p: Parser): { readonly count: Expr; readonly written: Span } | null {
+  const open = p.next();
+  if (p.at('punct', ')')) {
+    const close = p.next();
+    p.diagnostics.refuse(
+      spanning(open.at, close.at),
+      'These brackets hold nothing, and a wake needs to know how long to wait.',
+      WORKED_OUT,
+    );
+    return null;
+  }
+  if (!p.deeper(open.at)) {
+    skipBracketed(p, ')');
+    return null;
+  }
+  try {
+    const count = expression(p);
+    if (count === null) {
+      skipBracketed(p, ')');
+      return null;
+    }
+    const close = p.take('punct', ')');
+    if (close === null) {
+      p.diagnostics.refuse(
+        p.done ? p.source.endSpan : p.peek().at,
+        'How long the wake waits ends here, and its bracket is never closed.',
+        'Add a ) after it, before `seconds`, `minutes` or `hours`.',
+      );
+      skipBracketed(p, ')');
+      return null;
+    }
+    return { count, written: spanning(open.at, close.at) };
+  } finally {
+    p.depth -= 1;
+  }
 }
 
 /**
