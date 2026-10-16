@@ -98,7 +98,7 @@ bool player_builder_open(player_app *app, player_reader *reader) {
   player_builder *b;
   size_t i;
   if (view == NULL) return tell_reader(reader, words != NULL && words[0] != '\0' ? words : "The place cannot be seen.");
-  transcript_set_status(&reader->lines, view);
+  player_reader_status(app, reader, view);
   if (view->faulted) {
     /* A poll that ran out offers nothing, and its description is the fault told. */
     for (i = 0; i < view->description_count; i++)

@@ -21,9 +21,8 @@ static wrapped *paragraph(const transcript *t, size_t index) {
 void transcript_free(transcript *t) {
   size_t i;
   for (i = 0; i < t->count; i++) wrap_free(t->pd, paragraph(t, i));
-  player_free(t->pd, t->status);
+  wrap_free(t->pd, &t->status);
   t->count = 0;
-  t->status = NULL;
 }
 
 const char *transcript_lead(const char *kind) {
@@ -75,7 +74,7 @@ bool transcript_tell(transcript *t, const told_list *lines) {
   return true;
 }
 
-void transcript_refit(transcript *t, size_t rows) {
+void transcript_rewrap(transcript *t) {
   size_t i, lines = 0;
   for (i = 0; i < t->count; i++) {
     wrapped *p = paragraph(t, i);
@@ -83,6 +82,11 @@ void transcript_refit(transcript *t, size_t rows) {
     lines += p->line_count;
   }
   t->line_count = lines;
+  wrap_again(t->pd, &t->status, t->width, t->measure, t->measure_ctx);
+  clamp(t);
+}
+
+void transcript_fit(transcript *t, size_t rows) {
   t->rows = rows;
   clamp(t);
 }
@@ -138,10 +142,15 @@ static size_t status_words(const sprout_seen_view *view, char *out) {
 bool transcript_set_status(transcript *t, const sprout_seen_view *view) {
   size_t length = status_words(view, NULL);
   char *words = (char *)player_alloc(t->pd, length + 1);
+  wrapped lines;
+  bool made;
   if (words == NULL) return false;
   status_words(view, words);
   words[length] = '\0';
-  player_free(t->pd, t->status);
-  t->status = words;
+  made = wrap_lines(t->pd, words, length, t->width, t->measure, t->measure_ctx, &lines);
+  player_free(t->pd, words);
+  if (!made) return false;
+  wrap_free(t->pd, &t->status);
+  t->status = lines;
   return true;
 }

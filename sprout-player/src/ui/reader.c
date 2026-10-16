@@ -12,13 +12,27 @@
 /* The keys under the transcript: what the screen offers today. */
 static const char KEYS[] = "A: build a sentence   crank: scroll back";
 
-static int header_height(int line_height) { return line_height + 4; }
-static int panel_height(int line_height) { return line_height * 3 + 8; }
+/* The status's lines over a rule; one blank line before the first view. */
+static int header_height(int line_height, size_t status_lines) { return line_height * (int)status_lines + 2; }
+/* A rule over the one line of keys. */
+static int panel_height(int line_height) { return line_height + 4; }
 
-size_t player_reader_rows(int line_height) {
-  int room = PLAYER_SCREEN_HEIGHT - header_height(line_height) - panel_height(line_height);
+/* The lines of the status the header shows: at least one, at most the cap. */
+static size_t header_lines(const transcript *t) {
+  size_t lines = t->status.line_count;
+  return lines < 1 ? 1 : lines > READER_STATUS_MOST_LINES ? READER_STATUS_MOST_LINES : lines;
+}
+
+size_t player_reader_rows(int line_height, size_t status_lines) {
+  int room = PLAYER_SCREEN_HEIGHT - header_height(line_height, status_lines) - panel_height(line_height);
   size_t rows = room > 0 && line_height > 0 ? (size_t)(room / line_height) : 0;
   return rows < READER_MOST_ROWS ? rows : READER_MOST_ROWS;
+}
+
+bool player_reader_status(player_app *app, player_reader *reader, const sprout_seen_view *view) {
+  bool set = transcript_set_status(&reader->lines, view);
+  transcript_fit(&reader->lines, player_reader_rows(app->pen.line_height, header_lines(&reader->lines)));
+  return set;
 }
 
 player_reader *player_reader_new(player_app *app) {
@@ -26,7 +40,7 @@ player_reader *player_reader_new(player_app *app) {
   if (reader == NULL) return NULL;
   memset(reader, 0, sizeof *reader);
   transcript_init(&reader->lines, app->pd, player_pen_width, &app->pen, PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN,
-                  player_reader_rows(app->pen.line_height));
+                  player_reader_rows(app->pen.line_height, header_lines(&reader->lines)));
   player_clock_start(&app->clock, player_app_seconds(app));
   app->reading = true;
   return reader;
@@ -40,7 +54,7 @@ bool player_reader_look(player_app *app, player_reader *reader, const sprout_see
     const char *why = words != NULL ? words : "The place cannot be seen.";
     return transcript_push(&reader->lines, "notice", why, strlen(why));
   }
-  return transcript_set_status(&reader->lines, view);
+  return player_reader_status(app, reader, view);
 }
 
 static const char TICK_NO_MEMORY[] = "The player ran out of memory telling what happened.";
@@ -95,10 +109,12 @@ static void update(player_app *app, void *ctx, const player_input *input) {
 static void draw(player_app *app, void *ctx) {
   player_reader *reader = (player_reader *)ctx;
   const player_pen *pen = &app->pen;
-  int line_height = pen->line_height, y = line_height + 2, panel = PLAYER_SCREEN_HEIGHT - panel_height(line_height);
-  const char *shown[READER_MOST_ROWS];
+  int line_height = pen->line_height, panel = PLAYER_SCREEN_HEIGHT - panel_height(line_height), y = 0;
+  const char *shown[READER_MOST_ROWS], *line = reader->lines.status.bytes;
   size_t count, i;
-  player_pen_say(pen, reader->lines.status != NULL ? reader->lines.status : "", 2, 0);
+  for (i = 0; i < reader->lines.status.line_count && i < READER_STATUS_MOST_LINES; i++, line = wrap_next(line), y += line_height)
+    player_pen_say(pen, line, 2, y);
+  y = header_height(line_height, header_lines(&reader->lines));
   app->pd->graphics->drawLine(0, y - 1, PLAYER_SCREEN_WIDTH, y - 1, 1, kColorBlack);
   count = transcript_visible(&reader->lines, shown);
   for (i = 0; i < count; i++, y += line_height) player_pen_say(pen, shown[i], 2, y);
@@ -107,9 +123,11 @@ static void draw(player_app *app, void *ctx) {
   player_pen_say(pen, KEYS, PLAYER_MARGIN, panel + 2);
 }
 
+/* The font has changed: the transcript and the status wrap again, and the rows are fitted under the status's new lines. */
 static void refit(player_app *app, void *ctx) {
   player_reader *reader = (player_reader *)ctx;
-  transcript_refit(&reader->lines, player_reader_rows(app->pen.line_height));
+  transcript_rewrap(&reader->lines);
+  transcript_fit(&reader->lines, player_reader_rows(app->pen.line_height, header_lines(&reader->lines)));
 }
 
 static void leave(player_app *app, void *ctx) {

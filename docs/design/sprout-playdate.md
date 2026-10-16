@@ -322,16 +322,21 @@ signer's JavaScript sort does, by UTF-16 code unit, and writes an empty
 object as `{}`, as the signer does.
 
 The reader (`src/ui/reader.h`) is the transcript
-wrapped to the column, the newest at the bottom, under the status line (the
+wrapped to the column, the newest at the bottom, under the status (the
 place and its ways out, from the view), scrolled a line for each 12 degrees
-of crank and each press of up or down. Its word wrap (`src/ui/wrap.h`) is
+of crank and each press of up or down. The status wraps to the column as the
+transcript does, and the header is as tall as its lines, at most three: a place
+whose ways out run past three lines has the rest clipped, so the transcript is
+never squeezed out. The transcript's rows are fitted under the header whenever
+the status is set, as on moving to a place with more ways out, and nothing
+told is lost by the fit. The keys under the transcript take one line. Its word wrap (`src/ui/wrap.h`) is
 over the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
 scrolling a line at a time needs the lines, which `drawTextInRect` does not
 give back. A wrapped block keeps the words it was made from ahead of its
 lines, so when the text size changes the transcript wraps each of its kept
-paragraphs again from the words (a newline still a line, a cut word cut
-afresh) and shows the rows the new line height allows, with nothing told
-lost; the shelf's and the download screen's panels, a message, a refused
+paragraphs and its status again from the words (a newline still a line, a
+cut word cut afresh) and shows the rows the new line height allows under the
+status's new lines, with nothing told lost; the shelf's and the download screen's panels, a message, a refused
 name and the words over the disc wrap again the same way, and the lines a
 screen lays out each frame follow the pen of themselves. Text is drawn as written, on the reading that the C API's
 `drawText`, which takes no font family, has no bold or italic to read `*`

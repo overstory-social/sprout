@@ -1,10 +1,10 @@
 /*
  * The reader's transcript, after the TUI's (tui/src/state.ts): paragraphs wrapped to the column, the newest at the bottom, with a status
- * line of the place and its ways out. A paragraph's kind leads it with a mark, so the screen
- * needs no colour to tell them apart. A reader who has scrolled back keeps their place as more
- * is told; the oldest paragraphs fall off past TRANSCRIPT_KEEP. Each paragraph's block keeps
- * its words with its lines (wrap.h), so a font that changes wraps them all again with nothing
- * told lost.
+ * of the place and its ways out, wrapped to the same column. A paragraph's kind leads it with a
+ * mark, so the screen needs no colour to tell them apart. A reader who has scrolled back keeps
+ * their place as more is told, and as the column is fitted to fewer or more rows; the oldest
+ * paragraphs fall off past TRANSCRIPT_KEEP. Each block keeps its words with its lines (wrap.h),
+ * so a font that changes wraps the paragraphs and the status again with nothing told lost.
  */
 #ifndef PLAYER_UI_TRANSCRIPT_H
 #define PLAYER_UI_TRANSCRIPT_H
@@ -29,7 +29,7 @@ typedef struct transcript {
   size_t first, count;
   size_t line_count; /* lines in every kept paragraph */
   size_t offset;     /* lines scrolled back from the newest */
-  char *status;      /* the status line's words, or NULL before the first view */
+  wrapped status;    /* the status's lines, wrapped to the column; none before the first view */
 } transcript;
 
 void transcript_init(transcript *t, PlaydateAPI *pd, wrap_measure measure, void *measure_ctx, int width, size_t rows);
@@ -44,6 +44,9 @@ bool transcript_push(transcript *t, const char *kind, const char *text, size_t l
 /* Adds every line a call told; false when one could not be kept. */
 bool transcript_tell(transcript *t, const told_list *lines);
 
+/* Fits the column to `rows` lines: everything kept stays, and a reader scrolled back stays within what there is. */
+void transcript_fit(transcript *t, size_t rows);
+
 /* Scrolls `lines` back (positive) or forward (negative), within what there is. */
 void transcript_scroll(transcript *t, long lines);
 
@@ -54,16 +57,19 @@ size_t transcript_furthest(const transcript *t);
 bool transcript_behind(const transcript *t);
 
 /*
- * The font has changed: every paragraph is wrapped again by the same measure and the column
- * shows `rows` lines. A paragraph that could not be wrapped again for want of memory keeps the
- * lines it had, and the reader's place is kept as near as the new lines allow.
+ * The font has changed: every paragraph and the status are wrapped again by the same measure. A
+ * block that could not be wrapped again for want of memory keeps the lines it had, and the reader's
+ * place is kept as near as the new lines allow; the rows are fitted after, by `transcript_fit`.
  */
-void transcript_refit(transcript *t, size_t rows);
+void transcript_rewrap(transcript *t);
 
 /* The lines shown, oldest first, into `lines` (room for `rows`); how many. */
 size_t transcript_visible(const transcript *t, const char **lines);
 
-/* The status from a view: the place, then its ways out, each by its direction or its label. */
+/*
+ * The status from a view, wrapped to the column: the place, then its ways out, each by its direction or
+ * its label; false when no memory could be had, and the status is as it was.
+ */
 bool transcript_set_status(transcript *t, const sprout_seen_view *view);
 
 #endif
