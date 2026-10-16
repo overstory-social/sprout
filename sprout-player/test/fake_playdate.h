@@ -145,6 +145,8 @@ typedef struct fake_playdate {
   int fail_reads;
   /* the reads of open files made, and the most bytes one asked for; a test empties them to watch from a moment on */
   size_t reads, read_largest;
+  /* the writes to open files made, and the bytes they wrote; a test empties them the same way */
+  size_t writes, written;
   /* the screen: the frame (a set bit is black), the text drawn since it was cleared, the font loaded */
   uint8_t frame[LCD_ROWS * LCD_ROWSIZE];
   fake_run runs[FAKE_RUNS];

@@ -17,14 +17,14 @@
 #define PATH_BYTES 128
 
 /*
- * The state being written a slice a frame: its bytes, made when the write begins, in an arena of
- * their own, and the file `<state>.part` they go into.
+ * The state being written a slice a frame: its bytes, made a slice a frame by the runtime's writer
+ * in an arena of their own, and the file `<state>.part` they go into as they are made.
  */
 typedef struct session_writer {
   bool live;
   sprout_arena arena;
-  const char *bytes;
-  size_t length, written;
+  sprout_state_writer writer;
+  size_t written; /* bytes of the text in the part */
   SDFile *file;
 } session_writer;
 
@@ -41,7 +41,9 @@ struct player_session {
   char log_path[PATH_BYTES];
   bool dirty;          /* a turn committed since the last save was begun */
   bool owed;           /* the state is to be written: its log tail is on disk and its bytes not yet begun */
+  bool waiting;        /* a tick changed the state: its log tail is on disk, and its save waits (session.h) */
   bool unsaved;        /* a write failed since the last save that was whole */
+  uint64_t save_began; /* host seconds when the last save began */
   session_writer writer;
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
@@ -75,6 +77,13 @@ bool session_visitor_present(const player_session *session, const sprout_stored_
  * whole save, which stops play.
  */
 bool session_save_soon(player_session *session);
+
+/*
+ * After a tick: where it changed the state, the log tail is written now and the state's save
+ * waits, begun once PLAYER_SAVE_WAIT_SECONDS have passed since the last began, or at once by
+ * the next `session_save_soon` or settling. False as `session_save_soon` is.
+ */
+bool session_save_later(player_session *session);
 
 /* Writes the state owed or under way, all of it now; false when it could not be. */
 bool session_save_finish(player_session *session);

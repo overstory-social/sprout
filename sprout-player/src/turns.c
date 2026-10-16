@@ -257,6 +257,6 @@ player_told player_tick(player_session *session) {
   answer.words = "";
   answer.ran = wake_due(session, arena, &answer.lines, player_host_seconds(&session->host));
   answer.ran = tick_places(session, arena, &answer.lines) || answer.ran;
-  answer.saved = session_save_soon(session);
+  answer.saved = session_save_later(session);
   return answer;
 }
