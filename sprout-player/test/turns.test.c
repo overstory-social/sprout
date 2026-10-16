@@ -268,9 +268,14 @@ static void a_tick_tells_what_the_place_says(void) {
   player_admit(s, "Marta");
   ticked = player_tick(s);
   CHECK(ticked.ok && ticked.saved, "a tick");
+  /* Ten seconds on, the moor counts them and says nothing: the state changed, and the tick says so. */
+  fake->seconds += 10;
+  ticked = player_tick(s);
+  CHECK(ticked.ok && ticked.changed && ticked.lines.count == 0, "a tick that changed the state and told nothing: changed %d, %zu lines",
+        ticked.changed, ticked.lines.count);
   fake->seconds += 40;
   ticked = player_tick(s);
-  CHECK(ticked.ran && told_has(&ticked, "The wind picks up in the eaves.") && strcmp(told_kind(&ticked, 0), "told") == 0,
+  CHECK(ticked.ran && ticked.changed && told_has(&ticked, "The wind picks up in the eaves.") && strcmp(told_kind(&ticked, 0), "told") == 0,
         "%s", told_text(&ticked, 0));
   end();
 }

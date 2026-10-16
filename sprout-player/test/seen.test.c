@@ -254,6 +254,35 @@ static void a_picture_the_description_shows_is_kept_as_an_effect_with_its_payloa
   end();
 }
 
+/*
+ * The view and its tree stand until a turn commits or changes the state, and a view asked while
+ * they stand is the kept one, nothing polled: what the sentence builder opens from.
+ */
+static void the_view_is_kept_until_a_turn_changes_the_state(void) {
+  player_session *s;
+  const sprout_seen_view *view;
+  const sprout_chip_node *subtree;
+  const char *words = NULL;
+  size_t pick;
+  begin("kept");
+  s = arrived("chip-tree.sproutworld");
+  view = player_view(s, &words);
+  pick = pick_of(s, "chip_tree.turn");
+  CHECK(view != NULL && pick != 0, "the view, offering turn");
+  if (view == NULL || pick == 0) return;
+  player_chips(s, &pick, 1);
+  CHECK(s->fetched[pick - 1], "turn's readings were asked for");
+  subtree = s->chips.verbs[pick - 1].next;
+  CHECK(player_view(s, &words) == view && strcmp(words, "") == 0 && s->fetched[pick - 1] && s->chips.verbs[pick - 1].next == subtree,
+        "the view asked for again is the kept one, turn's readings still known under it");
+  CHECK(!player_misread(s, "A reading the player could not make.").changed, "a misreading runs no turn, so the state did not change");
+  CHECK(player_view(s, &words) == view && s->fetched[pick - 1] && s->chips.verbs[pick - 1].next == subtree, "and the view stands");
+  CHECK(turn_of(s, "sprout.wait", NULL, 0, NULL).changed, "a turn that commits changes the state");
+  CHECK(player_view(s, &words) == view && strcmp(words, "") == 0, "the next view is polled afresh");
+  CHECK(!s->fetched[pick - 1], "with a tree of its own: turn's readings are asked for again when reached");
+  end();
+}
+
 static void a_visitor_who_is_not_in_the_world_sees_words_and_nothing_to_do(void) {
   player_session *s;
   const char *words = NULL;
@@ -279,6 +308,7 @@ int main(void) {
   a_verb_whose_poll_runs_out_says_so_and_is_asked_again();
   a_leaf_carries_its_line_refusal_and_options_and_a_bad_path_is_refused_in_words();
   a_picture_the_description_shows_is_kept_as_an_effect_with_its_payload();
+  the_view_is_kept_until_a_turn_changes_the_state();
   a_visitor_who_is_not_in_the_world_sees_words_and_nothing_to_do();
   return finish();
 }

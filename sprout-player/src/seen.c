@@ -7,8 +7,10 @@
  * its subtree and kept, so no poll ever runs the offers for every verb at once and the UI never
  * holds a tree. `player_chips` hands a level at a time, each choice with whether anything under it
  * can be done and why not; a verb whose readings have not been asked for is neither greyed nor not,
- * and the level under it answers that too. The scene and the subtrees live until the next view, the
- * next load, the close or the end.
+ * and the level under it answers that too. The scene and the subtrees live until the state changes
+ * (a turn that commits or changes it marks them stale, and the next view polls again), the next
+ * load, the close or the end; a view asked while they stand is the kept one, so opening the
+ * sentence builder costs no poll.
  */
 #include <string.h>
 
@@ -45,6 +47,10 @@ const sprout_seen_view *player_view(player_session *session, const char **words)
   sprout_seen_view *view = &session->seen;
   sprout_status status;
   session_answer(session);
+  if (session->seen_live && !session->seen_stale) {
+    *words = "";
+    return view;
+  }
   session_drop_view(session);
   if (!(session->state != NULL && session_visitor(session) != NULL &&
         session_visitor_present(session, session_visitor(session)))) {
@@ -57,6 +63,7 @@ const sprout_seen_view *player_view(player_session *session, const char **words)
     return NULL;
   }
   session->seen_live = true;
+  session->seen_stale = false;
   sprout_arena_init(&session->chip_arena, &session->host.record);
   if (!begin_tree(session)) {
     session_drop_view(session);

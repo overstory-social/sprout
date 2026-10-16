@@ -71,6 +71,7 @@ typedef struct player_told {
   bool committed;            /* turn: the command committed */
   bool goes_on;              /* turn: a line of turns goes on past it, as nothing refused its actor */
   bool ran;                  /* tick: some turn did more than idle */
+  bool changed;              /* the state changed: a save is owed, and the view kept is stale */
   bool saved;
   sprout_turn_result result; /* turn: how it ended; SPROUT_RESULT_REFUSED where it was not run */
   const char *words;         /* admit: "" or why the nickname was refused; turn: NULL or what kept it from running */
@@ -81,8 +82,9 @@ typedef struct player_told {
 player_told player_admit(player_session *session, const char *nickname);
 
 /*
- * The visitor's view: the scene, kept with the chip tree's root until the next view, load or close.
- * NULL when there is nothing to see, with `*words` saying why.
+ * The visitor's view: the scene, kept with the chip tree's root until the state changes, the next load or
+ * the close. A view asked while the kept one stands is the kept one, with no poll; a turn that commits or
+ * changes the state makes the next view poll again. NULL when there is nothing to see, with `*words` saying why.
  */
 const sprout_seen_view *player_view(player_session *session, const char **words);
 

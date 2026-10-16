@@ -46,12 +46,13 @@ struct player_session {
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
   sprout_arena answer; /* what the last call handed back, released when the next begins */
-  sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the next, the close or the end */
+  sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the state changes, the next load, the close or the end */
   sprout_chip_tree chips; /* one verb each of the scene's, its subtree NULL until its readings are asked for */
   bool *fetched;          /* one for each verb: whether its readings were asked for and came whole */
   const char **why_empty; /* one for each verb: the words for a verb nothing fits, or whose poll ran out (asked again on the next reach) */
   sprout_arena chip_arena; /* the verbs' readings and subtrees, released with the scene */
   bool seen_live;
+  bool seen_stale; /* the state changed since the scene was polled: the next view polls again */
 };
 
 /* Begins a call's answer: what the last call handed back is released, and the arena returned is empty. */

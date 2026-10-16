@@ -486,7 +486,7 @@ bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const
     sentence_free(s);
     return false;
   }
-  if (!sentence_prepare(s)) refresh(s);
+  refresh(s);
   return true;
 }
 

@@ -92,11 +92,11 @@ static bool tell_reader(player_reader *reader, const char *words) {
 
 bool player_builder_open(player_app *app, player_reader *reader) {
   const char *words = NULL;
-  const sprout_seen_view *view = player_view(app->session, &words);
+  const sprout_seen_view *view = NULL;
   player_builder *b;
   size_t i;
-  if (view == NULL) return tell_reader(reader, words != NULL && words[0] != '\0' ? words : "The place cannot be seen.");
-  player_reader_status(app, reader, view);
+  player_reader_look(app, reader, &view);
+  if (view == NULL) return false;
   if (view->faulted) {
     /* A poll that ran out offers nothing, and its description is the fault told. */
     for (i = 0; i < view->description_count; i++)
@@ -208,6 +208,11 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   if (sentence_turn(s, input->crank) != 0) player_cue(app, PLAYER_CUE_TICK);
   if (disc_update(&b->disc, s, input->crank != 0)) {
     player_cue(app, PLAYER_CUE_CLACK);
+    sentence_prepare(s);
+  }
+  if (!b->asked) {
+    /* The disc is on screen, drawn the frame it opened: the verb at its front is asked after now. */
+    b->asked = true;
     sentence_prepare(s);
   }
   /* Down moves to the next entry; on a number it takes the number down, as up takes it up. */
