@@ -2,7 +2,8 @@
  * ui/transcript.c: the reader's transcript. Paragraphs are led by their kind's mark and wrapped
  * to the column; the newest lines are shown at the bottom; a reader scrolled back keeps their
  * place as more is told and cannot scroll past either end; the oldest paragraphs fall off past
- * the keep; and the status line is the place and its ways out.
+ * the keep; the column can be fitted to another row count without losing a line; and the status is
+ * the place and its ways out, wrapped to the column.
  */
 #include <stdio.h>
 
@@ -110,23 +111,103 @@ static sprout_str str(const char *text) {
   return s;
 }
 
+/* The status's lines joined by one space, into `out`. */
+static void status_joined(const transcript *t, char *out, size_t room) {
+  const char *line = t->status.bytes;
+  size_t i;
+  out[0] = '\0';
+  for (i = 0; i < t->status.line_count; i++, line = wrap_next(line))
+    snprintf(out + strlen(out), room - strlen(out), "%s%s", i > 0 ? " " : "", line);
+}
+
 static void the_status_is_the_place_and_its_ways_out(void) {
   transcript t;
   sprout_seen_view view;
   sprout_seen_exit exits[2];
+  char joined[256];
   begin("status");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 2);
+  transcript_init(&t, &fake->api, measure, NULL, 1000, 2);
+  CHECK(t.status.line_count == 0, "no lines before the first view");
   memset(&view, 0, sizeof view);
   memset(exits, 0, sizeof exits);
   view.place.name = str("the hall");
-  CHECK(transcript_set_status(&t, &view) && strcmp(t.status, "the hall") == 0, "no ways out: %s", t.status);
+  CHECK(transcript_set_status(&t, &view) && t.status.line_count == 1 && strcmp(t.status.bytes, "the hall") == 0,
+        "no ways out: %s", t.status.bytes);
   exits[0].direction = "north";
   exits[0].label = "to the yard";
   exits[1].label = "the trapdoor";
   view.exits = exits;
   view.exit_count = 2;
-  CHECK(transcript_set_status(&t, &view) && strcmp(t.status, "the hall - exits: north, the trapdoor") == 0,
-        "an exit by its direction, a link by its label: %s", t.status);
+  CHECK(transcript_set_status(&t, &view) && t.status.line_count == 1, "one line in a wide column: %zu", t.status.line_count);
+  status_joined(&t, joined, sizeof joined);
+  CHECK(strcmp(joined, "the hall - exits: north, the trapdoor") == 0, "an exit by its direction, a link by its label: %s", joined);
+  transcript_free(&t);
+  end();
+}
+
+/* A place with more ways out than the column holds on one line: the status wraps, and every way out is on the lines. */
+static void a_status_with_many_ways_out_wraps_to_the_column(void) {
+  static const char *const ways[] = {"north", "south", "east", "west", "up", "down", "the arch", "the stair"};
+  transcript t;
+  sprout_seen_view view;
+  sprout_seen_exit exits[8];
+  const char *line;
+  char joined[256], want[256];
+  size_t i, k;
+  begin("status-wraps");
+  transcript_init(&t, &fake->api, measure, NULL, 100, 2);
+  memset(&view, 0, sizeof view);
+  memset(exits, 0, sizeof exits);
+  view.place.name = str("the hall");
+  for (i = 0; i < 8; i++) exits[i].label = ways[i];
+  view.exits = exits;
+  view.exit_count = 8;
+  CHECK(transcript_set_status(&t, &view), "the status is set");
+  CHECK(t.status.line_count > 1, "it takes more than one line: %zu", t.status.line_count);
+  for (i = 0, line = t.status.bytes; i < t.status.line_count; i++, line = wrap_next(line))
+    CHECK(measure(NULL, line, strlen(line)) <= 100, "line %zu is wider than the column: %s", i, line);
+  for (k = 0; k < 8; k++) {
+    /* A way out of more than one word may break between them: each of its words is on some line. */
+    char words[32], *word, *rest = words;
+    snprintf(words, sizeof words, "%s", ways[k]);
+    while ((word = strsep(&rest, " ")) != NULL) {
+      bool found = false;
+      for (i = 0, line = t.status.bytes; i < t.status.line_count; i++, line = wrap_next(line)) found = found || HAS(line, word);
+      CHECK(found, "%s of %s is on no line", word, ways[k]);
+    }
+  }
+  status_joined(&t, joined, sizeof joined);
+  snprintf(want, sizeof want, "the hall - exits: ");
+  for (k = 0; k < 8; k++) snprintf(want + strlen(want), sizeof want - strlen(want), "%s%s", k > 0 ? ", " : "", ways[k]);
+  CHECK(strcmp(joined, want) == 0, "the lines read as the one status: %s", joined);
+  transcript_free(&t);
+  end();
+}
+
+/* Fitting the column to fewer rows loses no line: a reader at the newest stays there, one scrolled back stays within reach. */
+static void fitting_the_column_keeps_every_line(void) {
+  transcript t;
+  const char *shown[5];
+  size_t n;
+  begin("fit");
+  transcript_init(&t, &fake->api, measure, NULL, 100, 5);
+  push(&t, "said", "one");
+  push(&t, "said", "two");
+  push(&t, "said", "three");
+  push(&t, "said", "four");
+  push(&t, "said", "five");
+  transcript_fit(&t, 3);
+  n = transcript_visible(&t, shown);
+  CHECK(t.rows == 3 && n == 3 && strcmp(shown[0], "three") == 0 && strcmp(shown[2], "five") == 0 && t.line_count == 5,
+        "three rows show the newest three, and all five are kept: %zu", n);
+  transcript_scroll(&t, 2);
+  transcript_fit(&t, 4);
+  n = transcript_visible(&t, shown);
+  CHECK(t.offset == 1 && n == 4 && strcmp(shown[0], "one") == 0 && strcmp(shown[3], "four") == 0,
+        "a reader scrolled to the oldest is kept within what there is: offset %zu", t.offset);
+  transcript_fit(&t, 5);
+  n = transcript_visible(&t, shown);
+  CHECK(t.offset == 0 && n == 5 && strcmp(shown[4], "five") == 0, "wide enough for everything, nothing is scrolled back");
   transcript_free(&t);
   end();
 }
@@ -138,5 +219,7 @@ int main(void) {
   a_short_transcript_shows_all_and_does_not_scroll();
   the_oldest_fall_off_past_the_keep();
   the_status_is_the_place_and_its_ways_out();
+  a_status_with_many_ways_out_wraps_to_the_column();
+  fitting_the_column_keeps_every_line();
   return finish();
 }

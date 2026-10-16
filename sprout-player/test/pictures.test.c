@@ -20,7 +20,7 @@
 
 #define LINE FAKE_LINE
 #define RULE (240 - LINE - 4)
-#define PANEL (240 - (LINE * 3 + 8))
+#define PANEL (240 - (LINE + 4))
 #define CARTRIDGE "media-room.sproutworld"
 
 static const char READER_KEYS[] = "A: build a sentence   crank: scroll back";
