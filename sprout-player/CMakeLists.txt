@@ -62,8 +62,8 @@ set(PLAYER_SOURCES
   src/host/stack.c src/savelog.c src/seen.c src/session.c src/shipping.c
   src/signed_index.c src/text.c src/told.c src/turns.c src/ui/app.c src/ui/arrival.c src/ui/builder.c src/ui/clock.c
   src/ui/disc.c src/ui/downloads.c src/ui/everything.c src/ui/gallery.c src/ui/images.c src/ui/message.c src/ui/nickname.c src/ui/pen.c
-  src/ui/pictures.c src/ui/reader.c src/ui/sentence.c src/ui/shelf.c src/ui/sound.c src/ui/text_size.c src/ui/transcript.c
-  src/ui/wrap.c)
+  src/ui/pictures.c src/ui/reader.c src/ui/sentence.c src/ui/sentence_text.c src/ui/shelf.c src/ui/sound.c src/ui/text_size.c
+  src/ui/transcript.c src/ui/wrap.c)
 
 # The publisher's public key, whose signature the download screen requires on the index of worlds,
 # baked in as generated/publickey.h. scripts/playdate-player.mjs names the file it reads
@@ -110,7 +110,7 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
   target_compile_definitions(player_test_support PUBLIC PLAYER_CARTRIDGES="${PLAYER_CARTRIDGES}"
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack pd_host budgets told savelog session turns seen played
-    wrap transcript ui builder_disc builder_sentence builder_crank disc gallery pictures sound canonical signed_index shelf
+    wrap transcript ui builder_disc builder_sentence builder_crank sentence_text disc gallery pictures sound canonical signed_index shelf
     nickname clock net downloads text_size)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)

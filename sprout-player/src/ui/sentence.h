@@ -3,7 +3,11 @@
  * level at a time (player_chips; the design doc's The chip tree and the crank sentence builder).
  * The visitor picks a verb, then what fills each of its roles, then a word or a number for each
  * value role, then confirms. A verb's readings are asked for only when the disc reaches it
- * (`sentence_prepare`), so at the verbs a choice not yet reached is neither greyed nor not. A set
+ * (`sentence_prepare`), so at the verbs a choice not yet reached is neither greyed nor not. A role
+ * a reading may leave out (its level has fillers and a leaf) is offered by the words its phrase
+ * puts before it, as the view's filler carries them (`from`, or the role's name where it carries
+ * none), beside `that's all`; picking the word opens its fillers as a wheel of their own, and the
+ * sentence shows the word before what was picked: `take -> the sack -> from the table`. A set
  * role is joined from the singletons the view offers, and the roles after it are offered under its
  * first member. A finished reading lists the roles a thing fills in the tree's order and then the
  * value roles. Nothing here draws; the entries and the phrase are what the screen shows.
@@ -23,6 +27,7 @@
 #include <stddef.h>
 
 #include "pd_api.h"
+#include "sentence_text.h"
 #include "session.h"
 
 /* Degrees of crank for one sector of the disc. */
@@ -36,7 +41,8 @@
 
 typedef enum sentence_stage {
   SENTENCE_VERB,    /* the verbs */
-  SENTENCE_FILLER,  /* what fills the next role, and `that's all` where a reading ends here */
+  SENTENCE_FILLER,  /* what fills the next role, and `that's all` where a reading ends here; a role a reading may
+                       leave out is its word until the word is picked, then its fillers alone */
   SENTENCE_MORE,    /* a set role begun: the other things it can join, and `that's all` */
   SENTENCE_OPTION,  /* a value role's word or number */
   SENTENCE_CONFIRM  /* the whole sentence, to run */
@@ -45,6 +51,7 @@ typedef enum sentence_stage {
 typedef enum sentence_kind {
   SENTENCE_ENTRY_VERB,
   SENTENCE_ENTRY_FILLER,
+  SENTENCE_ENTRY_ROLE, /* a role a reading may leave out, by its word; picking it opens its fillers */
   SENTENCE_ENTRY_MEMBER,
   SENTENCE_ENTRY_EVERYTHING,
   SENTENCE_ENTRY_DONE,
@@ -75,6 +82,7 @@ typedef struct sentence_filled {
   const sprout_seen_filler *filler;
   size_t first, count; /* a set: its members in the state's `joined` */
   bool everything;     /* picked as `everything`; for a role that takes one thing, `filler` is the first of them */
+  bool worded;         /* picked from the wheel its role's word opened: the sentence shows the word before it */
 } sentence_filled;
 
 /* A value role filled: a symbol role's option, or an integer role's number. */
@@ -91,6 +99,7 @@ typedef struct sentence_state {
   const char *verb;
   size_t path[SENTENCE_MOST_PARTS]; /* the level the disc shows: 1-based picks, as player_chips takes them */
   size_t depth;
+  const char *opened; /* the role whose word was picked, whose fillers the disc shows; NULL where the level's own are */
   sentence_filled picks[SENTENCE_MOST_PARTS];
   size_t pick_count;
   const sprout_seen_thing *joined[SENTENCE_MOST_MEMBERS]; /* the members of the sets picked */
@@ -114,12 +123,6 @@ typedef struct sentence_state {
   double number;
   bool has_number;
 } sentence_state;
-
-/* Text that grows from the device's allocator; strings in it are found by offset, since it moves. */
-typedef struct sentence_text {
-  char *bytes;
-  size_t length, room;
-} sentence_text;
 
 /* One choice of the level the disc shows, copied from the session's answer. */
 typedef struct sentence_choice {
@@ -175,6 +178,9 @@ void sentence_free(sentence *s);
 
 /* The entries on the disc, in order; there is always at least one. */
 const sentence_entry *sentence_entries(const sentence *s, size_t *count);
+
+/* Whether a choice of the level is on the disc: every one where the level's fillers are the disc, those of the role opened by its word otherwise. */
+bool sentence_offers(const sentence *s, const sentence_choice *choice);
 
 /* The sentence so far: the verb and what has been chosen, joined by arrows. */
 const char *sentence_phrase(const sentence *s);

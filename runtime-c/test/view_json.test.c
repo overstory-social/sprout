@@ -1,8 +1,8 @@
 /*
  * Tests for src/view_json.c: a view is written as canonical JSON in the form the language's view shapes give it
- * (description, effects, exits, occupants, carried, readings), a filler of each kind, a thing's or a set's saying
- * whether `all` takes it, a refusal or null, and the options of a symbol role and of an integer role. The writer is
- * also the tree a chip client's leaf and filler are written from.
+ * (description, effects, exits, occupants, carried, readings), a filler of each kind with the words before its
+ * slot, a thing's or a set's saying whether `all` takes it, a refusal or null, and the options of a symbol role
+ * and of an integer role. The writer is also the tree a chip client's leaf and filler are written from.
  */
 #include "check.h"
 #include "view_json.h"
@@ -20,11 +20,11 @@ static void build(sprout_seen_view *view) {
   static const sprout_seen_thing members[] = {{{"w.apple", 7}, {"an apple", 8}}, {{"w.pear", 6}, {"a pear", 6}}};
   static const sprout_str refusal[] = {{"Not before me.", 14}};
   static const sprout_seen_filler fillers[] = {
-      {"target", SPROUT_SEEN_OBJECT, {{"w.apple", 7}, {"an apple", 8}}, 0, NULL, {NULL, NULL, {NULL, 0}}, true},
-      {"things", SPROUT_SEEN_SET, {{NULL, 0}, {NULL, 0}}, 2, members, {NULL, NULL, {NULL, 0}}, false},
-      {"way", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {"north", "through the gate", {"w.tower", 7}}, false},
-      {"link", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, "down the stair", {"w.yard", 6}}, false},
-      {"topic", SPROUT_SEEN_UNBOUND, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, NULL, {NULL, 0}}, false}};
+      {"target", SPROUT_SEEN_OBJECT, {{"w.apple", 7}, {"an apple", 8}}, 0, NULL, {NULL, NULL, {NULL, 0}}, true, ""},
+      {"things", SPROUT_SEEN_SET, {{NULL, 0}, {NULL, 0}}, 2, members, {NULL, NULL, {NULL, 0}}, false, "with"},
+      {"way", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {"north", "through the gate", {"w.tower", 7}}, false, ""},
+      {"link", SPROUT_SEEN_EXIT, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, "down the stair", {"w.yard", 6}}, false, ""},
+      {"topic", SPROUT_SEEN_UNBOUND, {{NULL, 0}, {NULL, 0}}, 0, NULL, {NULL, NULL, {NULL, 0}}, false, "about"}};
   static const sprout_seen_reading readings[] = {
       {"w.vouch", {"vouch apple \xe2\x80\xa6", 15}, true, 1, refusal, 5, fillers, 2, options},
       {"w.look", {"look", 4}, false, 0, NULL, 0, NULL, 0, NULL}};
@@ -62,11 +62,11 @@ static void a_view_is_written_in_the_canonical_form_the_view_specs_write(void) {
               "\"occupants\":[{\"id\":\"w.pear\",\"name\":\"a pear\"}],"
               "\"carried\":[{\"id\":\"w.apple\",\"name\":\"an apple\"}],"
               "\"readings\":[{\"verb\":\"w.vouch\",\"typed\":\"vouch apple \xe2\x80\xa6\",\"refused\":[\"Not before me.\"],"
-              "\"fillers\":[{\"role\":\"target\",\"binds\":\"object\",\"id\":\"w.apple\",\"name\":\"an apple\",\"all\":true},"
-              "{\"role\":\"things\",\"binds\":\"set\",\"ids\":[\"w.apple\",\"w.pear\"],\"names\":[\"an apple\",\"a pear\"],\"all\":false},"
-              "{\"role\":\"way\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"through the gate\",\"to\":\"w.tower\"},"
-              "{\"role\":\"link\",\"binds\":\"exit\",\"direction\":null,\"label\":\"down the stair\",\"to\":\"w.yard\"},"
-              "{\"role\":\"topic\",\"binds\":\"unbound\"}],"
+              "\"fillers\":[{\"role\":\"target\",\"words\":\"\",\"binds\":\"object\",\"id\":\"w.apple\",\"name\":\"an apple\",\"all\":true},"
+              "{\"role\":\"things\",\"words\":\"with\",\"binds\":\"set\",\"ids\":[\"w.apple\",\"w.pear\"],\"names\":[\"an apple\",\"a pear\"],\"all\":false},"
+              "{\"role\":\"way\",\"words\":\"\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"through the gate\",\"to\":\"w.tower\"},"
+              "{\"role\":\"link\",\"words\":\"\",\"binds\":\"exit\",\"direction\":null,\"label\":\"down the stair\",\"to\":\"w.yard\"},"
+              "{\"role\":\"topic\",\"words\":\"about\",\"binds\":\"unbound\"}],"
               "\"options\":[{\"role\":\"topic\",\"takes\":\"symbol\",\"options\":[{\"value\":\"old_road\",\"words\":\"old road\"},"
               "{\"value\":\"toll\",\"words\":\"toll\"}]},{\"role\":\"code\",\"takes\":\"integer\",\"ranges\":[{\"min\":1,\"max\":12}]}]},"
               "{\"verb\":\"w.look\",\"typed\":\"look\",\"refused\":null,\"fillers\":[],\"options\":[]}]}");
@@ -102,7 +102,7 @@ static void the_pieces_a_chip_leaf_is_made_of_are_written_as_the_view_writes_the
   build(&view);
   CHECK_INT(sprout_json_write(&arena, sprout_seen_filler_json(&arena, &view.readings[0].fillers[2]), &bytes, &length), SPROUT_OK);
   CHECK_BYTES(bytes, length,
-              "{\"role\":\"way\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"through the gate\",\"to\":\"w.tower\"}");
+              "{\"role\":\"way\",\"words\":\"\",\"binds\":\"exit\",\"direction\":\"north\",\"label\":\"through the gate\",\"to\":\"w.tower\"}");
   CHECK_INT(sprout_json_write(&arena, sprout_seen_refusal_json(&arena, &view.readings[0]), &bytes, &length), SPROUT_OK);
   CHECK_BYTES(bytes, length, "[\"Not before me.\"]");
   CHECK_INT(sprout_json_write(&arena, sprout_seen_refusal_json(&arena, &view.readings[1]), &bytes, &length), SPROUT_OK);

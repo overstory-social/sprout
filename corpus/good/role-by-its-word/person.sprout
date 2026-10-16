@@ -1,0 +1,12 @@
+import * as sprout from 'sprout'
+import {hang} from 'role-by-its-word'
+
+kind Hanger is sprout.Actor {
+  as actor for hang {
+    do {
+      if (bound hook) { say "You hang {target} on {hook}." } else { say "You hang {target} up." }
+    }
+  }
+}
+
+kind Person is Hanger, sprout.Visitor { }

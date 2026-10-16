@@ -18,14 +18,9 @@ import {Vessel} from 'boat'
 // `take` and `drop` take several things at once, as Zork's do: `take lamp
 // and sword`, `take all`. Each is answered with its name before it, as
 // Zork answers more than one.
-// Zork's TAKE ... FROM and TAKE ... OUT OF: the box says only where to
-// look, and the take is the plain one.
 verb take {
   role target many
-  role source: Box
   "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"
-  "take [target] from [source]"  "take [target] out of [source]"  "get [target] from [source]"
-  "get [target] out of [source]"
   synonyms "steal", "seize", "grab", "carry", "hold", "remove"
 }
 

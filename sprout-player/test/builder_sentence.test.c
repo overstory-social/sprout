@@ -7,7 +7,8 @@
  * typed `all` would: a set role binds them all, and a role that takes one thing runs a turn for each
  * in the level's order, leaving out what the view refuses, stopping at the first refusal and bounded
  * by what a set role may bind; such a line is one save, its state written once after its last step,
- * and a failure of that save stops play.
+ * and a failure of that save stops play. A role a reading may leave out is offered by the word its
+ * phrase puts before it beside "that's all", and its fillers once the word is picked.
  */
 #include <stdlib.h>
 
@@ -352,6 +353,63 @@ static void everything_runs_at_most_what_a_set_role_may_bind(void) {
   leave();
 }
 
+/* The kinds of the entries on the disc, as one string of initials: v, f, r (a role's word), m, e, d, o, n, -, c. */
+static const char *kinds(void) {
+  static char out[64];
+  static const char initials[] = "vfrmedon-c";
+  size_t count, i;
+  const sentence_entry *entries = sentence_entries(built(), &count);
+  for (i = 0; i < count && i < sizeof out - 1; i++) out[i] = initials[entries[i].kind];
+  out[i] = '\0';
+  return out;
+}
+
+/* The kitchen of `role-by-its-word`: `hang [target] on [hook]` leaves the hook out of `hang [target]`, and the library's `take` its source. */
+static void a_role_a_reading_may_leave_out_is_offered_by_its_word_and_then_its_fillers(void) {
+  arrive_in("role word", "role-by-its-word.sproutworld");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "hang", 20), "hang");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "a sack", 5), "a sack");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "on") == 0 && strcmp(kinds(), "rd") == 0, "the hook's word, then that's all: %s, %s", front(), kinds());
+  CHECK(strcmp(phrase(), "hang -> a sack") == 0, "%s", phrase());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "a hook") == 0 && strcmp(kinds(), "f") == 0, "the word opens the hooks alone: %s, %s", front(), kinds());
+  CHECK(strcmp(phrase(), "hang -> a sack -> on") == 0, "the word picked, nothing under it yet: %s", phrase());
+  fake_frame(fake, kButtonB, 0);
+  CHECK(strcmp(front(), "on") == 0 && strcmp(kinds(), "rd") == 0, "B steps back to the word: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "hang -> a sack -> on a hook") == 0, "the sentence shows the word before the pick: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader() && shown_text("> hang -> a sack -> on a hook") && shown_text("You hang a sack on a hook."),
+        "the finished reading binds the hook");
+  /* That's all leaves the role out. */
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "hang", 20), "hang");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "a sack", 5), "a sack");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "that's all", 2), "that's all");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "hang -> a sack") == 0, "%s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(on_reader() && shown_text("> hang -> a sack") && shown_text("You hang a sack up."), "the hook left out");
+  /* The library's take: its source by the phrase's `from`. */
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "take", 20), "take");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(step_to(kButtonDown, "a sack", 5), "a sack");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "from") == 0 && strcmp(kinds(), "rd") == 0, "from, then that's all: %s, %s", front(), kinds());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "a table") == 0, "the table it is on: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(strcmp(front(), "take -> a sack -> from a table") == 0, "%s", front());
+  leave();
+}
+
 int main(void) {
   test_program("builder_sentence");
   descending_into_a_verb_and_back();
@@ -364,5 +422,6 @@ int main(void) {
   everything_takes_what_the_view_says_all_takes();
   everything_leaves_out_what_is_greyed_and_needs_two_things();
   everything_runs_at_most_what_a_set_role_may_bind();
+  a_role_a_reading_may_leave_out_is_offered_by_its_word_and_then_its_fillers();
   return finish();
 }

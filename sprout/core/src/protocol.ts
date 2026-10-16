@@ -102,11 +102,19 @@ const Thing = z.object({ id: text, name: text }).strict();
 /** What fills one role of a reading (`lang`'s `SeenFiller`). */
 const SentFiller = z.discriminatedUnion('binds', [
   z
-    .object({ role: named, binds: z.literal('object'), id: text, name: text, all: z.boolean() })
+    .object({
+      role: named,
+      words: text,
+      binds: z.literal('object'),
+      id: text,
+      name: text,
+      all: z.boolean(),
+    })
     .strict(),
   z
     .object({
       role: named,
+      words: text,
       binds: z.literal('set'),
       ids: z.array(text),
       names: z.array(text),
@@ -116,13 +124,14 @@ const SentFiller = z.discriminatedUnion('binds', [
   z
     .object({
       role: named,
+      words: text,
       binds: z.literal('exit'),
       direction: z.enum(DIRECTIONS).nullable(),
       label: text,
       to: text,
     })
     .strict(),
-  z.object({ role: named, binds: z.literal('unbound') }).strict(),
+  z.object({ role: named, words: text, binds: z.literal('unbound') }).strict(),
 ]);
 
 /** One reading a visitor could make, as a client is sent it (`lang`'s `SeenReading`). */

@@ -26,7 +26,7 @@ bool everything_takes(const sentence_choice *choice) {
 bool everything_offered(const sentence *s) {
   size_t i, count = 0;
   for (i = 0; i < s->choice_count && count < 2; i++)
-    if (everything_takes(&s->choices[i]) &&
+    if (sentence_offers(s, &s->choices[i]) && everything_takes(&s->choices[i]) &&
         (s->choices[i].filler->binds == SPROUT_SEEN_SET || s->state.each_pick == 0))
       count++;
   return count >= 2;
