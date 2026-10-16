@@ -2,8 +2,10 @@
  * ui/disc.c: where the disc's words sit, when it comes to rest, and how a label's pixels are
  * turned. The rules: the selected entry is at the front and comes first, its neighbours a sector
  * either side in the entries' order, the disc wrapping, each entry placed once where it is nearest
- * the front; the crank's fraction turns every sector by the same angle; the disc settles only once
- * the crank has rested DISC_REST_FRAMES, and says so once, the frame it comes to rest; and a label
+ * the front; the crank's fraction turns every sector by the same angle, through the detent curve,
+ * which is 0 at 0, a half at a half, odd, rising, and behind the crank between; the disc settles only
+ * once the crank has rested DISC_REST_FRAMES, easing back into the slot, and says so once, the frame
+ * it comes to rest; and a label
  * turned about the middle of its left edge lands, pixel for pixel, where the turn carries it, at a
  * quarter turn and at an eighth as at none, inverted where it is the front.
  */
@@ -28,13 +30,30 @@ static void the_front_comes_first_and_its_neighbours_lie_a_sector_either_side(vo
   }
 }
 
+static void the_detent_holds_the_word_then_slots_the_next_in(void) {
+  float f, last = disc_detent(-0.5f);
+  CHECK(disc_detent(0.0f) == 0.0f, "at rest, no turn");
+  CHECK(disc_detent(0.5f) == 0.5f && disc_detent(-0.5f) == -0.5f,
+        "exactly half a sector at half a step, so a step meets the next word's half with nothing to jump");
+  CHECK(disc_detent(0.25f) < 0.25f && disc_detent(0.25f) > 0.0f, "a quarter step on, the disc lags the crank: %f",
+        (double)disc_detent(0.25f));
+  for (f = -0.5f; f <= 0.5f; f += 1.0f / 64) {
+    float at = disc_detent(f);
+    CHECK(at == -disc_detent(-f), "the same either way at %f", (double)f);
+    CHECK(at >= last, "rising with the crank at %f: %f after %f", (double)f, (double)at, (double)last);
+    CHECK(f <= 0 || at <= f, "behind the crank going on at %f: %f", (double)f, (double)at);
+    last = at;
+  }
+}
+
 static void the_cranks_fraction_turns_every_sector_alike(void) {
   disc_row rest[DISC_MOST_ROWS], turned[DISC_MOST_ROWS];
   size_t made = disc_rows(12, 5, 0.0f, rest), i;
   CHECK(disc_rows(12, 5, 0.25f, turned) == made, "the same sectors a quarter of the way on");
   for (i = 0; i < made; i++)
-    CHECK(turned[i].index == rest[i].index && turned[i].angle == rest[i].angle - 0.25f * DISC_SECTOR_DEGREES,
-          "entry %zu turned back a quarter sector: %f from %f", rest[i].index, (double)turned[i].angle, (double)rest[i].angle);
+    CHECK(turned[i].index == rest[i].index && turned[i].angle == rest[i].angle - disc_detent(0.25f) * DISC_SECTOR_DEGREES,
+          "entry %zu turned back by the detent of a quarter step: %f from %f", rest[i].index, (double)turned[i].angle,
+          (double)rest[i].angle);
   disc_rows(12, 5, -0.5f, turned);
   CHECK(turned[0].index == 5 && turned[0].front && turned[0].angle == 0.5f * DISC_SECTOR_DEGREES,
         "half a sector back, the selected one is still the front");
@@ -67,7 +86,8 @@ static void the_rays_leave_the_hub_and_bend_toward_the_rim(void) {
 static void the_disc_settles_once_the_crank_rests(void) {
   sentence s;
   disc d = {0, false};
-  int frames = 0, rested = 0;
+  int frames = 0, rested = 0, settling = 0;
+  float drawn;
   memset(&s, 0, sizeof s);
   s.crank = 10.0f;
   CHECK(!disc_update(&d, &s, true), "turning, it does not settle");
@@ -75,8 +95,18 @@ static void the_disc_settles_once_the_crank_rests(void) {
     CHECK(!disc_update(&d, &s, false), "resting %d frames, not yet", frames);
     CHECK(s.crank == 10.0f, "and it has not moved");
   }
-  for (frames = 0; frames < 60; frames++) rested += disc_update(&d, &s, false);
-  CHECK(rested == 1 && s.crank == 0.0f, "it settles and says so once: %d", rested);
+  /* The settle is the crank's own, so through the curve the drawn turn shrinks every frame to none. */
+  drawn = disc_detent(sentence_fraction(&s));
+  for (frames = 0; frames < 60 && !rested; frames++) {
+    rested += disc_update(&d, &s, false);
+    CHECK(disc_detent(sentence_fraction(&s)) < drawn, "easing back into the slot: %f after %f",
+          (double)disc_detent(sentence_fraction(&s)), (double)drawn);
+    drawn = disc_detent(sentence_fraction(&s));
+    settling++;
+  }
+  for (; frames < 60; frames++) rested += disc_update(&d, &s, false);
+  CHECK(rested == 1 && s.crank == 0.0f && sentence_fraction(&s) == 0.0f, "it settles and says so once: %d", rested);
+  CHECK(settling == 6, "ten degrees off, it comes to rest in six frames, crank by crank: %d", settling);
   CHECK(!disc_update(&d, &s, false), "and not again while it rests");
 }
 
@@ -180,6 +210,7 @@ static void an_eighth_turn_carries_each_corner_round(void) {
 int main(void) {
   test_program("disc");
   the_front_comes_first_and_its_neighbours_lie_a_sector_either_side();
+  the_detent_holds_the_word_then_slots_the_next_in();
   the_cranks_fraction_turns_every_sector_alike();
   each_entry_is_placed_once_where_it_is_nearest();
   the_rays_leave_the_hub_and_bend_toward_the_rim();

@@ -469,7 +469,13 @@ greyed one dotted, its reason on the panel below); its neighbours tilt away
 above and below in the entries' order and run off the screen's edges, a
 long word cut where the screen ends. The rays dividing the sectors bend
 outward toward the rim and are drawn only where a word sits. The disc turns
-with the crank, every word with it; once the crank has rested for a few
+with the crank, every word with it, through a detent curve
+(`disc_detent`): the crank's place inside its 24-degree step, raised to a
+power (`DISC_DETENT`, 3) about the step's middle, is the share of a sector
+the disc is drawn turned. It holds the word back as the crank starts and
+slots the next one in quickly near the step, and meets the next word's
+half-sector exactly where the step happens, so nothing jumps: the crank feels
+like resistance and then a click, the tick being the clack. Once the crank has rested for a few
 frames it settles on the nearest sector, completing a step the crank took
 past halfway rather than sliding back. Each word is drawn once into a
 one-bit label while its level stands and turned to its ray in the player's

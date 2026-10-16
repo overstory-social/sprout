@@ -37,6 +37,13 @@
 #define DISC_REST_FRAMES 6
 /* The share of the way to the sector the disc moves each settling frame. */
 #define DISC_SETTLE 0.45f
+/*
+ * The detent: the power the crank's place inside a step is raised to before the disc is drawn
+ * turned by it (disc_detent). Larger holds the word back longer and snaps the next one in faster;
+ * 1 turns the disc with the crank. A whole number, so the power is repeated multiplication and
+ * needs no libm; the one figure to tune by feel on the console.
+ */
+#define DISC_DETENT 3
 
 typedef struct disc_row {
   size_t index; /* the entry */
@@ -62,8 +69,16 @@ typedef struct disc_box {
 bool disc_update(disc *d, sentence *s, bool turned);
 
 /*
- * Where each of `count` entries sits this frame, `selected` at the front and the disc `fraction` of
- * a sector past it toward the next, within half a sector. A sector turned past a quarter turn is left
+ * The share of a sector the disc is drawn turned when the crank is `fraction` of a step on, for
+ * `fraction` within half a step: sign(fraction) * 1/2 * (2|fraction|)^DISC_DETENT. It is 0 at 0 and
+ * exactly a half at a half, so a step leaves nothing to jump, and lags the crank between: the
+ * resistance before the next word slots in.
+ */
+float disc_detent(float fraction);
+
+/*
+ * Where each of `count` entries sits this frame, `selected` at the front and the crank `fraction`
+ * of a step past it toward the next, within half a step, the disc turned by disc_detent of it. A sector turned past a quarter turn is left
  * out and each entry appears once, where it is nearest the front; the front one comes first.
  */
 size_t disc_rows(size_t count, size_t selected, float fraction, disc_row rows[DISC_MOST_ROWS]);

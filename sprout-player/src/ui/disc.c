@@ -56,16 +56,24 @@ float disc_bent(float angle, float radius) {
   return angle * (1 + DISC_BEND * out);
 }
 
+float disc_detent(float fraction) {
+  float out = magnitude(fraction) * 2, power = 1;
+  int i;
+  for (i = 0; i < DISC_DETENT; i++) power *= out;
+  return fraction < 0 ? -power / 2 : power / 2;
+}
+
 size_t disc_rows(size_t count, size_t selected, float fraction, disc_row rows[DISC_MOST_ROWS]) {
   /* The sectors nearest the front first, so each word is placed once, where it is nearest. */
   static const int ORDER[DISC_MOST_ROWS] = {0, -1, 1, -2, 2, -3, 3};
   long side = count == 0 ? 0 : (long)count - 1 < DISC_SIDE ? (long)count - 1 : DISC_SIDE;
   size_t made = 0, i;
+  float turn = disc_detent(fraction);
   if (count == 0) return 0;
   for (i = 0; i < DISC_MOST_ROWS; i++) {
     long k = ORDER[i], at = ((long)selected + k) % (long)count;
     size_t index = (size_t)(at < 0 ? at + (long)count : at), slot;
-    float angle = ((float)k - fraction) * DISC_SECTOR_DEGREES;
+    float angle = ((float)k - turn) * DISC_SECTOR_DEGREES;
     bool seen = false;
     if (k > side || -k > side || magnitude(angle) >= 90.0f) continue;
     for (slot = 0; slot < made; slot++) seen = seen || rows[slot].index == index;

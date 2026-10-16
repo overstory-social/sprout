@@ -3,7 +3,7 @@
  * in the chip_tree world's hall. The rules: each word on the disc is a label drawn once into a bitmap
  * in the big font and placed along its ray; the front is the selected entry, the only label drawn
  * inverted, level at the hub's height at rest, its neighbours a sector either side in the entries'
- * order, each entry placed once, and the crank's fraction turns every word alike; the dividing rays
+ * order, each entry placed once, and the crank's fraction turns every word alike, through the detent; the dividing rays
  * are drawn only where a word sits; the labels are let go with the builder; the root lists the
  * scene's verbs in the view's order; a greyed chip is drawn greyed (at the front, a dotted inverted
  * label) and its reason is the panel's words; the sentence line fits the screen whatever its length,
@@ -32,7 +32,7 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
   player_chip_level root;
   size_t count, i;
   int n, front_at;
-  float rest_angle[32];
+  float rest_angle[32], turn;
   arrive("root");
   fake_frame(fake, kButtonA, 0);
   CHECK(!on_reader() && keys_shown(), "A opens the builder, its keys below the disc");
@@ -83,15 +83,27 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
     fake_frame(fake, 0, 24.0f);
     CHECK(strcmp(front(), verbs[i % count]) == 0, "after %zu steps the front is %s: %s", i, verbs[i % count], front());
   }
-  /* Ten degrees turns every word ten degrees up, the front off level; the labels stay the ones drawn at rest. */
-  fake_frame(fake, 0, 10.0f);
+  /* A quarter step of crank turns every word up, but by less than a quarter sector: the detent holds it back. */
+  fake_frame(fake, 0, 6.0f);
+  CHECK(fake->placed_count == DISC_MOST_ROWS, "the same words shown");
+  for (n = 0; n < fake->placed_count; n++) {
+    const builder_label *label = label_placed(n);
+    if (label == NULL || entry_of(label) >= 32) continue;
+    CHECK(label->angle < rest_angle[entry_of(label)] && label->angle > rest_angle[entry_of(label)] - DISC_SECTOR_DEGREES / 4,
+          "%s turned up less than a quarter sector: %f from %f", label_text(label), (double)label->angle,
+          (double)rest_angle[entry_of(label)]);
+  }
+  /* Ten degrees turns every word up by the detent of ten degrees, the front off level; the labels stay the ones drawn at rest. */
+  fake_frame(fake, 0, 4.0f);
+  turn = disc_detent(10.0f / SENTENCE_DEGREES_PER_STEP) * DISC_SECTOR_DEGREES;
   CHECK(strcmp(front(), verbs[0]) == 0, "ten degrees is not a step");
   CHECK(fake->placed_count == DISC_MOST_ROWS, "the same words shown");
   for (n = 0; n < fake->placed_count; n++) {
     const builder_label *label = label_placed(n);
     if (label == NULL || entry_of(label) >= 32) continue;
-    CHECK(label->angle > rest_angle[entry_of(label)] - 10.01f && label->angle < rest_angle[entry_of(label)] - 9.99f,
-          "%s turned ten degrees up: %f from %f", label_text(label), (double)label->angle, (double)rest_angle[entry_of(label)]);
+    CHECK(label->angle > rest_angle[entry_of(label)] - turn - 0.01f && label->angle < rest_angle[entry_of(label)] - turn + 0.01f,
+          "%s turned %f degrees up: %f from %f", label_text(label), (double)turn, (double)label->angle,
+          (double)rest_angle[entry_of(label)]);
   }
   front_at = front_placed();
   CHECK(front_at >= 0 && fake->made[fake->placed[front_at].made].height > LABEL_HEIGHT && fake->placed[front_at].y < FRONT_Y,
@@ -106,8 +118,8 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
   /* Left past halfway, the next verb is the front, still turned below level, and the disc rolls it level once the crank rests. */
   fake_frame(fake, 0, 14.0f);
   front_at = front_placed();
-  CHECK(strcmp(front(), verbs[0]) == 0 && front_at >= 0 && label_placed(front_at)->angle > 9.99f &&
-            label_placed(front_at)->angle < 10.01f && fake->placed[front_at].y > FRONT_Y,
+  CHECK(strcmp(front(), verbs[0]) == 0 && front_at >= 0 && label_placed(front_at)->angle > turn - 0.01f &&
+            label_placed(front_at)->angle < turn + 0.01f && fake->placed[front_at].y > FRONT_Y,
         "fourteen degrees on, the next verb has turned most of the way to the front: %s", front());
   for (i = 0; i < DISC_REST_FRAMES + 20; i++) fake_frame(fake, 0, 0);
   front_at = front_placed();
