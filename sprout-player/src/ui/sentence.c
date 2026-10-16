@@ -16,113 +16,15 @@
 /* What the disc shows when there was no memory to say more. */
 static const sentence_entry LOST = {SENTENCE_ENTRY_NONE, "", true, NO_MEMORY, 0, 0, 0};
 
-/* ---- memory ---- */
-
-/* Makes room for `want` items of `unit` bytes in the block at `*block`, which holds `*room`. */
-static bool grow(PlaydateAPI *pd, void **block, size_t *room, size_t want, size_t unit) {
-  size_t bigger = *room < 16 ? 16 : *room;
-  void *moved;
-  if (want <= *room) return true;
-  while (bigger < want) bigger *= 2;
-  moved = pd->system->realloc(*block, bigger * unit);
-  if (moved == NULL) return false;
-  *block = moved;
-  *room = bigger;
-  return true;
-}
-
-/* Appends the `n` bytes at `bytes` to the string being made at the end of `t`, which stays NUL-terminated. */
-static bool add(PlaydateAPI *pd, sentence_text *t, const char *bytes, size_t n) {
-  void *block = t->bytes;
-  if (!grow(pd, &block, &t->room, t->length + n + 1, 1)) return false;
-  t->bytes = (char *)block;
-  if (n > 0) memcpy(t->bytes + t->length, bytes, n);
-  t->length += n;
-  t->bytes[t->length] = '\0';
-  return true;
-}
-
-static bool add_text(PlaydateAPI *pd, sentence_text *t, const char *text) { return add(pd, t, text, strlen(text)); }
-
-/* Ends the string begun at `start`: 1 + its offset, or 0 where there was no memory. */
-static size_t close_at(PlaydateAPI *pd, sentence_text *t, size_t start, bool ok) {
-  if (!ok || !add(pd, t, "", 0)) return 0;
-  t->length++;
-  return start + 1;
-}
-
-static const char *words_at(const sentence_text *t, size_t at) { return at == 0 ? NULL : t->bytes + at - 1; }
-
 /* Appends to the kept words the kept words at `at`, which may move as the block grows. */
 static bool add_kept(sentence *s, size_t at) {
   size_t n = strlen(words_at(&s->kept, at));
   void *block = s->kept.bytes;
-  if (!grow(s->pd, &block, &s->kept.room, s->kept.length + n + 1, 1)) return false;
+  if (!sentence_grow(s->pd, &block, &s->kept.room, s->kept.length + n + 1, 1)) return false;
   s->kept.bytes = (char *)block;
   memcpy(s->kept.bytes + s->kept.length, s->kept.bytes + at - 1, n);
   s->kept.length += n;
   s->kept.bytes[s->kept.length] = '\0';
-  return true;
-}
-
-/* ---- labels ---- */
-
-/* A verb's name without its library, its underscores as spaces: `sprout.pick_up` is `pick up`. */
-static bool add_verb(PlaydateAPI *pd, sentence_text *t, const char *qualified) {
-  const char *name = strrchr(qualified, '.');
-  size_t from = t->length, i;
-  name = name == NULL ? qualified : name + 1;
-  if (!add_text(pd, t, name)) return false;
-  for (i = from; i < t->length; i++)
-    if (t->bytes[i] == '_') t->bytes[i] = ' ';
-  return true;
-}
-
-static bool add_names(PlaydateAPI *pd, sentence_text *t, const sprout_seen_thing *const *things, size_t count) {
-  size_t i;
-  for (i = 0; i < count; i++)
-    if ((i > 0 && !add_text(pd, t, ", ")) || !add(pd, t, things[i]->name.bytes, things[i]->name.length)) return false;
-  return true;
-}
-
-/* What a filler is called on the disc: a thing's name, a set's names, a way out's direction or label. */
-static bool add_filler(PlaydateAPI *pd, sentence_text *t, const sprout_seen_filler *filler) {
-  size_t i;
-  switch (filler->binds) {
-    case SPROUT_SEEN_OBJECT:
-      return add(pd, t, filler->thing.name.bytes, filler->thing.name.length);
-    case SPROUT_SEEN_SET:
-      for (i = 0; i < filler->member_count; i++)
-        if ((i > 0 && !add_text(pd, t, ", ")) || !add(pd, t, filler->members[i].name.bytes, filler->members[i].name.length))
-          return false;
-      return true;
-    case SPROUT_SEEN_EXIT:
-      return add_text(pd, t, filler->exit.direction != NULL ? filler->exit.direction : filler->exit.label);
-    default:
-      return add_text(pd, t, filler->role);
-  }
-}
-
-/* A whole number as digits, with its sign. */
-static bool add_number(PlaydateAPI *pd, sentence_text *t, double number) {
-  char digits[32];
-  size_t at = sizeof digits;
-  long long whole = (long long)number;
-  unsigned long long left = whole < 0 ? (unsigned long long)(-(whole + 1)) + 1u : (unsigned long long)whole;
-  digits[--at] = '\0';
-  do {
-    digits[--at] = (char)('0' + (int)(left % 10u));
-    left /= 10u;
-  } while (left > 0);
-  if (whole < 0) digits[--at] = '-';
-  return add_text(pd, t, digits + at);
-}
-
-/* A refusal's paragraphs as one line. */
-static bool add_refusal(PlaydateAPI *pd, sentence_text *t, const sprout_seen_reading *leaf) {
-  size_t i;
-  for (i = 0; i < leaf->refusal_count; i++)
-    if ((i > 0 && !add_text(pd, t, " ")) || !add(pd, t, leaf->refusal[i].bytes, leaf->refusal[i].length)) return false;
   return true;
 }
 
@@ -183,7 +85,7 @@ static const char *fetch(sentence *s, const size_t *path, size_t depth, size_t *
   s->level_words.length = 0;
   if (empty_reason != NULL) *empty_reason = 0;
   if (!level.ok) return level.reason != NULL ? level.reason : CANNOT;
-  if (!grow(s->pd, &block, &s->choice_room, level.choice_count + 1, sizeof *s->choices)) return NO_MEMORY;
+  if (!sentence_grow(s->pd, &block, &s->choice_room, level.choice_count + 1, sizeof *s->choices)) return NO_MEMORY;
   s->choices = (sentence_choice *)block;
   for (i = 0; i < level.choice_count; i++) {
     const player_chip *chip = &level.choices[i];
@@ -194,7 +96,7 @@ static const char *fetch(sentence *s, const size_t *path, size_t depth, size_t *
     choice->reason = 0;
     if (chip->reason != NULL) {
       size_t start = s->level_words.length;
-      choice->reason = close_at(s->pd, &s->level_words, start, add_text(s->pd, &s->level_words, chip->reason));
+      choice->reason = words_close(s->pd, &s->level_words, start, words_add_text(s->pd, &s->level_words, chip->reason));
       if (choice->reason == 0) return NO_MEMORY;
     }
   }
@@ -204,7 +106,7 @@ static const char *fetch(sentence *s, const size_t *path, size_t depth, size_t *
     /* Nothing under the verb fits: the verb's own words say why, kept for the confirm step. */
     const char *why = level.verb != NULL && level.verb->reason != NULL ? level.verb->reason : NOTHING_FITS;
     size_t start = s->kept.length;
-    *empty_reason = close_at(s->pd, &s->kept, start, add_text(s->pd, &s->kept, why));
+    *empty_reason = words_close(s->pd, &s->kept, start, words_add_text(s->pd, &s->kept, why));
     if (*empty_reason == 0) return NO_MEMORY;
   }
   return NULL;
@@ -216,7 +118,7 @@ static const char *fetch(sentence *s, const size_t *path, size_t depth, size_t *
 static bool push_entry(sentence *s, sentence_kind kind, size_t label_at, bool greyed, const char *reason, size_t index) {
   void *block = s->entries;
   sentence_entry *entry;
-  if (label_at == 0 || !grow(s->pd, &block, &s->entry_room, s->entry_count + 1, sizeof *s->entries)) return false;
+  if (label_at == 0 || !sentence_grow(s->pd, &block, &s->entry_room, s->entry_count + 1, sizeof *s->entries)) return false;
   s->entries = (sentence_entry *)block;
   entry = &s->entries[s->entry_count++];
   entry->kind = kind;
@@ -227,7 +129,7 @@ static bool push_entry(sentence *s, sentence_kind kind, size_t label_at, bool gr
   entry->reason_at = 0;
   if (reason != NULL) {
     size_t start = s->shown.length;
-    entry->reason_at = close_at(s->pd, &s->shown, start, add_text(s->pd, &s->shown, reason));
+    entry->reason_at = words_close(s->pd, &s->shown, start, words_add_text(s->pd, &s->shown, reason));
     if (entry->reason_at == 0) return false;
   }
   return true;
@@ -236,7 +138,19 @@ static bool push_entry(sentence *s, sentence_kind kind, size_t label_at, bool gr
 /* A label of fixed words. */
 static size_t label_of(sentence *s, const char *text) {
   size_t start = s->shown.length;
-  return close_at(s->pd, &s->shown, start, add_text(s->pd, &s->shown, text));
+  return words_close(s->pd, &s->shown, start, words_add_text(s->pd, &s->shown, text));
+}
+
+bool sentence_offers(const sentence *s, const sentence_choice *choice) {
+  return s->state.opened == NULL || strcmp(choice->filler->role, s->state.opened) == 0;
+}
+
+/* The words of the role opened by its word, from the first of its fillers on the level; "" where the level has none. */
+static const char *opened_words(const sentence *s) {
+  size_t i;
+  for (i = 0; i < s->choice_count; i++)
+    if (sentence_offers(s, &s->choices[i])) return s->choices[i].filler->words;
+  return "";
 }
 
 /*
@@ -248,31 +162,37 @@ static bool phrase_into(sentence *s, sentence_text *t, const sprout_seen_filler 
   bool ok = true;
   size_t i, parts = 0;
   t->length = 0;
-  ok = add(s->pd, t, "", 0);
+  ok = words_add(s->pd, t, "", 0);
   if (ok && state->verb != NULL) {
-    ok = add_verb(s->pd, t, state->verb);
+    ok = words_verb(s->pd, t, state->verb);
     parts++;
   }
   for (i = 0; ok && i < state->pick_count; i++, parts++) {
     const sentence_filled *pick = &state->picks[i];
-    ok = parts == 0 || add_text(s->pd, t, " -> ");
+    ok = parts == 0 || words_add_text(s->pd, t, " -> ");
+    if (!ok) break;
+    if (pick->worded) ok = words_before(s->pd, t, pick->filler);
     if (!ok) break;
     if (each != NULL && i + 1 == state->each_pick)
-      ok = add_filler(s->pd, t, each);
+      ok = words_filler(s->pd, t, each);
     else if (pick->everything)
-      ok = add_text(s->pd, t, EVERYTHING);
+      ok = words_add_text(s->pd, t, EVERYTHING);
     else
-      ok = pick->filler->binds == SPROUT_SEEN_SET ? add_names(s->pd, t, &state->joined[pick->first], pick->count)
-                                                   : add_filler(s->pd, t, pick->filler);
+      ok = pick->filler->binds == SPROUT_SEEN_SET ? words_names(s->pd, t, &state->joined[pick->first], pick->count)
+                                                   : words_filler(s->pd, t, pick->filler);
   }
   for (i = 0; ok && i < state->member_count; i++)
-    ok = add_text(s->pd, t, i == 0 ? (parts++ == 0 ? "" : " -> ") : ", ") &&
-         add(s->pd, t, state->members[i].thing->name.bytes, state->members[i].thing->name.length);
+    ok = words_add_text(s->pd, t, i == 0 ? (parts++ == 0 ? "" : " -> ") : ", ") &&
+         (i > 0 || state->opened == NULL || words_before(s->pd, t, state->set)) &&
+         words_add(s->pd, t, state->members[i].thing->name.bytes, state->members[i].thing->name.length);
+  /* The word picked, with nothing under it yet: `take -> the sack -> from`. */
+  if (ok && state->opened != NULL && state->stage == SENTENCE_FILLER && opened_words(s)[0] != '\0')
+    ok = (parts++ == 0 || words_add_text(s->pd, t, " -> ")) && words_add_text(s->pd, t, opened_words(s));
   for (i = 0; ok && i < state->value_count; i++, parts++) {
     const sentence_value *value = &state->values[i];
-    ok = (parts == 0 || add_text(s->pd, t, " -> ")) &&
-         (value->option != NULL ? add(s->pd, t, value->option->words.bytes, value->option->words.length)
-                                : add_number(s->pd, t, value->number));
+    ok = (parts == 0 || words_add_text(s->pd, t, " -> ")) &&
+         (value->option != NULL ? words_add(s->pd, t, value->option->words.bytes, value->option->words.length)
+                                : words_number(s->pd, t, value->number));
   }
   return ok;
 }
@@ -288,6 +208,29 @@ static bool joined_already(const sentence_state *state, sprout_str id) {
   return false;
 }
 
+/* Each role among the level's choices once, by its word, in the level's order; greyed where every filler of it is. */
+static bool push_roles(sentence *s) {
+  size_t i, k;
+  for (i = 0; i < s->choice_count; i++) {
+    const sentence_choice *choice = &s->choices[i], *first = NULL;
+    bool greyed = true;
+    for (k = 0; k <= i; k++) {
+      if (strcmp(s->choices[k].filler->role, choice->filler->role) != 0) continue;
+      if (first == NULL) first = &s->choices[k];
+    }
+    if (first != choice) continue;
+    for (k = i; k < s->choice_count; k++)
+      if (strcmp(s->choices[k].filler->role, choice->filler->role) == 0 && s->choices[k].greyed != PLAYER_GREYED_YES) greyed = false;
+    {
+      size_t start = s->shown.length;
+      if (!push_entry(s, SENTENCE_ENTRY_ROLE, words_close(s->pd, &s->shown, start, words_role(s->pd, &s->shown, choice->filler)),
+                      greyed, greyed ? words_at(&s->level_words, choice->reason) : NULL, i))
+        return false;
+    }
+  }
+  return true;
+}
+
 static bool make_entries(sentence *s) {
   const sentence_state *state = &s->state;
   size_t i, start;
@@ -296,33 +239,38 @@ static bool make_entries(sentence *s) {
       const sentence_choice *choice = &s->choices[i];
       bool greyed = choice->greyed == PLAYER_GREYED_YES;
       start = s->shown.length;
-      if (!push_entry(s, SENTENCE_ENTRY_VERB, close_at(s->pd, &s->shown, start, add_verb(s->pd, &s->shown, choice->verb)),
+      if (!push_entry(s, SENTENCE_ENTRY_VERB, words_close(s->pd, &s->shown, start, words_verb(s->pd, &s->shown, choice->verb)),
                       greyed, greyed ? words_at(&s->level_words, choice->reason) : NULL, i))
         return false;
     }
   } else if (state->stage == SENTENCE_FILLER || state->stage == SENTENCE_MORE) {
     bool more = state->stage == SENTENCE_MORE;
-    if (!more && everything_offered(s) && !push_entry(s, SENTENCE_ENTRY_EVERYTHING, label_of(s, EVERYTHING), false, NULL, 0))
+    /* A level with fillers and a leaf is a role a reading may leave out: its word stands for its fillers until picked. */
+    bool by_word = !more && s->leaf != NULL && state->opened == NULL;
+    if (by_word && !push_roles(s)) return false;
+    if (!by_word && !more && everything_offered(s) &&
+        !push_entry(s, SENTENCE_ENTRY_EVERYTHING, label_of(s, EVERYTHING), false, NULL, 0))
       return false;
-    for (i = 0; i < s->choice_count; i++) {
+    for (i = 0; !by_word && i < s->choice_count; i++) {
       const sentence_choice *choice = &s->choices[i];
       bool greyed = choice->greyed == PLAYER_GREYED_YES;
-      if (more && (choice->filler->binds != SPROUT_SEEN_SET || choice->filler->member_count == 0 ||
-                   joined_already(state, choice->filler->members[0].id)))
+      if (!sentence_offers(s, choice) ||
+          (more && (choice->filler->binds != SPROUT_SEEN_SET || choice->filler->member_count == 0 ||
+                    joined_already(state, choice->filler->members[0].id))))
         continue;
       start = s->shown.length;
       if (!push_entry(s, more ? SENTENCE_ENTRY_MEMBER : SENTENCE_ENTRY_FILLER,
-                      close_at(s->pd, &s->shown, start,
-                               (!more || add_text(s->pd, &s->shown, "and ")) && add_filler(s->pd, &s->shown, choice->filler)),
+                      words_close(s->pd, &s->shown, start,
+                               (!more || words_add_text(s->pd, &s->shown, "and ")) && words_filler(s->pd, &s->shown, choice->filler)),
                       greyed, greyed ? words_at(&s->level_words, choice->reason) : NULL, i))
         return false;
     }
-    if (more || s->leaf != NULL) {
+    if (more || (s->leaf != NULL && state->opened == NULL)) {
       bool refused = !more && s->leaf->refused;
       const char *reason = NULL;
       if (refused) {
         start = s->kept.length;
-        reason = words_at(&s->kept, close_at(s->pd, &s->kept, start, add_refusal(s->pd, &s->kept, s->leaf)));
+        reason = words_at(&s->kept, words_close(s->pd, &s->kept, start, words_refusal(s->pd, &s->kept, s->leaf)));
         s->kept.length = start; /* only borrowed: it is copied into the entry below */
       }
       if (!push_entry(s, SENTENCE_ENTRY_DONE, label_of(s, "that's all"), refused, reason, 0)) return false;
@@ -333,7 +281,7 @@ static bool make_entries(sentence *s) {
       for (i = 0; i < role->option_count; i++) {
         start = s->shown.length;
         if (!push_entry(s, SENTENCE_ENTRY_OPTION,
-                        close_at(s->pd, &s->shown, start, add(s->pd, &s->shown, role->options[i].words.bytes, role->options[i].words.length)),
+                        words_close(s->pd, &s->shown, start, words_add(s->pd, &s->shown, role->options[i].words.bytes, role->options[i].words.length)),
                         false, NULL, i))
           return false;
       }
@@ -344,7 +292,7 @@ static bool make_entries(sentence *s) {
       if (!push_entry(s, SENTENCE_ENTRY_NONE, label_of(s, "no number"), true, "No number fits here.", 0)) return false;
     } else {
       start = s->shown.length;
-      if (!push_entry(s, SENTENCE_ENTRY_NUMBER, close_at(s->pd, &s->shown, start, add_number(s->pd, &s->shown, state->number)),
+      if (!push_entry(s, SENTENCE_ENTRY_NUMBER, words_close(s->pd, &s->shown, start, words_number(s->pd, &s->shown, state->number)),
                       false, NULL, 0))
         return false;
     }
@@ -356,7 +304,7 @@ static bool make_entries(sentence *s) {
     runs = each && s->each_count > 0;
     if (state->leaf != NULL && state->leaf->refused && !runs) {
       start = s->kept.length;
-      reason = words_at(&s->kept, close_at(s->pd, &s->kept, start, add_refusal(s->pd, &s->kept, state->leaf)));
+      reason = words_at(&s->kept, words_close(s->pd, &s->kept, start, words_refusal(s->pd, &s->kept, state->leaf)));
       s->kept.length = start;
       if (reason == NULL) return false;
     } else if (state->refusal != 0) {
@@ -367,7 +315,7 @@ static bool make_entries(sentence *s) {
       reason = NOTHING_FITS;
     }
     start = s->shown.length;
-    if (!push_entry(s, SENTENCE_ENTRY_CONFIRM, close_at(s->pd, &s->shown, start, add_text(s->pd, &s->shown, sentence_phrase(s))),
+    if (!push_entry(s, SENTENCE_ENTRY_CONFIRM, words_close(s->pd, &s->shown, start, words_add_text(s->pd, &s->shown, sentence_phrase(s))),
                     reason != NULL, reason, 0))
       return false;
   }
@@ -417,6 +365,7 @@ static const char *arrive(sentence *s, sentence_state *state, size_t choice) {
   const char *why;
   if (state->depth == SENTENCE_MOST_PARTS) return TOO_LONG;
   state->path[state->depth++] = choice;
+  state->opened = NULL;
   why = fetch(s, state->path, state->depth, &state->empty_reason);
   if (why != NULL) return why;
   if (s->choice_count > 0)
@@ -432,7 +381,7 @@ static const char *join(sentence *s, sentence_state *state, const sentence_choic
   if (state->member_count + choice->filler->member_count > SENTENCE_MOST_MEMBERS) return TOO_LONG;
   if (choice->greyed == PLAYER_GREYED_YES && choice->reason != 0) {
     size_t start = s->kept.length;
-    reason = close_at(s->pd, &s->kept, start, add_text(s->pd, &s->kept, words_at(&s->level_words, choice->reason)));
+    reason = words_close(s->pd, &s->kept, start, words_add_text(s->pd, &s->kept, words_at(&s->level_words, choice->reason)));
     if (reason == 0) return NO_MEMORY;
   }
   for (i = 0; i < choice->filler->member_count; i++) {
@@ -452,14 +401,15 @@ static const char *close_set(sentence *s, sentence_state *state, bool everything
   pick->first = state->joined_count;
   pick->count = state->member_count;
   pick->everything = everything;
+  pick->worded = state->opened != NULL;
   for (i = 0; i < state->member_count; i++) {
     const sentence_member *member = &state->members[i];
     state->joined[state->joined_count++] = member->thing;
     if (member->reason != 0 && state->refusal == 0) {
       size_t start = s->kept.length;
-      bool ok = add(s->pd, &s->kept, member->thing->name.bytes, member->thing->name.length) && add_text(s->pd, &s->kept, ": ") &&
+      bool ok = words_add(s->pd, &s->kept, member->thing->name.bytes, member->thing->name.length) && words_add_text(s->pd, &s->kept, ": ") &&
                 add_kept(s, member->reason);
-      state->refusal = close_at(s->pd, &s->kept, start, ok);
+      state->refusal = words_close(s->pd, &s->kept, start, ok);
       if (state->refusal == 0) return NO_MEMORY;
     }
   }
@@ -492,7 +442,7 @@ static const char *pick_everything(sentence *s, sentence_state *state) {
   state->member_count = 0;
   for (i = 0; i < s->choice_count; i++) {
     const sentence_choice *choice = &s->choices[i];
-    if (!everything_takes(choice)) continue;
+    if (!sentence_offers(s, choice) || !everything_takes(choice)) continue;
     if (count == 0) {
       first = i;
       set = choice->filler->binds == SPROUT_SEEN_SET;
@@ -519,6 +469,7 @@ static const char *pick_everything(sentence *s, sentence_state *state) {
   state->picks[state->pick_count].filler = s->choices[first].filler;
   state->picks[state->pick_count].first = state->picks[state->pick_count].count = 0;
   state->picks[state->pick_count].everything = true;
+  state->picks[state->pick_count].worded = state->opened != NULL;
   state->pick_count++;
   return arrive(s, state, first + 1);
 }
@@ -647,14 +598,15 @@ sentence_end sentence_pick(sentence *s, const char **words) {
     return SENTENCE_REFUSED;
   }
   if (entry->kind == SENTENCE_ENTRY_CONFIRM) return SENTENCE_DONE;
-  if (!grow(s->pd, &block, &s->history_room, s->history_count + 1, sizeof *s->history)) {
+  if (!sentence_grow(s->pd, &block, &s->history_room, s->history_count + 1, sizeof *s->history)) {
     *words = NO_MEMORY;
     return SENTENCE_REFUSED;
   }
   s->history = (sentence_state *)block;
   s->history[s->history_count++] = s->state;
   next = s->state;
-  if (entry->kind == SENTENCE_ENTRY_VERB || entry->kind == SENTENCE_ENTRY_FILLER || entry->kind == SENTENCE_ENTRY_MEMBER)
+  if (entry->kind == SENTENCE_ENTRY_VERB || entry->kind == SENTENCE_ENTRY_FILLER || entry->kind == SENTENCE_ENTRY_ROLE ||
+      entry->kind == SENTENCE_ENTRY_MEMBER)
     choice = &s->choices[entry->index];
   switch (entry->kind) {
     case SENTENCE_ENTRY_VERB:
@@ -674,9 +626,14 @@ sentence_end sentence_pick(sentence *s, const char **words) {
         next.picks[next.pick_count].filler = choice->filler;
         next.picks[next.pick_count].first = next.picks[next.pick_count].count = 0;
         next.picks[next.pick_count].everything = false;
+        next.picks[next.pick_count].worded = next.opened != NULL;
         next.pick_count++;
         why = arrive(s, &next, entry->index + 1);
       }
+      break;
+    case SENTENCE_ENTRY_ROLE:
+      /* The word opens the role's fillers on the same level; B steps back to the word. */
+      next.opened = choice->filler->role;
       break;
     case SENTENCE_ENTRY_MEMBER:
       why = join(s, &next, choice);

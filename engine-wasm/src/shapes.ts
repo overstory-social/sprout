@@ -158,6 +158,7 @@ const Thing = z.object({ id: Id, name: z.string() });
 const FillerSchema = z.discriminatedUnion('binds', [
   z.object({
     role: z.string(),
+    words: z.string(),
     binds: z.literal('object'),
     id: Id,
     name: z.string(),
@@ -165,6 +166,7 @@ const FillerSchema = z.discriminatedUnion('binds', [
   }),
   z.object({
     role: z.string(),
+    words: z.string(),
     binds: z.literal('set'),
     ids: z.array(Id),
     names: z.array(z.string()),
@@ -172,12 +174,13 @@ const FillerSchema = z.discriminatedUnion('binds', [
   }),
   z.object({
     role: z.string(),
+    words: z.string(),
     binds: z.literal('exit'),
     direction: z.enum(DIRECTIONS).nullable(),
     label: z.string(),
     to: Id,
   }),
-  z.object({ role: z.string(), binds: z.literal('unbound') }),
+  z.object({ role: z.string(), words: z.string(), binds: z.literal('unbound') }),
 ]);
 
 const OptionsSchema = z.discriminatedUnion('takes', [

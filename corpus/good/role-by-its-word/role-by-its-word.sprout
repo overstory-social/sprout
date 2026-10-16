@@ -1,0 +1,34 @@
+// A reading's filler carries the words the verb's phrase puts right before
+// its role's slot, so a client that offers an optional role by its word
+// ("on", then the hooks) reads the word from the view and not from anything
+// it knows of the verb. `hang [target] on [hook]` gives `hook` the word
+// "on"; the library's `take [target] from [source]` gives `source` "from";
+// and the target, which follows the verb's own words, has none.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world role_by_its_word is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    grammar { article the }
+    object table is Table {
+      grammar { name "table" }
+      object sack is Portable { grammar { name "sack" } }
+    }
+    object hook is Hook { grammar { name "hook" } }
+  }
+}
+
+verb hang { role target  role hook: Hook  "hang [target]"  "hang [target] on [hook]" }
+
+kind Table is sprout.Container { }
+
+kind Hook {
+  as hook for hang { do { } }
+}
+
+kind Portable {
+  as target for hang { do { } }
+}

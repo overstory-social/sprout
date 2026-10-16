@@ -73,9 +73,10 @@ static sprout_json *things(writer *w, const sprout_seen_thing *items, size_t cou
 }
 
 static sprout_json *filler_node(writer *w, const sprout_seen_filler *filler) {
-  sprout_json *object = made(w, SPROUT_JSON_OBJECT, 5);
+  sprout_json *object = made(w, SPROUT_JSON_OBJECT, 6);
   size_t i;
   sprout_json_adopt(object, "role", cstring(w, filler->role));
+  sprout_json_adopt(object, "words", cstring(w, filler->words));
   switch (filler->binds) {
     case SPROUT_SEEN_OBJECT:
       sprout_json_adopt(object, "binds", cstring(w, "object"));
