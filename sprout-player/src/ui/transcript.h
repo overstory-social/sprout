@@ -2,7 +2,9 @@
  * The reader's transcript, after the TUI's (tui/src/state.ts): paragraphs wrapped to the column, the newest at the bottom, with a status
  * line of the place and its ways out. A paragraph's kind leads it with a mark, so the screen
  * needs no colour to tell them apart. A reader who has scrolled back keeps their place as more
- * is told; the oldest paragraphs fall off past TRANSCRIPT_KEEP.
+ * is told; the oldest paragraphs fall off past TRANSCRIPT_KEEP. Each paragraph's block keeps
+ * its words with its lines (wrap.h), so a font that changes wraps them all again with nothing
+ * told lost.
  */
 #ifndef PLAYER_UI_TRANSCRIPT_H
 #define PLAYER_UI_TRANSCRIPT_H
@@ -50,6 +52,13 @@ size_t transcript_furthest(const transcript *t);
 
 /* Whether newer lines than the ones shown wait below. */
 bool transcript_behind(const transcript *t);
+
+/*
+ * The font has changed: every paragraph is wrapped again by the same measure and the column
+ * shows `rows` lines. A paragraph that could not be wrapped again for want of memory keeps the
+ * lines it had, and the reader's place is kept as near as the new lines allow.
+ */
+void transcript_refit(transcript *t, size_t rows);
 
 /* The lines shown, oldest first, into `lines` (room for `rows`); how many. */
 size_t transcript_visible(const transcript *t, const char **lines);

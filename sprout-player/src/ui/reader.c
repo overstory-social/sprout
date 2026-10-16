@@ -107,6 +107,11 @@ static void draw(player_app *app, void *ctx) {
   player_pen_say(pen, KEYS, PLAYER_MARGIN, panel + 2);
 }
 
+static void refit(player_app *app, void *ctx) {
+  player_reader *reader = (player_reader *)ctx;
+  transcript_refit(&reader->lines, player_reader_rows(app->pen.line_height));
+}
+
 static void leave(player_app *app, void *ctx) {
   player_reader *reader = (player_reader *)ctx;
   if (reader->lent) return;
@@ -116,4 +121,4 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, reader);
 }
 
-const player_screen player_reader_screen = {update, draw, leave};
+const player_screen player_reader_screen = {update, draw, leave, refit};

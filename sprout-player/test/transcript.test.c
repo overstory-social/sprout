@@ -2,7 +2,8 @@
  * ui/transcript.c: the reader's transcript. Paragraphs are led by their kind's mark and wrapped
  * to the column; the newest lines are shown at the bottom; a reader scrolled back keeps their
  * place as more is told and cannot scroll past either end; the oldest paragraphs fall off past
- * the keep; and the status line is the place and its ways out.
+ * the keep; a font that changes wraps every paragraph again with every line told still there;
+ * and the status line is the place and its ways out.
  */
 #include <stdio.h>
 
@@ -103,6 +104,82 @@ static void the_oldest_fall_off_past_the_keep(void) {
   end();
 }
 
+/* A font `*ctx` pixels a byte. */
+static int measure_scaled(void *ctx, const char *text, size_t length) {
+  (void)text;
+  return (int)length * *(const int *)ctx;
+}
+
+/* The characters of `line` that are not spaces, appended to `out`. */
+static void ink_line(const char *line, char *out) {
+  out += strlen(out);
+  for (; *line != '\0'; line++)
+    if (*line != ' ') *out++ = *line;
+  *out = '\0';
+}
+
+/* The characters of every kept line, oldest first, without spaces, into `out`; the transcript is left at the newest. */
+static void all_ink(transcript *t, char *out) {
+  const char *shown[64];
+  size_t n, i;
+  transcript_scroll(t, 100000);
+  n = transcript_visible(t, shown);
+  *out = '\0';
+  for (i = 0; i < n; i++) ink_line(shown[i], out);
+  while (t->offset > 0) {
+    transcript_scroll(t, -1);
+    n = transcript_visible(t, shown);
+    ink_line(shown[n - 1], out);
+  }
+}
+
+/*
+ * A font that grows wraps every paragraph again by the new measure: the lines fit the column, the
+ * column shows the rows asked for, every character told is still there in order, a marked kind
+ * keeps its mark, and a reader scrolled back is still within the transcript.
+ */
+static void a_font_that_changes_wraps_every_paragraph_again_and_loses_nothing(void) {
+  transcript t;
+  char before[1024], after[1024];
+  const char *shown[8];
+  int scale = 10;
+  size_t n, i;
+  begin("refit");
+  transcript_init(&t, &fake->api, measure_scaled, &scale, 100, 4);
+  push(&t, "typed", "look around");
+  push(&t, "said", "one two three four five six seven");
+  push(&t, "described", "a\nnewline stays");
+  push(&t, "notice", "abcdefghijklmnopqrstuvwxyz");
+  CHECK(t.line_count == 2 + 4 + 3 + 4, "ten a byte: %zu lines", t.line_count);
+  all_ink(&t, before);
+  transcript_scroll(&t, 100000);
+  scale = 20;
+  transcript_refit(&t, 2);
+  CHECK(t.rows == 2 && t.line_count == 4 + 7 + 4 + 7, "five a byte, two rows: %zu lines", t.line_count);
+  CHECK(t.offset <= transcript_furthest(&t), "the place scrolled back to is still within the transcript: %zu of %zu", t.offset,
+        transcript_furthest(&t));
+  transcript_scroll(&t, 100000);
+  n = transcript_visible(&t, shown);
+  CHECK(n == 2 && strcmp(shown[0], ">") == 0 && strcmp(shown[1], "look") == 0, "the mark still leads: %s | %s", shown[0], shown[1]);
+  for (;;) {
+    n = transcript_visible(&t, shown);
+    for (i = 0; i < n; i++)
+      CHECK(measure_scaled(&scale, shown[i], strlen(shown[i])) <= 100 || strlen(shown[i]) == 1, "\"%s\" is wider than the column",
+            shown[i]);
+    if (t.offset == 0) break;
+    transcript_scroll(&t, -1);
+  }
+  all_ink(&t, after);
+  CHECK(strcmp(before, after) == 0, "every character told is still there:\n%s\n%s", before, after);
+  scale = 10;
+  transcript_refit(&t, 4);
+  CHECK(t.line_count == 13 && t.rows == 4, "wrapped back: %zu lines", t.line_count);
+  all_ink(&t, after);
+  CHECK(strcmp(before, after) == 0, "and still whole");
+  transcript_free(&t);
+  end();
+}
+
 static sprout_str str(const char *text) {
   sprout_str s;
   s.bytes = text;
@@ -137,6 +214,7 @@ int main(void) {
   the_newest_are_at_the_bottom_and_a_reader_scrolled_back_keeps_their_place();
   a_short_transcript_shows_all_and_does_not_scroll();
   the_oldest_fall_off_past_the_keep();
+  a_font_that_changes_wraps_every_paragraph_again_and_loses_nothing();
   the_status_is_the_place_and_its_ways_out();
   return finish();
 }

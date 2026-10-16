@@ -2,10 +2,11 @@
  * A PlaydateAPI with only the functions the app calls, so the session, the host adapter and the
  * screens are exercised without the SDK's runtime: a clock a test sets, a Data folder and an app folder on the
  * desktop's disk, and a screen: graphics that draw into a 400 by 240 one-bit frame, as the
- * Simulator's is, with the text drawn kept as runs, and buttons and a crank a test sets. Three
- * fonts load: the system font, `glyph` pixels a character (FAKE_GLYPH unless a test says
- * otherwise) and FAKE_LINE tall, and the sentence builder's big and small fonts from the pdx's
- * fonts/; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
+ * Simulator's is, with the text drawn kept as runs, and buttons and a crank a test sets. Five
+ * fonts load: the system's three text sizes, S `glyph` pixels a character (FAKE_GLYPH unless a test says
+ * otherwise) and FAKE_LINE tall, M and L wider and taller, and the sentence builder's big and small fonts from the pdx's
+ * fonts/, each freed as the C API frees a font (realloc to nothing), and a test can name one that
+ * does not load; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
  * to the screen as the device's is. Bitmaps load from PNG files, the size their header declares, and
  * are drawn as a black block of that size, each draw recorded. Bitmaps made with newBitmap hold real
  * pixels, kept as the device keeps them (a set data bit white, a set mask bit drawn, rows padded to
@@ -14,7 +15,7 @@
  * each placement recorded. Lines go any way, and an ellipse is stroked whole; the file calls that change the Data folder are logged; synths keep what they were set to and
  * record each note played. The network serves canned answers: each address a test gives is answered
  * with its status, headers and body, a piece a frame, behind the permission the test says the person
- * gives; an address it does not know is answered 404. The system menu holds up to three items, as the device's does, which a test can choose. The SDK's headers are the declarations;
+ * gives; an address it does not know is answered 404. The system menu holds up to three items, as the device's does, which a test can choose, and an options item's value a test can set, as the person does from the menu. The SDK's headers are the declarations;
  * nothing of the SDK is linked. It is built from fake_playdate/, a module for each of the API's areas.
  */
 #ifndef FAKE_PLAYDATE_H
@@ -25,6 +26,10 @@
 #define FAKE_RUNS 128
 #define FAKE_GLYPH 7
 #define FAKE_LINE 18
+#define FAKE_MEDIUM_GLYPH 10
+#define FAKE_MEDIUM_LINE 24
+#define FAKE_LARGE_GLYPH 12
+#define FAKE_LARGE_LINE 30
 #define FAKE_BIG_GLYPH 12
 #define FAKE_BIG_LINE 30
 #define FAKE_SMALL_GLYPH 5
@@ -40,9 +45,17 @@
 #define FAKE_ANSWERS 16
 #define FAKE_CONNECTIONS 8
 #define FAKE_MENU_ITEMS 3
+#define FAKE_FONTS 5
 
 /* The fonts the fake loads; a run says which it was drawn in. */
-typedef enum fake_font { FAKE_FONT_NONE, FAKE_FONT_SYSTEM, FAKE_FONT_BIG, FAKE_FONT_SMALL } fake_font;
+typedef enum fake_font {
+  FAKE_FONT_NONE,
+  FAKE_FONT_SYSTEM, /* the text size S */
+  FAKE_FONT_MEDIUM, /* M */
+  FAKE_FONT_LARGE,  /* L */
+  FAKE_FONT_BIG,    /* the sentence builder's */
+  FAKE_FONT_SMALL
+} fake_font;
 
 /* One drawText call: its text, where its top left was, and its font. */
 typedef struct fake_run {
@@ -119,11 +132,17 @@ typedef struct fake_connection {
   int complete;
 } fake_connection;
 
-/* An item of the system menu: its title, empty while the slot holds none, its callback and its userdata. */
+/*
+ * An item of the system menu: its title, empty while the slot holds none, its callback and its
+ * userdata, and for an options item its options (held, not copied) and the one set.
+ */
 typedef struct fake_menu_item {
   char title[64];
   PDMenuItemCallbackFunction *callback;
   void *ctx;
+  const char *const *options;
+  int option_count; /* 0 for a plain item */
+  int value;
 } fake_menu_item;
 
 typedef struct fake_playdate {
@@ -149,9 +168,12 @@ typedef struct fake_playdate {
   uint8_t frame[LCD_ROWS * LCD_ROWSIZE];
   fake_run runs[FAKE_RUNS];
   int run_count;
-  fake_font font_set; /* the font set; drawing in none is a fault */
-  int glyph;          /* the width of a system font character, FAKE_GLYPH unless a test widens it */
+  fake_font font_set; /* the font set; drawing in none, or in one freed, is a fault */
+  int glyph;          /* the width of a text size S character, FAKE_GLYPH unless a test widens it */
+  int medium_glyph, large_glyph; /* the same for M and L, FAKE_MEDIUM_GLYPH and FAKE_LARGE_GLYPH unless a test says */
   int big_glyph, small_glyph; /* the same for the builder's fonts, FAKE_BIG_GLYPH and FAKE_SMALL_GLYPH unless a test says */
+  int fonts_loaded[FAKE_FONTS]; /* which fonts are held now, by fake_font less one */
+  char missing_font[256];       /* a font path loadFont does not find, as on a device without it; "" for none */
   /* the sounds: the synths made and the notes played */
   fake_synth synths[FAKE_SYNTHS];
   int synth_count;
@@ -232,6 +254,16 @@ void fake_network_step(fake_playdate *fake);
 
 /* Chooses the system menu's item titled `title`, as the person does from the menu; whether there is one. */
 int fake_menu(fake_playdate *fake, const char *title);
+
+/* Sets the options item titled `title` to its option `value` and closes the menu, as the person does; whether there is one. */
+int fake_menu_set(fake_playdate *fake, const char *title, int value);
+
+/* The option the options item titled `title` is set to, or -1 where there is none; and its options, how many. */
+int fake_menu_value(const fake_playdate *fake, const char *title);
+int fake_menu_options(const fake_playdate *fake, const char *title, const char *const **options);
+
+/* How many fonts are held now. */
+int fake_fonts_held(const fake_playdate *fake);
 
 /* Whether the system menu holds an item titled `title`, and how many it holds. */
 int fake_menu_holds(const fake_playdate *fake, const char *title);

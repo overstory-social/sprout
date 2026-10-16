@@ -10,6 +10,7 @@ fake_playdate *fake_current;
 
 static void *fake_realloc(void *block, size_t bytes) {
   if (bytes == 0) {
+    if (fake_font_release(block)) return NULL;
     if (block != NULL) fake_current->pages--;
     free(block);
     return NULL;
@@ -53,9 +54,29 @@ static PDMenuItem *fake_add_menu_item(const char *title, PDMenuItemCallbackFunct
     snprintf(item->title, sizeof item->title, "%s", title);
     item->callback = callback;
     item->ctx = userdata;
+    item->options = NULL;
+    item->option_count = 0;
+    item->value = 0;
     return (PDMenuItem *)item;
   }
   return NULL;
+}
+
+static PDMenuItem *fake_add_options_menu_item(const char *title, const char **options, int count,
+                                              PDMenuItemCallbackFunction *callback, void *userdata) {
+  fake_menu_item *item = (fake_menu_item *)fake_add_menu_item(title, callback, userdata);
+  if (item == NULL) return NULL;
+  item->options = (const char *const *)options;
+  item->option_count = count;
+  return (PDMenuItem *)item;
+}
+
+static int fake_get_menu_item_value(PDMenuItem *item) { return ((fake_menu_item *)item)->value; }
+
+static void fake_set_menu_item_value(PDMenuItem *item, int value) {
+  fake_menu_item *held = (fake_menu_item *)item;
+  if (value < 0 || value >= held->option_count) abort(); /* the device has no such option */
+  held->value = value;
 }
 
 static void fake_remove_menu_item(PDMenuItem *item) {
@@ -76,6 +97,26 @@ int fake_menu(fake_playdate *fake, const char *title) {
   if (item == NULL) return 0;
   item->callback(item->ctx);
   return 1;
+}
+
+int fake_menu_set(fake_playdate *fake, const char *title, int value) {
+  fake_menu_item *item = (fake_menu_item *)menu_item(fake, title);
+  if (item == NULL || item->option_count == 0) return 0;
+  fake_set_menu_item_value((PDMenuItem *)item, value);
+  item->callback(item->ctx);
+  return 1;
+}
+
+int fake_menu_value(const fake_playdate *fake, const char *title) {
+  const fake_menu_item *item = menu_item(fake, title);
+  return item != NULL && item->option_count > 0 ? item->value : -1;
+}
+
+int fake_menu_options(const fake_playdate *fake, const char *title, const char *const **options) {
+  const fake_menu_item *item = menu_item(fake, title);
+  if (item == NULL) return 0;
+  *options = item->options;
+  return item->option_count;
 }
 
 int fake_menu_holds(const fake_playdate *fake, const char *title) {
@@ -123,6 +164,9 @@ void fake_init(fake_playdate *fake, const char *data, const char *app) {
   fake->sys.isCrankDocked = fake_crank_docked;
   fake->sys.setUpdateCallback = fake_set_update;
   fake->sys.addMenuItem = fake_add_menu_item;
+  fake->sys.addOptionsMenuItem = fake_add_options_menu_item;
+  fake->sys.getMenuItemValue = fake_get_menu_item_value;
+  fake->sys.setMenuItemValue = fake_set_menu_item_value;
   fake->sys.removeMenuItem = fake_remove_menu_item;
   fake_install_files(fake);
   fake_install_screen(fake);

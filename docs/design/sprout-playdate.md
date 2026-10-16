@@ -273,9 +273,19 @@ binaries `pdc` packages from `Source/`. Each frame runs on the player's own
 stack (`src/host/stack.h`), since a turn may run in it, and the file calls
 inside it hop back to the main stack.
 
-The app (`src/ui/app.h`) holds the session, the system font, the shelf and
-the screen on show. A screen (`src/ui/screen.h`) is three functions over its own
-context: update with the buttons and the crank, draw, and leave; a screen
+The app (`src/ui/app.h`) holds the session, the pen (`src/ui/pen.h`), the
+shelf and the screen on show. The pen draws every screen but the disc of
+words in one of three text sizes (`src/ui/text_size.h`): S is the system's
+Asheville Sans 14 Light, M its Roobert 20 Medium and L its Asheville Sans 24
+Light, each loaded by path from `/System/Fonts/`, one held at a time. "text"
+in the system menu is an options item, S / M / L; the size set there is
+applied when the menu closes, written beside the saves as the one letter in
+`text-size.txt`, and read back at the next launch (no file, or one that says
+anything else, is S). A font the device cannot read leaves the pen as it was,
+puts the item back, and says so over the screen on show until A or B. A screen (`src/ui/screen.h`) is functions over its own
+context: update with the buttons and the crank, draw, leave, and refit, which
+runs when the pen's font has changed and wraps again whatever the screen
+keeps wrapped; a screen
 moves the app to another, and the move takes effect when its update is over.
 The app starts on the shelf (`src/ui/shelf.h`), as The shelf below describes
 it; the app holds it, so it outlives its screen and a cartridge is
@@ -317,7 +327,13 @@ place and its ways out, from the view), scrolled a line for each 12 degrees
 of crank and each press of up or down. Its word wrap (`src/ui/wrap.h`) is
 over the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
 scrolling a line at a time needs the lines, which `drawTextInRect` does not
-give back. Text is drawn as written, on the reading that the C API's
+give back. A wrapped block keeps the words it was made from ahead of its
+lines, so when the text size changes the transcript wraps each of its kept
+paragraphs again from the words (a newline still a line, a cut word cut
+afresh) and shows the rows the new line height allows, with nothing told
+lost; the shelf's and the download screen's panels, a message, a refused
+name and the words over the disc wrap again the same way, and the lines a
+screen lays out each frame follow the pen of themselves. Text is drawn as written, on the reading that the C API's
 `drawText`, which takes no font family, has no bold or italic to read `*`
 and `_` as; the Simulator has yet to confirm it. A on the reader opens the
 sentence builder (`src/ui/builder.h`, over `src/ui/sentence.h` and
@@ -741,6 +757,11 @@ Not yet checked:
 - the time a picture takes to load on a console;
 - "start over" in the system menu and its question, which the C tests drive
   over the fake;
+- the text sizes on a console: that `/System/Fonts/Roobert-20-Medium.pft`
+  and `/System/Fonts/Asheville-Sans-24-Light.pft` read on the device as they
+  do in the SDK's `Disk/System/Fonts`, the line height `getFontHeight` gives
+  for each, and that an options item's callback runs when the menu closes;
+  the C tests drive the item over the fake;
 - the time the save's first frame (making the bytes) and its 16 KB slices
   take on a console, and whether the slice size is right.
 

@@ -20,7 +20,7 @@ static wrapped *paragraph(const transcript *t, size_t index) {
 
 void transcript_free(transcript *t) {
   size_t i;
-  for (i = 0; i < t->count; i++) player_free(t->pd, paragraph(t, i)->bytes);
+  for (i = 0; i < t->count; i++) wrap_free(t->pd, paragraph(t, i));
   player_free(t->pd, t->status);
   t->count = 0;
   t->status = NULL;
@@ -57,7 +57,7 @@ bool transcript_push(transcript *t, const char *kind, const char *text, size_t l
   if (t->count == TRANSCRIPT_KEEP) {
     wrapped *oldest = paragraph(t, 0);
     t->line_count -= oldest->line_count;
-    player_free(t->pd, oldest->bytes);
+    wrap_free(t->pd, oldest);
     t->first = (t->first + 1) % TRANSCRIPT_KEEP;
     t->count--;
   }
@@ -73,6 +73,18 @@ bool transcript_tell(transcript *t, const told_list *lines) {
   for (i = 0; i < lines->count; i++)
     if (!transcript_push(t, lines->items[i].kind, lines->items[i].text, lines->items[i].text_length)) return false;
   return true;
+}
+
+void transcript_refit(transcript *t, size_t rows) {
+  size_t i, lines = 0;
+  for (i = 0; i < t->count; i++) {
+    wrapped *p = paragraph(t, i);
+    wrap_again(t->pd, p, t->width, t->measure, t->measure_ctx);
+    lines += p->line_count;
+  }
+  t->line_count = lines;
+  t->rows = rows;
+  clamp(t);
 }
 
 void transcript_scroll(transcript *t, long lines) {
