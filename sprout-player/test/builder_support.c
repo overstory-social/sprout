@@ -9,7 +9,10 @@ player_app *app;
 
 const fake_run *panel(void) { return fake_run_at(fake, PLAYER_MARGIN, BOTTOM + 2); }
 
-bool on_reader(void) { return panel() != NULL && strcmp(panel()->text, READER_KEYS) == 0; }
+bool on_reader(void) {
+  const fake_run *keys = fake_run_at(fake, PLAYER_MARGIN, READER_PANEL + 2);
+  return keys != NULL && strcmp(keys->text, READER_KEYS) == 0;
+}
 
 bool keys_shown(void) { return panel() != NULL && strcmp(panel()->text, "A picks B steps back the crank turns the wheel") == 0; }
 

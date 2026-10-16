@@ -86,8 +86,6 @@ kind Adventurer is sprout.Visitor {
   // Whether the thing `take all` has come to is inside another it is
   // taking: Zork's ALL takes the sack, not the lunch out of it.
   :nested false
-  // Of several taken out of a box, this one is not in it.
-  :astray false
   // Somewhere in the maze, where a thief's voice carries from room to room.
   :in_maze false
   // How brightly the sword should glow here, with nobody visiting: what the
@@ -990,15 +988,7 @@ kind Adventurer is sprout.Visitor {
   // one) means the one lying here. A reading of one thing already held is
   // refused, and the parser prefers the reading that is not.
   as actor for take {
-    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_take } 
-      // Zork's PRE-TAKE: taken from a box, it has to be in that box. Zork
-      // names the thing; a refusal inside `each` cannot (friction 78). Of
-      // several, each is answered in turn below, as Zork answers them.
-      if (bound source && target.count == 1) {
-        each t of target {
-          if (t.is(Thing)) { if (!source.holds(t)) { refuse "That isn't in the {source.short}." } }
-        }
-      }
+    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_take }
       if (target.count == 1) {
         each t of target {
           if (t.is(Thing)) { if (self.holds(t)) { refuse "You already have that!" } }
@@ -1033,15 +1023,7 @@ kind Adventurer is sprout.Visitor {
         if (t.is(Thing)) {
           self.set(:nested, false)
           if (several) { each u of target { if (u != t && u.is(Box)) { if (u.holds(t)) { self.set(:nested, true) } } } }
-          self.set(:astray, false)
-          if (bound source) {
-            if (several && !source.holds(t)) {
-              self.set(:astray, true)
-              say "{t.short}: That isn't in the {source.short}."
-            }
-          }
-          if (self.get(:astray)) { }
-          else if (several && self.get(:nested)) { }
+          if (several && self.get(:nested)) { }
           else if (several && self.holds(t) && self.get(:fresh) > 0) { }
           // In the troll's fist, or behind a shut glass lid, a thing is seen
           // and in reach of a name but not of a hand; `all` and a run leave

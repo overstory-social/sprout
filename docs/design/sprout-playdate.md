@@ -312,9 +312,14 @@ signer's JavaScript sort does, by UTF-16 code unit, and writes an empty
 object as `{}`, as the signer does.
 
 The reader (`src/ui/reader.h`) is the transcript
-wrapped to the column, the newest at the bottom, under the status line (the
+wrapped to the column, the newest at the bottom, under the status (the
 place and its ways out, from the view), scrolled a line for each 12 degrees
-of crank and each press of up or down. Its word wrap (`src/ui/wrap.h`) is
+of crank and each press of up or down. The status wraps to the column as the
+transcript does, and the header is as tall as its lines, at most three: a place
+whose ways out run past three lines has the rest clipped, so the transcript is
+never squeezed out. The transcript's rows are fitted under the header whenever
+the status is set, as on moving to a place with more ways out, and nothing
+told is lost by the fit. The keys under the transcript take one line. Its word wrap (`src/ui/wrap.h`) is
 over the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
 scrolling a line at a time needs the lines, which `drawTextInRect` does not
 give back. Text is drawn as written, on the reading that the C API's

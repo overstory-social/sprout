@@ -1,7 +1,10 @@
 /*
- * The reader screen: the transcript (transcript.h) under the status line, with the keys below.
- * The crank and the d-pad scroll back through what was said, a line for every 12 degrees of
- * crank and for each press of up; down comes forward again, on the 400 by 240 screen. A opens the sentence builder (builder.h),
+ * The reader screen: the transcript (transcript.h) under the status, with the keys on one line
+ * below. The status wraps to the column and the header is as tall as its lines, up to
+ * READER_STATUS_MOST_LINES; the transcript's rows are fitted under it whenever the status is set,
+ * so a place with more ways out costs rows, never anything told. The crank and the d-pad scroll
+ * back through what was said, a line for every 12 degrees of crank and for each press of up; down
+ * comes forward again, on the 400 by 240 screen. A opens the sentence builder (builder.h),
  * which the reader is lent to while it is up. While a reader is open the app's clock (clock.h)
  * runs, and when a tick is due the reader asks the session for one and tells what it told, behind
  * the pictures it asked for (pictures.h); a tick is asked for only while the reader itself is on
@@ -18,6 +21,9 @@
 
 /* The most lines the column shows, whatever the font. */
 #define READER_MOST_ROWS 64
+
+/* The most lines the status takes: a place whose ways out run past them has the rest clipped, so the transcript keeps its rows. */
+#define READER_STATUS_MOST_LINES 3
 
 typedef struct player_reader {
   transcript lines;
@@ -36,7 +42,10 @@ player_reader *player_reader_new(player_app *app);
  */
 bool player_reader_look(player_app *app, player_reader *reader, const sprout_seen_view **seen);
 
-/* How many transcript lines the column shows with a font `line_height` tall. */
-size_t player_reader_rows(int line_height);
+/* Sets the status from `view` and fits the transcript's rows under it; false when no memory could be had. */
+bool player_reader_status(player_app *app, player_reader *reader, const sprout_seen_view *view);
+
+/* How many transcript lines the column shows with a font `line_height` tall under a status of `status_lines` lines. */
+size_t player_reader_rows(int line_height, size_t status_lines);
 
 #endif
