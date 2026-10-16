@@ -523,30 +523,25 @@ that is not kept is not played. "start over" in the system menu removes a
 world's save and log, so its next arrival is a fresh one.
 
 When the state is on disk: the log is written at the end of the turn, before
-its reply shows; the state is made and written over the frames that follow,
-while the visitor reads and builds the next sentence. The first frame after
-the turn begins the runtime's writer (`sprout_state_writer`) and opens
-`<hash>.json.part`; each frame after asks the writer for about 16 KB more of
-the text (`PLAYER_SAVE_SLICE`, whole instances at a time) and appends up to
-16 KB of what is made to the part. The writer measures the text before it
-takes it, so the first frames count and write nothing, and the frames after
-make and write a slice each: about 60 frames for the caverns' 480 KB, under
-a millisecond of making in all on a desktop, no frame of it past a few
-hundred microseconds there. The last closes the part, renames it to
-`<hash>.json.tmp`, removes the old save and renames the `.tmp` over it. The
-rename after an unlink is the pattern the whole-file writes already use,
-since the SDK does not say that `rename` replaces a file; a read that finds
-no save reads the `.tmp`, so a save cut short at any point leaves the last
-whole state readable, and a half-written `.part` is never read. The state
-does not change under the writer: a turn asked before the save is done (a
-command, a tick, an arrival, a departure) first writes the rest of it in
-that frame, then runs; the later turns of a line, which nothing writes
-between, are the exception. Leaving the world, "start over" (which drops the
-save rather than finishing it), opening the system menu (`kEventPause`),
-locking the device and its low-power sleep all write what is owed first, so
-the state is on disk whenever the app could be ended. The bytes being
-written are held in an arena of their own until the last slice, about the
-size of the state.
+its reply shows; the state is written over the frames that follow, while the
+visitor reads and builds the next sentence. The first frame after the turn
+makes the state's bytes (`sprout_state_write`, under a millisecond for the
+caverns' 480 KB on a desktop) and opens `<hash>.json.part`; each frame after
+writes 16 KB of them (`PLAYER_SAVE_SLICE`, about 30 frames for the caverns);
+the last closes the part, renames it to `<hash>.json.tmp`, removes the old
+save and renames the `.tmp` over it. The rename after an unlink is the
+pattern the whole-file writes already use, since the SDK does not say that
+`rename` replaces a file; a read that finds no save reads the `.tmp`, so a
+save cut short at any point leaves the last whole state readable, and a
+half-written `.part` is never read. The state does not change under the
+writer: a turn asked before the save is done (a command, a tick, an arrival,
+a departure) first writes the rest of it in that frame, then runs; the later
+turns of a line, which nothing writes between, are the exception. Leaving
+the world, "start over" (which drops the save rather than finishing it),
+opening the system menu (`kEventPause`), locking the device and its
+low-power sleep all write what is owed first, so the state is on disk
+whenever the app could be ended. The bytes being written are held in an
+arena of their own until the last slice, about the size of the state.
 
 A tick's save waits. A visitor's own turn (a command, an arrival, a
 departure) saves at once, as above. A tick that changed the state writes

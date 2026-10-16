@@ -4,17 +4,22 @@
  * held, no white space, whole numbers as digits, and the escapes
  * JSON.stringify makes. The text is measured first and then taken once, at
  * its size, from the arena the caller gives, so a save of any size costs
- * that arena its own length and the state's arena nothing. A host whose frame
- * cannot afford the whole makes it a few instances at a time through
- * sprout_state_writer; sprout_state_write is that, in one call.
+ * that arena its own length and the state's arena nothing.
  */
 #include <string.h>
 
 #include "sprout.h"
 #include "state.h"
 
+typedef struct text {
+  char *bytes; /* NULL while measuring */
+  size_t length, capacity;
+  bool failed;
+  bool unwritable; /* a number the stored form does not write, or a changed record the state does not hold */
+} text;
+
 /* Appends `count` bytes; the measuring pass only counts them into `length`, so the text is taken once, at its size. */
-static void put(sprout_stored_text *t, const char *bytes, size_t count) {
+static void put(text *t, const char *bytes, size_t count) {
   if (t->bytes == NULL) {
     t->length += count;
     return;
@@ -28,7 +33,7 @@ static void put(sprout_stored_text *t, const char *bytes, size_t count) {
   t->length += count;
 }
 
-static void put_char(sprout_stored_text *t, char c) {
+static void put_char(text *t, char c) {
   if (t->bytes != NULL) {
     if (t->failed) return;
     if (t->length + 2 > t->capacity) {
@@ -66,7 +71,7 @@ static const char *escape_of(unsigned char c) {
 }
 
 /* Runs of bytes that need no escape go in one piece. */
-static void put_string(sprout_stored_text *t, sprout_str s) {
+static void put_string(text *t, sprout_str s) {
   static const char digits[] = "0123456789abcdef";
   size_t i = 0, run;
   put_char(t, '"');
@@ -90,14 +95,14 @@ static void put_string(sprout_stored_text *t, sprout_str s) {
   put_char(t, '"');
 }
 
-static void put_cstring(sprout_stored_text *t, const char *s) {
+static void put_cstring(text *t, const char *s) {
   sprout_str str;
   str.bytes = s;
   str.length = strlen(s);
   put_string(t, str);
 }
 
-static void put_number(sprout_stored_text *t, double number) {
+static void put_number(text *t, double number) {
   char digits[40];
   size_t length;
   if (!sprout_number_text(number, digits, sizeof digits, &length)) {
@@ -107,7 +112,7 @@ static void put_number(sprout_stored_text *t, double number) {
   put(t, digits, length);
 }
 
-static void put_value(sprout_stored_text *t, const sprout_stored_value *value) {
+static void put_value(text *t, const sprout_stored_value *value) {
   size_t i;
   switch (value->kind) {
     case SPROUT_BOOL:
@@ -131,7 +136,7 @@ static void put_value(sprout_stored_text *t, const sprout_stored_value *value) {
   }
 }
 
-static void put_property(sprout_stored_text *t, const sprout_stored_property *p) {
+static void put_property(text *t, const sprout_stored_property *p) {
   PUT(t, "{\"type\":");
   put_string(t, p->type);
   PUT(t, ",\"value\":");
@@ -139,7 +144,7 @@ static void put_property(sprout_stored_text *t, const sprout_stored_property *p)
   put_char(t, '}');
 }
 
-static void put_properties(sprout_stored_text *t, size_t count, const sprout_stored_property *list) {
+static void put_properties(text *t, size_t count, const sprout_stored_property *list) {
   size_t i;
   put_char(t, '{');
   for (i = 0; i < count; i++) {
@@ -174,7 +179,7 @@ static bool same_literal(const sprout_literal *a, const sprout_literal *b) {
 }
 
 /* A declared default as its stored value is written: a list without its repeats, as reading it drops them. */
-static void put_literal(sprout_stored_text *t, const sprout_literal *literal) {
+static void put_literal(text *t, const sprout_literal *literal) {
   size_t i, j;
   bool first = true;
   switch (literal->kind) {
@@ -219,7 +224,7 @@ static const sprout_stored_property *held_property(const sprout_stored_instance 
  * `by_name`), each as the record keeps it or, where it keeps none, at its default (state.h). A
  * record not opened against a kind is written as held.
  */
-static void put_record_properties(sprout_stored_text *t, const sprout_stored_instance *in) {
+static void put_record_properties(text *t, const sprout_stored_instance *in) {
   size_t i;
   if (in->kind == NULL || in->dormant) {
     put_properties(t, in->property_count, in->properties);
@@ -249,7 +254,7 @@ static void put_record_properties(sprout_stored_text *t, const sprout_stored_ins
   put_char(t, '}');
 }
 
-static void put_ids(sprout_stored_text *t, size_t count, const sprout_str *ids) {
+static void put_ids(text *t, size_t count, const sprout_str *ids) {
   size_t i;
   put_char(t, '[');
   for (i = 0; i < count; i++) {
@@ -259,7 +264,7 @@ static void put_ids(sprout_stored_text *t, size_t count, const sprout_str *ids) 
   put_char(t, ']');
 }
 
-static void put_whole(sprout_stored_text *t, uint64_t n) { put_number(t, (double)n); }
+static void put_whole(text *t, uint64_t n) { put_number(t, (double)n); }
 
 static const char *made_word(sprout_made_from made) {
   switch (made) {
@@ -277,7 +282,7 @@ static const char *made_word(sprout_made_from made) {
   return "";
 }
 
-static void put_instance(sprout_stored_text *t, const sprout_stored_instance *in) {
+static void put_instance(text *t, const sprout_stored_instance *in) {
   size_t i;
   PUT(t, "{\"id\":");
   put_string(t, in->id);
@@ -330,7 +335,7 @@ static void put_instance(sprout_stored_text *t, const sprout_stored_instance *in
   put_char(t, '}');
 }
 
-static void put_bound(sprout_stored_text *t, const sprout_stored_bound *b) {
+static void put_bound(text *t, const sprout_stored_bound *b) {
   switch (b->kind) {
     case SPROUT_BOUND_OBJECT:
       PUT(t, "{\"object\":");
@@ -359,7 +364,7 @@ static void put_bound(sprout_stored_text *t, const sprout_stored_bound *b) {
   put_char(t, '}');
 }
 
-static void put_visitor(sprout_stored_text *t, const sprout_stored_visitor *v) {
+static void put_visitor(text *t, const sprout_stored_visitor *v) {
   size_t i;
   PUT(t, "{\"visit\":");
   put_string(t, v->visit);
@@ -394,20 +399,17 @@ static void put_visitor(sprout_stored_text *t, const sprout_stored_visitor *v) {
   put_char(t, '}');
 }
 
-/* ---- the state, a piece at a time ---- */
-
-/* `{world, serial, instances: [` */
-static void put_head(sprout_stored_text *t, const sprout_state *state) {
+static void put_state(text *t, const sprout_state *state) {
+  size_t i;
   PUT(t, "{\"world\":");
   put_string(t, state->world);
   PUT(t, ",\"serial\":");
   put_whole(t, state->serial);
   PUT(t, ",\"instances\":[");
-}
-
-/* `], visitors, tombstones}` */
-static void put_tail(sprout_stored_text *t, const sprout_state *state) {
-  size_t i;
+  for (i = 0; i < state->instance_count; i++) {
+    if (i > 0) put_char(t, ',');
+    put_instance(t, &state->instances[i]);
+  }
   PUT(t, "],\"visitors\":[");
   for (i = 0; i < state->visitor_count; i++) {
     if (i > 0) put_char(t, ',');
@@ -418,66 +420,26 @@ static void put_tail(sprout_stored_text *t, const sprout_state *state) {
   put_char(t, '}');
 }
 
-void sprout_state_write_begin(const sprout_state *state, sprout_arena *scratch, sprout_state_writer *writer) {
-  memset(writer, 0, sizeof *writer);
-  writer->state = state;
-  writer->scratch = scratch;
-}
-
-static sprout_status text_status(const sprout_stored_text *t) {
-  if (t->unwritable) return SPROUT_BAD_INPUT;
-  return t->failed ? SPROUT_NO_MEMORY : SPROUT_OK;
-}
-
-sprout_status sprout_state_write_step(sprout_state_writer *w, size_t bytes) {
-  sprout_stored_text *t = &w->text;
-  const sprout_state *state = w->state;
-  size_t from = t->length;
-  if (w->done) return SPROUT_OK;
-  if (!w->begun) {
-    put_head(t, state);
-    w->begun = true;
-  }
-  while (w->next < state->instance_count) {
-    if (w->next > 0) put_char(t, ',');
-    put_instance(t, &state->instances[w->next]);
-    w->next++;
-    if (t->length - from >= bytes) return text_status(t);
-  }
-  put_tail(t, state);
-  if (text_status(t) != SPROUT_OK) return text_status(t);
-  if (t->bytes == NULL) {
-    /* Measured: the text is taken at its size and the same walk writes it. */
-    t->capacity = t->length + 1;
-    t->bytes = (char *)sprout_arena_take(w->scratch, t->capacity);
-    if (t->bytes == NULL) return SPROUT_NO_MEMORY;
-    t->length = 0;
-    w->next = 0;
-    w->begun = false;
-    return SPROUT_OK;
-  }
-  t->bytes[t->length] = '\0';
-  w->done = true;
-  return SPROUT_OK;
-}
-
 sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratch, const char **bytes,
                                  size_t *length) {
-  sprout_state_writer w;
-  sprout_state_write_begin(state, scratch, &w);
-  while (!w.done) {
-    sprout_status status = sprout_state_write_step(&w, (size_t)-1);
-    if (status != SPROUT_OK) return status;
-  }
-  *bytes = w.text.bytes;
-  *length = w.text.length;
+  text t;
+  memset(&t, 0, sizeof t);
+  put_state(&t, state);
+  if (t.unwritable) return SPROUT_BAD_INPUT;
+  t.capacity = t.length + 1;
+  t.bytes = (char *)sprout_arena_take(scratch, t.capacity);
+  if (t.bytes == NULL) return SPROUT_NO_MEMORY;
+  t.length = 0;
+  put_state(&t, state);
+  if (t.failed) return SPROUT_NO_MEMORY;
+  t.bytes[t.length] = '\0';
+  *bytes = t.bytes;
+  *length = t.length;
   return SPROUT_OK;
 }
 
-/* ---- a turn's changes ---- */
-
-/* `{serial, upsert, remove, tombstones, visitors}`, the records read from `state`. */
-static void put_changes(sprout_stored_text *t, const sprout_state *state, const sprout_stored_changes *changes) {
+/* A turn's changes, `{serial, upsert, remove, tombstones, visitors}`, the records read from `state`. */
+static void put_changes(text *t, const sprout_state *state, const sprout_stored_changes *changes) {
   size_t i;
   PUT(t, "{\"serial\":");
   put_whole(t, changes->serial);
@@ -510,7 +472,7 @@ static void put_changes(sprout_stored_text *t, const sprout_state *state, const 
 
 sprout_status sprout_changes_write(const sprout_state *state, const sprout_stored_changes *changes,
                                    sprout_arena *scratch, const char **bytes, size_t *length) {
-  sprout_stored_text t;
+  text t;
   memset(&t, 0, sizeof t);
   put_changes(&t, state, changes);
   /* A record the changes name that the state does not hold: the state is not the one the turn left. */

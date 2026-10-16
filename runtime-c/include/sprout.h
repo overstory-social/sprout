@@ -249,38 +249,6 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
 sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratch, const char **bytes,
                                  size_t *length);
 
-/* Where the stored form's text goes: counted while `bytes` is NULL, written into it once taken. */
-typedef struct sprout_stored_text {
-  char *bytes;
-  size_t length, capacity;
-  bool failed;     /* the text outgrew its capacity */
-  bool unwritable; /* a number the stored form does not write, or a changed record the state does not hold */
-} sprout_stored_text;
-
-/*
- * A state's canonical JSON made a piece at a time, for a host whose frame cannot afford the whole:
- * measured first, across as many steps as the host likes, then taken once at its size from `scratch`
- * and written across steps again. `text.bytes` is NULL until the writing begins; then the text's
- * first `text.length` bytes are made and may be written out, and the text is whole once `done`.
- */
-typedef struct sprout_state_writer {
-  sprout_stored_text text;
-  const sprout_state *state;
-  sprout_arena *scratch;
-  size_t next; /* the next instance to write */
-  bool begun;  /* the head before the instances is written */
-  bool done;
-} sprout_state_writer;
-
-void sprout_state_write_begin(const sprout_state *state, sprout_arena *scratch, sprout_state_writer *writer);
-
-/*
- * Makes about `bytes` more of the text, whole instances at a time and at least one. SPROUT_BAD_INPUT
- * for a number the stored form does not write; SPROUT_NO_MEMORY when `scratch` has no room for the
- * text. The state must not change between the first step and the last.
- */
-sprout_status sprout_state_write_step(sprout_state_writer *writer, size_t bytes);
-
 /*
  * A committed turn writes into the state and leaves what it replaced behind,
  * counted; the state is crowded once that passes a quarter of it. Compacting
@@ -421,6 +389,9 @@ typedef struct sprout_seen_filler {
   const sprout_seen_thing *members; /* SET, one at a time as the view offers them */
   sprout_seen_exit exit;            /* EXIT */
   bool all; /* OBJECT and SET: whether a typed `all` in the role would take the thing, or the set's first */
+  /* The words of the verb's phrases that come right before the role's slot, after a slot before them: "from" for
+     `take [target] from [source]`; "" where the slot follows the verb's own words or no phrase names the role. */
+  const char *words;
 } sprout_seen_filler;
 
 /* One reading a visitor could make now. */

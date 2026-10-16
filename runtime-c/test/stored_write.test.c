@@ -2,9 +2,8 @@
  * Tests for src/stored_write.c: the canonical form of a stored world: keys in
  * the stored schema's order, members as held, no white space, whole numbers
  * as digits, and the escapes JSON.stringify makes; the text is taken once, at
- * its size, from the caller's scratch, and a host may make it a few instances
- * a step. A turn's changes are written the same way, each record read from
- * the state.
+ * its size, from the caller's scratch. A turn's changes are written the same
+ * way, each record read from the state.
  */
 #include "check.h"
 #include "state.h"
@@ -124,131 +123,34 @@ static void the_text_is_taken_once_at_its_size(void) {
   CHECK_INT(heap.pages, 0);
 }
 
-/* A state of `n` records built by hand, each with a string that needs escaping and a number. */
-static sprout_state *hand_built(sprout_host *host, size_t n) {
+/* A string is escaped as JSON.stringify escapes it, the runs between the escapes written as they are. */
+static void a_string_is_escaped_as_json_stringify_does(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
   sprout_state *state = NULL;
-  size_t i;
-  CHECK_INT(sprout_state_empty(host, "shop", &state), SPROUT_OK);
-  state->serial = n;
-  state->instances = (sprout_stored_instance *)sprout_arena_take(&state->arena, n * sizeof *state->instances);
-  state->instance_count = n;
-  for (i = 0; i < n; i++) {
-    sprout_stored_instance *in = &state->instances[i];
-    sprout_stored_property *p = (sprout_stored_property *)sprout_arena_take(&state->arena, sizeof *p);
-    char *id = (char *)sprout_arena_take(&state->arena, 16);
-    snprintf(id, 16, "shop#%04u", (unsigned)(i + 1) % 10000u);
-    in->id = S(id);
-    in->made = SPROUT_MADE_SPAWNED;
-    in->made_kind = S("shop.Box");
-    in->has_arrival = true;
-    in->arrival = i + 1;
-    p->name = S("label");
-    p->type = S("string");
-    p->value.kind = SPROUT_STRING;
-    p->value.string = S("a \"box\"\n\x01");
-    in->properties = p;
-    in->property_count = 1;
-  }
-  return state;
-}
-
-/*
- * A host steps the writer: the text is measured over the steps first, then taken at its size and
- * made over as many again, whole instances at a time and at least one a step, and is the text the
- * one call makes.
- */
-static void a_host_may_make_the_text_a_few_instances_a_step(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_state *state = hand_built(&host, 7);
-  const char *whole;
-  size_t length, steps = 0, measuring = 0, grown = 0, last = 0;
-  sprout_arena scratch, piecewise;
-  sprout_state_writer w;
-  CHECK_INT(test_state_write(state, &scratch, &whole, &length), SPROUT_OK);
-  CHECK(strstr(whole, "\"label\":{\"type\":\"string\",\"value\":\"a \\\"box\\\"\\n\\u0001\"}") != NULL);
-  CHECK_INT(sprout_arena_init(&piecewise, &host), SPROUT_OK);
-  sprout_state_write_begin(state, &piecewise, &w);
-  CHECK(w.text.bytes == NULL && w.text.length == 0 && !w.done);
-  while (!w.done) {
-    bool was_measuring = w.text.bytes == NULL;
-    CHECK_INT(sprout_state_write_step(&w, 0), SPROUT_OK);
-    steps++;
-    if (was_measuring) {
-      measuring++;
-      CHECK(w.text.length > last || w.text.bytes != NULL); /* every measuring step counts, until the text is taken */
-    } else if (!w.done) {
-      CHECK(w.text.length > last);
-      grown++;
-    }
-    last = w.text.length;
-  }
-  /* With no budget a step makes one instance: the head with the first, then one each, then the tail, twice over. */
-  CHECK_INT(measuring, 8);
-  CHECK_INT(steps, 16);
-  CHECK_INT(grown, 7);
-  CHECK_BYTES(w.text.bytes, w.text.length, whole);
-  CHECK(w.text.bytes[w.text.length] == '\0');
-  CHECK(piecewise.held < length + 1 + 256);
-  CHECK_INT(sprout_state_write_step(&w, 0), SPROUT_OK); /* done stays done */
-  CHECK_BYTES(w.text.bytes, w.text.length, whole);
-  sprout_arena_reset(&piecewise);
+  sprout_stored_instance *in;
+  sprout_stored_property *p;
+  const char *out;
+  size_t length;
+  sprout_arena scratch;
+  host.page_bytes = 4096;
+  CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
+  state->instances = (sprout_stored_instance *)sprout_arena_take(&state->arena, sizeof *in);
+  state->instance_count = 1;
+  in = &state->instances[0];
+  in->id = S("shop#1");
+  in->made = SPROUT_MADE_SPAWNED;
+  in->made_kind = S("shop.Box");
+  p = (sprout_stored_property *)sprout_arena_take(&state->arena, sizeof *p);
+  p->name = S("label");
+  p->type = S("string");
+  p->value.kind = SPROUT_STRING;
+  p->value.string = S("a \"box\"\\ in\n\r\t\b\f\x01 \xc3\xa9");
+  in->properties = p;
+  in->property_count = 1;
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_OK);
+  CHECK(strstr(out, "\"label\":{\"type\":\"string\",\"value\":\"a \\\"box\\\"\\\\ in\\n\\r\\t\\b\\f\\u0001 \xc3\xa9\"}") != NULL);
   sprout_arena_reset(&scratch);
-  sprout_state_free(state);
-  CHECK_INT(heap.pages, 0);
-}
-
-/* A step makes about the bytes asked for, and a budget past the whole makes it in two steps: one measuring, one writing. */
-static void a_step_makes_about_the_bytes_asked_for(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_state *state = hand_built(&host, 40);
-  const char *whole;
-  size_t length, steps = 0, last = 0;
-  sprout_arena scratch, piecewise;
-  sprout_state_writer w;
-  CHECK_INT(test_state_write(state, &scratch, &whole, &length), SPROUT_OK);
-  CHECK_INT(sprout_arena_init(&piecewise, &host), SPROUT_OK);
-  sprout_state_write_begin(state, &piecewise, &w);
-  while (w.text.bytes == NULL) CHECK_INT(sprout_state_write_step(&w, 1000), SPROUT_OK);
-  while (!w.done) {
-    CHECK_INT(sprout_state_write_step(&w, 1000), SPROUT_OK);
-    if (!w.done) CHECK(w.text.length - last >= 1000 && w.text.length - last < 1000 + 300);
-    last = w.text.length;
-    steps++;
-  }
-  CHECK(steps > 3 && steps < 10);
-  CHECK_BYTES(w.text.bytes, w.text.length, whole);
-  sprout_arena_reset(&piecewise);
-  CHECK_INT(sprout_arena_init(&piecewise, &host), SPROUT_OK);
-  sprout_state_write_begin(state, &piecewise, &w);
-  CHECK_INT(sprout_state_write_step(&w, (size_t)-1), SPROUT_OK);
-  CHECK(w.text.bytes != NULL && w.text.length == 0 && !w.done);
-  CHECK_INT(sprout_state_write_step(&w, (size_t)-1), SPROUT_OK);
-  CHECK(w.done);
-  CHECK_BYTES(w.text.bytes, w.text.length, whole);
-  sprout_arena_reset(&piecewise);
-  sprout_arena_reset(&scratch);
-  sprout_state_free(state);
-  CHECK_INT(heap.pages, 0);
-}
-
-/* A number the stored form does not write is refused at the step that reaches it, while measuring. */
-static void a_step_that_reaches_an_unwritable_number_is_refused(void) {
-  test_heap heap;
-  sprout_host host = test_host(&heap);
-  sprout_state *state = hand_built(&host, 3);
-  sprout_arena piecewise;
-  sprout_state_writer w;
-  state->instances[2].properties[0].value.kind = SPROUT_NUMBER;
-  state->instances[2].properties[0].value.number = 0.5;
-  CHECK_INT(sprout_arena_init(&piecewise, &host), SPROUT_OK);
-  sprout_state_write_begin(state, &piecewise, &w);
-  CHECK_INT(sprout_state_write_step(&w, 0), SPROUT_OK);
-  CHECK_INT(sprout_state_write_step(&w, 0), SPROUT_OK);
-  CHECK_INT(sprout_state_write_step(&w, 0), SPROUT_BAD_INPUT);
-  CHECK(w.text.bytes == NULL && !w.done);
-  sprout_arena_reset(&piecewise);
   sprout_state_free(state);
   CHECK_INT(heap.pages, 0);
 }
@@ -321,9 +223,7 @@ int main(void) {
   RUN(a_record_built_by_hand_is_written_as_the_schema_orders_it);
   RUN(a_number_the_stored_form_does_not_write_is_refused);
   RUN(the_text_is_taken_once_at_its_size);
-  RUN(a_host_may_make_the_text_a_few_instances_a_step);
-  RUN(a_step_makes_about_the_bytes_asked_for);
-  RUN(a_step_that_reaches_an_unwritable_number_is_refused);
+  RUN(a_string_is_escaped_as_json_stringify_does);
   RUN(a_host_that_runs_out_of_memory_while_writing_is_told_so);
   RUN(a_turns_changes_are_written_from_the_records_the_state_holds);
   return REPORT();

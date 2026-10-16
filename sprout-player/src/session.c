@@ -280,7 +280,7 @@ static bool save_failed(player_session *session) {
   return false;
 }
 
-/* The writer begun and `<state>.part` opened: the write's first step, a frame of its own. */
+/* The state's bytes made and `<state>.part` opened: the write's first step, a frame of its own. */
 static bool save_begin(player_session *session) {
   session_writer *w = &session->writer;
   char part[PATH_BYTES + 8];
@@ -290,29 +290,24 @@ static bool save_begin(player_session *session) {
   session->waiting = false;
   session->save_began = player_host_seconds(&session->host);
   w->written = 0;
-  sprout_state_write_begin(session->state, &w->arena, &w->writer);
+  if (sprout_state_write(session->state, &w->arena, &w->bytes, &w->length) != SPROUT_OK) return save_failed(session);
   path_with(part, sizeof part, session->state_path, ".part");
   w->file = player_file_create(session->pd, part);
   return w->file != NULL || save_failed(session);
 }
 
 /*
- * About `bytes` more of the state made, and up to `bytes` of what is made into `<state>.part`;
- * the runtime measures the text before it writes it, so the first slices make nothing to write.
- * Once all are in, the part becomes `<state>.tmp` and then the save, so a save on disk is only
- * ever replaced by a whole one, and a read finds the `.tmp` in the moment between.
+ * Up to `bytes` more of the state into `<state>.part`; once all are, the part becomes `<state>.tmp`
+ * and then the save, so a save on disk is only ever replaced by a whole one, and a read finds the
+ * `.tmp` in the moment between.
  */
 static bool save_slice(player_session *session, size_t bytes) {
   session_writer *w = &session->writer;
-  const sprout_stored_text *text = &w->writer.text;
   char part[PATH_BYTES + 8], temp[PATH_BYTES + 8];
-  size_t made, count;
-  if (!w->writer.done && sprout_state_write_step(&w->writer, bytes) != SPROUT_OK) return save_failed(session);
-  made = text->bytes == NULL ? 0 : text->length;
-  count = made - w->written < bytes ? made - w->written : bytes;
-  if (count > 0 && !player_file_append(session->pd, w->file, text->bytes + w->written, count)) return save_failed(session);
+  size_t count = w->length - w->written < bytes ? w->length - w->written : bytes;
+  if (count > 0 && !player_file_append(session->pd, w->file, w->bytes + w->written, count)) return save_failed(session);
   w->written += count;
-  if (!w->writer.done || w->written < text->length) return true;
+  if (w->written < w->length) return true;
   if (!player_file_close(session->pd, w->file)) {
     w->file = NULL;
     return save_failed(session);

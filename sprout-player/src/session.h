@@ -7,11 +7,11 @@
  *
  * Time is host seconds, clamped so it never goes below the last the save recorded
  * (host/pd_host.h). After every committed turn the log tail is written at once and the state is
- * owed: `player_save_step` makes and writes it a slice a frame, and every call that runs a turn,
- * loads or closes writes what is owed first, so the state never changes under the writer. One
- * input is one save: the later steps of a line of turns write nothing of the state before they
- * run, so the line owes it once when it ends. A tick's save waits instead (PLAYER_SAVE_WAIT_SECONDS).
- * `saved` false says a write failed, and the UI stops play and says so.
+ * owed: `player_save_step` writes it a slice a frame, and every call that runs a turn, loads or
+ * closes writes what is owed first, so the state never changes under the writer. One input is one
+ * save: the later steps of a line of turns write nothing of the state before they run, so the line
+ * owes it once when it ends. A tick's save waits instead (PLAYER_SAVE_WAIT_SECONDS). `saved` false
+ * says a write failed, and the UI stops play and says so.
  */
 #ifndef PLAYER_SESSION_H
 #define PLAYER_SESSION_H
@@ -137,7 +137,7 @@ typedef struct player_result {
 /* Writes the save now, whole. */
 player_result player_save(player_session *session);
 
-/* How many bytes of the state the app makes, and writes, a frame. */
+/* How many bytes of the state the app writes a frame. */
 #define PLAYER_SAVE_SLICE (16u * 1024u)
 
 /*
@@ -148,8 +148,8 @@ player_result player_save(player_session *session);
 #define PLAYER_SAVE_WAIT_SECONDS 30u
 
 /*
- * One step of the save owed: about `bytes` more of the state's bytes made and as many written;
- * the last renames the written file over the save. A tick's save that has waited its time begins
+ * One step of the save owed: the state's bytes made, or up to `bytes` more of them written; the
+ * last renames the written file over the save. A tick's save that has waited its time begins
  * here. Not ok, with the words, when a write failed. It releases nothing an earlier call handed back.
  */
 player_result player_save_step(player_session *session, size_t bytes);

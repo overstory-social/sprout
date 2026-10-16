@@ -17,14 +17,14 @@
 #define PATH_BYTES 128
 
 /*
- * The state being written a slice a frame: its bytes, made a slice a frame by the runtime's writer
- * in an arena of their own, and the file `<state>.part` they go into as they are made.
+ * The state being written a slice a frame: its bytes, made when the write begins, in an arena of
+ * their own, and the file `<state>.part` they go into.
  */
 typedef struct session_writer {
   bool live;
   sprout_arena arena;
-  sprout_state_writer writer;
-  size_t written; /* bytes of the text in the part */
+  const char *bytes;
+  size_t length, written;
   SDFile *file;
 } session_writer;
 

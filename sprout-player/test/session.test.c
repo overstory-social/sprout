@@ -282,16 +282,15 @@ static bool saved_in(const char *path, const char *place) {
 }
 
 /*
- * A committed turn writes its log line at once and owes the state; each step makes a slice of it
- * and writes a slice to `.part`, the first steps measuring the text and writing nothing, and the
- * last turns the part into `.tmp` and the `.tmp` into the save, so the save on disk is only ever
- * replaced by a whole one.
+ * A committed turn writes its log line at once and owes the state; each step writes a slice of it
+ * to `.part`, and the last turns the part into `.tmp` and the `.tmp` into the save, so the save on
+ * disk is only ever replaced by a whole one.
  */
 static void the_state_is_written_a_slice_a_step_after_the_turn(void) {
   player_session *s;
   char state_path[200], log_path[200], part[220], want[1200];
   char *log;
-  int steps = 0, measuring = 0;
+  int steps = 0;
   begin("slices");
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
@@ -303,22 +302,14 @@ static void the_state_is_written_a_slice_a_step_after_the_turn(void) {
   CHECK(log != NULL && HAS(log, "\"kind\":\"arrival\""), "the log line is written with the turn");
   free(log);
   CHECK(!exists(state_path) && !exists(part) && player_saving(s), "and the state is owed, not yet begun");
-  fake->writes = 0;
-  fake->written = 0;
-  CHECK(player_save_step(s, SLICE).ok && exists(part) && !exists(state_path) && fake->writes == 0,
-        "the first step begins the writer and opens the part, writing nothing");
+  CHECK(player_save_step(s, SLICE).ok && exists(part) && !exists(state_path), "the first step makes the bytes and opens the part");
   fake->file_log[0] = '\0';
   while (player_saving(s) && steps < 10000) {
     CHECK(!exists(state_path), "no save until the part is whole, after %d slices", steps);
     CHECK(player_save_step(s, SLICE).ok, "a slice");
     steps++;
-    if (fake->writes == 0) measuring = steps;
   }
-  CHECK(measuring > 1 && steps > measuring + 1,
-        "the text is measured over several steps, which write nothing, and made and written over several more: %d then %d",
-        measuring, steps - measuring);
-  CHECK(fake->writes > 2 && fake->written > 2 * SLICE, "the state takes several slices of %d bytes: %zu writes of %zu",
-        SLICE, fake->writes, fake->written);
+  CHECK(steps > 2, "the state takes several slices of %d bytes: %d", SLICE, steps);
   snprintf(want, sizeof want, "unlink %s.tmp\nrename %s.part %s.tmp\nunlink %s\nrename %s.tmp %s\n", state_path, state_path,
            state_path, state_path, state_path, state_path);
   CHECK(strcmp(fake->file_log, want) == 0, "the part becomes the .tmp and the .tmp the save:\n%s", fake->file_log);

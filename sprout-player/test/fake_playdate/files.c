@@ -48,8 +48,6 @@ int fake_read(SDFile *file, void *buffer, unsigned length) {
 }
 
 static int fake_write(SDFile *file, const void *buffer, unsigned length) {
-  fake_current->writes++;
-  fake_current->written += length;
   return (int)fwrite(buffer, 1, length, (FILE *)file);
 }
 
