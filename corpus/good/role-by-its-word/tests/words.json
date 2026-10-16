@@ -1,0 +1,14 @@
+{
+  "about": "An optional tool is typed by its phrase's word, `hang sack on hook`, and left out without it, `hang sack`: the words a client offers the role by are the phrase's own.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "hang sack on hook", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You hang a sack on a hook." }
+    ] },
+    { "as": "Marta", "type": "hang sack", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You hang a sack up." }
+    ] }
+  ]
+}

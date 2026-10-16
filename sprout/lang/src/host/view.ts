@@ -48,14 +48,19 @@ export type SeenOptions =
  * What fills one role of a reading, as a client offers it: a thing, the
  * things a set role names, the way out `go` takes, or nothing, which is a
  * value role (its options are in the reading's `options`) or a tool left
- * out. A thing or a set says in `all` whether a typed `all` in the role
- * would take it, or the set's first thing, by the spec's Parsing ›
- * Sequences, again and all, so a client's `everything` takes what `all`
- * would.
+ * out. Every filler carries in `words` the words that come right before
+ * the role's slot in the first of the verb's phrases naming it, after a
+ * slot before them (`from` for `take [target] from [source]`), and `''`
+ * where the slot follows the verb's own words or no phrase names the role,
+ * so a client can offer a role a reading may leave out by its word. A thing
+ * or a set says in `all` whether a typed `all` in the role would take it,
+ * or the set's first thing, by the spec's Parsing › Sequences, again and
+ * all, so a client's `everything` takes what `all` would.
  */
 export type SeenFiller =
   | {
       readonly role: string;
+      readonly words: string;
       readonly binds: 'object';
       readonly id: InstanceId;
       readonly name: string;
@@ -63,6 +68,7 @@ export type SeenFiller =
     }
   | {
       readonly role: string;
+      readonly words: string;
       readonly binds: 'set';
       readonly ids: readonly InstanceId[];
       readonly names: readonly string[];
@@ -70,12 +76,13 @@ export type SeenFiller =
     }
   | {
       readonly role: string;
+      readonly words: string;
       readonly binds: 'exit';
       readonly direction: Direction | null;
       readonly label: string;
       readonly to: InstanceId;
     }
-  | { readonly role: string; readonly binds: 'unbound' };
+  | { readonly role: string; readonly words: string; readonly binds: 'unbound' };
 
 /** One reading a visitor could make, as a client offers it. */
 export interface SeenReading {

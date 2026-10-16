@@ -158,12 +158,13 @@ describe('what a host sends', () => {
           fillers: [
             {
               role: 'knob',
+              words: '',
               binds: 'object',
               id: 'shop.hall.dial' as InstanceId,
               name: 'a dial',
               all: true,
             },
-            { role: 'notch', binds: 'unbound' },
+            { role: 'notch', words: 'to', binds: 'unbound' },
           ],
           options: [{ role: 'notch', takes: 'integer', ranges: [{ min: 0, max: 9 }] }],
         },
@@ -174,12 +175,13 @@ describe('what a host sends', () => {
           fillers: [
             {
               role: 'target',
+              words: '',
               binds: 'object',
               id: 'shop#3' as InstanceId,
               name: 'Oskar',
               all: false,
             },
-            { role: 'topic', binds: 'unbound' },
+            { role: 'topic', words: 'about', binds: 'unbound' },
           ],
           options: [
             { role: 'topic', takes: 'symbol', options: [{ value: 'toll', words: 'toll' }] },
@@ -192,6 +194,7 @@ describe('what a host sends', () => {
           fillers: [
             {
               role: 'things',
+              words: '',
               binds: 'set',
               ids: ['shop.hall.key' as InstanceId],
               names: ['a key'],
@@ -207,6 +210,7 @@ describe('what a host sends', () => {
           fillers: [
             {
               role: 'way',
+              words: '',
               binds: 'exit',
               direction: 'north',
               label: 'to the yard',
@@ -241,9 +245,14 @@ describe('what a host sends', () => {
       false,
     );
     expect(sent([{ ...reading, fillers: [{ role: 'target', binds: 'value' }] }])).toBe(false);
-    // A thing's filler says whether `all` would take it.
+    // A thing's filler says whether `all` would take it, and every filler the words before its slot.
     expect(
-      sent([{ ...reading, fillers: [{ role: 'target', binds: 'object', id: 'a', name: 'an a' }] }]),
+      sent([
+        {
+          ...reading,
+          fillers: [{ role: 'target', words: '', binds: 'object', id: 'a', name: 'an a' }],
+        },
+      ]),
     ).toBe(false);
     expect(
       sent([
@@ -252,6 +261,20 @@ describe('what a host sends', () => {
           fillers: [{ role: 'target', binds: 'object', id: 'a', name: 'an a', all: false }],
         },
       ]),
+    ).toBe(false);
+    expect(
+      sent([
+        {
+          ...reading,
+          fillers: [
+            { role: 'target', words: '', binds: 'object', id: 'a', name: 'an a', all: false },
+          ],
+        },
+      ]),
+    ).toBe(true);
+    expect(sent([{ ...reading, fillers: [{ role: 'tool', binds: 'unbound' }] }])).toBe(false);
+    expect(
+      sent([{ ...reading, fillers: [{ role: 'tool', words: 'with', binds: 'unbound' }] }]),
     ).toBe(true);
   });
 });

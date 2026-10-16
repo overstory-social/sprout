@@ -435,7 +435,13 @@ role is on the crank, with left and right moving it by ten), then confirm.
 A leaf the consent pass refuses is drawn greyed with its reason and cannot
 be confirmed. An optional tool is a step of its own, since the view offers
 the reading with it left out and filled by each thing that fits: after the
-target the wheel offers the sword beside "that's all". A set role is
+target the wheel offers the tool by the word its phrase puts before it
+("from" for `take [target] from [source]`, as the view's filler carries it
+in `words`; the role's name where it carries none) beside "that's all", and
+picking the word opens the things that fit it as a wheel of their own, with
+"everything" where it is offered, B stepping back to the word; the sentence
+so far shows the word before the pick, `take -> the sack -> from the table`,
+and the reader's `> ` line follows it. A set role is
 joined from the singletons the view offers:
 after the first member the wheel offers the others and "that's all", and
 the roles after it are offered under the first member. Where the parser

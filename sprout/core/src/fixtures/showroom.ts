@@ -231,6 +231,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall',
           name: 'a hall',
@@ -246,6 +247,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -261,6 +263,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -276,6 +279,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall',
           name: 'a hall',
@@ -291,6 +295,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -306,6 +311,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -328,6 +334,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall',
           name: 'a hall',
@@ -343,6 +350,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -358,6 +366,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -394,6 +403,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -401,6 +411,7 @@ export const HALL_VIEW = {
         },
         {
           role: 'source',
+          words: 'from',
           binds: 'unbound',
         },
       ],
@@ -413,6 +424,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -420,6 +432,7 @@ export const HALL_VIEW = {
         },
         {
           role: 'source',
+          words: 'from',
           binds: 'unbound',
         },
       ],
@@ -432,6 +445,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -447,6 +461,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -462,6 +477,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'item',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -469,6 +485,7 @@ export const HALL_VIEW = {
         },
         {
           role: 'recipient',
+          words: 'to',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -484,6 +501,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall',
           name: 'a hall',
@@ -491,6 +509,7 @@ export const HALL_VIEW = {
         },
         {
           role: 'topic',
+          words: 'about',
           binds: 'unbound',
         },
       ],
@@ -509,6 +528,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom.hall.lantern',
           name: 'a lantern',
@@ -516,6 +536,7 @@ export const HALL_VIEW = {
         },
         {
           role: 'topic',
+          words: 'about',
           binds: 'unbound',
         },
       ],
@@ -534,6 +555,7 @@ export const HALL_VIEW = {
       fillers: [
         {
           role: 'target',
+          words: '',
           binds: 'object',
           id: 'showroom#3',
           name: 'Ines',
@@ -541,6 +563,7 @@ export const HALL_VIEW = {
         },
         {
           role: 'topic',
+          words: 'about',
           binds: 'unbound',
         },
       ],

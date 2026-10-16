@@ -4,7 +4,8 @@
  * the steps it spent and the fault it raised. The goldens are the view of a visitor arriving in every corpus
  * world and the bench cases for what a view is for: the ways out, a set role, a value role's options, a
  * refusal, `inside_itself`, the dark, a visitor whose place is gone and a poll that spends its budget. A filler
- * says whether `all` would take it, by the parser's rule. A poll draws nothing and writes nothing.
+ * says whether `all` would take it, by the parser's rule, and carries the words its verb's phrase puts before its
+ * role's slot. A poll draws nothing and writes nothing.
  */
 #include "view_fixture.h"
 #include "turn_fixture.h"
@@ -112,6 +113,46 @@ static void a_filler_says_whether_all_would_take_it_as_the_parser_reads_all(void
     CHECK(!all_takes(&view, "all_plays_a_part.pack", "all_plays_a_part.kitchen.table"));
     /* An engine verb's open role: every thing not a person. */
     CHECK(all_takes(&view, "sprout.examine", "all_plays_a_part.kitchen.table"));
+    sprout_view_free(&view);
+    view_case_close(&c);
+  }
+  CHECK_INT(found, 1);
+  view_bench_close(&b);
+  CHECK_INT(b.heap.pages, 0);
+}
+
+/* The words of the filler of `role` in the view's reading typed `typed`. */
+static const char *words_of(const sprout_seen_view *view, const char *typed, const char *role) {
+  size_t i, k;
+  for (i = 0; i < view->reading_count; i++) {
+    const sprout_seen_reading *r = &view->readings[i];
+    if (r->typed.length != strlen(typed) || memcmp(r->typed.bytes, typed, r->typed.length) != 0) continue;
+    for (k = 0; k < r->filler_count; k++)
+      if (strcmp(r->fillers[k].role, role) == 0) return r->fillers[k].words;
+  }
+  CHECK(false && "no such reading");
+  return "";
+}
+
+static void a_filler_carries_the_words_its_verbs_phrase_puts_before_its_slot(void) {
+  view_bench b;
+  const sprout_json *worlds;
+  size_t i, found = 0;
+  view_bench_open(&b);
+  worlds = sprout_json_get(b.golden, "corpus");
+  for (i = 0; i < worlds->count; i++) {
+    view_case c;
+    sprout_seen_view view;
+    if (strcmp(view_text(worlds->items[i], "world"), "role-by-its-word") != 0) continue;
+    found++;
+    view_corpus_case_open(&b, &c, worlds->items[i]);
+    CHECK_INT(sprout_view(c.world, c.state, &c.host, view_text(worlds->items[i], "visit"), &view), SPROUT_OK);
+    /* The first phrase naming the role decides, filled or left out alike; the target follows the verb's own words. */
+    CHECK_STR(words_of(&view, "hang sack on hook", "hook"), "on");
+    CHECK_STR(words_of(&view, "hang sack", "hook"), "on");
+    CHECK_STR(words_of(&view, "hang sack", "target"), "");
+    CHECK_STR(words_of(&view, "take sack from table", "source"), "from");
+    CHECK_STR(words_of(&view, "take sack", "target"), "");
     sprout_view_free(&view);
     view_case_close(&c);
   }
@@ -526,6 +567,7 @@ int main(void) {
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_goldens);
   RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);
   RUN(a_filler_says_whether_all_would_take_it_as_the_parser_reads_all);
+  RUN(a_filler_carries_the_words_its_verbs_phrase_puts_before_its_slot);
   RUN(the_bench_shows_each_part_a_view_is_for);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);
   RUN(a_poll_that_spends_its_budget_shows_unseen_and_keeps_what_it_derived);

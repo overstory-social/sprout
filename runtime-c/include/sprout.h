@@ -389,6 +389,9 @@ typedef struct sprout_seen_filler {
   const sprout_seen_thing *members; /* SET, one at a time as the view offers them */
   sprout_seen_exit exit;            /* EXIT */
   bool all; /* OBJECT and SET: whether a typed `all` in the role would take the thing, or the set's first */
+  /* The words of the verb's phrases that come right before the role's slot, after a slot before them: "from" for
+     `take [target] from [source]`; "" where the slot follows the verb's own words or no phrase names the role. */
+  const char *words;
 } sprout_seen_filler;
 
 /* One reading a visitor could make now. */
