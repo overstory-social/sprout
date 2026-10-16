@@ -298,11 +298,44 @@ static sprout_eval_status all_takes(poll *p, const sprout_verb *verb, const spro
   return SPROUT_EVAL_OK;
 }
 
+/*
+ * The words that come right before `role`'s slot in the first of `verb`'s phrases naming it, in the order the parser
+ * tries them (the verb's own first), after a slot before them: "from" for `take [target] from [source]`. "" where
+ * the slot follows the verb's own words, as the target's does, or no phrase names the role. NULL for no memory.
+ */
+static const char *role_words(const poll *p, sprout_arena *keep, const sprout_verb *verb, const sprout_role *role) {
+  size_t index = (size_t)(role - verb->roles), i, k, n, length = 0;
+  for (i = 0; i < p->world->phrase_count; i++) {
+    const sprout_typed_phrase *phrase = &p->world->phrases[i];
+    if (phrase->verb != verb) continue;
+    for (k = 0; k < phrase->part_count; k++) {
+      const sprout_typed_part *before;
+      char *words, *at;
+      if (!phrase->parts[k].is_slot || phrase->parts[k].role != index) continue;
+      if (k < 2 || phrase->parts[k - 1].is_slot) return put_text(keep, "");
+      before = &phrase->parts[k - 1];
+      for (n = 0; n < before->word_count; n++) length += strlen(before->words[n]) + 1;
+      words = (char *)sprout_arena_take(keep, length);
+      if (words == NULL) return NULL;
+      for (n = 0, at = words; n < before->word_count; n++) {
+        size_t each = strlen(before->words[n]);
+        if (n > 0) *at++ = ' ';
+        memcpy(at, before->words[n], each);
+        at += each;
+      }
+      *at = '\0';
+      return words;
+    }
+  }
+  return put_text(keep, "");
+}
+
 static sprout_eval_status seen_filler(poll *p, sprout_arena *keep, const sprout_verb *verb, const sprout_role *role,
                                       const sprout_filled *filled, sprout_seen_filler *out) {
   size_t i;
   out->role = put_text(keep, role->name);
-  if (out->role == NULL) return SPROUT_EVAL_NO_MEMORY;
+  out->words = role_words(p, keep, verb, role);
+  if (out->role == NULL || out->words == NULL) return SPROUT_EVAL_NO_MEMORY;
   out->binds = SPROUT_SEEN_UNBOUND;
   out->all = false;
   if (!filled->filled) return SPROUT_EVAL_OK;
