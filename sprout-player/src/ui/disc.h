@@ -78,8 +78,9 @@ float disc_detent(float fraction);
 
 /*
  * Where each of `count` entries sits this frame, `selected` at the front and the crank `fraction`
- * of a step past it toward the next, within half a step, the disc turned by disc_detent of it. A sector turned past a quarter turn is left
- * out and each entry appears once, where it is nearest the front; the front one comes first.
+ * of a step past it toward the next, within half a step, the disc turned by disc_detent of it. A
+ * sector turned past a quarter turn is left out and each entry appears once, where it is nearest
+ * the front; the front one comes first.
  */
 size_t disc_rows(size_t count, size_t selected, float fraction, disc_row rows[DISC_MOST_ROWS]);
 
