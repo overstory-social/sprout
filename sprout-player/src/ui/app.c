@@ -45,7 +45,7 @@ static void tell_kept(player_app *app, const char *why) {
   tell_over(app, words);
 }
 
-/* The pen takes the font of the size remembered; S where that one cannot be read, which the first frame tells. */
+/* The pen's body takes the font of the size remembered; S where that one cannot be read, which the first frame tells. */
 static bool load_pen(player_app *app, const char **why) {
   player_text_size remembered = player_text_size_read(app->pd);
   const char *kept = NULL;
@@ -188,7 +188,7 @@ static void ask_restart(player_app *app, const player_input *input) {
 }
 
 /*
- * The size the system menu was set to is applied: the pen's font changes, the choice is remembered
+ * The size the system menu was set to is applied: the pen's body changes, the choice is remembered
  * and the screen on show refits. A font that cannot be read leaves the pen as it was, puts the
  * menu back to its size and says so over the screen; a choice that could not be written is applied
  * and says so.
@@ -225,14 +225,14 @@ static void draw_notice(player_app *app) {
   int y = MESSAGE_TOP;
   for (i = 0; i < app->notice.line_count; i++, line = wrap_next(line), y += pen->line_height)
     player_pen_say(pen, line, PLAYER_MARGIN, y);
-  player_pen_say(pen, PLAYER_NOTICE_KEYS, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->line_height - 2);
+  player_pen_frame_say(pen, PLAYER_NOTICE_KEYS, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->frame_height - 2);
 }
 
 static void draw_restart_question(player_app *app) {
   const player_pen *pen = &app->pen;
   player_pen_say(pen, PLAYER_RESTART_QUESTION, PLAYER_MARGIN, MESSAGE_TOP);
   player_pen_say(pen, PLAYER_RESTART_WARNING, PLAYER_MARGIN, MESSAGE_TOP + pen->line_height);
-  player_pen_say(pen, PLAYER_RESTART_KEYS, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->line_height - 2);
+  player_pen_frame_say(pen, PLAYER_RESTART_KEYS, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->frame_height - 2);
 }
 
 void player_app_frame(player_app *app, const player_input *input) {

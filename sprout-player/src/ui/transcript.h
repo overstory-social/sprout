@@ -3,8 +3,10 @@
  * of the place and its ways out, wrapped to the same column. A paragraph's kind leads it with a
  * mark, so the screen needs no colour to tell them apart. A reader who has scrolled back keeps
  * their place as more is told, and as the column is fitted to fewer or more rows; the oldest
- * paragraphs fall off past TRANSCRIPT_KEEP. Each block keeps its words with its lines (wrap.h),
- * so a font that changes wraps the paragraphs and the status again with nothing told lost.
+ * paragraphs fall off past TRANSCRIPT_KEEP. The paragraphs are measured by `measure`, the body's,
+ * and the status by `status_measure`, the frame's, over the one `measure_ctx`. Each block keeps its
+ * words with its lines (wrap.h), so a font that changes wraps the paragraphs and the status again
+ * with nothing told lost.
  */
 #ifndef PLAYER_UI_TRANSCRIPT_H
 #define PLAYER_UI_TRANSCRIPT_H
@@ -22,6 +24,7 @@
 typedef struct transcript {
   PlaydateAPI *pd;
   wrap_measure measure;
+  wrap_measure status_measure;
   void *measure_ctx;
   int width;   /* the column in pixels */
   size_t rows; /* the lines the column shows */
@@ -32,7 +35,8 @@ typedef struct transcript {
   wrapped status;    /* the status's lines, wrapped to the column; none before the first view */
 } transcript;
 
-void transcript_init(transcript *t, PlaydateAPI *pd, wrap_measure measure, void *measure_ctx, int width, size_t rows);
+void transcript_init(transcript *t, PlaydateAPI *pd, wrap_measure measure, wrap_measure status_measure, void *measure_ctx,
+                     int width, size_t rows);
 void transcript_free(transcript *t);
 
 /* The mark a kind of line is led by: `typed`, `refused`, `notice` and `client` have one. */
@@ -57,7 +61,7 @@ size_t transcript_furthest(const transcript *t);
 bool transcript_behind(const transcript *t);
 
 /*
- * The font has changed: every paragraph and the status are wrapped again by the same measure. A
+ * A font has changed: every paragraph and the status are wrapped again, each by its measure. A
  * block that could not be wrapped again for want of memory keeps the lines it had, and the reader's
  * place is kept as near as the new lines allow; the rows are fitted after, by `transcript_fit`.
  */

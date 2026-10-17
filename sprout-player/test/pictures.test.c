@@ -18,7 +18,7 @@
 #include "ui/pictures.h"
 #include "ui/reader.h"
 
-#define LINE FAKE_LINE
+#define LINE FAKE_SERIF_LINE
 #define RULE (240 - LINE - 4)
 #define PANEL (240 - (LINE + 4))
 #define CARTRIDGE "media-room.sproutworld"
@@ -45,7 +45,7 @@ static bool on_reader(void) {
 
 /* The words right-aligned on the caption line, as the screen draws them. */
 static const fake_run *where_run(const char *words) {
-  return fake_run_at(fake, 400 - PLAYER_MARGIN - (int)strlen(words) * FAKE_GLYPH, RULE + 2);
+  return fake_run_at(fake, 400 - PLAYER_MARGIN - (int)strlen(words) * FAKE_SERIF_GLYPH, RULE + 2);
 }
 
 /* The path of the bitmap the frame's `n`th draw drew, or "". */

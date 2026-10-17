@@ -274,18 +274,26 @@ stack (`src/host/stack.h`), since a turn may run in it, and the file calls
 inside it hop back to the main stack.
 
 The app (`src/ui/app.h`) holds the session, the pen (`src/ui/pen.h`), the
-shelf and the screen on show. The pen draws every screen but the disc of
-words in one of three text sizes (`src/ui/text_size.h`): S is the system's
-Asheville Sans 14 Light, M its Roobert 20 Medium and L its Asheville Sans 24
-Light, each loaded by path from `/System/Fonts/`, one held at a time. "text"
-in the system menu is an options item, S / M / L; the size set there is
-applied when the menu closes, written beside the saves as the one letter in
-`text-size.txt`, and read back at the next launch (no file, or one that says
-anything else, is S). A font the device cannot read leaves the pen as it was,
-puts the item back, and says so over the screen on show until A or B. A screen (`src/ui/screen.h`) is functions over its own
-context: update with the buttons and the crank, draw, leave, and refit, which
-runs when the pen's font has changed and wraps again whatever the screen
-keeps wrapped; a screen
+shelf and the screen on show. The pen draws in two faces, both Panic's fonts
+shipped in the pdx under `Source/fonts/` (CC BY 4.0): the frame, always
+Newsleak Serif Bold, draws the top and bottom lines of every screen (the
+reader's status and keys, the builder's sentence line and panel, the shelf's
+and the download screen's title and panel, the nickname screen's question and
+keys, the pictures' caption and page words, a message's "A to go on", the
+arrival's loading line), and the body, the font of the text size chosen
+(`src/ui/text_size.h`), draws everything between: S is Newsleak Serif Bold
+itself, M Roobert 11 Mono Condensed and L Roobert 11 Medium. Each screen's
+bands take the frame's line height and its rows the body's. The pen holds
+every font the player draws with, a file loaded once however many uses hold
+it, so S holds one file and the other sizes two. "text" in the system menu is
+an options item, S / M / L; the size set there is applied when the menu
+closes, written beside the saves as the one letter in `text-size.txt`, and
+read back at the next launch (no file, or one that says anything else, is S).
+A font the device cannot read leaves the pen as it was, puts the item back,
+and says so over the screen on show until A or B. A screen
+(`src/ui/screen.h`) is functions over its own context: update with the
+buttons and the crank, draw, leave, and refit, which runs when the pen's body
+has changed and wraps again whatever the screen keeps wrapped; a screen
 moves the app to another, and the move takes effect when its update is over.
 The app starts on the shelf (`src/ui/shelf.h`), as The shelf below describes
 it; the app holds it, so it outlives its screen and a cartridge is
@@ -334,11 +342,12 @@ over the font's widths (`getTextWidth`), rather than the SDK's `drawTextInRect`:
 scrolling a line at a time needs the lines, which `drawTextInRect` does not
 give back. A wrapped block keeps the words it was made from ahead of its
 lines, so when the text size changes the transcript wraps each of its kept
-paragraphs and its status again from the words (a newline still a line, a
-cut word cut afresh) and shows the rows the new line height allows under the
-status's new lines, with nothing told lost; the shelf's and the download screen's panels, a message, a refused
-name and the words over the disc wrap again the same way, and the lines a
-screen lays out each frame follow the pen of themselves. Text is drawn as written, on the reading that the C API's
+paragraphs again from the words (a newline still a line, a cut word cut
+afresh) and shows the rows the new line height allows under the status's
+lines, with nothing told lost; a message, a refused name and the words over
+the disc wrap again the same way, and the lines a screen lays out each frame
+follow the pen of themselves. The status, the shelf's and the download
+screen's panels and the builder's are the frame's, measured by its font. Text is drawn as written, on the reading that the C API's
 `drawText`, which takes no font family, has no bold or italic to read `*`
 and `_` as; the Simulator has yet to confirm it. A on the reader opens the
 sentence builder (`src/ui/builder.h`, over `src/ui/sentence.h` and
@@ -346,9 +355,9 @@ sentence builder (`src/ui/builder.h`, over `src/ui/sentence.h` and
 crank sentence builder below describes it; a
 confirmed sentence runs through `player_turn` and is told in the reader, led
 by the sentence as typed. The reader is lent to the builder while it is up.
-The sentence so far above the disc fits the screen however long it grows: in
-the system font, else the small font, else trimmed from the left behind
-`...`, so its end, the part being built, stays in view.
+The sentence so far above the disc, in the frame's font, fits the screen
+however long it grows: trimmed from the left behind `...`, so its end, the
+part being built, stays in view.
 
 The pictures (`src/ui/pictures.h`) are shown as Images below describes them.
 After the arrival
@@ -509,8 +518,8 @@ intents, so the wheel has no intents at the top (hole 500).
 
 On the screen the wheel is a disc of words (`src/ui/disc.h`): a hub on the
 screen's left edge with a marker pointing at the front, and each entry a
-sector of 24 degrees fanning to the right, its word in the large font along
-its ray. The selected word lies level at the front as an inverted label (a
+sector of 24 degrees fanning to the right, its word in Roobert 11 Medium (L's
+font, held through the pen) along its ray. The selected word lies level at the front as an inverted label (a
 greyed one dotted, its reason on the panel below); its neighbours tilt away
 above and below in the entries' order and run off the screen's edges, a
 long word cut where the screen ends. The rays dividing the sectors bend
@@ -528,9 +537,7 @@ one-bit label while its level stands and turned to its ray in the player's
 own code, a pixel at a time, while its angle stands, and never with the
 firmware's `drawRotatedBitmap`. Each sector passing the front ticks, the disc settling clacks, a pick
 and a step back each sound a note and a refusal a buzz (`src/ui/sound.h`: short notes on the
-SDK's synths, silent where there is no sound to play on). The fonts are
-Panic's Asheville Sans 24 Light and Roobert 10 Bold (CC BY 4.0), shipped
-under `Source/fonts/`.
+SDK's synths, silent where there is no sound to play on).
 
 ### Nickname
 
@@ -808,11 +815,10 @@ Not yet checked:
 - the time a picture takes to load on a console;
 - "start over" in the system menu and its question, which the C tests drive
   over the fake;
-- the text sizes on a console: that `/System/Fonts/Roobert-20-Medium.pft`
-  and `/System/Fonts/Asheville-Sans-24-Light.pft` read on the device as they
-  do in the SDK's `Disk/System/Fonts`, the line height `getFontHeight` gives
-  for each, and that an options item's callback runs when the menu closes;
-  the C tests drive the item over the fake;
+- the text sizes on a console: the line height `getFontHeight` gives for
+  each of the three shipped fonts (their tables are 20, 16 and 22 pixels
+  tall), and that an options item's callback runs when the menu closes; the
+  C tests drive the item over the fake;
 - the time the save's first frame (making the bytes) and its 16 KB slices
   take on a console, and whether the slice size is right.
 

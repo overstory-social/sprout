@@ -1,5 +1,5 @@
 /*
- * The app: the session, the pen in the display font at the size remembered (text_size.h), the sounds, the reader's clock (clock.h), the shelf
+ * The app: the session, the pen with its body at the size remembered (text_size.h), the sounds, the reader's clock (clock.h), the shelf
  * (shelf.h), and the screen on show (screen.h). The system calls `player_app_update` once a frame; the frame runs on the player's own stack (host/stack.h),
  * since a turn may run in it, and the file calls inside it hop back to the main stack as they
  * always do. A screen moves the app to another with `player_app_show`, which takes effect when
@@ -29,8 +29,8 @@ struct player_app {
   player_session *session;
   player_pen pen;
   player_shelf *shelf;
-  LCDFont *big_font, *small_font; /* the sentence builder's, loaded when it first opens; NULL where one cannot be */
-  bool fonts_tried;
+  LCDFont *disc_font; /* the sentence builder's, held through the pen from its first open; NULL where it cannot be */
+  bool disc_font_tried;
   player_sound sound;
   player_clock clock;
   char assets[PLAYER_ASSETS_BYTES]; /* the open world's assets folder, `<cartridge>.assets/` (images.h), or "" */
@@ -99,7 +99,7 @@ void player_app_wake(player_app *app);
 int player_app_update(void *app);
 
 /*
- * One frame with `input`: the text size, where the system menu set it, applied (the pen's font
+ * One frame with `input`: the text size, where the system menu set it, applied (the pen's body
  * changes, the choice is remembered, and the screen on show refits; a font that cannot be read is
  * told over the screen until A or B, the pen and the menu as they were, and so is a choice that
  * could not be written); a step of the save owed (`player_save_step`, PLAYER_SAVE_SLICE bytes),

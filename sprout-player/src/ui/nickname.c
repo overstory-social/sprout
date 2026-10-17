@@ -163,14 +163,14 @@ static void update(player_app *app, void *ctx, const player_input *input) {
 static void draw(player_app *app, void *ctx) {
   player_nickname *n = (player_nickname *)ctx;
   const player_pen *pen = &app->pen;
-  int bottom = PLAYER_SCREEN_HEIGHT - pen->line_height - 2;
+  int bottom = PLAYER_SCREEN_HEIGHT - pen->frame_height - 2;
   if (n->refused.line_count > 0) {
     const char *line = n->refused.bytes;
     size_t i;
     int y = MESSAGE_TOP;
     for (i = 0; i < n->refused.line_count; i++, line = wrap_next(line), y += pen->line_height)
       player_pen_say(pen, line, PLAYER_MARGIN, y);
-    player_pen_say(pen, GO_ON, PLAYER_MARGIN, bottom);
+    player_pen_frame_say(pen, GO_ON, PLAYER_MARGIN, bottom);
     return;
   }
   {
@@ -180,8 +180,8 @@ static void draw(player_app *app, void *ctx) {
     text_add(&who, "Who are you in ");
     text_add(&who, n->title);
     text_add(&who, "?");
-    player_pen_say(pen, said, PLAYER_MARGIN, 0);
-    app->pd->graphics->drawLine(0, pen->line_height + 3, PLAYER_SCREEN_WIDTH, pen->line_height + 3, 1, kColorBlack);
+    player_pen_frame_say(pen, said, PLAYER_MARGIN, 0);
+    app->pd->graphics->drawLine(0, pen->frame_height + 3, PLAYER_SCREEN_WIDTH, pen->frame_height + 3, 1, kColorBlack);
     if (n->count == 0) {
       player_pen_say(pen, NO_NAME_FREE, PLAYER_MARGIN, NAME_TOP);
     } else {
@@ -191,7 +191,7 @@ static void draw(player_app *app, void *ctx) {
       text_add(&who, " >");
       player_pen_say(pen, said, PLAYER_MARGIN, NAME_TOP);
     }
-    player_pen_say(pen, KEYS, PLAYER_MARGIN, bottom);
+    player_pen_frame_say(pen, KEYS, PLAYER_MARGIN, bottom);
   }
 }
 
@@ -202,7 +202,7 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, n);
 }
 
-/* The refusal's words, where they are up, follow the font; the names are laid out each draw. */
+/* The refusal's words, where they are up, follow the body; the names are laid out each draw. */
 static void refit(player_app *app, void *ctx) {
   player_nickname *n = (player_nickname *)ctx;
   if (n->refused.line_count > 0)

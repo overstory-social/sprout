@@ -78,8 +78,8 @@ void player_shelf_unsaved(player_app *app);
 /* A world's name as words, as the shelf titles it: `printers_shop` is `Printers Shop`. */
 void player_world_title(const char *name, char *title, size_t size);
 
-/* How many rows the shelf shows with a font `line_height` tall. */
-size_t player_shelf_rows(int line_height);
+/* How many rows the shelf shows with a body `line_height` tall between a title and a panel in a frame `frame_height` tall. */
+size_t player_shelf_rows(int line_height, int frame_height);
 
 extern const player_screen player_shelf_screen;
 

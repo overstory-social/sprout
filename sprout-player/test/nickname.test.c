@@ -15,7 +15,7 @@
 #include "ui/reader.h"
 #include "ui/shelf.h"
 
-#define LINE FAKE_LINE
+#define LINE FAKE_SERIF_LINE
 #define NAME_TOP 100
 
 static player_app *app;
