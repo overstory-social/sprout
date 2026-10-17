@@ -1,5 +1,5 @@
-/* Word wrap; see wrap.h. The lines are built in place in one block twice the text's size, room
- * for every character cut onto a line of its own. */
+/* Word wrap; see wrap.h. The lines are built in place after the words' copy, in room twice the
+ * text's size: every character cut onto a line of its own. */
 #include "wrap.h"
 
 #include <string.h>
@@ -79,9 +79,12 @@ bool wrap_lines(PlaydateAPI *pd, const char *text, size_t length, int width, wra
                 wrapped *out) {
   wrapping w;
   size_t i = 0;
+  char *block = (char *)player_alloc(pd, length + 1 + length * 2 + 2);
+  if (block == NULL) return false;
   memset(&w, 0, sizeof w);
-  w.out = (char *)player_alloc(pd, length * 2 + 2);
-  if (w.out == NULL) return false;
+  memcpy(block, text, length);
+  block[length] = '\0';
+  w.out = block + length + 1;
   w.width = width;
   w.measure = measure;
   w.ctx = ctx;
@@ -102,7 +105,25 @@ bool wrap_lines(PlaydateAPI *pd, const char *text, size_t length, int width, wra
   }
   out->bytes = w.out;
   out->line_count = w.lines;
+  out->text = block;
+  out->length = length;
   return true;
+}
+
+bool wrap_again(PlaydateAPI *pd, wrapped *w, int width, wrap_measure measure, void *ctx) {
+  wrapped again;
+  if (w->bytes == NULL || !wrap_lines(pd, w->text, w->length, width, measure, ctx, &again)) return false;
+  wrap_free(pd, w);
+  *w = again;
+  return true;
+}
+
+void wrap_free(PlaydateAPI *pd, wrapped *w) {
+  if (w->bytes != NULL) player_free(pd, w->text);
+  w->bytes = NULL;
+  w->text = NULL;
+  w->line_count = 0;
+  w->length = 0;
 }
 
 const char *wrap_next(const char *line) { return line + strlen(line) + 1; }

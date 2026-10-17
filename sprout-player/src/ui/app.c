@@ -6,12 +6,54 @@
 #include "arrival.h"
 #include "message.h"
 #include "shelf.h"
+#include "text.h"
 #include "host/files.h"
 #include "host/stack.h"
 
-/* The system menu's callback, outside any frame: the leaving waits for the next one, which runs on the own stack. */
+/* The system menu's callbacks, outside any frame: what was chosen waits for the next one, which runs on the own stack. */
 static void leave_world_chosen(void *userdata) { ((player_app *)userdata)->leave_asked = true; }
 static void start_over_chosen(void *userdata) { ((player_app *)userdata)->restart_asked = true; }
+static void text_size_set(void *userdata) { ((player_app *)userdata)->text_asked = true; }
+
+/* The notice when there is no memory to wrap one: one line in a block that is never freed. */
+static char unwrapped_line[] = "The player ran out of memory.";
+static const wrapped unwrapped = {unwrapped_line, 1, unwrapped_line, sizeof unwrapped_line - 1};
+
+static void drop_notice(player_app *app) {
+  if (app->notice.bytes == unwrapped_line)
+    memset(&app->notice, 0, sizeof app->notice);
+  else
+    wrap_free(app->pd, &app->notice);
+}
+
+/* Puts `words` over the screen on show until A or B. */
+static void tell_over(player_app *app, const char *words) {
+  drop_notice(app);
+  if (!wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen,
+                  &app->notice))
+    app->notice = unwrapped;
+}
+
+/* PLAYER_TEXT_KEPT and the system's `why`, over the screen. */
+static void tell_kept(player_app *app, const char *why) {
+  char words[256];
+  text_buffer said;
+  text_begin(&said, words, sizeof words);
+  text_add(&said, PLAYER_TEXT_KEPT);
+  text_add(&said, " ");
+  text_add(&said, why);
+  tell_over(app, words);
+}
+
+/* The pen takes the font of the size remembered; S where that one cannot be read, which the first frame tells. */
+static bool load_pen(player_app *app, const char **why) {
+  player_text_size remembered = player_text_size_read(app->pd);
+  const char *kept = NULL;
+  if (player_pen_init(&app->pen, app->pd, remembered, &kept)) return true;
+  if (!player_pen_init(&app->pen, app->pd, PLAYER_TEXT_S, why)) return false;
+  tell_kept(app, kept);
+  return true;
+}
 
 player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   player_app *app = (player_app *)player_alloc(pd, sizeof *app);
@@ -21,7 +63,7 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   }
   memset(app, 0, sizeof *app);
   app->pd = pd;
-  if (!player_pen_init(&app->pen, pd, why)) {
+  if (!load_pen(app, why)) {
     player_free(pd, app);
     return NULL;
   }
@@ -32,6 +74,8 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   if (app->shelf == NULL) {
     if (app->session != NULL) player_session_free(app->session);
     player_sound_free(&app->sound);
+    drop_notice(app);
+    player_pen_free(&app->pen);
     player_free(pd, app);
     *why = "the player ran out of memory starting";
     return NULL;
@@ -40,6 +84,10 @@ player_app *player_app_new(PlaydateAPI *pd, const char **why) {
   app->ctx = app->shelf;
   app->leave_item = pd->system->addMenuItem("leave world", leave_world_chosen, app);
   app->restart_item = pd->system->addMenuItem("start over", start_over_chosen, app);
+  /* The C API's titles parameter is not const, though the titles are only read. */
+  app->text_item = pd->system->addOptionsMenuItem(PLAYER_TEXT_ITEM, (const char **)PLAYER_TEXT_SIZE_NAMES, PLAYER_TEXT_SIZES,
+                                                  text_size_set, app);
+  if (app->text_item != NULL) pd->system->setMenuItemValue(app->text_item, (int)app->pen.size);
   return app;
 }
 
@@ -56,10 +104,13 @@ void player_app_free(player_app *app) {
   if (app == NULL) return;
   if (app->leave_item != NULL) app->pd->system->removeMenuItem(app->leave_item);
   if (app->restart_item != NULL) app->pd->system->removeMenuItem(app->restart_item);
+  if (app->text_item != NULL) app->pd->system->removeMenuItem(app->text_item);
   player_on_own_stack(app->pd, close_thunk, app);
   player_shelf_free(app, app->shelf);
   player_session_free(app->session);
   player_sound_free(&app->sound);
+  drop_notice(app);
+  player_pen_free(&app->pen);
   player_free(app->pd, app);
 }
 
@@ -136,6 +187,47 @@ static void ask_restart(player_app *app, const player_input *input) {
   }
 }
 
+/*
+ * The size the system menu was set to is applied: the pen's font changes, the choice is remembered
+ * and the screen on show refits. A font that cannot be read leaves the pen as it was, puts the
+ * menu back to its size and says so over the screen; a choice that could not be written is applied
+ * and says so.
+ */
+static void resize_text(player_app *app) {
+  player_text_size size;
+  const char *why = NULL;
+  if (app->text_item == NULL) return;
+  size = (player_text_size)app->pd->system->getMenuItemValue(app->text_item);
+  if (size == app->pen.size) return;
+  if (!player_pen_resize(&app->pen, size, &why)) {
+    app->pd->system->setMenuItemValue(app->text_item, (int)app->pen.size);
+    tell_kept(app, why);
+    return;
+  }
+  if (app->screen->refit != NULL) app->screen->refit(app, app->ctx);
+  if (app->notice.bytes != NULL && app->notice.bytes != unwrapped_line)
+    wrap_again(app->pd, &app->notice, PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen);
+  if (!player_text_size_write(app->pd, size)) tell_over(app, PLAYER_TEXT_UNKEPT);
+}
+
+/* The notice over the screen: A or B takes it down. */
+static void read_notice(player_app *app, const player_input *input) {
+  if (input->pushed & (kButtonA | kButtonB)) {
+    drop_notice(app);
+    player_cue(app, PLAYER_CUE_BACK);
+  }
+}
+
+static void draw_notice(player_app *app) {
+  const player_pen *pen = &app->pen;
+  const char *line = app->notice.bytes;
+  size_t i;
+  int y = MESSAGE_TOP;
+  for (i = 0; i < app->notice.line_count; i++, line = wrap_next(line), y += pen->line_height)
+    player_pen_say(pen, line, PLAYER_MARGIN, y);
+  player_pen_say(pen, PLAYER_NOTICE_KEYS, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->line_height - 2);
+}
+
 static void draw_restart_question(player_app *app) {
   const player_pen *pen = &app->pen;
   player_pen_say(pen, PLAYER_RESTART_QUESTION, PLAYER_MARGIN, MESSAGE_TOP);
@@ -144,16 +236,20 @@ static void draw_restart_question(player_app *app) {
 }
 
 void player_app_frame(player_app *app, const player_input *input) {
+  if (app->text_asked) resize_text(app);
+  app->text_asked = false;
   if (!player_save_step(app->session, PLAYER_SAVE_SLICE).ok) {
     app->restart_question = false;
     player_shelf_unsaved(app);
   } else if (app->leave_asked && app->reading) {
     app->restart_question = false;
     leave_world(app);
-  } else if (app->restart_question) {
-    ask_restart(app, input);
   } else if (app->restart_asked && app->reading) {
     app->restart_question = true;
+  } else if (app->notice.bytes != NULL) {
+    read_notice(app, input);
+  } else if (app->restart_question) {
+    ask_restart(app, input);
   } else {
     app->screen->update(app, app->ctx, input);
   }
@@ -167,7 +263,9 @@ void player_app_frame(player_app *app, const player_input *input) {
     app->next_ctx = NULL;
   }
   app->pd->graphics->clear(kColorWhite);
-  if (app->restart_question)
+  if (app->notice.bytes != NULL)
+    draw_notice(app);
+  else if (app->restart_question)
     draw_restart_question(app);
   else
     app->screen->draw(app, app->ctx);

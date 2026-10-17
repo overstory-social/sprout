@@ -135,11 +135,7 @@ static void admit(player_app *app, player_nickname *n) {
 static void update(player_app *app, void *ctx, const player_input *input) {
   player_nickname *n = (player_nickname *)ctx;
   if (n->refused.line_count > 0) {
-    if (input->pushed & (kButtonA | kButtonB)) {
-      player_free(app->pd, n->refused.bytes);
-      n->refused.bytes = NULL;
-      n->refused.line_count = 0;
-    }
+    if (input->pushed & (kButtonA | kButtonB)) wrap_free(app->pd, &n->refused);
     return;
   }
   n->crank += input->crank;
@@ -201,9 +197,16 @@ static void draw(player_app *app, void *ctx) {
 
 static void leave(player_app *app, void *ctx) {
   player_nickname *n = (player_nickname *)ctx;
-  player_free(app->pd, n->refused.bytes);
+  wrap_free(app->pd, &n->refused);
   player_free(app->pd, n->notice);
   player_free(app->pd, n);
 }
 
-const player_screen player_nickname_screen = {update, draw, leave};
+/* The refusal's words, where they are up, follow the font; the names are laid out each draw. */
+static void refit(player_app *app, void *ctx) {
+  player_nickname *n = (player_nickname *)ctx;
+  if (n->refused.line_count > 0)
+    wrap_again(app->pd, &n->refused, PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen);
+}
+
+const player_screen player_nickname_screen = {update, draw, leave, refit};

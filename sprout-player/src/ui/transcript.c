@@ -20,11 +20,9 @@ static wrapped *paragraph(const transcript *t, size_t index) {
 
 void transcript_free(transcript *t) {
   size_t i;
-  for (i = 0; i < t->count; i++) player_free(t->pd, paragraph(t, i)->bytes);
-  player_free(t->pd, t->status.bytes);
+  for (i = 0; i < t->count; i++) wrap_free(t->pd, paragraph(t, i));
+  wrap_free(t->pd, &t->status);
   t->count = 0;
-  t->status.bytes = NULL;
-  t->status.line_count = 0;
 }
 
 const char *transcript_lead(const char *kind) {
@@ -58,7 +56,7 @@ bool transcript_push(transcript *t, const char *kind, const char *text, size_t l
   if (t->count == TRANSCRIPT_KEEP) {
     wrapped *oldest = paragraph(t, 0);
     t->line_count -= oldest->line_count;
-    player_free(t->pd, oldest->bytes);
+    wrap_free(t->pd, oldest);
     t->first = (t->first + 1) % TRANSCRIPT_KEEP;
     t->count--;
   }
@@ -74,6 +72,18 @@ bool transcript_tell(transcript *t, const told_list *lines) {
   for (i = 0; i < lines->count; i++)
     if (!transcript_push(t, lines->items[i].kind, lines->items[i].text, lines->items[i].text_length)) return false;
   return true;
+}
+
+void transcript_rewrap(transcript *t) {
+  size_t i, lines = 0;
+  for (i = 0; i < t->count; i++) {
+    wrapped *p = paragraph(t, i);
+    wrap_again(t->pd, p, t->width, t->measure, t->measure_ctx);
+    lines += p->line_count;
+  }
+  t->line_count = lines;
+  wrap_again(t->pd, &t->status, t->width, t->measure, t->measure_ctx);
+  clamp(t);
 }
 
 void transcript_fit(transcript *t, size_t rows) {
@@ -140,7 +150,7 @@ bool transcript_set_status(transcript *t, const sprout_seen_view *view) {
   made = wrap_lines(t->pd, words, length, t->width, t->measure, t->measure_ctx, &lines);
   player_free(t->pd, words);
   if (!made) return false;
-  player_free(t->pd, t->status.bytes);
+  wrap_free(t->pd, &t->status);
   t->status = lines;
   return true;
 }
