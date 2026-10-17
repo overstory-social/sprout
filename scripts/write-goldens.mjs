@@ -21,6 +21,7 @@ import {
   DEFAULT_LIMITS,
   emitCartridge,
   libraryHash,
+  loadCartridge,
   MEDIA,
   readCartridge,
   readStoredWorld,
@@ -128,6 +129,185 @@ async function storedWorlds(scratch) {
     }
   }
   return `{\n"initial":{\n${initial.join(',\n')}\n},\n"played":[\n${played.join(',\n')}\n]\n}\n`;
+}
+
+// ---- stored-reopened.json: stored worlds edited against their world, with what the engine makes of each ----
+
+/** Every fourth corpus world, and the printers' shop: enough worlds to meet every kind of declaration. */
+const sampledWorlds = () =>
+  corpusWorlds().filter((name, i) => i % 4 === 0 || name === 'printers_shop');
+
+/** A declared default as its stored value is written: an option its text, a list its elements. */
+function storedDefault(literal) {
+  switch (literal.kind) {
+    case 'boolean':
+    case 'integer':
+    case 'string':
+      return literal.value;
+    case 'option-literal':
+      return literal.name.text;
+    case 'list-literal':
+      return literal.elements.map(storedDefault);
+  }
+  throw new Error(`a default of kind ${literal.kind} has no stored form.`);
+}
+
+/** A value that is not one of `type`: the wrong JSON type for it. */
+const wrongTyped = (type) => (type.type === 'integer' ? true : 1);
+
+/** Some value of `type`, for a list that repeats it. */
+function someValue(type) {
+  switch (type.type) {
+    case 'boolean':
+      return true;
+    case 'integer':
+      return Math.min(Math.max(0, type.min), type.max);
+    case 'string':
+      return 'x';
+    case 'symbol':
+      return type.of.options[0];
+    case 'list':
+      return [];
+    default:
+      return 'x';
+  }
+}
+
+/**
+ * The edits made to one world's fresh state, each a record or two laid over
+ * nothing stored: what the declaration cannot explain, which the engine
+ * refuses in words, and what it can, which it saves as the diff form.
+ */
+function editsOf(catalogue) {
+  const world = catalogue.world;
+  const declared = [...catalogue.declared.values()]
+    .filter((one) => one.id !== world && one.kind !== null)
+    .sort((a, b) => a.rank - b.rank);
+  const first = declared[0];
+  const fresh = (serial, instances, visitors = [], tombstones = []) => ({
+    world,
+    serial,
+    instances,
+    visitors,
+    tombstones,
+  });
+  const holding = declared.find((one) => declared.some((other) => other.container === one.id));
+  const plain = declared.flatMap((one) =>
+    [...one.kind.properties.values()]
+      .filter((property) => !property.remembered)
+      .map((property) => ({ id: one.id, property })),
+  );
+  const edits = [];
+  if (holding !== undefined) {
+    edits.push(['a destroyed declared object', fresh(0, [], [], [holding.id])]);
+  }
+  edits.push(['a declared object the world does not declare', fresh(0, [{ id: `${world}.no_such_object` }])]);
+  if (first !== undefined) {
+    edits.push([
+      'a property the kind does not hold',
+      fresh(0, [{ id: first.id, properties: { no_such_property: 1 } }]),
+    ]);
+    edits.push([
+      'a memory of a property the kind does not remember',
+      fresh(0, [{ id: first.id, memory: { [world]: { no_such_property: 1 } } }]),
+    ]);
+  }
+  const nested = declared.find((one) => one.container !== world);
+  if (nested !== undefined && catalogue.worldKind?.contains === true) {
+    edits.push([
+      'a declared object moved into the world',
+      fresh(1, [{ id: nested.id, container: world, arrival: 1 }]),
+    ]);
+  }
+  edits.push([
+    'a spawn of a kind the world does not declare',
+    fresh(1, [
+      {
+        id: `${world}#1`,
+        made: { from: 'spawned', kind: `${world}.NoSuchKind` },
+        container: world,
+        arrival: 1,
+      },
+    ]),
+  ]);
+  const typed = plain[0];
+  if (typed !== undefined) {
+    edits.push([
+      'a value not of its type',
+      fresh(0, [{ id: typed.id, properties: { [typed.property.name]: wrongTyped(typed.property.type) } }]),
+    ]);
+    edits.push([
+      'a property at its default',
+      fresh(0, [
+        {
+          id: typed.id,
+          properties: { [typed.property.name]: storedDefault(typed.property.declaration.default) },
+        },
+      ]),
+    ]);
+  }
+  const ranged = plain.find(
+    ({ property }) => property.type.type === 'integer' && property.type.max < Number.MAX_SAFE_INTEGER,
+  );
+  if (ranged !== undefined) {
+    edits.push([
+      'an integer past its range',
+      fresh(0, [{ id: ranged.id, properties: { [ranged.property.name]: ranged.property.type.max + 1 } }]),
+    ]);
+  }
+  const listed = plain.find(({ property }) => property.type.type === 'list');
+  if (listed !== undefined) {
+    const one = someValue(listed.property.type.element);
+    edits.push([
+      'a list with a repeat',
+      fresh(0, [{ id: listed.id, properties: { [listed.property.name]: [one, one] } }]),
+    ]);
+  }
+  if (catalogue.arrival !== null && catalogue.visitorKind !== null) {
+    edits.push([
+      'a reading of a verb the world does not declare',
+      fresh(
+        2,
+        [{ id: `${world}#1`, made: { from: 'visitor' }, container: catalogue.arrival, arrival: 2 }],
+        [
+          {
+            visit: 'visit:Marta',
+            nickname: 'Marta',
+            instance: `${world}#1`,
+            lastPlace: catalogue.arrival,
+            referents: [],
+            lastReading: { verb: { library: world, name: 'no_such_verb' }, bindings: [] },
+          },
+        ],
+      ),
+    ]);
+  }
+  return edits;
+}
+
+async function storedReopened(scratch) {
+  await packCorpus(scratch);
+  const entries = [];
+  for (const name of sampledWorlds()) {
+    const bytes = readFileSync(join(scratch, `${name}.sproutworld`));
+    const catalogue = loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps });
+    const engine = new WasmInstance(shippedModule());
+    engine.load(bytes);
+    engine.budgets(DEFAULT_LIMITS.budgets, DEFAULT_LIMITS.caps.listElements);
+    for (const [edit, input] of editsOf(catalogue)) {
+      const entry = { world: name, edit, input };
+      try {
+        engine.open(JSON.stringify(input));
+        entry.saved = JSON.parse(engine.save());
+      } catch (err) {
+        const said = /^sw_open: status \d+: (.*)$/s.exec(err.message);
+        if (said === null) throw err;
+        entry.refused = said[1];
+      }
+      entries.push(JSON.stringify(entry));
+    }
+  }
+  return `[\n${entries.join(',\n')}\n]\n`;
 }
 
 // ---- views.json: the polls, each asked of sproutc ----
@@ -316,6 +496,7 @@ async function writeFormatted(file, text) {
 
 const WRITERS = {
   'stored-worlds.json': storedWorlds,
+  'stored-reopened.json': storedReopened,
   'views.json': views,
   'seeds.json': seeds,
   ...Object.fromEntries(

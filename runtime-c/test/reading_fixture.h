@@ -37,7 +37,7 @@ static inline void reading_open(exec_bench *b, exec_case *c, const sprout_json *
     exit(2);
   }
   if (sprout_state_read(&c->host, stored, strlen(stored), &c->state, &refusal) != SPROUT_OK ||
-      sprout_state_open(c->state, c->world, NULL, &refusal) != SPROUT_OK) {
+      sprout_state_open(c->state, c->world, &refusal) != SPROUT_OK) {
     fprintf(stderr, "state: %s\n", refusal.text);
     exit(2);
   }

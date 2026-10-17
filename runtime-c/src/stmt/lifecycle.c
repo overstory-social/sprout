@@ -93,7 +93,7 @@ sprout_eval_status stmt_remove(sprout_exec *x, const sprout_frame *frame, sprout
   }
   if (sprout_draft_subtree(x->draft, id, &subtree, &count) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {
-    const sprout_stored_instance *one = sprout_draft_record(x->draft, subtree[i]);
+    const sprout_stored_instance *one = sprout_draft_instance(x->draft, subtree[i]);
     if (one == NULL || one->made != SPROUT_MADE_VISITOR) continue;
     text = expr_text_begin(frame);
     expr_put(&text, "`");

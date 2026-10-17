@@ -50,7 +50,7 @@ typedef struct sprout_budgets {
   sprout_limit nickname_characters;
   sprout_limit wall_clock_ms;         /* the backstop */
   sprout_limit list_elements;         /* the static cap on a list's length */
-  sprout_limit instances;             /* live instances the host will store for one world, dormant ones included */
+  sprout_limit instances;             /* live instances the host will store for one world */
 } sprout_budgets;
 
 /* The host's side of the contract. A NULL callback the runtime needs is SPROUT_BAD_HOST. */
@@ -186,11 +186,11 @@ void sprout_world_free(sprout_world *world);
 
 /*
  * A world's stored state (the spec's The runtime > State), read from the JSON
- * the store adapters hold and written back in the same canonical form: keys in
- * the schema's order, no white space, whole numbers as digits. Reading checks
- * the stored form's rules and refuses what a store adapter would, in words;
- * what it keeps is exactly what was stored, so writing a state read gives the
- * bytes back.
+ * the store adapters hold and written back in the same canonical form: the
+ * diff from the world a fresh load makes, keys in the schema's order, no white
+ * space, whole numbers as digits. Reading checks the stored form's rules and
+ * refuses what a store adapter would, in words; what it keeps is exactly what
+ * was stored, so a state read and opened writes the bytes back.
  */
 sprout_status sprout_state_read(const sprout_host *host, const char *bytes, size_t length,
                                 sprout_state **state, sprout_refusal *refusal);
@@ -205,45 +205,17 @@ typedef struct sprout_str {
   size_t length;
 } sprout_str;
 
-/* Why a stored value was not kept when a state was opened against a world. */
-typedef enum sprout_drop_reason {
-  SPROUT_DROP_UNDECLARED,
-  SPROUT_DROP_RETYPED,
-  SPROUT_DROP_NO_LONGER_FITS
-} sprout_drop_reason;
-
-/* One stored value a load did not keep: its property is gone, was retyped, or no longer fits. */
-typedef struct sprout_dropped {
-  sprout_str id;
-  sprout_str property;
-  bool has_actor; /* a remembered value is dropped for the actor it was remembered about */
-  sprout_str actor;
-  sprout_drop_reason why;
-} sprout_dropped;
-
-/* What opening a state against a world made of it; the arrays live in the state. */
-typedef struct sprout_opened {
-  size_t created_count;
-  const sprout_str *created; /* declared objects nothing was stored for and none destroyed, in declared order */
-  size_t dormant_count;
-  const sprout_str *dormant; /* kept untouched because they cannot be decoded now, by id */
-  size_t dropped_count;
-  const sprout_dropped *dropped;
-  size_t stranded_count;
-  const sprout_str *stranded; /* actors stored where nothing holds actors: an engine error to report */
-} sprout_opened;
-
 /*
- * Reconciles a state with the world it is played in (the spec's The runtime >
- * State): a stored value keeps its place when it still fits the declared type
- * and falls to the default otherwise, what cannot be decoded stays dormant and
- * is saved back as read, declared objects with nothing stored and no tombstone
- * are made, and a destroyed one never is. The state ends sorted as a save
- * writes it; `report` (which may be NULL) says what changed. A store of another
- * world is SPROUT_BAD_INPUT with `refusal` (which may be NULL) filled.
+ * Lays a state over the world it is played in (the spec's The runtime >
+ * State): a stored record is read against its declaration, a property at its
+ * default is not kept, declared objects with nothing stored and no tombstone
+ * are made at their defaults, and a destroyed one never is. A store of another
+ * world, a record its declaration cannot explain, a property its kind does not
+ * declare, or a value not of its type is SPROUT_BAD_INPUT with `refusal`
+ * (which may be NULL) filled, naming the record. The state ends sorted as a
+ * save writes it.
  */
-sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, sprout_opened *report,
-                                sprout_refusal *refusal);
+sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, sprout_refusal *refusal);
 
 /* The canonical JSON of a state, built in `scratch` and valid until that arena is reset. */
 sprout_status sprout_state_write(const sprout_state *state, sprout_arena *scratch, const char **bytes,

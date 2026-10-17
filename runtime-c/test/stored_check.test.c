@@ -8,10 +8,9 @@
 
 #define HEAD "{\"world\":\"shop\",\"serial\":3,\"instances\":["
 #define TAIL_NONE "],\"visitors\":[],\"tombstones\":[]}"
-#define REST ",\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}"
-#define WORLD_ROW "{\"id\":\"shop\",\"made\":{\"from\":\"world\"},\"container\":null,\"arrival\":null" REST
-#define HALL_ROW "{\"id\":\"shop.hall\",\"made\":{\"from\":\"declared\"},\"container\":\"shop\",\"arrival\":null" REST
-#define VISITOR_ROW(id) "{\"id\":\"" id "\",\"made\":{\"from\":\"visitor\"},\"container\":\"shop.hall\",\"arrival\":1" REST
+#define WORLD_ROW "{\"id\":\"shop\"}"
+#define HALL_ROW "{\"id\":\"shop.hall\"}"
+#define VISITOR_ROW(id) "{\"id\":\"" id "\",\"made\":{\"from\":\"visitor\"},\"container\":\"shop.hall\",\"arrival\":1}"
 #define VISITOR(visit, instance) \
   "{\"visit\":\"" visit "\",\"nickname\":\"N\",\"instance\":\"" instance "\",\"lastPlace\":null,\"referents\":[],\"lastReading\":null}"
 
@@ -47,33 +46,25 @@ static void a_well_formed_store_passes_and_so_does_an_empty_one(void) {
   consistent("{\"world\":\"shop\",\"serial\":0,\"instances\":[],\"visitors\":[],\"tombstones\":[]}");
 }
 
-static void an_id_must_be_one_of_the_worlds_forms_and_agree_with_how_it_was_made(void) {
-  inconsistent(HEAD "{\"id\":\"inn.hall\",\"made\":{\"from\":\"declared\"},\"container\":null,\"arrival\":null" REST TAIL_NONE,
+static void an_id_must_be_one_of_the_worlds_forms_and_minted_no_later_than_the_serial(void) {
+  inconsistent(HEAD "{\"id\":\"inn.hall\"}" TAIL_NONE,
                "The stored state is not readable at instances[0].id: `inn.hall` is not an id in shop.");
-  inconsistent(HEAD "{\"id\":\"shop#9\",\"made\":{\"from\":\"spawned\",\"kind\":\"k\"},\"container\":null,\"arrival\":null" REST TAIL_NONE,
+  inconsistent(HEAD "{\"id\":\"shop#9\",\"made\":{\"from\":\"spawned\",\"kind\":\"k\"}}" TAIL_NONE,
                "The stored state is not readable at instances[0].id: `shop#9` was minted past the world's serial, shop#3.");
-  inconsistent(HEAD "{\"id\":\"shop#1\",\"made\":{\"from\":\"declared\"},\"container\":null,\"arrival\":null" REST TAIL_NONE,
-               "The stored state is not readable at instances[0].made: `shop#1` is a minted id, and made from declared takes a declared one.");
-  inconsistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"visitor\"},\"container\":null,\"arrival\":null" REST TAIL_NONE,
-               "The stored state is not readable at instances[0].made: `shop.a` is a declared id, and made from visitor takes a minted one.");
   inconsistent(HEAD HALL_ROW "," HALL_ROW TAIL_NONE,
                "The stored state is not readable at instances[1].id: `shop.hall` is stored twice.");
 }
 
 static void containers_links_wakes_memory_and_arrivals_are_checked_against_the_world(void) {
-  inconsistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"declared\"},\"container\":\"elsewhere\",\"arrival\":null" REST TAIL_NONE,
+  inconsistent(HEAD "{\"id\":\"shop.a\",\"container\":\"elsewhere\"}" TAIL_NONE,
                "The stored state is not readable at instances[0].container: `elsewhere` is not an id in shop.");
-  inconsistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"declared\"},\"container\":\"shop\",\"arrival\":9,\"properties\":{},"
-               "\"links\":{},\"wakes\":[],\"memory\":{},\"lastTick\":null}" TAIL_NONE,
+  inconsistent(HEAD "{\"id\":\"shop.a\",\"arrival\":9}" TAIL_NONE,
                "The stored state is not readable at instances[0].arrival: serial 9 is past the world's serial, 3.");
-  inconsistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"declared\"},\"container\":\"shop\",\"arrival\":null,\"properties\":{},"
-               "\"links\":{\"door\":\"shop#8\"},\"wakes\":[],\"memory\":{},\"lastTick\":null}" TAIL_NONE,
+  inconsistent(HEAD "{\"id\":\"shop.a\",\"links\":{\"door\":\"shop#8\"}}" TAIL_NONE,
                "The stored state is not readable at instances[0].links: `shop#8` was minted past the world's serial, shop#3.");
-  inconsistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"declared\"},\"container\":\"shop\",\"arrival\":null,\"properties\":{},"
-               "\"links\":{},\"wakes\":[{\"serial\":4,\"askedAt\":0,\"dueAt\":1}],\"memory\":{},\"lastTick\":null}" TAIL_NONE,
+  inconsistent(HEAD "{\"id\":\"shop.a\",\"wakes\":[{\"serial\":4,\"askedAt\":0,\"dueAt\":1}]}" TAIL_NONE,
                "The stored state is not readable at instances[0].wakes: serial 4 is past the world's serial, 3.");
-  inconsistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"declared\"},\"container\":\"shop\",\"arrival\":null,\"properties\":{},"
-               "\"links\":{},\"wakes\":[],\"memory\":{\"who\":{}},\"lastTick\":null}" TAIL_NONE,
+  inconsistent(HEAD "{\"id\":\"shop.a\",\"memory\":{\"who\":{}}}" TAIL_NONE,
                "The stored state is not readable at instances[0].memory: `who` is not an id in shop.");
 }
 
@@ -107,12 +98,14 @@ static void a_tombstone_is_a_declared_id_once_with_nothing_stored_under_or_insid
                "The stored state is not readable at tombstones[1]: `shop.a` is a tombstone twice.");
   inconsistent(HEAD HALL_ROW "],\"visitors\":[],\"tombstones\":[\"shop.hall\"]}",
                "The stored state is not readable at instances[0].id: `shop.hall` was destroyed, and is stored again.");
-  inconsistent(HEAD "{\"id\":\"shop.hall.cup\",\"made\":{\"from\":\"declared\"},\"container\":\"shop.hall\",\"arrival\":null" REST
-               "],\"visitors\":[],\"tombstones\":[\"shop.hall\"]}",
+  /* A declared object that says nothing of its container is where it was declared, inside what was destroyed. */
+  inconsistent(HEAD "{\"id\":\"shop.hall.cup\",\"properties\":{\"full\":true}}],\"visitors\":[],\"tombstones\":[\"shop.hall\"]}",
                "The stored state is not readable at instances[0].container: `shop.hall.cup` is inside `shop.hall`, which was destroyed.");
-  /* A link may still name what was destroyed: the absent rules read it. */
-  consistent(HEAD "{\"id\":\"shop.a\",\"made\":{\"from\":\"declared\"},\"container\":\"shop\",\"arrival\":null,\"properties\":{},"
-             "\"links\":{\"door\":\"shop.hall\"},\"wakes\":[],\"memory\":{},\"lastTick\":null}],\"visitors\":[],\"tombstones\":[\"shop.hall\"]}");
+  inconsistent(HEAD VISITOR_ROW("shop#1") "],\"visitors\":[" VISITOR("v", "shop#1") "],\"tombstones\":[\"shop.hall\"]}",
+               "The stored state is not readable at instances[0].container: `shop#1` is inside `shop.hall`, which was destroyed.");
+  /* One moved out before the destroy is where its record says; a link may still name what was destroyed. */
+  consistent(HEAD "{\"id\":\"shop.hall.cup\",\"container\":\"shop\",\"arrival\":1,\"links\":{\"door\":\"shop.hall\"}}],"
+             "\"visitors\":[],\"tombstones\":[\"shop.hall\"]}");
 }
 
 static void a_host_that_runs_out_of_memory_while_checking_is_told_so(void) {
@@ -132,7 +125,7 @@ static void a_host_that_runs_out_of_memory_while_checking_is_told_so(void) {
 
 int main(void) {
   RUN(a_well_formed_store_passes_and_so_does_an_empty_one);
-  RUN(an_id_must_be_one_of_the_worlds_forms_and_agree_with_how_it_was_made);
+  RUN(an_id_must_be_one_of_the_worlds_forms_and_minted_no_later_than_the_serial);
   RUN(containers_links_wakes_memory_and_arrivals_are_checked_against_the_world);
   RUN(a_visitor_and_its_instance_pair_one_to_one);
   RUN(a_tombstone_is_a_declared_id_once_with_nothing_stored_under_or_inside_it);

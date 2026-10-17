@@ -234,11 +234,6 @@ export function hallEngine(words = (text: string) => `You ${text}.`): {
         made: { from: 'visitor' },
         container: HALL,
         arrival: serial,
-        properties: {},
-        links: {},
-        wakes: [],
-        memory: {},
-        lastTick: null,
       };
       const visitor = {
         visit: arrival.visit,
@@ -271,7 +266,7 @@ export function hallEngine(words = (text: string) => `You ${text}.`): {
     departure: (stored, departure) => {
       ask('departure');
       const instance = instanceOf(stored, departure.visit)!;
-      const left = { ...instance, container: null };
+      const { container: _stood, ...left } = instance;
       const after = {
         ...stored,
         instances: stored.instances.map((one) => (one.id === instance.id ? left : one)),
@@ -355,11 +350,6 @@ export async function hallWith(...visits: (readonly [VisitKey, string])[]): Prom
     made: { from: 'visitor' },
     container: HALL,
     arrival: i + 1,
-    properties: {},
-    links: {},
-    wakes: [],
-    memory: {},
-    lastTick: null,
   }));
   await store.transaction('w', (tx) =>
     tx.putState({

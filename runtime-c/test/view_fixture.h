@@ -114,7 +114,7 @@ static inline void view_case_open(const view_bench *b, view_case *c, const sprou
     exit(2);
   }
   if (sprout_state_read(&c->host, stored, strlen(stored), &c->state, &refusal) != SPROUT_OK ||
-      sprout_state_open(c->state, c->world, NULL, &refusal) != SPROUT_OK) {
+      sprout_state_open(c->state, c->world, &refusal) != SPROUT_OK) {
     fprintf(stderr, "state: %s\n", refusal.text);
     exit(2);
   }

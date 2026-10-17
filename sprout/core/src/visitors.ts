@@ -1,3 +1,5 @@
+import { containerOf } from '@overstory/sprout/lang';
+
 import {
   codeUnitOrder,
   type StoredInstance,
@@ -31,8 +33,9 @@ export function forgetting(state: StoredState, visit: string): Forgetting | null
   if (visitor === undefined) return null;
   const held = new Map<string, string[]>();
   for (const instance of state.instances) {
-    if (instance.container === null) continue;
-    held.set(instance.container, [...(held.get(instance.container) ?? []), instance.id]);
+    const container = containerOf(instance);
+    if (container === null) continue;
+    held.set(container, [...(held.get(container) ?? []), instance.id]);
   }
   const gone = new Set<string>();
   const walk = [visitor.instance];
@@ -44,11 +47,11 @@ export function forgetting(state: StoredState, visit: string): Forgetting | null
   }
   const present = new Set(state.instances.map((i) => i.id));
   const rewrite = state.instances
-    .filter((i) => !gone.has(i.id) && Object.hasOwn(i.memory, visitor.instance))
+    .filter((i) => !gone.has(i.id) && Object.hasOwn(i.memory ?? {}, visitor.instance))
     .map((i) => {
-      const memory = { ...i.memory };
-      delete memory[visitor.instance];
-      return { ...i, memory };
+      const { [visitor.instance]: _theirs, ...memory } = i.memory ?? {};
+      const { memory: _was, ...rest } = i;
+      return Object.keys(memory).length > 0 ? { ...rest, memory } : rest;
     });
   return {
     visitor,
@@ -81,7 +84,7 @@ export function visitorIn(
   if (visitor === undefined) return null;
   const memory: VisitorInWorld['memory'] = {};
   for (const instance of [...state.instances].sort((a, b) => codeUnitOrder(a.id, b.id))) {
-    const remembered = instance.memory[visitor.instance];
+    const remembered = instance.memory?.[visitor.instance];
     if (remembered !== undefined) memory[instance.id] = { ...remembered };
   }
   return {

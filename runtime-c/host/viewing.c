@@ -349,7 +349,7 @@ int sproutc_view(int argc, char **argv, FILE *out, FILE *err) {
   if (o.has_steps) host.record.budgets.poll_steps = (sprout_limit){true, o.steps};
   status = sprout_load_explained(&host.record, (const char *)cartridge, cartridge_length, &world, &refusal);
   if (status == SPROUT_OK) status = sprout_state_read(&host.record, (const char *)saved, saved_length, &state, &refusal);
-  if (status == SPROUT_OK) status = sprout_state_open(state, world, NULL, &refusal);
+  if (status == SPROUT_OK) status = sprout_state_open(state, world, &refusal);
   if (status != SPROUT_OK) {
     fprintf(err, "sproutc: %s\n", status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
     code = EXIT_USAGE;

@@ -29,19 +29,7 @@ describe('memoryStore passes the conformance suite', () => {
 describe('memoryStore keeps what it holds frozen, and shares it', () => {
   const changes = {
     serial: 1,
-    upsert: [
-      {
-        id: 'w.hall',
-        made: { from: 'declared' as const },
-        container: 'w',
-        arrival: null,
-        properties: {},
-        links: {},
-        wakes: [],
-        memory: {},
-        lastTick: null,
-      },
-    ],
+    upsert: [{ id: 'w.hall', container: 'w', arrival: 1 }],
     remove: [],
     visitors: [],
     tombstones: [],

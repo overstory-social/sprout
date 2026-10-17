@@ -58,7 +58,7 @@ static inline void tw_open(turn_world *w, const char *name) {
     exit(2);
   }
   if (sprout_state_empty(&w->host, w->world->header.name, &w->state) != SPROUT_OK ||
-      sprout_state_open(w->state, w->world, NULL, &refusal) != SPROUT_OK) {
+      sprout_state_open(w->state, w->world, &refusal) != SPROUT_OK) {
     fprintf(stderr, "%s: the stored world would not open\n", name);
     exit(2);
   }

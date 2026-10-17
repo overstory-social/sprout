@@ -170,64 +170,90 @@ static sprout_stored_property *find_property(sprout_stored_property *list, size_
   return NULL;
 }
 
-/* Writes `value` as the property `name` of a copy of `self`, in the object's own or its memory about `actor`. */
+/* The property `name` of a list taken out of it, where it is there. */
+static void drop_property(sprout_stored_property *list, size_t *count, const char *name) {
+  sprout_stored_property *found = find_property(list, *count, name);
+  if (found == NULL) return;
+  memmove(found, found + 1, (size_t)((list + *count) - (found + 1)) * sizeof *list);
+  (*count)--;
+}
+
+/*
+ * Writes `value` as the property `name` of a copy of `self`, in the object's own or its memory about `actor`. A
+ * record keeps only what holds other than its default, so a value set back to the default leaves the record.
+ */
 static sprout_eval_status put_property(const sprout_frame *frame, const sprout_stored_instance *self, const char *name,
                                        const sprout_property *declared, const sprout_str *actor,
                                        const sprout_value *value) {
   sprout_stored_instance next;
   sprout_stored_property *property;
   sprout_stored_value stored;
+  bool at_default;
   if (sprout_stored_instance_copy(frame->turn, self, &next) != SPROUT_OK) return SPROUT_EVAL_NO_MEMORY;
   if (!stored_of(frame, value, &stored)) return SPROUT_EVAL_NO_MEMORY;
+  at_default = sprout_value_is_default(declared, &stored);
   if (actor == NULL) {
-    property = find_property(next.properties, next.property_count, name);
-    if (property == NULL) {
-      /* A record keeps only what holds other than its default: one it did not keep joins it, in name order. */
-      sprout_stored_property *bigger = (sprout_stored_property *)sprout_arena_take(
-          frame->turn, (next.property_count + 1) * sizeof *bigger);
-      size_t at = 0, length = strlen(name);
-      if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
-      while (at < next.property_count && sprout_str_compare(next.properties[at].name, (sprout_str){name, length}) < 0)
-        at++;
-      if (at > 0) memcpy(bigger, next.properties, at * sizeof *bigger);
-      if (at < next.property_count)
-        memcpy(bigger + at + 1, next.properties + at, (next.property_count - at) * sizeof *bigger);
-      property = &bigger[at];
-      memset(property, 0, sizeof *property);
-      property->name = (sprout_str){name, length};
-      property->type = (sprout_str){declared->type->key, strlen(declared->type->key)};
-      next.properties = bigger;
-      next.property_count++;
+    if (at_default) {
+      drop_property(next.properties, &next.property_count, name);
+    } else {
+      property = find_property(next.properties, next.property_count, name);
+      if (property == NULL) {
+        /* One it did not keep joins it, in name order. */
+        sprout_stored_property *bigger = (sprout_stored_property *)sprout_arena_take(
+            frame->turn, (next.property_count + 1) * sizeof *bigger);
+        size_t at = 0, length = strlen(name);
+        if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
+        while (at < next.property_count && sprout_str_compare(next.properties[at].name, (sprout_str){name, length}) < 0)
+          at++;
+        if (at > 0) memcpy(bigger, next.properties, at * sizeof *bigger);
+        if (at < next.property_count)
+          memcpy(bigger + at + 1, next.properties + at, (next.property_count - at) * sizeof *bigger);
+        property = &bigger[at];
+        memset(property, 0, sizeof *property);
+        property->name = (sprout_str){name, length};
+        next.properties = bigger;
+        next.property_count++;
+      }
+      property->value = stored;
     }
-    property->value = stored;
   } else {
     sprout_stored_memory *about = NULL;
     size_t i;
     for (i = 0; i < next.memory_count && about == NULL; i++)
       if (sprout_str_same(next.memory[i].actor, *actor)) about = &next.memory[i];
-    if (about == NULL) {
-      sprout_stored_memory *bigger = (sprout_stored_memory *)sprout_arena_take(
-          frame->turn, (next.memory_count + 1) * sizeof *bigger);
-      if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
-      if (next.memory_count > 0) memcpy(bigger, next.memory, next.memory_count * sizeof *bigger);
-      about = &bigger[next.memory_count++];
-      memset(about, 0, sizeof *about);
-      about->actor = *actor;
-      next.memory = bigger;
+    if (at_default) {
+      if (about != NULL) {
+        drop_property(about->properties, &about->count, name);
+        /* An actor nothing is remembered about leaves the memory. */
+        if (about->count == 0) {
+          memmove(about, about + 1, (size_t)((next.memory + next.memory_count) - (about + 1)) * sizeof *about);
+          next.memory_count--;
+        }
+      }
+    } else {
+      if (about == NULL) {
+        sprout_stored_memory *bigger = (sprout_stored_memory *)sprout_arena_take(
+            frame->turn, (next.memory_count + 1) * sizeof *bigger);
+        if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
+        if (next.memory_count > 0) memcpy(bigger, next.memory, next.memory_count * sizeof *bigger);
+        about = &bigger[next.memory_count++];
+        memset(about, 0, sizeof *about);
+        about->actor = *actor;
+        next.memory = bigger;
+      }
+      property = find_property(about->properties, about->count, name);
+      if (property == NULL) {
+        sprout_stored_property *bigger = (sprout_stored_property *)sprout_arena_take(
+            frame->turn, (about->count + 1) * sizeof *bigger);
+        if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
+        if (about->count > 0) memcpy(bigger, about->properties, about->count * sizeof *bigger);
+        property = &bigger[about->count++];
+        memset(property, 0, sizeof *property);
+        property->name = (sprout_str){name, strlen(name)};
+        about->properties = bigger;
+      }
+      property->value = stored;
     }
-    property = find_property(about->properties, about->count, name);
-    if (property == NULL) {
-      sprout_stored_property *bigger = (sprout_stored_property *)sprout_arena_take(
-          frame->turn, (about->count + 1) * sizeof *bigger);
-      if (bigger == NULL) return SPROUT_EVAL_NO_MEMORY;
-      if (about->count > 0) memcpy(bigger, about->properties, about->count * sizeof *bigger);
-      property = &bigger[about->count++];
-      memset(property, 0, sizeof *property);
-      property->name = (sprout_str){name, strlen(name)};
-      property->type = (sprout_str){declared->type->key, strlen(declared->type->key)};
-      about->properties = bigger;
-    }
-    property->value = stored;
   }
   if (sprout_stored_instance_order(frame->turn, &next) != SPROUT_OK) return SPROUT_EVAL_NO_MEMORY;
   return drafted(sprout_draft_write(frame->draft, &next));

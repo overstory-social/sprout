@@ -109,7 +109,7 @@ static inline sprout_state *bench_state(bench *b, const char *name) {
   for (i = 0; i < b->state_count; i++)
     if (strcmp(b->state_names[i], name) == 0) return b->states[i];
   if (sprout_state_read(&b->host, stored, strlen(stored), &state, &refusal) != SPROUT_OK ||
-      sprout_state_open(state, b->world, NULL, &refusal) != SPROUT_OK) {
+      sprout_state_open(state, b->world, &refusal) != SPROUT_OK) {
     fprintf(stderr, "state %s: %s\n", name, refusal.text);
     exit(2);
   }

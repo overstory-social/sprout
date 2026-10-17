@@ -202,9 +202,9 @@ hand-kept. What a corpus cartridge declares is not a committed golden at all
 | `exec.json`, `readings.json`                       | hand-kept                                                                                     | statements and range walks; readings (carried, wildcards, each engine verb, exits, value roles, a fault)                       |
 | `prose.json`                                       | hand-kept                                                                                     | every kind of slot, `{if}`, `{for}`, `{one of}`, reflow; the edge of every run of letters and every upper-case change          |
 | `nicknames.json`, `budgets.json`                   | hand-kept                                                                                     | nickname admission and refusal; the budget faults' words                                                                       |
-| `draws.json`, `numbers.json`, `stored-canon.json`  | hand-kept                                                                                     | the first sixteen draws from a seed, number text, the stored canon read and written back                                       |
+| `draws.json`, `numbers.json`, `stored-canon.json`  | hand-kept                                                                                     | the first sixteen draws from a seed, number text, the stored canon (the diff form) read and written back                       |
 | `parser-words.json`, `addresses.json`              | hand-kept                                                                                     | the parser's word lists; a visitor's arrival in every corpus world: each live thing's address, what they may name, near and carried |
-| `stored-reopened.json`                             | hand-kept                                                                                     | stored worlds edited against their world, with the load's report                                                              |
+| `stored-reopened.json`                             | the script, from the WebAssembly engine: a sample of corpus worlds, each edited by the script's rules | stored worlds edited against their world: what the engine saves of each, or the words it refuses it in                       |
 
 **The bench worlds.** Each bench cartridge is compiled from a real world
 folder, `corpus/goldens/benches/<name>/`: a manifest and its `.sprout` and
@@ -234,19 +234,23 @@ turns on one question: is its producer something other than the C runtime?
   or partial dump for a test to pass against: a CLI or language that is not
   built, a world that does not pack, or a cartridge the language refuses
   fails the setup in words, and ctest runs none of the tests after it.
-- **Committed, written by the script: `stored-worlds.json` and
-  `views.json`.** Their only producer is the C runtime (through the
-  WebAssembly engine, and `sproutc`). Generated at setup, each would
-  compare the runtime with itself and pin nothing across a change, so they
-  stay fixtures a reviewer reads. The native tests and the WebAssembly step
-  (7b) both replay the one committed `stored-worlds.json`, which already
-  holds the two builds to each other.
-- **Committed, hand-kept: `addresses.json` and `stored-reopened.json`.**
-  The parser's reach and the load's report on an edited stored world have
-  no producer but the C runtime; the language has the stored world's
-  schema, not its reconciliation against a world. An edit to a corpus world
-  they cover breaks the C test until the world's entry is edited by hand,
-  or removed with the diff read.
+- **Committed, written by the script: `stored-worlds.json`,
+  `stored-reopened.json` and `views.json`.** Their only producer is the C
+  runtime (through the WebAssembly engine, and `sproutc`). Generated at
+  setup, each would compare the runtime with itself and pin nothing across
+  a change, so they stay fixtures a reviewer reads. The native tests and
+  the WebAssembly step (7b) both replay the one committed
+  `stored-worlds.json`, which already holds the two builds to each other.
+  `stored-reopened.json` holds, for a sample of the corpus worlds, each
+  edit the script makes to a fresh state (a destroyed declared object, an
+  object moved, a property at its default, and what a declaration cannot
+  explain: an undeclared object or property, a spawn of no kind, a value
+  not of its type) with what the engine saves of it or the sentence it
+  refuses it in; the refusals' words are what a reviewer reads.
+- **Committed, hand-kept: `addresses.json`.** The parser's reach has no
+  producer but the C runtime. An edit to a corpus world it covers breaks
+  the C test until the world's entry is edited by hand, or removed with
+  the diff read.
 
 Four rules keep the layer honest.
 

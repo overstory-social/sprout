@@ -42,7 +42,7 @@ const MICROWORLD: MicroworldRecord = {
 };
 
 /** A client that answers the version check and records everything else. */
-function scripted(version: string | null = '5') {
+function scripted(version: string | null = '6') {
   const calls: { text: string; params: unknown[] }[] = [];
   const client: Queryable = {
     async query(text, params = []) {
@@ -78,7 +78,7 @@ describe('sqlStore', () => {
 
   it('a version it was not built for is refused with expected and found; an absent schema too', async () => {
     const stale = sqlStore({ client: scripted('1').client });
-    await expect(stale.read('w', async () => 1)).rejects.toThrow(/5 expected, 1 found/);
+    await expect(stale.read('w', async () => 1)).rejects.toThrow(/6 expected, 1 found/);
     const none = sqlStore({ client: scripted(null).client });
     await expect(none.read('w', async () => 1)).rejects.toThrow(/no sprout schema found/);
     const pinned = sqlStore({ client: scripted('5').client, schemaVersion: 6 });
@@ -105,16 +105,9 @@ describe('sqlStore', () => {
   it('putState: one jsonb parameter for every record, one text[] for the removals; every table of a microworld on destroy, under its lock', async () => {
     const { client, calls } = scripted();
     const store = sqlStore({ client });
-    const record = (id: string, memory: StoredInstance['memory'] = {}): StoredInstance => ({
+    const record = (id: string, memory?: StoredInstance['memory']): StoredInstance => ({
       id,
-      made: { from: 'declared' },
-      container: 'shop',
-      arrival: null,
-      properties: {},
-      links: {},
-      wakes: [],
-      memory,
-      lastTick: null,
+      ...(memory === undefined ? {} : { memory }),
     });
     await store.transaction('w', async (tx) => {
       await tx.putState({
@@ -167,7 +160,7 @@ describe('sqlStore', () => {
       async query(text, params = []) {
         calls.push(`${text.trim().split(/\s+/).slice(0, 3).join(' ')} ${JSON.stringify(params)}`);
         if (text.includes("table_name = 'meta'")) return { rows: [{ 1: 1 }] };
-        if (text.includes("key = 'schema_version'")) return { rows: [{ value: '5' }] };
+        if (text.includes("key = 'schema_version'")) return { rows: [{ value: '6' }] };
         if (text.includes('SELECT microworld_id FROM sprout.visitor')) {
           return { rows: [{ microworld_id: 'b' }, { microworld_id: 'a' }] };
         }

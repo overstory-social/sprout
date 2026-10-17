@@ -60,7 +60,7 @@ export interface Catalogue {
    * The kinds a spawn may name, by qualified name: every kind the bundle
    * declares but those composing `sprout.World` or `sprout.Visitor`, since
    * the world and a visitor are never spawned (the spec's The world model;
-   * Actors and visitors). A stored spawn of one stays dormant.
+   * Actors and visitors).
    */
   readonly kinds: ReadonlyMap<string, KindRef>;
   /** What each kind's body gives every instance of it, which a spawn makes with the instance. */

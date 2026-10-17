@@ -70,14 +70,8 @@ describe('the records', () => {
   it('keeps a world’s state in the language’s stored form, and refuses what the language would', () => {
     const lamp = {
       id: 'shop.lamp',
-      made: { from: 'declared' },
-      container: 'shop',
-      arrival: null,
-      properties: { lit: { type: 'boolean', value: true } },
-      links: {},
-      wakes: [],
-      memory: { 'shop#1': { seen: { type: 'boolean', value: true } } },
-      lastTick: null,
+      properties: { lit: true },
+      memory: { 'shop#1': { seen: true } },
     };
     const state = { serial: 1, instances: [lamp], visitors: [], tombstones: [] };
     expect(StoredState.parse(state)).toEqual(state);
@@ -94,7 +88,7 @@ describe('the records', () => {
         .success,
     ).toBe(false);
     expect(
-      StoredState.safeParse({ ...state, instances: [{ ...lamp, properties: { lit: true } }] })
+      StoredState.safeParse({ ...state, instances: [{ ...lamp, properties: { lit: null } }] })
         .success,
     ).toBe(false);
   });
@@ -136,7 +130,7 @@ describe('the records', () => {
             lastReading: null,
           },
           instance: null,
-          memory: { 'shop.lamp': { seen: { type: 'boolean', value: true } } },
+          memory: { 'shop.lamp': { seen: true } },
         },
       ],
     };
@@ -145,17 +139,7 @@ describe('the records', () => {
   });
 });
 
-/** The world's own instance, as a store holds it. */
+/** The world's own instance, as a store holds it: its id, and nothing that differs from its declaration. */
 function emptyWorldInstance() {
-  return {
-    id: 'shop',
-    made: { from: 'world' as const },
-    container: null,
-    arrival: null,
-    properties: {},
-    links: {},
-    wakes: [],
-    memory: {},
-    lastTick: null,
-  };
+  return { id: 'shop' };
 }

@@ -106,9 +106,9 @@ export function standIn(playable: PlayableWorld, options: StandOptions = {}): St
  * so their arrival asks that place's `accept` and crowd bound as a
  * returning visitor's would; unchanged, with no place wanted, where `at`
  * is undefined. The visitor's record is written as a store keeps one, its
- * instance at its kind's defaults, which every engine reads in place of
- * a property it is not given. Thrown, listing every place, where `at`
- * names none.
+ * instance away and at its kind's defaults, as the stored form leaves
+ * what differs nowhere. Thrown, listing every place, where `at` names
+ * none.
  */
 export function seatReturning(
   stored: StoredState,
@@ -126,19 +126,7 @@ export function seatReturning(
   const instance = mintedId(catalogue.world, serial);
   const before = applyChanges(stored, {
     serial,
-    upsert: [
-      {
-        id: instance,
-        made: { from: 'visitor' },
-        container: null,
-        arrival: null,
-        properties: {},
-        links: {},
-        wakes: [],
-        memory: {},
-        lastTick: null,
-      },
-    ],
+    upsert: [{ id: instance, made: { from: 'visitor' } }],
     remove: [],
     tombstones: [],
     visitors: [{ visit, nickname, instance, lastPlace: wanted, referents: [], lastReading: null }],

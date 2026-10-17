@@ -81,22 +81,16 @@ const rowsOf = (res: { rows: unknown[] }): Row[] => res.rows as Row[];
 const whole = (v: unknown): number | null => (v == null ? null : Number(v));
 const byId = (a: { id: string }, b: { id: string }) => codeUnitOrder(a.id, b.id);
 
-/** One instance row and its memory rows, checked as the language's record. */
+/** One instance row, the record as the stored form writes it, with its memory rows, checked as the language's record. */
 function instanceOf(r: Row, memory: Row[]): StoredInstance {
+  const remembered = Object.fromEntries(
+    memory
+      .map((m) => [String(m.actor_id), m.properties] as const)
+      .sort(([a], [b]) => codeUnitOrder(a, b)),
+  );
   return StoredInstanceSchema.parse({
-    id: r.id,
-    made: r.made,
-    container: r.container ?? null,
-    arrival: whole(r.arrival),
-    properties: r.properties,
-    links: r.links,
-    wakes: r.wakes,
-    memory: Object.fromEntries(
-      memory
-        .map((m) => [String(m.actor_id), m.properties] as const)
-        .sort(([a], [b]) => codeUnitOrder(a, b)),
-    ),
-    lastTick: whole(r.last_tick),
+    ...blob(r.record),
+    ...(memory.length > 0 ? { memory: remembered } : {}),
   });
 }
 
@@ -124,11 +118,9 @@ async function stateOf(c: Queryable, microworldId: string): Promise<StoredState>
     await c.query(`SELECT serial FROM sprout.serial WHERE microworld_id = $1`, [microworldId]),
   )[0];
   const instances = rowsOf(
-    await c.query(
-      `SELECT id, made, container, arrival, properties, links, wakes, last_tick
-       FROM sprout.instance WHERE microworld_id = $1`,
-      [microworldId],
-    ),
+    await c.query(`SELECT id, record FROM sprout.instance WHERE microworld_id = $1`, [
+      microworldId,
+    ]),
   );
   const memory = rowsOf(
     await c.query(
@@ -260,23 +252,18 @@ function writer(c: Queryable, microworldId: string): StoreTx {
         );
       }
       if (upsert.length > 0) {
-        // One statement, one jsonb parameter, however many records.
+        // One statement, one jsonb parameter, however many records; the record is kept but its memory.
         await c.query(
-          `INSERT INTO sprout.instance
-             (microworld_id, id, made, container, arrival, properties, links, wakes, last_tick)
-           SELECT $1, e->>'id', e->'made', e->>'container', (e->>'arrival')::bigint,
-                  e->'properties', e->'links', e->'wakes', (e->>'lastTick')::bigint
+          `INSERT INTO sprout.instance (microworld_id, id, record)
+           SELECT $1, e->>'id', e - 'memory'
            FROM jsonb_array_elements($2::jsonb) AS e
-           ON CONFLICT (microworld_id, id) DO UPDATE
-             SET made = EXCLUDED.made, container = EXCLUDED.container,
-                 arrival = EXCLUDED.arrival, properties = EXCLUDED.properties,
-                 links = EXCLUDED.links, wakes = EXCLUDED.wakes, last_tick = EXCLUDED.last_tick`,
+           ON CONFLICT (microworld_id, id) DO UPDATE SET record = EXCLUDED.record`,
           [microworldId, JSON.stringify(upsert)],
         );
         await c.query(
           `INSERT INTO sprout.memory (microworld_id, instance_id, actor_id, properties)
            SELECT $1, e->>'id', m.key, m.value
-           FROM jsonb_array_elements($2::jsonb) AS e, jsonb_each(e->'memory') AS m`,
+           FROM jsonb_array_elements($2::jsonb) AS e, jsonb_each(COALESCE(e->'memory', '{}'::jsonb)) AS m`,
           [microworldId, JSON.stringify(upsert)],
         );
       }

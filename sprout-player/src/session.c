@@ -461,7 +461,7 @@ static void set_aside(player_session *session) {
 /* A new world's state, opened against the world. */
 static bool empty_state(player_session *session) {
   if (sprout_state_empty(&session->host.record, session->world->header.name, &session->state) != SPROUT_OK) return false;
-  if (sprout_state_open(session->state, session->world, NULL, NULL) == SPROUT_OK) return true;
+  if (sprout_state_open(session->state, session->world, NULL) == SPROUT_OK) return true;
   sprout_state_free(session->state);
   session->state = NULL;
   return false;
@@ -487,7 +487,7 @@ static bool open_state(player_session *session, bool *fresh, char *words, size_t
   }
   status = sprout_state_read(&session->host.record, bytes, length, &session->state, &refusal);
   player_free(session->pd, bytes);
-  if (status == SPROUT_OK) status = sprout_state_open(session->state, session->world, NULL, &refusal);
+  if (status == SPROUT_OK) status = sprout_state_open(session->state, session->world, &refusal);
   if (status == SPROUT_OK) {
     *fresh = false;
     return true;

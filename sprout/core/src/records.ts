@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import {
   StoredInstanceSchema,
-  StoredPropertySchema,
+  StoredValueSchema,
   StoredVisitorSchema,
   type StaticCaps,
 } from '@overstory/sprout/lang';
@@ -18,13 +18,13 @@ import {
 
 export {
   StoredInstanceSchema,
-  StoredPropertySchema,
+  StoredValueSchema,
   StoredVisitorSchema,
   codeUnitOrder,
   type StoredChanges,
   type StoredInstance,
-  type StoredProperty,
   type StoredReading,
+  type StoredValue,
   type StoredVisitor,
 } from '@overstory/sprout/lang';
 
@@ -129,7 +129,7 @@ export const VisitorInWorld = z.object({
   microworldId: z.string().min(1),
   visitor: StoredVisitorSchema,
   instance: StoredInstanceSchema.nullable(),
-  memory: z.record(z.string(), z.record(z.string(), StoredPropertySchema)),
+  memory: z.record(z.string(), z.record(z.string(), StoredValueSchema)),
 });
 export type VisitorInWorld = z.infer<typeof VisitorInWorld>;
 

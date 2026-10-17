@@ -55,7 +55,7 @@ static inline void bench_stored(bench *b, const char *name, const char *stored, 
   b->w.cartridge = corpus_cartridge(name, &bytes);
   if (sprout_load_explained(&b->w.host, b->w.cartridge, bytes, &b->w.world, &refusal) != SPROUT_OK ||
       sprout_state_read(&b->w.host, stored, length, &b->w.state, &refusal) != SPROUT_OK ||
-      sprout_state_open(b->w.state, b->w.world, NULL, &refusal) != SPROUT_OK) {
+      sprout_state_open(b->w.state, b->w.world, &refusal) != SPROUT_OK) {
     fprintf(stderr, "%s: %s\n", name, refusal.text);
     exit(2);
   }
