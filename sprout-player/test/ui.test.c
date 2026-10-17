@@ -734,14 +734,15 @@ static void transcript_ink(char *out, size_t size) {
 }
 
 /*
- * "text" in the system menu, S, M and L, S where nothing is remembered: set on the shelf, the body
- * is that font from the next frame, and the shelf, whose title and panel are the frame's and whose
+ * "text" in the system menu, S and L, S where nothing is remembered: set on the shelf, the body is
+ * that font from the next frame, and the shelf, whose title and panel are the frame's and whose
  * words are the wheel's, is drawn as it was; set in the reader, the next frame draws the transcript
  * in that font, its rows spaced by its line height, as many as the column holds under the status's
  * frame lines, each no wider than the column, with everything told still there top to bottom; the
  * frame's font, the body's and the wheel's are the fonts held, each file once, so S, the frame's
  * own, and L, the wheel's, add none; the choice is written beside the saves, and the app started
- * again begins at it.
+ * again begins at it; a choice that cannot be written is taken all the same, and said not to be
+ * remembered.
  */
 static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   static const char *const shipped[] = {"printers_shop.sproutworld"};
@@ -754,25 +755,24 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   app_folder("app");
   ship(shipped, 1);
   eventHandler(&fake->api, kEventInit, 0);
-  CHECK(fake_menu_options(fake, PLAYER_TEXT_ITEM, &options) == 3 && strcmp(options[0], "S") == 0 && strcmp(options[1], "M") == 0 &&
-            strcmp(options[2], "L") == 0,
-        "the item offers S, M and L");
+  CHECK(fake_menu_options(fake, PLAYER_TEXT_ITEM, &options) == 2 && strcmp(options[0], "S") == 0 && strcmp(options[1], "L") == 0,
+        "the item offers S and L");
   CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "S to begin with: the frame's font, which is S's, the one held");
   fake_frame(fake, 0, 0);
   CHECK(shelf_drawn() && fake_fonts_held(fake) == 2, "the shelf is drawn, the frame's font and the wheel's held");
-  CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 1), "set to M on the shelf");
+  CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 1), "set to L on the shelf");
   fake_frame(fake, 0, 0);
-  CHECK(running()->pen.size == PLAYER_TEXT_M && fake_fonts_held(fake) == 3, "the next frame the body is M, the three fonts held");
+  CHECK(running()->pen.size == PLAYER_TEXT_L && fake_fonts_held(fake) == 2, "the next frame the body is L, the wheel's file: two held");
   CHECK(shelf_drawn(), "and the shelf is drawn as it was");
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 0);
   fake_frame(fake, 0, 0);
-  CHECK(shelf_drawn() && fake_fonts_held(fake) == 2, "and back to S, M let go");
+  CHECK(running()->pen.size == PLAYER_TEXT_S && shelf_drawn() && fake_fonts_held(fake) == 2, "and back to S, L kept for the wheel");
 
   fake_frame(fake, kButtonA, 0);
   frames = frames_until_reader(10000);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, PANEL + 2) != NULL, "the reader came up after %d frames", frames);
   transcript_ink(at_s, sizeof at_s);
-  CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 2), "set to L in the reader");
+  CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 1), "set to L in the reader");
   fake_frame(fake, 0, 0);
   CHECK(reader_banded(FAKE_FONT_SANS) && fake_fonts_held(fake) == 2,
         "the next frame draws the transcript in L under the frame's status and over its keys, the two fonts held");
@@ -793,22 +793,27 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   CHECK(fake_fonts_held(fake) == 0 && fake_menu_count(fake) == 0, "the font and the item go with the app");
 
   eventHandler(&fake->api, kEventInit, 0);
-  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 2, "started again, the item shows L");
+  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 1, "started again, the item shows L");
   fake_frame(fake, 0, 0);
   CHECK(running()->pen.size == PLAYER_TEXT_L && shelf_drawn() && fake_fonts_held(fake) == 2,
         "and the body is L, the wheel's file, on a shelf drawn as ever");
+  fake_menu_set(fake, PLAYER_TEXT_ITEM, 0);
+  fake_frame(fake, 0, 0);
+  remembered = file_text(PLAYER_TEXT_SIZE_FILE);
+  CHECK(remembered != NULL && strcmp(remembered, "S") == 0, "set back to S, S is written: %s", remembered != NULL ? remembered : "(none)");
+  free(remembered);
 
   fake->fail_writes = 1;
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 1);
   fake_frame(fake, 0, 0);
   fake->fail_writes = 0;
   CHECK(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP) != NULL &&
-            strncmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, PLAYER_TEXT_UNKEPT, 20) == 0 && banded(FAKE_FONT_MONO, 0, PANEL),
-        "a choice that cannot be written is taken, in M, and the screen says it is not remembered, its key in the frame's font");
+            strncmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, PLAYER_TEXT_UNKEPT, 20) == 0 && banded(FAKE_FONT_SANS, 0, PANEL),
+        "a choice that cannot be written is taken, in L, and the screen says it is not remembered, its key in the frame's font");
   fake_frame(fake, kButtonA, 0);
-  CHECK(shelf_drawn() && running()->pen.size == PLAYER_TEXT_M, "A puts the shelf back, the body in M");
+  CHECK(shelf_drawn() && running()->pen.size == PLAYER_TEXT_L, "A puts the shelf back, the body in L");
   remembered = file_text(PLAYER_TEXT_SIZE_FILE);
-  CHECK(remembered != NULL && strcmp(remembered, "L") == 0, "L is what stays remembered: %s", remembered != NULL ? remembered : "(none)");
+  CHECK(remembered != NULL && strcmp(remembered, "S") == 0, "S is what stays remembered: %s", remembered != NULL ? remembered : "(none)");
   free(remembered);
   eventHandler(&fake->api, kEventTerminate, 0);
   end();
@@ -817,7 +822,8 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
 /*
  * A size whose font the device does not have: the pen keeps the font it has, the item goes back to
  * that size, and the screen says so until A, which puts the screen on show back; the same at the
- * start, where the size remembered cannot be had and S is used.
+ * start, where the size remembered cannot be had and S is used; once the device has the font, the
+ * size is taken.
  */
 static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_so(void) {
   static const char *const shipped[] = {"chip-tree.sproutworld"};
@@ -826,10 +832,10 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   begin("nofont");
   app_folder("app");
   ship(shipped, 1);
-  snprintf(fake->missing_font, sizeof fake->missing_font, "%s", PLAYER_TEXT_SIZE_FONTS[PLAYER_TEXT_M]);
-  write_text(PLAYER_TEXT_SIZE_FILE, "M");
+  snprintf(fake->missing_font, sizeof fake->missing_font, "%s", PLAYER_TEXT_SIZE_FONTS[PLAYER_TEXT_L]);
+  write_text(PLAYER_TEXT_SIZE_FILE, "L");
   eventHandler(&fake->api, kEventInit, 0);
-  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "M remembered but not to be had: S, one font");
+  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "L remembered but not to be had: S, one font");
   fake_frame(fake, 0, 0);
   said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
   CHECK(said != NULL && HAS(said->text, PLAYER_TEXT_KEPT) && banded(FAKE_FONT_SERIF, 0, PANEL), "the first frame says so, in S: %s",
@@ -843,7 +849,7 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   fake_frame(fake, 0, 0);
   said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
   CHECK(said != NULL && HAS(said->text, PLAYER_TEXT_KEPT) && HAS(said->text, "no such font"),
-        "set to M from the menu, the screen says the text stays and why: %s", said != NULL ? said->text : "(none)");
+        "set to L from the menu, the screen says the text stays and why: %s", said != NULL ? said->text : "(none)");
   CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1 && banded(FAKE_FONT_SERIF, 0, PANEL),
         "the item is back to S and the pen keeps its font");
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2) != NULL &&
@@ -855,12 +861,13 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0,
         "B puts the shelf back");
   remembered = file_text(PLAYER_TEXT_SIZE_FILE);
-  CHECK(remembered != NULL && strcmp(remembered, "M") == 0, "what was remembered stays: %s", remembered != NULL ? remembered : "(none)");
+  CHECK(remembered != NULL && strcmp(remembered, "L") == 0, "what was remembered stays: %s", remembered != NULL ? remembered : "(none)");
   free(remembered);
-  fake_menu_set(fake, PLAYER_TEXT_ITEM, 2);
+  fake->missing_font[0] = '\0';
+  fake_menu_set(fake, PLAYER_TEXT_ITEM, 1);
   fake_frame(fake, 0, 0);
-  CHECK(running()->pen.size == PLAYER_TEXT_L && shelf_drawn() && fake_menu_value(fake, PLAYER_TEXT_ITEM) == 2,
-        "L, which the device has, is taken");
+  CHECK(running()->pen.size == PLAYER_TEXT_L && shelf_drawn() && fake_menu_value(fake, PLAYER_TEXT_ITEM) == 1,
+        "L, once the device has it, is taken");
   eventHandler(&fake->api, kEventTerminate, 0);
   end();
 }
@@ -872,13 +879,12 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
  */
 static void the_reader_fits_its_rows_to_each_text_size(void) {
   const int room = 240 - (FAKE_SERIF_LINE + 2) - (FAKE_SERIF_LINE + 4);
-  size_t s = player_reader_rows(FAKE_SERIF_LINE, FAKE_SERIF_LINE, 1), m = player_reader_rows(FAKE_MONO_LINE, FAKE_SERIF_LINE, 1),
-         l = player_reader_rows(FAKE_SANS_LINE, FAKE_SERIF_LINE, 1);
+  size_t s = player_reader_rows(FAKE_SERIF_LINE, FAKE_SERIF_LINE, 1), l = player_reader_rows(FAKE_SANS_LINE, FAKE_SERIF_LINE, 1);
   begin("rows");
-  CHECK(l > 1 && m > s && s > l, "M's line is the shortest and L's the tallest: S %zu, M %zu, L %zu rows", s, m, l);
-  CHECK((int)s * FAKE_SERIF_LINE <= room && (int)m * FAKE_MONO_LINE <= room && (int)l * FAKE_SANS_LINE <= room, "each fits between the bands");
-  CHECK(player_reader_rows(FAKE_MONO_LINE, 2 * FAKE_SERIF_LINE, 1) < m, "a taller frame leaves fewer rows");
-  CHECK(m <= READER_MOST_ROWS, "no more than the reader can show");
+  CHECK(l > 1 && s > l, "L's taller line leaves fewer rows than S's: S %zu, L %zu rows", s, l);
+  CHECK((int)s * FAKE_SERIF_LINE <= room && (int)l * FAKE_SANS_LINE <= room, "each fits between the bands");
+  CHECK(player_reader_rows(FAKE_SERIF_LINE, 2 * FAKE_SERIF_LINE, 1) < s, "a taller frame leaves fewer rows");
+  CHECK(s <= READER_MOST_ROWS, "no more than the reader can show");
   end();
 }
 
