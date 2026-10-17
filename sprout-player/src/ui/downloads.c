@@ -551,9 +551,7 @@ static void panel_words(const player_app *app, const player_downloads *d, char *
 }
 
 static void forget_panel(player_app *app, player_downloads *d) {
-  player_free(app->pd, d->panel.bytes);
-  d->panel.bytes = NULL;
-  d->panel.line_count = 0;
+  wrap_free(app->pd, &d->panel);
   d->panel_said[0] = '\0';
 }
 
@@ -606,4 +604,7 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, d);
 }
 
-const player_screen player_downloads_screen = {update, draw, leave};
+/* The panel is wrapped afresh by the next draw. */
+static void refit(player_app *app, void *ctx) { forget_panel(app, (player_downloads *)ctx); }
+
+const player_screen player_downloads_screen = {update, draw, leave, refit};

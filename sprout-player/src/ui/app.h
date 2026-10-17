@@ -1,5 +1,5 @@
 /*
- * The app: the session, the system font, the sounds, the reader's clock (clock.h), the shelf
+ * The app: the session, the pen in the display font at the size remembered (text_size.h), the sounds, the reader's clock (clock.h), the shelf
  * (shelf.h), and the screen on show (screen.h). The system calls `player_app_update` once a frame; the frame runs on the player's own stack (host/stack.h),
  * since a turn may run in it, and the file calls inside it hop back to the main stack as they
  * always do. A screen moves the app to another with `player_app_show`, which takes effect when
@@ -14,6 +14,7 @@
 #include "screen.h"
 #include "session.h"
 #include "sound.h"
+#include "wrap.h"
 
 /* The screen's geometry: the Playdate's display. */
 #define PLAYER_SCREEN_WIDTH 400
@@ -43,6 +44,9 @@ struct player_app {
   bool restart_asked;     /* the system menu's "start over" was chosen since the last frame */
   bool restart_question;  /* the question whether to start over is on screen, over the screen on show */
   PDMenuItem *restart_item;
+  bool text_asked;        /* the system menu's "text" was set since the last frame */
+  PDMenuItem *text_item;  /* that item, S / M / L, or NULL where the system could not add it */
+  wrapped notice;         /* words over the screen on show until A or B: a text size that could not be had or kept; no lines when none */
 };
 
 /* The question "start over" asks, the words under it, and its keys. */
@@ -50,10 +54,17 @@ struct player_app {
 #define PLAYER_RESTART_WARNING "All you did here will be forgotten."
 #define PLAYER_RESTART_KEYS "A: start over   B: go back"
 
+/* The system menu's text size item, and what is said when the font of a size cannot be read, and when the size cannot be remembered. */
+#define PLAYER_TEXT_ITEM "text"
+#define PLAYER_TEXT_KEPT "The text stays the size it was."
+#define PLAYER_TEXT_UNKEPT "The text is this size now, but it could not be remembered for next time."
+#define PLAYER_NOTICE_KEYS "A: go on"
+
 /*
- * The app over `pd`, on the shelf, with "leave world" and "start over" in the system menu; NULL, with the words in
- * `*why`, when it cannot start. Called at kEventInit, on the main stack, since it loads the font;
- * the shelf is listed in the first frame.
+ * The app over `pd`, on the shelf, with "leave world", "start over" and "text" in the system menu; NULL, with the words in
+ * `*why`, when it cannot start. Called at kEventInit, on the main stack, since it loads the font:
+ * the one of the size remembered, else S, with a notice over the first frame when the remembered
+ * one could not be read; the shelf is listed in the first frame.
  */
 player_app *player_app_new(PlaydateAPI *pd, const char **why);
 
@@ -88,9 +99,14 @@ void player_app_wake(player_app *app);
 int player_app_update(void *app);
 
 /*
- * One frame with `input`: a step of the save owed (`player_save_step`, PLAYER_SAVE_SLICE bytes),
+ * One frame with `input`: the text size, where the system menu set it, applied (the pen's font
+ * changes, the choice is remembered, and the screen on show refits; a font that cannot be read is
+ * told over the screen until A or B, the pen and the menu as they were, and so is a choice that
+ * could not be written); a step of the save owed (`player_save_step`, PLAYER_SAVE_SLICE bytes),
  * the screen's update, a screen change, the frame cleared, the screen drawn. A step that could
- * not write stops play as a turn's failed save does, in place of the update.
+ * not write stops play as a turn's failed save does, in place of the update. While a notice is
+ * over the screen, A or B takes it down in place of the update, and the menu's "leave world" and
+ * "start over" still take effect under it.
  * Where "leave world" was chosen while a reader is open, the visitor leaves in place of the update
  * and the app goes back to the shelf (or says the save could not be written). Where "start over"
  * was chosen while a reader is open, its question is put over the screen on show, which is neither
