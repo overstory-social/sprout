@@ -2,7 +2,8 @@
  * One write turn's copy-on-write layer over a state (the spec's The runtime >
  * Turns, State; Spawning; Destroying). The overlay is a handful of arrays in
  * the turn arena; the base is read through unless the turn wrote or removed
- * the record. Contents order is derived on demand, never stored.
+ * the record. Contents order is derived on demand, never stored; the chains it
+ * is read off are kept on the state until its records change.
  */
 #include <string.h>
 
@@ -144,21 +145,64 @@ static bool comes_before(const ranked *a, const ranked *b) {
   return sprout_str_compare(a->record->id, b->record->id) < 0;
 }
 
+/* FNV-1a over an id's length and its last sixteen bytes, where ids under one world differ: the bucket a container's records chain under. */
+static size_t hash_of(sprout_str id) {
+  uint32_t hash = (2166136261u ^ (uint32_t)id.length) * 16777619u;
+  size_t i = id.length > 16 ? id.length - 16 : 0;
+  for (; i < id.length; i++) hash = (hash ^ (unsigned char)id.bytes[i]) * 16777619u;
+  return hash;
+}
+
+/* Records chained by the hash of their container: `record(i)` is the one chain index `i` names. */
+typedef struct chained {
+  const size_t *heads, *next;
+  size_t mask, none;
+  const sprout_stored_instance *base;        /* records by index, where `all` is NULL */
+  const sprout_stored_instance *const *all; /* records by index, otherwise */
+} chained;
+
+static const sprout_stored_instance *record(const chained *c, size_t i) { return c->all != NULL ? c->all[i] : &c->base[i]; }
+
+/*
+ * Chains `count` records under their containers' hashes, in reverse so each chain reads in index order: `heads`
+ * has a bucket for each power of two past `count`, `next` a slot for each record, both in `arena`.
+ */
+static sprout_draft_result chain(sprout_arena *arena, const chained *records, size_t count, chained *out) {
+  size_t *heads, *next, buckets = 1, i;
+  while (buckets < count) buckets *= 2;
+  heads = (size_t *)sprout_arena_take(arena, buckets * sizeof *heads);
+  next = (size_t *)sprout_arena_take(arena, (count + 1) * sizeof *next);
+  MEMORY(heads);
+  MEMORY(next);
+  *out = *records;
+  out->none = count;
+  out->mask = buckets - 1;
+  for (i = 0; i < buckets; i++) heads[i] = count;
+  for (i = count; i > 0; i--) {
+    const sprout_stored_instance *one = record(records, i - 1);
+    size_t bucket;
+    if (one->dormant || !one->has_container) continue;
+    bucket = hash_of(one->container) & out->mask;
+    next[i - 1] = heads[bucket];
+    heads[bucket] = i - 1;
+  }
+  out->heads = heads;
+  out->next = next;
+  return SPROUT_DRAFT_OK;
+}
+
 /*
  * Every record as the turn stands, in no order: the base's not removed or rewritten, then the turn's
  * writes. Listed once per change of the overlay and read from the draft until the next, since a turn
- * that asks for contents once per object would otherwise take the whole list that many times.
+ * that asks for contents once per object would otherwise take the whole list that many times, and
+ * chained by container in the same pass.
  */
-static sprout_draft_result everything(const sprout_draft *draft, const sprout_stored_instance ***out,
-                                      size_t *count) {
+static sprout_draft_result everything(const sprout_draft *draft) {
   sprout_draft *d = (sprout_draft *)draft;
   const sprout_stored_instance **all;
+  chained records, chains;
   size_t i, n = 0;
-  if (d->all != NULL && d->all_generation == d->generation) {
-    *out = d->all;
-    *count = d->all_count;
-    return SPROUT_DRAFT_OK;
-  }
+  if (d->all != NULL && d->all_generation == d->generation) return SPROUT_DRAFT_OK;
   all = (const sprout_stored_instance **)sprout_arena_take(
       draft->turn, (draft->base->instance_count + draft->written_count + 1) * sizeof *all);
   MEMORY(all);
@@ -168,31 +212,78 @@ static sprout_draft_result everything(const sprout_draft *draft, const sprout_st
     all[n++] = one;
   }
   for (i = 0; i < draft->written_count; i++) all[n++] = &draft->written[i];
+  memset(&records, 0, sizeof records);
+  records.all = all;
+  NEED(chain(draft->turn, &records, n, &chains));
   d->all = all;
   d->all_count = n;
+  d->all_heads = chains.heads;
+  d->all_next = chains.next;
+  d->all_bucket_mask = chains.mask;
   d->all_generation = d->generation;
-  *out = all;
-  *count = n;
   return SPROUT_DRAFT_OK;
 }
 
-/* The children of `id` among `all`, in contents order, in exactly the room they need. */
-static sprout_draft_result children_in(const sprout_draft *draft, const sprout_stored_instance **all,
-                                       size_t total, sprout_str id, const sprout_str **ids, size_t *count) {
-  size_t i, n = 0, j, matches = 0;
+/* The state's own records chained, kept on the state and read by every draft until the records change. */
+static sprout_draft_result base_chains(sprout_state *state) {
+  sprout_contents_index *index = &state->contents;
+  chained records, chains;
+  if (index->built && index->edition == state->edition) return SPROUT_DRAFT_OK;
+  index->built = false;
+  sprout_arena_reset(&index->arena);
+  memset(&records, 0, sizeof records);
+  records.base = state->instances;
+  NEED(chain(&index->arena, &records, state->instance_count, &chains));
+  index->heads = chains.heads;
+  index->next = chains.next;
+  index->mask = chains.mask;
+  index->edition = state->edition;
+  index->built = true;
+  return SPROUT_DRAFT_OK;
+}
+
+/* The records chained as the turn stands: the state's own where the turn has written or removed none. */
+static sprout_draft_result chains_of(const sprout_draft *draft, chained *out) {
+  memset(out, 0, sizeof *out);
+  if (draft->written_count == 0 && draft->gone_count == 0) {
+    const sprout_contents_index *index = &draft->base->contents;
+    NEED(base_chains(draft->base));
+    out->heads = index->heads;
+    out->next = index->next;
+    out->mask = index->mask;
+    out->none = draft->base->instance_count;
+    out->base = draft->base->instances;
+    return SPROUT_DRAFT_OK;
+  }
+  NEED(everything(draft));
+  out->heads = draft->all_heads;
+  out->next = draft->all_next;
+  out->mask = draft->all_bucket_mask;
+  out->none = draft->all_count;
+  out->all = draft->all;
+  return SPROUT_DRAFT_OK;
+}
+
+/* The children of `id`, read off its chain, in contents order, in exactly the room they need. */
+static sprout_draft_result children_in(const sprout_draft *draft, sprout_str id, const sprout_str **ids, size_t *count) {
+  chained c;
+  size_t head, i, n = 0, j, matches = 0;
   ranked *held;
   sprout_str *out;
-  for (i = 0; i < total; i++)
-    if (!all[i]->dormant && all[i]->has_container && sprout_str_same(all[i]->container, id)) matches++;
+  NEED(chains_of(draft, &c));
+  head = c.heads[hash_of(id) & c.mask];
+  for (i = head; i != c.none; i = c.next[i])
+    if (sprout_str_same(record(&c, i)->container, id)) matches++;
   held = (ranked *)sprout_arena_take(draft->turn, (matches + 1) * sizeof *held);
   out = (sprout_str *)sprout_arena_take(draft->turn, (matches + 1) * sizeof *out);
   MEMORY(held);
   MEMORY(out);
-  for (i = 0; i < total; i++) {
+  for (i = head; i != c.none; i = c.next[i]) {
+    const sprout_stored_instance *one = record(&c, i);
     ranked next;
-    if (all[i]->dormant || !all[i]->has_container || !sprout_str_same(all[i]->container, id)) continue;
-    next.record = all[i];
-    next.rank = all[i]->has_arrival ? 0 : rank_of(draft, all[i]->id);
+    if (!sprout_str_same(one->container, id)) continue;
+    next.record = one;
+    next.rank = one->has_arrival ? 0 : rank_of(draft, one->id);
     for (j = n; j > 0 && comes_before(&next, &held[j - 1]); j--) held[j] = held[j - 1];
     held[j] = next;
     n++;
@@ -205,10 +296,7 @@ static sprout_draft_result children_in(const sprout_draft *draft, const sprout_s
 
 sprout_draft_result sprout_draft_children(const sprout_draft *draft, sprout_str id,
                                           const sprout_str **ids, size_t *count) {
-  const sprout_stored_instance **all;
-  size_t total;
-  NEED(everything(draft, &all, &total));
-  return children_in(draft, all, total, id, ids, count);
+  return children_in(draft, id, ids, count);
 }
 
 /* ---- serials ---- */
@@ -255,6 +343,10 @@ static sprout_draft_result keep(sprout_draft *draft, const sprout_stored_instanc
     slot = (sprout_stored_instance *)push(draft, (void **)&draft->written, &draft->written_count,
                                           &draft->written_capacity, sizeof *slot);
     MEMORY(slot);
+  } else if (slot->dormant != copy.dormant || slot->has_container != copy.has_container ||
+             (copy.has_container && !sprout_str_same(slot->container, copy.container))) {
+    /* A record rewritten under another container is a change of the overlay: the chains are read from it. */
+    draft->generation++;
   }
   *slot = copy;
   return SPROUT_DRAFT_OK;
@@ -348,7 +440,9 @@ sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str i
   size_t n = 0, top = 0, capacity;
   const sprout_stored_instance **all;
   size_t total, i;
-  NEED(everything(draft, &all, &total));
+  NEED(everything(draft));
+  all = draft->all;
+  total = draft->all_count;
   capacity = total + 2;
   found = (sprout_str *)sprout_arena_take(draft->turn, capacity * sizeof *found);
   pending = (sprout_str *)sprout_arena_take(draft->turn, (capacity * 2 + 2) * sizeof *pending);
@@ -364,7 +458,7 @@ sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str i
     size_t dormant_count = 0;
     if (listed(found, n, at) || n >= capacity) continue;
     found[n++] = at;
-    NEED(children_in(draft, all, total, at, &kids, &kid_count));
+    NEED(children_in(draft, at, &kids, &kid_count));
     /* Pushed in reverse so the first is visited first; dormant records come after the decoded ones. */
     for (i = 0; i < total; i++)
       if (all[i]->dormant && all[i]->has_container && sprout_str_same(all[i]->container, at))
@@ -585,6 +679,7 @@ sprout_draft_result sprout_draft_commit(sprout_draft *draft, sprout_changes *cha
   for (i = 0; i < draft->visitor_count; i++) place_visitor(state, &visits[i]);
   for (i = 0; i < draft->buried_count; i++) place_tombstone(state, stones[i]);
   state->serial = draft->serial;
+  state->edition++;
   draft->committed = true;
   return SPROUT_DRAFT_OK;
 }

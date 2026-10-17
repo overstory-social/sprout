@@ -75,6 +75,7 @@ sprout_status sprout_state_sort(sprout_state *state, sprout_arena *scratch) {
   status = sort_records(scratch, state->tombstones, state->tombstone_count, sizeof *state->tombstones, by_string);
   if (status != SPROUT_OK) return status;
   state->instances_sorted = state->visitors_sorted = state->tombstones_sorted = true;
+  state->edition++;
   return SPROUT_OK;
 }
 
@@ -123,6 +124,7 @@ sprout_status sprout_state_rebuild(sprout_state *state, size_t instances, size_t
   state->visitor_capacity = visitor_capacity;
   state->tombstones = stones;
   state->tombstone_capacity = tombstone_capacity;
+  state->edition++;
   /* The old arena is the sort's scratch, so the rebuilt one holds the records and nothing else. */
   status = state->instances_sorted && state->visitors_sorted && state->tombstones_sorted
                ? SPROUT_OK
@@ -196,6 +198,7 @@ sprout_status sprout_state_empty(const sprout_host *host, const char *world_id, 
   state->anchor = boot;
   state->anchor.host = &state->host;
   sprout_arena_init(&state->arena, &state->host);
+  sprout_arena_init(&state->contents.arena, &state->host);
   state->world.length = strlen(world_id);
   state->world.bytes = sprout_arena_copy(&state->arena, world_id, state->world.length);
   if (state->world.bytes == NULL) {
@@ -771,6 +774,7 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
     state->instance_count += extra;
     PASS(sprout_state_sort(state, arena));
   }
+  state->edition++;
 
   for (i = 0; i < state->visitor_count; i++) {
     sprout_stored_visitor *v = &state->visitors[i];

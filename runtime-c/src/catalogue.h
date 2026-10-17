@@ -70,6 +70,7 @@ typedef struct sprout_play {
 /* The plays under one key, "as actor for sprout.take", in the order they run. */
 typedef struct sprout_play_group {
   const char *key;
+  const char *role, *library, *verb; /* the key's parts, `as <role> for <library>.<verb>`; library NULL for `for any` */
   size_t count;
   sprout_play *plays;
 } sprout_play_group;
@@ -85,13 +86,15 @@ typedef struct sprout_kind_def {
   size_t order_count;
   const char **order; /* every kind it composes, itself last */
   size_t property_count;
-  const sprout_property **properties; /* in declared order; a property two kinds list is one record */
+  const sprout_property **properties;         /* in declared order; a property two kinds list is one record */
+  const sprout_property **properties_by_name; /* the same properties in code-unit order of their names */
   size_t plain_count;
   const sprout_property **by_name; /* the properties not remembered, in name order: the order a save writes them */
   size_t passage_count;
   sprout_passage *passages;
   size_t play_group_count;
-  const sprout_play_group **plays; /* a group two kinds hold is one record */
+  const sprout_play_group **plays;         /* in declared order; a group two kinds hold is one record */
+  const sprout_play_group **plays_by_verb; /* the same groups in code-unit order of their verb, then role, then library */
   bool contains, contains_actors;
   bool roams; /* an NPC of it moves itself to any place */
   bool composes_world, composes_visitor, composes_actor;
@@ -160,6 +163,7 @@ typedef struct sprout_verb {
   sprout_role *roles;
   size_t phrase_count;
   sprout_phrase *phrases;
+  size_t typed_at, typed_count; /* its run among the world's typed phrases, its own first, then its synonyms' */
   const sprout_node *node;
 } sprout_verb;
 

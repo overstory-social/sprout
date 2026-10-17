@@ -216,10 +216,13 @@ sprout_status cat_build_typed_phrases(loader *l) {
       if (w->synonyms[j].verb == w->verbs[order[i]]) total += w->synonyms[j].phrase_count;
   }
   w->phrases = (sprout_typed_phrase *)cat_array(l, total, sizeof(sprout_typed_phrase));
+  w->offered = (const sprout_verb **)cat_array(l, kept + 1, sizeof *w->offered);
   MEMORY(w->phrases);
+  MEMORY(w->offered);
   for (i = 0; i < kept; i++) {
-    const sprout_verb *verb = w->verbs[order[i]];
+    sprout_verb *verb = w->verbs[order[i]];
     int pass;
+    verb->typed_at = at;
     for (j = 0; j < verb->phrase_count; j++) {
       sprout_typed_phrase *typed = &w->phrases[at++];
       typed->verb = verb;
@@ -237,6 +240,8 @@ sprout_status cat_build_typed_phrases(loader *l) {
         }
       }
     }
+    verb->typed_count = at - verb->typed_at;
+    if (verb->typed_count > 0) w->offered[w->offered_count++] = verb;
   }
   w->phrase_count = at;
   total = 0;

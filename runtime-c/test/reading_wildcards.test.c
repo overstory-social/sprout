@@ -90,6 +90,32 @@ static void a_participant_whose_kind_plays_nothing_runs_nothing(void) {
   plays_close(&p);
 }
 
+/* Every group a kind holds is the one its verb, role and library find, and a verb nobody plays finds none. */
+static void every_play_group_is_found_by_its_verb_role_and_library(void) {
+  plays_case p;
+  const sprout_world *world;
+  size_t k, g, checked = 0;
+  plays_open(&p, "a participant’s wildcard permit runs before its permit for the verb");
+  world = p.c.draft.world;
+  for (k = 0; k < world->kind_count; k++) {
+    const sprout_kind_def *kind = world->kinds[k];
+    for (g = 0; g < kind->play_group_count; g++) {
+      const sprout_play_group *group = kind->plays[g];
+      sprout_verb verb;
+      if (group->library == NULL) continue;
+      memset(&verb, 0, sizeof verb);
+      verb.library = group->library;
+      verb.name = group->verb;
+      CHECK(sprout_own_plays(&verb, group->role, kind) == group);
+      verb.name = "no_such_verb";
+      CHECK(sprout_own_plays(&verb, group->role, kind) == NULL);
+      checked++;
+    }
+  }
+  CHECK(checked > 10);
+  plays_close(&p);
+}
+
 static void the_golden_wildcard_readings_end_as_the_typescript_runtime_did(void) {
   exec_bench b;
   reading_bench_open(&b);
@@ -104,6 +130,7 @@ int main(void) {
   RUN(a_wildcard_for_a_tool_is_not_run_for_a_target);
   RUN(the_actors_own_part_has_no_wildcard);
   RUN(a_participant_whose_kind_plays_nothing_runs_nothing);
+  RUN(every_play_group_is_found_by_its_verb_role_and_library);
   RUN(the_golden_wildcard_readings_end_as_the_typescript_runtime_did);
   return REPORT();
 }

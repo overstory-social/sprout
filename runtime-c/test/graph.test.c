@@ -149,6 +149,31 @@ static void the_lookups_find_fields_elements_and_map_values_in_built_nodes(void)
   CHECK_INT(heap.pages, 0);
 }
 
+/* Fields whose names share a first byte are told apart whole. */
+static void fields_whose_names_share_a_first_byte_are_told_apart(void) {
+  sprout_build_room room = SPROUT_BUILD_LINE_ROOM;
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  sprout_builder b;
+  const sprout_graph *g;
+  static const char *const keys[] = {"kind", "key", "k", "kinds"};
+  const sprout_node *values[4], *object;
+  size_t i;
+  sprout_arena_init(&arena, &host);
+  sprout_build_begin(&b, &arena, room);
+  for (i = 0; i < 4; i++) values[i] = sprout_build_number(&b, (double)i);
+  object = sprout_build_object(&b, keys, values, 4);
+  g = sprout_build_graph(&b);
+  CHECK(!sprout_build_failed(&b));
+  for (i = 0; i < 4; i++) CHECK(sprout_node_get(g, object, keys[i]) == values[i]);
+  CHECK(sprout_node_get(g, object, "ki") == NULL);
+  CHECK(sprout_node_get(g, object, "kindly") == NULL);
+  CHECK(sprout_node_get(g, object, "") == NULL);
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_name_is_a_string_or_a_bound_entrys_text(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
@@ -271,6 +296,7 @@ static void a_host_that_runs_out_of_memory_is_told_so(void) {
 int main(void) {
   RUN(a_packed_world_maps_with_its_entries_first_and_its_cells_after);
   RUN(the_lookups_find_fields_elements_and_map_values_in_built_nodes);
+  RUN(fields_whose_names_share_a_first_byte_are_told_apart);
   RUN(a_name_is_a_string_or_a_bound_entrys_text);
   RUN(a_map_is_read_by_its_key_node_or_its_text);
   RUN(a_block_that_is_not_a_table_or_names_a_file_not_listed_is_refused);

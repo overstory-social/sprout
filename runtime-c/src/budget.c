@@ -109,10 +109,18 @@ static bool spend(sprout_meter *meter, uint64_t *spent, uint64_t count, sprout_l
 }
 
 bool sprout_meter_steps(sprout_meter *meter, uint64_t count) {
-  const char *kind = kind_name(meter->kind);
-  bool vowel = strchr("aeiou", kind[0]) != NULL;
+  sprout_limit limit = meter->kind == SPROUT_TURN_POLL ? meter->budgets->poll_steps : meter->budgets->steps;
+  const char *kind;
+  bool vowel;
   char before[48];
   text words = {before, before + sizeof before};
+  /* Nearly every charge fits, and only one that does not needs its words. */
+  if (!meter->faulted && count <= UINT64_MAX - meter->steps && (!limit.set || meter->steps + count <= limit.value)) {
+    meter->steps += count;
+    return true;
+  }
+  kind = kind_name(meter->kind);
+  vowel = strchr("aeiou", kind[0]) != NULL;
   put(&words, vowel ? "an " : "a ");
   put(&words, kind);
   put(&words, " turn may take ");

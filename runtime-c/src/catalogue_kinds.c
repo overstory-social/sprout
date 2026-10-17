@@ -142,14 +142,25 @@ static sprout_status keep(loader *l, const sprout_node *node, void *read) {
 }
 
 /* A kind's properties, in declared order; a map two kinds share is read once. */
+static int by_property_name(const void *a, const void *b) {
+  return strcmp(((const sprout_property *)a)->name, ((const sprout_property *)b)->name);
+}
+
+/*
+ * A kind's properties in declared order, and once more after them in code-unit order of their names, so one
+ * is found by name without a sweep; one block, kept once however many kinds hold the map.
+ */
 static sprout_status read_properties(loader *l, const sprout_node *map, const sprout_property ***out) {
   const sprout_property **properties = (const sprout_property **)already(l, map);
   size_t i;
   if (properties == NULL) {
-    properties = (const sprout_property **)cat_array(l, map->count, sizeof(sprout_property *));
+    properties = (const sprout_property **)cat_array(l, map->count * 2 + 1, sizeof(sprout_property *));
     MEMORY(properties);
-    for (i = 0; i < map->count; i++)
+    for (i = 0; i < map->count; i++) {
       NEED(read_property(l, sprout_map_key(l->graph, map, i), sprout_item(l->graph, map, i), &properties[i]));
+      properties[map->count + i] = properties[i];
+    }
+    MEMORY(cat_sort(l, (const void **)(properties + map->count), map->count, by_property_name));
     NEED(keep(l, map, properties));
   }
   *out = properties;
@@ -173,6 +184,47 @@ static sprout_status read_passages(loader *l, const sprout_node *map, sprout_pas
   return SPROUT_OK;
 }
 
+static char *piece_copy(loader *l, const char *bytes, size_t length) {
+  char *copy = (char *)cat_array(l, length + 1, 1);
+  if (copy != NULL) memcpy(copy, bytes, length);
+  return copy;
+}
+
+/* A group's key split into its parts, `as <role> for <library>.<verb>`, or `as <role> for <verb>` with no library. */
+static sprout_status key_parts(loader *l, sprout_play_group *group) {
+  const char *key = group->key, *role, *rest, *dot = NULL, *at;
+  if (strncmp(key, "as ", 3) != 0) return cat_shaped(l, "a play group's key");
+  role = key + 3;
+  for (rest = role; *rest != '\0' && strncmp(rest, " for ", 5) != 0; rest++) continue;
+  if (*rest == '\0') return cat_shaped(l, "a play group's key");
+  group->role = piece_copy(l, role, (size_t)(rest - role));
+  MEMORY(group->role);
+  rest += 5;
+  for (at = rest; *at != '\0'; at++)
+    if (*at == '.') dot = at;
+  if (dot == NULL) {
+    group->library = NULL;
+    group->verb = rest;
+    return SPROUT_OK;
+  }
+  group->library = piece_copy(l, rest, (size_t)(dot - rest));
+  MEMORY(group->library);
+  group->verb = dot + 1;
+  return SPROUT_OK;
+}
+
+/* Verb, then role, then library, a group for `any` before any library's. */
+static int by_group_parts(const sprout_play_group *a, const sprout_play_group *b) {
+  int order = strcmp(a->verb, b->verb);
+  if (order == 0) order = strcmp(a->role, b->role);
+  if (order == 0) order = a->library == NULL ? (b->library == NULL ? 0 : -1) : b->library == NULL ? 1 : strcmp(a->library, b->library);
+  return order;
+}
+
+static int by_group_pointer(const void *a, const void *b) {
+  return by_group_parts((const sprout_play_group *)a, (const sprout_play_group *)b);
+}
+
 /* One key's plays, in the order they run: one record for each group entry and key, however many kinds hold it. */
 static sprout_status read_group(loader *l, const sprout_node *key, const sprout_node *group,
                                 const sprout_play_group **out) {
@@ -187,6 +239,7 @@ static sprout_status read_group(loader *l, const sprout_node *key, const sprout_
   made = (sprout_play_group *)cat_array(l, 1, sizeof *made);
   MEMORY(made);
   made->key = sprout_text(l->graph, key);
+  NEED(key_parts(l, made));
   made->count = group->count;
   *out = made;
   if (kept != NULL) {
@@ -211,18 +264,24 @@ static sprout_status read_group(loader *l, const sprout_node *key, const sprout_
   return keep(l, group, made);
 }
 
+/*
+ * A kind's play groups in declared order, and once more after them in order of their verb, role and library, so
+ * a play is found by its parts without a sweep; one block, kept once however many kinds hold the map.
+ */
 static sprout_status read_play_groups(loader *l, const sprout_node *map, const sprout_play_group ***out) {
   const sprout_play_group **groups = (const sprout_play_group **)already(l, map);
   size_t i;
   if (groups == NULL) {
-    groups = (const sprout_play_group **)cat_array(l, map->count, sizeof(sprout_play_group *));
+    groups = (const sprout_play_group **)cat_array(l, map->count * 2 + 1, sizeof(sprout_play_group *));
     MEMORY(groups);
     for (i = 0; i < map->count; i++) {
       const sprout_node *group = sprout_item(l->graph, map, i);
       if (sprout_map_key(l->graph, map, i)->kind != SPROUT_NODE_STRING || !cat_is_array(group))
         return cat_shaped(l, "a kind's plays");
       NEED(read_group(l, sprout_map_key(l->graph, map, i), group, &groups[i]));
+      groups[map->count + i] = groups[i];
     }
+    MEMORY(cat_sort(l, (const void **)(groups + map->count), map->count, by_group_pointer));
     NEED(keep(l, map, groups));
   }
   *out = groups;
@@ -281,6 +340,7 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
     return cat_shaped(l, "a kind's properties");
   kind->property_count = properties->count;
   NEED(read_properties(l, properties, &kind->properties));
+  kind->properties_by_name = kind->properties + properties->count;
   NEED(order_plain(l, kind));
 
   passages = sprout_node_get(l->graph, node, "passages");
@@ -293,6 +353,7 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
   if (plays == NULL || plays->kind != SPROUT_NODE_MAP) return cat_shaped(l, "a kind's plays");
   kind->play_group_count = plays->count;
   NEED(read_play_groups(l, plays, &kind->plays));
+  kind->plays_by_verb = kind->plays + plays->count;
   *out = kind;
   return SPROUT_OK;
 }
