@@ -68,6 +68,9 @@ typedef struct disc_box {
  */
 bool disc_update(disc *d, sentence *s, bool turned);
 
+/* Whether the disc is at rest: the crank has not moved since it last came to rest on a sector. */
+bool disc_at_rest(const disc *d);
+
 /*
  * The share of a sector the disc is drawn turned when the crank is `fraction` of a step on, for
  * `fraction` within half a step: sign(fraction) * 1/2 * (2|fraction|)^DISC_DETENT. It is 0 at 0 and

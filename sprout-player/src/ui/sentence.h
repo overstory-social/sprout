@@ -3,14 +3,15 @@
  * level at a time (player_chips; the design doc's The chip tree and the crank sentence builder).
  * The visitor picks a verb, then what fills each of its roles, then a word or a number for each
  * value role, then confirms. A verb's readings are asked for only when the disc reaches it
- * (`sentence_prepare`), so at the verbs a choice not yet reached is neither greyed nor not. A role
- * a reading may leave out (its level has fillers and a leaf) is offered by the words its phrase
- * puts before it, as the view's filler carries them (`from`, or the role's name where it carries
- * none), beside `that's all`; picking the word opens its fillers as a wheel of their own, and the
- * sentence shows the word before what was picked: `take -> the sack -> from the table`. A set
- * role is joined from the singletons the view offers, and the roles after it are offered under its
- * first member. A finished reading lists the roles a thing fills in the tree's order and then the
- * value roles. Nothing here draws; the entries and the phrase are what the screen shows.
+ * (`sentence_prepare`) or rests beside it (`sentence_prepare_near`), so at the verbs a choice not
+ * yet reached is neither greyed nor not. A role a reading may leave out (its level has fillers and
+ * a leaf) is offered by the words its phrase puts before it, as the view's filler carries them
+ * (`from`, or the role's name where it carries none), beside `that's all`; picking the word opens
+ * its fillers as a wheel of their own, and the sentence shows the word before what was picked:
+ * `take -> the sack -> from the table`. A set role is joined from the singletons the view offers,
+ * and the roles after it are offered under its first member. A finished reading lists the roles a
+ * thing fills in the tree's order and then the value roles. Nothing here draws; the entries and the
+ * phrase are what the screen shows.
  *
  * `everything` stands where the parser would read `all` (the spec's Parsing › Sequences, again and
  * all): first on a level whose role binds things and where two or more of them can be done. A set
@@ -213,6 +214,13 @@ void sentence_settle(sentence *s, float share);
 
 /* Asks for the readings of the verb at the front, if the disc is at the verbs and they are not known. Whether it asked. */
 bool sentence_prepare(sentence *s);
+
+/*
+ * Asks for the readings of one verb beside the front whose readings are not known: the nearest within `reach`
+ * entries of it either way, the one above before the one below at each distance, so a verb is greyed or not
+ * before the disc reaches it. Whether it asked; false off the verbs, or once every verb in reach is known.
+ */
+bool sentence_prepare_near(sentence *s, size_t reach);
 
 /* Picks the entry at the front; for SENTENCE_REFUSED `*words` says why. A level it opens is at rest. */
 sentence_end sentence_pick(sentence *s, const char **words);

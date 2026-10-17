@@ -565,16 +565,33 @@ void sentence_settle(sentence *s, float share) {
   if (s->crank > -0.5f && s->crank < 0.5f) s->crank = 0;
 }
 
-bool sentence_prepare(sentence *s) {
-  size_t pick;
-  if (s->state.stage != SENTENCE_VERB || s->state.selected >= s->choice_count) return false;
-  if (s->choices[s->state.selected].greyed != PLAYER_GREYED_UNKNOWN) return false;
-  pick = s->state.selected + 1;
+/* Asks for the readings of verb `v`, the choice at the root; the root then says of the verb what its level said. */
+static void ask_verb(sentence *s, size_t v) {
+  size_t pick = v + 1;
   player_chips(s->session, &pick, 1);
-  /* The root says of the verb now what its level said. */
   if (fetch(s, NULL, 0, NULL) != NULL) s->choice_count = 0;
   refresh(s);
+}
+
+bool sentence_prepare(sentence *s) {
+  if (s->state.stage != SENTENCE_VERB || s->state.selected >= s->choice_count) return false;
+  if (s->choices[s->state.selected].greyed != PLAYER_GREYED_UNKNOWN) return false;
+  ask_verb(s, s->state.selected);
   return true;
+}
+
+bool sentence_prepare_near(sentence *s, size_t reach) {
+  size_t count = s->choice_count, distance, side;
+  if (s->state.stage != SENTENCE_VERB || s->state.selected >= count) return false;
+  for (distance = 1; distance <= reach && distance < count; distance++) {
+    for (side = 0; side < 2; side++) {
+      size_t v = (s->state.selected + (side == 0 ? count - distance : distance)) % count;
+      if (s->choices[v].greyed != PLAYER_GREYED_UNKNOWN) continue;
+      ask_verb(s, v);
+      return true;
+    }
+  }
+  return false;
 }
 
 /* The level at the state's path asked for again, after the state went back to it. */
