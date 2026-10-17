@@ -547,23 +547,34 @@ world's save and log, so its next arrival is a fresh one.
 When the state is on disk: the log is written at the end of the turn, before
 its reply shows; the state is written over the frames that follow, while the
 visitor reads and builds the next sentence. The first frame after the turn
-makes the state's bytes (`sprout_state_write`, about 4 ms for the caverns'
-480 KB on a desktop) and opens `<hash>.json.part`; each frame after writes
-16 KB of them (`PLAYER_SAVE_SLICE`, about 30 frames for the caverns); the
-last closes the part, renames it to `<hash>.json.tmp`, removes the old save
-and renames the `.tmp` over it. The rename after an unlink is the pattern the
-whole-file writes already use, since the SDK does not say that `rename`
-replaces a file; a read that finds no save reads the `.tmp`, so a save cut
-short at any point leaves the last whole state readable, and a half-written
-`.part` is never read. The state does not change under the writer: a turn
-asked before the save is done (a command, a tick, an arrival, a departure)
-first writes the rest of it in that frame, then runs; the later turns of a
-line, which nothing writes between, are the exception. Leaving the world,
-"start over" (which drops the save rather than finishing it), opening the
-system menu (`kEventPause`), locking the device and its low-power sleep all
-write what is owed first, so the state is on disk whenever the app could be
-ended. The bytes being written are held in an arena of their own until the
-last slice, about the size of the state.
+makes the state's bytes (`sprout_state_write`, under a millisecond for the
+caverns' 480 KB on a desktop) and opens `<hash>.json.part`; each frame after
+writes 16 KB of them (`PLAYER_SAVE_SLICE`, about 30 frames for the caverns);
+the last closes the part, renames it to `<hash>.json.tmp`, removes the old
+save and renames the `.tmp` over it. The rename after an unlink is the
+pattern the whole-file writes already use, since the SDK does not say that
+`rename` replaces a file; a read that finds no save reads the `.tmp`, so a
+save cut short at any point leaves the last whole state readable, and a
+half-written `.part` is never read. The state does not change under the
+writer: a turn asked before the save is done (a command, a tick, an arrival,
+a departure) first writes the rest of it in that frame, then runs; the later
+turns of a line, which nothing writes between, are the exception. Leaving
+the world, "start over" (which drops the save rather than finishing it),
+opening the system menu (`kEventPause`), locking the device and its
+low-power sleep all write what is owed first, so the state is on disk
+whenever the app could be ended. The bytes being written are held in an
+arena of their own until the last slice, about the size of the state.
+
+A tick's save waits. A visitor's own turn (a command, an arrival, a
+departure) saves at once, as above. A tick that changed the state writes
+its log line at once and owes a save, but the save begins only when
+`PLAYER_SAVE_WAIT_SECONDS` (30) have passed since the last save began, or at
+once on pause, sleep, leaving the world or the visitor's next turn, whose
+save carries the tick's changes. A world whose every tick changes the state
+(an NPC that roams) is so saved every 30 seconds while the visitor reads,
+not every ten; what a crash between loses is at most that long of ticks,
+which is the trade chosen: a save every 30 to 60 seconds is enough, and a
+tick must never cost the reader a frame.
 
 One visit per world, keyed by the world alone, with no token. A world left
 open (the battery, a kill) is put away by a departure that tells nothing
@@ -576,7 +587,10 @@ Host seconds are the device's seconds since 2000-01-01
 greatest seen, which the save records. The reader asks for a tick every ten
 seconds while a world is open, never on the shelf, in the background or
 while the device sleeps or is locked; the time away owes no tick of its own
-and is carried by the next tick's `elapsed`. A world opened after an absence is caught up by one
+and is carried by the next tick's `elapsed`. A tick's save waits on the same
+clamped seconds: it begins 30 seconds after the last save began (Saves
+above), so a clock set back delays it rather than bringing it sooner, and a
+pause, a sleep, leaving or a turn writes it regardless. A world opened after an absence is caught up by one
 maintenance turn: wakes due are delivered at that turn, at most 64, with the
 instant of the turn rather than their due times, and it narrates nothing.
 A step's seed is drawn from the clock at the step's start and mixed by

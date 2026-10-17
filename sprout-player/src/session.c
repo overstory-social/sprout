@@ -287,6 +287,8 @@ static bool save_begin(player_session *session) {
   if (sprout_arena_init(&w->arena, &session->host.record) != SPROUT_OK) return save_failed(session);
   w->live = true;
   session->owed = false;
+  session->waiting = false;
+  session->save_began = player_host_seconds(&session->host);
   w->written = 0;
   if (sprout_state_write(session->state, &w->arena, &w->bytes, &w->length) != SPROUT_OK) return save_failed(session);
   path_with(part, sizeof part, session->state_path, ".part");
@@ -321,9 +323,18 @@ static bool save_slice(player_session *session, size_t bytes) {
   return true;
 }
 
+/* A tick's save that has waited its time is owed now. */
+static void save_if_waited(player_session *session) {
+  if (session->waiting && player_host_seconds(&session->host) - session->save_began >= PLAYER_SAVE_WAIT_SECONDS) {
+    session->waiting = false;
+    session->owed = true;
+  }
+}
+
 /* One step of the save: its beginning, or a slice of `bytes`. */
 static bool save_step(player_session *session, size_t bytes) {
   if (session->writer.live) return save_slice(session, bytes);
+  save_if_waited(session);
   if (session->owed && session->state != NULL) return save_begin(session);
   return true;
 }
@@ -333,13 +344,28 @@ static void *mkdir_saves(void *pd) {
   return NULL;
 }
 
+/* The log tail written for the turns that changed the state. */
+static void log_changed(player_session *session) {
+  session->dirty = false;
+  player_on_main_stack(mkdir_saves, session->pd);
+  if (!savelog_write(session)) session->unsaved = true;
+}
+
 bool session_save_soon(player_session *session) {
-  if (session->state != NULL && session->dirty) {
-    session->dirty = false;
+  if (session->state != NULL && (session->dirty || session->waiting)) {
+    if (session->dirty) log_changed(session);
+    session->waiting = false;
     session->owed = true;
-    player_on_main_stack(mkdir_saves, session->pd);
-    if (!savelog_write(session)) session->unsaved = true;
   }
+  return !session->unsaved;
+}
+
+bool session_save_later(player_session *session) {
+  if (session->state != NULL && session->dirty) {
+    log_changed(session);
+    session->waiting = !session->owed;
+  }
+  save_if_waited(session);
   return !session->unsaved;
 }
 
@@ -367,6 +393,7 @@ void session_save_abandon(player_session *session) {
   memset(w, 0, sizeof *w);
   session->dirty = false;
   session->owed = false;
+  session->waiting = false;
   session->unsaved = false;
 }
 
@@ -389,7 +416,7 @@ player_result player_save_settle(player_session *session) {
 }
 
 bool player_saving(const player_session *session) {
-  return session->writer.live || session->owed || session->dirty;
+  return session->writer.live || session->owed || session->waiting || session->dirty;
 }
 
 player_result player_save(player_session *session) {
