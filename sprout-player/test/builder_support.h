@@ -54,6 +54,8 @@ int placed_entry(size_t index);
 const char *phrase(void);
 /* Whether a transcript row drawn holds `text`. */
 bool shown_text(const char *text);
+/* How many verbs' readings the session holds. */
+size_t verbs_asked(const player_session *s);
 
 /* The app over the cartridge `world`, the only one on the shelf, opened and run until the reader is up; arrive is over chip_tree. */
 void arrive_in(const char *scenario, const char *world);

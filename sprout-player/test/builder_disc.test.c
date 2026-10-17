@@ -203,13 +203,6 @@ static void the_disc_is_drawn_before_any_verb_is_asked_after(void) {
   leave();
 }
 
-/* How many verbs' readings the session holds. */
-static size_t verbs_asked(const player_session *s) {
-  size_t v, asked = 0;
-  for (v = 0; v < s->chips.verb_count; v++) asked += s->fetched[v];
-  return asked;
-}
-
 /*
  * While the crank rests and nothing is pressed, the builder asks after one verb a frame beside the
  * front: the one above, the one below, then outward, as far as the wheel shows either side; a frame

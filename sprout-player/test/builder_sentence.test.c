@@ -8,7 +8,9 @@
  * in the level's order, leaving out what the view refuses, stopping at the first refusal and bounded
  * by what a set role may bind; such a line is one save, its state written once after its last step,
  * and a failure of that save stops play. A role a reading may leave out is offered by the word its
- * phrase puts before it beside "that's all", and its fillers once the word is picked.
+ * phrase puts before it beside "that's all", and its fillers once the word is picked. At the verbs,
+ * `sentence_prepare_near` asks after one verb a call beside the front: the one above before the one
+ * below at each distance, outward and wrapping, as far as its reach, and no further.
  */
 #include <stdlib.h>
 
@@ -36,6 +38,43 @@ static void descending_into_a_verb_and_back(void) {
   CHECK(strcmp(phrase(), "") == 0 && strcmp(front(), "ask") == 0, "and back to the verbs: %s", front());
   fake_frame(fake, kButtonB, 0);
   CHECK(on_reader(), "and closed");
+  leave();
+}
+
+/*
+ * Beside the front, a call asks after one verb: the one above, then the one below, then outward,
+ * wrapping round the wheel, each once and within `reach`; past the wheel it asks after every verb
+ * but the front, which is `sentence_prepare`'s; and off the verbs it asks after none.
+ */
+static void prepare_near_asks_after_the_verbs_beside_the_front_in_order(void) {
+  player_session *s;
+  sentence *sn;
+  size_t count, order[4], i, calls = 0;
+  arrive("near");
+  s = app->session;
+  fake_frame(fake, kButtonA, 0);
+  sn = &builder()->sentence;
+  count = s->chips.verb_count;
+  CHECK(count >= 8 && sn->state.selected == 0 && verbs_asked(s) == 0, "at the verbs, none known: %zu of %zu", verbs_asked(s), count);
+  CHECK(!sentence_prepare_near(sn, 0), "no reach asks after none");
+  order[0] = count - 1;
+  order[1] = 1;
+  order[2] = count - 2;
+  order[3] = 2;
+  for (i = 0; i < 4; i++) {
+    CHECK(sentence_prepare_near(sn, 2), "call %zu asks", i + 1);
+    CHECK(s->fetched[order[i]] && verbs_asked(s) == i + 1, "call %zu asks after verb %zu: %zu known", i + 1, order[i], verbs_asked(s));
+    CHECK(sn->choices[order[i]].greyed != PLAYER_GREYED_UNKNOWN, "and the wheel then says of it whether it can be done");
+  }
+  CHECK(!sentence_prepare_near(sn, 2) && verbs_asked(s) == 4, "two either side known, a reach of two asks after none");
+  CHECK(sentence_prepare_near(sn, 3) && s->fetched[count - 3] && verbs_asked(s) == 5, "a reach of three goes on outward, above first");
+  CHECK(!s->fetched[0], "the front is not its to ask after");
+  while (sentence_prepare_near(sn, 2 * count)) calls++;
+  CHECK(calls == count - 6 && verbs_asked(s) == count - 1 && !s->fetched[0],
+        "a reach past the wheel asks after every other verb, each once: %zu calls, %zu known", calls, verbs_asked(s));
+  CHECK(sentence_prepare(sn) && s->fetched[0], "the front is sentence_prepare's");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(sn->state.stage != SENTENCE_VERB && !sentence_prepare_near(sn, 3), "off the verbs it asks after none");
   leave();
 }
 
@@ -413,6 +452,7 @@ static void a_role_a_reading_may_leave_out_is_offered_by_its_word_and_then_its_f
 int main(void) {
   test_program("builder_sentence");
   descending_into_a_verb_and_back();
+  prepare_near_asks_after_the_verbs_beside_the_front_in_order();
   a_completed_reading_runs_and_the_reader_is_told();
   a_turn_whose_save_fails_stops_play_and_greys_the_world();
   everything_for_a_role_that_takes_one_thing_runs_a_turn_each_and_stops_at_a_refusal();

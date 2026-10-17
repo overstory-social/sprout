@@ -1,6 +1,7 @@
 /* What the sentence builder's test programs share; see builder_support.h. */
 #include "builder_support.h"
 
+#include "session_internal.h"
 #include "ui/nickname.h"
 
 static const char READER_KEYS[] = "A: build a sentence   crank: scroll back";
@@ -105,6 +106,12 @@ bool step_to(PDButtons button, const char *label, int most) {
     fake_frame(fake, button, 0);
   }
   return strcmp(front(), label) == 0;
+}
+
+size_t verbs_asked(const player_session *s) {
+  size_t v, asked = 0;
+  for (v = 0; v < s->chips.verb_count; v++) asked += s->fetched[v];
+  return asked;
 }
 
 bool shown_text(const char *text) {
