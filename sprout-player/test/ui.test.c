@@ -489,6 +489,7 @@ static void a_due_tick_waits_for_the_hands_to_rest(void) {
   fake_frame(fake, 0, 0);
   CHECK(rows_holding(WIND) == 1, "and the count began again when it ran");
   eventHandler(&fake->api, kEventTerminate, 0);
+  end();
 }
 
 /*
