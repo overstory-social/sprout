@@ -403,6 +403,7 @@ static void the_reader_ticks_while_awake_and_tells_what_a_tick_told(void) {
   fake_frame(fake, 0, 0);
   fake_frame(fake, kButtonA, 0);
   frames_until_reader(10000);
+  fake->counter += PLAYER_REST_MILLISECONDS;
   fake->seconds += PLAYER_TICK_SECONDS;
   fake_frame(fake, 0, 0);
   CHECK(rows_holding(WIND) == 0, "the first tick brings no time since arriving, so nothing has blown yet");
@@ -445,6 +446,49 @@ static void the_reader_ticks_while_awake_and_tells_what_a_tick_told(void) {
     snprintf(command, sizeof command, "grep -l '\"kind\":\"tick\"' '%s'/saves/*.log >/dev/null", fake->data);
     CHECK(system(command) == 0, "the ticks are in the log the terminate's save wrote");
   }
+  end();
+}
+
+/*
+ * A due tick waits for the hands to rest: none runs in a frame with the crank turning or a button
+ * down, nor within PLAYER_REST_MILLISECONDS of one, and the ticks that fell due meanwhile are one
+ * when the hands rest, its `elapsed` carrying the time between.
+ */
+static void a_due_tick_waits_for_the_hands_to_rest(void) {
+  static const char *const shipped[] = {"ticks.sproutworld"};
+  static const char WIND[] = "The wind picks up in the eaves.";
+  int i;
+  begin("rest");
+  app_folder("app");
+  ship(shipped, 1);
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  frames_until_reader(10000);
+  fake->counter += PLAYER_REST_MILLISECONDS;
+  fake->seconds += PLAYER_TICK_SECONDS;
+  fake_frame(fake, 0, 0);
+  CHECK(on_reader() && rows_holding(WIND) == 0, "the first tick, at rest, brings no time since arriving");
+  for (i = 0; i < 4; i++) {
+    fake->seconds += PLAYER_TICK_SECONDS;
+    fake_frame(fake, 0, 1.0f);
+    CHECK(rows_holding(WIND) == 0, "the crank is turning as interval %d falls due: no tick runs under it", i + 1);
+  }
+  fake->seconds += PLAYER_TICK_SECONDS;
+  fake_frame(fake, kButtonB, 0);
+  CHECK(rows_holding(WIND) == 0, "nor under a button");
+  fake->counter += PLAYER_REST_MILLISECONDS / 2;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 0, "half the rest later, with the hands off, still none");
+  fake->counter += PLAYER_REST_MILLISECONDS;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "rested, the tick runs, and its elapsed carried every interval that fell due: %d", rows_holding(WIND));
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "once: the intervals under the hands were one tick");
+  fake->seconds += PLAYER_TICK_SECONDS - 1;
+  fake_frame(fake, 0, 0);
+  CHECK(rows_holding(WIND) == 1, "and the count began again when it ran");
+  eventHandler(&fake->api, kEventTerminate, 0);
   end();
 }
 
@@ -831,6 +875,7 @@ int main(void) {
   with_no_world_shipped_the_shelf_says_so();
   a_cartridge_that_cannot_be_opened_is_told_in_words();
   the_reader_ticks_while_awake_and_tells_what_a_tick_told();
+  a_due_tick_waits_for_the_hands_to_rest();
   leave_world_in_the_system_menu_goes_back_to_the_shelf();
   start_over_in_the_system_menu_asks_and_begins_the_world_again();
   the_save_follows_the_reply_and_the_system_menu_finishes_it();

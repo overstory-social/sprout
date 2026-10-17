@@ -104,7 +104,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     player_builder_open(app, reader);
     return;
   }
-  if (player_clock_due(&app->clock, player_app_seconds(app))) tick(app, reader);
+  if (player_clock_due(&app->clock, player_app_seconds(app), player_app_milliseconds(app))) tick(app, reader);
 }
 
 static void draw(player_app *app, void *ctx) {

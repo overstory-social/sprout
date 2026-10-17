@@ -83,6 +83,9 @@ void player_cue(player_app *app, player_cue_name name);
 /* The device's seconds since 2000-01-01, as the system gives them. */
 uint64_t player_app_seconds(const player_app *app);
 
+/* The device's millisecond counter, which no setting of the clock moves. */
+unsigned player_app_milliseconds(const player_app *app);
+
 /*
  * The device locks or sleeps for a low battery (kEventLock, kEventLowPower): the save owed is
  * written whole, and no tick is owed until it unlocks.
