@@ -14,7 +14,7 @@
 #include "ui/reader.h"
 #include "ui/shelf.h"
 
-#define LINE FAKE_LINE
+#define LINE FAKE_SERIF_LINE
 #define ROW(n) (LINE + 4 + 2 + (n) * LINE)
 #define PANEL (240 - (LINE * 3 + 8) + 2)
 

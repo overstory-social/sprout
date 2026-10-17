@@ -10,9 +10,9 @@
  * `player_cue`.
  *
  * The reader lends itself to the builder while it is up (reader.h); the builder hands it back when
- * it closes, or frees it if the app ends first. The sentence so far fits the screen whatever its
- * length: in the system font, then the small font, then trimmed from the left so the end, the part
- * being built, is always in view.
+ * it closes, or frees it if the app ends first. The sentence so far, in the frame font, fits the
+ * screen whatever its length: trimmed from the left so the end, the part being built, is always in
+ * view.
  */
 #ifndef PLAYER_UI_BUILDER_H
 #define PLAYER_UI_BUILDER_H
@@ -26,9 +26,8 @@
 #include "sentence.h"
 #include "wrap.h"
 
-/* The builder's fonts, packaged into the pdx from Source/fonts/: the disc's words, and the sentence line where it is long. */
-#define BUILDER_BIG_FONT "fonts/Asheville-Sans-24-Light.pft"
-#define BUILDER_SMALL_FONT "fonts/Roobert-10-Bold.pft"
+/* The disc's words' font, packaged into the pdx from Source/fonts/ and held through the pen. */
+#define BUILDER_DISC_FONT "fonts/Roobert-11-Medium.pft"
 /* What leads a sentence trimmed from the left. */
 #define BUILDER_TRIMMED "..."
 #define BUILDER_KEYS "A picks   B steps back   the crank turns the wheel"
@@ -72,10 +71,9 @@ extern const player_screen player_builder_screen;
 bool player_builder_open(player_app *app, player_reader *reader);
 
 /*
- * `text` as it fits `room` pixels: in the first of `fonts` it fits, or else in the last, trimmed from
- * the left and led by BUILDER_TRIMMED into `out`. The text to draw; `*font` its font.
+ * `text` as it fits `room` pixels in `font`: as it is, or else trimmed from the left and led by
+ * BUILDER_TRIMMED into `out`. The text to draw.
  */
-const char *player_builder_fit(PlaydateAPI *pd, LCDFont *const *fonts, size_t font_count, const char *text, int room,
-                               char *out, size_t size, LCDFont **font);
+const char *player_builder_fit(PlaydateAPI *pd, LCDFont *font, const char *text, int room, char *out, size_t size);
 
 #endif

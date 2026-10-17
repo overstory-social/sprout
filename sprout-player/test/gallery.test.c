@@ -86,12 +86,12 @@ static void a_picture_fits_the_box_and_is_never_enlarged(void) {
   images_fit fit;
   char folder[32];
   begin("fit");
-  fit = images_fit_box(64, 40, FAKE_LINE);
+  fit = images_fit_box(64, 40, FAKE_SERIF_LINE);
   CHECK(fit.scale == 1.0f && fit.width == 64 && fit.height == 40, "a small picture as it is");
-  fit = images_fit_box(800, 100, FAKE_LINE);
+  fit = images_fit_box(800, 100, FAKE_SERIF_LINE);
   CHECK(fit.scale == 0.5f && fit.width == 400 && fit.height == 50, "a wide one to the screen's width");
-  fit = images_fit_box(100, 436, FAKE_LINE);
-  CHECK(fit.height <= 240 - FAKE_LINE - 4 && fit.height >= 240 - FAKE_LINE - 5, "a tall one above the caption: %d", fit.height);
+  fit = images_fit_box(100, 436, FAKE_SERIF_LINE);
+  CHECK(fit.height <= 240 - FAKE_SERIF_LINE - 4 && fit.height >= 240 - FAKE_SERIF_LINE - 5, "a tall one above the caption: %d", fit.height);
   CHECK(images_folder("worlds/a.sproutworld", folder, sizeof folder) && strcmp(folder, "worlds/a.sproutworld.assets/") == 0,
         "the assets beside the cartridge: %s", folder);
   CHECK(!images_folder("worlds/a-very-long-name.sproutworld", folder, sizeof folder), "a folder that does not fit is refused");

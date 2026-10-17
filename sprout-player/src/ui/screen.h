@@ -2,7 +2,7 @@
  * A screen of the C app: functions over the screen's own context. Each frame the app
  * (app.h) calls `update` with the buttons and the crank, clears the frame and calls `draw`;
  * `leave` runs once, when the app moves to another screen or ends, and frees the context;
- * `refit` runs when the pen's font has changed, before the frame's update, and wraps again
+ * `refit` runs when the pen's body has changed, before the frame's update, and wraps again
  * whatever the screen keeps wrapped, losing nothing of it. A screen that lays out every line
  * afresh each frame has no `refit`.
  */

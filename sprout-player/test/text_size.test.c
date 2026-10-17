@@ -1,11 +1,12 @@
 /*
  * ui/text_size.c: the text size remembered in the Data folder. With no file the size is S; a size
- * written reads back; a file saying anything else is S; and a write that cannot be made says so
- * and leaves what was remembered.
+ * written reads back; a file saying anything else is S; a write that cannot be made says so and
+ * leaves what was remembered; and each size's font is one the pdx ships.
  */
 #include <stdlib.h>
 
 #include "support.h"
+#include "ui/pen.h"
 #include "ui/text_size.h"
 
 static void the_size_round_trips_through_the_data_folder(void) {
@@ -45,8 +46,18 @@ static void a_write_that_cannot_be_made_leaves_the_size_remembered(void) {
   end();
 }
 
+static void each_size_has_a_font_the_pdx_ships(void) {
+  int i;
+  begin("shipped");
+  for (i = 0; i < PLAYER_TEXT_SIZES; i++)
+    CHECK(shipped_font(PLAYER_TEXT_SIZE_FONTS[i]), "%s's font is under Source/fonts: %s", PLAYER_TEXT_SIZE_NAMES[i], PLAYER_TEXT_SIZE_FONTS[i]);
+  CHECK(strcmp(PLAYER_TEXT_SIZE_FONTS[PLAYER_TEXT_S], PLAYER_FRAME_FONT) == 0, "S's font is the frame's");
+  end();
+}
+
 int main(void) {
   test_program("text_size");
+  each_size_has_a_font_the_pdx_ships();
   the_size_round_trips_through_the_data_folder();
   a_file_that_says_anything_else_is_s();
   a_write_that_cannot_be_made_leaves_the_size_remembered();

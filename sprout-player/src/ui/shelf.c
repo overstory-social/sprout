@@ -219,11 +219,12 @@ void player_shelf_unsaved(player_app *app) {
 
 /* ---- the screen ---- */
 
-static int header_height(int line_height) { return line_height + 4; }
-static int panel_height(int line_height) { return line_height * 3 + 8; }
+/* The title over a rule, and a rule over three lines of panel: both in the frame. */
+static int header_height(int frame_height) { return frame_height + 4; }
+static int panel_height(int frame_height) { return frame_height * 3 + 8; }
 
-size_t player_shelf_rows(int line_height) {
-  int room = PLAYER_SCREEN_HEIGHT - header_height(line_height) - panel_height(line_height);
+size_t player_shelf_rows(int line_height, int frame_height) {
+  int room = PLAYER_SCREEN_HEIGHT - header_height(frame_height) - panel_height(frame_height);
   return room > 0 && line_height > 0 ? (size_t)(room / line_height) : 0;
 }
 
@@ -297,16 +298,16 @@ static void panel_words(const player_shelf *shelf, char *out, size_t size) {
 static void draw(player_app *app, void *ctx) {
   player_shelf *shelf = (player_shelf *)ctx;
   const player_pen *pen = &app->pen;
-  int line_height = pen->line_height, y = header_height(line_height) + 2;
-  int panel = PLAYER_SCREEN_HEIGHT - panel_height(line_height);
-  size_t rows = player_shelf_rows(line_height), total = shelf->count + 1, first, i;
+  int line_height = pen->line_height, frame_height = pen->frame_height, y = header_height(frame_height) + 2;
+  int panel = PLAYER_SCREEN_HEIGHT - panel_height(frame_height);
+  size_t rows = player_shelf_rows(line_height, frame_height), total = shelf->count + 1, first, i;
   first = shelf->selected > 3 ? shelf->selected - 3 : 0;
   if (total <= rows)
     first = 0;
   else if (first > total - rows)
     first = total - rows;
-  player_pen_say(pen, "Shelf", PLAYER_MARGIN, 0);
-  app->pd->graphics->drawLine(0, header_height(line_height) - 1, PLAYER_SCREEN_WIDTH, header_height(line_height) - 1, 1,
+  player_pen_frame_say(pen, "Shelf", PLAYER_MARGIN, 0);
+  app->pd->graphics->drawLine(0, header_height(frame_height) - 1, PLAYER_SCREEN_WIDTH, header_height(frame_height) - 1, 1,
                               kColorBlack);
   for (i = first; i < total && i < first + rows; i++, y += line_height) {
     char row[PLAYER_PATH_BYTES];
@@ -327,7 +328,7 @@ static void draw(player_app *app, void *ctx) {
     char words[PLAYER_REASON_BYTES + 256];
     forget_panel(app, shelf);
     panel_words(shelf, words, sizeof words);
-    if (!wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width,
+    if (!wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_frame_width,
                     &app->pen, &shelf->panel))
       shelf->panel.bytes = NULL;
     shelf->panel_for = shelf->selected;
@@ -335,9 +336,9 @@ static void draw(player_app *app, void *ctx) {
   if (shelf->panel.bytes != NULL) {
     const char *line = shelf->panel.bytes;
     y = panel + 2;
-    for (i = 0; i < shelf->panel.line_count; i++, line = wrap_next(line), y += line_height) player_pen_say(pen, line, PLAYER_MARGIN, y);
+    for (i = 0; i < shelf->panel.line_count; i++, line = wrap_next(line), y += frame_height) player_pen_frame_say(pen, line, PLAYER_MARGIN, y);
   } else {
-    player_pen_say(pen, "The player ran out of memory.", PLAYER_MARGIN, panel + 2);
+    player_pen_frame_say(pen, "The player ran out of memory.", PLAYER_MARGIN, panel + 2);
   }
 }
 

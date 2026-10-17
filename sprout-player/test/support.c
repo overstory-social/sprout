@@ -274,3 +274,15 @@ int finish(void) {
   printf("%s: %d scenarios, %d checks, %d failed\n", program, scenarios, test_checks, test_failures);
   return test_failures == 0 ? 0 : 1;
 }
+
+bool shipped_font(const char *font) {
+  char path[512];
+  size_t length = strlen(font);
+  FILE *file;
+  if (strncmp(font, "fonts/", 6) != 0 || length < 10 || strcmp(font + length - 4, ".pft") != 0) return false;
+  snprintf(path, sizeof path, "%s/../../Source/%.*s.fnt", PLAYER_FIXTURES, (int)(length - 4), font);
+  file = fopen(path, "rb");
+  if (file == NULL) return false;
+  fclose(file);
+  return true;
+}

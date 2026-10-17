@@ -1,9 +1,9 @@
 /*
- * The text size: S, M or L, the display font each one is, and the size remembered between
- * launches. S is the smallest, the system's own Asheville Sans 14 Light; M and L are two of its
- * larger fonts, loaded by path from `/System/Fonts/` as S is. The choice is kept in the Data
- * folder, beside the saves, as the one letter in `text-size.txt`; no file, or one that says
- * anything else, is S.
+ * The text size: S, M or L, the body font each one is, and the size remembered between launches.
+ * The fonts are packaged into the pdx from Source/fonts/: S is Newsleak Serif Bold, the frame's
+ * own face (pen.h); M is Roobert 11 Mono Condensed and L is Roobert 11 Medium. The choice is kept
+ * in the Data folder, beside the saves, as the one letter in `text-size.txt`; no file, or one that
+ * says anything else, is S.
  */
 #ifndef PLAYER_UI_TEXT_SIZE_H
 #define PLAYER_UI_TEXT_SIZE_H

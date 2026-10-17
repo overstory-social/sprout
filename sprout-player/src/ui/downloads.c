@@ -558,11 +558,11 @@ static void forget_panel(player_app *app, player_downloads *d) {
 static void draw(player_app *app, void *ctx) {
   player_downloads *d = (player_downloads *)ctx;
   const player_pen *pen = &app->pen;
-  int line_height = pen->line_height, header = line_height + 4, y = header + 2;
-  int panel = PLAYER_SCREEN_HEIGHT - (line_height * 3 + 8);
-  size_t rows = player_shelf_rows(line_height), total = d->worlds != NULL ? d->worlds->count : 0, first, i;
+  int line_height = pen->line_height, frame_height = pen->frame_height, header = frame_height + 4, y = header + 2;
+  int panel = PLAYER_SCREEN_HEIGHT - (frame_height * 3 + 8);
+  size_t rows = player_shelf_rows(line_height, frame_height), total = d->worlds != NULL ? d->worlds->count : 0, first, i;
   char words[sizeof d->panel_said];
-  player_pen_say(pen, "More worlds", PLAYER_MARGIN, 0);
+  player_pen_frame_say(pen, "More worlds", PLAYER_MARGIN, 0);
   app->pd->graphics->drawLine(0, header - 1, PLAYER_SCREEN_WIDTH, header - 1, 1, kColorBlack);
   first = d->selected > 3 ? d->selected - 3 : 0;
   if (total <= rows)
@@ -578,7 +578,7 @@ static void draw(player_app *app, void *ctx) {
   panel_words(app, d, words, sizeof words);
   if (d->panel.bytes == NULL || strcmp(words, d->panel_said) != 0) {
     forget_panel(app, d);
-    if (wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen,
+    if (wrap_lines(app->pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_frame_width, &app->pen,
                    &d->panel))
       SAY(d->panel_said, words);
     else
@@ -587,10 +587,10 @@ static void draw(player_app *app, void *ctx) {
   if (d->panel.bytes != NULL) {
     const char *line = d->panel.bytes;
     y = panel + 2;
-    for (i = 0; i < d->panel.line_count; i++, line = wrap_next(line), y += line_height)
-      player_pen_say(pen, line, PLAYER_MARGIN, y);
+    for (i = 0; i < d->panel.line_count; i++, line = wrap_next(line), y += frame_height)
+      player_pen_frame_say(pen, line, PLAYER_MARGIN, y);
   } else {
-    player_pen_say(pen, "The player ran out of memory.", PLAYER_MARGIN, panel + 2);
+    player_pen_frame_say(pen, "The player ran out of memory.", PLAYER_MARGIN, panel + 2);
   }
 }
 

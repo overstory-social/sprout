@@ -111,7 +111,7 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack pd_host budgets told savelog session turns seen played
     wrap transcript ui builder_disc builder_sentence builder_crank sentence_text disc gallery pictures sound canonical signed_index shelf
-    nickname clock net downloads text_size)
+    nickname clock net downloads text_size pen)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)

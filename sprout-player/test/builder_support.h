@@ -14,14 +14,14 @@
 #include "ui/builder.h"
 #include "ui/disc.h"
 
-#define LINE FAKE_LINE
+#define LINE FAKE_SERIF_LINE
 #define HEADER (LINE + 4)
 #define BOTTOM (240 - (LINE * 3 + 8))
 #define READER_PANEL (240 - (LINE + 4)) /* the reader's rule above its one line of keys */
 #define CENTRE ((HEADER + BOTTOM) / 2)
 #define ROOM (400 - 2 * PLAYER_MARGIN)
-/* A label: the big font's line and a pixel above and below; at rest the front one is placed level with the hub's centre, from where words start. */
-#define LABEL_HEIGHT (FAKE_BIG_LINE + 2)
+/* A label: the disc font's line and a pixel above and below; at rest the front one is placed level with the hub's centre, from where words start. */
+#define LABEL_HEIGHT (FAKE_SANS_LINE + 2)
 #define FRONT_X (DISC_HUB_X + DISC_WORD_AT)
 #define FRONT_Y (CENTRE - LABEL_HEIGHT / 2)
 
