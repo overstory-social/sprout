@@ -67,7 +67,7 @@ describe('the WebAssembly engine’s live state', () => {
     await runCommand(store, 'w', other, command('bump counter'));
     const moved = engine.command(await stored(store), command('bump counter'));
     expect(opens).toHaveBeenCalledTimes(4);
-    expect(moved.changes?.upsert.find((one) => one.id === COUNTER)?.properties['n']?.value).toBe(2);
+    expect(moved.changes?.upsert.find((one) => one.id === COUNTER)?.properties?.['n']).toBe(2);
   });
 
   it('takes no landed state whose serial is not the one its live state reached', async () => {

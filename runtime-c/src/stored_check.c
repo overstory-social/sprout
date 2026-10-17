@@ -150,10 +150,6 @@ static size_t first_repeat(const index *idx) {
 
 /* ---- the checks ---- */
 
-static const char *form_name(sprout_id_form form) {
-  return form == SPROUT_ID_WORLD ? "world" : form == SPROUT_ID_DECLARED ? "declared" : "minted";
-}
-
 static const char *made_name(sprout_made_from made) {
   switch (made) {
     case SPROUT_MADE_WORLD:
@@ -168,12 +164,6 @@ static const char *made_name(sprout_made_from made) {
       return "given";
   }
   return "";
-}
-
-static sprout_id_form form_wanted(sprout_made_from made) {
-  if (made == SPROUT_MADE_WORLD) return SPROUT_ID_WORLD;
-  if (made == SPROUT_MADE_DECLARED) return SPROUT_ID_DECLARED;
-  return SPROUT_ID_MINTED;
 }
 
 /* An id of this world, minted no later than the world's serial. */
@@ -227,24 +217,9 @@ static sprout_status issued(checker *c, uint64_t n) {
 
 static sprout_status check_instance(checker *c, size_t i) {
   const sprout_stored_instance *in = &c->state->instances[i];
-  sprout_id_form form = sprout_id_form_of(c->state->world, in->id);
   size_t k;
   at(c, "instances", i, ".id");
   PASS(an_id(c, in->id));
-  if (form != form_wanted(in->made)) {
-    const char *parts[9];
-    at(c, "instances", i, ".made");
-    parts[0] = "`";
-    parts[1] = in->id.bytes;
-    parts[2] = "` is a ";
-    parts[3] = form_name(form);
-    parts[4] = " id, and made from ";
-    parts[5] = made_name(in->made);
-    parts[6] = " takes a ";
-    parts[7] = form_name(form_wanted(in->made));
-    parts[8] = " one.";
-    return say(c, parts, 9);
-  }
   if (in->has_container) {
     at(c, "instances", i, ".container");
     PASS(an_id(c, in->container));

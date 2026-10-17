@@ -101,7 +101,7 @@ static unsigned char *file_bytes(const char *path, size_t *length) {
  * a load does; NULL on success, or words for why not.
  */
 static char problem[400];
-static const char *open_state(sproutc_host *host, const sprout_world *world, sprout_state **state, sprout_opened *report) {
+static const char *open_state(sproutc_host *host, const sprout_world *world, sprout_state **state) {
   const char *bytes = NULL;
   size_t length = 0;
   sprout_refusal refusal;
@@ -112,7 +112,7 @@ static const char *open_state(sproutc_host *host, const sprout_world *world, spr
     status = sprout_state_empty(&host->record, world->header.name, state);
   else
     status = sprout_state_read(&host->record, bytes, length, state, &refusal);
-  if (status == SPROUT_OK) status = sprout_state_open(*state, world, report, &refusal);
+  if (status == SPROUT_OK) status = sprout_state_open(*state, world, &refusal);
   if (status != SPROUT_OK) {
     snprintf(problem, sizeof problem, "%s: %s", host->state == NULL ? "the store" : host->state,
              status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
@@ -147,11 +147,9 @@ static const char *save_state(sproutc_host *host, sprout_state *state) {
 /* Reads the stored world, opens it, and writes it back; a save the runtime wrote comes back byte for byte. */
 static const char *rewrite_state(sproutc_host *host, const sprout_world *world, FILE *out) {
   sprout_state *state;
-  sprout_opened report;
-  const char *why = open_state(host, world, &state, &report);
+  const char *why = open_state(host, world, &state);
   if (why != NULL) return why;
-  fprintf(out, "state: %zu instances, %zu visitors, %zu dormant, %zu dropped\n", state->instance_count,
-          state->visitor_count, report.dormant_count, report.dropped_count);
+  fprintf(out, "state: %zu instances, %zu visitors\n", state->instance_count, state->visitor_count);
   why = save_state(host, state);
   sprout_state_free(state);
   return why;
@@ -161,11 +159,10 @@ static const char *rewrite_state(sproutc_host *host, const sprout_world *world, 
 static int play(sproutc_host *host, sprout_world *world, const options *o, const sproutc_steps *steps, FILE *out,
                 FILE *err) {
   sprout_state *state;
-  sprout_opened report;
   FILE *trace = NULL;
   sproutc_play_options played;
   size_t before_state = host->bytes_held;
-  const char *why = open_state(host, world, &state, &report);
+  const char *why = open_state(host, world, &state);
   int code;
   if (why != NULL) {
     fprintf(err, "sproutc: %s\n", why);

@@ -8,14 +8,7 @@ import { applyChanges } from './state.js';
 
 const record = (id: string, over: Partial<StoredInstance> = {}): StoredInstance => ({
   id,
-  made: { from: 'declared' },
-  container: 'shop',
-  arrival: null,
-  properties: {},
-  links: {},
-  wakes: [],
-  memory: {},
-  lastTick: null,
+  ...(id.includes('#') ? { made: { from: 'visitor' as const } } : {}),
   ...over,
 });
 
@@ -65,7 +58,7 @@ describe('applying a turn’s changes', () => {
   it('removes before it upserts, replaces a record whole, and keeps a tombstone once', () => {
     const before: StoredState = {
       serial: 2,
-      instances: [record('shop.lamp', { properties: { lit: { type: 'boolean', value: true } } })],
+      instances: [record('shop.lamp', { properties: { lit: true } })],
       visitors: [
         {
           visit: 'v',

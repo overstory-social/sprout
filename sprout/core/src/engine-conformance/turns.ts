@@ -313,7 +313,7 @@ export const turnCases: EngineCase[] = [
       ok((await runWake(store, 'w', host, wake)).committed, 'the wake commits');
       equal(await countOf(store), 90, 'the counter holds the seconds it waited');
       equal(
-        (await storedIn(store)).instances.find((one) => one.id === COUNTER)?.wakes,
+        (await storedIn(store)).instances.find((one) => one.id === COUNTER)?.wakes ?? [],
         [],
         'its wakes',
       );
@@ -334,7 +334,7 @@ export const turnCases: EngineCase[] = [
       match(turn, { committed: false, fault: { name: 'ValueOutOfRange' } }, 'the wake');
       equal(await countOf(store), 0, 'the counter');
       equal(
-        (await storedIn(store)).instances.find((one) => one.id === COUNTER)?.wakes,
+        (await storedIn(store)).instances.find((one) => one.id === COUNTER)?.wakes ?? [],
         [],
         'its wakes',
       );

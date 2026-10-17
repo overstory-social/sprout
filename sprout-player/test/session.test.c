@@ -257,7 +257,7 @@ static void starting_over_forgets_the_world_and_keeps_the_name(void) {
   end();
 }
 
-#define SLICE 512
+#define SLICE 64
 
 /* The stored state in the file at `path` reads whole, and stands its visitor in `place`. */
 static bool saved_in(const char *path, const char *place) {

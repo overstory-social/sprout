@@ -1,10 +1,12 @@
 /*
  * A state read against the world it belongs to (the spec's The runtime >
- * State; The compiler > What absent means). Opening reconciles what is stored
- * with what the catalogue says now: it keeps what fits and says what it
- * drops, keeps dormant whatever cannot be decoded (its object or its kind is
- * absent), makes the declared objects nothing is stored for, and never makes
- * one past its tombstone. Records end up in the order a save writes them.
+ * State; The compiler > What absent means). Opening lays the stored diff over
+ * the world a fresh load makes: every record is read under its declaration,
+ * and one the declaration cannot explain, a property the kind does not
+ * declare or a value not of its type is refused in a sentence naming the
+ * record, since a save is keyed to the cartridge that wrote it; the declared
+ * objects nothing is stored for are made at their defaults, and never one
+ * past its tombstone. Records end up in the order a save writes them.
  */
 #include <string.h>
 
@@ -235,7 +237,6 @@ static sprout_status copy_value(sprout_arena *arena, const sprout_stored_value *
 
 static sprout_status copy_property(sprout_arena *arena, const sprout_stored_property *from, sprout_stored_property *to) {
   COPY_STR(from->name, to->name);
-  COPY_STR(from->type, to->type);
   return copy_value(arena, &from->value, &to->value);
 }
 
@@ -348,7 +349,7 @@ static bool same_value(const sprout_stored_value *a, const sprout_stored_value *
   return false;
 }
 
-/* Whether a stored value is a value of the type now declared (the spec's Properties; Limits). */
+/* Whether a stored value is a value of the declared type (the spec's Properties; Limits). */
 static bool fits(const sprout_decl_type *type, const sprout_stored_value *value, sprout_limit cap) {
   size_t i, j;
   switch (type->kind) {
@@ -381,46 +382,57 @@ static bool fits(const sprout_decl_type *type, const sprout_stored_value *value,
   return false;
 }
 
-static sprout_status literal_value(sprout_arena *arena, const sprout_literal *literal,
-                                   sprout_stored_value *out) {
-  size_t i;
+static bool same_literal(const sprout_literal *a, const sprout_literal *b);
+
+/* Whether a literal is one value with a stored one: an option is its text, a list its items with repeats dropped. */
+static bool literal_same_as(const sprout_literal *literal, const sprout_stored_value *value) {
+  size_t i, j, next = 0;
   switch (literal->kind) {
     case SPROUT_LITERAL_BOOLEAN:
-      out->kind = SPROUT_BOOL;
-      out->boolean = literal->boolean;
-      return SPROUT_OK;
+      return value->kind == SPROUT_BOOL && value->boolean == literal->boolean;
     case SPROUT_LITERAL_NUMBER:
-      out->kind = SPROUT_NUMBER;
-      out->number = literal->number;
-      return SPROUT_OK;
+      return value->kind == SPROUT_NUMBER && value->number == literal->number;
     case SPROUT_LITERAL_STRING:
     case SPROUT_LITERAL_OPTION:
-      out->kind = SPROUT_STRING;
-      out->string.length = strlen(literal->text);
-      out->string.bytes = sprout_arena_copy(arena, literal->text, out->string.length);
-      return out->string.bytes == NULL ? SPROUT_NO_MEMORY : SPROUT_OK;
-    case SPROUT_LITERAL_LIST: {
-      size_t kept = 0;
-      out->kind = SPROUT_LIST;
-      out->items = (sprout_stored_value *)sprout_arena_take(arena, (literal->count + 1) * sizeof *out->items);
-      if (out->items == NULL) return SPROUT_NO_MEMORY;
+      return value->kind == SPROUT_STRING && sprout_str_is(value->string, literal->text);
+    case SPROUT_LITERAL_LIST:
+      if (value->kind != SPROUT_LIST) return false;
       for (i = 0; i < literal->count; i++) {
-        sprout_stored_value one;
-        size_t j;
         bool repeats = false;
-        memset(&one, 0, sizeof one);
-        {
-          sprout_status status = literal_value(arena, &literal->items[i], &one);
-          if (status != SPROUT_OK) return status;
-        }
-        for (j = 0; j < kept && !repeats; j++) repeats = same_value(&out->items[j], &one);
-        if (!repeats) out->items[kept++] = one;
+        for (j = 0; j < i && !repeats; j++) repeats = same_literal(&literal->items[j], &literal->items[i]);
+        if (repeats) continue;
+        if (next >= value->count || !literal_same_as(&literal->items[i], &value->items[next])) return false;
+        next++;
       }
-      out->count = kept;
-      return SPROUT_OK;
-    }
+      return next == value->count;
   }
-  return SPROUT_OK;
+  return false;
+}
+
+/* Whether two items of a list default are one value, as reading the default keeps it: an option is its text. */
+static bool same_literal(const sprout_literal *a, const sprout_literal *b) {
+  bool a_text = a->kind == SPROUT_LITERAL_STRING || a->kind == SPROUT_LITERAL_OPTION;
+  bool b_text = b->kind == SPROUT_LITERAL_STRING || b->kind == SPROUT_LITERAL_OPTION;
+  size_t i;
+  if (a_text || b_text) return a_text && b_text && strcmp(a->text, b->text) == 0;
+  if (a->kind != b->kind) return false;
+  switch (a->kind) {
+    case SPROUT_LITERAL_BOOLEAN:
+      return a->boolean == b->boolean;
+    case SPROUT_LITERAL_NUMBER:
+      return a->number == b->number;
+    case SPROUT_LITERAL_LIST:
+      if (a->count != b->count) return false;
+      for (i = 0; i < a->count; i++)
+        if (!same_literal(&a->items[i], &b->items[i])) return false;
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool sprout_value_is_default(const sprout_property *declared, const sprout_stored_value *value) {
+  return literal_same_as(&declared->default_value, value);
 }
 
 static sprout_status copy_cstr(sprout_arena *arena, const char *text, sprout_str *out) {
@@ -456,47 +468,99 @@ static size_t declared_index(const by_id *sorted, size_t count, const char *id) 
 typedef struct opening {
   sprout_state *state;
   const sprout_world *world;
-  sprout_dropped *dropped;
-  size_t dropped_count, dropped_capacity;
+  sprout_refusal *refusal;
+  char path[64];
 } opening;
 
-static sprout_status drop(opening *o, sprout_str id, sprout_str property, const sprout_str *actor,
-                          sprout_drop_reason why) {
-  sprout_dropped *entry;
-  if (o->dropped_count == o->dropped_capacity) {
-    size_t wanted = o->dropped_capacity == 0 ? 16 : o->dropped_capacity * 2;
-    sprout_dropped *bigger = (sprout_dropped *)sprout_arena_take(&o->state->arena, wanted * sizeof *bigger);
-    if (bigger == NULL) return SPROUT_NO_MEMORY;
-    if (o->dropped_count > 0) memcpy(bigger, o->dropped, o->dropped_count * sizeof *bigger);
-    o->dropped = bigger;
-    o->dropped_capacity = wanted;
+/* "The stored state is not readable at instances[i]<field>: <parts joined>", the first problem found. */
+static sprout_status refuse_at(opening *o, size_t i, const char *field, const char *const *parts, size_t count) {
+  char text[320], digits[24], reversed[24];
+  size_t used = 0, k, n = 0;
+  const char *at[4];
+  do {
+    reversed[n++] = (char)('0' + i % 10);
+    i /= 10;
+  } while (i > 0);
+  for (k = 0; k < n; k++) digits[k] = reversed[n - 1 - k];
+  digits[n] = '\0';
+  at[0] = "instances[";
+  at[1] = digits;
+  at[2] = "]";
+  at[3] = field;
+  for (k = 0; k < 4; k++) {
+    n = strlen(at[k]);
+    if (used + n + 1 > sizeof o->path) n = sizeof o->path - 1 - used;
+    memcpy(o->path + used, at[k], n);
+    used += n;
   }
-  entry = &o->dropped[o->dropped_count++];
-  entry->id = id;
-  entry->property = property;
-  entry->has_actor = actor != NULL;
-  if (actor != NULL) entry->actor = *actor;
-  entry->why = why;
-  return SPROUT_OK;
+  o->path[used] = '\0';
+  used = 0;
+  for (k = 0; k < count; k++) {
+    n = parts[k] == NULL ? 0 : strlen(parts[k]);
+    if (used + n + 1 > sizeof text) n = sizeof text - 1 - used;
+    if (n > 0) memcpy(text + used, parts[k], n);
+    used += n;
+  }
+  text[used] = '\0';
+  return sprout_stored_refuse(o->refusal, o->path, text, NULL, NULL);
 }
 
-/* A stored property read under what is declared now: kept, or why not. */
-static bool keep(const opening *o, const sprout_property *declared, bool remembered,
-                 const sprout_stored_property *stored, sprout_drop_reason *why) {
-  if (declared == NULL) {
-    *why = SPROUT_DROP_UNDECLARED;
-    return false;
+/* "`id` <a><b><c>" at instances[i]<field>. */
+static sprout_status refuse_about(opening *o, size_t i, const char *field, sprout_str id, const char *a,
+                                  const char *b, const char *c) {
+  const char *parts[5];
+  parts[0] = "`";
+  parts[1] = id.bytes;
+  parts[2] = a;
+  parts[3] = b;
+  parts[4] = c;
+  return refuse_at(o, i, field, parts, 5);
+}
+
+/* The kind a record is decoded under, or NULL with the record refused in words. */
+static sprout_status kind_of(opening *o, size_t i, const sprout_stored_instance *in, const sprout_kind_def **out) {
+  const sprout_world *world = o->world;
+  *out = NULL;
+  switch (in->made) {
+    case SPROUT_MADE_WORLD:
+      *out = world->world_kind;
+      if (*out == NULL) return refuse_about(o, i, ".id", in->id, "` is the world, which has no kind in this world.", NULL, NULL);
+      return SPROUT_OK;
+    case SPROUT_MADE_VISITOR:
+      *out = world->visitor_kind;
+      if (*out == NULL)
+        return refuse_about(o, i, ".made", in->id, "` is made from visitor, and this world has nothing for a visitor to be made of.", NULL, NULL);
+      return SPROUT_OK;
+    case SPROUT_MADE_DECLARED: {
+      const sprout_declared *declared = sprout_world_declared(world, in->id.bytes);
+      if (declared == NULL || declared->kind == NULL)
+        return refuse_about(o, i, ".id", in->id, "` is not an object this world declares.", NULL, NULL);
+      *out = declared->kind;
+      return SPROUT_OK;
+    }
+    case SPROUT_MADE_SPAWNED: {
+      const sprout_kind_def *kind = sprout_world_kind(world, in->made_kind.bytes);
+      if (kind == NULL || !kind->spawnable)
+        return refuse_about(o, i, ".made", in->id, "` is a spawn of `", in->made_kind.bytes,
+                            kind == NULL ? "`, which this world does not declare." : "`, which cannot be spawned.");
+      *out = kind;
+      return SPROUT_OK;
+    }
+    case SPROUT_MADE_GIVEN: {
+      const char **path = (const char **)sprout_arena_take(&o->state->arena, (in->path_count + 1) * sizeof(char *));
+      const sprout_content *content;
+      size_t k;
+      if (path == NULL) return SPROUT_NO_MEMORY;
+      for (k = 0; k < in->path_count; k++) path[k] = in->path[k].bytes;
+      content = sprout_world_content_at(world, in->made_kind.bytes, path, in->path_count);
+      if (content == NULL || content->kind == NULL)
+        return refuse_about(o, i, ".made", in->id, "` is given by `", in->made_kind.bytes,
+                            "`, whose body does not give it.");
+      *out = content->kind;
+      return SPROUT_OK;
+    }
   }
-  if (declared->remembered != remembered ||
-      !sprout_str_is(stored->type, declared->type->key)) {
-    *why = SPROUT_DROP_RETYPED;
-    return false;
-  }
-  if (!fits(declared->type, &stored->value, o->state->host.budgets.list_elements)) {
-    *why = SPROUT_DROP_NO_LONGER_FITS;
-    return false;
-  }
-  return true;
+  return SPROUT_OK;
 }
 
 static const sprout_property *declared_property(const sprout_kind_def *kind, sprout_str name) {
@@ -508,130 +572,65 @@ static const sprout_property *declared_property(const sprout_kind_def *kind, spr
   return NULL;
 }
 
-static const sprout_stored_property *stored_named(const sprout_stored_property *list, size_t count,
-                                                  const char *name) {
-  size_t i;
-  for (i = 0; i < count; i++)
-    if (sprout_str_is(list[i].name, name)) return &list[i];
-  return NULL;
-}
-
-/* Whether `stored` holds what `declared` defaults to, a list compared as its default is read, repeats dropped. */
-static sprout_status at_default(sprout_arena *arena, const sprout_property *declared,
-                                const sprout_stored_property *stored, bool *same) {
-  const sprout_literal *literal = &declared->default_value;
-  const sprout_stored_value *value = &stored->value;
-  switch (literal->kind) {
-    case SPROUT_LITERAL_BOOLEAN:
-      *same = value->kind == SPROUT_BOOL && value->boolean == literal->boolean;
-      return SPROUT_OK;
-    case SPROUT_LITERAL_NUMBER:
-      *same = value->kind == SPROUT_NUMBER && value->number == literal->number;
-      return SPROUT_OK;
-    case SPROUT_LITERAL_STRING:
-    case SPROUT_LITERAL_OPTION:
-      *same = value->kind == SPROUT_STRING && sprout_str_is(value->string, literal->text);
-      return SPROUT_OK;
-    case SPROUT_LITERAL_LIST: {
-      sprout_stored_value list;
-      memset(&list, 0, sizeof list);
-      PASS(literal_value(arena, literal, &list));
-      *same = same_value(&list, value);
-      return SPROUT_OK;
-    }
-  }
-  *same = false;
-  return SPROUT_OK;
+/* "`id` does not hold `:name`." (or remember), or "`:name` of `id` is not a value of its type, `key`." */
+static sprout_status refuse_property(opening *o, size_t i, const char *field, const sprout_stored_instance *in,
+                                     sprout_str name, const sprout_property *declared, bool remembered) {
+  char named[96];
+  const char *parts[7];
+  size_t n = name.length < sizeof named - 1 ? name.length : sizeof named - 1;
+  memcpy(named, name.bytes, n);
+  named[n] = '\0';
+  if (declared == NULL)
+    return refuse_about(o, i, field, in->id, remembered ? "` does not remember `:" : "` does not hold `:", named, "`.");
+  parts[0] = "`:";
+  parts[1] = named;
+  parts[2] = "` of `";
+  parts[3] = in->id.bytes;
+  parts[4] = "` is not a value of its type, `";
+  parts[5] = declared->type->key;
+  parts[6] = "`.";
+  return refuse_at(o, i, field, parts, 7);
 }
 
 /*
- * The instance's properties are those of its kind's plain properties that hold other than their default, by
- * name: one at its default is not kept, and reads as its default (the spec's The runtime > State keeps every
- * property; a save writes every one).
+ * The record's properties under its kind: each must be one the kind holds (or, in memory, remembers) and a
+ * value of its type, since the cartridge that wrote the save declares them; one at its default is not kept.
  */
-static sprout_status reconcile_properties(opening *o, sprout_stored_instance *in) {
-  sprout_arena *arena = &o->state->arena;
-  const sprout_kind_def *kind = in->kind;
-  sprout_stored_property *sorted_stored, *next;
-  size_t i, plain = 0, n = 0;
-  bool *kept;
-  PASS(sort_records(arena, in->properties, in->property_count, sizeof *in->properties, by_property_name));
-  kept = (bool *)sprout_arena_take(arena, (in->property_count + 1) * sizeof(bool));
-  if (kept == NULL) return SPROUT_NO_MEMORY;
-  sorted_stored = in->properties;
-  for (i = 0; i < in->property_count; i++) {
-    sprout_drop_reason why = SPROUT_DROP_UNDECLARED;
-    const sprout_property *declared = declared_property(kind, sorted_stored[i].name);
-    kept[i] = keep(o, declared, false, &sorted_stored[i], &why);
-    if (!kept[i]) PASS(drop(o, in->id, sorted_stored[i].name, NULL, why));
+static sprout_status read_properties(opening *o, size_t i, const char *field, sprout_stored_instance *in,
+                                     sprout_stored_property *list, size_t count, bool remembered, size_t *kept) {
+  size_t k, n = 0;
+  for (k = 0; k < count; k++) {
+    const sprout_property *declared = declared_property(in->kind, list[k].name);
+    if (declared == NULL || declared->remembered != remembered)
+      return refuse_property(o, i, field, in, list[k].name, NULL, remembered);
+    if (!fits(declared->type, &list[k].value, o->state->host.budgets.list_elements))
+      return refuse_property(o, i, field, in, list[k].name, declared, remembered);
+    if (sprout_value_is_default(declared, &list[k].value)) continue;
+    list[n++] = list[k];
   }
-  for (i = 0; i < kind->property_count; i++)
-    if (!kind->properties[i]->remembered) plain++;
-  next = (sprout_stored_property *)sprout_arena_take(arena, (plain + 1) * sizeof *next);
-  if (next == NULL) return SPROUT_NO_MEMORY;
-  for (i = 0; i < kind->property_count; i++) {
-    const sprout_property *declared = kind->properties[i];
-    const sprout_stored_property *found;
-    bool same = false;
-    if (declared->remembered) continue;
-    found = stored_named(sorted_stored, in->property_count, declared->name);
-    if (found == NULL || !kept[found - sorted_stored]) continue;
-    PASS(at_default(arena, declared, found, &same));
-    if (!same) next[n++] = *found;
-  }
-  in->properties = next;
-  in->property_count = n;
-  return sort_records(arena, in->properties, in->property_count, sizeof *in->properties, by_property_name);
-}
-
-/* Memory is kept only where it was written and fits. */
-static sprout_status reconcile_memory(opening *o, sprout_stored_instance *in) {
-  sprout_arena *arena = &o->state->arena;
-  size_t actors = 0, i, j;
-  PASS(sort_records(arena, in->memory, in->memory_count, sizeof *in->memory, by_actor));
-  for (i = 0; i < in->memory_count; i++) {
-    sprout_stored_memory *actor = &in->memory[i];
-    size_t kept = 0;
-    PASS(sort_records(arena, actor->properties, actor->count, sizeof *actor->properties, by_property_name));
-    for (j = 0; j < actor->count; j++) {
-      sprout_drop_reason why = SPROUT_DROP_UNDECLARED;
-      const sprout_property *declared = declared_property(in->kind, actor->properties[j].name);
-      if (keep(o, declared, true, &actor->properties[j], &why)) actor->properties[kept++] = actor->properties[j];
-      else PASS(drop(o, in->id, actor->properties[j].name, &actor->actor, why));
-    }
-    actor->count = kept;
-    if (kept > 0) in->memory[actors++] = *actor;
-  }
-  in->memory_count = actors;
+  *kept = n;
   return SPROUT_OK;
 }
 
-static const sprout_kind_def *kind_of(const opening *o, const sprout_stored_instance *in) {
-  const sprout_world *world = o->world;
-  switch (in->made) {
-    case SPROUT_MADE_WORLD:
-      return world->world_kind;
-    case SPROUT_MADE_VISITOR:
-      return world->visitor_kind;
-    case SPROUT_MADE_DECLARED: {
-      const sprout_declared *declared = sprout_world_declared(world, in->id.bytes);
-      return declared == NULL ? NULL : declared->kind;
-    }
-    case SPROUT_MADE_SPAWNED: {
-      const sprout_kind_def *kind = sprout_world_kind(world, in->made_kind.bytes);
-      return kind != NULL && kind->spawnable ? kind : NULL;
-    }
-    case SPROUT_MADE_GIVEN: {
-      const char **path = (const char **)sprout_arena_take(&o->state->arena, (in->path_count + 1) * sizeof(char *));
-      const sprout_content *content;
-      size_t i;
-      if (path == NULL) return NULL;
-      for (i = 0; i < in->path_count; i++) path[i] = in->path[i].bytes;
-      content = sprout_world_content_at(world, in->made_kind.bytes, path, in->path_count);
-      return content == NULL ? NULL : content->kind;
-    }
+static sprout_status read_record(opening *o, size_t i, sprout_stored_instance *in) {
+  sprout_arena *arena = &o->state->arena;
+  size_t k, actors = 0;
+  PASS(kind_of(o, i, in, &in->kind));
+  if (in->made == SPROUT_MADE_WORLD) {
+    in->has_container = false;
+    in->has_arrival = false;
   }
-  return NULL;
+  PASS(sort_records(arena, in->properties, in->property_count, sizeof *in->properties, by_property_name));
+  PASS(read_properties(o, i, ".properties", in, in->properties, in->property_count, false, &in->property_count));
+  PASS(sort_records(arena, in->memory, in->memory_count, sizeof *in->memory, by_actor));
+  for (k = 0; k < in->memory_count; k++) {
+    sprout_stored_memory *about = &in->memory[k];
+    PASS(sort_records(arena, about->properties, about->count, sizeof *about->properties, by_property_name));
+    PASS(read_properties(o, i, ".memory", in, about->properties, about->count, true, &about->count));
+    if (about->count > 0) in->memory[actors++] = *about;
+  }
+  in->memory_count = actors;
+  return sort_records(arena, in->links, in->link_count, sizeof *in->links, by_link_name);
 }
 
 sprout_status sprout_stored_instance_defaults(sprout_arena *arena, const sprout_kind_def *kind,
@@ -676,26 +675,9 @@ static sprout_status refuse_world(const sprout_state *state, const sprout_world 
   return sprout_stored_refuse(refusal, "", text, NULL, NULL);
 }
 
-static sprout_status add_id(sprout_arena *arena, sprout_str **list, size_t *count, size_t *capacity, sprout_str id) {
-  if (*count == *capacity) {
-    size_t wanted = *capacity == 0 ? 16 : *capacity * 2;
-    sprout_str *bigger = (sprout_str *)sprout_arena_take(arena, wanted * sizeof *bigger);
-    if (bigger == NULL) return SPROUT_NO_MEMORY;
-    if (*count > 0) memcpy(bigger, *list, *count * sizeof *bigger);
-    *list = bigger;
-    *capacity = wanted;
-  }
-  (*list)[(*count)++] = id;
-  return SPROUT_OK;
-}
-
-sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, sprout_opened *report,
-                                sprout_refusal *refusal) {
+sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, sprout_refusal *refusal) {
   opening o;
   sprout_arena *arena = &state->arena;
-  sprout_str *created = NULL, *dormant = NULL, *stranded = NULL;
-  size_t created_count = 0, created_cap = 0, dormant_count = 0, dormant_cap = 0, stranded_count = 0,
-         stranded_cap = 0;
   size_t i, extra = 0;
   sprout_stored_instance *made_instances;
   bool *gone;
@@ -704,23 +686,12 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
   memset(&o, 0, sizeof o);
   o.state = state;
   o.world = world;
-  if (report != NULL) memset(report, 0, sizeof *report);
+  o.refusal = refusal;
+  if (refusal != NULL) refusal->text[0] = '\0';
   if (!sprout_str_is(state->world, world->header.name)) return refuse_world(state, world, refusal);
   PASS(sprout_state_sort(state, arena));
 
-  for (i = 0; i < state->instance_count; i++) {
-    sprout_stored_instance *in = &state->instances[i];
-    in->kind = kind_of(&o, in);
-    in->dormant = in->kind == NULL;
-    if (in->dormant) continue;
-    if (in->made == SPROUT_MADE_WORLD) {
-      in->has_container = false;
-      in->has_arrival = false;
-    }
-    PASS(reconcile_properties(&o, in));
-    PASS(reconcile_memory(&o, in));
-    PASS(sort_records(arena, in->links, in->link_count, sizeof *in->links, by_link_name));
-  }
+  for (i = 0; i < state->instance_count; i++) PASS(read_record(&o, i, &state->instances[i]));
 
   /* Declared objects nothing was stored for, outside in, so a container is settled before what it holds. */
   made_instances = (sprout_stored_instance *)sprout_arena_take(
@@ -733,18 +704,8 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
     ids[i].index = i;
   }
   PASS(sort_records(arena, ids, world->declared_count, sizeof *ids, by_declared_id));
-  if (sprout_state_find(state, state->world) == NULL) {
-    if (world->world_kind == NULL) {
-      sprout_stored_instance *empty = &made_instances[extra++];
-      memset(empty, 0, sizeof *empty);
-      empty->id = state->world;
-      empty->made = SPROUT_MADE_WORLD;
-      empty->dormant = true;
-    } else {
-      PASS(new_instance(&o, world->header.name, SPROUT_MADE_WORLD, world->world_kind, NULL, &made_instances[extra++]));
-      PASS(add_id(arena, &created, &created_count, &created_cap, state->world));
-    }
-  }
+  if (world->world_kind != NULL && sprout_state_find(state, state->world) == NULL)
+    PASS(new_instance(&o, world->header.name, SPROUT_MADE_WORLD, world->world_kind, NULL, &made_instances[extra++]));
   for (i = 0; i < world->declared_count; i++) {
     const sprout_declared *entry = &world->declared[i];
     sprout_str id;
@@ -762,7 +723,6 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
     if (!stored && j != (size_t)-1 && gone[j]) gone[i] = true;
     if (gone[i] || entry->kind == NULL || stored) continue;
     PASS(new_instance(&o, entry->id, SPROUT_MADE_DECLARED, entry->kind, entry->container, &made_instances[extra]));
-    PASS(add_id(arena, &created, &created_count, &created_cap, made_instances[extra].id));
     extra++;
   }
   if (extra > 0) {
@@ -776,6 +736,7 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
   }
   state->edition++;
 
+  /* A reading of a verb the world does not declare is let go: `again` then has nothing to run. */
   for (i = 0; i < state->visitor_count; i++) {
     sprout_stored_visitor *v = &state->visitors[i];
     size_t k;
@@ -788,30 +749,6 @@ sprout_status sprout_state_open(sprout_state *state, const sprout_world *world, 
       memset(&v->reading, 0, sizeof v->reading);
       v->has_reading = false;
     }
-  }
-
-  for (i = 0; i < state->instance_count; i++) {
-    const sprout_stored_instance *in = &state->instances[i];
-    const sprout_stored_instance *holder;
-    if (in->dormant) {
-      PASS(add_id(arena, &dormant, &dormant_count, &dormant_cap, in->id));
-      continue;
-    }
-    if (!in->has_container || !in->kind->composes_actor) continue;
-    holder = sprout_state_find(state, in->container);
-    if (holder != NULL && !holder->dormant && !holder->kind->contains_actors)
-      PASS(add_id(arena, &stranded, &stranded_count, &stranded_cap, in->id));
-  }
-
-  if (report != NULL) {
-    report->created_count = created_count;
-    report->created = created;
-    report->dormant_count = dormant_count;
-    report->dormant = dormant;
-    report->dropped_count = o.dropped_count;
-    report->dropped = o.dropped;
-    report->stranded_count = stranded_count;
-    report->stranded = stranded;
   }
   return SPROUT_OK;
 }

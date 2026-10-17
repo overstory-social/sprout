@@ -61,7 +61,6 @@ static void a_thing_behind_a_shut_container_is_not_carried(void) {
       if (next.property_count > 0) memcpy(bigger, next.properties, next.property_count * sizeof *bigger);
       memset(&bigger[next.property_count], 0, sizeof *bigger);
       bigger[next.property_count].name = exec_str("open");
-      bigger[next.property_count].type = exec_str("boolean");
       bigger[next.property_count].value.kind = SPROUT_BOOL;
       bigger[next.property_count].value.boolean = false;
       next.properties = bigger;

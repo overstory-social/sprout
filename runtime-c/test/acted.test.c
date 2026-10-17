@@ -36,7 +36,7 @@ static void harbour_open(harbour *h) {
   CHECK_INT(sprout_load_explained(&h->host, h->cartridge, cartridge_length, &h->world, &refusal), SPROUT_OK);
   CHECK_INT(sprout_json_write_value(&h->json, sprout_json_get(root, "world"), &stored, &stored_length), SPROUT_OK);
   CHECK_INT(sprout_state_read(&h->host, stored, stored_length, &h->state, &refusal), SPROUT_OK);
-  CHECK_INT(sprout_state_open(h->state, h->world, NULL, &refusal), SPROUT_OK);
+  CHECK_INT(sprout_state_open(h->state, h->world, &refusal), SPROUT_OK);
 }
 
 static void harbour_close(harbour *h) {

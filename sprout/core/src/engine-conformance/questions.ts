@@ -47,7 +47,7 @@ export const questionCases: EngineCase[] = [
       );
       match(
         step.changes,
-        { upsert: [{ id: COUNTER, properties: { n: { value: 1 } } }] },
+        { upsert: [{ id: COUNTER, properties: { n: 1 } }] },
         'what the store writes',
       );
       match(
@@ -131,7 +131,7 @@ export const questionCases: EngineCase[] = [
       );
       match(
         engine.command(stored, command('bump counter')).changes,
-        { upsert: [{ id: COUNTER, properties: { n: { value: 1 } } }] },
+        { upsert: [{ id: COUNTER, properties: { n: 1 } }] },
         'the first bump, the line having bumped nothing',
       );
     },

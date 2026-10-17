@@ -79,10 +79,7 @@ sprout_draft_result sprout_draft_open(sprout_draft *draft, sprout_arena *turn, c
 /* How many instances the world stores now: what the host's bound on live instances counts. */
 size_t sprout_draft_held(const sprout_draft *draft);
 
-/* Any record under this id as the turn stands, a dormant one included, or NULL (removed this turn, or never there). */
-const sprout_stored_instance *sprout_draft_record(const sprout_draft *draft, sprout_str id);
-
-/* The decoded instance under this id as the turn stands, or NULL: a dormant record is not one. */
+/* The instance under this id as the turn stands, or NULL (removed this turn, or never there). */
 const sprout_stored_instance *sprout_draft_instance(const sprout_draft *draft, sprout_str id);
 
 /*
@@ -126,14 +123,14 @@ sprout_draft_result sprout_draft_place(sprout_draft *draft, sprout_str id, const
 sprout_draft_result sprout_draft_add(sprout_draft *draft, const sprout_stored_instance *created);
 
 /*
- * `id` and everything inside it, all the way down: decoded contents in order,
- * then dormant records by id, each once. The ids are in the turn arena.
+ * `id` and everything inside it, all the way down, in contents order, each
+ * once. The ids are in the turn arena.
  */
 sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str id, sprout_str **ids, size_t *count);
 
 /*
- * Removes `id` and everything inside it, dormant records included, and says
- * what was removed in the order the removal visited them. Each declared
+ * Removes `id` and everything inside it, and says what was removed in the
+ * order the removal visited them. Each declared
  * object removed is tombstoned. The world is never removed.
  */
 sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, const sprout_str **removed,

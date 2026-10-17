@@ -21,7 +21,7 @@ export interface SqlMigration {
 }
 
 /** The schema version the current export produces; `sprout.meta` records it. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const migrations: readonly SqlMigration[] = [
   {
@@ -223,6 +223,25 @@ UPDATE sprout.meta SET value = '4' WHERE key = 'schema_version';
 -- every visitor already stored.
 ALTER TABLE sprout.visitor ADD COLUMN last_reading jsonb;
 UPDATE sprout.meta SET value = '5' WHERE key = 'schema_version';
+`,
+  },
+  {
+    name: 'sprout/006_stored_diff.sql',
+    sql: `-- @overstory/sprout-store-sql 006 (schema version 6): an instance is kept
+-- whole as the language's stored form writes it, the diff from the world a
+-- fresh load makes, but its memory, which stays a row per actor. A state in
+-- the form before it cannot be read, so every world's state is cleared, as a
+-- redeploy clears it; the microworld records and the logs are kept.
+DELETE FROM sprout.memory;
+DELETE FROM sprout.instance;
+DELETE FROM sprout.serial;
+DELETE FROM sprout.visitor;
+DELETE FROM sprout.tombstone;
+ALTER TABLE sprout.instance
+  DROP COLUMN made, DROP COLUMN container, DROP COLUMN arrival, DROP COLUMN properties,
+  DROP COLUMN links, DROP COLUMN wakes, DROP COLUMN last_tick;
+ALTER TABLE sprout.instance ADD COLUMN record jsonb NOT NULL;
+UPDATE sprout.meta SET value = '6' WHERE key = 'schema_version';
 `,
   },
 ];

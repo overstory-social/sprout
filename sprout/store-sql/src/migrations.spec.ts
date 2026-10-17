@@ -13,6 +13,7 @@ describe('the exported migrations', () => {
       'sprout/003_log.sql',
       'sprout/004_referents.sql',
       'sprout/005_last_reading.sql',
+      'sprout/006_stored_diff.sql',
     ]);
     expect(migrations.at(-1)!.sql).toContain(
       `SET value = '${SCHEMA_VERSION}' WHERE key = 'schema_version'`,
@@ -50,9 +51,30 @@ describe('the exported migrations', () => {
   });
 
   it('keeps the reading each visitor’s last command ran, none for a visitor stored before', () => {
-    expect(migrations.at(-1)!.sql).toContain(
+    expect(migrations[4]!.sql).toContain(
       'ALTER TABLE sprout.visitor ADD COLUMN last_reading jsonb;',
     );
+  });
+
+  it('keeps an instance whole in the stored form, its memory a row per actor, and clears the state before it', () => {
+    const last = migrations.at(-1)!.sql;
+    expect(last).toContain('ALTER TABLE sprout.instance ADD COLUMN record jsonb NOT NULL;');
+    for (const column of [
+      'made',
+      'container',
+      'arrival',
+      'properties',
+      'links',
+      'wakes',
+      'last_tick',
+    ]) {
+      expect(last).toContain(`DROP COLUMN ${column}`);
+    }
+    for (const table of ['serial', 'memory', 'instance', 'visitor', 'tombstone']) {
+      expect(last).toContain(`DELETE FROM sprout.${table};`);
+    }
+    expect(last).not.toContain('DELETE FROM sprout.log');
+    expect(last).not.toContain('DELETE FROM sprout.microworld');
   });
 
   it('the runner records each applied migration in sprout.meta and rolls a failure back by name', async () => {
@@ -74,6 +96,7 @@ describe('the exported migrations', () => {
         'sprout/003_log.sql',
         'sprout/004_referents.sql',
         'sprout/005_last_reading.sql',
+        'sprout/006_stored_diff.sql',
       ],
       skipped: [],
     });

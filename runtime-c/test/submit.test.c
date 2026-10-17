@@ -32,7 +32,7 @@ static void submitted_open(submitted *s, const char *state) {
   s->stored = exec_text(sprout_json_get(s->b.golden, "states"), state);
   if (sprout_load(&s->host, s->b.cartridge, s->b.cartridge_length, &s->world) != SPROUT_OK) exit(2);
   if (sprout_state_read(&s->host, s->stored, strlen(s->stored), &s->state, &refusal) != SPROUT_OK ||
-      sprout_state_open(s->state, s->world, NULL, &refusal) != SPROUT_OK)
+      sprout_state_open(s->state, s->world, &refusal) != SPROUT_OK)
     exit(2);
 }
 
@@ -245,7 +245,7 @@ static void a_seed_past_the_range_or_a_host_without_one_is_refused(void) {
   {
     sprout_refusal refusal;
     CHECK_INT(sprout_state_read(&s.host, s.stored, strlen(s.stored), &s.state, &refusal), SPROUT_OK);
-    CHECK_INT(sprout_state_open(s.state, s.world, NULL, &refusal), SPROUT_OK);
+    CHECK_INT(sprout_state_open(s.state, s.world, &refusal), SPROUT_OK);
   }
   CHECK_INT(sprout_reading_run(s.world, s.state, &reading, 0, &outcome), SPROUT_BAD_HOST);
   submitted_close(&s);

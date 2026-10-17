@@ -42,22 +42,14 @@ const microworld = (id: string) => ({
 });
 const lamp: StoredInstance = {
   id: 'shop.hall.lamp',
-  made: { from: 'declared' },
-  container: 'shop.hall',
-  arrival: null,
-  properties: { lit: { type: 'boolean', value: true } },
-  links: {},
-  wakes: [],
-  memory: { 'shop#1': { seen: { type: 'boolean', value: true } } },
-  lastTick: null,
+  properties: { lit: true },
+  memory: { 'shop#1': { seen: true } },
 };
 const marta: StoredInstance = {
-  ...lamp,
   id: 'shop#1',
   made: { from: 'visitor' },
+  container: 'shop.hall',
   arrival: 1,
-  properties: {},
-  memory: {},
 };
 const visitor = (visit: string): StoredVisitor => ({
   visit,

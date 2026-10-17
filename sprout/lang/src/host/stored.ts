@@ -6,17 +6,19 @@
 // and when it last ticked; per visitor, the visit, the nickname, the
 // instance and where they last stood; and a tombstone for every declared
 // object destroyed, which is gone for good (the spec's Destroying), so
-// its id is never made again. `StoredWorldSchema` is what a host
+// its id is never made again. The stored form is the diff from the world
+// a fresh load of the cartridge makes: an instance is written only where
+// something about it differs from its declaration (a minted one always,
+// with how it was made), a written record holds only the fields that
+// differ, and a value is bare, since the kind fixes its type. What is
+// left out is implied by the cartridge the save is keyed to, so the reader
+// lays the records over a fresh load. `StoredWorldSchema` is what a host
 // hands back; a store that fails it is a host defect, not the world's,
 // and is thrown as `StoredStateUnreadable`.
 //
-// Every stored value carries the type key it was written under
-// (`typeKey`), so a value is never reinterpreted under a type it was not
-// written as; the engine reads one that no longer fits its type as the
-// declared default, not clamped, and a list whole or not at all. One serial
-// counter per world numbers minted ids, arrivals and wakes, and times
-// are whole host seconds. A committed turn's `StoredChanges` are what a
-// store writes.
+// One serial counter per world numbers minted ids, arrivals and wakes,
+// and times are whole host seconds. A committed turn's `StoredChanges`
+// are what a store writes.
 
 import { z } from 'zod';
 
@@ -28,21 +30,13 @@ import { idForm } from './ids.js';
 /** A value as JSON holds it: a list is an array of its elements, and an extension's value the text it persists as. */
 export type StoredValue = boolean | number | string | readonly StoredValue[];
 
-/** A value with the type key it was written under, so a retyped property is never reinterpreted, even when the old value would fit the new type. */
-export interface StoredProperty {
-  readonly type: string;
-  readonly value: StoredValue;
-}
-
 /**
- * How an instance came to be: the world itself, a declared object, a
- * visitor, a spawn of a kind named by its qualified name, or a kind's
- * content made with a spawned instance, named by the kind whose body
- * writes it and its path in that body.
+ * How a minted instance came to be: a visitor, a spawn of a kind named by
+ * its qualified name, or a kind's content made with a spawned instance,
+ * named by the kind whose body writes it and its path in that body. The
+ * world and a declared object say how they were made by their id.
  */
 export type StoredMade =
-  | { readonly from: 'world' }
-  | { readonly from: 'declared' }
   | { readonly from: 'visitor' }
   | { readonly from: 'spawned'; readonly kind: string }
   | { readonly from: 'given'; readonly kind: string; readonly path: readonly string[] };
@@ -54,26 +48,30 @@ export interface StoredWake {
   readonly dueAt: number;
 }
 
+/**
+ * One instance as the diff from its declaration: its id, and then only the
+ * fields that differ. A field left out is as a fresh load makes it: a
+ * declared object stands where it was declared, holds its kind's defaults,
+ * and has no links, wakes, memory or tick; a minted instance stands nowhere.
+ */
 export interface StoredInstance {
   readonly id: string;
-  readonly made: StoredMade;
-  /** Null for the world, and for a visitor who is away. */
-  readonly container: string | null;
-  /** The serial of its last arrival; null for a declared object still where it was declared. */
-  readonly arrival: number | null;
-  readonly properties: Readonly<Record<string, StoredProperty>>;
+  /** How a minted instance was made; never written for the world or a declared object. */
+  readonly made?: StoredMade;
+  /** Where it stands, where that is not where it was declared; left out for a visitor who is away. */
+  readonly container?: string;
+  /** The serial of its last arrival, where it has arrived anywhere. */
+  readonly arrival?: number;
+  /** The properties not at the instance's own default, each as its bare value. */
+  readonly properties?: Readonly<Record<string, StoredValue>>;
   /** Each link's name, and the id of the place it leads to. */
-  readonly links: Readonly<Record<string, string>>;
+  readonly links?: Readonly<Record<string, string>>;
   /** A list, because how many may be pending is a cap of the host's (the spec's Limits), not a rule of the language. */
-  readonly wakes: readonly StoredWake[];
-  /** Actor id, then property, then value. */
-  readonly memory: Readonly<Record<string, Readonly<Record<string, StoredProperty>>>>;
-  /**
-   * When it last ticked, in host seconds; null if it never has. The spec
-   * keeps this for every place; one record shape serves every instance,
-   * and it stays null for anything that is not a place.
-   */
-  readonly lastTick: number | null;
+  readonly wakes?: readonly StoredWake[];
+  /** Actor id, then property, then value, for what is remembered other than the default. */
+  readonly memory?: Readonly<Record<string, Readonly<Record<string, StoredValue>>>>;
+  /** When it last ticked, in host seconds, where it has. */
+  readonly lastTick?: number;
 }
 
 export interface StoredVisitor {
@@ -114,44 +112,40 @@ export interface StoredWorld {
   readonly tombstones: readonly string[];
 }
 
-const StoredValueSchema: z.ZodType<StoredValue> = z.lazy(() =>
+/** A stored value, checked: a boolean, a number, a string or a list of them. */
+export const StoredValueSchema: z.ZodType<StoredValue> = z.lazy(() =>
   z.union([z.boolean(), z.number(), z.string(), z.array(StoredValueSchema)]),
 );
-
-/** A stored property, checked: a type key and a value of any stored shape. */
-export const StoredPropertySchema: z.ZodType<StoredProperty> = z.object({
-  type: z.string().min(1),
-  value: StoredValueSchema,
-});
 
 const serial = z.number().int().min(1);
 const seconds = z.number().int().min(0);
 
 /**
- * One stored instance, checked on its own: which ids it names is checked
- * only by `StoredWorldSchema`, against the world it is stored in. What a
- * store adapter validates each record it reads back with.
+ * One stored instance, checked on its own: which ids it names, and whether
+ * `made` belongs on it, is checked only by `StoredWorldSchema`, against the
+ * world it is stored in. What a store adapter validates each record it
+ * reads back with.
  */
 export const StoredInstanceSchema: z.ZodType<StoredInstance> = z.object({
   id: z.string(),
-  made: z.discriminatedUnion('from', [
-    z.object({ from: z.literal('world') }),
-    z.object({ from: z.literal('declared') }),
-    z.object({ from: z.literal('visitor') }),
-    z.object({ from: z.literal('spawned'), kind: z.string().min(1) }),
-    z.object({
-      from: z.literal('given'),
-      kind: z.string().min(1),
-      path: z.array(z.string().regex(/^[a-z][a-z0-9_]*$/)).min(1),
-    }),
-  ]),
-  container: z.string().nullable(),
-  arrival: serial.nullable(),
-  properties: z.record(z.string(), StoredPropertySchema),
-  links: z.record(z.string(), z.string()),
-  wakes: z.array(z.object({ serial, askedAt: seconds, dueAt: seconds })),
-  memory: z.record(z.string(), z.record(z.string(), StoredPropertySchema)),
-  lastTick: seconds.nullable(),
+  made: z
+    .discriminatedUnion('from', [
+      z.object({ from: z.literal('visitor') }),
+      z.object({ from: z.literal('spawned'), kind: z.string().min(1) }),
+      z.object({
+        from: z.literal('given'),
+        kind: z.string().min(1),
+        path: z.array(z.string().regex(/^[a-z][a-z0-9_]*$/)).min(1),
+      }),
+    ])
+    .optional(),
+  container: z.string().optional(),
+  arrival: serial.optional(),
+  properties: z.record(z.string(), StoredValueSchema).optional(),
+  links: z.record(z.string(), z.string()).optional(),
+  wakes: z.array(z.object({ serial, askedAt: seconds, dueAt: seconds })).optional(),
+  memory: z.record(z.string(), z.record(z.string(), StoredValueSchema)).optional(),
+  lastTick: seconds.optional(),
 });
 
 /** One stored visitor, checked on its own, as `StoredInstanceSchema` is. */
@@ -185,21 +179,32 @@ export const StoredVisitorSchema: z.ZodType<StoredVisitor> = z.object({
     .nullable(),
 });
 
-/** Which id form each way of being made takes. */
-const FORM_OF: Readonly<Record<StoredMade['from'], 'world' | 'declared' | 'minted'>> = {
-  world: 'world',
-  declared: 'declared',
-  visitor: 'minted',
-  spawned: 'minted',
-  given: 'minted',
-};
+/**
+ * How an instance was made: the world's id and a declared path (the spec's
+ * State: ids) say it themselves, and a minted id's record says it.
+ */
+export function madeFrom(instance: StoredInstance): string {
+  if (instance.id.includes('#')) return instance.made?.from ?? 'minted';
+  return instance.id.includes('.') ? 'declared' : 'world';
+}
+
+/** Where a declared object was declared: its id up to the last `.`, since the id is its path (the spec's State). */
+export function declaredContainer(id: string): string {
+  return id.slice(0, id.lastIndexOf('.'));
+}
+
+/** Where a record stands: where it says, where it was declared for a declared object that says nothing, or nowhere. */
+export function containerOf(instance: StoredInstance): string | null {
+  if (instance.container !== undefined) return instance.container;
+  return madeFrom(instance) === 'declared' ? declaredContainer(instance.id) : null;
+}
 
 /**
- * A stored world, checked: every id is one of this world's forms and
- * agrees with how its instance was made, no serial is past the world's,
- * no id or visit is stored twice, visitor records and the instances
- * made for visitors pair one to one, and a tombstone is a declared id
- * that no instance is stored under or inside.
+ * A stored world, checked: every id is one of this world's forms, a minted
+ * id says how its instance was made and a declared one does not, no serial
+ * is past the world's, no id or visit is stored twice, visitor records and
+ * the instances made for visitors pair one to one, and a tombstone is a
+ * declared id that no instance is stored under or inside.
  */
 export const StoredWorldSchema: z.ZodType<StoredWorld> = z
   .object({
@@ -232,26 +237,28 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
       const at = ['instances', i];
       anId([...at, 'id'], instance.id);
       const form = idForm(stored.world, instance.id);
-      const wants = FORM_OF[instance.made.from];
-      if (form !== null && form !== wants) {
+      if (form === 'minted' && instance.made === undefined) {
         issue(
           [...at, 'made'],
-          `\`${instance.id}\` is a ${form} id, and made from ${instance.made.from} takes a ${wants} one.`,
+          'it should say how the instance was made: visitor, spawned or given.',
         );
+      } else if (form !== null && form !== 'minted' && instance.made !== undefined) {
+        issue([...at, 'made'], 'a declared id says how it was made; `made` is for a minted one.');
       }
       if (ids.has(instance.id)) issue([...at, 'id'], `\`${instance.id}\` is stored twice.`);
       ids.add(instance.id);
-      if (instance.container !== null) anId([...at, 'container'], instance.container);
-      if (instance.arrival !== null) issued([...at, 'arrival'], instance.arrival);
-      for (const [name, to] of Object.entries(instance.links)) anId([...at, 'links', name], to);
-      instance.wakes.forEach((wake, w) => issued([...at, 'wakes', w, 'serial'], wake.serial));
-      for (const actor of Object.keys(instance.memory)) anId([...at, 'memory', actor], actor);
+      if (instance.container !== undefined) anId([...at, 'container'], instance.container);
+      if (instance.arrival !== undefined) issued([...at, 'arrival'], instance.arrival);
+      for (const [name, to] of Object.entries(instance.links ?? {}))
+        anId([...at, 'links', name], to);
+      instance.wakes?.forEach((wake, w) => issued([...at, 'wakes', w, 'serial'], wake.serial));
+      for (const actor of Object.keys(instance.memory ?? {})) anId([...at, 'memory', actor], actor);
     });
 
     // A visitor is one person and one instance: each record names an
     // instance made for a visitor, no two name the same one, and no such
     // instance is kept without the record that says whose it is.
-    const made = new Map(stored.instances.map((instance) => [instance.id, instance.made.from]));
+    const made = new Map(stored.instances.map((instance) => [instance.id, madeFrom(instance)]));
     const visits = new Set<string>();
     const named = new Set<string>();
     stored.visitors.forEach((visitor, v) => {
@@ -296,18 +303,19 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
       tombstones.add(id);
     });
     stored.instances.forEach((instance, i) => {
+      const container = containerOf(instance);
       if (tombstones.has(instance.id)) {
         issue(['instances', i, 'id'], `\`${instance.id}\` was destroyed, and is stored again.`);
       }
-      if (instance.container !== null && tombstones.has(instance.container)) {
+      if (container !== null && tombstones.has(container)) {
         issue(
           ['instances', i, 'container'],
-          `\`${instance.id}\` is inside \`${instance.container}\`, which was destroyed.`,
+          `\`${instance.id}\` is inside \`${container}\`, which was destroyed.`,
         );
       }
     });
     stored.instances.forEach((instance, i) => {
-      if (instance.made.from === 'visitor' && !named.has(instance.id)) {
+      if (madeFrom(instance) === 'visitor' && !named.has(instance.id)) {
         issue(
           ['instances', i, 'made'],
           `\`${instance.id}\` is made from visitor, and no visitor is stored for it.`,
@@ -332,10 +340,10 @@ export function readStoredWorld(input: unknown): StoredWorld {
 }
 
 /**
- * A type's identity as stored state records it: `boolean`, `integer`,
+ * A type's identity as the catalogue names it: `boolean`, `integer`,
  * `string`, an enum's qualified name, a list's element key in brackets,
- * or an extension's type as written, `media.Image`. An integer's range is not part of it, as it is not part of
- * a type's identity.
+ * or an extension's type as written, `media.Image`. An integer's range is
+ * not part of it, as it is not part of a type's identity.
  */
 export function typeKey(type: ValueType): string {
   switch (type.type) {
@@ -356,7 +364,7 @@ export function typeKey(type: ValueType): string {
 export interface StoredChanges {
   /** The world's serial after the turn. */
   readonly serial: number;
-  /** Instance records written whole, each replacing the one stored under its id. */
+  /** Instance records in the stored form, each replacing the one stored under its id. */
   readonly upsert: readonly StoredInstance[];
   /** The ids of instance records to delete. */
   readonly remove: readonly string[];

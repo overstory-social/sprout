@@ -27,30 +27,19 @@ static sprout_str S(const char *text) {
   return s;
 }
 
-/* The stored-canon world opened against printers_shop, with a dormant spawn added inside the press yard. */
+/* The stored-canon world opened against printers_shop, its serial moved on to 5. */
 static void begin(fixture *f) {
   size_t length;
   char *golden = test_golden("stored-canon.json", &length);
-  char text[8192];
-  const char *visitors = strstr(golden, "],\"visitors\"");
   sprout_refusal why;
-  sprout_opened report;
-  size_t head;
+  char *serial;
   f->host = corpus_host(&f->heap);
   f->world = corpus_load(WORLD, &f->host);
   while (length > 0 && golden[length - 1] == '\n') golden[--length] = '\0';
-  head = (size_t)(visitors - golden);
-  snprintf(text, sizeof text,
-           "%.*s,{\"id\":\"" WORLD "#5\",\"made\":{\"from\":\"spawned\",\"kind\":\"" WORLD ".Nowhere\"},"
-           "\"container\":\"" YARD "\",\"arrival\":5,\"properties\":{},\"links\":{},\"wakes\":[],\"memory\":{},"
-           "\"lastTick\":null}%s",
-           (int)head, golden, visitors);
-  {
-    char *serial = strstr(text, "\"serial\":4");
-    serial[9] = '5';
-  }
-  CHECK_INT(sprout_state_read(&f->host, text, strlen(text), &f->state, &why), SPROUT_OK);
-  CHECK_INT(sprout_state_open(f->state, f->world, &report, &why), SPROUT_OK);
+  serial = strstr(golden, "\"serial\":4");
+  serial[9] = '5';
+  CHECK_INT(sprout_state_read(&f->host, golden, strlen(golden), &f->state, &why), SPROUT_OK);
+  CHECK_INT(sprout_state_open(f->state, f->world, &why), SPROUT_OK);
   sprout_arena_init(&f->turn, &f->host);
   free(golden);
 }
@@ -68,15 +57,14 @@ static void expect_ids(const sprout_str *got, size_t count, const char *const *w
   for (i = 0; i < count && i < want_count; i++) CHECK_BYTES(got[i].bytes, got[i].length, want[i]);
 }
 
-static void reads_go_through_to_the_state_and_dormant_records_are_not_instances(void) {
+static void reads_go_through_to_the_state(void) {
   fixture f;
   sprout_draft draft;
   begin(&f);
   sprout_draft_open(&draft, &f.turn, f.world, f.state);
   CHECK(sprout_draft_instance(&draft, S(ROOM)) != NULL);
-  CHECK(sprout_draft_instance(&draft, S(WORLD "#5")) == NULL);
-  CHECK(sprout_draft_record(&draft, S(WORLD "#5")) != NULL);
-  CHECK(sprout_draft_record(&draft, S(WORLD "#9")) == NULL);
+  CHECK(sprout_draft_instance(&draft, S(WORLD "#3")) != NULL);
+  CHECK(sprout_draft_instance(&draft, S(WORLD "#9")) == NULL);
   CHECK(sprout_draft_visitor(&draft, S("v-8f2c")) != NULL);
   CHECK(sprout_draft_visitor(&draft, S("v-none")) == NULL);
   CHECK(sprout_draft_tombstoned(&draft, S(ROOM ".lamp")));
@@ -103,9 +91,6 @@ static void contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_seri
     CHECK(a != NULL && b != NULL);
     if (a != NULL && b != NULL) CHECK(a->rank < b->rank);
   }
-  /* A dormant record holds its place in the tree but is not among the decoded contents. */
-  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
-  for (i = 0; i < count; i++) CHECK(!(kids[i].length == strlen(WORLD "#5") && memcmp(kids[i].bytes, WORLD "#5", kids[i].length) == 0));
   last = sprout_draft_instance(&draft, S(WORLD "#1"));
   CHECK(last != NULL && last->has_arrival && last->arrival == 2);
   finish(&f);
@@ -151,7 +136,7 @@ static size_t scan_children(const sprout_state *state, sprout_str id, sprout_str
   size_t i, n = 0;
   for (i = 0; i < state->instance_count; i++) {
     const sprout_stored_instance *one = &state->instances[i];
-    if (!one->dormant && one->has_container && sprout_str_same(one->container, id)) out[n++] = one->id;
+    if (one->has_container && sprout_str_same(one->container, id)) out[n++] = one->id;
   }
   return n;
 }
@@ -350,7 +335,7 @@ static void a_spawn_takes_an_id_nothing_has_had_and_arrives_where_it_is_put(void
   CHECK_INT(sprout_draft_add(&draft, &spawn), SPROUT_DRAFT_OK);
   CHECK_INT(sprout_draft_held(&draft), f.state->instance_count + 1);
   CHECK_INT(sprout_draft_add(&draft, &spawn), SPROUT_DRAFT_TAKEN);
-  spawn.id = S(WORLD "#5");
+  spawn.id = S(WORLD "#3");
   CHECK_INT(sprout_draft_add(&draft, &spawn), SPROUT_DRAFT_TAKEN);
   spawn.id = S(ROOM ".lamp");
   CHECK_INT(sprout_draft_add(&draft, &spawn), SPROUT_DRAFT_TAKEN);
@@ -383,27 +368,31 @@ static void removing_takes_everything_inside_tombstones_declared_objects_and_nev
   sprout_draft draft;
   const sprout_str *removed;
   size_t count;
-  const char *want[] = {YARD, YARD ".wooden_rib", YARD ".bone_rib", YARD ".press", WORLD "#5"};
+  const char *want[] = {YARD, YARD ".wooden_rib", YARD ".bone_rib", YARD ".press"};
+  sprout_str loft = S(WORLD ".drying_loft");
   begin(&f);
   sprout_draft_open(&draft, &f.turn, f.world, f.state);
   CHECK_INT(sprout_draft_remove(&draft, S(WORLD), &removed, &count), SPROUT_DRAFT_THE_WORLD);
   CHECK_INT(sprout_draft_remove(&draft, S(WORLD "#5"), &removed, &count), SPROUT_DRAFT_MISSING);
   CHECK_INT(sprout_draft_remove(&draft, S(YARD), &removed, &count), SPROUT_DRAFT_OK);
-  /* The yard's declared contents in their rank order, then the dormant spawn inside it. */
-  expect_ids(removed, count, want, 5);
+  /* The yard's declared contents in their rank order. */
+  expect_ids(removed, count, want, 4);
   CHECK(sprout_draft_instance(&draft, S(YARD ".press")) == NULL);
-  CHECK(sprout_draft_record(&draft, S(WORLD "#5")) == NULL);
   CHECK(sprout_draft_tombstoned(&draft, S(YARD)));
   CHECK(sprout_draft_tombstoned(&draft, S(YARD ".press")));
-  CHECK(!sprout_draft_tombstoned(&draft, S(WORLD "#5"))); /* minted ids are never tombstoned: they are never reused */
-  CHECK_INT(sprout_draft_held(&draft), f.state->instance_count - 5);
+  CHECK_INT(sprout_draft_held(&draft), f.state->instance_count - 4);
+  /* A spawn removed with its place leaves no tombstone: minted ids are never reused. */
+  CHECK_INT(sprout_draft_remove(&draft, loft, &removed, &count), SPROUT_DRAFT_OK);
+  CHECK_INT(count, 2);
+  CHECK(sprout_draft_instance(&draft, S(WORLD "#3")) == NULL);
+  CHECK(!sprout_draft_tombstoned(&draft, S(WORLD "#3")));
   {
     sprout_stored_instance again;
     memset(&again, 0, sizeof again);
     again.id = S(YARD ".press");
     again.made = SPROUT_MADE_DECLARED;
     CHECK_INT(sprout_draft_add(&draft, &again), SPROUT_DRAFT_TAKEN);
-    again.id = S(WORLD "#5");
+    again.id = S(WORLD "#3");
     CHECK_INT(sprout_draft_add(&draft, &again), SPROUT_DRAFT_TAKEN);
   }
   finish(&f);
@@ -414,11 +403,11 @@ static void a_subtree_is_what_a_removal_would_take_and_takes_nothing(void) {
   sprout_draft draft;
   sprout_str *found;
   size_t count;
-  const char *want[] = {YARD, YARD ".wooden_rib", YARD ".bone_rib", YARD ".press", WORLD "#5"};
+  const char *want[] = {YARD, YARD ".wooden_rib", YARD ".bone_rib", YARD ".press"};
   begin(&f);
   sprout_draft_open(&draft, &f.turn, f.world, f.state);
   CHECK_INT(sprout_draft_subtree(&draft, S(YARD), &found, &count), SPROUT_DRAFT_OK);
-  expect_ids(found, count, want, 5);
+  expect_ids(found, count, want, 4);
   CHECK(sprout_draft_instance(&draft, S(YARD ".press")) != NULL);
   CHECK(!sprout_draft_tombstoned(&draft, S(YARD)));
   finish(&f);
@@ -438,8 +427,6 @@ static void what_a_removal_took_stays_readable_for_the_rest_of_the_turn_and_is_n
   CHECK(kept != NULL);
   CHECK(kept != NULL && kept->kind != NULL && kept->has_container);
   CHECK(sprout_draft_instance(&draft, S(YARD ".press")) == NULL);
-  /* A dormant record is no instance, so none is kept to read. */
-  CHECK(sprout_draft_destroyed(&draft, S(WORLD "#5")) == NULL);
   finish(&f);
 }
 
@@ -454,7 +441,7 @@ static void a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_dr
   const sprout_str *removed;
   size_t count;
   const char *wrote[] = {WORLD "#7", ROOM, ROOM ".cat"};
-  const char *gone[] = {WORLD "#5", YARD, YARD ".bone_rib", YARD ".press", YARD ".wooden_rib"};
+  const char *gone[] = {YARD, YARD ".bone_rib", YARD ".press", YARD ".wooden_rib"};
   const char *buried[] = {YARD, YARD ".bone_rib", YARD ".press", YARD ".wooden_rib"};
   begin(&f);
   sprout_draft_open(&draft, &f.turn, f.world, f.state);
@@ -479,7 +466,7 @@ static void a_commit_applies_the_turn_sorted_says_what_changed_and_closes_the_dr
   CHECK_INT(sprout_draft_put_visitor(&draft, &visitor), SPROUT_DRAFT_OK);
   CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
   CHECK_INT(changes.serial, 8);
-  expect_ids(changes.removed, changes.removed_count, gone, 5);
+  expect_ids(changes.removed, changes.removed_count, gone, 4);
   expect_ids(changes.tombstoned, changes.tombstoned_count, buried, 4);
   CHECK_INT(changes.visitor_count, 1);
   expect_ids(changes.written, changes.written_count, wrote, 3);
@@ -682,7 +669,7 @@ static void a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_
 }
 
 int main(void) {
-  RUN(reads_go_through_to_the_state_and_dormant_records_are_not_instances);
+  RUN(reads_go_through_to_the_state);
   RUN(contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_serial);
   RUN(contents_asked_for_again_take_no_more_room_until_the_overlay_changes);
   RUN(contents_match_a_sweep_of_every_record_before_and_after_a_commit);

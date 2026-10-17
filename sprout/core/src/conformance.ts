@@ -7,7 +7,6 @@ import {
   type MissRecord,
   type StoredChanges,
   type StoredInstance,
-  type StoredProperty,
   type StoredState,
   type StoredReading,
   type StoredVisitor,
@@ -73,50 +72,36 @@ const microworld = (id: string): MicroworldRecord => ({
 // Every fixture is a world called `shop`, so what a store hands back is
 // also checked as the language reads it (`readStoredWorld`).
 
-const flag = (value: boolean): StoredProperty => ({ type: 'boolean', value });
-const count = (value: number): StoredProperty => ({ type: 'integer', value });
-
-const instance = (
-  id: string,
-  over: Partial<StoredInstance> & Pick<StoredInstance, 'made'>,
-): StoredInstance => ({
+const instance = (id: string, over: Partial<StoredInstance> = {}): StoredInstance => ({
   id,
-  container: 'shop',
-  arrival: null,
-  properties: {},
-  links: {},
-  wakes: [],
-  memory: {},
-  lastTick: null,
   ...over,
 });
 
-const WORLD = instance('shop', { made: { from: 'world' }, container: null });
+// The fixture world in the stored form, which holds only what differs from its declaration.
+const WORLD = instance('shop', { properties: { open: true } });
 // A time past a 32-bit integer, so a store that narrows host seconds is caught.
 const HALL = instance('shop.hall', {
-  made: { from: 'declared' },
   lastTick: 3_000_000_000,
   links: { yard: 'shop.yard', cellar: 'shop#2' },
 });
 const LAMP = instance('shop.hall.lamp', {
-  made: { from: 'declared' },
-  container: 'shop.hall',
   properties: {
-    lit: flag(true),
-    wards: { type: '[shop.Ward]', value: ['oak', 'iron'] },
-    grid: { type: '[[integer]]', value: [[1, 2], [], [3]] },
-    label: { type: 'string', value: 'Tëst “lamp” \u{1F56F}' },
+    lit: true,
+    wards: ['oak', 'iron'],
+    grid: [[1, 2], [], [3]],
+    label: 'Tëst “lamp” \u{1F56F}',
   },
-  memory: { 'shop#1': { seen: flag(true), visits: count(2) }, 'shop#4': { seen: flag(false) } },
+  memory: { 'shop#1': { seen: true, visits: 2 }, 'shop#4': { seen: false } },
 });
 const MARTA = instance('shop#1', {
   made: { from: 'visitor' },
   container: 'shop.hall',
   arrival: 1,
-  properties: { team: { type: 'shop.Team', value: 'it' } },
+  properties: { team: 'it' },
 });
 const CELLAR = instance('shop#2', {
   made: { from: 'spawned', kind: 'shop.Cellar' },
+  container: 'shop',
   arrival: 2,
   wakes: [{ serial: 5, askedAt: 3_000_000_000, dueAt: 3_000_000_060 }],
 });
@@ -125,7 +110,7 @@ const COIN = instance('shop#3', {
   container: 'shop#1',
   arrival: 3,
 });
-const INES = instance('shop#4', { made: { from: 'visitor' }, container: null, arrival: 4 });
+const INES = instance('shop#4', { made: { from: 'visitor' }, arrival: 4 });
 
 const visitor = (
   visit: string,
@@ -427,10 +412,9 @@ export const cases: ConformanceCase[] = [
     async run(make) {
       const store = await make();
       const lamp = instance('shop.hall.lamp', {
-        made: { from: 'declared' },
         container: 'shop#1',
         arrival: 6,
-        properties: { lit: flag(false) },
+        properties: { lit: false },
       });
       const moved = { ...V_MARTA, lastPlace: 'shop.yard', referents: [], lastReading: null };
       await store.transaction('w', async (tx) => {
@@ -737,7 +721,7 @@ export const cases: ConformanceCase[] = [
         microworldId,
         visitor: V_MARTA,
         instance: MARTA,
-        memory: { 'shop.hall.lamp': { seen: flag(true), visits: count(2) } },
+        memory: { 'shop.hall.lamp': { seen: true, visits: 2 } },
       });
       equal(
         await store.exportVisitor('v-marta'),
@@ -757,7 +741,7 @@ export const cases: ConformanceCase[] = [
         instances: FIRST_STATE.instances
           .filter((i) => i.id !== 'shop#1' && i.id !== 'shop#3')
           .map((i) =>
-            i.id === 'shop.hall.lamp' ? { ...i, memory: { 'shop#4': { seen: flag(false) } } } : i,
+            i.id === 'shop.hall.lamp' ? { ...i, memory: { 'shop#4': { seen: false } } } : i,
           ),
         visitors: [V_INES],
       };
@@ -805,7 +789,7 @@ export const cases: ConformanceCase[] = [
         const lamp = instances.find((i) => i.id === 'shop.hall.lamp')!;
         await tx.putState({
           serial,
-          upsert: [{ ...lamp, properties: { ...lamp.properties, lit: flag(false) } }],
+          upsert: [{ ...lamp, properties: { ...lamp.properties, lit: false } }],
           remove: [],
           tombstones: [],
           visitors: [],
@@ -817,7 +801,7 @@ export const cases: ConformanceCase[] = [
       await Promise.all([turn, forget]);
       await store.read('w', async (tx) => {
         const lamp = (await tx.state()).instances.find((i) => i.id === 'shop.hall.lamp');
-        equal(lamp?.properties['lit'], flag(false), 'the turn landed');
+        equal(lamp?.properties?.['lit'], false, 'the turn landed');
         equal(Object.keys(lamp?.memory ?? {}), ['shop#4'], 'and the forget after it');
       });
     },

@@ -1,6 +1,5 @@
 /*
- * What is to be done with time (see schedule.h). Every read is of the committed state alone: the tree is
- * climbed through decoded instances only, so a dormant record, which the world cannot read now, is nowhere.
+ * What is to be done with time (see schedule.h). Every read is of the committed state alone.
  */
 #include "schedule.h"
 
@@ -8,10 +7,10 @@
 
 #include "world.h"
 
-/* The decoded instance under `id`, or NULL: a dormant record is not one. */
+/* The instance under `id`, or NULL. */
 static const sprout_stored_instance *decoded(const sprout_state *state, sprout_str id) {
   const sprout_stored_instance *instance = sprout_state_find(state, id);
-  return instance == NULL || instance->dormant || instance->kind == NULL ? NULL : instance;
+  return instance == NULL || instance->kind == NULL ? NULL : instance;
 }
 
 bool schedule_live(const sprout_state *state, sprout_str id) {
@@ -74,7 +73,7 @@ sprout_status schedule_due(sprout_arena *arena, const sprout_state *state, uint6
   for (i = 0; i < state->instance_count; i++) {
     const sprout_stored_instance *instance = &state->instances[i];
     bool live;
-    if (instance->dormant || instance->kind == NULL || instance->wake_count == 0) continue;
+    if (instance->kind == NULL || instance->wake_count == 0) continue;
     live = schedule_live(state, instance->id);
     for (j = 0; live && j < instance->wake_count; j++) {
       sprout_due_wake wake;

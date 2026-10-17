@@ -4,39 +4,10 @@
     "serial": 8,
     "instances": [
       {
-        "id": "harbour",
-        "made": {
-          "from": "world"
-        },
-        "container": null,
-        "arrival": null,
-        "properties": {},
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
-      },
-      {
         "id": "harbour#1",
         "made": {
           "from": "visitor"
-        },
-        "container": null,
-        "arrival": null,
-        "properties": {
-          "capacity": {
-            "type": "integer",
-            "value": 8
-          },
-          "moves": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
+        }
       },
       {
         "id": "harbour#2",
@@ -44,43 +15,13 @@
           "from": "visitor"
         },
         "container": "harbour.quay",
-        "arrival": 3,
-        "properties": {
-          "capacity": {
-            "type": "integer",
-            "value": 8
-          },
-          "moves": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
+        "arrival": 3
       },
       {
         "id": "harbour#4",
         "made": {
           "from": "visitor"
-        },
-        "container": null,
-        "arrival": null,
-        "properties": {
-          "capacity": {
-            "type": "integer",
-            "value": 8
-          },
-          "moves": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
+        }
       },
       {
         "id": "harbour#5",
@@ -88,21 +29,7 @@
           "from": "visitor"
         },
         "container": "harbour.quay",
-        "arrival": 6,
-        "properties": {
-          "capacity": {
-            "type": "integer",
-            "value": 8
-          },
-          "moves": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
+        "arrival": 6
       },
       {
         "id": "harbour#7",
@@ -110,108 +37,7 @@
           "from": "visitor"
         },
         "container": "harbour.quay",
-        "arrival": 8,
-        "properties": {
-          "capacity": {
-            "type": "integer",
-            "value": 8
-          },
-          "moves": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
-      },
-      {
-        "id": "harbour.cellar",
-        "made": {
-          "from": "declared"
-        },
-        "container": "harbour",
-        "arrival": null,
-        "properties": {},
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
-      },
-      {
-        "id": "harbour.loft",
-        "made": {
-          "from": "declared"
-        },
-        "container": "harbour",
-        "arrival": null,
-        "properties": {
-          "shut": {
-            "type": "boolean",
-            "value": false
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
-      },
-      {
-        "id": "harbour.quay",
-        "made": {
-          "from": "declared"
-        },
-        "container": "harbour",
-        "arrival": null,
-        "properties": {
-          "arrivals": {
-            "type": "integer",
-            "value": 0
-          },
-          "boom": {
-            "type": "boolean",
-            "value": false
-          },
-          "closed": {
-            "type": "boolean",
-            "value": false
-          },
-          "departures": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
-      },
-      {
-        "id": "harbour.quay.gull",
-        "made": {
-          "from": "declared"
-        },
-        "container": "harbour.quay",
-        "arrival": null,
-        "properties": {
-          "capacity": {
-            "type": "integer",
-            "value": 8
-          },
-          "gone": {
-            "type": "integer",
-            "value": 0
-          },
-          "seen": {
-            "type": "integer",
-            "value": 0
-          }
-        },
-        "links": {},
-        "wakes": [],
-        "memory": {},
-        "lastTick": null
+        "arrival": 8
       }
     ],
     "visitors": [

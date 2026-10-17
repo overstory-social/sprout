@@ -1,13 +1,14 @@
 /*
  * A world's stored state (the spec's The runtime > State, and The host
  * contract > Storage): the instances, visitors and tombstones as the JSON the
- * store adapters hold them, with every value carrying the type key it was
- * written under. A state owns an arena; what it holds is exactly what was
- * stored, in the order stored, until it is opened against a world (state.c),
- * which reconciles it with the catalogue the way load does, or a draft's
- * commit replaces records. An opened record keeps only the properties that
- * hold other than their kind's default; one it does not keep reads, and is
- * saved, as its default.
+ * store adapters hold them. The stored form is the diff from the world a
+ * fresh load makes: a record holds only what differs from its declaration,
+ * and the kind fixes each value's type. A state owns an arena; what it holds
+ * is exactly what was stored, in the order stored, until it is opened against
+ * a world (state.c), which lays the records over the fresh load and refuses
+ * what the declaration cannot explain, or a draft's commit replaces records.
+ * An opened record keeps only the properties that hold other than their
+ * kind's default; one it does not keep reads, and is saved, as its default.
  */
 #ifndef SPROUT_STATE_H
 #define SPROUT_STATE_H
@@ -24,10 +25,9 @@ typedef struct sprout_stored_value {
   struct sprout_stored_value *items;
 } sprout_stored_value;
 
-/* A value with the type key it was written under, so a retyped property is never reinterpreted. */
+/* A property's held value, by name; its type is the kind's. */
 typedef struct sprout_stored_property {
   sprout_str name;
-  sprout_str type;
   sprout_stored_value value;
 } sprout_stored_property;
 
@@ -75,9 +75,7 @@ typedef struct sprout_stored_instance {
   sprout_stored_memory *memory;
   bool has_last_tick;
   uint64_t last_tick;
-  /* Set by opening a state against a world: whether the catalogue can decode it now, and under what kind. */
-  bool dormant;
-  const sprout_kind_def *kind;
+  const sprout_kind_def *kind; /* set by opening a state against a world; NULL in a record built by hand */
 } sprout_stored_instance;
 
 typedef enum sprout_bound_kind {
@@ -167,6 +165,11 @@ bool sprout_state_copy_str(sprout_arena *arena, sprout_str from, sprout_str *to)
 /* The shape of an id under a world (the spec's State: ids). */
 typedef enum sprout_id_form { SPROUT_ID_NONE, SPROUT_ID_WORLD, SPROUT_ID_DECLARED, SPROUT_ID_MINTED } sprout_id_form;
 sprout_id_form sprout_id_form_of(sprout_str world, sprout_str id);
+/* Where a declared object was declared: its id up to the last `.`, since the id is its path (the spec's State). */
+sprout_str sprout_declared_container(sprout_str id);
+
+/* Whether a held value is the property's declared default, a list compared with the default's repeats dropped. */
+bool sprout_value_is_default(const sprout_property *declared, const sprout_stored_value *value);
 
 /* A deep copy of a record into `arena`: every string, list and map is the arena's own. */
 sprout_status sprout_stored_instance_copy(sprout_arena *arena, const sprout_stored_instance *from,

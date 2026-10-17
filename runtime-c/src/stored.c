@@ -1,11 +1,11 @@
 /*
- * Reading and writing the stored world (the spec's The runtime > State, and
- * The host contract > Storage). The reader holds exactly what a store keeps
- * and refuses what the stored form's schema refuses, with a sentence that
- * names where; the writer prints the canonical form: keys in the schema's
- * order, members in the order held, no white space, whole numbers as digits,
- * the escapes JSON.stringify makes. Reading and then writing gives the bytes
- * back.
+ * Reading the stored world (the spec's The runtime > State, and The host
+ * contract > Storage). The stored form is the diff from the world a fresh
+ * load makes: a record is its id and then only the fields that differ from
+ * its declaration, each value bare, since the kind fixes its type. The reader
+ * holds exactly what a store keeps and refuses what the stored form's schema
+ * refuses, with a sentence that names where; a record's place in the world
+ * is read when the state is opened against it (state.c).
  */
 #include <string.h>
 
@@ -83,6 +83,13 @@ sprout_id_form sprout_id_form_of(sprout_str world, sprout_str id) {
     }
   }
   return SPROUT_ID_DECLARED;
+}
+
+sprout_str sprout_declared_container(sprout_str id) {
+  sprout_str container = id;
+  while (container.length > 0 && container.bytes[container.length - 1] != '.') container.length--;
+  if (container.length > 0) container.length--;
+  return container;
 }
 
 /* ---- reading ---- */
@@ -217,31 +224,37 @@ static sprout_status want_string(reader *r, const sprout_json *object, const cha
   return own(r, field, out);
 }
 
-/* A whole number of at least `least`; `present` is false for a null when `nullable`. */
+/* A whole number of at least `least`, where the member is written; `present` is false where it is not. */
 static sprout_status want_count(reader *r, const sprout_json *object, const char *key, double least,
-                                bool nullable, bool *present, uint64_t *out) {
+                                bool *present, uint64_t *out) {
   const sprout_json *field = member(object, key);
   size_t at = mark(r);
   sprout_status status;
+  *present = field != NULL;
+  *out = 0;
+  if (field == NULL) return SPROUT_OK;
   push(r, ".");
   push(r, key);
-  if (present != NULL) *present = true;
-  if (nullable && field != NULL && field->kind == SPROUT_JSON_NULL) {
-    *present = false;
-    *out = 0;
-    back_to(r, at);
-    return SPROUT_OK;
-  }
-  if (field == NULL || field->kind != SPROUT_JSON_NUMBER || field->number < least ||
-      field->number > 9007199254740991.0) {
-    status = refuse(r, least >= 1 ? "it should be a whole number of at least 1" : "it should be a whole number of at least 0",
-                    nullable ? ", or null." : ".", NULL);
+  if (field->kind != SPROUT_JSON_NUMBER || field->number < least || field->number > 9007199254740991.0) {
+    status = refuse(r, least >= 1 ? "it should be a whole number of at least 1." : "it should be a whole number of at least 0.",
+                    NULL, NULL);
     back_to(r, at);
     return status;
   }
   *out = (uint64_t)field->number;
   back_to(r, at);
   return SPROUT_OK;
+}
+
+/* A wake's field, which is never left out. */
+static sprout_status want_wake_count(reader *r, const sprout_json *wake, const char *key, double least, uint64_t *out) {
+  bool present;
+  NEED(want_count(r, wake, key, least, &present, out));
+  if (present) return SPROUT_OK;
+  push(r, ".");
+  push(r, key);
+  return refuse(r, least >= 1 ? "it should be a whole number of at least 1." : "it should be a whole number of at least 0.",
+                NULL, NULL);
 }
 
 static sprout_status read_value(reader *r, const sprout_json *json, sprout_stored_value *value,
@@ -277,25 +290,14 @@ static sprout_status read_value(reader *r, const sprout_json *json, sprout_store
   }
 }
 
-static sprout_status read_property(reader *r, const sprout_json *json, sprout_stored_property *out) {
-  const sprout_json *value;
-  size_t at;
-  if (json->kind != SPROUT_JSON_OBJECT) return refuse(r, "it should be an object with a type and a value.", NULL, NULL);
-  NEED(want_string(r, json, "type", false, &out->type));
-  value = member(json, "value");
-  at = mark(r);
-  push(r, ".value");
-  if (value == NULL) return refuse(r, "it is missing.", NULL, NULL);
-  NEED(read_value(r, value, &out->value, 0));
-  back_to(r, at);
-  return SPROUT_OK;
-}
-
+/* An object of properties by name, each a bare value; a map not written is empty. */
 static sprout_status read_property_map(reader *r, const sprout_json *json, size_t *count,
                                        sprout_stored_property **out) {
   size_t i, n = 0;
-  if (json == NULL || json->kind != SPROUT_JSON_OBJECT)
-    return refuse(r, "it should be an object of properties.", NULL, NULL);
+  *count = 0;
+  *out = NULL;
+  if (json == NULL) return SPROUT_OK;
+  if (json->kind != SPROUT_JSON_OBJECT) return refuse(r, "it should be an object of properties.", NULL, NULL);
   *count = distinct_members(json);
   *out = (sprout_stored_property *)take(r, *count, sizeof(sprout_stored_property));
   MEMORY(*out);
@@ -312,26 +314,38 @@ static sprout_status read_property_map(reader *r, const sprout_json *json, size_
       name.length = json->items[i]->key_length;
       NEED(own(r, &name, &(*out)[n].name));
     }
-    NEED(read_property(r, last, &(*out)[n]));
+    NEED(read_value(r, last, &(*out)[n].value, 0));
     back_to(r, at);
     n++;
   }
   return SPROUT_OK;
 }
 
+/*
+ * How the instance was made. The world's id and a declared path say it themselves, so `made` is written for a
+ * minted id alone: a visitor, a spawn of a kind, or what a kind's body gave a spawn, by the kind and its path there.
+ */
 static sprout_status read_made(reader *r, const sprout_json *json, sprout_stored_instance *out) {
   const sprout_json *made = member(json, "made");
   const sprout_json *from = made == NULL ? NULL : member(made, "from");
+  sprout_id_form form = sprout_id_form_of(r->state->world, out->id);
   size_t at = mark(r), i;
   push(r, ".made");
-  if (made == NULL || made->kind != SPROUT_JSON_OBJECT || from == NULL || from->kind != SPROUT_JSON_STRING)
+  if (made == NULL) {
+    if (form == SPROUT_ID_MINTED)
+      return refuse(r, "it should say how the instance was made: visitor, spawned or given.", NULL, NULL);
+    out->made = form == SPROUT_ID_WORLD ? SPROUT_MADE_WORLD : SPROUT_MADE_DECLARED;
+    back_to(r, at);
+    return SPROUT_OK;
+  }
+  if (form == SPROUT_ID_WORLD || form == SPROUT_ID_DECLARED)
+    return refuse(r, "a declared id says how it was made; `made` is for a minted one.", NULL, NULL);
+  if (made->kind != SPROUT_JSON_OBJECT || from == NULL || from->kind != SPROUT_JSON_STRING)
     return refuse(r, "it should say where the instance came from.", NULL, NULL);
-  if (strcmp(from->bytes, "world") == 0) out->made = SPROUT_MADE_WORLD;
-  else if (strcmp(from->bytes, "declared") == 0) out->made = SPROUT_MADE_DECLARED;
-  else if (strcmp(from->bytes, "visitor") == 0) out->made = SPROUT_MADE_VISITOR;
+  if (strcmp(from->bytes, "visitor") == 0) out->made = SPROUT_MADE_VISITOR;
   else if (strcmp(from->bytes, "spawned") == 0) out->made = SPROUT_MADE_SPAWNED;
   else if (strcmp(from->bytes, "given") == 0) out->made = SPROUT_MADE_GIVEN;
-  else return refuse(r, "`from` is not one of world, declared, visitor, spawned or given: ", from->bytes, NULL);
+  else return refuse(r, "`from` is not one of visitor, spawned or given: ", from->bytes, NULL);
   if (out->made == SPROUT_MADE_SPAWNED || out->made == SPROUT_MADE_GIVEN) {
     NEED(want_string(r, made, "kind", false, &out->made_kind));
   }
@@ -356,103 +370,105 @@ static sprout_status read_made(reader *r, const sprout_json *json, sprout_stored
   return SPROUT_OK;
 }
 
+/* A record: its id, and then each field that differs from its declaration, in the schema's order. */
 static sprout_status read_instance(reader *r, const sprout_json *json, sprout_stored_instance *out) {
   const sprout_json *field;
   size_t i, n, at;
-  bool present;
-  uint64_t number;
   if (json->kind != SPROUT_JSON_OBJECT) return refuse(r, "it should be an object.", NULL, NULL);
   NEED(want_string(r, json, "id", true, &out->id));
   NEED(read_made(r, json, out));
   field = member(json, "container");
   at = mark(r);
-  push(r, ".container");
-  if (field == NULL || (field->kind != SPROUT_JSON_STRING && field->kind != SPROUT_JSON_NULL))
-    return refuse(r, "it should be an id or null.", NULL, NULL);
-  if (field->kind == SPROUT_JSON_STRING) {
+  if (field != NULL) {
+    push(r, ".container");
+    if (field->kind != SPROUT_JSON_STRING) return refuse(r, "it should be an id.", NULL, NULL);
     out->has_container = true;
     NEED(own(r, field, &out->container));
+    back_to(r, at);
+  } else if (out->made == SPROUT_MADE_DECLARED) {
+    /* A declared object that says nothing of its container is where it was declared. */
+    out->has_container = true;
+    if (!sprout_state_copy_str(&r->state->arena, sprout_declared_container(out->id), &out->container))
+      return SPROUT_NO_MEMORY;
   }
-  back_to(r, at);
-  NEED(want_count(r, json, "arrival", 1, true, &present, &number));
-  out->has_arrival = present;
-  out->arrival = number;
+  NEED(want_count(r, json, "arrival", 1, &out->has_arrival, &out->arrival));
 
-  field = member(json, "properties");
-  at = mark(r);
   push(r, ".properties");
-  NEED(read_property_map(r, field, &out->property_count, &out->properties));
+  NEED(read_property_map(r, member(json, "properties"), &out->property_count, &out->properties));
   back_to(r, at);
 
   field = member(json, "links");
-  push(r, ".links");
-  if (field == NULL || field->kind != SPROUT_JSON_OBJECT)
-    return refuse(r, "it should be an object of ids.", NULL, NULL);
-  out->link_count = distinct_members(field);
-  out->links = (sprout_stored_link *)take(r, out->link_count, sizeof(sprout_stored_link));
-  MEMORY(out->links);
-  for (i = 0, n = 0; i < field->count; i++) {
-    size_t inner = mark(r);
-    sprout_json name;
-    const sprout_json *last;
-    if (!first_of_its_name(field, i)) continue;
-    last = sprout_json_get(field, field->items[i]->key);
-    push(r, ".");
-    push(r, field->items[i]->key);
-    name.bytes = field->items[i]->key;
-    name.length = field->items[i]->key_length;
-    NEED(own(r, &name, &out->links[n].name));
-    if (last->kind != SPROUT_JSON_STRING) return refuse(r, "it should be an id.", NULL, NULL);
-    NEED(own(r, last, &out->links[n].to));
-    back_to(r, inner);
-    n++;
+  if (field != NULL) {
+    push(r, ".links");
+    if (field->kind != SPROUT_JSON_OBJECT) return refuse(r, "it should be an object of ids.", NULL, NULL);
+    out->link_count = distinct_members(field);
+    out->links = (sprout_stored_link *)take(r, out->link_count, sizeof(sprout_stored_link));
+    MEMORY(out->links);
+    for (i = 0, n = 0; i < field->count; i++) {
+      size_t inner = mark(r);
+      sprout_json name;
+      const sprout_json *last;
+      if (!first_of_its_name(field, i)) continue;
+      last = sprout_json_get(field, field->items[i]->key);
+      push(r, ".");
+      push(r, field->items[i]->key);
+      name.bytes = field->items[i]->key;
+      name.length = field->items[i]->key_length;
+      NEED(own(r, &name, &out->links[n].name));
+      if (last->kind != SPROUT_JSON_STRING) return refuse(r, "it should be an id.", NULL, NULL);
+      NEED(own(r, last, &out->links[n].to));
+      back_to(r, inner);
+      n++;
+    }
+    back_to(r, at);
   }
-  back_to(r, at);
 
   field = member(json, "wakes");
-  push(r, ".wakes");
-  if (field == NULL || field->kind != SPROUT_JSON_ARRAY) return refuse(r, "it should be a list of wakes.", NULL, NULL);
-  out->wake_count = field->count;
-  out->wakes = (sprout_stored_wake *)take(r, field->count, sizeof(sprout_stored_wake));
-  MEMORY(out->wakes);
-  for (i = 0; i < field->count; i++) {
-    size_t inner = mark(r);
-    push_index(r, i);
-    if (field->items[i]->kind != SPROUT_JSON_OBJECT) return refuse(r, "it should be an object.", NULL, NULL);
-    NEED(want_count(r, field->items[i], "serial", 1, false, NULL, &out->wakes[i].serial));
-    NEED(want_count(r, field->items[i], "askedAt", 0, false, NULL, &out->wakes[i].asked_at));
-    NEED(want_count(r, field->items[i], "dueAt", 0, false, NULL, &out->wakes[i].due_at));
-    back_to(r, inner);
+  if (field != NULL) {
+    push(r, ".wakes");
+    if (field->kind != SPROUT_JSON_ARRAY) return refuse(r, "it should be a list of wakes.", NULL, NULL);
+    out->wake_count = field->count;
+    out->wakes = (sprout_stored_wake *)take(r, field->count, sizeof(sprout_stored_wake));
+    MEMORY(out->wakes);
+    for (i = 0; i < field->count; i++) {
+      size_t inner = mark(r);
+      push_index(r, i);
+      if (field->items[i]->kind != SPROUT_JSON_OBJECT) return refuse(r, "it should be an object.", NULL, NULL);
+      NEED(want_wake_count(r, field->items[i], "serial", 1, &out->wakes[i].serial));
+      NEED(want_wake_count(r, field->items[i], "askedAt", 0, &out->wakes[i].asked_at));
+      NEED(want_wake_count(r, field->items[i], "dueAt", 0, &out->wakes[i].due_at));
+      back_to(r, inner);
+    }
+    back_to(r, at);
   }
-  back_to(r, at);
 
   field = member(json, "memory");
-  push(r, ".memory");
-  if (field == NULL || field->kind != SPROUT_JSON_OBJECT)
-    return refuse(r, "it should be an object of what each actor is remembered to have.", NULL, NULL);
-  out->memory_count = distinct_members(field);
-  out->memory = (sprout_stored_memory *)take(r, out->memory_count, sizeof(sprout_stored_memory));
-  MEMORY(out->memory);
-  for (i = 0, n = 0; i < field->count; i++) {
-    size_t inner = mark(r);
-    sprout_json name;
-    const sprout_json *last;
-    if (!first_of_its_name(field, i)) continue;
-    last = sprout_json_get(field, field->items[i]->key);
-    push(r, ".");
-    push(r, field->items[i]->key);
-    name.bytes = field->items[i]->key;
-    name.length = field->items[i]->key_length;
-    NEED(own(r, &name, &out->memory[n].actor));
-    NEED(read_property_map(r, last, &out->memory[n].count, &out->memory[n].properties));
-    back_to(r, inner);
-    n++;
+  if (field != NULL) {
+    push(r, ".memory");
+    if (field->kind != SPROUT_JSON_OBJECT)
+      return refuse(r, "it should be an object of what each actor is remembered to have.", NULL, NULL);
+    out->memory_count = distinct_members(field);
+    out->memory = (sprout_stored_memory *)take(r, out->memory_count, sizeof(sprout_stored_memory));
+    MEMORY(out->memory);
+    for (i = 0, n = 0; i < field->count; i++) {
+      size_t inner = mark(r);
+      sprout_json name;
+      const sprout_json *last;
+      if (!first_of_its_name(field, i)) continue;
+      last = sprout_json_get(field, field->items[i]->key);
+      push(r, ".");
+      push(r, field->items[i]->key);
+      name.bytes = field->items[i]->key;
+      name.length = field->items[i]->key_length;
+      NEED(own(r, &name, &out->memory[n].actor));
+      NEED(read_property_map(r, last, &out->memory[n].count, &out->memory[n].properties));
+      back_to(r, inner);
+      n++;
+    }
+    back_to(r, at);
   }
-  back_to(r, at);
 
-  NEED(want_count(r, json, "lastTick", 0, true, &present, &number));
-  out->has_last_tick = present;
-  out->last_tick = number;
+  NEED(want_count(r, json, "lastTick", 0, &out->has_last_tick, &out->last_tick));
   return SPROUT_OK;
 }
 
