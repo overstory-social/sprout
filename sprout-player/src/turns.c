@@ -48,10 +48,10 @@ sprout_status turns_run(player_session *session, sprout_turn_input *input, sprou
   return run_for(session, input, NULL, 0, true, outcome);
 }
 
-/* Ends a call's answer: whether the state changed under it, and whether what it owes could be begun. */
-static void owe(player_session *session, player_told *answer) {
+/* Ends a call's answer: whether the state changed under it, read before `save` takes what it owes, and whether that could be. */
+static void owe(player_session *session, player_told *answer, bool (*save)(player_session *)) {
   answer->changed = session->dirty;
-  answer->saved = session_save_soon(session);
+  answer->saved = save(session);
 }
 
 bool turns_depart(player_session *session, sprout_outcome *outcome) {
@@ -124,7 +124,7 @@ player_told player_admit(player_session *session, const char *nickname) {
     }
     sprout_outcome_free(&outcome);
   }
-  owe(session, &answer);
+  owe(session, &answer, session_save_soon);
   sprout_admission_free(&admission);
   return answer;
 }
@@ -165,7 +165,7 @@ player_told player_turn(player_session *session, const sprout_reading *reading, 
     told_collect(arena, &answer.lines, &outcome, PLAYER_VISIT);
   }
   sprout_outcome_free(&outcome);
-  owe(session, &answer);
+  owe(session, &answer, session_save_soon);
   return answer;
 }
 
@@ -178,7 +178,7 @@ player_told player_misread(player_session *session, const char *why) {
   answer.result = SPROUT_RESULT_REFUSED;
   answer.words = session_keep(session, why);
   told_add(arena, &answer.lines, PLAYER_VISIT, "notice", answer.words);
-  owe(session, &answer);
+  owe(session, &answer, session_save_soon);
   return answer;
 }
 
@@ -267,6 +267,6 @@ player_told player_tick(player_session *session) {
   answer.words = "";
   answer.ran = wake_due(session, arena, &answer.lines, player_host_seconds(&session->host));
   answer.ran = tick_places(session, arena, &answer.lines) || answer.ran;
-  owe(session, &answer);
+  owe(session, &answer, session_save_later);
   return answer;
 }

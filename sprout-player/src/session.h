@@ -10,7 +10,8 @@
  * owed: `player_save_step` writes it a slice a frame, and every call that runs a turn, loads or
  * closes writes what is owed first, so the state never changes under the writer. One input is one
  * save: the later steps of a line of turns write nothing of the state before they run, so the line
- * owes it once when it ends. `saved` false says a write failed, and the UI stops play and says so.
+ * owes it once when it ends. A tick's save waits instead (PLAYER_SAVE_WAIT_SECONDS). `saved` false
+ * says a write failed, and the UI stops play and says so.
  */
 #ifndef PLAYER_SESSION_H
 #define PLAYER_SESSION_H
@@ -71,7 +72,7 @@ typedef struct player_told {
   bool committed;            /* turn: the command committed */
   bool goes_on;              /* turn: a line of turns goes on past it, as nothing refused its actor */
   bool ran;                  /* tick: some turn did more than idle */
-  bool changed;              /* the state changed: a save is owed, and the view kept is stale */
+  bool changed;              /* the state changed: its save is owed or waiting, and the view kept is stale */
   bool saved;
   sprout_turn_result result; /* turn: how it ended; SPROUT_RESULT_REFUSED where it was not run */
   const char *words;         /* admit: "" or why the nickname was refused; turn: NULL or what kept it from running */
@@ -142,16 +143,23 @@ player_result player_save(player_session *session);
 #define PLAYER_SAVE_SLICE (16u * 1024u)
 
 /*
+ * How long a tick's save waits: a tick that changed the state owes a save, begun only once this
+ * many seconds have passed since the last save began, or at once on pause, sleep, leaving the
+ * world or the visitor's next turn (the design's Saves). A visitor's own turn saves at once.
+ */
+#define PLAYER_SAVE_WAIT_SECONDS 30u
+
+/*
  * One step of the save owed: the state's bytes made, or up to `bytes` more of them written; the
- * last renames the written file over the save. Not ok, with the words, when a write failed. It
- * releases nothing an earlier call handed back.
+ * last renames the written file over the save. A tick's save that has waited its time begins
+ * here. Not ok, with the words, when a write failed. It releases nothing an earlier call handed back.
  */
 player_result player_save_step(player_session *session, size_t bytes);
 
 /* Writes all of the save that is owed or under way, now: before the app pauses, locks or sleeps. */
 player_result player_save_settle(player_session *session);
 
-/* Whether any of the state is yet to be written. */
+/* Whether any of the state is yet to be written, a tick's save that waits included. */
 bool player_saving(const player_session *session);
 
 /* The open world begun again; `ok` false with `reason` saying why it could not be. */

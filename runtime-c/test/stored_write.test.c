@@ -123,6 +123,38 @@ static void the_text_is_taken_once_at_its_size(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+/* A string is escaped as JSON.stringify escapes it, the runs between the escapes written as they are. */
+static void a_string_is_escaped_as_json_stringify_does(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_state *state = NULL;
+  sprout_stored_instance *in;
+  sprout_stored_property *p;
+  const char *out;
+  size_t length;
+  sprout_arena scratch;
+  host.page_bytes = 4096;
+  CHECK_INT(sprout_state_empty(&host, "shop", &state), SPROUT_OK);
+  state->instances = (sprout_stored_instance *)sprout_arena_take(&state->arena, sizeof *in);
+  state->instance_count = 1;
+  in = &state->instances[0];
+  in->id = S("shop#1");
+  in->made = SPROUT_MADE_SPAWNED;
+  in->made_kind = S("shop.Box");
+  p = (sprout_stored_property *)sprout_arena_take(&state->arena, sizeof *p);
+  p->name = S("label");
+  p->type = S("string");
+  p->value.kind = SPROUT_STRING;
+  p->value.string = S("a \"box\"\\ in\n\r\t\b\f\x01 \xc3\xa9");
+  in->properties = p;
+  in->property_count = 1;
+  CHECK_INT(test_state_write(state, &scratch, &out, &length), SPROUT_OK);
+  CHECK(strstr(out, "\"label\":{\"type\":\"string\",\"value\":\"a \\\"box\\\"\\\\ in\\n\\r\\t\\b\\f\\u0001 \xc3\xa9\"}") != NULL);
+  sprout_arena_reset(&scratch);
+  sprout_state_free(state);
+  CHECK_INT(heap.pages, 0);
+}
+
 static void a_host_that_runs_out_of_memory_while_writing_is_told_so(void) {
   test_heap heap;
   sprout_host host = test_host(&heap);
@@ -191,6 +223,7 @@ int main(void) {
   RUN(a_record_built_by_hand_is_written_as_the_schema_orders_it);
   RUN(a_number_the_stored_form_does_not_write_is_refused);
   RUN(the_text_is_taken_once_at_its_size);
+  RUN(a_string_is_escaped_as_json_stringify_does);
   RUN(a_host_that_runs_out_of_memory_while_writing_is_told_so);
   RUN(a_turns_changes_are_written_from_the_records_the_state_holds);
   return REPORT();
