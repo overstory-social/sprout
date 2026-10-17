@@ -3,10 +3,10 @@
  * screens are exercised without the SDK's runtime: a clock a test sets, a Data folder and an app folder on the
  * desktop's disk, and a screen: graphics that draw into a 400 by 240 one-bit frame, as the
  * Simulator's is, with the text drawn kept as runs, and buttons and a crank a test sets. The pdx's
- * three fonts load from its fonts/: the serif (Newsleak Serif Bold, the frame's and text size S's),
- * the mono (Roobert 11 Mono Condensed, M) and the sans (Roobert 11 Medium, L and the disc's), each
- * as tall as its table in the SDK and `serif_glyph`, `mono_glyph` or `sans_glyph` pixels a character
- * (FAKE_SERIF_GLYPH and the rest unless a test says otherwise), each freed as the C API frees a font
+ * two fonts load from its fonts/: the serif (Newsleak Serif Bold, the frame's and text size S's)
+ * and the sans (Roobert 11 Medium, L and the disc's), each as tall as its table in the SDK and
+ * `serif_glyph` or `sans_glyph` pixels a character (FAKE_SERIF_GLYPH and FAKE_SANS_GLYPH unless a
+ * test says otherwise), each freed as the C API frees a font
  * (realloc to nothing), and a test can name one that does not load; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
  * to the screen as the device's is. Bitmaps load from PNG files, the size their header declares, and
  * are drawn as a black block of that size, each draw recorded. Bitmaps made with newBitmap hold real
@@ -27,8 +27,6 @@
 #define FAKE_RUNS 128
 #define FAKE_SERIF_GLYPH 7
 #define FAKE_SERIF_LINE 20
-#define FAKE_MONO_GLYPH 10
-#define FAKE_MONO_LINE 16
 #define FAKE_SANS_GLYPH 12
 #define FAKE_SANS_LINE 22
 #define FAKE_SYNTHS 16
@@ -42,13 +40,12 @@
 #define FAKE_ANSWERS 16
 #define FAKE_CONNECTIONS 8
 #define FAKE_MENU_ITEMS 3
-#define FAKE_FONTS 3
+#define FAKE_FONTS 2
 
 /* The fonts the fake loads; a run says which it was drawn in. */
 typedef enum fake_font {
   FAKE_FONT_NONE,
   FAKE_FONT_SERIF, /* the frame's, and the text size S */
-  FAKE_FONT_MONO,  /* M */
   FAKE_FONT_SANS   /* L, and the disc's */
 } fake_font;
 
@@ -164,7 +161,7 @@ typedef struct fake_playdate {
   fake_run runs[FAKE_RUNS];
   int run_count;
   fake_font font_set; /* the font set; drawing in none, or in one freed, is a fault */
-  int serif_glyph, mono_glyph, sans_glyph; /* the width of a character in each font, FAKE_SERIF_GLYPH and the rest unless a test widens one */
+  int serif_glyph, sans_glyph; /* the width of a character in each font, FAKE_SERIF_GLYPH and FAKE_SANS_GLYPH unless a test widens one */
   int fonts_loaded[FAKE_FONTS];            /* which fonts are held now, by fake_font less one */
   char missing_font[256];       /* a font path loadFont does not find, as on a device without it; "" for none */
   /* the sounds: the synths made and the notes played */

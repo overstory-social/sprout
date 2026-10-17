@@ -3,9 +3,8 @@
 
 #include "host/files.h"
 
-const char *const PLAYER_TEXT_SIZE_NAMES[PLAYER_TEXT_SIZES] = {"S", "M", "L"};
-const char *const PLAYER_TEXT_SIZE_FONTS[PLAYER_TEXT_SIZES] = {"fonts/Newsleak-Serif-Bold.pft", "fonts/Roobert-11-Mono-Condensed.pft",
-                                                               "fonts/Roobert-11-Medium.pft"};
+const char *const PLAYER_TEXT_SIZE_NAMES[PLAYER_TEXT_SIZES] = {"S", "L"};
+const char *const PLAYER_TEXT_SIZE_FONTS[PLAYER_TEXT_SIZES] = {"fonts/Newsleak-Serif-Bold.pft", "fonts/Roobert-11-Medium.pft"};
 
 player_text_size player_text_size_read(PlaydateAPI *pd) {
   size_t length = 0;
