@@ -1,7 +1,7 @@
 /*
  * The sentence builder's disc (ui/builder.c, ui/disc.c) as drawn, driven through the fake PlaydateAPI
  * in the chip_tree world's hall. The rules: each word on the disc is a label drawn once into a bitmap
- * in the big font and placed along its ray; the front is the selected entry, the only label drawn
+ * in the disc's font and placed along its ray; the front is the selected entry, the only label drawn
  * inverted, level at the hub's height at rest, its neighbours a sector either side in the entries'
  * order, each entry placed once, and the crank's fraction turns every word alike, through the detent; the dividing rays
  * are drawn only where a word sits; the labels are let go with the builder; the root lists the
@@ -55,13 +55,13 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
         "level at the front: %d %d", front_at >= 0 ? fake->placed[front_at].x : -1, front_at >= 0 ? fake->placed[front_at].y : -1);
   CHECK(fake_pixel(fake, FRONT_X + 1, FRONT_Y + 1) && !fake_pixel(fake, FRONT_X + 4, FRONT_Y + 4),
         "a black label with its word in white");
-  /* A sector either side in the entries' order, the disc wrapping; every word a label in the big font, placed once. */
+  /* A sector either side in the entries' order, the disc wrapping; every word a label in the disc's font, placed once. */
   CHECK(fake->placed_count == DISC_MOST_ROWS, "as many words as sectors are shown: %d", fake->placed_count);
   for (n = 0; n < fake->placed_count; n++) {
     const builder_label *label = label_placed(n);
     long k;
     int m;
-    CHECK(label != NULL && label_run(label) != NULL && label_run(label)->font == FAKE_FONT_BIG, "placement %d is a word in the big font", n);
+    CHECK(label != NULL && label_run(label) != NULL && label_run(label)->font == FAKE_FONT_SANS, "placement %d is a word in the disc's font", n);
     if (label == NULL) continue;
     k = label->angle > 0 ? (long)(label->angle / DISC_SECTOR_DEGREES + 0.5f) : -(long)(-label->angle / DISC_SECTOR_DEGREES + 0.5f);
     CHECK(label->angle == (float)k * DISC_SECTOR_DEGREES, "on a sector: %f", (double)label->angle);
@@ -168,8 +168,8 @@ static void first_character(int *white, int *black) {
   const fake_run *run = label_run(label_placed(front_placed()));
   int x, y, x0 = FRONT_X + (run != NULL ? run->x : 0), y0 = FRONT_Y + (run != NULL ? run->y : 0);
   *white = *black = 0;
-  for (y = y0 + 3; y < y0 + FAKE_BIG_LINE - 3; y++)
-    for (x = x0 + 1; x < x0 + FAKE_BIG_GLYPH - 1; x++) {
+  for (y = y0 + 3; y < y0 + FAKE_SANS_LINE - 3; y++)
+    for (x = x0 + 1; x < x0 + FAKE_SANS_GLYPH - 1; x++) {
       *black += fake_pixel(fake, x, y);
       *white += !fake_pixel(fake, x, y);
     }
@@ -230,7 +230,7 @@ static void a_quiet_tick_looks_again_so_the_open_need_not(void) {
 }
 
 static void a_greyed_chip_is_drawn_greyed_and_says_why(void) {
-  const int area = (FAKE_BIG_GLYPH - 2) * (FAKE_BIG_LINE - 6);
+  const int area = (FAKE_SANS_GLYPH - 2) * (FAKE_SANS_LINE - 6);
   int white, black, n, greyed_below = 0;
   arrive("greyed");
   fake_frame(fake, kButtonA, 0);
@@ -292,26 +292,20 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
   fake_frame(fake, kButtonA, 0);
   CHECK(step_to(kButtonDown, "and a dial", 5), "a dial");
   fake_frame(fake, kButtonA, 0);
-  CHECK(strcmp(phrase(), built) == 0 && fake_run_at(fake, PLAYER_MARGIN, 0)->font == FAKE_FONT_SYSTEM,
-        "it fits in the system font: %s", phrase());
+  CHECK(strcmp(phrase(), built) == 0 && fake_run_at(fake, PLAYER_MARGIN, 0)->font == FAKE_FONT_SERIF,
+        "it fits, in the frame's font: %s", phrase());
 
-  /* Wider type: the small font where the system font does not fit. */
-  fake->glyph = 20;
+  /* Wider type: trimmed from the left, so the end of the sentence, the part being built, is in view. */
+  fake->serif_glyph = 20;
   fake_frame(fake, 0, 0);
   line = fake_run_at(fake, PLAYER_MARGIN, 0);
-  CHECK(line != NULL && strcmp(line->text, built) == 0 && line->font == FAKE_FONT_SMALL, "the small font: %s", phrase());
-
-  /* Wider still: trimmed from the left, so the end of the sentence, the part being built, is in view. */
-  fake->small_glyph = 20;
-  fake_frame(fake, 0, 0);
-  line = fake_run_at(fake, PLAYER_MARGIN, 0);
-  CHECK(line != NULL && line->font == FAKE_FONT_SMALL, "the small font");
+  CHECK(line != NULL && line->font == FAKE_FONT_SERIF, "the frame's font still");
   if (line != NULL) {
     shown = strlen(line->text);
-    width = (int)shown * fake->small_glyph;
+    width = (int)shown * fake->serif_glyph;
     CHECK(strncmp(line->text, BUILDER_TRIMMED, strlen(BUILDER_TRIMMED)) == 0, "led by the mark of a trimmed line: %s", line->text);
     CHECK(width <= ROOM, "it fits: %d pixels", width);
-    CHECK(width + fake->small_glyph > ROOM, "and no character more would: %d pixels", width);
+    CHECK(width + fake->serif_glyph > ROOM, "and no character more would: %d pixels", width);
     shown -= strlen(BUILDER_TRIMMED);
     CHECK(shown < length && strcmp(line->text + strlen(BUILDER_TRIMMED), built + length - shown) == 0, "it ends as the sentence does: %s",
           line->text);
@@ -341,21 +335,20 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
 }
 
 static void the_fit_trims_a_character_at_a_time_and_never_inside_one(void) {
-  LCDFont *fonts[1];
-  LCDFont *font = NULL;
+  LCDFont *font;
   const char *why = NULL;
   char out[64];
   const char *fitted;
   begin("fit");
-  fonts[0] = fake->api.graphics->loadFont(BUILDER_SMALL_FONT, &why);
-  CHECK(fonts[0] != NULL, "%s", why);
-  fitted = player_builder_fit(&fake->api, fonts, 1, "short", ROOM, out, sizeof out, &font);
-  CHECK(strcmp(fitted, "short") == 0 && font == fonts[0], "what fits is drawn as it is");
-  fake->small_glyph = 100;
+  font = fake->api.graphics->loadFont(PLAYER_FRAME_FONT, &why);
+  CHECK(font != NULL, "%s", why);
+  fitted = player_builder_fit(&fake->api, font, "short", ROOM, out, sizeof out);
+  CHECK(strcmp(fitted, "short") == 0, "what fits is drawn as it is");
+  fake->serif_glyph = 100;
   /* Room for four characters: the lead and one more, which is the last; a two-byte character is never split. */
-  fitted = player_builder_fit(&fake->api, fonts, 1, "abcd\xc3\xa9", 400, out, sizeof out, &font);
+  fitted = player_builder_fit(&fake->api, font, "abcd\xc3\xa9", 400, out, sizeof out);
   CHECK(strcmp(fitted, "...\xc3\xa9") == 0, "the last character whole: %s", fitted);
-  fitted = player_builder_fit(&fake->api, fonts, 1, "abcdef", 300, out, sizeof out, &font);
+  fitted = player_builder_fit(&fake->api, font, "abcdef", 300, out, sizeof out);
   CHECK(strcmp(fitted, "...") == 0, "nothing past the lead fits: %s", fitted);
   end();
 }

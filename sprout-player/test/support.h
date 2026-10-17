@@ -47,6 +47,8 @@ player_opening player_open_whole(player_session *session, const char *path);
 player_session *session_new(void);
 
 char *file_text(const char *path);
+/* Whether `font`, a `fonts/<name>.pft` path the app loads, names a `.fnt` under Source/fonts, which pdc packages into the pdx. */
+bool shipped_font(const char *font);
 /* Puts the packed cartridges named into the Data folder's worlds/, as a pdx's shipped worlds are found. */
 void ship(const char *const *names, size_t count);
 /* Points the app folder at an empty folder of the scenario's own, `name`, so the shelf lists only what a test puts there. */

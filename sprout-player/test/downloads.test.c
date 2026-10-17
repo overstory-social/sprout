@@ -16,7 +16,7 @@
 #include "ui/downloads.h"
 #include "ui/shelf.h"
 
-#define LINE FAKE_LINE
+#define LINE FAKE_SERIF_LINE
 #define ROW(n) (LINE + 4 + 2 + (n) * LINE)
 #define PANEL (240 - (LINE * 3 + 8) + 2)
 #define INDEX_URL "https://w.example/sprout/index.json"

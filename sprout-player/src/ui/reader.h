@@ -1,6 +1,7 @@
 /*
  * The reader screen: the transcript (transcript.h) under the status, with the keys on one line
- * below. The status wraps to the column and the header is as tall as its lines, up to
+ * below. The status and the keys are the frame's (pen.h), the transcript the body's. The status wraps
+ * to the column and the header is as tall as its lines, up to
  * READER_STATUS_MOST_LINES; the transcript's rows are fitted under it whenever the status is set,
  * so a place with more ways out costs rows, never anything told. The crank and the d-pad scroll
  * back through what was said, a line for every 12 degrees of crank and for each press of up; down
@@ -48,7 +49,7 @@ bool player_reader_look(player_app *app, player_reader *reader, const sprout_see
 /* Sets the status from `view` and fits the transcript's rows under it; false when no memory could be had. */
 bool player_reader_status(player_app *app, player_reader *reader, const sprout_seen_view *view);
 
-/* How many transcript lines the column shows with a font `line_height` tall under a status of `status_lines` lines. */
-size_t player_reader_rows(int line_height, size_t status_lines);
+/* How many transcript lines the column shows with a body `line_height` tall, under a status of `status_lines` lines and over the keys, both in a frame `frame_height` tall. */
+size_t player_reader_rows(int line_height, int frame_height, size_t status_lines);
 
 #endif

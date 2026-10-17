@@ -24,23 +24,9 @@ static int width_in(PlaydateAPI *pd, LCDFont *font, const char *text, size_t len
   return pd->graphics->getTextWidth(font, text, player_utf8_count(text, length), kUTF8Encoding, 0);
 }
 
-static void say_in(player_app *app, LCDFont *font, const char *text, int x, int y) {
-  app->pd->graphics->setFont(font);
-  player_pen_say(&app->pen, text, x, y);
-  app->pd->graphics->setFont(app->pen.font);
-}
-
-const char *player_builder_fit(PlaydateAPI *pd, LCDFont *const *fonts, size_t font_count, const char *text, int room,
-                               char *out, size_t size, LCDFont **font) {
-  size_t length = strlen(text), lead = strlen(BUILDER_TRIMMED), start = 0, i;
-  LCDFont *last = fonts[font_count - 1];
-  for (i = 0; i < font_count; i++) {
-    if (width_in(pd, fonts[i], text, length) <= room) {
-      *font = fonts[i];
-      return text;
-    }
-  }
-  *font = last;
+const char *player_builder_fit(PlaydateAPI *pd, LCDFont *font, const char *text, int room, char *out, size_t size) {
+  size_t length = strlen(text), lead = strlen(BUILDER_TRIMMED), start = 0;
+  if (width_in(pd, font, text, length) <= room) return text;
   if (size <= lead) return "";
   memcpy(out, BUILDER_TRIMMED, lead + 1);
   /* A character at a time off the front, until what is left fits behind the lead. */
@@ -49,7 +35,7 @@ const char *player_builder_fit(PlaydateAPI *pd, LCDFont *const *fonts, size_t fo
     while (start < length && ((unsigned char)text[start] & 0xC0u) == 0x80u);
     if (start >= length || lead + (length - start) + 1 > size) continue;
     memcpy(out + lead, text + start, length - start + 1);
-    if (width_in(pd, last, out, lead + length - start) <= room) return out;
+    if (width_in(pd, font, out, lead + length - start) <= room) return out;
   }
   out[lead] = '\0';
   return out;
@@ -77,13 +63,12 @@ static void show_words(player_app *app, player_builder *b, const char *words) {
 
 /* ---- opening and closing ---- */
 
-/* Loads the builder's fonts the first time the builder opens; one that cannot be loaded is done without. */
-static void load_fonts(player_app *app) {
+/* Holds the disc's font from the first time the builder opens; where it cannot be read, the disc's words are drawn in the body. */
+static void hold_disc_font(player_app *app) {
   const char *error = NULL;
-  if (app->fonts_tried) return;
-  app->fonts_tried = true;
-  app->big_font = app->pd->graphics->loadFont(BUILDER_BIG_FONT, &error);
-  app->small_font = app->pd->graphics->loadFont(BUILDER_SMALL_FONT, &error);
+  if (app->disc_font_tried) return;
+  app->disc_font_tried = true;
+  app->disc_font = player_pen_hold(&app->pen, BUILDER_DISC_FONT, &error);
 }
 
 /* Tells the reader `words` as a notice; false, as nothing was built. */
@@ -113,7 +98,7 @@ bool player_builder_open(player_app *app, player_reader *reader) {
     player_free(app->pd, b);
     return tell_reader(reader, words);
   }
-  load_fonts(app);
+  hold_disc_font(app);
   b->reader = reader;
   reader->lent = true;
   player_app_show(app, &player_builder_screen, b);
@@ -287,7 +272,6 @@ static LCDBitmap *flat_label(player_app *app, LCDFont *font, const sentence_entr
   pd->graphics->drawText(entry->label, player_utf8_count(entry->label, length), kUTF8Encoding, 3, 1);
   if (entry->greyed) pd->graphics->fillRect(0, 0, width, height, (LCDColor)(uintptr_t)&GREY);
   pd->graphics->popContext();
-  pd->graphics->setFont(app->pen.font);
   return flat;
 }
 
@@ -342,7 +326,7 @@ static void draw_ray(PlaydateAPI *pd, int hx, int cy, float angle) {
 
 /*
  * The disc between `top` and `bottom`: the hub at the left edge with its marker, the dividing lines
- * of the sectors that hold a word, and every word along its ray in the big font, the front one last.
+ * of the sectors that hold a word, and every word along its ray in the disc's font, the front one last.
  * A word turned out of sight lets go of its turned pixels.
  */
 static void draw_disc(player_app *app, player_builder *b, int top, int bottom) {
@@ -350,7 +334,7 @@ static void draw_disc(player_app *app, player_builder *b, int top, int bottom) {
   int cy = (top + bottom) / 2, hx = DISC_HUB_X, k;
   size_t count, made, i;
   const sentence_entry *entries = sentence_entries(&b->sentence, &count);
-  LCDFont *font = app->big_font != NULL ? app->big_font : app->pen.font;
+  LCDFont *font = app->disc_font != NULL ? app->disc_font : app->pen.body;
   disc_row rows[DISC_MOST_ROWS];
   if (!labels_stand(app, b, count)) {
     player_pen_say(&app->pen, NO_MEMORY, PLAYER_MARGIN, cy - app->pen.line_height / 2);
@@ -380,35 +364,35 @@ static void draw_disc(player_app *app, player_builder *b, int top, int bottom) {
   pd->graphics->clearClipRect();
 }
 
+/* The sentence line over the disc and the panel under it are the frame's: its font and its line height. */
 static void draw(player_app *app, void *ctx) {
   player_builder *b = (player_builder *)ctx;
   PlaydateAPI *pd = app->pd;
-  int line_height = app->pen.line_height, header = line_height + 4, bottom = PLAYER_SCREEN_HEIGHT - (line_height * 3 + 8);
-  LCDFont *line_fonts[2], *font = NULL;
-  size_t font_count = 0, count;
+  const player_pen *pen = &app->pen;
+  int frame_height = pen->frame_height, header = frame_height + 4, bottom = PLAYER_SCREEN_HEIGHT - (frame_height * 3 + 8);
+  size_t count, i;
   const sentence_entry *entry;
   const char *words, *line;
   wrapped panel;
   if (b->message.bytes != NULL) {
     draw_lines(app, &b->message, 40);
-    player_pen_say(&app->pen, GO_ON, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - line_height - 2);
+    player_pen_frame_say(pen, GO_ON, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - frame_height - 2);
     return;
   }
-  line_fonts[font_count++] = app->pen.font;
-  if (app->small_font != NULL) line_fonts[font_count++] = app->small_font;
-  line = player_builder_fit(pd, line_fonts, font_count, sentence_phrase(&b->sentence), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN,
-                            b->line, sizeof b->line, &font);
-  say_in(app, font, line, PLAYER_MARGIN, 0);
+  line = player_builder_fit(pd, pen->frame, sentence_phrase(&b->sentence), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, b->line,
+                            sizeof b->line);
+  player_pen_frame_say(pen, line, PLAYER_MARGIN, 0);
   pd->graphics->drawLine(0, header - 1, PLAYER_SCREEN_WIDTH, header - 1, 1, kColorBlack);
   draw_disc(app, b, header, bottom);
   pd->graphics->drawLine(0, bottom, PLAYER_SCREEN_WIDTH, bottom, 1, kColorBlack);
   entry = &sentence_entries(&b->sentence, &count)[b->sentence.state.selected];
   words = entry->reason != NULL ? entry->reason : BUILDER_KEYS;
-  if (wrap_lines(pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen, &panel)) {
-    draw_lines(app, &panel, bottom + 2);
+  if (wrap_lines(pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_frame_width, &app->pen, &panel)) {
+    line = panel.bytes;
+    for (i = 0; i < panel.line_count; i++, line = wrap_next(line)) player_pen_frame_say(pen, line, PLAYER_MARGIN, bottom + 2 + (int)i * frame_height);
     wrap_free(pd, &panel);
   } else {
-    player_pen_say(&app->pen, NO_MEMORY, PLAYER_MARGIN, bottom + 2);
+    player_pen_frame_say(pen, NO_MEMORY, PLAYER_MARGIN, bottom + 2);
   }
 }
 
@@ -426,7 +410,7 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, b);
 }
 
-/* The reader it holds follows the font, and so do the words over the disc; the phrase and the hint are fitted each draw. */
+/* The reader it holds follows the body, and so do the words over the disc; the phrase and the hint are the frame's, laid out each draw. */
 static void refit(player_app *app, void *ctx) {
   player_builder *b = (player_builder *)ctx;
   player_reader_screen.refit(app, b->reader);

@@ -165,9 +165,9 @@ static void draw(player_app *app, void *ctx) {
   text_add(&loading, "... ");
   text_add_number(&loading, share);
   text_add(&loading, "%");
-  player_pen_say(pen, said, PLAYER_MARGIN, 0);
-  app->pd->graphics->drawLine(PLAYER_MARGIN, pen->line_height + 4, PLAYER_MARGIN + (int)(width * (int)share / 100),
-                              pen->line_height + 4, 1, kColorBlack);
+  player_pen_frame_say(pen, said, PLAYER_MARGIN, 0);
+  app->pd->graphics->drawLine(PLAYER_MARGIN, pen->frame_height + 4, PLAYER_MARGIN + (int)(width * (int)share / 100),
+                              pen->frame_height + 4, 1, kColorBlack);
 }
 
 static void leave(player_app *app, void *ctx) { player_free(app->pd, ctx); }
