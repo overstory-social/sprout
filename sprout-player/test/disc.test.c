@@ -90,15 +90,19 @@ static void the_disc_settles_once_the_crank_rests(void) {
   float drawn;
   memset(&s, 0, sizeof s);
   s.crank = 10.0f;
+  CHECK(disc_at_rest(&d), "before the crank moves, the disc is at rest");
   CHECK(!disc_update(&d, &s, true), "turning, it does not settle");
+  CHECK(!disc_at_rest(&d), "and is not at rest");
   for (frames = 1; frames < DISC_REST_FRAMES; frames++) {
     CHECK(!disc_update(&d, &s, false), "resting %d frames, not yet", frames);
     CHECK(s.crank == 10.0f, "and it has not moved");
+    CHECK(!disc_at_rest(&d), "nor is it at rest while the crank has only just stopped");
   }
   /* The settle is the crank's own, so through the curve the drawn turn shrinks every frame to none. */
   drawn = disc_detent(sentence_fraction(&s));
   for (frames = 0; frames < 60 && !rested; frames++) {
     rested += disc_update(&d, &s, false);
+    CHECK(disc_at_rest(&d) == (rested != 0), "at rest only once it has settled");
     CHECK(disc_detent(sentence_fraction(&s)) < drawn, "easing back into the slot: %f after %f",
           (double)disc_detent(sentence_fraction(&s)), (double)drawn);
     drawn = disc_detent(sentence_fraction(&s));
@@ -108,6 +112,7 @@ static void the_disc_settles_once_the_crank_rests(void) {
   CHECK(rested == 1 && s.crank == 0.0f && sentence_fraction(&s) == 0.0f, "it settles and says so once: %d", rested);
   CHECK(settling == 6, "ten degrees off, it comes to rest in six frames, crank by crank: %d", settling);
   CHECK(!disc_update(&d, &s, false), "and not again while it rests");
+  CHECK(disc_at_rest(&d), "at rest from then on");
 }
 
 /* ---- turning a label ---- */

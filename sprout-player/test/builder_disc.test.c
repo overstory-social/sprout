@@ -9,7 +9,10 @@
  * label) and its reason is the panel's words; the sentence line fits the screen whatever its length,
  * keeping its end in view, while a long word on the disc is cut at the screen's edge; A opens the
  * disc from the view the reader has and draws it before any verb is asked after, the front one on
- * the next frame, and a tick that changes the state quietly is looked after in the tick.
+ * the next frame; while the crank rests and nothing is pressed, one verb beside the front is asked
+ * after a frame, nearest first and the one above before the one below, as far as the wheel shows,
+ * and a frame with input asks after none; and a tick that changes the state quietly is looked
+ * after in the tick.
  */
 #include "builder_support.h"
 #include "session_internal.h"
@@ -201,6 +204,56 @@ static void the_disc_is_drawn_before_any_verb_is_asked_after(void) {
 }
 
 /*
+ * While the crank rests and nothing is pressed, the builder asks after one verb a frame beside the
+ * front: the one above, the one below, then outward, as far as the wheel shows either side; a frame
+ * with crank or button input asks after none, and once those are known no more are asked for.
+ */
+static void the_crank_at_rest_asks_after_the_verbs_beside_the_front(void) {
+  player_session *s;
+  size_t count, n;
+  int frames;
+  arrive("prefetch");
+  s = app->session;
+  count = s->chips.verb_count;
+  CHECK(count >= 2 * DISC_SIDE + 2, "verbs enough to go round: %zu", count);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(verbs_asked(s) == 0, "the open asks after none");
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[0] && verbs_asked(s) == 1, "the first frame asks after the front");
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[count - 1] && verbs_asked(s) == 2, "the next asks after the verb above it: %zu asked", verbs_asked(s));
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[1] && verbs_asked(s) == 3, "then the one below: %zu asked", verbs_asked(s));
+  CHECK(builder()->sentence.choices[1].greyed != PLAYER_GREYED_UNKNOWN, "and the wheel shows it greyed or not");
+
+  /* The crank moves, less than a step: nothing is asked after until the disc has come to rest. */
+  fake_frame(fake, 0, 4.0f);
+  CHECK(verbs_asked(s) == 3, "a frame with crank input asks after none");
+  for (frames = 0; frames < DISC_REST_FRAMES + 20 && !disc_at_rest(&builder()->disc); frames++) {
+    fake_frame(fake, 0, 0);
+    CHECK(verbs_asked(s) == 3, "nor one while the disc settles: %zu asked", verbs_asked(s));
+  }
+  CHECK(disc_at_rest(&builder()->disc) && builder()->sentence.state.selected == 0, "the disc settled back on the front");
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[count - 2] && verbs_asked(s) == 4, "at rest again, the next verb out above: %zu asked", verbs_asked(s));
+
+  /* A button steps the wheel to a verb already known: that frame asks after none, and the rest goes on round the new front. */
+  fake_frame(fake, kButtonDown, 0);
+  CHECK(builder()->sentence.state.selected == 1 && verbs_asked(s) == 4, "a frame with a button asks after none: %zu asked", verbs_asked(s));
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[2] && verbs_asked(s) == 5, "the one below the new front, its one above known: %zu asked", verbs_asked(s));
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[3] && verbs_asked(s) == 6, "two below: %zu asked", verbs_asked(s));
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[4] && verbs_asked(s) == 7, "three below, the last the wheel shows: %zu asked", verbs_asked(s));
+  for (n = 0; n < 10; n++) fake_frame(fake, 0, 0);
+  CHECK(verbs_asked(s) == 7, "and no more while the front stays: %zu asked", verbs_asked(s));
+  for (n = 0; n < count; n++)
+    CHECK(s->fetched[n] == (n <= 4 || n >= count - 2), "verb %zu is known only where the wheel showed it", n);
+  leave();
+}
+
+/*
  * A tick that changes the state without telling anything (the moor counting its seconds) is looked
  * after in the tick, so the view stands fresh when A opens the builder and the open polls nothing.
  */
@@ -358,6 +411,7 @@ int main(void) {
   the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank();
   a_label_is_drawn_once_while_its_level_stands();
   the_disc_is_drawn_before_any_verb_is_asked_after();
+  the_crank_at_rest_asks_after_the_verbs_beside_the_front();
   a_quiet_tick_looks_again_so_the_open_need_not();
   a_greyed_chip_is_drawn_greyed_and_says_why();
   the_sentence_line_fits_the_screen_and_keeps_its_end();

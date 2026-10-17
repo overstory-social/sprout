@@ -456,7 +456,17 @@ verb what the root then shows. The sentence builder asks for no verb's
 readings when it opens: the disc is drawn first, in the frame A was pressed,
 and the verb at its front is asked after on the next frame, as the verb the
 disc settles on is, so a verb is greyed or not before it is picked and A to
-the wheel costs the root level and a draw. The caverns' whole
+the wheel costs the root level and a draw. A verb's readings cost one frame
+on the console, so while the crank rests on the wheel and nothing is
+pressed the builder asks after one more verb a frame, the nearest to the
+front first (the one above, then the one below, then outward), as far as
+the wheel shows (`DISC_SIDE`, three a side): a verb a step or two away is
+greyed or not before the disc reaches it, and a frame with crank or button
+input asks after none, so cranking stays smooth. The readings brought
+forward are the six verbs' on screen at most, kept with the view as every
+verb's are; at the caverns' West of House those fit in the 32 KB page the
+root took, and all 77 verbs' readings together are ten such pages, a tenth
+of the fullest room's tree. The caverns' whole
 tree was 223 KB of JSON and 2,194 nodes built in one poll that reset the
 console; now a level is a few hundred bytes, a verb's readings cost one
 small poll, and the screens never hold the tree.
