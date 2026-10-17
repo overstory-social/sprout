@@ -164,8 +164,7 @@ static size_t utf8_bytes(const char *text, size_t count) {
 
 /* The fonts the fake loads, by path, in fake_font's order; the font a handle is, FAKE_FONT_NONE for one not held. */
 static char fake_fonts[FAKE_FONTS];
-static const char *const FONT_PATHS[FAKE_FONTS] = {"fonts/Newsleak-Serif-Bold.pft", "fonts/Roobert-11-Mono-Condensed.pft",
-                                                   "fonts/Roobert-11-Medium.pft"};
+static const char *const FONT_PATHS[FAKE_FONTS] = {"fonts/Newsleak-Serif-Bold.pft", "fonts/Roobert-11-Medium.pft"};
 
 static fake_font font_of(LCDFont *font) {
   int i;
@@ -176,7 +175,6 @@ static fake_font font_of(LCDFont *font) {
 
 int fake_glyph(const fake_playdate *fake, fake_font font) {
   switch (font) {
-    case FAKE_FONT_MONO: return fake->mono_glyph;
     case FAKE_FONT_SANS: return fake->sans_glyph;
     default: return fake->serif_glyph;
   }
@@ -184,7 +182,6 @@ int fake_glyph(const fake_playdate *fake, fake_font font) {
 
 int fake_line(fake_font font) {
   switch (font) {
-    case FAKE_FONT_MONO: return FAKE_MONO_LINE;
     case FAKE_FONT_SANS: return FAKE_SANS_LINE;
     default: return FAKE_SERIF_LINE;
   }
@@ -280,7 +277,6 @@ const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
 
 void fake_install_screen(fake_playdate *fake) {
   fake->serif_glyph = FAKE_SERIF_GLYPH;
-  fake->mono_glyph = FAKE_MONO_GLYPH;
   fake->sans_glyph = FAKE_SANS_GLYPH;
   fake->gfx.clear = fake_clear;
   fake->gfx.fillRect = fake_fill_rect;

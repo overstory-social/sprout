@@ -45,7 +45,7 @@ struct player_app {
   bool restart_question;  /* the question whether to start over is on screen, over the screen on show */
   PDMenuItem *restart_item;
   bool text_asked;        /* the system menu's "text" was set since the last frame */
-  PDMenuItem *text_item;  /* that item, S / M / L, or NULL where the system could not add it */
+  PDMenuItem *text_item;  /* that item, S / L, or NULL where the system could not add it */
   wrapped notice;         /* words over the screen on show until A or B: a text size that could not be had or kept; no lines when none */
 };
 

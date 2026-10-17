@@ -282,13 +282,12 @@ and the download screen's title and panel, the nickname screen's question and
 keys, the pictures' caption and page words, a message's "A to go on", the
 arrival's loading line), and the body, the font of the text size chosen
 (`src/ui/text_size.h`), draws everything between: S is Newsleak Serif Bold
-itself, M Roobert 11 Mono Condensed and L Roobert 11 Medium. Each screen's
-bands take the frame's line height and its rows the body's. The pen holds
-every font the player draws with, a file loaded once however many uses hold
-it, so S holds one file and the other sizes two. "text" in the system menu is
-an options item, S / M / L; the size set there is applied when the menu
-closes, written beside the saves as the one letter in `text-size.txt`, and
-read back at the next launch (no file, or one that says anything else, is S).
+itself and L Roobert 11 Medium. Each screen's bands take the frame's line
+height and its rows the body's. The pen holds every font the player draws
+with, a file loaded once however many uses hold it, so S holds one file and L
+two. "text" in the system menu is an options item, S / L; the size set there is applied when the menu closes,
+written beside the saves as the one letter in `text-size.txt`, and read back
+at the next launch (no file, or one that says anything else, is S).
 A font the device cannot read leaves the pen as it was, puts the item back,
 and says so over the screen on show until A or B. A screen
 (`src/ui/screen.h`) is functions over its own context: update with the
@@ -841,8 +840,7 @@ Not yet checked:
 - "start over" in the system menu and its question, which the C tests drive
   over the fake;
 - the text sizes on a console: the line height `getFontHeight` gives for
-  each of the three shipped fonts (their tables are 20, 16 and 22 pixels
-  tall), and that an options item's callback runs when the menu closes; the
+  each of the two shipped fonts (their tables are 20 and 22 pixels tall), and that an options item's callback runs when the menu closes; the
   C tests drive the item over the fake;
 - the time the save's first frame (making the bytes) and its 16 KB slices
   take on a console, and whether the slice size is right.
