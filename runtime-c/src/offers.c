@@ -37,6 +37,7 @@ typedef struct scene {
   const sprout_stored_instance **things;
   bool *carried; /* one for each of `things` */
   size_t thing_count;
+  bool typed; /* whether a filling's words are wanted: an offer types them, a listing of verbs reads only counts */
   sprout_offer *offers;
   size_t offer_count, offer_capacity;
 } scene;
@@ -141,7 +142,8 @@ static sprout_eval_status things_for(scene *s, const sprout_verb *verb, const sp
     if (!fit[i] || (own_place && sprout_str_same(thing->id, s->here))) continue;
     slot = grow(s->frame, out);
     if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
-    EXPR_NEED(sprout_name_of(s->frame, thing, &name));
+    if (s->typed) EXPR_NEED(sprout_name_of(s->frame, thing, &name));
+    else name = (sprout_str){NULL, 0};
     slot->bound = true;
     slot->filled.filled = true;
     if (role->many) {
@@ -262,8 +264,8 @@ static sprout_eval_status offer_for(scene *s, const sprout_verb *verb, const fil
   sprout_offer *offer;
   size_t i, r;
   *made = false;
-  for (i = 0; i < world->phrase_count && phrase == NULL; i++)
-    if (world->phrases[i].verb == verb && types_all(&world->phrases[i], verb, lists, at)) phrase = &world->phrases[i];
+  for (i = verb->typed_at; i < verb->typed_at + verb->typed_count && phrase == NULL; i++)
+    if (types_all(&world->phrases[i], verb, lists, at)) phrase = &world->phrases[i];
   if (phrase == NULL) return SPROUT_EVAL_OK;
   roles = (sprout_filled *)sprout_arena_take(s->frame->turn, (verb->role_count + 1) * sizeof *roles);
   offer = (sprout_offer *)sprout_exec_grow(s->frame->turn, (void **)&s->offers, &s->offer_count, &s->offer_capacity,
@@ -309,8 +311,7 @@ static sprout_eval_status offers(sprout_exec *x, const sprout_frame *frame, spro
   const sprout_world *world = frame->world;
   const sprout_stored_instance *self = expr_instance(frame, actor);
   scene s;
-  bool *done;
-  size_t i, j;
+  size_t i;
   *out = NULL;
   *count = 0;
   if (self == NULL || !self->has_container) return expr_engine(frame, "an away visitor can do nothing.");
@@ -321,18 +322,12 @@ static sprout_eval_status offers(sprout_exec *x, const sprout_frame *frame, spro
   s.here = self->container;
   s.ways = ways;
   s.way_count = way_count;
+  s.typed = true;
   EXPR_NEED(gather(&s, reached, reached_count));
   if (only != NULL) {
     EXPR_NEED(offers_of(&s, only));
   } else {
-    done = (bool *)sprout_arena_take(frame->turn, (world->phrase_count + 1) * sizeof *done);
-    if (done == NULL) return SPROUT_EVAL_NO_MEMORY;
-    for (i = 0; i < world->phrase_count; i++) {
-      if (done[i]) continue;
-      for (j = i; j < world->phrase_count; j++)
-        if (world->phrases[j].verb == world->phrases[i].verb) done[j] = true;
-      EXPR_NEED(offers_of(&s, world->phrases[i].verb));
-    }
+    for (i = 0; i < world->offered_count; i++) EXPR_NEED(offers_of(&s, world->offered[i]));
   }
   *out = s.offers;
   *count = s.offer_count;
@@ -352,7 +347,7 @@ sprout_eval_status sprout_offers_verbs(sprout_exec *x, const sprout_frame *frame
   const sprout_stored_instance *self = expr_instance(frame, actor);
   const sprout_verb **verbs;
   scene s;
-  size_t i, j, r, n = 0;
+  size_t i, r, n = 0;
   *out = NULL;
   *count = 0;
   if (self == NULL || !self->has_container) return expr_engine(frame, "an away visitor can do nothing.");
@@ -364,14 +359,11 @@ sprout_eval_status sprout_offers_verbs(sprout_exec *x, const sprout_frame *frame
   s.ways = ways;
   s.way_count = way_count;
   EXPR_NEED(gather(&s, reached, reached_count));
-  verbs = (const sprout_verb **)sprout_arena_take(frame->turn, (world->phrase_count + 1) * sizeof *verbs);
+  verbs = (const sprout_verb **)sprout_arena_take(frame->turn, (world->offered_count + 1) * sizeof *verbs);
   if (verbs == NULL) return SPROUT_EVAL_NO_MEMORY;
-  for (i = 0; i < world->phrase_count; i++) {
-    const sprout_verb *verb = world->phrases[i].verb;
+  for (i = 0; i < world->offered_count; i++) {
+    const sprout_verb *verb = world->offered[i];
     fillings *lists;
-    for (j = 0; j < i; j++)
-      if (world->phrases[j].verb == verb) break;
-    if (j < i) continue;
     lists = (fillings *)sprout_arena_take(frame->turn, (verb->role_count + 1) * sizeof *lists);
     if (lists == NULL) return SPROUT_EVAL_NO_MEMORY;
     EXPR_NEED(lists_for(&s, verb, lists));

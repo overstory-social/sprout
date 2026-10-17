@@ -73,6 +73,55 @@ static void the_offers_are_the_goldens_in_its_order_with_its_typed_lines_and_its
   view_bench_close(&b);
 }
 
+/*
+ * Every verb the whole offers make is among the verbs a scene lists, each once, in the order the offers come; a
+ * scene may list one more, whose roles what is here fills though no phrase of it types the combination.
+ */
+static void the_verbs_a_scene_lists_hold_the_whole_offers_verbs_each_once_in_their_order(void) {
+  view_bench b;
+  const sprout_json *cases;
+  size_t i, compared = 0;
+  view_bench_open(&b);
+  cases = sprout_json_get(b.golden, "cases");
+  for (i = 0; i < cases->count; i++) {
+    const sprout_json *expect = sprout_json_get(cases->items[i], "expect");
+    offers_case k;
+    const sprout_way *ways;
+    const sprout_reached *reached;
+    const sprout_verb **verbs, *seen[64];
+    size_t way_count, reached_count, verb_count, j, n = 0;
+    if (sprout_json_get(expect, "fault")->kind != SPROUT_JSON_NULL) continue;
+    if (offers_open(&k, view_text(cases->items[i], "name")) != SPROUT_EVAL_OK) {
+      offers_close(&k);
+      continue;
+    }
+    for (j = 0; j < k.count; j++) {
+      size_t s;
+      for (s = 0; s < n; s++)
+        if (seen[s] == k.offers[j].reading.verb) break;
+      if (s == n && n < 64) seen[n++] = k.offers[j].reading.verb;
+    }
+    CHECK_INT(sprout_exits_from(&k.p.frame, k.p.place, &ways, &way_count), SPROUT_EVAL_OK);
+    CHECK_INT(sprout_range_of(&k.p.frame, k.p.actor, NULL, &reached, &reached_count), SPROUT_EVAL_OK);
+    CHECK_INT(sprout_offers_verbs(&k.p.x, &k.p.frame, k.p.actor, ways, way_count, reached, reached_count, &verbs, &verb_count), SPROUT_EVAL_OK);
+    CHECK(verb_count >= n);
+    {
+      size_t at = 0, s;
+      for (s = 0; s < n; s++) {
+        while (at < verb_count && verbs[at] != seen[s]) at++;
+        CHECK(at < verb_count);
+        at++;
+      }
+      for (s = 0; s < verb_count; s++)
+        for (at = s + 1; at < verb_count; at++) CHECK(verbs[s] != verbs[at]);
+    }
+    offers_close(&k);
+    compared++;
+  }
+  CHECK(compared >= 12);
+  view_bench_close(&b);
+}
+
 static void go_is_offered_by_each_exit_by_its_direction_and_by_each_link_by_its_labels_typed_words(void) {
   offers_case k;
   CHECK_INT(offers_open(&k, "gate that stands open"), SPROUT_EVAL_OK);
@@ -280,6 +329,7 @@ int main(void) {
   RUN(a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_each_asked_a_step);
   RUN(all_takes_by_the_roles_kind_or_by_what_plays_the_verb_and_never_the_actor_or_their_place);
   RUN(the_offers_are_the_goldens_in_its_order_with_its_typed_lines_and_its_refusals);
+  RUN(the_verbs_a_scene_lists_hold_the_whole_offers_verbs_each_once_in_their_order);
   RUN(go_is_offered_by_each_exit_by_its_direction_and_by_each_link_by_its_labels_typed_words);
   RUN(a_way_is_an_exit_filler_naming_where_it_leads);
   RUN(a_set_role_is_offered_one_member_at_a_time);

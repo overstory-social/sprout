@@ -663,6 +663,7 @@ sprout_status sprout_state_read_shape(const sprout_host *host, const char *bytes
   state->anchor = boot;
   state->anchor.host = &state->host;
   sprout_arena_init(&state->arena, &state->host);
+  sprout_arena_init(&state->contents.arena, &state->host);
   sprout_arena_init(&scratch, &state->host);
   status = sprout_json_read(&scratch, bytes == NULL ? "" : bytes, bytes == NULL ? 0 : length, &root, &error);
   if (status == SPROUT_BAD_INPUT) {
@@ -695,15 +696,18 @@ sprout_status sprout_state_read(const sprout_host *host, const char *bytes, size
 }
 
 void sprout_state_free(sprout_state *state) {
-  sprout_arena anchor, data;
+  sprout_arena anchor, data, contents;
   sprout_host host;
   if (state == NULL) return;
-  /* The struct lives in the anchor's page, so both arenas are released through copies. */
+  /* The struct lives in the anchor's page, so the arenas are released through copies. */
   host = state->host;
   anchor = state->anchor;
   data = state->arena;
+  contents = state->contents.arena;
   anchor.host = &host;
   data.host = &host;
+  contents.host = &host;
+  sprout_arena_reset(&contents);
   sprout_arena_reset(&data);
   sprout_arena_reset(&anchor);
 }

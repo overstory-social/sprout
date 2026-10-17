@@ -124,10 +124,26 @@ typedef struct sprout_stored_visitor {
   sprout_stored_reading reading;
 } sprout_stored_visitor;
 
+/*
+ * The live records chained by the hash of their container, by index into the state's instances, so contents are
+ * read off one chain (draft.c derives it, at the edition of the records it was read from, and rebuilds it when
+ * the records have changed since).
+ */
+typedef struct sprout_contents_index {
+  sprout_arena arena;
+  const size_t *heads; /* one chain head for each bucket, the instance count meaning none */
+  const size_t *next;  /* the next record in a chain */
+  size_t mask;
+  uint64_t edition;
+  bool built;
+} sprout_contents_index;
+
 struct sprout_state {
   sprout_host host;
   sprout_arena anchor; /* holds this struct and nothing else, so `arena` can be rebuilt without moving it */
   sprout_arena arena;  /* everything the state holds, and what commits have replaced until it is compacted */
+  uint64_t edition;    /* counts every change to the records, so what is derived from them knows when it is stale */
+  sprout_contents_index contents;
   size_t settled;      /* `arena.held` right after the last rebuild: past it by a quarter, the state is crowded */
   sprout_str world;
   uint64_t serial; /* the last serial issued, 0 before the first */

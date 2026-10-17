@@ -40,6 +40,28 @@ static void a_charge_past_the_figure_is_refused_and_recorded(void) {
   CHECK_INT(meter.fault.limit, 10);
 }
 
+/* A charge that fits writes nothing; the one past the figure writes the words, and so does one past what a count can hold. */
+static void a_charge_that_fits_writes_no_words_and_the_one_past_the_figure_does(void) {
+  test_heap heap;
+  sprout_host host = host_with(&heap);
+  sprout_meter meter;
+  host.budgets.poll_steps = limit(3);
+  sprout_meter_begin(&meter, &host, SPROUT_TURN_POLL);
+  CHECK(sprout_meter_steps(&meter, 2));
+  CHECK(sprout_meter_steps(&meter, 1));
+  CHECK_STR(meter.fault.text, "");
+  CHECK(!sprout_meter_steps(&meter, 1));
+  CHECK_STR(meter.fault.text, "pollSteps: a poll turn may take 3 steps.");
+  CHECK_INT(meter.steps, 4);
+  host.budgets.steps = (sprout_limit){false, 0};
+  sprout_meter_begin(&meter, &host, SPROUT_TURN_TICK);
+  CHECK(sprout_meter_steps(&meter, UINT64_MAX - 1));
+  CHECK_STR(meter.fault.text, "");
+  CHECK(!sprout_meter_steps(&meter, 2));
+  CHECK_STR(meter.fault.text, "steps: a tick turn may take 0 steps.");
+  CHECK_INT(meter.steps, UINT64_MAX);
+}
+
 static void a_budget_the_host_leaves_unset_is_unbounded(void) {
   test_heap heap;
   sprout_host host = host_with(&heap);
@@ -387,6 +409,7 @@ static void every_budgets_fault_text_is_complete_at_the_widest_numbers(void) {
 int main(void) {
   RUN(the_step_budget_faults_on_the_step_past_the_hosts_figure);
   RUN(a_charge_past_the_figure_is_refused_and_recorded);
+  RUN(a_charge_that_fits_writes_no_words_and_the_one_past_the_figure_does);
   RUN(a_budget_the_host_leaves_unset_is_unbounded);
   RUN(a_poll_is_charged_to_the_poll_budget_and_a_command_to_the_turn_budget);
   RUN(a_fault_names_the_message_the_budget_and_the_figure_in_words);
