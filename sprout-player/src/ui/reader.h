@@ -6,11 +6,11 @@
  * back through what was said, a line for every 12 degrees of crank and for each press of up; down
  * comes forward again, on the 400 by 240 screen. A opens the sentence builder (builder.h),
  * which the reader is lent to while it is up. While a reader is open the app's clock (clock.h)
- * runs, and when a tick is due the reader asks the session for one and tells what it told, behind
- * the pictures it asked for (pictures.h), and looks again after any tick that changed the state,
- * told or not, so the view the builder opens from is never stale and A never pays for a poll; a
- * tick is asked for only while the reader itself is on show, so one falling due under the builder
- * or the pictures comes when they close.
+ * runs, and when a tick is due and the hands have rested the reader asks the session for one and
+ * tells what it told, behind the pictures it asked for (pictures.h), and looks again after any
+ * tick that changed the state, told or not, so the view the builder opens from is never stale and
+ * A never pays for a poll; a tick is asked for only while the reader itself is on show, so one
+ * falling due under the builder or the pictures comes when they close and the hands rest.
  */
 #ifndef PLAYER_UI_READER_H
 #define PLAYER_UI_READER_H

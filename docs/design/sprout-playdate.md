@@ -612,6 +612,31 @@ instant of the turn rather than their due times, and it narrates nothing.
 A step's seed is drawn from the clock at the step's start and mixed by
 `seeds.c`'s rule, and is written to the log.
 
+A due tick waits for the hands to rest: it runs only in a frame with no
+button down and the crank still, once a full second
+(`PLAYER_REST_MILLISECONDS`, on the device's millisecond counter, which no
+setting of the clock moves) has passed since the last such input on any
+screen. A tick's turn is the world's work under the interpreter, 60 to 260
+ms for the caverns while the thief roams, and the look after one that
+changed the state is another 130 ms, so a tick that ran in the frame a
+press landed in would hold the press for that long; held until the hands
+rest, it lands where nobody is waiting. The ticks that fall due while the
+visitor keeps cranking are one tick when the hands rest, the time between
+carried by its `elapsed`, as the spec's Time › Ticks folds a missed
+interval.
+
+The look after a silent tick stays. A tick that changed the state and told
+nothing is looked after in the tick (the scene polled again, the status
+set), and the poll is not skipped when the turn's changes all sit outside
+the visitor's place and hands: a place's description, a conditional exit
+and a consent pass may read any object by its path (the spec's Names ›
+Identifiers and scope), so the thief's purse filling three caves away can
+change the words of the place the visitor stands in, and the spec's The
+view makes a view stale at the world's next committed write turn, whatever
+it wrote. The containment of what a turn upserted says nothing about what
+the poll read. A poll that recorded what it read would let the reader keep
+a view that no change touched; that is an engine change, not the reader's.
+
 ### Images
 
 `media.show("cellar.png", "a damp cellar")` in a `describe` or a `do`

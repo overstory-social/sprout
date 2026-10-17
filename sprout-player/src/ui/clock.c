@@ -6,6 +6,7 @@
 void player_clock_init(player_clock *clock) {
   clock->last = 0;
   clock->ticked = 0;
+  clock->touched = 0;
   clock->reading = false;
   clock->awake = true;
 }
@@ -29,9 +30,17 @@ void player_clock_wake(player_clock *clock, uint64_t seconds) {
   clock->ticked = player_clock_read(clock, seconds);
 }
 
-bool player_clock_due(player_clock *clock, uint64_t seconds) {
+void player_clock_touch(player_clock *clock, unsigned milliseconds) { clock->touched = milliseconds; }
+
+bool player_clock_rested(const player_clock *clock, unsigned milliseconds) {
+  /* The counter wraps every 49 days; the difference is taken in its own width. */
+  return (unsigned)(milliseconds - clock->touched) >= PLAYER_REST_MILLISECONDS;
+}
+
+bool player_clock_due(player_clock *clock, uint64_t seconds, unsigned milliseconds) {
   uint64_t now = player_clock_read(clock, seconds);
   if (!clock->reading || !clock->awake || now - clock->ticked < PLAYER_TICK_SECONDS) return false;
+  if (!player_clock_rested(clock, milliseconds)) return false;
   clock->ticked = now;
   return true;
 }

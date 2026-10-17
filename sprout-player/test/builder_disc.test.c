@@ -211,6 +211,7 @@ static void a_quiet_tick_looks_again_so_the_open_need_not(void) {
   int rows;
   arrive_in("quiet-tick", "ticks.sproutworld");
   s = app->session;
+  fake->counter += PLAYER_REST_MILLISECONDS;
   fake->seconds += PLAYER_TICK_SECONDS;
   fake_frame(fake, 0, 0);
   player_chips(s, &pick, 1);

@@ -116,6 +116,8 @@ void player_app_free(player_app *app) {
 
 uint64_t player_app_seconds(const player_app *app) { return app->pd->system->getSecondsSinceEpoch(NULL); }
 
+unsigned player_app_milliseconds(const player_app *app) { return app->pd->system->getCurrentTimeMilliseconds(); }
+
 static void *settle_thunk(void *ctx) {
   player_save_settle(((player_app *)ctx)->session);
   return NULL;
@@ -238,6 +240,9 @@ static void draw_restart_question(player_app *app) {
 void player_app_frame(player_app *app, const player_input *input) {
   if (app->text_asked) resize_text(app);
   app->text_asked = false;
+  /* Input on any screen is the hands at work: a due tick waits for them to rest (clock.h). */
+  if (input->held != 0 || input->pushed != 0 || input->crank != 0.0f)
+    player_clock_touch(&app->clock, player_app_milliseconds(app));
   if (!player_save_step(app->session, PLAYER_SAVE_SLICE).ok) {
     app->restart_question = false;
     player_shelf_unsaved(app);
