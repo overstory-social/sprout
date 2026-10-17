@@ -1,12 +1,14 @@
 /*
- * The sentence's disc of words: a hub on the screen's left edge and every entry a sector fanning to
- * the right, its word along its ray. The selected sector lies level, at the front; the others tilt
- * away above and below it and run off the screen's edges. The disc is virtual: more words than a
- * circle would hold are a longer wheel that wraps, since only a part of it is ever shown. The crank
- * turns it, and once the crank rests it settles on the nearest sector. The sentence (sentence.h)
- * holds the entries and the selection; this is where each sits this frame, when the disc comes to
- * rest, and how a word's pixels are turned to lie along its ray. Nothing here draws: the player
- * turns a label itself, a pixel at a time, and never calls the firmware's `drawRotatedBitmap`.
+ * The disc of words every chooser turns (the sentence builder's, the nickname's, the shelf's and the
+ * download list's): a hub on the screen's left edge and every entry a sector fanning to the right,
+ * its word along its ray. The selected sector lies level, at the front; the others tilt away above
+ * and below it and run off the screen's edges. The disc is virtual: more words than a circle would
+ * hold are a longer wheel that wraps, since only a part of it is ever shown. The crank turns it, and
+ * once the crank rests it settles on the nearest sector. Its owner holds the entries and the
+ * selection; the disc holds the crank's place inside a step, and this is where each entry sits this
+ * frame, when the disc comes to rest, and how a word's pixels are turned to lie along its ray.
+ * Nothing here draws (wheel.h does): the player turns a label itself, a pixel at a time, and never
+ * calls the firmware's `drawRotatedBitmap`.
  */
 #ifndef PLAYER_UI_DISC_H
 #define PLAYER_UI_DISC_H
@@ -15,8 +17,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sentence.h"
-
+/* Degrees of crank for one sector of the disc. */
+#define DISC_DEGREES_PER_STEP 24.0f
 /* Degrees of disc between neighbouring sectors. */
 #define DISC_SECTOR_DEGREES 24.0f
 /* The hub's centre, in pixels from the screen's left edge (negative: off it), and its radius. */
@@ -52,6 +54,7 @@ typedef struct disc_row {
 } disc_row;
 
 typedef struct disc {
+  float crank; /* degrees the disc is turned past the selected entry, within half a step either way */
   int still;   /* frames the crank has rested */
   bool turned; /* the crank has moved since the disc last came to rest */
 } disc;
@@ -62,11 +65,28 @@ typedef struct disc_box {
 } disc_box;
 
 /*
- * A frame of the disc, the sentence already turned by the crank and `turned` whether the crank moved
- * this frame. True the frame the disc comes to rest on a sector after the crank moved, wherever the
- * crank stopped, so the entry it rests on is always asked after.
+ * Turns the crank by `degrees`. The selected entry is always the one nearest the front, so the word
+ * the disc shows there is the one the panel speaks of and A picks: the disc steps as the crank passes
+ * halfway to the next entry, and keeps the rest. The steps, which the owner moves its selection by.
  */
-bool disc_update(disc *d, sentence *s, bool turned);
+long disc_crank(disc *d, float degrees);
+
+/* How far the disc is turned past the selected entry toward the next, in steps (-0.5 to 0.5). */
+float disc_fraction(const disc *d);
+
+/* The disc on the selected entry with no turn past it, as when a new set of entries opens. */
+void disc_stop(disc *d);
+
+/* `selected` moved by `steps` round `count` entries, wrapping; 0 where there are none. */
+size_t disc_moved(size_t count, size_t selected, long steps);
+
+/*
+ * A frame of the disc, the crank already turned (disc_crank) and `turned` whether the crank moved
+ * this frame: once the crank has rested DISC_REST_FRAMES the disc eases back onto the selected entry.
+ * True the frame it comes to rest on a sector after the crank moved, wherever the crank stopped, so
+ * the entry it rests on is always asked after.
+ */
+bool disc_update(disc *d, bool turned);
 
 /* Whether the disc is at rest: the crank has not moved since it last came to rest on a sector. */
 bool disc_at_rest(const disc *d);

@@ -1,8 +1,7 @@
 /*
  * What the sentence builder's test programs share: the app over a cartridge of the corpus, opened
  * and run until the reader is up and driven a frame at a time through the fake PlaydateAPI, and the
- * builder read back from what was drawn. Each word on the disc is a label drawn into a bitmap and
- * placed along its ray; the front is the one label drawn inverted.
+ * builder read back from what was drawn, its wheel through wheel_support.h.
  */
 #ifndef PLAYER_BUILDER_SUPPORT_H
 #define PLAYER_BUILDER_SUPPORT_H
@@ -13,6 +12,7 @@
 #include "ui/app.h"
 #include "ui/builder.h"
 #include "ui/disc.h"
+#include "wheel_support.h"
 
 #define LINE FAKE_SERIF_LINE
 #define HEADER (LINE + 4)
@@ -38,12 +38,12 @@ bool keys_shown(void);
 /* The builder, where it is the screen up; else NULL. */
 player_builder *builder(void);
 /* The label of the builder's whose turned bitmap is placement `n` of this frame, or NULL. */
-const builder_label *label_placed(int n);
+const wheel_label *label_placed(int n);
 /* The entry a label stands for. */
-size_t entry_of(const builder_label *label);
+size_t entry_of(const wheel_label *label);
 /* The text drawn into a label's flat bitmap, and the font it was drawn in; its text, or "(no text)". */
-const fake_run *label_run(const builder_label *label);
-const char *label_text(const builder_label *label);
+const fake_run *label_run(const wheel_label *label);
+const char *label_text(const wheel_label *label);
 /* The placement of the front label this frame: the one drawn inverted; -1 where there is none. */
 int front_placed(void);
 /* The word at the front: the inverted label's, wherever the turning disc has carried it. */

@@ -4,10 +4,13 @@
  * and in each one's `worlds/` folder, and asks the session whether each can be shelved; one it
  * refuses is listed with the engine's reason and cannot be opened. A cartridge is inspected once
  * for as long as the app runs, and a world refused at its open keeps that reason on the shelf
- * afterwards. The last row, "more worlds...", opens the download screen (downloads.h); when the
- * list of worlds could not be had there, the row says why until it is tried again.
+ * afterwards. Each world is a word on a wheel (wheel.h), its title, greyed where it cannot be opened
+ * as it stands, with the reason in the panel; the last word, "more worlds...", opens the download
+ * screen (downloads.h), and when the list of worlds could not be had there, the panel under it says
+ * why until it is tried again.
  *
- * The shelf outlives its screen: the app holds it, and leaving the screen keeps it.
+ * The shelf outlives its screen: the app holds it, and leaving the screen keeps it and lets go of the
+ * wheel's labels.
  */
 #ifndef PLAYER_UI_SHELF_H
 #define PLAYER_UI_SHELF_H
@@ -16,13 +19,11 @@
 #include <stddef.h>
 
 #include "app.h"
+#include "wheel.h"
 #include "wrap.h"
 
 #define PLAYER_PATH_BYTES 256
 #define PLAYER_REASON_BYTES 512
-
-/* Degrees of crank for a row moved. */
-#define SHELF_DEGREES_PER_ROW 24.0f
 
 typedef struct shelf_entry {
   char path[PLAYER_PATH_BYTES];
@@ -37,7 +38,8 @@ struct player_shelf {
   shelf_entry *entries; /* in path order */
   size_t count;
   size_t selected; /* an entry, or `count` for "more worlds..." */
-  float crank;     /* degrees turned toward the next row, not yet a row */
+  wheel wheel;     /* the worlds' titles and "more worlds..." */
+  unsigned long words_made; /* counts the changes to what the wheel's words say */
   bool listed;     /* the entries have been listed: the first frame lists them, and each return to the shelf */
   wrapped panel;   /* the words under the rows, for `panel_for` */
   size_t panel_for;
@@ -78,8 +80,9 @@ void player_shelf_unsaved(player_app *app);
 /* A world's name as words, as the shelf titles it: `printers_shop` is `Printers Shop`. */
 void player_world_title(const char *name, char *title, size_t size);
 
-/* How many rows the shelf shows with a body `line_height` tall between a title and a panel in a frame `frame_height` tall. */
-size_t player_shelf_rows(int line_height, int frame_height);
+/* The bands of the shelf and the download screen, in a frame `frame_height` tall: the title over its rule, and the panel's three lines under theirs. */
+int player_shelf_header(int frame_height);
+int player_shelf_panel(int frame_height);
 
 extern const player_screen player_shelf_screen;
 

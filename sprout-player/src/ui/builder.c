@@ -1,7 +1,6 @@
 /* The sentence builder screen; see builder.h. */
 #include "builder.h"
 
-#include <stdint.h>
 #include <string.h>
 
 #include "host/files.h"
@@ -13,10 +12,6 @@ static const char NO_MEMORY[] = "The player ran out of memory telling that.";
 static const char GO_ON[] = "A to go on";
 /* The one line that needs no memory to wrap. */
 static char unwrapped[] = "The player ran out of memory.";
-
-/* Half the pixels white, in a checker: drawn over a greyed word. */
-static const LCDPattern GREY = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                                0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
 
 /* ---- text in a font ---- */
 
@@ -63,14 +58,6 @@ static void show_words(player_app *app, player_builder *b, const char *words) {
 
 /* ---- opening and closing ---- */
 
-/* Holds the disc's font from the first time the builder opens; where it cannot be read, the disc's words are drawn in the body. */
-static void hold_disc_font(player_app *app) {
-  const char *error = NULL;
-  if (app->disc_font_tried) return;
-  app->disc_font_tried = true;
-  app->disc_font = player_pen_hold(&app->pen, BUILDER_DISC_FONT, &error);
-}
-
 /* Tells the reader `words` as a notice; false, as nothing was built. */
 static bool tell_reader(player_reader *reader, const char *words) {
   transcript_push(&reader->lines, "notice", words, strlen(words));
@@ -98,7 +85,7 @@ bool player_builder_open(player_app *app, player_reader *reader) {
     player_free(app->pd, b);
     return tell_reader(reader, words);
   }
-  hold_disc_font(app);
+  wheel_hold_font(app);
   b->reader = reader;
   reader->lent = true;
   player_app_show(app, &player_builder_screen, b);
@@ -175,6 +162,7 @@ static void confirm(player_app *app, player_builder *b) {
     return;
   }
   player_cue(app, PLAYER_CUE_PICK);
+  if (end == SENTENCE_GOES_ON) disc_stop(&b->wheel.disc);
   if (end == SENTENCE_DONE) run(app, b);
 }
 
@@ -184,7 +172,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   player_builder *b = (player_builder *)ctx;
   sentence *s = &b->sentence;
   bool numbered, stepped, settled;
-  long down;
+  long down, turned;
   if (b->message.bytes != NULL) {
     if (input->pushed & (kButtonA | kButtonB)) {
       drop_words(app, b);
@@ -192,14 +180,18 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     }
     return;
   }
-  if (sentence_turn(s, input->crank) != 0) player_cue(app, PLAYER_CUE_TICK);
-  settled = disc_update(&b->disc, s, input->crank != 0);
+  turned = disc_crank(&b->wheel.disc, input->crank);
+  if (turned != 0) {
+    sentence_nudge(s, turned);
+    player_cue(app, PLAYER_CUE_TICK);
+  }
+  settled = disc_update(&b->wheel.disc, input->crank != 0);
   if (settled) player_cue(app, PLAYER_CUE_CLACK);
   if (settled || !b->asked) {
     /* The disc is on screen, drawn the frame it opened: the verb at its front is asked after now, as whenever it settles. */
     b->asked = true;
     sentence_prepare(s);
-  } else if (input->crank == 0 && input->pushed == 0 && disc_at_rest(&b->disc)) {
+  } else if (input->crank == 0 && input->pushed == 0 && disc_at_rest(&b->wheel.disc)) {
     /*
      * The crank rests and nothing was pressed: a verb's readings cost a frame, so one of the verbs the wheel
      * shows beside the front is asked after, nearest first, and a frame with input asks after none.
@@ -222,8 +214,10 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     confirm(app, b);
   } else if (input->pushed & kButtonB) {
     player_cue(app, PLAYER_CUE_BACK);
-    if (sentence_back(s))
+    if (sentence_back(s)) {
+      disc_stop(&b->wheel.disc);
       sentence_prepare(s);
+    }
     else
       close_builder(app, b);
   }
@@ -238,134 +232,20 @@ static void draw_lines(player_app *app, const wrapped *lines, int y) {
 
 /* ---- the disc ---- */
 
-/* Lets go of every label's bitmaps, and of the labels. */
-static void drop_labels(player_app *app, player_builder *b) {
-  size_t i;
-  for (i = 0; i < b->label_count; i++) {
-    if (b->labels[i].flat != NULL) app->pd->graphics->freeBitmap(b->labels[i].flat);
-    if (b->labels[i].turned != NULL) app->pd->graphics->freeBitmap(b->labels[i].turned);
-  }
-  player_free(app->pd, b->labels);
-  b->labels = NULL;
-  b->label_count = 0;
+/* Entry `index` of the sentence's level as the wheel says it. */
+static wheel_word entry_word(const void *ctx, size_t index) {
+  size_t count;
+  const sentence_entry *entry = &sentence_entries((const sentence *)ctx, &count)[index];
+  wheel_word word;
+  word.text = entry->label;
+  word.greyed = entry->greyed;
+  return word;
 }
 
-/* A label for each of the level's `count` entries, none drawn yet, where the entries changed since the labels were made. False where there is no memory for them. */
-static bool labels_stand(player_app *app, player_builder *b, size_t count) {
-  if (b->labels != NULL && b->labels_of == b->sentence.made && b->label_count == count) return true;
-  drop_labels(app, b);
-  b->labels = (builder_label *)player_alloc(app->pd, count * sizeof *b->labels);
-  if (b->labels == NULL) return false;
-  memset(b->labels, 0, count * sizeof *b->labels);
-  b->label_count = count;
-  b->labels_of = b->sentence.made;
-  return true;
-}
-
-/* `entry`'s word drawn flat in `font`, black on white, and greyed in a checker where it is greyed; NULL where there is no memory for it. */
-static LCDBitmap *flat_label(player_app *app, LCDFont *font, const sentence_entry *entry) {
-  PlaydateAPI *pd = app->pd;
-  size_t length = strlen(entry->label);
-  int width = width_in(pd, font, entry->label, length) + 6, height = pd->graphics->getFontHeight(font) + 2;
-  LCDBitmap *flat;
-  if (width > PLAYER_SCREEN_WIDTH) width = PLAYER_SCREEN_WIDTH;
-  flat = pd->graphics->newBitmap(width, height, kColorWhite);
-  if (flat == NULL) return NULL;
-  pd->graphics->pushContext(flat);
-  pd->graphics->setFont(font);
-  pd->graphics->drawText(entry->label, player_utf8_count(entry->label, length), kUTF8Encoding, 3, 1);
-  if (entry->greyed) pd->graphics->fillRect(0, 0, width, height, (LCDColor)(uintptr_t)&GREY);
-  pd->graphics->popContext();
-  return flat;
-}
-
-/*
- * Places `label`, the word of `entry`, along the ray of `row` from the hub at (hx, cy): drawn flat the
- * first time, and turned again only where its angle or whether it is the front has changed.
- */
-static void place_label(player_app *app, LCDFont *font, builder_label *label, const sentence_entry *entry, const disc_row *row,
-                        int hx, int cy) {
-  PlaydateAPI *pd = app->pd;
-  int width, height, rowbytes, x, y;
-  uint8_t *flat, *data, *mask;
-  float along;
-  disc_box box;
-  if (label->flat == NULL) label->flat = flat_label(app, font, entry);
-  if (label->flat == NULL) return;
-  pd->graphics->getBitmapData(label->flat, &width, &height, &rowbytes, NULL, &flat);
-  along = disc_bent(row->angle, (float)DISC_WORD_AT + (float)width / 2);
-  box = disc_turned_box(width, height, along);
-  if (label->turned == NULL || label->along != along || label->front != row->front) {
-    int box_rowbytes;
-    if (label->turned != NULL) pd->graphics->freeBitmap(label->turned);
-    /* Made clear, so it has a mask for the pixels the turn leaves undrawn. */
-    label->turned = pd->graphics->newBitmap(box.width, box.height, kColorClear);
-    if (label->turned == NULL) return;
-    pd->graphics->getBitmapData(label->turned, NULL, NULL, &box_rowbytes, &mask, &data);
-    disc_turn(flat, width, height, rowbytes, along, row->front, box, data, mask, box_rowbytes);
-    label->along = along;
-    label->front = row->front;
-  }
-  disc_point(disc_bent(row->angle, (float)DISC_WORD_AT), (float)DISC_WORD_AT, &x, &y);
-  label->angle = row->angle;
-  label->x = hx + x + box.x;
-  label->y = cy + y + box.y;
-  label->shown = true;
-  pd->graphics->drawBitmap(label->turned, label->x, label->y, kBitmapUnflipped);
-}
-
-/* A sector's dividing line: the ray leaving the hub at `angle`, bent outward, in segments. */
-static void draw_ray(PlaydateAPI *pd, int hx, int cy, float angle) {
-  int i, x0, y0, x1, y1;
-  float step = (float)(DISC_REACH - DISC_HUB_RADIUS) / DISC_RAY_SEGMENTS;
-  disc_point(angle, (float)DISC_HUB_RADIUS, &x0, &y0);
-  for (i = 1; i <= DISC_RAY_SEGMENTS; i++) {
-    float r = (float)DISC_HUB_RADIUS + step * (float)i;
-    disc_point(disc_bent(angle, r), r, &x1, &y1);
-    pd->graphics->drawLine(hx + x0, cy + y0, hx + x1, cy + y1, 1, kColorBlack);
-    x0 = x1;
-    y0 = y1;
-  }
-}
-
-/*
- * The disc between `top` and `bottom`: the hub at the left edge with its marker, the dividing lines
- * of the sectors that hold a word, and every word along its ray in the disc's font, the front one last.
- * A word turned out of sight lets go of its turned pixels.
- */
 static void draw_disc(player_app *app, player_builder *b, int top, int bottom) {
-  PlaydateAPI *pd = app->pd;
-  int cy = (top + bottom) / 2, hx = DISC_HUB_X, k;
-  size_t count, made, i;
-  const sentence_entry *entries = sentence_entries(&b->sentence, &count);
-  LCDFont *font = app->disc_font != NULL ? app->disc_font : app->pen.body;
-  disc_row rows[DISC_MOST_ROWS];
-  if (!labels_stand(app, b, count)) {
-    player_pen_say(&app->pen, NO_MEMORY, PLAYER_MARGIN, cy - app->pen.line_height / 2);
-    return;
-  }
-  pd->graphics->setClipRect(0, top, PLAYER_SCREEN_WIDTH, bottom - top);
-  pd->graphics->drawEllipse(hx - DISC_HUB_RADIUS, cy - DISC_HUB_RADIUS, 2 * DISC_HUB_RADIUS, 2 * DISC_HUB_RADIUS, 2, 0.0f,
-                            0.0f, kColorBlack);
-  pd->graphics->fillTriangle(hx + DISC_HUB_RADIUS - 2, cy - 6, hx + DISC_HUB_RADIUS - 2, cy + 6, hx + DISC_HUB_RADIUS + 8, cy,
-                             kColorBlack);
-  made = disc_rows(count, b->sentence.state.selected, sentence_fraction(&b->sentence), rows);
-  for (i = 0; i < made; i++) {
-    for (k = -1; k <= 1; k += 2) {
-      float edge = rows[i].angle + (float)k * DISC_SECTOR_DEGREES / 2;
-      if (edge > -90.0f && edge < 90.0f) draw_ray(pd, hx, cy, edge);
-    }
-  }
-  for (i = 0; i < count; i++) b->labels[i].shown = false;
-  for (i = made; i > 0; i--)
-    place_label(app, font, &b->labels[rows[i - 1].index], &entries[rows[i - 1].index], &rows[i - 1], hx, cy);
-  for (i = 0; i < count; i++) {
-    builder_label *label = &b->labels[i];
-    if (label->shown || label->turned == NULL) continue;
-    pd->graphics->freeBitmap(label->turned);
-    label->turned = NULL;
-  }
-  pd->graphics->clearClipRect();
+  size_t count;
+  sentence_entries(&b->sentence, &count);
+  wheel_draw(app, &b->wheel, count, b->sentence.state.selected, entry_word, &b->sentence, b->sentence.made, top, bottom);
 }
 
 /* The sentence line over the disc and the panel under it are the frame's: its font and its line height. */
@@ -408,7 +288,7 @@ static void leave(player_app *app, void *ctx) {
     player_reader_screen.leave(app, b->reader);
   }
   drop_words(app, b);
-  drop_labels(app, b);
+  wheel_free(app, &b->wheel);
   gallery_free(&b->pictures);
   sentence_free(&b->sentence);
   player_free(app->pd, b);

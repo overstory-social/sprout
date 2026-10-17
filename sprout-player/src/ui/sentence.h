@@ -31,8 +31,6 @@
 #include "sentence_text.h"
 #include "session.h"
 
-/* Degrees of crank for one sector of the disc. */
-#define SENTENCE_DEGREES_PER_STEP 24.0f
 /* Numbers a d-pad left or right moves a number role by. */
 #define SENTENCE_BIG_STEP 10
 /* The parts a sentence holds: picks along the tree, and value roles. */
@@ -140,7 +138,6 @@ typedef struct sentence {
   sentence_state state;
   sentence_state *history;
   size_t history_count, history_room;
-  float crank; /* degrees the disc is turned past the selected entry, within half a step either way */
   /* the level at the state's path */
   sentence_choice *choices;
   size_t choice_count, choice_room;
@@ -199,19 +196,6 @@ bool sentence_numbered(const sentence *s);
 /* Moves the number by `steps`, each of 1 or, when `big`, of SENTENCE_BIG_STEP; a big step past the end goes to the end. */
 void sentence_add_number(sentence *s, long steps, bool big);
 
-/*
- * Turns the crank by `degrees`. The selected entry is always the one nearest the front, so the word
- * the disc shows there is the one the panel speaks of and A picks: the disc steps as the crank passes
- * halfway to the next entry, and keeps the rest. The steps.
- */
-long sentence_turn(sentence *s, float degrees);
-
-/* How far the disc is turned past the selected entry toward the next, in steps (-0.5 to 0.5). */
-float sentence_fraction(const sentence *s);
-
-/* Lets the disc come to rest on the selected entry, `share` of the way a call; the fraction is 0 once it has. */
-void sentence_settle(sentence *s, float share);
-
 /* Asks for the readings of the verb at the front, if the disc is at the verbs and they are not known. Whether it asked. */
 bool sentence_prepare(sentence *s);
 
@@ -222,10 +206,10 @@ bool sentence_prepare(sentence *s);
  */
 bool sentence_prepare_near(sentence *s, size_t reach);
 
-/* Picks the entry at the front; for SENTENCE_REFUSED `*words` says why. A level it opens is at rest. */
+/* Picks the entry at the front; for SENTENCE_REFUSED `*words` says why. A level it opens begins at its first entry. */
 sentence_end sentence_pick(sentence *s, const char **words);
 
-/* Steps back one pick, to its level at rest; false when the builder is already at the verbs. */
+/* Steps back one pick, to its level as it was left; false when the builder is already at the verbs. */
 bool sentence_back(sentence *s);
 
 /* The reading confirmed, its actor left for the session; it points into the sentence and the view. */

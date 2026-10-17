@@ -61,7 +61,7 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
   /* A sector either side in the entries' order, the disc wrapping; every word a label in the disc's font, placed once. */
   CHECK(fake->placed_count == DISC_MOST_ROWS, "as many words as sectors are shown: %d", fake->placed_count);
   for (n = 0; n < fake->placed_count; n++) {
-    const builder_label *label = label_placed(n);
+    const wheel_label *label = label_placed(n);
     long k;
     int m;
     CHECK(label != NULL && label_run(label) != NULL && label_run(label)->font == FAKE_FONT_SANS, "placement %d is a word in the disc's font", n);
@@ -94,7 +94,7 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
   fake_frame(fake, 0, 6.0f);
   CHECK(fake->placed_count == DISC_MOST_ROWS, "the same words shown");
   for (n = 0; n < fake->placed_count; n++) {
-    const builder_label *label = label_placed(n);
+    const wheel_label *label = label_placed(n);
     if (label == NULL || entry_of(label) >= 32) continue;
     CHECK(label->angle < rest_angle[entry_of(label)] && label->angle > rest_angle[entry_of(label)] - DISC_SECTOR_DEGREES / 4,
           "%s turned up less than a quarter sector: %f from %f", label_text(label), (double)label->angle,
@@ -102,11 +102,11 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
   }
   /* Ten degrees turns every word up by the detent of ten degrees, the front off level; the labels stay the ones drawn at rest. */
   fake_frame(fake, 0, 4.0f);
-  turn = disc_detent(10.0f / SENTENCE_DEGREES_PER_STEP) * DISC_SECTOR_DEGREES;
+  turn = disc_detent(10.0f / DISC_DEGREES_PER_STEP) * DISC_SECTOR_DEGREES;
   CHECK(strcmp(front(), verbs[0]) == 0, "ten degrees is not a step");
   CHECK(fake->placed_count == DISC_MOST_ROWS, "the same words shown");
   for (n = 0; n < fake->placed_count; n++) {
-    const builder_label *label = label_placed(n);
+    const wheel_label *label = label_placed(n);
     if (label == NULL || entry_of(label) >= 32) continue;
     CHECK(label->angle > rest_angle[entry_of(label)] - turn - 0.01f && label->angle < rest_angle[entry_of(label)] - turn + 0.01f,
           "%s turned %f degrees up: %f from %f", label_text(label), (double)turn, (double)label->angle,
@@ -141,7 +141,7 @@ static void the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank(void) {
 
 /* A label made for each word shown, drawn again only when the level's entries change. */
 static void a_label_is_drawn_once_while_its_level_stands(void) {
-  const builder_label *front_label;
+  const wheel_label *front_label;
   int n, made;
   arrive("labels");
   fake_frame(fake, kButtonA, 0);
@@ -161,7 +161,7 @@ static void a_label_is_drawn_once_while_its_level_stands(void) {
   CHECK(fake->made_total - made == fake->placed_count, "turned, each word shown is turned again but not drawn again: %d made for %d",
         fake->made_total - made, fake->placed_count);
   fake_frame(fake, kButtonA, 0);
-  CHECK(builder()->labels_of == builder()->sentence.made && fake->made_live <= 2 * DISC_MOST_ROWS,
+  CHECK(builder()->wheel.labels_of == builder()->sentence.made && fake->made_live <= 2 * DISC_MOST_ROWS,
         "a level picked, its labels are new and the last level's let go: %d held", fake->made_live);
   leave();
 }
@@ -229,11 +229,11 @@ static void the_crank_at_rest_asks_after_the_verbs_beside_the_front(void) {
   /* The crank moves, less than a step: nothing is asked after until the disc has come to rest. */
   fake_frame(fake, 0, 4.0f);
   CHECK(verbs_asked(s) == 3, "a frame with crank input asks after none");
-  for (frames = 0; frames < DISC_REST_FRAMES + 20 && !disc_at_rest(&builder()->disc); frames++) {
+  for (frames = 0; frames < DISC_REST_FRAMES + 20 && !disc_at_rest(&builder()->wheel.disc); frames++) {
     fake_frame(fake, 0, 0);
     CHECK(verbs_asked(s) == 3, "nor one while the disc settles: %zu asked", verbs_asked(s));
   }
-  CHECK(disc_at_rest(&builder()->disc) && builder()->sentence.state.selected == 0, "the disc settled back on the front");
+  CHECK(disc_at_rest(&builder()->wheel.disc) && builder()->sentence.state.selected == 0, "the disc settled back on the front");
   fake_frame(fake, 0, 0);
   CHECK(s->fetched[count - 2] && verbs_asked(s) == 4, "at rest again, the next verb out above: %zu asked", verbs_asked(s));
 
@@ -375,7 +375,7 @@ static void the_sentence_line_fits_the_screen_and_keeps_its_end(void) {
   fake_frame(fake, kButtonA, 0);
   {
     int n = front_placed(), i;
-    const builder_label *label = n >= 0 ? label_placed(n) : NULL;
+    const wheel_label *label = n >= 0 ? label_placed(n) : NULL;
     CHECK(label != NULL && strcmp(label_text(label), built) == 0, "the whole sentence is drawn at the front: %s", front());
     CHECK(n >= 0 && fake->made[fake->placed[n].made].width == 400, "into a label as wide as the screen, past which nothing shows: %d",
           n >= 0 ? fake->made[fake->placed[n].made].width : 0);

@@ -24,7 +24,7 @@ static const char KEYS[] = "crank: choose   A: enter   B: back";
 static const char GO_ON[] = "A to go on";
 static const char NO_NAME_FREE[] = "No name is free.";
 
-/* The top of the name. */
+/* The top of the words said where there is no name to offer. */
 #define NAME_TOP 100
 
 static char lower(char c) { return c >= 'A' && c <= 'Z' ? (char)(c - 'A' + 'a') : c; }
@@ -81,6 +81,7 @@ player_nickname *player_nickname_new(player_app *app, const char *title) {
   text_add(&copy, title);
   memcpy(n->names, nickname_pool, sizeof n->names);
   n->count = NICKNAME_POOL_SIZE;
+  wheel_hold_font(app);
   return n;
 }
 
@@ -88,13 +89,6 @@ player_nickname *player_nickname_new(player_app *app, const char *title) {
 static void stop(player_app *app, const char *words) {
   player_message_show(app, words);
   player_close(app->session);
-}
-
-/* Moves a name on (`forward`) or back, round the names, with a tick. */
-static void move(player_app *app, player_nickname *n, bool forward) {
-  if (n->count == 0) return;
-  n->selected = (n->selected + (forward ? 1 : n->count - 1)) % n->count;
-  player_cue(app, PLAYER_CUE_TICK);
 }
 
 /* The engine refused the name: its words are shown over the screen until A or B. */
@@ -138,17 +132,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     if (input->pushed & (kButtonA | kButtonB)) wrap_free(app->pd, &n->refused);
     return;
   }
-  n->crank += input->crank;
-  while (n->crank >= NICKNAME_DEGREES_PER_STEP) {
-    n->crank -= NICKNAME_DEGREES_PER_STEP;
-    move(app, n, true);
-  }
-  while (n->crank <= -NICKNAME_DEGREES_PER_STEP) {
-    n->crank += NICKNAME_DEGREES_PER_STEP;
-    move(app, n, false);
-  }
-  if (input->pushed & kButtonDown) move(app, n, true);
-  if (input->pushed & kButtonUp) move(app, n, false);
+  wheel_steer(app, &n->wheel, n->count, &n->selected, input);
   if (input->pushed & kButtonA) {
     admit(app, n);
   } else if (input->pushed & kButtonB) {
@@ -160,10 +144,21 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   }
 }
 
+/* Name `index` as the wheel says it. */
+static wheel_word name_word(const void *ctx, size_t index) {
+  wheel_word word;
+  word.text = ((const player_nickname *)ctx)->names[index];
+  word.greyed = false;
+  return word;
+}
+
+/* The question over a rule, the wheel of names, and a rule over the keys: the question and the keys in the frame. */
 static void draw(player_app *app, void *ctx) {
   player_nickname *n = (player_nickname *)ctx;
   const player_pen *pen = &app->pen;
-  int bottom = PLAYER_SCREEN_HEIGHT - pen->frame_height - 2;
+  int header = pen->frame_height + 4, bottom = PLAYER_SCREEN_HEIGHT - pen->frame_height - 2;
+  char said[200];
+  text_buffer who;
   if (n->refused.line_count > 0) {
     const char *line = n->refused.bytes;
     size_t i;
@@ -173,31 +168,24 @@ static void draw(player_app *app, void *ctx) {
     player_pen_frame_say(pen, GO_ON, PLAYER_MARGIN, bottom);
     return;
   }
-  {
-    char said[200];
-    text_buffer who;
-    text_begin(&who, said, sizeof said);
-    text_add(&who, "Who are you in ");
-    text_add(&who, n->title);
-    text_add(&who, "?");
-    player_pen_frame_say(pen, said, PLAYER_MARGIN, 0);
-    app->pd->graphics->drawLine(0, pen->frame_height + 3, PLAYER_SCREEN_WIDTH, pen->frame_height + 3, 1, kColorBlack);
-    if (n->count == 0) {
-      player_pen_say(pen, NO_NAME_FREE, PLAYER_MARGIN, NAME_TOP);
-    } else {
-      text_begin(&who, said, sizeof said);
-      text_add(&who, "< ");
-      text_add(&who, n->names[n->selected]);
-      text_add(&who, " >");
-      player_pen_say(pen, said, PLAYER_MARGIN, NAME_TOP);
-    }
-    player_pen_frame_say(pen, KEYS, PLAYER_MARGIN, bottom);
-  }
+  text_begin(&who, said, sizeof said);
+  text_add(&who, "Who are you in ");
+  text_add(&who, n->title);
+  text_add(&who, "?");
+  player_pen_frame_say(pen, said, PLAYER_MARGIN, 0);
+  app->pd->graphics->drawLine(0, header - 1, PLAYER_SCREEN_WIDTH, header - 1, 1, kColorBlack);
+  if (n->count == 0)
+    player_pen_say(pen, NO_NAME_FREE, PLAYER_MARGIN, NAME_TOP);
+  else
+    wheel_draw(app, &n->wheel, n->count, n->selected, name_word, n, 0, header, bottom - 2);
+  app->pd->graphics->drawLine(0, bottom - 2, PLAYER_SCREEN_WIDTH, bottom - 2, 1, kColorBlack);
+  player_pen_frame_say(pen, KEYS, PLAYER_MARGIN, bottom);
 }
 
 static void leave(player_app *app, void *ctx) {
   player_nickname *n = (player_nickname *)ctx;
   wrap_free(app->pd, &n->refused);
+  wheel_free(app, &n->wheel);
   player_free(app->pd, n->notice);
   player_free(app->pd, n);
 }

@@ -1,7 +1,27 @@
-/* The sentence's disc of words; see disc.h. */
+/* The disc of words; see disc.h. */
 #include "disc.h"
 
-bool disc_update(disc *d, sentence *s, bool turned) {
+long disc_crank(disc *d, float degrees) {
+  float half = DISC_DEGREES_PER_STEP / 2;
+  long steps = 0;
+  d->crank += degrees;
+  for (; d->crank >= half; steps++) d->crank -= DISC_DEGREES_PER_STEP;
+  for (; d->crank < -half; steps--) d->crank += DISC_DEGREES_PER_STEP;
+  return steps;
+}
+
+float disc_fraction(const disc *d) { return d->crank / DISC_DEGREES_PER_STEP; }
+
+void disc_stop(disc *d) { d->crank = 0; }
+
+size_t disc_moved(size_t count, size_t selected, long steps) {
+  long n = (long)count, at;
+  if (count == 0) return 0;
+  at = ((long)selected + steps) % n;
+  return (size_t)(at < 0 ? at + n : at);
+}
+
+bool disc_update(disc *d, bool turned) {
   if (turned) {
     d->still = 0;
     d->turned = true;
@@ -9,8 +29,10 @@ bool disc_update(disc *d, sentence *s, bool turned) {
   }
   if (d->still < DISC_REST_FRAMES) d->still++;
   if (d->still < DISC_REST_FRAMES) return false;
-  sentence_settle(s, DISC_SETTLE);
-  if (!d->turned || sentence_fraction(s) != 0) return false;
+  /* The settle eases the crank's own place back to the sector, so the drawn turn shrinks through the detent too. */
+  d->crank *= 1 - DISC_SETTLE;
+  if (d->crank > -0.5f && d->crank < 0.5f) d->crank = 0;
+  if (!d->turned || d->crank != 0) return false;
   d->turned = false;
   return true;
 }

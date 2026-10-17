@@ -2,9 +2,11 @@
  * ui/nickname.c: the nickname screen, driven through the app a frame at a time over the chip_tree
  * world, and its filters on their own. The rules: the names offered are the pool's less the
  * world's words and the names of those present, folded; a returning visitor is offered their
- * last name first; the crank and the d-pad move through the names and wrap; A enters the name
- * shown, and the reader names the visitor by it; a name the engine refuses is told in its words,
- * and A goes back to picking; B closes the world and goes back to the shelf.
+ * last name first, at the wheel's front, the names its words in order; the crank and the d-pad
+ * turn the wheel through the names and wrap, a step as the crank passes halfway, ticking and
+ * settling with a clack; A enters the name at the front, and the reader names the visitor by it;
+ * a name the engine refuses is told in its words in place of the wheel, and A goes back to it; B
+ * closes the world and goes back to the shelf.
  */
 #include <stdlib.h>
 
@@ -14,6 +16,7 @@
 #include "ui/nickname.h"
 #include "ui/reader.h"
 #include "ui/shelf.h"
+#include "wheel_support.h"
 
 #define LINE FAKE_SERIF_LINE
 #define NAME_TOP 100
@@ -29,14 +32,11 @@ static player_nickname *picker(void) {
   return app->screen == &player_nickname_screen ? (player_nickname *)app->ctx : NULL;
 }
 
-/* The name drawn as offered, "< Name >", or "". */
-static const char *offered(void) { return drawn_at(NAME_TOP); }
+/* The name at the wheel's front as drawn last frame, or "" off the nickname screen. */
+static const char *offered(void) { return picker() != NULL ? wheel_front(&picker()->wheel) : ""; }
 
-/* "< name >" for the name the picker has selected. */
-static const char *shown(char *out, size_t size) {
-  snprintf(out, size, "< %s >", picker() != NULL && picker()->count > 0 ? picker()->names[picker()->selected] : "");
-  return out;
-}
+/* The name the picker has selected. */
+static const char *shown(void) { return picker() != NULL && picker()->count > 0 ? picker()->names[picker()->selected] : ""; }
 
 static const fake_note *last_note(void) { return fake->note_count > 0 ? &fake->notes[fake->note_count - 1] : NULL; }
 
@@ -145,27 +145,41 @@ static void the_names_offered_are_the_pools_less_the_worlds_words(void) {
   end();
 }
 
-static void the_crank_and_the_d_pad_pick_a_name(void) {
-  char want[64];
+static void the_crank_and_the_d_pad_turn_the_wheel_of_names(void) {
   size_t count;
+  int n;
   to_nickname("pick", true);
   count = picker()->count;
-  CHECK(picker()->selected == 0 && strcmp(offered(), shown(want, sizeof want)) == 0, "a new visitor is offered the first name: %s", offered());
+  CHECK(picker()->selected == 0 && strcmp(offered(), shown()) == 0, "a new visitor is offered the first name: %s", offered());
+  n = wheel_placed_entry(&picker()->wheel, 1);
+  CHECK(n >= 0 && strcmp(wheel_label_text(wheel_placed(&picker()->wheel, n)), picker()->names[1]) == 0 &&
+            wheel_placed(&picker()->wheel, n)->angle == DISC_SECTOR_DEGREES,
+        "the next name a sector below");
+  n = wheel_placed_entry(&picker()->wheel, count - 1);
+  CHECK(n >= 0 && strcmp(wheel_label_text(wheel_placed(&picker()->wheel, n)), picker()->names[count - 1]) == 0 &&
+            wheel_placed(&picker()->wheel, n)->angle == -DISC_SECTOR_DEGREES,
+        "the last a sector above, the wheel wrapping");
+  CHECK(fake->placed_count == DISC_MOST_ROWS, "as many names as sectors are shown: %d", fake->placed_count);
   CHECK(HAS(drawn_at(240 - LINE - 2), "A: enter"), "the keys are said: %s", drawn_at(240 - LINE - 2));
+  CHECK(strcmp(drawn_at(0), "Who are you in Chip Tree?") == 0 && fake_run_at(fake, PLAYER_MARGIN, 0)->font == FAKE_FONT_SERIF,
+        "the question in the frame's font");
   fake->note_count = 0;
   fake_frame(fake, kButtonDown, 0);
-  CHECK(picker()->selected == 1 && strcmp(offered(), shown(want, sizeof want)) == 0, "down offers the next: %s", offered());
+  CHECK(picker()->selected == 1 && strcmp(offered(), shown()) == 0, "down offers the next: %s", offered());
   CHECK(fake->note_count == 1 && sounded(kWaveformNoise, 3000.0f), "with a tick");
   fake_frame(fake, kButtonUp, 0);
   fake_frame(fake, kButtonUp, 0);
-  CHECK(picker()->selected == count - 1 && strcmp(offered(), shown(want, sizeof want)) == 0, "up from the first wraps to the last: %s", offered());
+  CHECK(picker()->selected == count - 1 && strcmp(offered(), shown()) == 0, "up from the first wraps to the last: %s", offered());
   fake_frame(fake, 0, 10.0f);
   CHECK(picker()->selected == count - 1, "ten degrees is not yet a name");
-  fake_frame(fake, 0, 15.0f);
-  CHECK(picker()->selected == 0, "twenty-five degrees is a name, and past the last wraps to the first");
-  fake_frame(fake, 0, -49.0f);
-  CHECK(picker()->selected == count - 2 && strcmp(offered(), shown(want, sizeof want)) == 0,
-        "forty-nine back, less the degree carried, is two names: %s", offered());
+  fake_frame(fake, 0, 3.0f);
+  CHECK(picker()->selected == 0 && strcmp(offered(), shown()) == 0, "thirteen is past halfway: a name, past the last to the first");
+  fake_frame(fake, 0, -37.0f);
+  CHECK(picker()->selected == count - 2 && strcmp(offered(), shown()) == 0, "thirty-seven back, from eleven degrees behind the front, is two names: %s",
+        offered());
+  fake->note_count = 0;
+  for (n = 0; n < DISC_REST_FRAMES + 20; n++) fake_frame(fake, 0, 0);
+  CHECK(fake->note_count == 1 && sounded(kWaveformSquare, 160.0f), "resting, the wheel settles with a clack");
   fake->docked = 1;
   fake_frame(fake, 0, 96.0f);
   CHECK(picker()->selected == count - 2, "a docked crank moves nothing");
@@ -199,15 +213,16 @@ static void a_name_entered_is_who_the_visitor_is_and_is_offered_first_next_time(
 static void a_name_the_engine_refuses_is_told_in_its_words(void) {
   char name[64], said[160];
   to_nickname("refused", true);
-  /* No pool name is a reserved word; one stands in for a name the engine turns down. */
+  /* No pool name is a reserved word; one stands in for a name the engine turns down, its label drawn again. */
   picker()->names[picker()->selected] = "World";
+  wheel_free(app, &picker()->wheel);
   fake->note_count = 0;
   fake_frame(fake, kButtonA, 0);
   CHECK(picker() != NULL, "a refused name stays on the nickname screen");
   CHECK(fake->note_count == 1 && sounded(kWaveformSawtooth, 110.0f), "the refusal sounds");
   CHECK(HAS(drawn_at(MESSAGE_TOP), "world"), "the engine's words name the word refused: %s", drawn_at(MESSAGE_TOP));
   CHECK(strcmp(drawn_at(240 - LINE - 2), "A to go on") == 0, "and say how to go on: %s", drawn_at(240 - LINE - 2));
-  CHECK(strcmp(offered(), "") == 0 || !HAS(offered(), "<"), "the picker is not drawn under the words");
+  CHECK(wheel_front_placed() < 0 && fake->placed_count == 0, "the wheel is not drawn under the words");
   fake_frame(fake, kButtonDown, 0);
   CHECK(HAS(drawn_at(MESSAGE_TOP), "world"), "the words stay until A or B");
   fake_frame(fake, kButtonA, 0);
@@ -226,7 +241,8 @@ static void with_no_name_free_a_enters_nothing_and_says_so(void) {
   to_nickname("none free", true);
   picker()->count = 0;
   fake_frame(fake, kButtonDown, 0);
-  CHECK(strcmp(offered(), "No name is free.") == 0, "the screen says no name is free: %s", offered());
+  CHECK(strcmp(drawn_at(NAME_TOP), "No name is free.") == 0 && fake->placed_count == 0, "the screen says no name is free, with no wheel: %s",
+        drawn_at(NAME_TOP));
   fake_frame(fake, kButtonA, 0);
   CHECK(app->screen == &player_message_screen && HAS(drawn_at(MESSAGE_TOP), "Every name this world allows is taken."),
         "A says why on the message screen: %s", drawn_at(MESSAGE_TOP));
@@ -259,7 +275,7 @@ int main(void) {
   the_filters_fold_as_the_host_folds();
   every_name_in_the_pool_is_a_plain_word();
   the_names_offered_are_the_pools_less_the_worlds_words();
-  the_crank_and_the_d_pad_pick_a_name();
+  the_crank_and_the_d_pad_turn_the_wheel_of_names();
   a_name_entered_is_who_the_visitor_is_and_is_offered_first_next_time();
   a_name_the_engine_refuses_is_told_in_its_words();
   with_no_name_free_a_enters_nothing_and_says_so();

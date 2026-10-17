@@ -16,8 +16,6 @@
 static const char OPENS[] = "A opens it.";
 static const char MORE[] = "A looks for more worlds to download.";
 static const char EMPTY[] = "No worlds are on the shelf. ";
-static const char CANNOT[] = " (cannot be opened)";
-static const char UNSAVED[] = " (its save failed)";
 static const char SAVE_FAILED[] =
     "The save could not be written, so play has stopped and nothing since the last save was kept. Free some room "
     "on the console. This world stays greyed until its save can be written.";
@@ -127,6 +125,7 @@ static void list(player_app *app, player_shelf *shelf) {
   found.folder = "worlds/";
   player_list_files(app->pd, "worlds", consider, &found);
   shelf->listed = true;
+  shelf->words_made++;
   forget_panel(app, shelf);
   entries = found.count > 0 ? (shelf_entry *)player_alloc(app->pd, found.count * sizeof *entries) : NULL;
   if (found.count > 0 && entries == NULL) found.short_of_memory = true;
@@ -162,6 +161,7 @@ player_shelf *player_shelf_new(player_app *app) {
 void player_shelf_free(player_app *app, player_shelf *shelf) {
   if (shelf == NULL) return;
   forget_panel(app, shelf);
+  wheel_free(app, &shelf->wheel);
   player_free(app->pd, shelf->entries);
   player_free(app->pd, shelf);
 }
@@ -190,6 +190,7 @@ void player_shelf_refuse(player_shelf *shelf, const char *path, const char *reas
   entry->ok = false;
   entry->blocked = false;
   copy_text(entry->reason, sizeof entry->reason, reason);
+  shelf->words_made++;
 }
 
 void player_shelf_block(player_shelf *shelf, const char *path, const char *reason) {
@@ -197,6 +198,7 @@ void player_shelf_block(player_shelf *shelf, const char *path, const char *reaso
   if (entry == NULL || !entry->ok) return;
   entry->blocked = true;
   copy_text(entry->reason, sizeof entry->reason, reason);
+  shelf->words_made++;
 }
 
 void player_shelf_unblock(player_shelf *shelf, const char *path) {
@@ -204,6 +206,7 @@ void player_shelf_unblock(player_shelf *shelf, const char *path) {
   if (entry == NULL || !entry->blocked) return;
   entry->blocked = false;
   entry->reason[0] = '\0';
+  shelf->words_made++;
 }
 
 bool player_shelf_blocked(const player_shelf *shelf, const char *path) {
@@ -219,25 +222,11 @@ void player_shelf_unsaved(player_app *app) {
 
 /* ---- the screen ---- */
 
-/* The title over a rule, and a rule over three lines of panel: both in the frame. */
-static int header_height(int frame_height) { return frame_height + 4; }
-static int panel_height(int frame_height) { return frame_height * 3 + 8; }
-
-size_t player_shelf_rows(int line_height, int frame_height) {
-  int room = PLAYER_SCREEN_HEIGHT - header_height(frame_height) - panel_height(frame_height);
-  return room > 0 && line_height > 0 ? (size_t)(room / line_height) : 0;
-}
+int player_shelf_header(int frame_height) { return frame_height + 4; }
+int player_shelf_panel(int frame_height) { return PLAYER_SCREEN_HEIGHT - (frame_height * 3 + 8); }
 
 /* Whether the entry can be opened as it stands. */
 static bool can_open(const shelf_entry *entry) { return entry->ok && !entry->blocked; }
-
-static void move(player_app *app, player_shelf *shelf, long rows) {
-  long total = (long)shelf->count + 1;
-  long at = ((long)shelf->selected + rows) % total;
-  if (at < 0) at += total;
-  shelf->selected = (size_t)at;
-  forget_panel(app, shelf);
-}
 
 static void choose(player_app *app, player_shelf *shelf) {
   const shelf_entry *entry;
@@ -265,14 +254,9 @@ static void choose(player_app *app, player_shelf *shelf) {
 
 static void update(player_app *app, void *ctx, const player_input *input) {
   player_shelf *shelf = (player_shelf *)ctx;
-  long rows = 0;
   if (!shelf->listed) list(app, shelf);
-  shelf->crank += input->crank;
-  while (shelf->crank >= SHELF_DEGREES_PER_ROW) shelf->crank -= SHELF_DEGREES_PER_ROW, rows++;
-  while (shelf->crank <= -SHELF_DEGREES_PER_ROW) shelf->crank += SHELF_DEGREES_PER_ROW, rows--;
-  if (input->pushed & kButtonDown) rows++;
-  if (input->pushed & kButtonUp) rows--;
-  if (rows != 0) move(app, shelf, rows);
+  wheel_hold_font(app);
+  if (wheel_steer(app, &shelf->wheel, shelf->count + 1, &shelf->selected, input)) forget_panel(app, shelf);
   if (input->pushed & kButtonA) choose(app, shelf);
 }
 
@@ -295,34 +279,23 @@ static void panel_words(const player_shelf *shelf, char *out, size_t size) {
   text_add(&words, MORE);
 }
 
+/* Entry `index` of the shelf as the wheel says it: a world's title, or "more worlds..." last. */
+static wheel_word shelf_word(const void *ctx, size_t index) {
+  const player_shelf *shelf = (const player_shelf *)ctx;
+  wheel_word word;
+  word.text = index < shelf->count ? shelf->entries[index].title : MORE_ROW;
+  word.greyed = index < shelf->count && !can_open(&shelf->entries[index]);
+  return word;
+}
+
 static void draw(player_app *app, void *ctx) {
   player_shelf *shelf = (player_shelf *)ctx;
   const player_pen *pen = &app->pen;
-  int line_height = pen->line_height, frame_height = pen->frame_height, y = header_height(frame_height) + 2;
-  int panel = PLAYER_SCREEN_HEIGHT - panel_height(frame_height);
-  size_t rows = player_shelf_rows(line_height, frame_height), total = shelf->count + 1, first, i;
-  first = shelf->selected > 3 ? shelf->selected - 3 : 0;
-  if (total <= rows)
-    first = 0;
-  else if (first > total - rows)
-    first = total - rows;
+  int frame_height = pen->frame_height, header = player_shelf_header(frame_height), panel = player_shelf_panel(frame_height), y;
+  size_t i;
   player_pen_frame_say(pen, "Shelf", PLAYER_MARGIN, 0);
-  app->pd->graphics->drawLine(0, header_height(frame_height) - 1, PLAYER_SCREEN_WIDTH, header_height(frame_height) - 1, 1,
-                              kColorBlack);
-  for (i = first; i < total && i < first + rows; i++, y += line_height) {
-    char row[PLAYER_PATH_BYTES];
-    text_buffer said;
-    text_begin(&said, row, sizeof row);
-    text_add(&said, i == shelf->selected ? "> " : "  ");
-    if (i == shelf->count) {
-      text_add(&said, MORE_ROW);
-    } else {
-      text_add(&said, shelf->entries[i].title);
-      if (!shelf->entries[i].ok) text_add(&said, CANNOT);
-      if (shelf->entries[i].blocked) text_add(&said, UNSAVED);
-    }
-    player_pen_say(pen, row, PLAYER_MARGIN, y);
-  }
+  app->pd->graphics->drawLine(0, header - 1, PLAYER_SCREEN_WIDTH, header - 1, 1, kColorBlack);
+  wheel_draw(app, &shelf->wheel, shelf->count + 1, shelf->selected, shelf_word, shelf, shelf->words_made, header, panel);
   app->pd->graphics->drawLine(0, panel, PLAYER_SCREEN_WIDTH, panel, 1, kColorBlack);
   if (shelf->panel.bytes == NULL || shelf->panel_for != shelf->selected) {
     char words[PLAYER_REASON_BYTES + 256];
@@ -342,11 +315,8 @@ static void draw(player_app *app, void *ctx) {
   }
 }
 
-/* The app holds the shelf, so leaving its screen keeps it. */
-static void leave(player_app *app, void *ctx) {
-  (void)app;
-  (void)ctx;
-}
+/* The app holds the shelf, so leaving its screen keeps it; the wheel's labels are made again when it is next drawn. */
+static void leave(player_app *app, void *ctx) { wheel_free(app, &((player_shelf *)ctx)->wheel); }
 
 /* The panel is wrapped afresh by the next draw. */
 static void refit(player_app *app, void *ctx) { forget_panel(app, (player_shelf *)ctx); }

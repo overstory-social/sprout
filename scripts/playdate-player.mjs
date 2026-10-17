@@ -554,6 +554,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'downloads',
       'text_size',
       'pen',
+      'wheel',
     ];
     const missing = wanted.filter((name) => !new RegExp(`player-${name} .*Passed`).test(tests));
     if (missing.length > 0) {

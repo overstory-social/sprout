@@ -170,6 +170,7 @@ static void open_index(player_app *app, player_downloads *d) {
   sprout_arena_reset(&d->arena);
   d->worlds = NULL;
   d->selected = 0;
+  d->words_made++;
   d->failure[0] = d->notice[0] = '\0';
   d->too_big = d->short_of_memory = false;
   if (!player_net_ready(app->pd, why, sizeof why)) {
@@ -208,6 +209,7 @@ static void index_arrived(player_app *app, player_downloads *d, player_fetch_sta
   }
   drop_text(app, d); /* the tree holds copies of its strings */
   d->worlds = read.worlds;
+  d->words_made++;
   d->phase = DOWNLOADS_LIST;
 }
 
@@ -403,6 +405,7 @@ static void finish_world(player_app *app, player_downloads *d) {
   d->failure[0] = '\0';
   SAY(d->notice, notice);
   player_shelf_list(app);
+  d->words_made++; /* the world is on the shelf now, and greyed */
   player_cue(app, PLAYER_CUE_PICK);
 }
 
@@ -446,6 +449,7 @@ void player_downloads_open(player_app *app) {
   d->trusts = player_index_signed_by;
   d->trust_ctx = trusted_key;
   configure(app, d);
+  wheel_hold_font(app);
   player_cue(app, PLAYER_CUE_PICK);
   open_index(app, d);
   player_app_show(app, &player_downloads_screen, d);
@@ -458,18 +462,8 @@ static void back_to_shelf(player_app *app, player_downloads *d) {
   player_shelf_show(app);
 }
 
-static void move(player_downloads *d, long rows) {
-  long total = d->worlds != NULL ? (long)d->worlds->count : 0, at;
-  if (total == 0) return;
-  at = ((long)d->selected + rows) % total;
-  if (at < 0) at += total;
-  d->selected = (size_t)at;
-  d->failure[0] = d->notice[0] = '\0';
-}
-
 static void update(player_app *app, void *ctx, const player_input *input) {
   player_downloads *d = (player_downloads *)ctx;
-  long rows = 0;
   if (d->fetching) {
     player_fetch_state state = player_fetch_poll(&d->fetch, player_app_seconds(app));
     if (state != PLAYER_FETCH_RUNNING) {
@@ -484,13 +478,13 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     back_to_shelf(app, d);
     return;
   }
-  if (busy(d)) return;
-  d->crank += input->crank;
-  while (d->crank >= SHELF_DEGREES_PER_ROW) d->crank -= SHELF_DEGREES_PER_ROW, rows++;
-  while (d->crank <= -SHELF_DEGREES_PER_ROW) d->crank += SHELF_DEGREES_PER_ROW, rows--;
-  if (input->pushed & kButtonDown) rows++;
-  if (input->pushed & kButtonUp) rows--;
-  if (rows != 0) move(d, rows);
+  if (busy(d)) {
+    /* The wheel stands still while a fetch runs, settling on the world chosen. */
+    if (disc_update(&d->wheel.disc, false)) player_cue(app, PLAYER_CUE_CLACK);
+    return;
+  }
+  if (wheel_steer(app, &d->wheel, d->worlds != NULL ? d->worlds->count : 0, &d->selected, input))
+    d->failure[0] = d->notice[0] = '\0';
   if (input->pushed & kButtonA) {
     if (d->phase == DOWNLOADS_FAILED) {
       player_cue(app, PLAYER_CUE_PICK);
@@ -501,13 +495,13 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   }
 }
 
-/* The row for `world`: its title, version and size, and whether it is on the shelf. */
-static void row_words(const player_app *app, const sprout_json *world, bool selected, char *out, size_t size) {
-  char bytes[24];
-  const char *const parts[] = {selected ? "> " : "  ", text_of(world, "title"), "  ", text_of(world, "version"), "  ", bytes,
-                               on_shelf(app, world) ? "  (on your shelf)" : ""};
-  player_index_size(count_of(world, "bytes"), bytes, sizeof bytes);
-  put(out, size, parts, 7);
+/* World `index` of the list as the wheel says it: its title, greyed where it is on the shelf already. */
+static wheel_word world_word(const void *ctx, size_t index) {
+  const player_downloads *d = (const player_downloads *)ctx;
+  wheel_word word;
+  word.text = text_of(d->worlds->items[index], "title");
+  word.greyed = on_shelf(d->app, d->worlds->items[index]);
+  return word;
 }
 
 /* The words under the list: what is happening, what went wrong, what happened, or what the selected world is. */
@@ -558,22 +552,13 @@ static void forget_panel(player_app *app, player_downloads *d) {
 static void draw(player_app *app, void *ctx) {
   player_downloads *d = (player_downloads *)ctx;
   const player_pen *pen = &app->pen;
-  int line_height = pen->line_height, frame_height = pen->frame_height, header = frame_height + 4, y = header + 2;
-  int panel = PLAYER_SCREEN_HEIGHT - (frame_height * 3 + 8);
-  size_t rows = player_shelf_rows(line_height, frame_height), total = d->worlds != NULL ? d->worlds->count : 0, first, i;
+  int frame_height = pen->frame_height, header = player_shelf_header(frame_height), panel = player_shelf_panel(frame_height), y;
+  size_t i;
   char words[sizeof d->panel_said];
   player_pen_frame_say(pen, "More worlds", PLAYER_MARGIN, 0);
   app->pd->graphics->drawLine(0, header - 1, PLAYER_SCREEN_WIDTH, header - 1, 1, kColorBlack);
-  first = d->selected > 3 ? d->selected - 3 : 0;
-  if (total <= rows)
-    first = 0;
-  else if (first > total - rows)
-    first = total - rows;
-  for (i = first; i < total && i < first + rows; i++, y += line_height) {
-    char row[PLAYER_PATH_BYTES + 64];
-    row_words(app, d->worlds->items[i], i == d->selected, row, sizeof row);
-    player_pen_say(pen, row, PLAYER_MARGIN, y);
-  }
+  if (d->worlds != NULL)
+    wheel_draw(app, &d->wheel, d->worlds->count, d->selected, world_word, d, d->words_made, header, panel);
   app->pd->graphics->drawLine(0, panel, PLAYER_SCREEN_WIDTH, panel, 1, kColorBlack);
   panel_words(app, d, words, sizeof words);
   if (d->panel.bytes == NULL || strcmp(words, d->panel_said) != 0) {
@@ -600,6 +585,7 @@ static void leave(player_app *app, void *ctx) {
   cancel(app, d);
   player_net_finish(app->pd);
   forget_panel(app, d);
+  wheel_free(app, &d->wheel);
   sprout_arena_reset(&d->arena);
   player_free(app->pd, d);
 }

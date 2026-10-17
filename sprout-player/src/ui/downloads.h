@@ -1,7 +1,8 @@
 /*
  * The download screen (the design doc's Shipped worlds and downloads): the signed index fetched (host/net.h) and read
- * (signed_index.h), its worlds listed, and the one chosen downloaded into the Data folder's
- * `worlds/`, where the shelf finds it.
+ * (signed_index.h), its worlds offered as the words of a wheel (wheel.h) by title, one already on
+ * the shelf greyed, and the one chosen downloaded into the Data folder's `worlds/`, where the shelf
+ * finds it.
  *
  * Nothing listed is used until the index's signature verifies against the key the build baked in
  * (the generated `publickey.h`). Each file is written as `<name>.part`, counted as it arrives (one
@@ -22,6 +23,7 @@
 #include "host/pd_host.h"
 #include "shelf.h"
 #include "signed_index.h"
+#include "wheel.h"
 #include "wrap.h"
 
 /*
@@ -61,7 +63,8 @@ typedef struct player_downloads {
   sprout_arena arena;
   const sprout_json *worlds; /* the index's worlds, in the arena, once read */
   size_t selected;
-  float crank;
+  wheel wheel;              /* the worlds' titles */
+  unsigned long words_made; /* counts the changes to what the wheel's words say */
   char index_url[PLAYER_URL_BYTES];
   player_index_trusts trusts; /* the signature check: the baked key's, unless a test says otherwise */
   void *trust_ctx;

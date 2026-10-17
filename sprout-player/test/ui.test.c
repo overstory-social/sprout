@@ -22,6 +22,7 @@
 #include "ui/reader.h"
 #include "ui/text_size.h"
 #include "ui/transcript.h"
+#include "wheel_support.h"
 
 int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg);
 
@@ -30,8 +31,6 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg);
 #define SHELF_TOP (LINE + 4)                /* the shelf's rule under its title */
 #define SHELF_PANEL (240 - (LINE * 3 + 8)) /* the shelf's rule above its panel */
 
-/* The row the shelf draws `n` rows down, and the first line of its panel. */
-#define SHELF_ROW(n) (LINE + 4 + 2 + (n) * LINE)
 
 static const char READER_KEYS[] = "A: build a sentence   crank: scroll back";
 
@@ -61,6 +60,18 @@ static void status_joined(char *out, size_t room) {
   int n = status_lines_drawn(), i;
   out[0] = '\0';
   for (i = 0; i < n; i++) snprintf(out + strlen(out), room - strlen(out), "%s%s", i > 0 ? " " : "", fake_run_at(fake, 2, i * LINE)->text);
+}
+
+/* The app the update callback runs. */
+static player_app *running(void) { return (player_app *)fake->update_ctx; }
+
+/* The word at the front of the shelf's wheel, as drawn last frame. */
+static const char *shelf_front(void) { return running() != NULL ? wheel_front(&running()->shelf->wheel) : "(no app)"; }
+
+/* The name at the front of the nickname screen's wheel, as drawn last frame; "" off that screen. */
+static const char *name_offered(void) {
+  player_app *app = running();
+  return app != NULL && app->screen == &player_nickname_screen ? wheel_front(&((player_nickname *)app->ctx)->wheel) : "";
 }
 
 /* Whether the nickname screen was drawn last frame. */
@@ -137,10 +148,7 @@ static void main_sets_the_update_callback_and_the_app_saves_at_terminate(void) {
   fake_frame(fake, 0, 0);
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0,
         "the app starts on the shelf");
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0)) != NULL &&
-            strcmp(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0))->text, "> Chip Tree") == 0,
-        "the shipped world is on it, selected: %s",
-        fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0)) ? fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0))->text : "(none)");
+  CHECK(strcmp(shelf_front(), "Chip Tree") == 0, "the shipped world is on it, at the wheel's front: %s", shelf_front());
   fake_frame(fake, kButtonA, 0);
   frames = frames_until_reader(10000);
   CHECK(on_reader(), "the reader came up after %d frames", frames);
@@ -336,9 +344,7 @@ static void with_no_world_shipped_the_shelf_says_so(void) {
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0)) != NULL &&
-            strcmp(fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0))->text, "> more worlds...") == 0,
-        "the one row is more worlds");
+  CHECK(strcmp(shelf_front(), "more worlds...") == 0 && fake->placed_count == 1, "the one word is more worlds: %s", shelf_front());
   CHECK(fake_run_at(fake, PLAYER_MARGIN, panel) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, panel)->text, "No worlds are on the"),
         "the panel says the shelf is empty: %s", fake_run_at(fake, PLAYER_MARGIN, panel) ? fake_run_at(fake, PLAYER_MARGIN, panel)->text : "(none)");
   fake_frame(fake, kButtonA, 0);
@@ -364,9 +370,8 @@ static void a_cartridge_that_cannot_be_opened_is_told_in_words(void) {
   CHECK(app != NULL, "%s", why);
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
-  said = fake_run_at(fake, PLAYER_MARGIN, SHELF_ROW(0));
-  CHECK(said != NULL && strcmp(said->text, "> Broken (cannot be opened)") == 0, "the broken world is shelved: %s",
-        said ? said->text : "(nothing)");
+  CHECK(strcmp(shelf_front(), "Broken") == 0 && wheel_label_greyed(wheel_placed(&app->shelf->wheel, wheel_front_placed())),
+        "the broken world is shelved, greyed: %s", shelf_front());
   said = fake_run_at(fake, PLAYER_MARGIN, panel);
   CHECK(said != NULL && HAS(said->text, "Sprout"), "the panel gives the engine's reason: %s", said ? said->text : "(nothing)");
   fake_frame(fake, kButtonA, 0);
@@ -547,7 +552,7 @@ static bool saved_file(const char *suffix) {
  */
 static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) {
   static const char *const shipped[] = {"chip-tree.sproutworld"};
-  const fake_run *name, *first;
+  const fake_run *first;
   char before[64], command[1200];
   int frames;
   begin("restart");
@@ -564,9 +569,9 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   frames = frames_until_nickname(10000);
   CHECK(on_nickname(), "the nickname screen came up after %d frames", frames);
   fake_frame(fake, kButtonDown, 0);
-  name = fake_run_at(fake, PLAYER_MARGIN, 100);
-  CHECK(name != NULL, "a name is offered");
-  snprintf(before, sizeof before, "%s", name != NULL ? name->text : "");
+  fake_frame(fake, 0, 0);
+  CHECK(name_offered()[0] != '\0' && name_offered()[0] != '(', "a name is offered: %s", name_offered());
+  snprintf(before, sizeof before, "%s", name_offered());
   frames = frames_until_reader(100);
   CHECK(on_reader(), "the reader came up after %d frames", frames);
   for (frames = 0; frames < 100 && !saved_file(".json"); frames++) fake_frame(fake, 0, 0);
@@ -601,9 +606,7 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   fake_frame(fake, kButtonA, 0);
   CHECK(on_nickname(), "A brings the nickname screen up again, with no loading between");
   CHECK(!saved_file(".json") && !saved_file(".log"), "the save and the log are gone");
-  name = fake_run_at(fake, PLAYER_MARGIN, 100);
-  CHECK(name != NULL && strcmp(name->text, before) == 0, "the name the visitor had is offered first: %s, was %s",
-        name != NULL ? name->text : "(none)", before);
+  CHECK(strcmp(name_offered(), before) == 0, "the name the visitor had is offered first: %s, was %s", name_offered(), before);
   frames = frames_until_reader(100);
   CHECK(on_reader(), "the reader came up after %d frames", frames);
   snprintf(command, sizeof command, "test $(grep -c '\"kind\":\"arrival\"' '%s'/saves/*.log) -eq 1", fake->data);
@@ -699,6 +702,18 @@ static bool banded(fake_font body, int top, int bottom) {
   return frame > 0 && between > 0;
 }
 
+/*
+ * Whether the shelf was drawn last frame as it is at every size: its title and panel in the frame's
+ * font, nothing in the body between, and its wheel's words in the wheel's.
+ */
+static bool shelf_drawn(void) {
+  const wheel_label *front = wheel_placed(&running()->shelf->wheel, wheel_front_placed());
+  int i;
+  for (i = 0; i < fake->run_count; i++)
+    if (fake->runs[i].font != FAKE_FONT_SERIF || (fake->runs[i].y >= SHELF_TOP && fake->runs[i].y < SHELF_PANEL)) return false;
+  return fake->run_count > 0 && front != NULL && wheel_label_run(front)->font == FAKE_FONT_SANS;
+}
+
 /* The reader's bands this frame: `banded` under the status's lines and over its keys. */
 static bool reader_banded(fake_font body) { return banded(body, status_lines_at(LINE) * LINE + 2, PANEL); }
 
@@ -719,14 +734,15 @@ static void transcript_ink(char *out, size_t size) {
 }
 
 /*
- * "text" in the system menu, S and L, S where nothing is remembered: set on the shelf, the next
- * frame draws the shelf's rows in that font under its title and over its panel, which stay in the
- * frame's; set in the reader, the next frame draws the transcript in that font, its rows spaced by
- * its line height, as many as the column holds under the status's frame lines, each no wider than
- * the column, with everything told still there top to bottom; the frame's font and the body's are
- * the fonts held, one where S is the frame's own; the choice is written beside the saves, and the
- * app started again begins at it; a choice that cannot be written is taken all the same, and said
- * not to be remembered.
+ * "text" in the system menu, S and L, S where nothing is remembered: set on the shelf, the body is
+ * that font from the next frame, and the shelf, whose title and panel are the frame's and whose
+ * words are the wheel's, is drawn as it was; set in the reader, the next frame draws the transcript
+ * in that font, its rows spaced by its line height, as many as the column holds under the status's
+ * frame lines, each no wider than the column, with everything told still there top to bottom; the
+ * frame's font, the body's and the wheel's are the fonts held, each file once, so S, the frame's
+ * own, and L, the wheel's, add none; the choice is written beside the saves, and the app started
+ * again begins at it; a choice that cannot be written is taken all the same, and said not to be
+ * remembered.
  */
 static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   static const char *const shipped[] = {"printers_shop.sproutworld"};
@@ -743,16 +759,14 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
         "the item offers S and L");
   CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "S to begin with: the frame's font, which is S's, the one held");
   fake_frame(fake, 0, 0);
-  CHECK(banded(FAKE_FONT_SERIF, SHELF_TOP, SHELF_PANEL), "the shelf is drawn in S");
+  CHECK(shelf_drawn() && fake_fonts_held(fake) == 2, "the shelf is drawn, the frame's font and the wheel's held");
   CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 1), "set to L on the shelf");
   fake_frame(fake, 0, 0);
-  CHECK(banded(FAKE_FONT_SANS, SHELF_TOP, SHELF_PANEL) && fake_fonts_held(fake) == 2,
-        "the next frame draws the shelf's rows in L between the frame's title and panel, the two fonts held");
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, SHELF_TOP + 2) != NULL && fake_run_at(fake, PLAYER_MARGIN, SHELF_TOP + 2 + FAKE_SANS_LINE) != NULL,
-        "its rows start under the frame's title and are spaced by the L line height");
+  CHECK(running()->pen.size == PLAYER_TEXT_L && fake_fonts_held(fake) == 2, "the next frame the body is L, the wheel's file: two held");
+  CHECK(shelf_drawn(), "and the shelf is drawn as it was");
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 0);
   fake_frame(fake, 0, 0);
-  CHECK(banded(FAKE_FONT_SERIF, SHELF_TOP, SHELF_PANEL) && fake_fonts_held(fake) == 1, "and back to S, L let go");
+  CHECK(running()->pen.size == PLAYER_TEXT_S && shelf_drawn() && fake_fonts_held(fake) == 2, "and back to S, L kept for the wheel");
 
   fake_frame(fake, kButtonA, 0);
   frames = frames_until_reader(10000);
@@ -781,7 +795,8 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   eventHandler(&fake->api, kEventInit, 0);
   CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 1, "started again, the item shows L");
   fake_frame(fake, 0, 0);
-  CHECK(banded(FAKE_FONT_SANS, SHELF_TOP, SHELF_PANEL), "and the shelf's rows are drawn in L");
+  CHECK(running()->pen.size == PLAYER_TEXT_L && shelf_drawn() && fake_fonts_held(fake) == 2,
+        "and the body is L, the wheel's file, on a shelf drawn as ever");
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 0);
   fake_frame(fake, 0, 0);
   remembered = file_text(PLAYER_TEXT_SIZE_FILE);
@@ -796,7 +811,7 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
             strncmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, PLAYER_TEXT_UNKEPT, 20) == 0 && banded(FAKE_FONT_SANS, 0, PANEL),
         "a choice that cannot be written is taken, in L, and the screen says it is not remembered, its key in the frame's font");
   fake_frame(fake, kButtonA, 0);
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && banded(FAKE_FONT_SANS, SHELF_TOP, SHELF_PANEL), "A puts the shelf back, in L");
+  CHECK(shelf_drawn() && running()->pen.size == PLAYER_TEXT_L, "A puts the shelf back, the body in L");
   remembered = file_text(PLAYER_TEXT_SIZE_FILE);
   CHECK(remembered != NULL && strcmp(remembered, "S") == 0, "S is what stays remembered: %s", remembered != NULL ? remembered : "(none)");
   free(remembered);
@@ -851,7 +866,8 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   fake->missing_font[0] = '\0';
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 1);
   fake_frame(fake, 0, 0);
-  CHECK(banded(FAKE_FONT_SANS, SHELF_TOP, SHELF_PANEL) && fake_menu_value(fake, PLAYER_TEXT_ITEM) == 1, "L, once the device has it, is taken");
+  CHECK(running()->pen.size == PLAYER_TEXT_L && shelf_drawn() && fake_menu_value(fake, PLAYER_TEXT_ITEM) == 1,
+        "L, once the device has it, is taken");
   eventHandler(&fake->api, kEventTerminate, 0);
   end();
 }
