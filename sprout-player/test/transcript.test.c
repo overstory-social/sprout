@@ -26,7 +26,7 @@ static void kinds_are_led_by_their_mark(void) {
   const char *shown[4];
   size_t n;
   begin("leads");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 4);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 100, 4);
   push(&t, "typed", "look");
   push(&t, "refused", "no");
   push(&t, "notice", "hm");
@@ -48,7 +48,7 @@ static void the_newest_are_at_the_bottom_and_a_reader_scrolled_back_keeps_their_
   const char *shown[3];
   size_t n;
   begin("scroll");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 3);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 100, 3);
   push(&t, "said", "one two three four five six"); /* "one two" "three four" "five six" */
   push(&t, "said", "seven");
   CHECK(t.line_count == 4 && transcript_furthest(&t) == 1, "%zu lines", t.line_count);
@@ -77,7 +77,7 @@ static void a_short_transcript_shows_all_and_does_not_scroll(void) {
   transcript t;
   const char *shown[5];
   begin("short");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 5);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 100, 5);
   CHECK(transcript_visible(&t, shown) == 0, "nothing told, nothing shown");
   push(&t, "said", "only");
   transcript_scroll(&t, 3);
@@ -92,7 +92,7 @@ static void the_oldest_fall_off_past_the_keep(void) {
   char said[32];
   int i;
   begin("keep");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 2);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 100, 2);
   for (i = 1; i <= TRANSCRIPT_KEEP + 50; i++) {
     snprintf(said, sizeof said, "p%d", i);
     push(&t, "said", said);
@@ -148,7 +148,7 @@ static void a_font_that_changes_wraps_every_paragraph_again_and_loses_nothing(vo
   int scale = 10;
   size_t n, i;
   begin("rewrap");
-  transcript_init(&t, &fake->api, measure_scaled, &scale, 100, 4);
+  transcript_init(&t, &fake->api, measure_scaled, measure_scaled, &scale, 100, 4);
   push(&t, "typed", "look around");
   push(&t, "said", "one two three four five six seven");
   push(&t, "described", "a\nnewline stays");
@@ -217,7 +217,7 @@ static void the_status_is_the_place_and_its_ways_out(void) {
   sprout_seen_exit exits[2];
   char joined[256];
   begin("status");
-  transcript_init(&t, &fake->api, measure, NULL, 1000, 2);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 1000, 2);
   CHECK(t.status.line_count == 0, "no lines before the first view");
   memset(&view, 0, sizeof view);
   memset(exits, 0, sizeof exits);
@@ -246,7 +246,7 @@ static void a_status_with_many_ways_out_wraps_to_the_column(void) {
   char joined[256], want[256];
   size_t i, k;
   begin("status-wraps");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 2);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 100, 2);
   memset(&view, 0, sizeof view);
   memset(exits, 0, sizeof exits);
   view.place.name = str("the hall");
@@ -281,7 +281,7 @@ static void fitting_the_column_keeps_every_line(void) {
   const char *shown[5];
   size_t n;
   begin("fit");
-  transcript_init(&t, &fake->api, measure, NULL, 100, 5);
+  transcript_init(&t, &fake->api, measure, measure, NULL, 100, 5);
   push(&t, "said", "one");
   push(&t, "said", "two");
   push(&t, "said", "three");

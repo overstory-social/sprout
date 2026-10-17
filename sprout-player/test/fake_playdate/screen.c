@@ -164,34 +164,29 @@ static size_t utf8_bytes(const char *text, size_t count) {
 
 /* The fonts the fake loads, by path, in fake_font's order; the font a handle is, FAKE_FONT_NONE for one not held. */
 static char fake_fonts[FAKE_FONTS];
-static const char *const FONT_PATHS[FAKE_FONTS] = {"/System/Fonts/Asheville-Sans-14-Light.pft", "/System/Fonts/Roobert-20-Medium.pft",
-                                                   "/System/Fonts/Asheville-Sans-24-Light.pft", "fonts/Asheville-Sans-24-Light.pft",
-                                                   "fonts/Roobert-10-Bold.pft"};
+static const char *const FONT_PATHS[FAKE_FONTS] = {"fonts/Newsleak-Serif-Bold.pft", "fonts/Roobert-11-Mono-Condensed.pft",
+                                                   "fonts/Roobert-11-Medium.pft"};
 
 static fake_font font_of(LCDFont *font) {
   int i;
   for (i = 0; i < FAKE_FONTS; i++)
-    if (font == (LCDFont *)&fake_fonts[i] && fake_current->fonts_loaded[i]) return (fake_font)(FAKE_FONT_SYSTEM + i);
+    if (font == (LCDFont *)&fake_fonts[i] && fake_current->fonts_loaded[i]) return (fake_font)(FAKE_FONT_SERIF + i);
   return FAKE_FONT_NONE;
 }
 
 int fake_glyph(const fake_playdate *fake, fake_font font) {
   switch (font) {
-    case FAKE_FONT_MEDIUM: return fake->medium_glyph;
-    case FAKE_FONT_LARGE: return fake->large_glyph;
-    case FAKE_FONT_BIG: return fake->big_glyph;
-    case FAKE_FONT_SMALL: return fake->small_glyph;
-    default: return fake->glyph;
+    case FAKE_FONT_MONO: return fake->mono_glyph;
+    case FAKE_FONT_SANS: return fake->sans_glyph;
+    default: return fake->serif_glyph;
   }
 }
 
 int fake_line(fake_font font) {
   switch (font) {
-    case FAKE_FONT_MEDIUM: return FAKE_MEDIUM_LINE;
-    case FAKE_FONT_LARGE: return FAKE_LARGE_LINE;
-    case FAKE_FONT_BIG: return FAKE_BIG_LINE;
-    case FAKE_FONT_SMALL: return FAKE_SMALL_LINE;
-    default: return FAKE_LINE;
+    case FAKE_FONT_MONO: return FAKE_MONO_LINE;
+    case FAKE_FONT_SANS: return FAKE_SANS_LINE;
+    default: return FAKE_SERIF_LINE;
   }
 }
 
@@ -207,7 +202,7 @@ int fake_font_release(void *block) {
     if (block != (void *)&fake_fonts[i]) continue;
     if (!fake_current->fonts_loaded[i]) abort(); /* freed twice */
     fake_current->fonts_loaded[i] = 0;
-    if (fake_current->font_set == (fake_font)(FAKE_FONT_SYSTEM + i)) fake_current->font_set = FAKE_FONT_NONE;
+    if (fake_current->font_set == (fake_font)(FAKE_FONT_SERIF + i)) fake_current->font_set = FAKE_FONT_NONE;
     return 1;
   }
   return 0;
@@ -258,7 +253,7 @@ static LCDFont *fake_load_font(const char *path, const char **error) {
   int i;
   for (i = 0; i < FAKE_FONTS; i++) {
     if (strcmp(path, FONT_PATHS[i]) != 0 || strcmp(path, fake_current->missing_font) == 0) continue;
-    if (fake_current->fonts_loaded[i]) abort(); /* a font is held once: the app loads the one it needs and frees the last */
+    if (fake_current->fonts_loaded[i]) abort(); /* a font file is loaded once: the pen shares it among its uses */
     fake_current->fonts_loaded[i] = 1;
     return (LCDFont *)&fake_fonts[i];
   }
@@ -284,11 +279,9 @@ const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
 }
 
 void fake_install_screen(fake_playdate *fake) {
-  fake->glyph = FAKE_GLYPH;
-  fake->medium_glyph = FAKE_MEDIUM_GLYPH;
-  fake->large_glyph = FAKE_LARGE_GLYPH;
-  fake->big_glyph = FAKE_BIG_GLYPH;
-  fake->small_glyph = FAKE_SMALL_GLYPH;
+  fake->serif_glyph = FAKE_SERIF_GLYPH;
+  fake->mono_glyph = FAKE_MONO_GLYPH;
+  fake->sans_glyph = FAKE_SANS_GLYPH;
   fake->gfx.clear = fake_clear;
   fake->gfx.fillRect = fake_fill_rect;
   fake->gfx.fillTriangle = fake_fill_triangle;

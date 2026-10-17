@@ -41,7 +41,7 @@ static void draw(player_app *app, void *ctx) {
   int y = MESSAGE_TOP;
   for (i = 0; i < message->words.line_count; i++, line = wrap_next(line), y += pen->line_height)
     player_pen_say(pen, line, PLAYER_MARGIN, y);
-  player_pen_say(pen, GO_ON, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->line_height - 2);
+  player_pen_frame_say(pen, GO_ON, PLAYER_MARGIN, PLAYER_SCREEN_HEIGHT - pen->frame_height - 2);
 }
 
 static void leave(player_app *app, void *ctx) {

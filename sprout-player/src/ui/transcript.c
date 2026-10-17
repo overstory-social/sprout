@@ -5,10 +5,12 @@
 
 #include "host/files.h"
 
-void transcript_init(transcript *t, PlaydateAPI *pd, wrap_measure measure, void *measure_ctx, int width, size_t rows) {
+void transcript_init(transcript *t, PlaydateAPI *pd, wrap_measure measure, wrap_measure status_measure, void *measure_ctx,
+                     int width, size_t rows) {
   memset(t, 0, sizeof *t);
   t->pd = pd;
   t->measure = measure;
+  t->status_measure = status_measure;
   t->measure_ctx = measure_ctx;
   t->width = width;
   t->rows = rows;
@@ -82,7 +84,7 @@ void transcript_rewrap(transcript *t) {
     lines += p->line_count;
   }
   t->line_count = lines;
-  wrap_again(t->pd, &t->status, t->width, t->measure, t->measure_ctx);
+  wrap_again(t->pd, &t->status, t->width, t->status_measure, t->measure_ctx);
   clamp(t);
 }
 
@@ -147,7 +149,7 @@ bool transcript_set_status(transcript *t, const sprout_seen_view *view) {
   if (words == NULL) return false;
   status_words(view, words);
   words[length] = '\0';
-  made = wrap_lines(t->pd, words, length, t->width, t->measure, t->measure_ctx, &lines);
+  made = wrap_lines(t->pd, words, length, t->width, t->status_measure, t->measure_ctx, &lines);
   player_free(t->pd, words);
   if (!made) return false;
   wrap_free(t->pd, &t->status);

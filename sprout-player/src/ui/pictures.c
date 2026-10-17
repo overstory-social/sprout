@@ -75,7 +75,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
 
 /* Draws the picture at `shown.index` centred across the screen, its top shifted by `shown.y`. */
 static void draw_one(player_app *app, player_pictures *p, gallery_shown shown, long keep) {
-  int line_height = app->pen.line_height, width, height, rowbytes;
+  int frame_height = app->pen.frame_height, width, height, rowbytes;
   LCDBitmap *bitmap = held(app, p, shown.index, keep);
   images_fit fit;
   int x, top;
@@ -84,9 +84,9 @@ static void draw_one(player_app *app, player_pictures *p, gallery_shown shown, l
     return;
   }
   app->pd->graphics->getBitmapData(bitmap, &width, &height, &rowbytes, NULL, NULL);
-  fit = images_fit_box(width, height, line_height);
+  fit = images_fit_box(width, height, frame_height);
   x = (PLAYER_SCREEN_WIDTH - fit.width) / 2;
-  top = (PLAYER_SCREEN_HEIGHT - line_height - 4 - fit.height) / 2;
+  top = (PLAYER_SCREEN_HEIGHT - frame_height - 4 - fit.height) / 2;
   if (fit.scale < 1.0f)
     app->pd->graphics->drawScaledBitmap(bitmap, x, top + shown.y, fit.scale, fit.scale);
   else
@@ -96,7 +96,7 @@ static void draw_one(player_app *app, player_pictures *p, gallery_shown shown, l
 static void draw(player_app *app, void *ctx) {
   player_pictures *p = (player_pictures *)ctx;
   gallery_frame frame = gallery_frame_now(&p->gallery);
-  int line_height = app->pen.line_height, rule = PLAYER_SCREEN_HEIGHT - line_height - 4;
+  int rule = PLAYER_SCREEN_HEIGHT - app->pen.frame_height - 4;
   const gallery_picture *current = gallery_current(&p->gallery);
   char where[64];
   text_buffer out;
@@ -109,7 +109,7 @@ static void draw(player_app *app, void *ctx) {
       if (p->slots[i].index != frame.current.index) release(app, &p->slots[i]);
   }
   app->pd->graphics->drawLine(0, rule, PLAYER_SCREEN_WIDTH, rule, 1, kColorBlack);
-  if (current != NULL && current->caption != NULL) player_pen_say(&app->pen, current->caption, PLAYER_MARGIN, rule + 2);
+  if (current != NULL && current->caption != NULL) player_pen_frame_say(&app->pen, current->caption, PLAYER_MARGIN, rule + 2);
   text_begin(&out, where, sizeof where);
   if (p->gallery.count > 1) {
     text_add_number(&out, (uint64_t)p->gallery.selected + 1);
@@ -119,8 +119,8 @@ static void draw(player_app *app, void *ctx) {
   } else {
     text_add(&out, PICTURES_CLOSE);
   }
-  player_pen_say(&app->pen, where, PLAYER_SCREEN_WIDTH - PLAYER_MARGIN - player_pen_width(&app->pen, where, strlen(where)),
-                 rule + 2);
+  player_pen_frame_say(&app->pen, where, PLAYER_SCREEN_WIDTH - PLAYER_MARGIN - player_pen_frame_width(&app->pen, where, strlen(where)),
+                       rule + 2);
 }
 
 static void leave(player_app *app, void *ctx) {
@@ -136,7 +136,7 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, p);
 }
 
-/* The reader they hold follows the font; the captions are laid out each draw. */
+/* The reader they hold follows the body; the captions are the frame's, laid out each draw. */
 static void refit(player_app *app, void *ctx) { player_reader_screen.refit(app, ((player_pictures *)ctx)->reader); }
 
 const player_screen player_pictures_screen = {update, draw, leave, refit};

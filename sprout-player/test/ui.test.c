@@ -25,8 +25,10 @@
 
 int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg);
 
-#define LINE FAKE_LINE
-#define PANEL (240 - (LINE + 4)) /* the rule above the keys */
+#define LINE FAKE_SERIF_LINE
+#define PANEL (240 - (LINE + 4)) /* the reader's rule above the keys, in the frame */
+#define SHELF_TOP (LINE + 4)                /* the shelf's rule under its title */
+#define SHELF_PANEL (240 - (LINE * 3 + 8)) /* the shelf's rule above its panel */
 
 /* The row the shelf draws `n` rows down, and the first line of its panel. */
 #define SHELF_ROW(n) (LINE + 4 + 2 + (n) * LINE)
@@ -166,7 +168,7 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
   record_the_arrival("printers_shop.sproutworld", nickname_pool[0]);
   begin("reader");
   app_folder("app");
-  fake->glyph = 14; /* twice the fake font's width, so the arrival runs well past the column */
+  fake->serif_glyph = 14; /* twice the fake font's width, so the arrival runs well past the column */
   ship(shipped, 2);
   write_text("worlds/aardvark.txt", "not a cartridge");
   app = player_app_new(&fake->api, &why);
@@ -191,12 +193,12 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
       at += (size_t)snprintf(status + at, sizeof status - at, "%s%s", t == 0 ? " - exits: " : ", ",
                              view->exits[t].direction != NULL ? view->exits[t].direction : view->exits[t].label);
     CHECK(view->exit_count > 0, "the shop has ways out");
-    CHECK((int)at * fake->glyph > 400 - 2 * PLAYER_MARGIN, "the status is wider than the column, so it wraps");
+    CHECK((int)at * fake->serif_glyph > 400 - 2 * PLAYER_MARGIN, "the status is wider than the column, so it wraps");
     status_joined(joined, sizeof joined);
     CHECK(status_lines_drawn() >= 2 && strcmp(joined, status) == 0, "%d status lines read \"%s\", the view says \"%s\"",
           status_lines_drawn(), joined, status);
     for (n = 0; n < status_lines_drawn(); n++)
-      CHECK((int)strlen(fake_run_at(fake, 2, n * LINE)->text) * fake->glyph <= 400 - 2 * PLAYER_MARGIN,
+      CHECK((int)strlen(fake_run_at(fake, 2, n * LINE)->text) * fake->serif_glyph <= 400 - 2 * PLAYER_MARGIN,
             "status line %d is wider than the column", n);
   }
   for (i = 0; i < 400; i++) CHECK(fake_pixel(fake, i, top() - 1), "the rule under the status at x %d", i);
@@ -206,10 +208,10 @@ static void the_reader_shows_the_arrival_under_the_status_line(void) {
   rows_shown = rows_drawn(rows, 32);
   CHECK(rows_shown > 0 && top() + rows_shown * LINE <= PANEL && top() + (rows_shown + 1) * LINE > PANEL,
         "%d rows between the status and the panel", rows_shown);
-  CHECK((size_t)rows_shown == player_reader_rows(LINE, (size_t)status_lines_drawn()),
+  CHECK((size_t)rows_shown == player_reader_rows(LINE, LINE, (size_t)status_lines_drawn()),
         "the rows were fitted under the %d status lines: %d", status_lines_drawn(), rows_shown);
   for (n = 0; n < rows_shown; n++)
-    CHECK((int)strlen(rows[n]->text) * fake->glyph <= 400 - 2 * PLAYER_MARGIN, "row %d is wider than the column: %s", n, rows[n]->text);
+    CHECK((int)strlen(rows[n]->text) * fake->serif_glyph <= 400 - 2 * PLAYER_MARGIN, "row %d is wider than the column: %s", n, rows[n]->text);
   {
     int y, x, blank = 1;
     for (y = top() + rows_shown * LINE; y < PANEL; y++)
@@ -279,14 +281,14 @@ static void the_rows_fill_the_column_under_the_status(void) {
   begin("rows");
   for (lines = 1; lines <= READER_STATUS_MOST_LINES; lines++) {
     int room = PANEL - ((int)lines * LINE + 2);
-    size_t rows = player_reader_rows(LINE, lines);
+    size_t rows = player_reader_rows(LINE, LINE, lines);
     CHECK(rows > 0 && (int)rows * LINE <= room && (int)(rows + 1) * LINE > room, "%zu status lines: %zu rows in %d px", lines, rows,
           room);
   }
-  CHECK(player_reader_rows(LINE, 2) == player_reader_rows(LINE, 1) - 1 && player_reader_rows(LINE, 3) == player_reader_rows(LINE, 2) - 1,
-        "each status line costs one row: %zu, %zu, %zu", player_reader_rows(LINE, 1), player_reader_rows(LINE, 2),
-        player_reader_rows(LINE, 3));
-  CHECK(player_reader_rows(0, 1) == 0 && player_reader_rows(240, 1) == 0, "no rows fit a font of no height or a screen's");
+  CHECK(player_reader_rows(LINE, LINE, 2) == player_reader_rows(LINE, LINE, 1) - 1 && player_reader_rows(LINE, LINE, 3) == player_reader_rows(LINE, LINE, 2) - 1,
+        "each status line costs one row: %zu, %zu, %zu", player_reader_rows(LINE, LINE, 1), player_reader_rows(LINE, LINE, 2),
+        player_reader_rows(LINE, LINE, 3));
+  CHECK(player_reader_rows(0, LINE, 1) == 0 && player_reader_rows(240, LINE, 1) == 0, "no rows fit a font of no height or a screen's");
   end();
 }
 
@@ -302,7 +304,7 @@ static void a_status_past_three_lines_is_clipped_and_the_transcript_keeps_its_ro
   int rows_shown, n, frames;
   begin("status-cap");
   app_folder("app");
-  fake->glyph = 40; /* nine characters to a line: the shop's name and its ways out take many */
+  fake->serif_glyph = 40; /* nine characters to a line: the shop's name and its ways out take many */
   ship(shipped, 1);
   app = player_app_new(&fake->api, &why);
   CHECK(app != NULL, "%s", why);
@@ -314,11 +316,11 @@ static void a_status_past_three_lines_is_clipped_and_the_transcript_keeps_its_ro
   CHECK(status_lines_drawn() == READER_STATUS_MOST_LINES, "%d status lines", status_lines_drawn());
   CHECK(fake_run_at(fake, 2, READER_STATUS_MOST_LINES * LINE) == NULL, "the fourth line is clipped");
   rows_shown = rows_drawn(rows, 32);
-  CHECK((size_t)rows_shown == player_reader_rows(LINE, READER_STATUS_MOST_LINES) && top() + rows_shown * LINE <= PANEL &&
+  CHECK((size_t)rows_shown == player_reader_rows(LINE, LINE, READER_STATUS_MOST_LINES) && top() + rows_shown * LINE <= PANEL &&
             top() + (rows_shown + 1) * LINE > PANEL,
         "%d rows under three status lines", rows_shown);
   for (n = 0; n < rows_shown; n++)
-    CHECK((int)strlen(rows[n]->text) * fake->glyph <= 400 - 2 * PLAYER_MARGIN, "row %d is wider than the column: %s", n, rows[n]->text);
+    CHECK((int)strlen(rows[n]->text) * fake->serif_glyph <= 400 - 2 * PLAYER_MARGIN, "row %d is wider than the column: %s", n, rows[n]->text);
   CHECK(rows_shown > 0 && strncmp(rows[0]->text, "- You", 5) != 0, "the arrival runs past the column, so the first line has scrolled off");
   player_app_free(app);
   end();
@@ -538,8 +540,8 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2) != NULL &&
             strcmp(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2)->text, PLAYER_RESTART_KEYS) == 0,
         "with its keys");
-  CHECK((int)strlen(PLAYER_RESTART_WARNING) * fake->glyph <= 400 - 2 * PLAYER_MARGIN &&
-            (int)strlen(PLAYER_RESTART_QUESTION) * fake->glyph <= 400 - 2 * PLAYER_MARGIN,
+  CHECK((int)strlen(PLAYER_RESTART_WARNING) * fake->serif_glyph <= 400 - 2 * PLAYER_MARGIN &&
+            (int)strlen(PLAYER_RESTART_QUESTION) * fake->serif_glyph <= 400 - 2 * PLAYER_MARGIN,
         "each line fits the screen");
   CHECK(!on_reader(), "the reader is not drawn under it");
   fake_frame(fake, 0, 0);
@@ -630,21 +632,31 @@ static int status_lines_at(int line) {
   return n;
 }
 
-/* The transcript rows drawn this frame in a font `line` tall: the runs at the column's left under the status's lines, top to bottom. */
-static int column_runs(const fake_run **rows, int room, int line) {
-  int i, n = 0, under = status_lines_at(line) * line;
+/* The transcript rows drawn this frame: the runs at the column's left under the status's lines, which are the frame's, top to bottom. */
+static int column_runs(const fake_run **rows, int room) {
+  int i, n = 0, under = status_lines_at(LINE) * LINE;
   for (i = 0; i < fake->run_count && n < room; i++)
     if (fake->runs[i].x == 2 && fake->runs[i].y >= under) rows[n++] = &fake->runs[i];
   return n;
 }
 
-/* Whether every run drawn this frame is in `font`. */
-static bool drawn_in(fake_font font) {
-  int i;
-  for (i = 0; i < fake->run_count; i++)
-    if (fake->runs[i].font != font) return false;
-  return fake->run_count > 0;
+/* Whether the bands drawn this frame, above `top` and from `bottom` down, are in the frame's font and every run between them in `body`, with some of each. */
+static bool banded(fake_font body, int top, int bottom) {
+  int i, frame = 0, between = 0;
+  for (i = 0; i < fake->run_count; i++) {
+    const fake_run *run = &fake->runs[i];
+    bool band = run->y < top || run->y >= bottom;
+    if (run->font != (band ? FAKE_FONT_SERIF : body)) return false;
+    if (band)
+      frame++;
+    else
+      between++;
+  }
+  return frame > 0 && between > 0;
 }
+
+/* The reader's bands this frame: `banded` under the status's lines and over its keys. */
+static bool reader_banded(fake_font body) { return banded(body, status_lines_at(LINE) * LINE + 2, PANEL); }
 
 /* The characters of the whole transcript, scrolled through from its top, without spaces, into `out`. */
 static void transcript_ink(char *out, size_t size) {
@@ -653,21 +665,23 @@ static void transcript_ink(char *out, size_t size) {
   (void)size;
   out[0] = '\0';
   fake_frame(fake, 0, 12.0f * 1000);
-  n = column_runs(rows, 64, fake_line(fake->font_set));
+  n = column_runs(rows, 64);
   for (i = 0; i < n; i++) ink(rows[i]->text, out);
-  while (fake_run_at(fake, 390, 240 - fake_line(fake->font_set)) != NULL) {
+  while (fake_run_at(fake, 390, 240 - LINE) != NULL) {
     fake_frame(fake, kButtonDown, 0);
-    n = column_runs(rows, 64, fake_line(fake->font_set));
+    n = column_runs(rows, 64);
     ink(rows[n - 1]->text, out);
   }
 }
 
 /*
  * "text" in the system menu, S, M and L, S where nothing is remembered: set on the shelf, the next
- * frame draws the shelf in that font; set in the reader, the next frame draws it in that font, the
- * transcript rows spaced by its line height, as many as the column holds, each no wider than the
- * column, with everything told still there top to bottom; one font is held at a time; the choice is
- * written beside the saves, and the app started again begins at it.
+ * frame draws the shelf's rows in that font under its title and over its panel, which stay in the
+ * frame's; set in the reader, the next frame draws the transcript in that font, its rows spaced by
+ * its line height, as many as the column holds under the status's frame lines, each no wider than
+ * the column, with everything told still there top to bottom; the frame's font and the body's are
+ * the fonts held, one where S is the frame's own; the choice is written beside the saves, and the
+ * app started again begins at it.
  */
 static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   static const char *const shipped[] = {"printers_shop.sproutworld"};
@@ -683,16 +697,18 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   CHECK(fake_menu_options(fake, PLAYER_TEXT_ITEM, &options) == 3 && strcmp(options[0], "S") == 0 && strcmp(options[1], "M") == 0 &&
             strcmp(options[2], "L") == 0,
         "the item offers S, M and L");
-  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "S to begin with, the one font held");
+  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "S to begin with: the frame's font, which is S's, the one held");
   fake_frame(fake, 0, 0);
-  CHECK(drawn_in(FAKE_FONT_SYSTEM), "the shelf is drawn in S");
+  CHECK(banded(FAKE_FONT_SERIF, SHELF_TOP, SHELF_PANEL), "the shelf is drawn in S");
   CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 1), "set to M on the shelf");
   fake_frame(fake, 0, 0);
-  CHECK(drawn_in(FAKE_FONT_MEDIUM) && fake_fonts_held(fake) == 1, "the next frame draws the shelf in M, and S is let go");
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, FAKE_MEDIUM_LINE + 4 + 2) != NULL, "its rows are laid out by the M line height");
+  CHECK(banded(FAKE_FONT_MONO, SHELF_TOP, SHELF_PANEL) && fake_fonts_held(fake) == 2,
+        "the next frame draws the shelf's rows in M between the frame's title and panel, the two fonts held");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, SHELF_TOP + 2) != NULL && fake_run_at(fake, PLAYER_MARGIN, SHELF_TOP + 2 + FAKE_MONO_LINE) != NULL,
+        "its rows start under the frame's title and are spaced by the M line height");
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 0);
   fake_frame(fake, 0, 0);
-  CHECK(drawn_in(FAKE_FONT_SYSTEM), "and back to S");
+  CHECK(banded(FAKE_FONT_SERIF, SHELF_TOP, SHELF_PANEL) && fake_fonts_held(fake) == 1, "and back to S, M let go");
 
   fake_frame(fake, kButtonA, 0);
   frames = frames_until_reader(10000);
@@ -700,13 +716,14 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   transcript_ink(at_s, sizeof at_s);
   CHECK(fake_menu_set(fake, PLAYER_TEXT_ITEM, 2), "set to L in the reader");
   fake_frame(fake, 0, 0);
-  CHECK(drawn_in(FAKE_FONT_LARGE) && fake_fonts_held(fake) == 1, "the next frame draws the reader in L, and S is let go");
-  n = column_runs(rows, 64, FAKE_LARGE_LINE);
-  CHECK(n > 1 && (size_t)n == player_reader_rows(FAKE_LARGE_LINE, (size_t)status_lines_at(FAKE_LARGE_LINE)),
-        "the column holds the rows the L line height allows under the status's L lines: %d", n);
-  for (i = 1; i < n; i++) CHECK(rows[i]->y - rows[i - 1]->y == FAKE_LARGE_LINE, "row %d is not an L line under the last", i);
+  CHECK(reader_banded(FAKE_FONT_SANS) && fake_fonts_held(fake) == 2,
+        "the next frame draws the transcript in L under the frame's status and over its keys, the two fonts held");
+  n = column_runs(rows, 64);
+  CHECK(n > 1 && (size_t)n == player_reader_rows(FAKE_SANS_LINE, LINE, (size_t)status_lines_at(LINE)),
+        "the column holds the rows the L line height allows under the status's frame lines: %d", n);
+  for (i = 1; i < n; i++) CHECK(rows[i]->y - rows[i - 1]->y == FAKE_SANS_LINE, "row %d is not an L line under the last", i);
   for (i = 0; i < n; i++)
-    CHECK((int)strlen(rows[i]->text) * fake->large_glyph <= 400 - 2 * PLAYER_MARGIN, "row %d is wider than the column in L: %s", i,
+    CHECK((int)strlen(rows[i]->text) * fake->sans_glyph <= 400 - 2 * PLAYER_MARGIN, "row %d is wider than the column in L: %s", i,
           rows[i]->text);
   transcript_ink(at_l, sizeof at_l);
   CHECK(strlen(at_s) > 0 && strcmp(at_s, at_l) == 0, "wrapped again in L, the transcript is what it was:\n%s\n%s", at_s, at_l);
@@ -720,17 +737,17 @@ static void text_in_the_system_menu_sets_the_size_and_is_remembered(void) {
   eventHandler(&fake->api, kEventInit, 0);
   CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 2, "started again, the item shows L");
   fake_frame(fake, 0, 0);
-  CHECK(drawn_in(FAKE_FONT_LARGE), "and the shelf is drawn in L");
+  CHECK(banded(FAKE_FONT_SANS, SHELF_TOP, SHELF_PANEL), "and the shelf's rows are drawn in L");
 
   fake->fail_writes = 1;
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 1);
   fake_frame(fake, 0, 0);
   fake->fail_writes = 0;
   CHECK(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP) != NULL &&
-            strncmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, PLAYER_TEXT_UNKEPT, 20) == 0 && drawn_in(FAKE_FONT_MEDIUM),
-        "a choice that cannot be written is taken, in M, and the screen says it is not remembered");
+            strncmp(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, PLAYER_TEXT_UNKEPT, 20) == 0 && banded(FAKE_FONT_MONO, 0, PANEL),
+        "a choice that cannot be written is taken, in M, and the screen says it is not remembered, its key in the frame's font");
   fake_frame(fake, kButtonA, 0);
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && drawn_in(FAKE_FONT_MEDIUM), "A puts the shelf back, in M");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && banded(FAKE_FONT_MONO, SHELF_TOP, SHELF_PANEL), "A puts the shelf back, in M");
   remembered = file_text(PLAYER_TEXT_SIZE_FILE);
   CHECK(remembered != NULL && strcmp(remembered, "L") == 0, "L is what stays remembered: %s", remembered != NULL ? remembered : "(none)");
   free(remembered);
@@ -756,7 +773,7 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1, "M remembered but not to be had: S, one font");
   fake_frame(fake, 0, 0);
   said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
-  CHECK(said != NULL && HAS(said->text, PLAYER_TEXT_KEPT) && drawn_in(FAKE_FONT_SYSTEM), "the first frame says so, in S: %s",
+  CHECK(said != NULL && HAS(said->text, PLAYER_TEXT_KEPT) && banded(FAKE_FONT_SERIF, 0, PANEL), "the first frame says so, in S: %s",
         said != NULL ? said->text : "(none)");
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) == NULL, "the shelf waits under the notice");
   fake_frame(fake, kButtonA, 0);
@@ -768,7 +785,7 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   said = fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP);
   CHECK(said != NULL && HAS(said->text, PLAYER_TEXT_KEPT) && HAS(said->text, "no such font"),
         "set to M from the menu, the screen says the text stays and why: %s", said != NULL ? said->text : "(none)");
-  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1 && drawn_in(FAKE_FONT_SYSTEM),
+  CHECK(fake_menu_value(fake, PLAYER_TEXT_ITEM) == 0 && fake_fonts_held(fake) == 1 && banded(FAKE_FONT_SERIF, 0, PANEL),
         "the item is back to S and the pen keeps its font");
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2) != NULL &&
             strcmp(fake_run_at(fake, PLAYER_MARGIN, 240 - LINE - 2)->text, PLAYER_NOTICE_KEYS) == 0,
@@ -783,18 +800,25 @@ static void a_font_the_device_does_not_have_leaves_the_text_as_it_was_and_says_s
   free(remembered);
   fake_menu_set(fake, PLAYER_TEXT_ITEM, 2);
   fake_frame(fake, 0, 0);
-  CHECK(drawn_in(FAKE_FONT_LARGE) && fake_menu_value(fake, PLAYER_TEXT_ITEM) == 2, "L, which the device has, is taken");
+  CHECK(banded(FAKE_FONT_SANS, SHELF_TOP, SHELF_PANEL) && fake_menu_value(fake, PLAYER_TEXT_ITEM) == 2, "L, which the device has, is taken");
   eventHandler(&fake->api, kEventTerminate, 0);
   end();
 }
 
-/* The reader's rows at each text size, under a status of one line: the column holds some, they fit the screen, and a taller line means fewer. */
+/*
+ * The reader's rows at each text size, under a status of one line in the frame: the column holds
+ * some, they fit between the frame's bands, a taller body line means fewer, and a taller frame
+ * costs rows of whatever body.
+ */
 static void the_reader_fits_its_rows_to_each_text_size(void) {
-  size_t s = player_reader_rows(FAKE_LINE, 1), m = player_reader_rows(FAKE_MEDIUM_LINE, 1), l = player_reader_rows(FAKE_LARGE_LINE, 1);
+  const int room = 240 - (FAKE_SERIF_LINE + 2) - (FAKE_SERIF_LINE + 4);
+  size_t s = player_reader_rows(FAKE_SERIF_LINE, FAKE_SERIF_LINE, 1), m = player_reader_rows(FAKE_MONO_LINE, FAKE_SERIF_LINE, 1),
+         l = player_reader_rows(FAKE_SANS_LINE, FAKE_SERIF_LINE, 1);
   begin("rows");
-  CHECK(l > 1 && s > m && m > l, "S %zu, M %zu, L %zu rows", s, m, l);
-  CHECK((int)s * FAKE_LINE < 240 && (int)m * FAKE_MEDIUM_LINE < 240 && (int)l * FAKE_LARGE_LINE < 240, "each fits the screen");
-  CHECK(s <= READER_MOST_ROWS, "no more than the reader can show");
+  CHECK(l > 1 && m > s && s > l, "M's line is the shortest and L's the tallest: S %zu, M %zu, L %zu rows", s, m, l);
+  CHECK((int)s * FAKE_SERIF_LINE <= room && (int)m * FAKE_MONO_LINE <= room && (int)l * FAKE_SANS_LINE <= room, "each fits between the bands");
+  CHECK(player_reader_rows(FAKE_MONO_LINE, 2 * FAKE_SERIF_LINE, 1) < m, "a taller frame leaves fewer rows");
+  CHECK(m <= READER_MOST_ROWS, "no more than the reader can show");
   end();
 }
 
