@@ -29,7 +29,7 @@ struct player_app {
   player_session *session;
   player_pen pen;
   player_shelf *shelf;
-  LCDFont *disc_font; /* the sentence builder's, held through the pen from its first open; NULL where it cannot be */
+  LCDFont *disc_font; /* the wheel's (wheel.h), held through the pen from the first wheel shown; NULL where it cannot be */
   bool disc_font_tried;
   player_sound sound;
   player_clock clock;

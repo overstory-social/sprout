@@ -1,6 +1,6 @@
 /*
  * The sentence builder screen (the design doc's The chip tree and the crank sentence builder): the
- * sentence so far at the top, the disc of choices in the middle (disc.h) with the selected one
+ * sentence so far at the top, the disc of choices in the middle (wheel.h) with the selected one
  * level at its front as an inverted label, and the selected choice's refusal or the keys at the
  * bottom. The crank turns the disc and up and down step it; A picks, and on the whole sentence
  * runs it; B steps back, and at the verbs closes the builder. A run sentence is told in the reader,
@@ -20,39 +20,20 @@
 #include <stdbool.h>
 
 #include "app.h"
-#include "disc.h"
 #include "gallery.h"
 #include "reader.h"
 #include "sentence.h"
+#include "wheel.h"
 #include "wrap.h"
 
-/* The disc's words' font, packaged into the pdx from Source/fonts/ and held through the pen. */
-#define BUILDER_DISC_FONT "fonts/Roobert-11-Medium.pft"
 /* What leads a sentence trimmed from the left. */
 #define BUILDER_TRIMMED "..."
 #define BUILDER_KEYS "A picks   B steps back   the crank turns the wheel"
 
-/*
- * A word on the disc: drawn flat once while its level's entries stand, and turned to its ray while
- * its angle stands. A long word is cut at the screen's width, as the screen's edge would cut it.
- */
-typedef struct builder_label {
-  LCDBitmap *flat;   /* the word black on white, greyed in a checker where it is; NULL until first shown */
-  LCDBitmap *turned; /* `flat` turned to `along`, inverted where `front`; NULL while the word is not shown */
-  float angle;       /* its sector's angle from the front, as disc_rows gave it */
-  float along;       /* the angle its word is turned to: its ray's, bent, at the word's middle */
-  bool front;
-  bool shown;        /* placed in the frame last drawn */
-  int x, y;          /* where `turned` was placed */
-} builder_label;
-
 typedef struct player_builder {
   player_reader *reader; /* lent while the builder is up */
   sentence sentence;
-  disc disc;
-  builder_label *labels; /* one for each entry of the sentence's level */
-  size_t label_count;
-  unsigned long labels_of; /* the sentence's `made` the labels were drawn for */
+  wheel wheel; /* the level's entries, marked by the sentence's `made` */
   wrapped message; /* words shown over the disc until A or B; no bytes when there are none */
   bool closing;    /* the builder closes once the words are read */
   bool asked;      /* the verb at the front has been asked after since the open: the first update does it, after the first draw */

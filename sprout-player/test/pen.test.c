@@ -7,7 +7,7 @@
  * the pen lets every font go. The frame's font and the disc's are files the pdx ships.
  */
 #include "support.h"
-#include "ui/builder.h"
+#include "ui/wheel.h"
 #include "ui/pen.h"
 
 static void the_frame_is_held_from_the_start_and_the_body_follows_the_size(void) {
@@ -53,7 +53,7 @@ static void a_font_held_for_the_disc_is_the_one_file_and_outlives_a_change_of_si
   const char *why = NULL;
   begin("hold");
   CHECK(player_pen_init(&pen, &fake->api, PLAYER_TEXT_L, &why), "%s", why);
-  disc = player_pen_hold(&pen, BUILDER_DISC_FONT, &why);
+  disc = player_pen_hold(&pen, WHEEL_FONT, &why);
   CHECK(disc != NULL && disc == pen.body && fake_fonts_held(fake) == 2, "the disc's font is L's: the file loaded once");
   CHECK(player_pen_resize(&pen, PLAYER_TEXT_S, &why), "%s", why);
   CHECK(fake_fonts_held(fake) == 2 && fake->api.graphics->getFontHeight(disc) == FAKE_SANS_LINE, "S lets go of L's use; the disc's keeps the file");
@@ -87,7 +87,7 @@ static void a_body_line_is_measured_and_drawn_in_the_body_and_a_frame_line_in_th
 static void the_frames_font_and_the_discs_are_shipped(void) {
   begin("shipped");
   CHECK(shipped_font(PLAYER_FRAME_FONT), "the frame's: %s", PLAYER_FRAME_FONT);
-  CHECK(shipped_font(BUILDER_DISC_FONT), "the disc's: %s", BUILDER_DISC_FONT);
+  CHECK(shipped_font(WHEEL_FONT), "the disc's: %s", WHEEL_FONT);
   end();
 }
 

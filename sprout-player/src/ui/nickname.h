@@ -3,7 +3,8 @@
  * the console has no keyboard (the design doc's Nickname). The pool is
  * filtered by the cartridge's words and by who is present, folded as the TypeScript host folds a
  * nickname (lower case, split on white space); a returning visitor is offered their last name
- * first. The crank and up and down move through the names, A asks `player_admit`, and B closes
+ * first. The names are the words of a wheel (wheel.h), the one offered first at its front; the
+ * crank and up and down turn it, A asks `player_admit` for the name at the front, and B closes
  * the world and goes back to the shelf. The engine's admission is the authority (the spec's The
  * host contract › Admission and identity): a name it refuses is told in its words over the
  * screen, and A or B goes back to picking; an admitted one goes on to the arrival told (arrival.h).
@@ -15,10 +16,8 @@
 #include <stddef.h>
 
 #include "app.h"
+#include "wheel.h"
 #include "wrap.h"
-
-/* Degrees of crank for a name moved. */
-#define NICKNAME_DEGREES_PER_STEP 24.0f
 
 #define NICKNAME_POOL_SIZE 45
 
@@ -29,7 +28,7 @@ typedef struct player_nickname {
   char *notice; /* what the save had to say, from the device's allocator, told when the visitor arrives; or NULL */
   const char *names[NICKNAME_POOL_SIZE]; /* the names offered, from the pool */
   size_t count, selected;
-  float crank;     /* degrees turned toward the next name, not yet a name */
+  wheel wheel;     /* the names */
   wrapped refused; /* why the last name was refused, shown until A or B; no lines when none */
 } player_nickname;
 

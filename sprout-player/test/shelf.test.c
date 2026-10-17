@@ -1,9 +1,11 @@
 /*
  * ui/shelf.c: the shelf screen, driven through the app a frame at a time. The rules: it lists the
  * cartridges at the root and in worlds/ of the app and the Data folder, each once, in path order,
- * titled by the world's name, and nothing else; the selection moves with the d-pad and the crank
- * and wraps through "more worlds..."; a world refused at its open keeps the reason on the shelf;
- * a world whose save could not be written is greyed until a save of it succeeds.
+ * titled by the world's name, and nothing else, each a word on the wheel and "more worlds..." the
+ * last; the wheel turns with the d-pad and the crank, a step as the crank passes halfway, ticking
+ * and settling with a clack, and wraps through "more worlds..."; a world refused at its open keeps
+ * the reason on the shelf, greyed, the reason on the panel; a world whose save could not be written
+ * is greyed until a save of it succeeds; the wheel's labels go when the shelf's screen does.
  */
 #include <stdlib.h>
 
@@ -13,9 +15,9 @@
 #include "ui/nickname.h"
 #include "ui/reader.h"
 #include "ui/shelf.h"
+#include "wheel_support.h"
 
 #define LINE FAKE_SERIF_LINE
-#define ROW(n) (LINE + 4 + 2 + (n) * LINE)
 #define PANEL (240 - (LINE * 3 + 8) + 2)
 
 static player_app *app;
@@ -27,9 +29,24 @@ static void start(void) {
   fake->api.system->setUpdateCallback(player_app_update, app);
 }
 
-static const char *row(int n) {
-  const fake_run *run = fake_run_at(fake, PLAYER_MARGIN, ROW(n));
-  return run != NULL ? run->text : "";
+/* The word at the wheel's front, drawn last frame. */
+static const char *front(void) { return wheel_front(&app->shelf->wheel); }
+
+/* The label of entry `n` on the wheel, drawn last frame, or NULL. */
+static const wheel_label *label(size_t n) {
+  int at = wheel_placed_entry(&app->shelf->wheel, n);
+  return at >= 0 ? wheel_placed(&app->shelf->wheel, at) : NULL;
+}
+
+static const char *word(size_t n) { return label(n) != NULL ? wheel_label_text(label(n)) : ""; }
+
+static bool greyed(size_t n) { return label(n) != NULL && wheel_label_greyed(label(n)); }
+
+static const fake_note *last_note(void) { return fake->note_count > 0 ? &fake->notes[fake->note_count - 1] : NULL; }
+
+static bool sounded(SoundWaveform wave, float pitch) {
+  const fake_note *note = last_note();
+  return note != NULL && note->wave == wave && note->pitch == pitch;
 }
 
 static const char *panel(void) {
@@ -71,38 +88,46 @@ static void the_shelf_lists_the_shipped_worlds_once_in_path_order(void) {
   start();
   fake_frame(fake, 0, 0);
   CHECK(app->shelf->count == 3, "three cartridges, each once: %zu", app->shelf->count);
-  CHECK(strcmp(row(0), "> Teashop") == 0, "the root's cartridge, selected: %s", row(0));
-  CHECK(strcmp(row(1), "  Printers Shop") == 0, "%s", row(1));
-  CHECK(app->shelf->count == 3 && strcmp(app->shelf->entries[2].title, "Chip Tree") == 0,
-        "a cartridge is titled by its world's name, not its file's: %s", app->shelf->count == 3 ? app->shelf->entries[2].title : "");
-  CHECK(strcmp(row(3), "  more worlds...") == 0, "more worlds comes last: %s", row(3));
+  CHECK(strcmp(front(), "Teashop") == 0 && strcmp(word(0), "Teashop") == 0, "the root's cartridge, at the front: %s", front());
+  CHECK(strcmp(word(1), "Printers Shop") == 0, "%s", word(1));
+  CHECK(strcmp(word(2), "Chip Tree") == 0, "a cartridge is titled by its world's name, not its file's: %s", word(2));
+  CHECK(strcmp(word(3), "more worlds...") == 0, "more worlds comes last: %s", word(3));
+  CHECK(fake->placed_count == 4 && !greyed(0) && !greyed(1) && !greyed(2) && !greyed(3), "each word once, none greyed");
   CHECK(strcmp(panel(), "A opens it.") == 0, "%s", panel());
   CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Shelf") == 0, "the title");
   player_app_free(app);
   end();
 }
 
-static void the_selection_moves_with_the_d_pad_and_the_crank_and_wraps(void) {
+static void the_wheel_turns_with_the_d_pad_and_the_crank_and_wraps(void) {
   static const char *const shipped[] = {"teashop.sproutworld", "printers_shop.sproutworld"};
+  int n;
   begin("moves");
   app_folder("app");
   ship(shipped, 2);
   start();
   fake_frame(fake, 0, 0);
   CHECK(app->shelf->selected == 0, "the first is selected");
+  fake->note_count = 0;
   fake_frame(fake, kButtonDown, 0);
-  CHECK(app->shelf->selected == 1 && strcmp(row(1), "> Teashop") == 0, "down: %s", row(1));
-  fake_frame(fake, 0, 20.0f);
-  CHECK(app->shelf->selected == 1, "twenty degrees is not yet a row");
-  fake_frame(fake, 0, 4.0f);
-  CHECK(app->shelf->selected == 2 && strcmp(row(2), "> more worlds...") == 0, "twenty-four is a row: %s", row(2));
+  CHECK(app->shelf->selected == 1 && strcmp(front(), "Teashop") == 0, "down: %s", front());
+  CHECK(fake->note_count == 1 && sounded(kWaveformNoise, 3000.0f), "with a tick");
+  fake_frame(fake, 0, 11.0f);
+  CHECK(app->shelf->selected == 1, "eleven degrees is short of halfway to the next");
+  fake_frame(fake, 0, 2.0f);
+  CHECK(app->shelf->selected == 2 && strcmp(front(), "more worlds...") == 0, "thirteen is past it: %s", front());
+  CHECK(fake->note_count == 2 && sounded(kWaveformNoise, 3000.0f), "a step of the crank ticks");
   CHECK(strcmp(panel(), "A looks for more worlds to download.") == 0, "the panel says what more worlds is: %s", panel());
+  for (n = 0; n < DISC_REST_FRAMES + 20; n++) fake_frame(fake, 0, 0);
+  CHECK(fake->note_count == 3 && sounded(kWaveformSquare, 160.0f), "resting, the wheel settles with a clack");
   fake_frame(fake, kButtonDown, 0);
   CHECK(app->shelf->selected == 0, "down from the last wraps to the first");
   fake_frame(fake, kButtonUp, 0);
   CHECK(app->shelf->selected == 2, "up from the first wraps to the last");
   fake_frame(fake, 0, -48.0f);
-  CHECK(app->shelf->selected == 0, "the crank back two rows");
+  CHECK(app->shelf->selected == 0 && strcmp(front(), word(0)) == 0, "the crank back two words: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(app->screen != &player_shelf_screen && app->shelf->wheel.labels == NULL, "A opens the world at the front, and the wheel's labels go");
   player_app_free(app);
   end();
 }
@@ -135,7 +160,7 @@ static void a_world_refused_at_its_open_keeps_the_reason_on_the_shelf(void) {
   CHECK(system(command) == 0, "%s", command);
   start();
   fake_frame(fake, 0, 0);
-  CHECK(strcmp(row(0), "> Printers Shop") == 0, "inspected, it can be shelved: %s", row(0));
+  CHECK(strcmp(front(), "Printers Shop") == 0 && !greyed(0), "inspected, it can be shelved: %s", front());
   fake_frame(fake, kButtonA, 0);
   for (n = 0; n < 1000 && app->screen != &player_message_screen; n++) fake_frame(fake, 0, 0);
   CHECK(app->screen == &player_message_screen, "the open was refused on the message screen");
@@ -143,7 +168,7 @@ static void a_world_refused_at_its_open_keeps_the_reason_on_the_shelf(void) {
   CHECK(why[0] != '\0', "the message says why");
   fake_frame(fake, kButtonB, 0);
   CHECK(app->screen == &player_shelf_screen, "B goes back to the shelf");
-  CHECK(strcmp(row(0), "> Printers Shop (cannot be opened)") == 0, "the shelf keeps the refusal: %s", row(0));
+  CHECK(strcmp(front(), "Printers Shop") == 0 && greyed(0), "the shelf keeps the refusal, the world greyed: %s", front());
   CHECK(strncmp(panel(), why, strlen(panel())) == 0, "the panel gives the same reason: %s / %s", panel(), why);
   fake_frame(fake, kButtonA, 0);
   CHECK(app->screen == &player_message_screen, "A on it tells the reason again and opens nothing");
@@ -168,7 +193,7 @@ static void a_world_whose_save_failed_is_greyed_until_a_save_is_written(void) {
             HAS(fake_run_at(fake, PLAYER_MARGIN, MESSAGE_TOP)->text, "The save could not be written"),
         "it says the save failed");
   fake_frame(fake, kButtonA, 0);
-  CHECK(strcmp(row(0), "> Printers Shop (its save failed)") == 0, "greyed on the shelf: %s", row(0));
+  CHECK(strcmp(front(), "Printers Shop") == 0 && greyed(0), "greyed on the shelf: %s", front());
   CHECK(HAS(panel(), "The save could not be written"), "the panel says why: %s", panel());
   fake_frame(fake, kButtonA, 0);
   for (n = 0; n < 10000 && app->screen != &player_message_screen && app->screen != &player_reader_screen; n++) fake_frame(fake, enter_name(), 0);
@@ -197,7 +222,7 @@ static void a_world_is_titled_by_its_name_as_words(void) {
 int main(void) {
   test_program("shelf");
   the_shelf_lists_the_shipped_worlds_once_in_path_order();
-  the_selection_moves_with_the_d_pad_and_the_crank_and_wraps();
+  the_wheel_turns_with_the_d_pad_and_the_crank_and_wraps();
   opening_a_world_reaches_the_reader();
   a_world_refused_at_its_open_keeps_the_reason_on_the_shelf();
   a_world_whose_save_failed_is_greyed_until_a_save_is_written();

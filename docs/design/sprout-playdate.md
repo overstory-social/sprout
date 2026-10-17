@@ -283,7 +283,8 @@ keys, the pictures' caption and page words, a message's "A to go on", the
 arrival's loading line), and the body, the font of the text size chosen
 (`src/ui/text_size.h`), draws everything between: S is Newsleak Serif Bold
 itself, M Roobert 11 Mono Condensed and L Roobert 11 Medium. Each screen's
-bands take the frame's line height and its rows the body's. The pen holds
+bands take the frame's line height and its rows the body's. The words of a
+wheel, the disc every chooser turns, are Roobert 11 Medium at every size. The pen holds
 every font the player draws with, a file loaded once however many uses hold
 it, so S holds one file and the other sizes two. "text" in the system menu is
 an options item, S / M / L; the size set there is applied when the menu
@@ -297,17 +298,17 @@ has changed and wraps again whatever the screen keeps wrapped; a screen
 moves the app to another, and the move takes effect when its update is over.
 The app starts on the shelf (`src/ui/shelf.h`), as The shelf below describes
 it; the app holds it, so it outlives its screen and a cartridge is
-inspected once for as long as the app runs. Its "more worlds..." row opens
-the download screen (`src/ui/downloads.h`), and when the list of worlds could
-not be had there, the row's panel says why until it is tried again. A on a
-world shows the arrival
+inspected once for as long as the app runs. Its last word, "more worlds...",
+opens the download screen (`src/ui/downloads.h`), and when the list of worlds
+could not be had there, the panel under it says why until it is tried again.
+A on a world shows the arrival
 (`src/ui/arrival.h`), which reads the cartridge a step a frame behind a
 loading line, loads the save and shows the nickname screen
 (`src/ui/nickname.h`), as Nickname below describes it:
-"Who are you in <world>?" over one name of the pool, which the crank (24
-degrees a name) and up and down move through, A entering it and B closing
-the world and going back to the shelf. A name `player_admit` refuses is told
-in the engine's words over the screen until A or B, and the person picks
+"Who are you in <world>?" over a wheel of the pool's names, which the crank
+and up and down turn, A entering the name at its front and B closing the
+world and going back to the shelf. A name `player_admit` refuses is told in
+the engine's words in place of the wheel until A or B, and the person picks
 again; with no name free, A says so on the message screen. An admitted
 visitor goes on to the reader, behind the arrival's pictures. What
 stops an open is told on the message screen (`src/ui/message.h`), whose A
@@ -379,8 +380,8 @@ note on a synth of its own (`pd->sound->synth`) with its own
 waveform, pitch, volume, length and envelope, made when the app starts and
 freed when it ends. Every screen sounds a cue through `player_cue` in
 `src/ui/app.h`: the builder's tick, clack, pick, back and refusal, the
-nickname screen's tick, pick, back and refusal, and the pictures' tick and
-clack. With no synth a cue is silent.
+same tick and clack from every other wheel, the nickname screen's pick, back
+and refusal, and the pictures' tick and clack. With no synth a cue is silent.
 
 The reader's clock (`src/ui/clock.h`): while a
 reader is open, a tick is asked of the session (`player_tick`) every ten
@@ -516,7 +517,9 @@ which is the order the parser binds them in
 (`corpus/good/value-first` pins it). The view offers readings and not
 intents, so the wheel has no intents at the top (hole 500).
 
-On the screen the wheel is a disc of words (`src/ui/disc.h`): a hub on the
+On the screen the wheel is a disc of words (`src/ui/disc.h`, drawn by
+`src/ui/wheel.h`, which the shelf, the nickname screen and the download
+screen choose on too, each owning its words and its selection): a hub on the
 screen's left edge with a marker pointing at the front, and each entry a
 sector of 24 degrees fanning to the right, its word in Roobert 11 Medium (L's
 font, held through the pen) along its ray. The selected word lies level at the front as an inverted label (a
@@ -544,7 +547,10 @@ SDK's synths, silent where there is no sound to play on).
 The console has no keyboard, so a visitor picks from a pool of plain words
 (Alder, Aster, Birch, …) filtered by the cartridge's word set, folded as the
 engine folds a typed line (lower case, split on white space), and by who is
-present. A returning visitor is offered their last name first. The device
+present, and the names left are the words of a wheel, as the sentence
+builder's choices are, which the crank and up and down turn, wrapping, with
+the builder's tick and clack. A returning visitor is offered their last name
+first, at the wheel's front. The device
 keeps no list of names apart from the saves: the last name is the visitor's
 record in the world's save, and starting a world over carries it across to
 the fresh nickname screen, so it is still offered first. The engine's
@@ -698,14 +704,19 @@ The shelf lists the `.sproutworld` files at the root of the app and of its
 Data folder and in each one's `worlds/` folder (a copy in Data shadows the
 app's). Each is inspected once, by file name and size, through
 `sprout_peek`: its header and caps alone, so the shelf costs no more for a
-big world than a small one. One the engine refuses (another format, a newer
-language level, a static cap over the app's, a damaged file) is listed
-greyed with the engine's reason and cannot be opened; a world too big for
-the console's memory is refused at its open, with the same words on the
-shelf afterwards. A world is titled by its name as
+big world than a small one. Each world is a word on a wheel, as the sentence
+builder's choices are: its title, turned by the crank and up and down,
+wrapping, with the builder's tick and clack, and A opens the one at the
+front; the title over it and the panel under it are the frame's. One the
+engine refuses (another format, a newer language level, a static cap over
+the app's, a damaged file) is drawn greyed with the engine's reason on the
+panel and cannot be opened; a world too big for the console's memory is
+refused at its open, with the same words on the shelf afterwards. A world
+whose save could not be written is greyed too, and A on it tries again. A
+long title is cut at the screen's edge. A world is titled by its name as
 words, since a cartridge carries no other title: `printers_shop` is shelved
 as `Printers Shop`, and the picker and the reader's first line call it the
-same. The last row, "more worlds…", opens the download screen.
+same. The last word, "more worlds…", opens the download screen.
 
 ### Shipped worlds and downloads
 
@@ -757,7 +768,11 @@ would be orphaned. The index is read to at most 256 KB.
 
 The index address is `PLAYER_INDEX_URL` in `src/ui/downloads.h`, a placeholder that
 never resolves until a real one is chosen; `downloads.json` in the Data
-folder points a built app elsewhere. Without Wi-Fi, with permission
+folder points a built app elsewhere. The worlds the index lists are the
+words of a wheel, as on the shelf, each by its title; the panel under it
+says who made the one at the front, its version and size, and A downloads
+it. One already on the shelf is greyed, the panel says so, and A on it does
+nothing but say so again. Without Wi-Fi, with permission
 refused, or with a server that cannot be reached, the screen says why, B
 goes back, and the shelf says what happened and still lists what it has.
 

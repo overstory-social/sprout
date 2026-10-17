@@ -6,7 +6,9 @@
  * world chosen arrives whole, its files checked against the index and put in place, the cartridge
  * last, and is shelved; and a world whose bytes are not the ones listed (another checksum, more
  * bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
- * the network fails is said, and leaving mid-download leaves nothing half written or open.
+ * the network fails is said, and leaving mid-download leaves nothing half written or open. The
+ * worlds are the words of a wheel by title, turned by the crank and the d-pad and wrapping, one on
+ * the shelf already greyed with the panel saying so.
  */
 #include <stdlib.h>
 
@@ -15,9 +17,9 @@
 #include "ui/app.h"
 #include "ui/downloads.h"
 #include "ui/shelf.h"
+#include "wheel_support.h"
 
 #define LINE FAKE_SERIF_LINE
-#define ROW(n) (LINE + 4 + 2 + (n) * LINE)
 #define PANEL (240 - (LINE * 3 + 8) + 2)
 #define INDEX_URL "https://w.example/sprout/index.json"
 
@@ -44,10 +46,6 @@ static void stop(void) {
   end();
 }
 
-static const char *row(int n) {
-  const fake_run *run = fake_run_at(fake, PLAYER_MARGIN, ROW(n));
-  return run != NULL ? run->text : "";
-}
 
 /* The panel's lines this frame, joined by spaces. */
 static const char *panel(void) {
@@ -66,6 +64,25 @@ static const char *panel(void) {
 static player_downloads *screen(void) {
   return app->screen == &player_downloads_screen ? (player_downloads *)app->ctx : NULL;
 }
+
+/* The wheel of the screen up: the download list's or the shelf's. */
+static const wheel *wheel_up(void) {
+  if (screen() != NULL) return &screen()->wheel;
+  return app->screen == &player_shelf_screen ? &app->shelf->wheel : NULL;
+}
+
+/* The word at the front of the wheel up, drawn last frame. */
+static const char *front(void) { return wheel_up() != NULL ? wheel_front(wheel_up()) : "(no wheel)"; }
+
+/* The label of entry `n` on the wheel up, drawn last frame, or NULL; its word, and whether it is greyed. */
+static const wheel_label *label(size_t n) {
+  int at = wheel_up() != NULL ? wheel_placed_entry(wheel_up(), n) : -1;
+  return at >= 0 ? wheel_placed(wheel_up(), at) : NULL;
+}
+
+static const char *word(size_t n) { return label(n) != NULL ? wheel_label_text(label(n)) : ""; }
+
+static bool greyed(size_t n) { return label(n) != NULL && wheel_label_greyed(label(n)); }
 
 /* Runs frames until the panel holds `words` or `most` have run; whether it came to. */
 static bool frames_until(const char *words, int most) {
@@ -183,13 +200,15 @@ static void the_signed_index_is_listed_and_one_changed_is_refused(void) {
         fake->asked_purpose);
   CHECK(fake->wifi_enabled, "the Wi-Fi is asked to come up");
   CHECK(frames_until("A downloads it.", 20), "the list under the baked key: %s", panel());
-  CHECK(strcmp(row(0), "> Caf\xc3\xa9 \"Moss\"\tTea  1.2.0  26.4 KB") == 0, "%s", row(0));
-  CHECK(strcmp(row(1), "  Bell  0.1.0  4.0 KB") == 0, "%s", row(1));
+  CHECK(strcmp(front(), "Caf\xc3\xa9 \"Moss\"\tTea") == 0 && strcmp(word(0), front()) == 0, "each world is its title: %s", front());
+  CHECK(strcmp(word(1), "Bell") == 0 && !greyed(0) && !greyed(1) && fake->placed_count == 2, "the next a sector below: %s", word(1));
   CHECK(strcmp(panel(), "by Ada \\ Bo, version 1.2.0, 26.4 KB. A downloads it.") == 0, "%s", panel());
   fake_frame(fake, kButtonDown, 0);
-  CHECK(strcmp(row(1), "> Bell  0.1.0  4.0 KB") == 0 && HAS(panel(), "by Eve"), "down selects the next: %s", panel());
-  fake_frame(fake, 0, 24.0f);
-  CHECK(strcmp(row(0), "> Caf\xc3\xa9 \"Moss\"\tTea  1.2.0  26.4 KB") == 0, "the crank wraps round: %s", row(0));
+  CHECK(strcmp(front(), "Bell") == 0 && HAS(panel(), "by Eve"), "down selects the next: %s", panel());
+  fake->note_count = 0;
+  fake_frame(fake, 0, 13.0f);
+  CHECK(strcmp(front(), word(0)) == 0 && screen()->selected == 0, "the crank past halfway wraps round: %s", front());
+  CHECK(fake->note_count == 1, "with a tick: %d notes", fake->note_count);
   fake_frame(fake, kButtonB, 0);
   CHECK(app->screen == &player_shelf_screen && !fake->wifi_enabled, "B goes back to the shelf and lets the Wi-Fi sleep");
   CHECK(strcmp(panel(), "No worlds are on the shelf. A looks for more worlds to download.") == 0,
@@ -203,7 +222,7 @@ static void the_signed_index_is_listed_and_one_changed_is_refused(void) {
   fake->answers[0].body = tampered;
   fake_frame(fake, kButtonA, 0);
   CHECK(frames_until("A tries again, B goes back.", 20), "%s", panel());
-  CHECK(HAS(panel(), NOT_TRUSTED) && strcmp(row(0), "") == 0, "refused with nothing listed: %s", panel());
+  CHECK(HAS(panel(), NOT_TRUSTED) && fake->placed_count == 0, "refused with nothing listed: %s", panel());
   fake_frame(fake, kButtonB, 0);
   fake_frame(fake, 0, 0);
   CHECK(app->screen == &player_shelf_screen && strncmp(panel(), NOT_TRUSTED, strlen(NOT_TRUSTED)) == 0 &&
@@ -224,7 +243,7 @@ static void a_chosen_world_arrives_whole_and_is_shelved(void) {
   fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
   fake_serve(fake, "https://w.example/files/cellar.png", 200, world.picture, world.picture_bytes);
   CHECK(open_listed() != NULL, "the screen");
-  CHECK(HAS(row(0), "> Tea Shop  1.0.0  ") && !HAS(row(0), "on your shelf"), "%s", row(0));
+  CHECK(strcmp(front(), "Tea Shop") == 0 && !greyed(0) && !HAS(panel(), "on your shelf"), "%s", front());
   fake->piece = 4096;
   fake_frame(fake, kButtonA, 0);
   CHECK(HAS(panel(), "Downloading Tea Shop: file 1 of 2 (Tea Shop, "), "progress: %s", panel());
@@ -241,11 +260,13 @@ static void a_chosen_world_arrives_whole_and_is_shelved(void) {
     CHECK(length == world.cartridge_bytes && memcmp(got, world.cartridge, length) == 0, "the bytes are the ones served");
     free(got);
   }
-  CHECK(HAS(row(0), "(on your shelf)"), "the list marks it: %s", row(0));
+  fake_frame(fake, kButtonDown, 0);
+  CHECK(strcmp(front(), "Tea Shop") == 0 && greyed(0) && HAS(panel(), "It is on your shelf."), "the list greys it, the panel says why: %s",
+        panel());
   fake_frame(fake, kButtonA, 0);
   CHECK(strcmp(panel(), "Tea Shop is already on your shelf.") == 0, "%s", panel());
   fake_frame(fake, kButtonB, 0);
-  CHECK(app->screen == &player_shelf_screen && strcmp(row(0), "> Teashop") == 0, "the shelf lists it: %s", row(0));
+  CHECK(app->screen == &player_shelf_screen && strcmp(front(), "Teashop") == 0, "the shelf lists it: %s", front());
   stop();
   forget_teashop();
 }

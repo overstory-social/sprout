@@ -63,7 +63,7 @@ set(PLAYER_SOURCES
   src/signed_index.c src/text.c src/told.c src/turns.c src/ui/app.c src/ui/arrival.c src/ui/builder.c src/ui/clock.c
   src/ui/disc.c src/ui/downloads.c src/ui/everything.c src/ui/gallery.c src/ui/images.c src/ui/message.c src/ui/nickname.c src/ui/pen.c
   src/ui/pictures.c src/ui/reader.c src/ui/sentence.c src/ui/sentence_text.c src/ui/shelf.c src/ui/sound.c src/ui/text_size.c
-  src/ui/transcript.c src/ui/wrap.c)
+  src/ui/transcript.c src/ui/wheel.c src/ui/wrap.c)
 
 # The publisher's public key, whose signature the download screen requires on the index of worlds,
 # baked in as generated/publickey.h. scripts/playdate-player.mjs names the file it reads
@@ -102,7 +102,7 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
   set(PLAYER_CARTRIDGES "" CACHE PATH "Folder of packed corpus cartridges the tests open")
   # One test program for each module of src/ (the sentence builder's three, by concern), beside the session
   # played end to end.
-  add_library(player_test_support STATIC test/support.c test/builder_support.c test/fake_playdate/system.c
+  add_library(player_test_support STATIC test/support.c test/builder_support.c test/wheel_support.c test/fake_playdate/system.c
     test/fake_playdate/files.c test/fake_playdate/screen.c test/fake_playdate/bitmaps.c test/fake_playdate/sound.c
     test/fake_playdate/network.c)
   target_link_libraries(player_test_support PUBLIC sprout_player_core)
@@ -111,7 +111,7 @@ if(NOT TOOLCHAIN STREQUAL "armgcc")
     PLAYER_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   set(PLAYER_TESTS text ed25519 shipping shipped files stack pd_host budgets told savelog session turns seen played
     wrap transcript ui builder_disc builder_sentence builder_crank sentence_text disc gallery pictures sound canonical signed_index shelf
-    nickname clock net downloads text_size pen)
+    nickname clock net downloads text_size pen wheel)
   foreach(name ${PLAYER_TESTS})
     add_executable(player_${name}_test test/${name}.test.c)
     target_link_libraries(player_${name}_test PRIVATE player_test_support)

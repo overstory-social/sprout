@@ -19,55 +19,22 @@ bool keys_shown(void) { return panel() != NULL && strcmp(panel()->text, "A picks
 
 player_builder *builder(void) { return app != NULL && app->screen == &player_builder_screen ? (player_builder *)app->ctx : NULL; }
 
-const builder_label *label_placed(int n) {
-  player_builder *b = builder();
-  size_t i;
-  if (b == NULL || n >= fake->placed_count) return NULL;
-  for (i = 0; i < b->label_count; i++)
-    if (b->labels[i].turned != NULL && fake_made_index(fake, b->labels[i].turned) == fake->placed[n].made) return &b->labels[i];
-  return NULL;
-}
+const wheel_label *label_placed(int n) { return builder() != NULL ? wheel_placed(&builder()->wheel, n) : NULL; }
 
-size_t entry_of(const builder_label *label) { return (size_t)(label - builder()->labels); }
+size_t entry_of(const wheel_label *label) { return (size_t)(label - builder()->wheel.labels); }
 
-const fake_run *label_run(const builder_label *label) {
-  int made = label != NULL && label->flat != NULL ? fake_made_index(fake, label->flat) : -1;
-  return made >= 0 && fake->made[made].run_count > 0 ? &fake->made[made].runs[0] : NULL;
-}
+const fake_run *label_run(const wheel_label *label) { return wheel_label_run(label); }
 
-const char *label_text(const builder_label *label) {
-  const fake_run *run = label_run(label);
-  return run != NULL ? run->text : "(no text)";
-}
+const char *label_text(const wheel_label *label) { return wheel_label_text(label); }
 
-/* Whether placement `n` has a white pixel drawn: the inverted label, as an unturned one has only black. */
-static bool inverted(int n) {
-  const fake_made *made = &fake->made[fake->placed[n].made];
-  int x, y;
-  for (y = 0; y < made->height; y++)
-    for (x = 0; x < made->width; x++)
-      if (fake_made_pixel(fake, fake->placed[n].made, x, y) == kColorWhite) return true;
-  return false;
-}
-
-int front_placed(void) {
-  int n;
-  for (n = 0; n < fake->placed_count; n++)
-    if (inverted(n)) return n;
-  return -1;
-}
+int front_placed(void) { return wheel_front_placed(); }
 
 const char *front(void) {
   int n = front_placed();
   return n >= 0 ? label_text(label_placed(n)) : "(no front)";
 }
 
-int placed_entry(size_t index) {
-  int n;
-  for (n = 0; n < fake->placed_count; n++)
-    if (label_placed(n) != NULL && entry_of(label_placed(n)) == index) return n;
-  return -1;
-}
+int placed_entry(size_t index) { return builder() != NULL ? wheel_placed_entry(&builder()->wheel, index) : -1; }
 
 const char *phrase(void) {
   const fake_run *run = fake_run_at(fake, PLAYER_MARGIN, 0);

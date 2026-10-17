@@ -548,22 +548,6 @@ void sentence_nudge(sentence *s, long steps) {
     sentence_move(s, steps);
 }
 
-long sentence_turn(sentence *s, float degrees) {
-  float half = SENTENCE_DEGREES_PER_STEP / 2;
-  long steps = 0;
-  s->crank += degrees;
-  for (; s->crank >= half; steps++) s->crank -= SENTENCE_DEGREES_PER_STEP;
-  for (; s->crank < -half; steps--) s->crank += SENTENCE_DEGREES_PER_STEP;
-  if (steps != 0) sentence_nudge(s, steps);
-  return steps;
-}
-
-float sentence_fraction(const sentence *s) { return s->crank / SENTENCE_DEGREES_PER_STEP; }
-
-void sentence_settle(sentence *s, float share) {
-  s->crank *= 1 - share;
-  if (s->crank > -0.5f && s->crank < 0.5f) s->crank = 0;
-}
 
 /* Asks for the readings of verb `v`, the choice at the root; the root then says of the verb what its level said. */
 static void ask_verb(sentence *s, size_t v) {
@@ -682,7 +666,6 @@ sentence_end sentence_pick(sentence *s, const char **words) {
   }
   next.selected = 0;
   s->state = next;
-  s->crank = 0;
   refresh(s);
   return SENTENCE_GOES_ON;
 }
@@ -690,7 +673,6 @@ sentence_end sentence_pick(sentence *s, const char **words) {
 bool sentence_back(sentence *s) {
   if (s->history_count == 0) return false;
   s->state = s->history[--s->history_count];
-  s->crank = 0;
   return_to(s);
   return true;
 }
