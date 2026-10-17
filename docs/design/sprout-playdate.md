@@ -377,7 +377,10 @@ The reader's clock (`src/ui/clock.h`): while a
 reader is open, a tick is asked of the session (`player_tick`) every ten
 seconds of the device's clock, clamped so a clock set back brings no tick
 sooner; what the tick told is added to the transcript and the status looked
-at again, and the pictures it asked for are shown as a turn's are. A tick is
+at again, and the pictures it asked for are shown as a turn's are. A tick
+that changed the state and told nothing (`player_told.changed`: a save is
+owed) is looked after too, in the tick, where the cost is the tick's, so the
+view the builder opens from is never stale. A tick is
 asked for only while the reader itself is on show, so one that falls due
 under the builder or the pictures comes when they close. A tick whose save
 could not be written stops play as a turn's does. `kEventLock` and
@@ -428,8 +431,11 @@ parser.
 The tree stays in the session, and is built a verb at a time. `player_view`
 polls the scene alone (`sprout_scene`): the place, the description, the
 ways out, who is there and what is carried, and the verbs the world
-offers, with no readings, and keeps it (`seen.c`) until the next view, load
-or close. `player_chips`, with the picks so far as 1-based indexes
+offers, with no readings, and keeps it (`seen.c`) until the state changes,
+the next load or the close: a turn that commits or changes the state marks
+the kept view stale and the next view polls again, and a view asked while
+the kept one stands is the kept one, nothing polled, so A opens the builder
+over the view the reader already has. `player_chips`, with the picks so far as 1-based indexes
 (none for the verbs), answers one level: each choice with `greyed`, whether
 nothing under it can be done, and `reason`, the first refusal under it, and
 the level's `leaf`. The first level under a verb asks the runtime for that
@@ -437,8 +443,11 @@ verb's readings alone (`sprout_readings_for`: the offers and consent passes
 for one verb over what is in range, a hundredth of the whole poll), arranges
 them as the verb's subtree and keeps it; at the root a verb not yet reached
 is neither greyed nor not (`PLAYER_GREYED_UNKNOWN`), and the level under a verb says of the
-verb what the root then shows. The sentence builder asks for the verb the disc
-settles on, so it is greyed or not before it is picked. The caverns' whole
+verb what the root then shows. The sentence builder asks for no verb's
+readings when it opens: the disc is drawn first, in the frame A was pressed,
+and the verb at its front is asked after on the next frame, as the verb the
+disc settles on is, so a verb is greyed or not before it is picked and A to
+the wheel costs the root level and a draw. The caverns' whole
 tree was 223 KB of JSON and 2,194 nodes built in one poll that reset the
 console; now a level is a few hundred bytes, a verb's readings cost one
 small poll, and the screens never hold the tree.

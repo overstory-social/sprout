@@ -61,8 +61,9 @@ static const char TICK_NO_MEMORY[] = "The player ran out of memory telling what 
 
 /*
  * A tick: what it told is added to the transcript and the status looked at again, and the pictures
- * it asked for are shown. A tick whose save could not be written stops play; one the session
- * refused says why, once, and the clock stops.
+ * it asked for are shown; one that changed the state and told nothing is looked after too, here where
+ * the cost is the tick's. A tick whose save could not be written stops play; one the session refused
+ * says why, once, and the clock stops.
  */
 static void tick(player_app *app, player_reader *reader) {
   player_told told = player_tick(app->session);
@@ -77,7 +78,7 @@ static void tick(player_app *app, player_reader *reader) {
     transcript_push(&reader->lines, "notice", told.words, strlen(told.words));
     return;
   }
-  if (told.lines.count == 0) return;
+  if (told.lines.count == 0 && !told.changed) return;
   gallery_init(&pictures, app->pd);
   kept = transcript_tell(&reader->lines, &told.lines) && images_take_told(&pictures, app->assets, &told.lines);
   kept = player_reader_look(app, reader, NULL) && kept;

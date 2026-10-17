@@ -7,8 +7,10 @@
  * comes forward again, on the 400 by 240 screen. A opens the sentence builder (builder.h),
  * which the reader is lent to while it is up. While a reader is open the app's clock (clock.h)
  * runs, and when a tick is due the reader asks the session for one and tells what it told, behind
- * the pictures it asked for (pictures.h); a tick is asked for only while the reader itself is on
- * show, so one falling due under the builder or the pictures comes when they close.
+ * the pictures it asked for (pictures.h), and looks again after any tick that changed the state,
+ * told or not, so the view the builder opens from is never stale and A never pays for a poll; a
+ * tick is asked for only while the reader itself is on show, so one falling due under the builder
+ * or the pictures comes when they close.
  */
 #ifndef PLAYER_UI_READER_H
 #define PLAYER_UI_READER_H
@@ -37,8 +39,9 @@ extern const player_screen player_reader_screen;
 player_reader *player_reader_new(player_app *app);
 
 /*
- * Polls the visitor's view and sets the status from it; a view that cannot be had is told as a
- * notice. `*seen`, where asked for, is the view or NULL, and lives until the next session call.
+ * Takes the visitor's view, the one the session keeps or a fresh poll where none stands or the state
+ * changed, and sets the status from it; a view that cannot be had is told as a notice. `*seen`, where
+ * asked for, is the view or NULL, and lives until the next session call.
  */
 bool player_reader_look(player_app *app, player_reader *reader, const sprout_seen_view **seen);
 

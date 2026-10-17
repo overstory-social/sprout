@@ -56,6 +56,7 @@ typedef struct player_builder {
   unsigned long labels_of; /* the sentence's `made` the labels were drawn for */
   wrapped message; /* words shown over the disc until A or B; no bytes when there are none */
   bool closing;    /* the builder closes once the words are read */
+  bool asked;      /* the verb at the front has been asked after since the open: the first update does it, after the first draw */
   gallery pictures; /* what the sentence run asked to show, shown once the builder closes */
   char line[512];  /* the sentence so far as it fits the screen */
 } player_builder;
@@ -63,9 +64,10 @@ typedef struct player_builder {
 extern const player_screen player_builder_screen;
 
 /*
- * Opens the builder over the visitor's view, the reader lent to it, and shows it. Where nothing can be
- * built (the view cannot be had, its poll ran out, nothing can be done) the reader is told why and
- * stays; false then.
+ * Opens the builder over the visitor's view, the one the session keeps where it stands (a poll only
+ * where none does), the reader lent to it, and shows it, the disc drawn before any verb's readings are
+ * asked for. Where nothing can be built (the view cannot be had, its poll ran out, nothing can be done)
+ * the reader is told why and stays; false then.
  */
 bool player_builder_open(player_app *app, player_reader *reader);
 
