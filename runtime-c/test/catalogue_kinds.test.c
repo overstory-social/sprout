@@ -40,7 +40,7 @@ static void expect_default(sprout_arena *arena, const sprout_literal *literal, c
 }
 
 static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const sprout_json *row) {
-  size_t i, plain = 0;
+  size_t i;
   const sprout_json *properties = corpus_get(row, "properties");
   const sprout_json *order = corpus_get(row, "order");
   const sprout_json *passages = corpus_get(row, "passages");
@@ -54,17 +54,6 @@ static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const s
   for (i = 0; i < kind->order_count && i < order->count; i++)
     CHECK_STR(kind->order[i], order->items[i]->bytes);
   CHECK_INT(kind->property_count, properties->count);
-  /* The plain properties are held again in name order, the order a save writes them, and no remembered one is. */
-  for (i = 0; i < kind->property_count; i++) {
-    const sprout_property *one = kind->properties[i];
-    size_t j;
-    bool found = false;
-    for (j = 0; j < kind->plain_count && !found; j++) found = kind->by_name[j] == one;
-    CHECK(found != one->remembered);
-    if (!one->remembered) plain++;
-  }
-  CHECK_INT(kind->plain_count, plain);
-  for (i = 1; i < kind->plain_count; i++) CHECK(strcmp(kind->by_name[i - 1]->name, kind->by_name[i]->name) < 0);
   for (i = 0; i < kind->property_count && i < properties->count; i++) {
     const sprout_json *p = properties->items[i];
     CHECK_STR(kind->properties[i]->name, corpus_get(p, "name")->bytes);

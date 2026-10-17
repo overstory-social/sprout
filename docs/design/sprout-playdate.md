@@ -46,9 +46,9 @@ Three programs share one language and meet at two files.
 
 The **stored world** (the spec's _State_) is the second meeting point: the
 C runtime writes the stored form the language's schema
-(`sprout/lang/src/host/stored.ts`) reads, byte for byte as
-`corpus/goldens/stored-canon.json` pins it, so a save made on a console
-loads on a laptop and the other way round. The
+(`sprout/lang/src/host/stored.ts`) reads, the diff from the world a fresh
+load makes, byte for byte as `corpus/goldens/stored-canon.json` pins it,
+so a save made on a console loads on a laptop and the other way round. The
 **view** is the third: a poll gives the visitor's place, ways out, people,
 carried things and every reading they could make, and that, not a typed
 line, is what a viewer without a keyboard works from.
@@ -539,15 +539,21 @@ word.
 A world is saved after every input that committed a turn:
 `saves/<bundle hash>.json` is the stored world, byte for byte what `sproutc`
 reads and writes, and `saves/<bundle hash>.log` is the last 32 log entries
-and the clamp's seconds. One input is one save however many turns it runs: a
+and the clamp's seconds. The save is the diff from the world the cartridge
+makes on a fresh load: an instance is written only where something about it
+differs from its declaration, and only the fields that differ, so a new
+world with the mailbox open is the world's name, its serial, one visitor
+and one instance with one property, and the reader lays the records over a
+fresh load of the cartridge the save is keyed to. One input is one save however many turns it runs: a
 sentence with `everything` for a role that takes one thing runs a turn for
 each thing in one frame, the log written at each, and the state is written
 once, after the last, as a single turn's is. A crash part way through such a
 line loses the line.
 
 A bundle with another hash is a redeploy and starts afresh, with the old
-save unused. A save that will not read is set aside as `.damaged` and the
-world starts again, in words. A save that cannot be written, at the turn or
+save unused. A save that will not read, one written in a form before the
+diff among them, is set aside as `.damaged` and the world starts again, in
+words. A save that cannot be written, at the turn or
 at any slice, stops play with the words on the screen, the world is let go,
 and the shelf greys it with the reason until a save of it succeeds: a move
 that is not kept is not played. "start over" in the system menu removes a
@@ -556,23 +562,24 @@ world's save and log, so its next arrival is a fresh one.
 When the state is on disk: the log is written at the end of the turn, before
 its reply shows; the state is written over the frames that follow, while the
 visitor reads and builds the next sentence. The first frame after the turn
-makes the state's bytes (`sprout_state_write`, under a millisecond for the
-caverns' 480 KB on a desktop) and opens `<hash>.json.part`; each frame after
-writes 16 KB of them (`PLAYER_SAVE_SLICE`, about 30 frames for the caverns);
-the last closes the part, renames it to `<hash>.json.tmp`, removes the old
-save and renames the `.tmp` over it. The rename after an unlink is the
-pattern the whole-file writes already use, since the SDK does not say that
-`rename` replaces a file; a read that finds no save reads the `.tmp`, so a
-save cut short at any point leaves the last whole state readable, and a
-half-written `.part` is never read. The state does not change under the
-writer: a turn asked before the save is done (a command, a tick, an arrival,
-a departure) first writes the rest of it in that frame, then runs; the later
-turns of a line, which nothing writes between, are the exception. Leaving
-the world, "start over" (which drops the save rather than finishing it),
-opening the system menu (`kEventPause`), locking the device and its
-low-power sleep all write what is owed first, so the state is on disk
-whenever the app could be ended. The bytes being written are held in an
-arena of their own until the last slice, about the size of the state.
+makes the state's bytes (`sprout_state_write`, a few kilobytes for the
+caverns after a short play, under a millisecond on a desktop) and opens
+`<hash>.json.part`; each frame after writes 16 KB of them
+(`PLAYER_SAVE_SLICE`, one frame for such a save); the last closes the part,
+renames it to `<hash>.json.tmp`, removes the old save and renames the `.tmp`
+over it. The rename after an unlink is the pattern the whole-file writes
+already use, since the SDK does not say that `rename` replaces a file; a
+read that finds no save reads the `.tmp`, so a save cut short at any point
+leaves the last whole state readable, and a half-written `.part` is never
+read. The state does not change under the writer: a turn asked before the
+save is done (a command, a tick, an arrival, a departure) first writes the
+rest of it in that frame, then runs; the later turns of a line, which
+nothing writes between, are the exception. Leaving the world, "start over"
+(which drops the save rather than finishing it), opening the system menu
+(`kEventPause`), locking the device and its low-power sleep all write what
+is owed first, so the state is on disk whenever the app could be ended. The
+bytes being written are held in an arena of their own until the last slice,
+about the size of the state.
 
 A tick's save waits. A visitor's own turn (a command, an arrival, a
 departure) saves at once, as above. A tick that changed the state writes

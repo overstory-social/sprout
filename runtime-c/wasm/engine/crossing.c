@@ -201,7 +201,7 @@ EXPORT("sw_open") int sw_open(size_t length, size_t world_id_length) {
   } else {
     status = sprout_state_read(&e->host, (const char *)e->input, length, &opened, &refusal);
   }
-  if (status == SPROUT_OK) status = sprout_state_open(opened, e->world, NULL, &refusal);
+  if (status == SPROUT_OK) status = sprout_state_open(opened, e->world, &refusal);
   if (status != SPROUT_OK) {
     if (opened != NULL) sprout_state_free(opened);
     return refusal.text[0] == '\0' ? status : engine_answer_text(e, status, refusal.text);

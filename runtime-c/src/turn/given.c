@@ -104,7 +104,7 @@ sprout_status turn_given(const sprout_state *state, sprout_outcome *outcome) {
   /* A turn that faulted names nobody. Present is standing somewhere: a visitor who is away has no container. */
   for (i = 0; outcome->committed && i < state->visitor_count; i++) {
     const sprout_stored_instance *person = sprout_state_find(state, state->visitors[i].instance);
-    if (person == NULL || person->dormant || !person->has_container) continue;
+    if (person == NULL || !person->has_container) continue;
     if (!sprout_state_copy_str(keep, state->visitors[i].visit, &stale[stale_count])) return SPROUT_NO_MEMORY;
     stale_count++;
   }

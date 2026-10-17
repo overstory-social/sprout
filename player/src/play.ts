@@ -204,7 +204,7 @@ function caughtUp(stage: Stage, entry: TurnEntry | null, from: StoredState): Cau
   }
   const records = recordsOf(from);
   const due = (wake: { readonly object: string; readonly serial: number }): DueWake => {
-    const pending = records.get(wake.object)?.wakes.find((one) => one.serial === wake.serial);
+    const pending = records.get(wake.object)?.wakes?.find((one) => one.serial === wake.serial);
     if (pending === undefined) {
       throw new Error(`Catch-up delivered a wake \`${wake.object}\` was not waiting on.`);
     }

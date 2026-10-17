@@ -390,17 +390,16 @@ static void a_visit_the_world_never_saw_and_a_visitor_who_is_away_have_no_view(v
   view_bench_case_open(&b, &c, golden);
   CHECK_INT(sprout_view(c.world, c.state, &c.host, "nobody", &view), SPROUT_BAD_INPUT);
   CHECK(strstr(view.fault.text, "`nobody` has never visited this world.") != NULL);
-  /* The visitor's own record sorts before the declared objects, so the first place named is where they stand. */
+  /* The visitor's own record sorts before the declared objects, so the first place named is where they stand; a visitor away has none. */
   stored = view_text(golden, "state");
-  at = strstr(stored, "\"container\":\"viewbench.tower\"");
+  at = strstr(stored, "\"container\":\"viewbench.tower\",");
   CHECK(at != NULL);
   length = strlen(stored);
   edited = (char *)malloc(length + 1);
   memcpy(edited, stored, (size_t)(at - stored));
-  memcpy(edited + (at - stored), "\"container\":null", 16);
-  strcpy(edited + (at - stored) + 16, at + strlen("\"container\":\"viewbench.tower\""));
+  strcpy(edited + (at - stored), at + strlen("\"container\":\"viewbench.tower\","));
   CHECK_INT(sprout_state_read(&c.host, edited, strlen(edited), &away, &refusal), SPROUT_OK);
-  CHECK_INT(sprout_state_open(away, c.world, NULL, &refusal), SPROUT_OK);
+  CHECK_INT(sprout_state_open(away, c.world, &refusal), SPROUT_OK);
   CHECK_INT(sprout_view(c.world, away, &c.host, "v-marta", &view), SPROUT_BAD_INPUT);
   CHECK(strstr(view.fault.text, "is not in this world, so has no view.") != NULL);
   sprout_state_free(away);

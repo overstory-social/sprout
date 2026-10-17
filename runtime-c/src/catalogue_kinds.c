@@ -229,23 +229,6 @@ static sprout_status read_play_groups(loader *l, const sprout_node *map, const s
   return SPROUT_OK;
 }
 
-/* The kind's plain properties in name order, which is code-unit order: an insertion sort, as a kind has few. */
-static sprout_status order_plain(loader *l, sprout_kind_def *kind) {
-  const sprout_property **sorted = (const sprout_property **)cat_array(l, kind->property_count, sizeof *sorted);
-  size_t i, j, n = 0;
-  MEMORY(sorted);
-  for (i = 0; i < kind->property_count; i++) {
-    const sprout_property *one = kind->properties[i];
-    if (one->remembered) continue;
-    for (j = n; j > 0 && strcmp(sorted[j - 1]->name, one->name) > 0; j--) sorted[j] = sorted[j - 1];
-    sorted[j] = one;
-    n++;
-  }
-  kind->plain_count = n;
-  kind->by_name = sorted;
-  return SPROUT_OK;
-}
-
 sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def **out) {
   sprout_kind_def *kind;
   const sprout_node *properties, *passages, *plays;
@@ -281,7 +264,6 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
     return cat_shaped(l, "a kind's properties");
   kind->property_count = properties->count;
   NEED(read_properties(l, properties, &kind->properties));
-  NEED(order_plain(l, kind));
 
   passages = sprout_node_get(l->graph, node, "passages");
   if (passages == NULL || passages->kind != SPROUT_NODE_MAP)

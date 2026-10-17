@@ -248,7 +248,8 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   CHECK(!told_has(&told, "chamber") && !told_has(&told, "seedling"), "the catch-up narrated: %s", told_text(&told, 0));
   CHECK(player_save_settle(s).ok, "the arrival's save is written");
   after = file_text(state_path);
-  CHECK(after != NULL && !HAS(after, "firing") && HAS(after, "cool"), "the kiln cooled in the catch-up");
+  /* Cool is the kiln's default, which the save leaves out: the kiln is written only while it is firing. */
+  CHECK(after != NULL && !HAS(after, "firing"), "the kiln cooled in the catch-up");
   log = file_text(log_path);
   CHECK(log != NULL && HAS(log, "\"kind\":\"maintenance\"") && HAS(log, "\"outcome\":\"done\""), "the catch-up is in the log: %s", log);
   free(before);

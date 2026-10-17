@@ -594,7 +594,7 @@ static void the_save_follows_the_reply_and_the_system_menu_finishes_it(void) {
     slices++;
     if (saved_file(".part") && on_reader()) drawn++;
   }
-  CHECK(slices > 10, "the caverns' state takes many frames of %u bytes: %d", PLAYER_SAVE_SLICE, slices);
+  CHECK(slices >= 1 && slices < 1000, "the caverns' state is written over frames of %u bytes: %d", PLAYER_SAVE_SLICE, slices);
   CHECK(drawn + 2 >= slices, "the reader is drawn in the frames it is written in: %d of %d", drawn, slices);
   snprintf(command, sizeof command, "rm -f '%s'/saves/*.json", fake->data);
   CHECK(system(command) == 0, "the save removed, to watch it written again");

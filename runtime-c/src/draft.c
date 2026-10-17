@@ -90,7 +90,7 @@ static sprout_stored_instance *overlay(const sprout_draft *draft, sprout_str id)
   return NULL;
 }
 
-const sprout_stored_instance *sprout_draft_record(const sprout_draft *draft, sprout_str id) {
+const sprout_stored_instance *sprout_draft_instance(const sprout_draft *draft, sprout_str id) {
   const sprout_stored_instance *found;
   if (listed(draft->gone, draft->gone_count, id)) return NULL;
   found = overlay(draft, id);
@@ -102,11 +102,6 @@ const sprout_stored_instance *sprout_draft_destroyed(const sprout_draft *draft, 
   for (i = 0; i < draft->kept_count; i++)
     if (sprout_str_same(draft->kept[i].id, id)) return &draft->kept[i];
   return NULL;
-}
-
-const sprout_stored_instance *sprout_draft_instance(const sprout_draft *draft, sprout_str id) {
-  const sprout_stored_instance *found = sprout_draft_record(draft, id);
-  return found != NULL && !found->dormant ? found : NULL;
 }
 
 const sprout_stored_visitor *sprout_draft_visitor(const sprout_draft *draft, sprout_str visit) {
@@ -183,14 +178,14 @@ static sprout_draft_result children_in(const sprout_draft *draft, const sprout_s
   ranked *held;
   sprout_str *out;
   for (i = 0; i < total; i++)
-    if (!all[i]->dormant && all[i]->has_container && sprout_str_same(all[i]->container, id)) matches++;
+    if (all[i]->has_container && sprout_str_same(all[i]->container, id)) matches++;
   held = (ranked *)sprout_arena_take(draft->turn, (matches + 1) * sizeof *held);
   out = (sprout_str *)sprout_arena_take(draft->turn, (matches + 1) * sizeof *out);
   MEMORY(held);
   MEMORY(out);
   for (i = 0; i < total; i++) {
     ranked next;
-    if (all[i]->dormant || !all[i]->has_container || !sprout_str_same(all[i]->container, id)) continue;
+    if (!all[i]->has_container || !sprout_str_same(all[i]->container, id)) continue;
     next.record = all[i];
     next.rank = all[i]->has_arrival ? 0 : rank_of(draft, all[i]->id);
     for (j = n; j > 0 && comes_before(&next, &held[j - 1]); j--) held[j] = held[j - 1];
@@ -312,7 +307,7 @@ sprout_draft_result sprout_draft_place(sprout_draft *draft, sprout_str id, const
 
 sprout_draft_result sprout_draft_add(sprout_draft *draft, const sprout_stored_instance *created) {
   NEED(open_check(draft));
-  if (sprout_str_same(created->id, draft->base->world) || sprout_draft_record(draft, created->id) != NULL ||
+  if (sprout_str_same(created->id, draft->base->world) || sprout_draft_instance(draft, created->id) != NULL ||
       listed(draft->gone, draft->gone_count, created->id) || sprout_draft_tombstoned(draft, created->id))
     return SPROUT_DRAFT_TAKEN;
   if (created->has_container && !created->has_arrival) return SPROUT_DRAFT_NO_ARRIVAL;
@@ -342,9 +337,9 @@ sprout_draft_result sprout_draft_put_visitor(sprout_draft *draft, const sprout_s
 
 /* ---- removing ---- */
 
-/* `id` and everything inside it, all the way down: decoded contents in order, then dormant records by id; each once. */
+/* `id` and everything inside it, all the way down, in contents order, each once. */
 sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str id, sprout_str **out, size_t *count) {
-  sprout_str *found, *pending, *dormant;
+  sprout_str *found, *pending;
   size_t n = 0, top = 0, capacity;
   const sprout_stored_instance **all;
   size_t total, i;
@@ -352,34 +347,18 @@ sprout_draft_result sprout_draft_subtree(const sprout_draft *draft, sprout_str i
   capacity = total + 2;
   found = (sprout_str *)sprout_arena_take(draft->turn, capacity * sizeof *found);
   pending = (sprout_str *)sprout_arena_take(draft->turn, (capacity * 2 + 2) * sizeof *pending);
-  dormant = (sprout_str *)sprout_arena_take(draft->turn, (total + 1) * sizeof *dormant);
   MEMORY(found);
   MEMORY(pending);
-  MEMORY(dormant);
   pending[top++] = id;
   while (top > 0) {
     sprout_str at = pending[--top];
     const sprout_str *kids;
     size_t kid_count;
-    size_t dormant_count = 0;
     if (listed(found, n, at) || n >= capacity) continue;
     found[n++] = at;
     NEED(children_in(draft, all, total, at, &kids, &kid_count));
-    /* Pushed in reverse so the first is visited first; dormant records come after the decoded ones. */
-    for (i = 0; i < total; i++)
-      if (all[i]->dormant && all[i]->has_container && sprout_str_same(all[i]->container, at))
-        dormant[dormant_count++] = all[i]->id;
-    for (i = 1; i < dormant_count; i++) {
-      sprout_str key = dormant[i];
-      size_t j = i;
-      while (j > 0 && sprout_str_compare(dormant[j - 1], key) > 0) {
-        dormant[j] = dormant[j - 1];
-        j--;
-      }
-      dormant[j] = key;
-    }
-    if (top + dormant_count + kid_count + 1 > capacity * 2) return SPROUT_DRAFT_NO_MEMORY;
-    for (i = dormant_count; i > 0; i--) pending[top++] = dormant[i - 1];
+    if (top + kid_count + 1 > capacity * 2) return SPROUT_DRAFT_NO_MEMORY;
+    /* Pushed in reverse so the first is visited first. */
     for (i = kid_count; i > 0; i--) pending[top++] = kids[i - 1];
   }
   *out = found;
@@ -396,9 +375,9 @@ sprout_draft_result sprout_draft_remove(sprout_draft *draft, sprout_str id, cons
   if (sprout_draft_instance(draft, id) == NULL) return SPROUT_DRAFT_MISSING;
   NEED(sprout_draft_subtree(draft, id, &found, &n));
   for (i = 0; i < n; i++) {
-    const sprout_stored_instance *one = sprout_draft_record(draft, found[i]);
+    const sprout_stored_instance *one = sprout_draft_instance(draft, found[i]);
     sprout_str *slot;
-    if (one != NULL && !one->dormant) {
+    if (one != NULL) {
       sprout_stored_instance *copy = (sprout_stored_instance *)push(draft, (void **)&draft->kept, &draft->kept_count,
                                                                     &draft->kept_capacity, sizeof *copy);
       MEMORY(copy);

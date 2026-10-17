@@ -183,13 +183,13 @@ static void a_stored_world_is_read_opened_and_written_back_and_a_second_pass_cha
   put_world();
   put(state, canon, length);
   CHECK_INT(run(4, argv), 0);
-  CHECK(strstr(slurp(OUT), "state: 16 instances, 1 visitors, 1 dormant, 2 dropped\n") != NULL);
+  CHECK(strstr(slurp(OUT), "state: 16 instances, 1 visitors\n") != NULL);
   strcpy(first, slurp(state));
   CHECK(strstr(first, "\"world\":\"printers_shop\"") != NULL);
   CHECK_INT(run(4, argv), 0);
   strcpy(second, slurp(state));
   CHECK_STR(second, first);
-  CHECK(strstr(slurp(OUT), "1 dormant, 0 dropped\n") != NULL);
+  CHECK(strstr(slurp(OUT), "state: 16 instances, 1 visitors\n") != NULL);
   free(canon);
   remove(state);
   remove(WORLD);

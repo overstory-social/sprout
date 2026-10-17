@@ -12,10 +12,13 @@ import { integer, BOOLEAN, STRING } from '../declare/types.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { SourceFile } from '../source/source.js';
 import {
+  containerOf,
+  declaredContainer,
+  madeFrom,
   readStoredWorld,
   StoredInstanceSchema,
-  StoredPropertySchema,
   StoredStateUnreadable,
+  StoredValueSchema,
   StoredVisitorSchema,
   StoredWorldSchema,
   typeKey,
@@ -55,51 +58,36 @@ const GRID: ValueType = { type: 'list', element: WARDS };
 
 // --- the schema ---------------------------------------------------------
 
-function instance(over: Partial<StoredInstance> & Pick<StoredInstance, 'id' | 'made'>) {
-  return {
-    container: 'printers_shop',
-    arrival: null,
-    properties: {},
-    links: {},
-    wakes: [],
-    memory: {},
-    lastTick: null,
-    ...over,
-  };
-}
-
+/** The canonical golden's world: what differs from the printers' shop's declaration after a few turns. */
 function world(): StoredWorld {
   return {
     world: 'printers_shop',
     serial: 4,
     instances: [
-      instance({ id: 'printers_shop', made: { from: 'world' }, container: null }),
-      instance({
-        id: 'printers_shop.composing_room',
-        made: { from: 'declared' },
-        lastTick: 1_790_000_000,
-        links: { cellar: 'printers_shop#3' },
-      }),
-      instance({
-        id: 'printers_shop.composing_room.cabinet',
-        made: { from: 'declared' },
-        container: 'printers_shop.composing_room',
-        properties: { opens: { type: '[printers_shop.Ward]', value: ['oak'] } },
-        memory: { 'printers_shop#1': { visits: { type: 'integer', value: 2 } } },
-      }),
-      instance({
+      { id: 'printers_shop', properties: { season: 'winter' } },
+      {
         id: 'printers_shop#1',
         made: { from: 'visitor' },
         container: 'printers_shop.composing_room',
         arrival: 2,
-      }),
-      instance({
+      },
+      {
         id: 'printers_shop#3',
-        made: { from: 'spawned', kind: 'printers_shop.Cellar' },
-        container: 'printers_shop',
+        made: { from: 'spawned', kind: 'printers_shop.Sheet' },
+        container: 'printers_shop.drying_loft',
         arrival: 3,
-        wakes: [{ serial: 4, askedAt: 1_790_000_000, dueAt: 1_790_010_800 }],
-      }),
+        wakes: [{ serial: 4, askedAt: 1_790_000_000, dueAt: 1_790_002_400 }],
+      },
+      {
+        id: 'printers_shop.composing_room',
+        links: { cellar: 'printers_shop#3' },
+        memory: { 'printers_shop#1': { visits: 2 } },
+        lastTick: 1_790_000_000,
+      },
+      {
+        id: 'printers_shop.composing_room.cabinet',
+        properties: { open: true, ward: 'iron' },
+      },
     ],
     visitors: [
       {
@@ -137,21 +125,61 @@ describe('the stored form of a world', () => {
     expect(readStoredWorld(JSON.parse(JSON.stringify(stored)))).toEqual(stored);
   });
 
-  it('refuses a minted id on a declared object', () => {
-    expect(issues(withInstance(2, { id: 'printers_shop#2' }))).toEqual([
-      'instances.2.made: `printers_shop#2` is a minted id, and made from declared takes a declared one.',
+  it('holds only what differs: a record is its id and the fields that differ, and a fresh world has none', () => {
+    const fresh = {
+      world: 'printers_shop',
+      serial: 0,
+      instances: [],
+      visitors: [],
+      tombstones: [],
+    };
+    expect(readStoredWorld(fresh)).toEqual(fresh);
+    expect(issues({ ...fresh, instances: [{ id: 'printers_shop.composing_room' }] })).toEqual([]);
+    expect(readStoredWorld({ ...fresh, instances: [{ id: 'printers_shop' }] }).instances).toEqual([
+      { id: 'printers_shop' },
     ]);
   });
 
-  it('refuses a declared path on something minted, and the world’s name on anything but the world', () => {
-    expect(issues(withInstance(4, { id: 'printers_shop.cellar' }))).toHaveLength(1);
-    expect(issues(withInstance(1, { id: 'printers_shop' }))[0]).toMatch(/is a world id/);
+  it('takes how a minted instance was made from its record, and the rest from the id', () => {
+    const stored = world();
+    expect(stored.instances.map(madeFrom)).toEqual([
+      'world',
+      'visitor',
+      'spawned',
+      'declared',
+      'declared',
+    ]);
+    expect(issues(withInstance(1, { made: undefined }))[0]).toBe(
+      'instances.1.made: it should say how the instance was made: visitor, spawned or given.',
+    );
+    expect(issues(withInstance(3, { made: { from: 'visitor' } }))).toEqual([
+      'instances.3.made: a declared id says how it was made; `made` is for a minted one.',
+    ]);
+    expect(issues(withInstance(0, { made: { from: 'visitor' } }))).toEqual([
+      'instances.0.made: a declared id says how it was made; `made` is for a minted one.',
+    ]);
+    expect(issues(withInstance(1, { made: { from: 'declared' } }))).toHaveLength(1);
+  });
+
+  it('stands a declared object where it was declared unless its record says otherwise', () => {
+    expect(declaredContainer('printers_shop.composing_room.cabinet')).toBe(
+      'printers_shop.composing_room',
+    );
+    expect(declaredContainer('printers_shop.composing_room')).toBe('printers_shop');
+    expect(containerOf({ id: 'printers_shop.composing_room.cabinet' })).toBe(
+      'printers_shop.composing_room',
+    );
+    expect(
+      containerOf({ id: 'printers_shop.composing_room.cabinet', container: 'printers_shop#1' }),
+    ).toBe('printers_shop#1');
+    expect(containerOf({ id: 'printers_shop' })).toBeNull();
+    expect(containerOf({ id: 'printers_shop#1', made: { from: 'visitor' } })).toBeNull();
   });
 
   it('refuses a declared id with a `#` in it', () => {
-    expect(issues(withInstance(2, { id: 'printers_shop.cabinet#2' }))).toEqual([
-      'instances.2.id: `printers_shop.cabinet#2` is not an id in printers_shop.',
-    ]);
+    expect(issues(withInstance(3, { id: 'printers_shop.cabinet#2' }))).toContain(
+      'instances.3.id: `printers_shop.cabinet#2` is not an id in printers_shop.',
+    );
   });
 
   it('refuses a negative serial', () => {
@@ -160,17 +188,17 @@ describe('the stored form of a world', () => {
 
   it('refuses a minted id, an arrival or a wake past the world’s serial, so none is issued twice', () => {
     expect(issues({ ...world(), serial: 3 })).toEqual([
-      "instances.4.wakes.0.serial: serial 4 is past the world's serial, 3.",
+      "instances.2.wakes.0.serial: serial 4 is past the world's serial, 3.",
     ]);
     expect(issues({ ...world(), serial: 2 })).toHaveLength(4);
   });
 
   it('refuses another world’s id wherever an id is stored', () => {
-    expect(issues(withInstance(2, { container: 'bakery.oven' }))).toEqual([
-      'instances.2.container: `bakery.oven` is not an id in printers_shop.',
+    expect(issues(withInstance(4, { container: 'bakery.oven' }))).toEqual([
+      'instances.4.container: `bakery.oven` is not an id in printers_shop.',
     ]);
-    expect(issues(withInstance(1, { links: { cellar: 'bakery#3' } }))).toHaveLength(1);
-    expect(issues(withInstance(2, { memory: { 'bakery#1': {} } }))).toHaveLength(1);
+    expect(issues(withInstance(3, { links: { cellar: 'bakery#3' } }))).toHaveLength(1);
+    expect(issues(withInstance(4, { memory: { 'bakery#1': {} } }))).toHaveLength(1);
     const stored = world();
     expect(
       issues({
@@ -203,8 +231,8 @@ describe('the stored form of a world', () => {
   });
 
   it('refuses one id stored twice, and one visit stored twice', () => {
-    expect(issues(withInstance(3, { id: 'printers_shop#3' }))).toContain(
-      'instances.4.id: `printers_shop#3` is stored twice.',
+    expect(issues(withInstance(1, { id: 'printers_shop#3' }))).toContain(
+      'instances.2.id: `printers_shop#3` is stored twice.',
     );
     const stored = world();
     expect(issues({ ...stored, visitors: [...stored.visitors, stored.visitors[0]] })).toEqual([
@@ -229,19 +257,19 @@ describe('the stored form of a world', () => {
     );
     // An instance made for a visitor with no record of whose it is.
     expect(issues({ ...stored, visitors: [] })).toEqual([
-      'instances.3.made: `printers_shop#1` is made from visitor, and no visitor is stored for it.',
+      'instances.1.made: `printers_shop#1` is made from visitor, and no visitor is stored for it.',
     ]);
   });
 
   it('takes a spawned instance’s content under a minted id, naming its kind and its path there', () => {
-    const given = { from: 'given', kind: 'printers_shop.Cellar', path: ['shelf', 'jar'] };
-    expect(issues(withInstance(4, { made: given }))).toEqual([]);
-    expect(issues(withInstance(2, { made: given }))).toEqual([
-      'instances.2.made: `printers_shop.composing_room.cabinet` is a declared id, and made from given takes a minted one.',
+    const given = { from: 'given', kind: 'printers_shop.Sheet', path: ['shelf', 'jar'] };
+    expect(issues(withInstance(2, { made: given }))).toEqual([]);
+    expect(issues(withInstance(4, { made: given }))).toEqual([
+      'instances.4.made: a declared id says how it was made; `made` is for a minted one.',
     ]);
-    expect(issues(withInstance(4, { made: { ...given, path: [] } }))).toHaveLength(1);
-    expect(issues(withInstance(4, { made: { ...given, path: ['Shelf'] } }))).toHaveLength(1);
-    expect(issues(withInstance(4, { made: { from: 'given', path: ['jar'] } }))).toHaveLength(1);
+    expect(issues(withInstance(2, { made: { ...given, path: [] } }))).toHaveLength(1);
+    expect(issues(withInstance(2, { made: { ...given, path: ['Shelf'] } }))).toHaveLength(1);
+    expect(issues(withInstance(2, { made: { from: 'given', path: ['jar'] } }))).toHaveLength(1);
   });
 
   it('keeps a tombstone only for a declared id, once, with nothing stored under or inside it', () => {
@@ -258,18 +286,19 @@ describe('the stored form of a world', () => {
       `tombstones.1: \`${lamp}\` is a tombstone twice.`,
     ]);
     expect(issues({ ...stored, tombstones: ['printers_shop.composing_room.cabinet'] })).toEqual([
-      'instances.2.id: `printers_shop.composing_room.cabinet` was destroyed, and is stored again.',
+      'instances.4.id: `printers_shop.composing_room.cabinet` was destroyed, and is stored again.',
     ]);
+    // A declared object that says nothing of its container is inside what was declared to hold it.
     expect(issues({ ...stored, tombstones: ['printers_shop.composing_room'] })).toEqual([
-      'instances.1.id: `printers_shop.composing_room` was destroyed, and is stored again.',
-      'instances.2.container: `printers_shop.composing_room.cabinet` is inside `printers_shop.composing_room`, which was destroyed.',
-      'instances.3.container: `printers_shop#1` is inside `printers_shop.composing_room`, which was destroyed.',
+      'instances.1.container: `printers_shop#1` is inside `printers_shop.composing_room`, which was destroyed.',
+      'instances.3.id: `printers_shop.composing_room` was destroyed, and is stored again.',
+      'instances.4.container: `printers_shop.composing_room.cabinet` is inside `printers_shop.composing_room`, which was destroyed.',
     ]);
   });
 
   it('lets a link, a visitor’s last place and what their pronouns name name a tombstone, which the absent rules read', () => {
     const stored = world();
-    const withLink = withInstance(4, { links: { up: 'printers_shop.attic' } }) as StoredWorld;
+    const withLink = withInstance(2, { links: { up: 'printers_shop.attic' } }) as StoredWorld;
     expect(issues({ ...withLink, tombstones: ['printers_shop.attic'] })).toEqual([]);
     expect(
       issues({
@@ -292,9 +321,13 @@ describe('the stored form of a world', () => {
     expect(issues(without)).toHaveLength(1);
   });
 
-  it('refuses a spawn that does not say its kind, and a time that is not whole seconds', () => {
-    expect(issues(withInstance(4, { made: { from: 'spawned' } }))).toHaveLength(1);
-    expect(issues(withInstance(1, { lastTick: 1.5 }))).toHaveLength(1);
+  it('refuses a spawn that does not say its kind, a time that is not whole seconds, and a field written null', () => {
+    expect(issues(withInstance(2, { made: { from: 'spawned' } }))).toHaveLength(1);
+    expect(issues(withInstance(3, { lastTick: 1.5 }))).toHaveLength(1);
+    expect(issues(withInstance(3, { lastTick: null }))).toHaveLength(1);
+    expect(issues(withInstance(1, { container: null }))).toHaveLength(1);
+    expect(issues(withInstance(1, { arrival: null }))).toHaveLength(1);
+    expect(issues(withInstance(4, { properties: null }))).toHaveLength(1);
   });
 });
 
@@ -305,39 +338,41 @@ describe('one stored record, checked on its own', () => {
       expect(StoredInstanceSchema.parse(JSON.parse(JSON.stringify(record)))).toEqual(record);
     }
     expect(StoredVisitorSchema.parse(stored.visitors[0])).toEqual(stored.visitors[0]);
-    expect(StoredPropertySchema.parse({ type: 'string', value: 'x' })).toEqual({
-      type: 'string',
-      value: 'x',
-    });
+    expect(StoredValueSchema.parse([true, [1, 'x']])).toEqual([true, [1, 'x']]);
   });
 
   it('refuses a record of the wrong shape, and leaves which world its ids belong to for the world', () => {
-    const lamp = instance({ id: 'printers_shop.lamp', made: { from: 'declared' } });
-    expect(StoredInstanceSchema.safeParse({ ...lamp, wakes: undefined }).success).toBe(false);
+    const lamp: StoredInstance = { id: 'printers_shop.lamp' };
+    expect(StoredInstanceSchema.safeParse({ ...lamp, wakes: null }).success).toBe(false);
     expect(StoredInstanceSchema.safeParse({ ...lamp, lastTick: 1.5 }).success).toBe(false);
+    expect(StoredInstanceSchema.safeParse({ ...lamp, properties: { p: null } }).success).toBe(
+      false,
+    );
     expect(StoredInstanceSchema.safeParse({ ...lamp, id: 'elsewhere.lamp' }).success).toBe(true);
     expect(StoredVisitorSchema.safeParse({ ...world().visitors[0], visit: '' }).success).toBe(
       false,
     );
-    expect(StoredPropertySchema.safeParse({ type: '', value: 1 }).success).toBe(false);
+    expect(StoredValueSchema.safeParse({ type: 'string', value: 'x' }).success).toBe(false);
   });
 });
 
 describe('reading stored state the schema refuses', () => {
-  it.each([null, 'state', { world: 'printers_shop' }, withInstance(2, { id: 'printers_shop#2' })])(
-    'throws StoredStateUnreadable with the schema’s message for %j',
-    (garbage) => {
-      const expected = z.prettifyError(StoredWorldSchema.safeParse(garbage).error!);
-      expect(expected.length).toBeGreaterThan(0);
-      expect(() => readStoredWorld(garbage)).toThrow(StoredStateUnreadable);
-      expect(() => readStoredWorld(garbage)).toThrow(expected);
-    },
-  );
+  it.each([
+    null,
+    'state',
+    { world: 'printers_shop' },
+    withInstance(3, { made: { from: 'visitor' } }),
+  ])('throws StoredStateUnreadable with the schema’s message for %j', (garbage) => {
+    const expected = z.prettifyError(StoredWorldSchema.safeParse(garbage).error!);
+    expect(expected.length).toBeGreaterThan(0);
+    expect(() => readStoredWorld(garbage)).toThrow(StoredStateUnreadable);
+    expect(() => readStoredWorld(garbage)).toThrow(expected);
+  });
 });
 
 // --- type keys ---------------------------------------------------------
 
-describe('a type’s key, as stored state records it', () => {
+describe('a type’s key, as the catalogue names it', () => {
   it('names a primitive type alone, whatever an integer’s range', () => {
     expect(typeKey(BOOLEAN)).toBe('boolean');
     expect(typeKey(STRING)).toBe('string');
@@ -363,7 +398,7 @@ describe('the canonical JSON of a stored world', () => {
     '../../../../corpus/goldens/stored-canon.json',
   );
 
-  it('is the bytes the C runtime reproduces: keys in the schema’s order, integers as digits', () => {
+  it('is the bytes the C runtime reproduces: keys in the schema’s order, integers as digits, nothing at its declaration', () => {
     const canon = readFileSync(file, 'utf8');
     expect(JSON.stringify(readStoredWorld(world())) + '\n').toBe(canon);
     expect(JSON.stringify(readStoredWorld(JSON.parse(canon))) + '\n').toBe(canon);

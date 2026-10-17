@@ -93,7 +93,7 @@ export function recordsOf(stored: StoredState): Map<string, StoredInstance> {
 
 /**
  * What holds `id` as `records` keep it: its record's container, or, for a
- * declared object no turn has written, where it was declared.
+ * declared object whose record says nothing of it, where it was declared.
  */
 export function containerOf(
   records: ReadonlyMap<string, StoredInstance>,
@@ -101,7 +101,7 @@ export function containerOf(
   id: InstanceId,
 ): InstanceId | null {
   const record = records.get(id);
-  if (record !== undefined) return record.container as InstanceId | null;
+  if (record?.container !== undefined) return record.container as InstanceId;
   return catalogue.declared.get(id)?.container ?? null;
 }
 
@@ -112,13 +112,9 @@ function isPlaceIn(
   id: InstanceId,
 ): boolean {
   if (id === catalogue.world) return false;
-  const made = records.get(id)?.made ?? (catalogue.declared.has(id) ? { from: 'declared' } : null);
-  if (made === null) return false;
+  const made = records.get(id)?.made;
+  if (made === undefined) return catalogue.declared.get(id)?.kind?.containsActors === true;
   switch (made.from) {
-    case 'world':
-      return false;
-    case 'declared':
-      return catalogue.declared.get(id)?.kind?.containsActors === true;
     case 'visitor':
       return catalogue.visitorKind?.containsActors === true;
     case 'spawned':

@@ -50,7 +50,7 @@ static void every_nickname_in_the_golden_is_admitted_or_refused_as_the_typescrip
   CHECK_INT(sprout_load_explained(&host, cartridge, cartridge_length, &world, &refusal), SPROUT_OK);
   CHECK_INT(sprout_json_write_value(&arena, sprout_json_get(root, "world"), &stored, &stored_length), SPROUT_OK);
   CHECK_INT(sprout_state_read(&host, stored, stored_length, &state, &refusal), SPROUT_OK);
-  CHECK_INT(sprout_state_open(state, world, NULL, &refusal), SPROUT_OK);
+  CHECK_INT(sprout_state_open(state, world, &refusal), SPROUT_OK);
   cases = sprout_json_get(root, "cases");
   CHECK(cases != NULL && cases->count > 300);
   for (i = 0; cases != NULL && i < cases->count; i++) {
@@ -119,7 +119,7 @@ static void a_host_that_cannot_give_memory_is_told_so_not_misled(void) {
   host.page_bytes = 65536;
   CHECK_INT(sprout_load_explained(&host, cartridge, cartridge_length, &world, &refusal), SPROUT_OK);
   CHECK_INT(sprout_state_empty(&host, "harbour", &state), SPROUT_OK);
-  CHECK_INT(sprout_state_open(state, world, NULL, &refusal), SPROUT_OK);
+  CHECK_INT(sprout_state_open(state, world, &refusal), SPROUT_OK);
   heap.refuse_after = heap.pages;
   CHECK_INT(sprout_admit(world, state, &host, "v-new", "Marta", 5, &admission), SPROUT_NO_MEMORY);
   CHECK(admission.held == NULL);

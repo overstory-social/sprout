@@ -138,7 +138,7 @@ export const tickerCases: EngineCase[] = [
       equal(cameTo(dropped), ['not committed', 'not committed'], 'the round');
       match(dropped[0], { turn: { fault: { name: 'ValueOutOfRange' } } }, 'the north moor’s tick');
       const north = (await storedIn(store)).instances.find((one) => one.id === NORTH);
-      equal([north?.lastTick, north?.properties['gap']?.value], [100, 0], 'the north moor');
+      equal([north?.lastTick, north?.properties?.['gap'] ?? 0], [100, 0], 'the north moor');
     },
   },
   {

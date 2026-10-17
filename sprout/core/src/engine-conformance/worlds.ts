@@ -343,11 +343,6 @@ export async function seeded(
       made: { from: 'visitor' },
       container: where,
       arrival: 2 * at + 2,
-      properties: {},
-      links: {},
-      wakes: [],
-      memory: {},
-      lastTick: null,
     };
     const visitor: StoredVisitor = {
       visit,
@@ -376,7 +371,7 @@ export function storedIn(store: SproutStore, microworldId = 'w'): Promise<Stored
   return store.read(microworldId, (tx) => tx.state());
 }
 
-/** The stored value of `property` on `id`; `fallback`, its declared value, where no turn has written the object. */
+/** The stored value of `property` on `id`; `fallback`, its declared value, where the store holds it at its default. */
 export async function propertyOf(
   store: SproutStore,
   id: InstanceId,
@@ -384,7 +379,7 @@ export async function propertyOf(
   fallback: unknown,
 ): Promise<unknown> {
   const record = (await storedIn(store)).instances.find((one) => one.id === id);
-  return record === undefined ? fallback : record.properties[property]?.value;
+  return record?.properties?.[property] ?? fallback;
 }
 
 /** The tally's counter, or what `id` names, as the store holds it now. */

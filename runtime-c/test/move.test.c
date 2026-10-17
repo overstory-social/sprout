@@ -174,9 +174,11 @@ static void an_actor_moved_between_places_is_spoken_of_and_a_description_is_owed
 /* The state of `notices-through-gate` as its transcript left it before Marta leaps, with the world's gate open. */
 static char *before_the_leap(char **file) {
   static const char key[] = "{\"world\":\"notices-through-gate\",\"transcript\":\"gate.json\",\"step\":6,\"stored\":";
-  static const char shut[] = "\"gate\":{\"type\":\"boolean\",\"value\":false}";
+  static const char head[] = "\"instances\":[";
+  static const char opened[] = "{\"id\":\"notices_through_gate\",\"properties\":{\"gate\":true}},";
+  static char edited[8192];
   size_t length;
-  char *stored, *end, *gate;
+  char *stored, *end, *at;
   *file = test_golden("stored-worlds.json", &length);
   stored = strstr(*file, key);
   CHECK(stored != NULL);
@@ -186,10 +188,14 @@ static char *before_the_leap(char **file) {
   /* The line ends with the entry's own `}` and a comma: the stored world is what is inside. */
   while (end > stored && end[-1] != '}') end--;
   end[-1] = '\0';
-  gate = strstr(stored, shut);
-  CHECK(gate != NULL);
-  memcpy(gate + sizeof shut - 7, "true ", 5);
-  return stored;
+  /* The gate is shut at this step, so nothing of the world is stored; a record opens it. */
+  at = strstr(stored, head);
+  CHECK(at != NULL && strstr(stored, "\"gate\"") == NULL && strlen(stored) + sizeof opened < sizeof edited);
+  at += sizeof head - 1;
+  memcpy(edited, stored, (size_t)(at - stored));
+  memcpy(edited + (at - stored), opened, sizeof opened - 1);
+  strcpy(edited + (at - stored) + sizeof opened - 1, at);
+  return edited;
 }
 
 static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(void) {
@@ -216,7 +222,7 @@ static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(vo
   bool garden_in_range = false, garden_hears = false, open = false;
   CHECK(sprout_load(&host, cartridge, length, &world) == SPROUT_OK);
   CHECK(sprout_state_read(&host, stored, strlen(stored), &state, &refusal) == SPROUT_OK);
-  CHECK(sprout_state_open(state, world, NULL, &refusal) == SPROUT_OK);
+  CHECK(sprout_state_open(state, world, &refusal) == SPROUT_OK);
   sprout_arena_init(&turn, &host);
   sprout_draft_open(&draft, &turn, world, state);
   sprout_meter_begin(&meter, &host, SPROUT_TURN_COMMAND);
