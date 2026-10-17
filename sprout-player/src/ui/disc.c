@@ -15,6 +15,8 @@ bool disc_update(disc *d, sentence *s, bool turned) {
   return true;
 }
 
+bool disc_at_rest(const disc *d) { return !d->turned; }
+
 /*
  * The sine and cosine of `degrees` by their series, since the device's libm is not relied on; close
  * enough to a pixel well past a quarter turn either side of 0, which is as far as a ray bends.

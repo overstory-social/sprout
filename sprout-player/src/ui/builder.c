@@ -198,7 +198,7 @@ static void confirm(player_app *app, player_builder *b) {
 static void update(player_app *app, void *ctx, const player_input *input) {
   player_builder *b = (player_builder *)ctx;
   sentence *s = &b->sentence;
-  bool numbered, stepped;
+  bool numbered, stepped, settled;
   long down;
   if (b->message.bytes != NULL) {
     if (input->pushed & (kButtonA | kButtonB)) {
@@ -208,14 +208,18 @@ static void update(player_app *app, void *ctx, const player_input *input) {
     return;
   }
   if (sentence_turn(s, input->crank) != 0) player_cue(app, PLAYER_CUE_TICK);
-  if (disc_update(&b->disc, s, input->crank != 0)) {
-    player_cue(app, PLAYER_CUE_CLACK);
-    sentence_prepare(s);
-  }
-  if (!b->asked) {
-    /* The disc is on screen, drawn the frame it opened: the verb at its front is asked after now. */
+  settled = disc_update(&b->disc, s, input->crank != 0);
+  if (settled) player_cue(app, PLAYER_CUE_CLACK);
+  if (settled || !b->asked) {
+    /* The disc is on screen, drawn the frame it opened: the verb at its front is asked after now, as whenever it settles. */
     b->asked = true;
     sentence_prepare(s);
+  } else if (input->crank == 0 && input->pushed == 0 && disc_at_rest(&b->disc)) {
+    /*
+     * The crank rests and nothing was pressed: a verb's readings cost a frame, so one of the verbs the wheel
+     * shows beside the front is asked after, nearest first, and a frame with input asks after none.
+     */
+    sentence_prepare_near(s, DISC_SIDE);
   }
   /* Down moves to the next entry; on a number it takes the number down, as up takes it up. */
   numbered = sentence_numbered(s);
