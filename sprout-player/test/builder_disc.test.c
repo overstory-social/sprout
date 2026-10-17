@@ -7,9 +7,13 @@
  * are drawn only where a word sits; the labels are let go with the builder; the root lists the
  * scene's verbs in the view's order; a greyed chip is drawn greyed (at the front, a dotted inverted
  * label) and its reason is the panel's words; the sentence line fits the screen whatever its length,
- * keeping its end in view, while a long word on the disc is cut at the screen's edge.
+ * keeping its end in view, while a long word on the disc is cut at the screen's edge; A opens the
+ * disc from the view the reader has and draws it before any verb is asked after, the front one on
+ * the next frame, and a tick that changes the state quietly is looked after in the tick.
  */
 #include "builder_support.h"
+#include "session_internal.h"
+#include "ui/clock.h"
 
 /* Whether a ray at `angle` is drawn: a black pixel at, or a pixel from, where its bent line passes 100 pixels from the hub. */
 static bool ray_at(float angle) {
@@ -171,6 +175,59 @@ static void first_character(int *white, int *black) {
     }
 }
 
+/*
+ * A opens the builder from the view the reader has, no scene polled, and the disc is drawn before any
+ * verb's readings are asked for: the verb at the front is asked after on the next frame.
+ */
+static void the_disc_is_drawn_before_any_verb_is_asked_after(void) {
+  player_session *s;
+  const sprout_chip_node *subtree;
+  size_t v, pick = 2, asked = 0;
+  arrive("drawn-first");
+  s = app->session;
+  player_chips(s, &pick, 1);
+  CHECK(s->seen_live && s->fetched[1], "the reader's view stands, the second verb's readings asked for under it");
+  subtree = s->chips.verbs[1].next;
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!on_reader() && front_placed() >= 0, "A opens the builder and the disc is drawn");
+  CHECK(s->seen_live && s->fetched[1] && s->chips.verbs[1].next == subtree, "over the view the reader had: no poll, the readings kept");
+  CHECK(!s->fetched[0] && builder()->sentence.choices[0].greyed == PLAYER_GREYED_UNKNOWN,
+        "the verb at the front has not been asked after, and is drawn neither greyed nor not");
+  fake_frame(fake, 0, 0);
+  CHECK(s->fetched[0] && builder()->sentence.choices[0].greyed != PLAYER_GREYED_UNKNOWN, "the next frame asks after it");
+  for (v = 0; v < s->chips.verb_count; v++) asked += s->fetched[v];
+  CHECK(asked == 2, "and after no other: %zu asked", asked);
+  leave();
+}
+
+/*
+ * A tick that changes the state without telling anything (the moor counting its seconds) is looked
+ * after in the tick, so the view stands fresh when A opens the builder and the open polls nothing.
+ */
+static void a_quiet_tick_looks_again_so_the_open_need_not(void) {
+  player_session *s;
+  const sprout_chip_node *subtree;
+  size_t pick = 2;
+  int rows;
+  arrive_in("quiet-tick", "ticks.sproutworld");
+  s = app->session;
+  fake->seconds += PLAYER_TICK_SECONDS;
+  fake_frame(fake, 0, 0);
+  player_chips(s, &pick, 1);
+  CHECK(s->seen_live && s->fetched[1], "the reader's view stands, with a verb's readings under it");
+  rows = fake->run_count;
+  fake->seconds += PLAYER_TICK_SECONDS;
+  fake_frame(fake, 0, 0);
+  CHECK(on_reader() && fake->run_count == rows && !shown_text("The wind"), "the tick told nothing");
+  CHECK(s->seen_live && !s->seen_stale && !s->fetched[1], "and the reader looked again: a fresh view, its tree empty");
+  player_chips(s, &pick, 1);
+  subtree = s->chips.verbs[1].next;
+  fake_frame(fake, kButtonA, 0);
+  CHECK(!on_reader() && front_placed() >= 0, "A opens the builder");
+  CHECK(s->seen_live && s->fetched[1] && s->chips.verbs[1].next == subtree, "from that view, nothing polled");
+  leave();
+}
+
 static void a_greyed_chip_is_drawn_greyed_and_says_why(void) {
   const int area = (FAKE_BIG_GLYPH - 2) * (FAKE_BIG_LINE - 6);
   int white, black, n, greyed_below = 0;
@@ -307,6 +364,8 @@ int main(void) {
   the_fit_trims_a_character_at_a_time_and_never_inside_one();
   the_root_is_the_scenes_verbs_on_a_disc_turned_by_the_crank();
   a_label_is_drawn_once_while_its_level_stands();
+  the_disc_is_drawn_before_any_verb_is_asked_after();
+  a_quiet_tick_looks_again_so_the_open_need_not();
   a_greyed_chip_is_drawn_greyed_and_says_why();
   the_sentence_line_fits_the_screen_and_keeps_its_end();
   return finish();

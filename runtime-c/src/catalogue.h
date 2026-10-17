@@ -88,6 +88,8 @@ typedef struct sprout_kind_def {
   size_t property_count;
   const sprout_property **properties;         /* in declared order; a property two kinds list is one record */
   const sprout_property **properties_by_name; /* the same properties in code-unit order of their names */
+  size_t plain_count;
+  const sprout_property **by_name; /* the properties not remembered, in name order: the order a save writes them */
   size_t passage_count;
   sprout_passage *passages;
   size_t play_group_count;

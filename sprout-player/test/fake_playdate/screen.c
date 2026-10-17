@@ -162,23 +162,56 @@ static size_t utf8_bytes(const char *text, size_t count) {
   return i;
 }
 
-/* The three fonts the fake loads, by path; the font a handle is. */
-static char fake_fonts[3];
-static const char *const FONT_PATHS[3] = {"/System/Fonts/Asheville-Sans-14-Light.pft", "fonts/Asheville-Sans-24-Light.pft",
-                                          "fonts/Roobert-10-Bold.pft"};
+/* The fonts the fake loads, by path, in fake_font's order; the font a handle is, FAKE_FONT_NONE for one not held. */
+static char fake_fonts[FAKE_FONTS];
+static const char *const FONT_PATHS[FAKE_FONTS] = {"/System/Fonts/Asheville-Sans-14-Light.pft", "/System/Fonts/Roobert-20-Medium.pft",
+                                                   "/System/Fonts/Asheville-Sans-24-Light.pft", "fonts/Asheville-Sans-24-Light.pft",
+                                                   "fonts/Roobert-10-Bold.pft"};
 
 static fake_font font_of(LCDFont *font) {
   int i;
-  for (i = 0; i < 3; i++)
-    if (font == (LCDFont *)&fake_fonts[i]) return (fake_font)(FAKE_FONT_SYSTEM + i);
+  for (i = 0; i < FAKE_FONTS; i++)
+    if (font == (LCDFont *)&fake_fonts[i] && fake_current->fonts_loaded[i]) return (fake_font)(FAKE_FONT_SYSTEM + i);
   return FAKE_FONT_NONE;
 }
 
 int fake_glyph(const fake_playdate *fake, fake_font font) {
-  return font == FAKE_FONT_BIG ? fake->big_glyph : font == FAKE_FONT_SMALL ? fake->small_glyph : fake->glyph;
+  switch (font) {
+    case FAKE_FONT_MEDIUM: return fake->medium_glyph;
+    case FAKE_FONT_LARGE: return fake->large_glyph;
+    case FAKE_FONT_BIG: return fake->big_glyph;
+    case FAKE_FONT_SMALL: return fake->small_glyph;
+    default: return fake->glyph;
+  }
 }
 
-int fake_line(fake_font font) { return font == FAKE_FONT_BIG ? FAKE_BIG_LINE : font == FAKE_FONT_SMALL ? FAKE_SMALL_LINE : FAKE_LINE; }
+int fake_line(fake_font font) {
+  switch (font) {
+    case FAKE_FONT_MEDIUM: return FAKE_MEDIUM_LINE;
+    case FAKE_FONT_LARGE: return FAKE_LARGE_LINE;
+    case FAKE_FONT_BIG: return FAKE_BIG_LINE;
+    case FAKE_FONT_SMALL: return FAKE_SMALL_LINE;
+    default: return FAKE_LINE;
+  }
+}
+
+int fake_fonts_held(const fake_playdate *fake) {
+  int i, held = 0;
+  for (i = 0; i < FAKE_FONTS; i++) held += fake->fonts_loaded[i];
+  return held;
+}
+
+int fake_font_release(void *block) {
+  int i;
+  for (i = 0; i < FAKE_FONTS; i++) {
+    if (block != (void *)&fake_fonts[i]) continue;
+    if (!fake_current->fonts_loaded[i]) abort(); /* freed twice */
+    fake_current->fonts_loaded[i] = 0;
+    if (fake_current->font_set == (fake_font)(FAKE_FONT_SYSTEM + i)) fake_current->font_set = FAKE_FONT_NONE;
+    return 1;
+  }
+  return 0;
+}
 
 static int fake_text_width(LCDFont *font, const void *text, size_t len, PDStringEncoding encoding, int tracking) {
   const char *bytes = (const char *)text;
@@ -223,15 +256,25 @@ static int fake_draw_text(const void *text, size_t len, PDStringEncoding encodin
 
 static LCDFont *fake_load_font(const char *path, const char **error) {
   int i;
-  for (i = 0; i < 3; i++)
-    if (strcmp(path, FONT_PATHS[i]) == 0) return (LCDFont *)&fake_fonts[i];
+  for (i = 0; i < FAKE_FONTS; i++) {
+    if (strcmp(path, FONT_PATHS[i]) != 0 || strcmp(path, fake_current->missing_font) == 0) continue;
+    if (fake_current->fonts_loaded[i]) abort(); /* a font is held once: the app loads the one it needs and frees the last */
+    fake_current->fonts_loaded[i] = 1;
+    return (LCDFont *)&fake_fonts[i];
+  }
   *error = "no such font";
   return NULL;
 }
 
-static void fake_set_font(LCDFont *font) { fake_current->font_set = font_of(font); }
+static void fake_set_font(LCDFont *font) {
+  if (font_of(font) == FAKE_FONT_NONE) abort(); /* a font never loaded, or freed */
+  fake_current->font_set = font_of(font);
+}
 
-static uint8_t fake_font_height(LCDFont *font) { return (uint8_t)fake_line(font_of(font)); }
+static uint8_t fake_font_height(LCDFont *font) {
+  if (font_of(font) == FAKE_FONT_NONE) abort();
+  return (uint8_t)fake_line(font_of(font));
+}
 
 const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
   int i;
@@ -242,6 +285,8 @@ const fake_run *fake_run_at(const fake_playdate *fake, int x, int y) {
 
 void fake_install_screen(fake_playdate *fake) {
   fake->glyph = FAKE_GLYPH;
+  fake->medium_glyph = FAKE_MEDIUM_GLYPH;
+  fake->large_glyph = FAKE_LARGE_GLYPH;
   fake->big_glyph = FAKE_BIG_GLYPH;
   fake->small_glyph = FAKE_SMALL_GLYPH;
   fake->gfx.clear = fake_clear;

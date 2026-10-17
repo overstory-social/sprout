@@ -136,4 +136,7 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, p);
 }
 
-const player_screen player_pictures_screen = {update, draw, leave};
+/* The reader they hold follows the font; the captions are laid out each draw. */
+static void refit(player_app *app, void *ctx) { player_reader_screen.refit(app, ((player_pictures *)ctx)->reader); }
+
+const player_screen player_pictures_screen = {update, draw, leave, refit};

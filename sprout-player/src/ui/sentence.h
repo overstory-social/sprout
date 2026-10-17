@@ -170,8 +170,9 @@ typedef enum sentence_end {
 } sentence_end;
 
 /*
- * A sentence at the verbs of `view`, the session's last, the first of them asked for at once. False with
- * the words in `*why` when the verbs cannot be had or there is no memory for them.
+ * A sentence at the verbs of `view`, the session's last, none of their readings asked for yet, so the disc
+ * can be drawn before any are: `sentence_prepare` asks after the one at the front. False with the words in
+ * `*why` when the verbs cannot be had or there is no memory for them.
  */
 bool sentence_begin(sentence *s, PlaydateAPI *pd, player_session *session, const sprout_seen_view *view, const char **why);
 void sentence_free(sentence *s);

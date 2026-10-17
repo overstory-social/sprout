@@ -552,6 +552,7 @@ export async function checkPlayer({ sanitize = false } = {}) {
       'clock',
       'net',
       'downloads',
+      'text_size',
     ];
     const missing = wanted.filter((name) => !new RegExp(`player-${name} .*Passed`).test(tests));
     if (missing.length > 0) {

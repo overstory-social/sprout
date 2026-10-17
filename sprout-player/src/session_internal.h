@@ -41,17 +41,20 @@ struct player_session {
   char log_path[PATH_BYTES];
   bool dirty;          /* a turn committed since the last save was begun */
   bool owed;           /* the state is to be written: its log tail is on disk and its bytes not yet begun */
+  bool waiting;        /* a tick changed the state: its log tail is on disk, and its save waits (session.h) */
   bool unsaved;        /* a write failed since the last save that was whole */
+  uint64_t save_began; /* host seconds when the last save began */
   session_writer writer;
   char *log[LOG_KEEP]; /* the log tail, oldest first, one JSON text each */
   size_t log_count;
   sprout_arena answer; /* what the last call handed back, released when the next begins */
-  sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the next, the close or the end */
+  sprout_seen_view seen;  /* the last scene polled, kept with its chip tree until the state changes, the next load, the close or the end */
   sprout_chip_tree chips; /* one verb each of the scene's, its subtree NULL until its readings are asked for */
   bool *fetched;          /* one for each verb: whether its readings were asked for and came whole */
   const char **why_empty; /* one for each verb: the words for a verb nothing fits, or whose poll ran out (asked again on the next reach) */
   sprout_arena chip_arena; /* the verbs' readings and subtrees, released with the scene */
   bool seen_live;
+  bool seen_stale; /* the state changed since the scene was polled: the next view polls again */
 };
 
 /* Begins a call's answer: what the last call handed back is released, and the arena returned is empty. */
@@ -75,6 +78,13 @@ bool session_visitor_present(const player_session *session, const sprout_stored_
  * whole save, which stops play.
  */
 bool session_save_soon(player_session *session);
+
+/*
+ * After a tick: where it changed the state, the log tail is written now and the state's save
+ * waits, begun once PLAYER_SAVE_WAIT_SECONDS have passed since the last began, or at once by
+ * the next `session_save_soon` or settling. False as `session_save_soon` is.
+ */
+bool session_save_later(player_session *session);
 
 /* Writes the state owed or under way, all of it now; false when it could not be. */
 bool session_save_finish(player_session *session);
