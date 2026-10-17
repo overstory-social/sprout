@@ -67,8 +67,25 @@ static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const s
     CHECK_STR(kind->passages[i].name, passages->items[i]->bytes);
   CHECK_INT(kind->play_group_count, plays->count);
   for (i = 0; i < kind->play_group_count && i < plays->count; i++) {
-    CHECK_STR(kind->plays[i]->key, plays->items[i]->items[0]->bytes);
-    CHECK_INT(kind->plays[i]->count, plays->items[i]->items[1]->number);
+    const sprout_play_group *group = kind->plays[i];
+    char key[256];
+    size_t j, found = 0;
+    CHECK_STR(group->key, plays->items[i]->items[0]->bytes);
+    CHECK_INT(group->count, plays->items[i]->items[1]->number);
+    /* The key's parts put back together are the key. */
+    if (group->library == NULL) snprintf(key, sizeof key, "as %s for %s", group->role, group->verb);
+    else snprintf(key, sizeof key, "as %s for %s.%s", group->role, group->library, group->verb);
+    CHECK_STR(key, group->key);
+    for (j = 0; j < kind->play_group_count; j++) found += kind->plays_by_verb[j] == group;
+    CHECK_INT(found, 1);
+  }
+  /* By verb, then role, then a group for `any` before any library's. */
+  for (i = 1; i < kind->play_group_count; i++) {
+    const sprout_play_group *a = kind->plays_by_verb[i - 1], *b = kind->plays_by_verb[i];
+    int order = strcmp(a->verb, b->verb);
+    if (order == 0) order = strcmp(a->role, b->role);
+    if (order == 0) order = a->library == NULL ? -1 : b->library == NULL ? 1 : strcmp(a->library, b->library);
+    CHECK(order < 0);
   }
 }
 

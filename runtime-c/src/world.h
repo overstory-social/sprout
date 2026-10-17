@@ -19,6 +19,7 @@ struct sprout_world {
 
   size_t kind_count;
   sprout_kind_def **kinds;        /* every kind the bundle declares, in declared order */
+  const sprout_kind_def **kinds_by_name; /* the same kinds in code-unit order of their qualified names */
   sprout_kind_def *world_kind;    /* NULL where the world has none */
   sprout_kind_def *visitor_kind;  /* NULL where visitors have none */
   size_t content_list_count;
@@ -26,6 +27,7 @@ struct sprout_world {
 
   size_t declared_count;
   sprout_declared *declared; /* in rank order */
+  const sprout_declared **declared_by_id; /* the same objects in code-unit order of their ids */
   const char *arrival;       /* the id visitors arrive at, or NULL */
 
   size_t verb_count;
@@ -34,6 +36,8 @@ struct sprout_world {
   sprout_synonym *synonyms;
   size_t phrase_count;
   sprout_typed_phrase *phrases; /* in the order the command parser tries them */
+  size_t offered_count;
+  const sprout_verb **offered; /* each verb with a typed phrase, once, in the order the parser tries them */
   size_t intent_count;
   sprout_intent *intents;
   size_t intent_phrase_count;
@@ -60,6 +64,10 @@ const sprout_declared *sprout_world_declared(const sprout_world *world, const ch
 
 /* The kind with this qualified name, or NULL. */
 const sprout_kind_def *sprout_world_kind(const sprout_world *world, const char *qualified);
+
+/* The declared kind named `name` in the library whose name is these `library_length` bytes, or NULL. */
+const sprout_kind_def *sprout_world_kind_named(const sprout_world *world, const char *library, size_t library_length,
+                                               const char *name);
 
 /* The property a kind declares by this name, or NULL. */
 const sprout_property *sprout_kind_property(const sprout_kind_def *kind, const char *name);

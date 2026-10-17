@@ -131,6 +131,92 @@ static void contents_asked_for_again_take_no_more_room_until_the_overlay_changes
   finish(&f);
 }
 
+/* Every live record whose container is `id`, found by sweeping the state: what the chains must agree with. */
+static size_t scan_children(const sprout_state *state, sprout_str id, sprout_str *out) {
+  size_t i, n = 0;
+  for (i = 0; i < state->instance_count; i++) {
+    const sprout_stored_instance *one = &state->instances[i];
+    if (one->has_container && sprout_str_same(one->container, id)) out[n++] = one->id;
+  }
+  return n;
+}
+
+static bool among(const sprout_str *ids, size_t count, sprout_str id) {
+  size_t i;
+  for (i = 0; i < count; i++)
+    if (sprout_str_same(ids[i], id)) return true;
+  return false;
+}
+
+/* The contents of every record and of the world, through the draft, against a sweep of the state. */
+static void expect_contents_match_a_sweep(fixture *f, sprout_draft *draft) {
+  sprout_str scanned[64];
+  size_t i, j;
+  for (i = 0; i <= f->state->instance_count; i++) {
+    sprout_str id = i < f->state->instance_count ? f->state->instances[i].id : S(WORLD);
+    const sprout_str *kids;
+    size_t count, n = scan_children(f->state, id, scanned);
+    CHECK_INT(sprout_draft_children(draft, id, &kids, &count), SPROUT_DRAFT_OK);
+    CHECK_INT(count, n);
+    for (j = 0; j < n; j++) CHECK(among(kids, count, scanned[j]));
+  }
+}
+
+/*
+ * Contents are read off chains the state keeps across drafts, so a fresh draft sees exactly what a sweep finds,
+ * before a commit and after one that moved a thing; a draft that has written reads its own records instead.
+ */
+static void contents_match_a_sweep_of_every_record_before_and_after_a_commit(void) {
+  fixture f;
+  sprout_draft draft;
+  sprout_changes changes;
+  sprout_str yard = S(YARD);
+  const sprout_str *kids;
+  size_t count;
+  uint64_t edition;
+  begin(&f);
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  expect_contents_match_a_sweep(&f, &draft);
+  edition = f.state->edition;
+  CHECK(f.state->contents.built && f.state->contents.edition == edition);
+  CHECK_INT(sprout_draft_place(&draft, S(ROOM ".cat"), &yard), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK(among(kids, count, S(ROOM ".cat")));
+  CHECK_INT(sprout_draft_children(&draft, S(ROOM), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK(!among(kids, count, S(ROOM ".cat")));
+  CHECK_INT(sprout_draft_commit(&draft, &changes), SPROUT_DRAFT_OK);
+  CHECK(f.state->edition > edition);
+  sprout_arena_reset(&f.turn);
+  sprout_arena_init(&f.turn, &f.host);
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  expect_contents_match_a_sweep(&f, &draft);
+  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK(among(kids, count, S(ROOM ".cat")));
+  CHECK(f.state->contents.edition == f.state->edition);
+  finish(&f);
+}
+
+/* A thing moved twice in one turn is among the contents of where it last went, and of nowhere it left. */
+static void a_thing_moved_twice_in_one_turn_is_listed_under_where_it_last_went(void) {
+  fixture f;
+  sprout_draft draft;
+  sprout_str yard = S(YARD), room = S(ROOM);
+  const sprout_str *kids;
+  size_t count;
+  begin(&f);
+  sprout_draft_open(&draft, &f.turn, f.world, f.state);
+  CHECK_INT(sprout_draft_place(&draft, S(ROOM ".cat"), &yard), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK(among(kids, count, S(ROOM ".cat")));
+  CHECK_INT(sprout_draft_place(&draft, S(ROOM ".cat"), &room), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_children(&draft, S(YARD), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK(!among(kids, count, S(ROOM ".cat")));
+  CHECK_INT(sprout_draft_children(&draft, S(ROOM), &kids, &count), SPROUT_DRAFT_OK);
+  CHECK(among(kids, count, S(ROOM ".cat")));
+  CHECK_BYTES(kids[count - 1].bytes, kids[count - 1].length, ROOM ".cat");
+  finish(&f);
+}
+
 static void a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_as_it_was(void) {
   fixture f;
   sprout_draft draft;
@@ -586,6 +672,8 @@ int main(void) {
   RUN(reads_go_through_to_the_state);
   RUN(contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_serial);
   RUN(contents_asked_for_again_take_no_more_room_until_the_overlay_changes);
+  RUN(contents_match_a_sweep_of_every_record_before_and_after_a_commit);
+  RUN(a_thing_moved_twice_in_one_turn_is_listed_under_where_it_last_went);
   RUN(a_write_is_held_until_commit_and_dropping_the_turn_leaves_the_state_as_it_was);
   RUN(a_record_cannot_be_moved_by_writing_it);
   RUN(placing_moves_an_instance_last_under_a_new_arrival_serial);

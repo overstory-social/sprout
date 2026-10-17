@@ -75,6 +75,14 @@ static bool contained_by(const sprout_graph *graph, const sprout_node *container
   return true;
 }
 
+static int by_declared_id(const void *a, const void *b) {
+  return strcmp(((const sprout_declared *)a)->id, ((const sprout_declared *)b)->id);
+}
+
+static int by_qualified(const void *a, const void *b) {
+  return strcmp(((const sprout_kind_def *)a)->qualified, ((const sprout_kind_def *)b)->qualified);
+}
+
 static sprout_status build_tree(loader *l, const sprout_node *holds) {
   sprout_world *w = l->world;
   tree_queue q;
@@ -114,6 +122,10 @@ static sprout_status build_tree(loader *l, const sprout_node *holds) {
       MEMORY(entry->container);
     }
   }
+  w->declared_by_id = (const sprout_declared **)cat_array(l, q.tail + 1, sizeof *w->declared_by_id);
+  MEMORY(w->declared_by_id);
+  for (head = 0; head < q.tail; head++) w->declared_by_id[head] = &w->declared[head];
+  MEMORY(cat_sort(l, (const void **)w->declared_by_id, q.tail, by_declared_id));
   return SPROUT_OK;
 }
 
@@ -276,11 +288,15 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
   world->kind_count = all->count;
   world->kinds = (sprout_kind_def **)cat_array(l, all->count, sizeof(sprout_kind_def *));
   MEMORY(world->kinds);
+  world->kinds_by_name = (const sprout_kind_def **)cat_array(l, all->count + 1, sizeof *world->kinds_by_name);
+  MEMORY(world->kinds_by_name);
   for (i = 0; i < all->count; i++) {
     NEED(cat_read_kind(l, sprout_item(l->graph, all, i), &world->kinds[i]));
     world->kinds[i]->spawnable =
         !world->kinds[i]->composes_world && !world->kinds[i]->composes_visitor;
+    world->kinds_by_name[i] = world->kinds[i];
   }
+  MEMORY(cat_sort(l, (const void **)world->kinds_by_name, all->count, by_qualified));
   NEED(cat_read_kind(l, sprout_graph_cell(&world->graph, sprout_json_get(kinds_section, "world")),
                  &world->world_kind));
   NEED(cat_read_kind(l, sprout_graph_cell(&world->graph, sprout_json_get(kinds_section, "visitor")),
@@ -425,17 +441,52 @@ sprout_status sprout_catalogue_build(sprout_world *world, const sprout_json *roo
 
 /* ---- lookups ---- */
 
+/* A run of bytes, one of several that make up a name nothing has written out whole. */
+typedef struct piece {
+  const char *bytes;
+  size_t length;
+} piece;
+
+/* `text` against the pieces joined, in code-unit order as strcmp orders: negative, zero or positive. */
+static int pieces_compare(const char *text, const piece *pieces, size_t count) {
+  size_t p, i;
+  for (p = 0; p < count; p++)
+    for (i = 0; i < pieces[p].length; i++, text++) {
+      int order = (int)(unsigned char)*text - (int)(unsigned char)pieces[p].bytes[i];
+      if (order != 0) return order;
+    }
+  return (int)(unsigned char)*text;
+}
+
 const sprout_declared *sprout_world_declared(const sprout_world *world, const char *id) {
-  size_t i;
-  for (i = 0; i < world->declared_count; i++)
-    if (strcmp(world->declared[i].id, id) == 0) return &world->declared[i];
+  size_t lo = 0, hi = world->declared_count;
+  while (lo < hi) {
+    size_t mid = lo + (hi - lo) / 2;
+    int order = strcmp(world->declared_by_id[mid]->id, id);
+    if (order == 0) return world->declared_by_id[mid];
+    if (order < 0) lo = mid + 1;
+    else hi = mid;
+  }
+  return NULL;
+}
+
+/* The declared kind whose qualified name is the pieces joined, or NULL. */
+static const sprout_kind_def *kind_by_pieces(const sprout_world *world, const piece *pieces, size_t count) {
+  size_t lo = 0, hi = world->kind_count;
+  while (lo < hi) {
+    size_t mid = lo + (hi - lo) / 2;
+    int order = pieces_compare(world->kinds_by_name[mid]->qualified, pieces, count);
+    if (order == 0) return world->kinds_by_name[mid];
+    if (order < 0) lo = mid + 1;
+    else hi = mid;
+  }
   return NULL;
 }
 
 const sprout_kind_def *sprout_world_kind(const sprout_world *world, const char *qualified) {
-  size_t i;
-  for (i = 0; i < world->kind_count; i++)
-    if (strcmp(world->kinds[i]->qualified, qualified) == 0) return world->kinds[i];
+  piece whole = {qualified, strlen(qualified)};
+  const sprout_kind_def *found = kind_by_pieces(world, &whole, 1);
+  if (found != NULL) return found;
   if (world->world_kind != NULL && strcmp(world->world_kind->qualified, qualified) == 0)
     return world->world_kind;
   if (world->visitor_kind != NULL && strcmp(world->visitor_kind->qualified, qualified) == 0)
@@ -443,10 +494,27 @@ const sprout_kind_def *sprout_world_kind(const sprout_world *world, const char *
   return NULL;
 }
 
+const sprout_kind_def *sprout_world_kind_named(const sprout_world *world, const char *library, size_t library_length,
+                                               const char *name) {
+  piece pieces[3];
+  pieces[0].bytes = library;
+  pieces[0].length = library_length;
+  pieces[1].bytes = ".";
+  pieces[1].length = 1;
+  pieces[2].bytes = name;
+  pieces[2].length = strlen(name);
+  return kind_by_pieces(world, pieces, 3);
+}
+
 const sprout_property *sprout_kind_property(const sprout_kind_def *kind, const char *name) {
-  size_t i;
-  for (i = 0; i < kind->property_count; i++)
-    if (strcmp(kind->properties[i]->name, name) == 0) return kind->properties[i];
+  size_t lo = 0, hi = kind->property_count;
+  while (lo < hi) {
+    size_t mid = lo + (hi - lo) / 2;
+    int order = strcmp(kind->properties_by_name[mid]->name, name);
+    if (order == 0) return kind->properties_by_name[mid];
+    if (order < 0) lo = mid + 1;
+    else hi = mid;
+  }
   return NULL;
 }
 

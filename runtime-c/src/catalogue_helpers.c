@@ -28,6 +28,25 @@ void *cat_array(loader *l, size_t count, size_t size) {
   return sprout_arena_take(l->arena, count * size);
 }
 
+/* A merge sort over pointers, bottom up, through a scratch array of the loader's: the runtime brings no `qsort`. */
+void *cat_sort(loader *l, const void **items, size_t count, int (*compare)(const void *, const void *)) {
+  const void **scratch = (const void **)cat_array(l, count + 1, sizeof *scratch);
+  size_t width;
+  if (scratch == NULL) return NULL;
+  for (width = 1; width < count; width *= 2) {
+    size_t at;
+    for (at = 0; at < count; at += 2 * width) {
+      size_t left = at, mid = at + width < count ? at + width : count, right = at + 2 * width < count ? at + 2 * width : count;
+      size_t l_ = left, r_ = mid, k = left;
+      while (l_ < mid && r_ < right) scratch[k++] = compare(items[r_], items[l_]) < 0 ? items[r_++] : items[l_++];
+      while (l_ < mid) scratch[k++] = items[l_++];
+      while (r_ < right) scratch[k++] = items[r_++];
+    }
+    for (at = 0; at < count; at++) items[at] = scratch[at];
+  }
+  return items;
+}
+
 /* The shape the cartridge should have had at `where`. */
 sprout_status cat_shaped(loader *l, const char *where) {
   return cat_fail(l, "This cartridge is not shaped as a cartridge is at `", where,

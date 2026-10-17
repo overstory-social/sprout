@@ -5,19 +5,42 @@
  */
 #include "expr.h"
 
+/* The kind an expression node's `kind` names, told apart by its first byte before any whole comparison. */
 expr_kind expr_kind_of(const sprout_graph *graph, const sprout_node *node) {
-  static const struct {
-    const char *name;
-    expr_kind kind;
-  } kinds[] = {{"boolean", EXPR_BOOLEAN}, {"integer", EXPR_INTEGER},     {"string", EXPR_STRING},
-               {"binding", EXPR_BINDING}, {"symbol-expr", EXPR_SYMBOL},  {"kind-expr", EXPR_KIND},
-               {"unary", EXPR_UNARY},     {"binary", EXPR_BINARY},       {"member", EXPR_MEMBER},
-               {"call", EXPR_CALL},       {"free-call", EXPR_FREE_CALL}, {"bound", EXPR_BOUND}};
   const char *kind = node == NULL ? NULL : sprout_node_text(graph, node, "kind");
-  size_t i;
   if (kind == NULL) return EXPR_OTHER;
-  for (i = 0; i < sizeof kinds / sizeof kinds[0]; i++)
-    if (strcmp(kinds[i].name, kind) == 0) return kinds[i].kind;
+  switch (kind[0]) {
+    case 'b':
+      if (strcmp(kind, "binary") == 0) return EXPR_BINARY;
+      if (strcmp(kind, "binding") == 0) return EXPR_BINDING;
+      if (strcmp(kind, "boolean") == 0) return EXPR_BOOLEAN;
+      if (strcmp(kind, "bound") == 0) return EXPR_BOUND;
+      break;
+    case 'c':
+      if (strcmp(kind, "call") == 0) return EXPR_CALL;
+      break;
+    case 'f':
+      if (strcmp(kind, "free-call") == 0) return EXPR_FREE_CALL;
+      break;
+    case 'i':
+      if (strcmp(kind, "integer") == 0) return EXPR_INTEGER;
+      break;
+    case 'k':
+      if (strcmp(kind, "kind-expr") == 0) return EXPR_KIND;
+      break;
+    case 'm':
+      if (strcmp(kind, "member") == 0) return EXPR_MEMBER;
+      break;
+    case 's':
+      if (strcmp(kind, "string") == 0) return EXPR_STRING;
+      if (strcmp(kind, "symbol-expr") == 0) return EXPR_SYMBOL;
+      break;
+    case 'u':
+      if (strcmp(kind, "unary") == 0) return EXPR_UNARY;
+      break;
+    default:
+      break;
+  }
   return EXPR_OTHER;
 }
 
@@ -80,28 +103,16 @@ static size_t looking_from(const char *library) {
   return slash == NULL ? strlen(library) : (size_t)(slash - library);
 }
 
-static const sprout_kind_def *find_kind(const sprout_world *world, const char *library, size_t library_length,
-                                        const char *name) {
-  size_t i;
-  for (i = 0; i < world->kind_count; i++) {
-    const sprout_kind_def *kind = world->kinds[i];
-    if (strlen(kind->library) == library_length && memcmp(kind->library, library, library_length) == 0 &&
-        strcmp(kind->name, name) == 0)
-      return kind;
-  }
-  return NULL;
-}
-
 const sprout_kind_def *expr_kind_named(const sprout_frame *frame, const sprout_node *written) {
   const char *name = sprout_node_name(frame->graph, written, "name");
   const sprout_node *library = sprout_node_get(frame->graph, written, "library");
   if (name == NULL) return NULL;
   if (library != NULL && library->kind != SPROUT_NODE_NULL) {
     const char *text = sprout_name(frame->graph, library);
-    return text == NULL ? NULL : find_kind(frame->world, text, strlen(text), name);
+    return text == NULL ? NULL : sprout_world_kind_named(frame->world, text, strlen(text), name);
   }
   {
-    const sprout_kind_def *own = find_kind(frame->world, frame->library, looking_from(frame->library), name);
-    return own != NULL ? own : find_kind(frame->world, "sprout", 6, name);
+    const sprout_kind_def *own = sprout_world_kind_named(frame->world, frame->library, looking_from(frame->library), name);
+    return own != NULL ? own : sprout_world_kind_named(frame->world, "sprout", 6, name);
   }
 }

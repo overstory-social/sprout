@@ -117,8 +117,10 @@ const sprout_node *sprout_graph_cell(const sprout_graph *graph, const sprout_jso
 const sprout_node *sprout_node_get(const sprout_graph *graph, const sprout_node *object, const char *key) {
   size_t i;
   if (object == NULL || object->kind != SPROUT_NODE_OBJECT) return NULL;
-  for (i = 0; i < object->count; i++)
-    if (strcmp(sprout_key(graph, object, i), key) == 0) return sprout_item(graph, object, i);
+  for (i = 0; i < object->count; i++) {
+    const char *field = sprout_key(graph, object, i);
+    if (field[0] == key[0] && strcmp(field, key) == 0) return sprout_item(graph, object, i);
+  }
   return NULL;
 }
 

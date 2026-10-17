@@ -49,9 +49,15 @@ typedef struct sprout_draft {
   sprout_str *buried;
   size_t visitor_count, visitor_capacity;
   sprout_stored_visitor *visitors;
-  /* Every record as the turn stands, listed once per change of the overlay: a contents lookup reads it, never rebuilds it. */
+  /*
+   * Every record as the turn stands, listed once per change of the overlay, and the same records chained by the
+   * hash of their container, so a contents lookup reads one chain and never sweeps the list.
+   */
   const sprout_stored_instance **all;
   size_t all_count;
+  const size_t *all_heads; /* one chain head for each hash bucket, all_count meaning none */
+  const size_t *all_next;  /* the next record in a chain, by index into `all` */
+  size_t all_bucket_mask;
   uint64_t generation, all_generation; /* the overlay's changes so far, and the ones `all` was listed at */
   bool committed;
 } sprout_draft;

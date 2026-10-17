@@ -259,6 +259,31 @@ static void lookups_bisect_once_sorted_and_scan_before(void) {
   sprout_state_free(state);
 }
 
+/* The edition counts every change to the records: a sort, an opening and a compaction each move it on. */
+static void the_edition_moves_on_with_every_change_to_the_records(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  sprout_state *state = NULL;
+  sprout_refusal why;
+  uint64_t edition;
+  const char *text = "{\"world\":\"printers_shop\",\"serial\":0,\"instances\":[],\"visitors\":[],\"tombstones\":[]}";
+  CHECK_INT(sprout_state_read(&host, text, strlen(text), &state, &why), SPROUT_OK);
+  if (state == NULL) exit(2);
+  edition = state->edition;
+  CHECK_INT(sprout_state_sort(state, &state->arena), SPROUT_OK);
+  CHECK(state->edition > edition);
+  edition = state->edition;
+  CHECK_INT(sprout_state_open(state, world, &why), SPROUT_OK);
+  CHECK(state->edition > edition);
+  edition = state->edition;
+  CHECK_INT(sprout_state_compact(state), SPROUT_OK);
+  CHECK(state->edition > edition);
+  sprout_state_free(state);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+}
+
 /* ---- what a declaration cannot explain is refused, naming the record ---- */
 
 /* Opens `text` against a corpus world; the state stays with the caller. */
@@ -464,6 +489,7 @@ int main(void) {
   RUN(the_store_of_another_world_is_refused_in_words);
   RUN(a_destroyed_declared_object_is_never_made_again_nor_anything_inside_it);
   RUN(lookups_bisect_once_sorted_and_scan_before);
+  RUN(the_edition_moves_on_with_every_change_to_the_records);
   RUN(a_record_no_declaration_explains_is_refused);
   RUN(a_given_record_is_decoded_while_its_content_path_exists);
   RUN(a_world_without_its_kind_makes_no_world_record_and_refuses_one_stored);

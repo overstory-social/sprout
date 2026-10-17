@@ -45,6 +45,8 @@ sprout_status cat_keep(loader *l, const sprout_node *node, void *read);
 sprout_status cat_shaped(loader *l, const char *where);
 /* Zeroed room for `count` things of `size`, or NULL when the host refuses a page. */
 void *cat_array(loader *l, size_t count, size_t size);
+/* Sorts `count` pointers by `compare`, stably; NULL only when the host refuses the room the sort needs. */
+void *cat_sort(loader *l, const void **items, size_t count, int (*compare)(const void *, const void *));
 bool cat_is_array(const sprout_node *node);
 /* A string field of an object, or NULL. */
 const char *cat_text(const sprout_graph *graph, const sprout_node *object, const char *key);

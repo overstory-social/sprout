@@ -166,6 +166,62 @@ static void lookups_find_what_the_tree_and_the_kinds_hold(void) {
   CHECK_INT(heap.pages, 0);
 }
 
+/* Every declared object, kind and property is found by its name, and nothing is found by a near miss. */
+static void every_name_in_the_catalogue_is_found_and_a_near_miss_is_not(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  size_t i, j;
+  char near[256];
+  CHECK(world->declared_count > 3 && world->kind_count > 3);
+  for (i = 0; i < world->declared_count; i++) {
+    const sprout_declared *one = &world->declared[i];
+    CHECK(sprout_world_declared(world, one->id) == one);
+    snprintf(near, sizeof near, "%sx", one->id);
+    CHECK(sprout_world_declared(world, near) == NULL);
+  }
+  for (i = 0; i < world->kind_count; i++) {
+    const sprout_kind_def *kind = world->kinds[i];
+    CHECK(sprout_world_kind(world, kind->qualified) == kind);
+    CHECK(sprout_world_kind_named(world, kind->library, strlen(kind->library), kind->name) == kind);
+    /* A library name read up to its length: the bytes past it are not looked at. */
+    snprintf(near, sizeof near, "%s/own", kind->library);
+    CHECK(sprout_world_kind_named(world, near, strlen(kind->library), kind->name) == kind);
+    CHECK(sprout_world_kind_named(world, kind->library, strlen(kind->library) - 1, kind->name) == NULL);
+    snprintf(near, sizeof near, "%sx", kind->name);
+    CHECK(sprout_world_kind_named(world, kind->library, strlen(kind->library), near) == NULL);
+    for (j = 0; j < kind->property_count; j++) CHECK(sprout_kind_property(kind, kind->properties[j]->name) == kind->properties[j]);
+  }
+  CHECK(sprout_world_kind_named(world, "sprout", 6, "Nothing") == NULL);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+}
+
+/* The verbs offered are each verb with a typed phrase, once, in the order of their first phrase, whose runs partition the phrases. */
+static void the_offered_verbs_are_those_with_a_typed_phrase_once_in_the_parsers_order(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("printers_shop", &host);
+  size_t i, j, at = 0;
+  CHECK(world->offered_count > 3);
+  for (i = 0; i < world->offered_count; i++) {
+    const sprout_verb *verb = world->offered[i];
+    CHECK(verb->typed_count > 0);
+    CHECK_INT(verb->typed_at, at);
+    for (j = 0; j < verb->typed_count; j++) CHECK(world->phrases[at + j].verb == verb);
+    at += verb->typed_count;
+    for (j = 0; j < i; j++) CHECK(world->offered[j] != verb);
+  }
+  CHECK_INT(at, world->phrase_count);
+  for (i = 0; i < world->verb_count; i++) {
+    bool listed = false;
+    for (j = 0; j < world->offered_count; j++) listed = listed || world->offered[j] == world->verbs[i];
+    CHECK(listed == (world->verbs[i]->typed_count > 0));
+  }
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+}
+
 /* The name table and the option slots have room for what they hold (half as much would not do), not for every entry. */
 static void the_name_table_and_the_option_slots_are_sized_to_what_they_hold(void) {
   test_heap heap;
@@ -198,6 +254,8 @@ int main(void) {
   RUN(the_caps_a_cartridge_records_are_read_and_the_optional_ones_stay_unset);
   RUN(the_extensions_a_cartridge_pins_are_recorded);
   RUN(lookups_find_what_the_tree_and_the_kinds_hold);
+  RUN(every_name_in_the_catalogue_is_found_and_a_near_miss_is_not);
+  RUN(the_offered_verbs_are_those_with_a_typed_phrase_once_in_the_parsers_order);
   RUN(the_name_table_and_the_option_slots_are_sized_to_what_they_hold);
   return REPORT();
 }
