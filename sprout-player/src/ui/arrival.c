@@ -172,4 +172,4 @@ static void draw(player_app *app, void *ctx) {
 
 static void leave(player_app *app, void *ctx) { player_free(app->pd, ctx); }
 
-const player_screen player_arrival_screen = {update, draw, leave};
+const player_screen player_arrival_screen = {update, draw, leave, NULL};

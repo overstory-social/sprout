@@ -2,7 +2,8 @@
  * ui/wrap.c: word wrap for the reader's column. The rules hold over generated text with a font
  * whose characters differ in width: no line is wider than the column unless it is one
  * character; no character is lost, added or moved; each line takes every word that fits, and a
- * word wider than the column is cut as late as it can be and never inside a character.
+ * word wider than the column is cut as late as it can be and never inside a character. A block
+ * keeps its words, so the same words wrap again for a wider font with nothing changed.
  */
 #include <stdlib.h>
 
@@ -37,12 +38,12 @@ static void a_newline_starts_a_line_and_nothing_is_one_empty_line(void) {
   wrapped w;
   begin("newlines");
   CHECK(lines_of("", 100, lines, 8, &w) == 1 && strcmp(lines[0], "") == 0, "nothing");
-  player_free(&fake->api, w.bytes);
+  wrap_free(&fake->api, &w);
   CHECK(lines_of("one\n\ntwo  three\n", 100, lines, 8, &w) == 4, "%zu lines", w.line_count);
   CHECK(strcmp(lines[0], "one") == 0 && strcmp(lines[1], "") == 0 && strcmp(lines[2], "two three") == 0 &&
             strcmp(lines[3], "") == 0,
         "the lines: %s|%s|%s|%s", lines[0], lines[1], lines[2], lines[3]);
-  player_free(&fake->api, w.bytes);
+  wrap_free(&fake->api, &w);
   end();
 }
 
@@ -58,7 +59,7 @@ static void a_word_too_wide_is_cut_between_characters(void) {
   CHECK(strcmp(lines[1], "\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9") == 0, "as many as fit: %s", lines[1]);
   CHECK(strcmp(lines[2], "\xc3\xa9\xc3\xa9 cd") == 0, "the rest takes the next word: %s", lines[2]);
   for (i = 0; i < n && i < 8; i++) CHECK(((unsigned char)lines[i][0] & 0xC0u) != 0x80u, "line %zu starts inside a character", i);
-  player_free(&fake->api, w.bytes);
+  wrap_free(&fake->api, &w);
   end();
 }
 
@@ -148,8 +149,57 @@ static void the_rules_hold_over_generated_text(void) {
     ink(text, in_ink);
     ink(joined, out_ink);
     CHECK(strcmp(in_ink, out_ink) == 0, "round %d: the characters changed:\n%s\n%s", round, in_ink, out_ink);
-    player_free(&fake->api, w.bytes);
+    wrap_free(&fake->api, &w);
   }
+  end();
+}
+
+/* A font `*ctx` pixels a character. */
+static int measure_scaled(void *ctx, const char *text, size_t length) {
+  (void)text;
+  return (int)length * *(const int *)ctx;
+}
+
+/*
+ * A block keeps the words it was made from: wrapped again for a wider font, the lines are what
+ * those words make at that width, a newline still a line and a cut word cut afresh, with no
+ * character changed; freed, the block is one block.
+ */
+static void the_same_words_wrap_again_for_another_font(void) {
+  static const char WORDS[] = "one two three\nfour abcdefghijkl";
+  char before[64], after[64];
+  const char *lines[8];
+  wrapped w;
+  int scale = 10, pages;
+  size_t i;
+  begin("again");
+  pages = fake->pages;
+  CHECK(wrap_lines(&fake->api, WORDS, strlen(WORDS), 100, measure_scaled, &scale, &w), "wrapping");
+  CHECK(w.length == strlen(WORDS) && strcmp(w.text, WORDS) == 0, "the block keeps the words: %s", w.text);
+  CHECK(w.line_count == 5, "ten a line, the long word cut: %zu lines", w.line_count);
+  before[0] = '\0';
+  for (i = 0, lines[0] = w.bytes; i < w.line_count && i < 8; i++) {
+    ink(lines[i], before + strlen(before));
+    if (i + 1 < w.line_count) lines[i + 1] = wrap_next(lines[i]);
+  }
+  scale = 20;
+  CHECK(wrap_again(&fake->api, &w, 100, measure_scaled, &scale), "wrapping again");
+  CHECK(strcmp(w.text, WORDS) == 0 && w.line_count == 7, "the words are kept and make more lines five a line: %zu", w.line_count);
+  after[0] = '\0';
+  for (i = 0, lines[0] = w.bytes; i < w.line_count && i < 8; i++) {
+    size_t n = strlen(lines[i]);
+    CHECK(measure_scaled(&scale, lines[i], n) <= 100 || n == 1, "\"%s\" is wider than the column", lines[i]);
+    ink(lines[i], after + strlen(after));
+    if (i + 1 < w.line_count) lines[i + 1] = wrap_next(lines[i]);
+  }
+  CHECK(strcmp(before, after) == 0, "no character changed:\n%s\n%s", before, after);
+  CHECK(strcmp(lines[1], "two") == 0 && strcmp(lines[2], "three") == 0 && strcmp(lines[3], "four") == 0,
+        "a newline is still a line: %s | %s | %s", lines[1], lines[2], lines[3]);
+  wrap_free(&fake->api, &w);
+  CHECK(w.bytes == NULL && w.text == NULL && w.line_count == 0 && fake->pages == pages, "freed whole: %d blocks over",
+        fake->pages - pages);
+  CHECK(!wrap_again(&fake->api, &w, 100, measure_scaled, &scale), "nothing wraps again");
+  wrap_free(&fake->api, &w);
   end();
 }
 
@@ -158,5 +208,6 @@ int main(void) {
   a_newline_starts_a_line_and_nothing_is_one_empty_line();
   a_word_too_wide_is_cut_between_characters();
   the_rules_hold_over_generated_text();
+  the_same_words_wrap_again_for_another_font();
   return finish();
 }

@@ -15,7 +15,7 @@ typedef struct player_message {
 
 /* Shown when there is no memory for the message itself; its leave frees nothing. */
 static char out_of_memory_line[] = "The player ran out of memory.";
-static player_message out_of_memory = {{out_of_memory_line, 1}};
+static player_message out_of_memory = {{out_of_memory_line, 1, out_of_memory_line, sizeof out_of_memory_line - 1}};
 
 void player_message_show(player_app *app, const char *words) {
   player_message *message = (player_message *)player_alloc(app->pd, sizeof *message);
@@ -47,8 +47,14 @@ static void draw(player_app *app, void *ctx) {
 static void leave(player_app *app, void *ctx) {
   player_message *message = (player_message *)ctx;
   if (message == &out_of_memory) return;
-  player_free(app->pd, message->words.bytes);
+  wrap_free(app->pd, &message->words);
   player_free(app->pd, message);
 }
 
-const player_screen player_message_screen = {update, draw, leave};
+static void refit(player_app *app, void *ctx) {
+  player_message *message = (player_message *)ctx;
+  if (message != &out_of_memory)
+    wrap_again(app->pd, &message->words, PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen);
+}
+
+const player_screen player_message_screen = {update, draw, leave, refit};

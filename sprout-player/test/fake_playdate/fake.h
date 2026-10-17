@@ -23,6 +23,9 @@ SDFile *fake_open(const char *path, FileOptions mode);
 int fake_read(SDFile *file, void *buffer, unsigned length);
 int fake_close(SDFile *file);
 
+/* Lets a font handle go, as realloc to nothing does; whether `block` was one. */
+int fake_font_release(void *block);
+
 void fake_install_files(fake_playdate *fake);
 void fake_install_screen(fake_playdate *fake);
 void fake_install_bitmaps(fake_playdate *fake);

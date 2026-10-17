@@ -58,8 +58,10 @@ const char *player_builder_fit(PlaydateAPI *pd, LCDFont *const *fonts, size_t fo
 /* ---- words over the disc ---- */
 
 static void drop_words(player_app *app, player_builder *b) {
-  if (b->message.bytes != NULL && b->message.bytes != unwrapped) player_free(app->pd, b->message.bytes);
-  b->message.bytes = NULL;
+  if (b->message.bytes == unwrapped)
+    b->message.bytes = NULL;
+  else
+    wrap_free(app->pd, &b->message);
   b->message.line_count = 0;
 }
 
@@ -399,7 +401,7 @@ static void draw(player_app *app, void *ctx) {
   words = entry->reason != NULL ? entry->reason : BUILDER_KEYS;
   if (wrap_lines(pd, words, strlen(words), PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen, &panel)) {
     draw_lines(app, &panel, bottom + 2);
-    player_free(pd, panel.bytes);
+    wrap_free(pd, &panel);
   } else {
     player_pen_say(&app->pen, NO_MEMORY, PLAYER_MARGIN, bottom + 2);
   }
@@ -419,4 +421,12 @@ static void leave(player_app *app, void *ctx) {
   player_free(app->pd, b);
 }
 
-const player_screen player_builder_screen = {update, draw, leave};
+/* The reader it holds follows the font, and so do the words over the disc; the phrase and the hint are fitted each draw. */
+static void refit(player_app *app, void *ctx) {
+  player_builder *b = (player_builder *)ctx;
+  player_reader_screen.refit(app, b->reader);
+  if (b->message.bytes != unwrapped)
+    wrap_again(app->pd, &b->message, PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN, player_pen_width, &app->pen);
+}
+
+const player_screen player_builder_screen = {update, draw, leave, refit};

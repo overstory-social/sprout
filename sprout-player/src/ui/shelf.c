@@ -113,11 +113,7 @@ static void inspect(player_app *app, const char *path, shelf_entry *entry) {
   if (!verdict.ok) copy_text(entry->reason, sizeof entry->reason, verdict.reason != NULL ? verdict.reason : "");
 }
 
-static void forget_panel(player_app *app, player_shelf *shelf) {
-  player_free(app->pd, shelf->panel.bytes);
-  shelf->panel.bytes = NULL;
-  shelf->panel.line_count = 0;
-}
+static void forget_panel(player_app *app, player_shelf *shelf) { wrap_free(app->pd, &shelf->panel); }
 
 /* Lists the shelf again, inspecting only the cartridges it has not seen. */
 static void list(player_app *app, player_shelf *shelf) {
@@ -351,4 +347,7 @@ static void leave(player_app *app, void *ctx) {
   (void)ctx;
 }
 
-const player_screen player_shelf_screen = {update, draw, leave};
+/* The panel is wrapped afresh by the next draw. */
+static void refit(player_app *app, void *ctx) { forget_panel(app, (player_shelf *)ctx); }
+
+const player_screen player_shelf_screen = {update, draw, leave, refit};
