@@ -87,7 +87,7 @@ static void fake_on_closed(HTTPConnection *conn, HTTPConnectionCallback *callbac
 
 static PDNetErr fake_get(HTTPConnection *conn, const char *path, const char *headers, size_t headerlen) {
   fake_connection *c = connection_of(conn);
-  char url[1100];
+  char url[4400];
   int i;
   (void)headers;
   (void)headerlen;
