@@ -121,8 +121,10 @@ the layout is hole 462.
   world that names no file has no section. The `extensions` section of the
   preamble still lists them as
   `{"name":"media","major":1,"assets":[{"path":"cellar.png","bytes":80,"sha":"…"}]}`,
-  `bytes` and `sha` the author's file's, and a reader refuses a cartridge
-  whose section holds other files than these. Their total size (of the
+  `bytes` and `sha` the author's file's. The language's reader refuses a
+  cartridge whose section holds other files than these; the C runtime does
+  not read the section, and the player leaves out a picture its directory
+  does not hold (_Images_). Their total size (of the
   author's files) is the static cap `assetBytes`, the host's and unset by
   default.
 - **A picture travels as packed rows.** A `media` picture is a PNG of one

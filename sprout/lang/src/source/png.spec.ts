@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { chunk, packed, png } from '../fixtures/png.js';
+import { crc32 } from './gzip.js';
 import { PngUnreadable, readOneBitPng } from './png.js';
 
 const CORPUS = join(fileURLToPath(import.meta.url), '../../../../../corpus');
@@ -95,6 +96,12 @@ describe('readOneBitPng', () => {
     expect(refusal(png(PATTERN, { filter: () => 7 }))).toBe(
       'a row of its image data has filter 7, which is none',
     );
+    // A header claiming a vast picture over a few bytes of data is refused, not allocated.
+    const vast = Uint8Array.from(good);
+    new DataView(vast.buffer).setUint32(16, 0x7fffffff);
+    new DataView(vast.buffer).setUint32(20, 0x7fffffff);
+    new DataView(vast.buffer).setUint32(29, crc32(vast.subarray(12, 29)));
+    expect(refusal(vast)).toBe('its image data is shorter than its size says');
     const noEnd = good.subarray(0, good.length - 12);
     expect(refusal(noEnd)).toBe('it has no end chunk');
   });

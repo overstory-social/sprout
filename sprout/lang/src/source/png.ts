@@ -188,18 +188,28 @@ export function readOneBitPng(bytes: Uint8Array): OneBitPicture {
   compressed.reduce((at, data) => (joined.set(data, at), at + data.length), 0);
   const data = unzlib(joined);
 
+  const passes = interlace === 1 ? ADAM7 : ([[0, 0, 1, 1]] as const);
+  // The image data is measured against the size the header claims before any room is made for
+  // the rows, so a header claiming a vast picture is refused rather than allocated.
+  const expected = passes.reduce((total, [x0, y0, dx, dy]) => {
+    const passWidth = Math.ceil((width - x0) / dx);
+    const passHeight = Math.ceil((height - y0) / dy);
+    return passWidth <= 0 || passHeight <= 0
+      ? total
+      : total + (Math.ceil(passWidth / 8) + 1) * passHeight;
+  }, 0);
+  if (expected > data.length)
+    throw new PngUnreadable('its image data is shorter than its size says');
+  if (expected < data.length)
+    throw new PngUnreadable('its image data is longer than its size says');
   const stride = Math.ceil(width / 8);
   const rows = new Uint8Array(stride * height);
-  const passes = interlace === 1 ? ADAM7 : ([[0, 0, 1, 1]] as const);
   let at = 0;
   for (const [x0, y0, dx, dy] of passes) {
     const passWidth = Math.ceil((width - x0) / dx);
     const passHeight = Math.ceil((height - y0) / dy);
     if (passWidth <= 0 || passHeight <= 0) continue;
     const passStride = Math.ceil(passWidth / 8);
-    if (at + (passStride + 1) * passHeight > data.length) {
-      throw new PngUnreadable('its image data is shorter than its size says');
-    }
     const pass = unfiltered(data, at, passStride, passHeight);
     at += (passStride + 1) * passHeight;
     for (let py = 0; py < passHeight; py++) {
@@ -212,6 +222,5 @@ export function readOneBitPng(bytes: Uint8Array): OneBitPicture {
       }
     }
   }
-  if (at !== data.length) throw new PngUnreadable('its image data is longer than its size says');
   return { width, height, rows };
 }
