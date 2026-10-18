@@ -144,7 +144,7 @@ committed here), CMake, a C compiler, and the repository built (`npm ci && npm r
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once (Linux)
-npm run playdate                                             # packs the graduated worlds and builds the pdx
+npm run playdate                                             # builds the pdx, packs the graduated worlds into sprout-player/build/worlds/
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 ```
 
@@ -179,16 +179,18 @@ the Simulator's **Device › Upload Game to Device**; or `"$PLAYDATE_SDK_PATH/bi
 sprout-player.pdx` where the Linux `pdutil` runs; or zip the pdx folder and sideload it from your
 account at play.date, which the console then fetches over Wi-Fi.
 
-A cartridge made by `sprout pack` and copied into the app's Data folder (in the Simulator,
-`$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The pdx
-carries the graduated worlds listed in `sprout-player/worlds.json`, today the worked microworld
+The pdx carries no worlds. A cartridge made by `sprout pack` and copied into the app's Data folder
+(`Data/social.overstory.sprout-player/worlds/` on the console's data disk; in the Simulator,
+`$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The build
+packs the graduated worlds listed in `sprout-player/worlds.json` into `sprout-player/build/worlds/`
+for installing that way, today the worked microworld
 `printers_shop` and the studio's finished `underground_caverns`, a snapshot pinned in
 `sprout-player/worlds/underground_caverns/` whose `source.json` names the studio commit it was
 copied at (new content lands in sprout-studio; to release it into the Playdate build, run
 `node scripts/sync-world.mjs underground_caverns <path to a sprout-studio checkout>` by hand and
 read the diff; the build never reads outside this repository); a world may list `plays`, scripts under its folder the
-build plays through `sproutc` with the view polled first under the app's poll budget, so the pdx
-never ships a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
+build plays through `sproutc` with the view polled first under the app's poll budget, so the build
+never packs a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
 shelf's last row fetches more from a signed index
 (`node scripts/publish-index.mjs --generate-key <prefix>` makes the publisher's key, which never
 enters this repository; `publish-index.mjs <folder> --base-url <url> --key <file>` writes the

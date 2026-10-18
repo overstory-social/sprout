@@ -306,7 +306,7 @@ of the host contract, its files, its network and the stack a frame runs on
 are `src/host/`; the screens are `src/ui/`. `main.c` sets the update
 callback at `kEventInit`, which tells the system the game is pure C, and
 hands the app the lock, low-power, unlock, pause and terminate events; the pdx
-carries no script, only `pdxinfo`, the fonts, the shipped worlds and the
+carries no script and no world, only `pdxinfo`, the fonts and the
 binaries `pdc` packages from `Source/`. Each frame runs on the player's own
 stack (`src/host/stack.h`), since a turn may run in it, and the file calls
 inside it hop back to the main stack.
@@ -745,7 +745,7 @@ on the shelf, as a refused open does.
 
 The shelf lists the `.sproutworld` files at the root of the app and of its
 Data folder and in each one's `worlds/` folder (a copy in Data shadows the
-app's). Each is inspected once, by file name and size, through
+app's); the pdx itself carries none, so the worlds are those in Data. Each is inspected once, by file name and size, through
 `sprout_peek`: its header and caps alone, read from the file a piece at a
 time as far as the preamble, so the shelf costs no more for a big world, or
 one carrying many pictures, than a small one. Each world is a word on a wheel, as the sentence
@@ -764,14 +764,22 @@ same. The last word, "more worlds…", opens the download screen.
 
 ### Shipped worlds and downloads
 
-The pdx carries the **graduated** worlds, listed in
-`sprout-player/worlds.json` (`{"graduated": [{"world": "<corpus/good name or
-a path>", "title": "…"}]}`). `scripts/playdate-player.mjs` packs each with
-`sprout pack` into the pdx's `worlds/`, as one `<name>.sproutworld` for
-the name the world's manifest gives it, its pictures inside it: the pdx holds
-no image of a world's. A world sideloaded in disk mode is the one file
-copied into `Data/social.overstory.sprout-player/worlds/`. Today the
-list is the worked microworld `printers_shop` and the studio's finished
+The pdx carries no worlds, so on a fresh install the shelf holds only "more
+worlds…", and its panel says no worlds are on the shelf and that A looks for
+more to download. Every world is installed on its own. Until downloads are
+live, a world is installed by copying its `.sproutworld` into
+`Data/social.overstory.sprout-player/worlds/` on the console's data disk (in
+disk mode), which the shelf lists. A save lives in the Data folder keyed by
+the bundle hash, so it does not care where its cartridge came from.
+
+The **graduated** worlds are listed in `sprout-player/worlds.json`
+(`{"graduated": [{"world": "<corpus/good name or a path>", "title": "…"}]}`).
+`scripts/playdate-player.mjs` packs each with `sprout pack` into
+`sprout-player/build/worlds/`, beside the pdx and not in it, as one
+`<name>.sproutworld` for the name the world's manifest gives it, its pictures
+inside it, and prints where they are; the gate packs them into a scratch
+folder and runs its checks against them there. Today the list is the worked
+microworld `printers_shop` and the studio's finished
 `underground_caverns`. Every world the list names is inside this repository,
 so the build and the gate never read another checkout. A studio world ships as a
 pinned snapshot under `sprout-player/worlds/<world>/`: the files the studio
@@ -784,7 +792,8 @@ that checkout's HEAD and rewrites the pin, and its diff is read before it is
 committed. It refuses, writing nothing, a checkout with no such world, no
 manifest, uncommitted changes to the world or no origin, and a world this list
 has no entry for. The studio will write this file; until then this repository
-owns it (hole 502). The build fails if the app would grey a listed world.
+owns it (hole 502). The build fails if the app would grey a listed world, and
+if `Source/` or the pdx holds a cartridge.
 
 The **signed index** (`sprout-player/index.schema.json`) is what the
 download screen fetches: `{ "worlds": [ { title, author, version, bytes,
@@ -856,7 +865,8 @@ transcript; a round trip of
 the save through `sproutc` (the save must read and write back byte for byte,
 and the turns built from the chips must leave the stored world the
 same lines typed leave); the download screen over a fake network, files and
-engine; the signature check against RFC 8032; every packed world shelved;
+engine; the signature check against RFC 8032; every packed world shelved; the empty
+shelf of a fresh install;
 the Node specs for the index and the build; and each graduated world's
 listed plays (`"plays"` in `worlds.json`, scripts under the world's folder)
 played through `sproutc play --offered` over the packed cartridge, the view
@@ -864,7 +874,7 @@ polled before every command under the app's poll budget and each reading
 required to be among what it offers, a set role one member at a time, as the
 sentence builder builds it, no turn faulting and each step saying what the
 play expects of it. The Simulator target must compile and `pdc` must package the pdx with no
-compiled script in it; the device target is built too where
+compiled script and no cartridge in it; the device target is built too where
 `arm-none-eabi-gcc` is installed.
 `docs/design/sprout-test-harness.md` lists each.
 
@@ -990,7 +1000,7 @@ The Simulator pdx, and the player's checks, need the SDK:
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # once
-npm run playdate                                             # packs the graduated worlds, builds the one pdx
+npm run playdate                                             # builds the one pdx, packs the graduated worlds beside it in sprout-player/build/worlds/
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 node scripts/check-runtime-c.mjs                             # now also builds the Simulator target and runs the player's C tests
 ```
@@ -998,7 +1008,8 @@ node scripts/check-runtime-c.mjs                             # now also builds t
 The pdx carries every binary the machine can build and the script says
 which (`carries:` and `not built:`): the host's Simulator library, `pdex.dll`
 where `x86_64-w64-mingw32-gcc` is found, `pdex.bin` where `arm-none-eabi-gcc`
-is. The README's Playdate section has the WSL2 arrangement, where the build
+is. It prints where it packed the graduated worlds (`worlds:`), for copying
+into the Data folder. The README's Playdate section has the WSL2 arrangement, where the build
 runs on Linux and the Simulator on Windows.
 
 With the variable unset, the check's last line says the player step was
