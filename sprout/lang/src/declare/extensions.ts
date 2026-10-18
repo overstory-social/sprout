@@ -53,21 +53,23 @@ export interface ExtensionValueType {
   readonly renders: ((value: Plain) => string) | false;
 }
 
-/** A file in a world's folder, as the compiler knows it: its size, its hash and its first bytes. */
+/** A file in a world's folder, as the compiler knows it: its size, its hash and its content. */
 export interface AssetFile {
   readonly bytes: number;
   /** The SHA-256 of its content, in hex. */
   readonly sha: string;
-  /** Its first bytes, enough for an extension to tell what kind of file it is. */
-  readonly head: Uint8Array;
+  readonly content: Uint8Array;
 }
 
 /** How a value type's values name files (the spec's Extensions › What an extension may add). */
 export interface ExtensionAsset {
   /** The path, relative to the world's folder, the value names. */
   file(value: Plain): string;
-  /** What is wrong with `file` as this kind of file, in an author's words; null where nothing is. */
-  check(file: AssetFile): ExtensionProblem | null;
+  /**
+   * The bytes a cartridge carries for `file`, in the form a host that draws it reads, or what is
+   * wrong with it as this kind of file, in an author's words.
+   */
+  pack(file: AssetFile): { readonly packed: Uint8Array } | ExtensionProblem;
 }
 
 /** What one argument of a statement is: a value of the language's, or one of the extension's own types by name. */

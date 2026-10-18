@@ -34,7 +34,8 @@ Three programs share one language and meet at two files.
 
 - **The compiler is TypeScript** (`sprout/lang`). It is the only thing
   that reads source. `sprout pack` writes the **cartridge**, a
-  `.sproutworld` file, and, beside it, the **assets** the world names.
+  `.sproutworld` file, which carries the **assets** the world names: a
+  world is one file.
 - **The runtime is C11** (`runtime-c/`). It reads a cartridge and a
   stored world and runs turns. It calls nothing from libc but `memcmp`,
   `memcpy`, `memset`, `strlen`, `floor` and `pow`, takes its memory,
@@ -65,13 +66,15 @@ where Node does.
 `<name>.sproutworld`. The spec's _What compiling produces_ names no file;
 the layout is hole 462.
 
-- **Header, 16 bytes.** `SPRT`, the format version and the language level as
-  little-endian 16-bit numbers, then the body's inflated size and the offset
-  of its table in it as 32-bit numbers. The format is the layout of the file
-  and moves only when the layout does (it is 3: the entries moved from JSON
-  into a table the runtime reads in place); the level is the spec's
+- **Header, 24 bytes.** `SPRT`, the format version and the language level as
+  little-endian 16-bit numbers, then as 32-bit numbers the body's inflated
+  size, the offset of its table in it, where the assets section begins in
+  the file (which is where the compressed body ends) and the section's size.
+  The format is the layout of the file and moves only when the layout does
+  (it is 5: the assets moved into the file); the level is the spec's
   _Language levels_. A reader refuses a format other than the one it reads,
-  or a level newer than it reads, naming the number and `sprout pack`.
+  or a level newer than it reads, naming the number and `sprout pack`, and a
+  file held whole that is not the size its header adds up to.
 - **Body.** Gzip-compressed, two parts. First a JSON preamble held to one
   schema (`bundle/cartridge-schema.ts`) shared by the writer and the reader,
   everything but the entries: `header` (name, namespace, version, author,
@@ -99,16 +102,49 @@ the layout is hole 462.
   source text and no diagnostics; synonym words do not travel as words (a
   verb's own are appended to its phrases).
 - **The bundle hash** is a field the compiler stores in the header, the
-  world's identity (the spec's _What compiling produces_). It is not a digest
-  of the file, so it cannot prove the bytes arrived whole (see _Downloads_).
+  world's identity (the spec's _What compiling produces_). It covers the
+  manifest, the world's files and each library, and each asset by its path
+  and the SHA-256 of the file the author wrote: a picture is the world's
+  content, so a world whose picture changed is another build, with its own
+  save and its own name in a download (hole 756). It is not a digest of the
+  file, so it cannot prove the bytes arrived whole (see _Downloads_).
 - **Caps.** The caps a cartridge records are what it was checked against
   when published. A load runs under the host's own caps; the Playdate host
   compares them when it shelves a cartridge (see _Budgets_).
-- **Assets.** `<cartridge>.assets/<path>` holds each file an extension names,
-  at the path the world writes it by. The `extensions` section lists them as
-  `{"name":"media","major":1,"assets":[{"path":"cellar.png","bytes":80,"sha":"…"}]}`.
-  A picture is a PNG of one bit a pixel (grey scale or palette). Their total
-  size is the static cap `assetBytes`, the host's and unset by default.
+- **Assets.** After the body, the assets section
+  (`bundle/cartridge-assets.ts`, `runtime-c/src/assets.h`) holds each file an
+  extension names, by the path the world writes it by. A directory comes
+  first: the count of files and the directory's size, then for each file
+  where it lies in the section, its compressed size and its path, all
+  little-endian. Each file follows, gzip-compressed on its own, so a host
+  reads one file when it shows it and never the body or another file. A
+  world that names no file has no section. The `extensions` section of the
+  preamble still lists them as
+  `{"name":"media","major":1,"assets":[{"path":"cellar.png","bytes":80,"sha":"…"}]}`,
+  `bytes` and `sha` the author's file's. The language's reader refuses a
+  cartridge whose section holds other files than these; the C runtime does
+  not read the section, and the player leaves out a picture its directory
+  does not hold (_Images_). Their total size (of the
+  author's files) is the static cap `assetBytes`, the host's and unset by
+  default.
+- **A picture travels as packed rows.** A `media` picture is a PNG of one
+  bit a pixel (grey scale or palette, interlaced or not), which the
+  compiler decodes (`source/png.ts`) and packs (`declare/media.ts`): its
+  width and its height as little-endian 16-bit numbers, then its rows of
+  `ceil(width / 8)` bytes, the leftmost pixel in the highest bit and a set
+  bit white, as the Playdate holds a bitmap. A palette entry is white where
+  its luminance is at least half, and a pixel `tRNS` makes transparent is
+  white, the screen a picture is drawn on, so a picture has no mask. The
+  player inflates the rows straight into a bitmap `newBitmap` made, through
+  `getBitmapData`, a row at a time. Decoding PNG on the console was the
+  alternative: it would need zlib framing, the five row filters, palettes
+  and Adam7 in C, on a device that reads files downloaded from a server,
+  where packed rows need only the inflater the cartridge reader has; a PNG
+  the compiler cannot read is refused at compile, with the line that names
+  it, rather than shown as unreadable on a screen; and the rows compress
+  much as the PNG did. The cost is size: the compiler's gzip writes only
+  fixed-Huffman blocks, so the caverns' eleven pictures are 38,276 bytes in
+  the section against 31,321 as PNG files.
 - **Versioning.** A cartridge from a newer format or level is refused by
   every reader with text; on the shelf it is kept and greyed with that text,
   since the person may update the app.
@@ -159,8 +195,10 @@ host. An unset row is unbounded. The library holds no figure of its own.
 **The calls.** `sprout_load` reads a cartridge, and `sprout_load_begin`,
 `sprout_load_step` and `sprout_load_finish` read one across many calls, a
 budget of entries at a time with its progress told, so a host with frames
-to answer reads a big world behind a loading line; `sprout_peek` reads only
-a cartridge's header and caps, cheap however large it is; `sprout_state_open`
+to answer reads a big world behind a loading line, never reading past the
+body into the assets; `sprout_peek` reads only a cartridge's header and caps,
+from a source read only as far as the preamble, cheap however large the
+world or its pictures are; `sprout_state_open`
 reconciles a store with it; `sprout_run_turn` runs one of the six turn
 kinds (the spec's _Turns_) and returns an outcome; `sprout_view` polls a
 visitor; `sprout_reading_run` submits a reading; `sprout_admit` checks a
@@ -364,15 +402,18 @@ After the arrival
 is told, every picture its lines and then the place's view asked for, and
 after a sentence runs, every picture its turn asked for once the builder has
 closed, is shown one at a time on the whole screen over the reader, which is
-lent to it; a picture the world's assets do not hold is left out, and a turn
+lent to it; a picture the cartridge does not carry is left out, and a turn
 that asks for none goes straight to the reader. The queue and the slat-clack
 motion are `src/ui/gallery.h`, which holds names and never bitmaps; finding
-an image in `<cartridge>.assets/` (compiled without `.png`, else as asked)
-and reading the effect's payload are `src/ui/images.h`. The screen loads a
-picture with `loadBitmap` when it first draws it, on the main stack as every
-file call is, holds at most the one on screen and the one leaving, frees the
-one that left once the next has landed, and frees both when A or B closes
-it, so a picture costs memory only while it is on screen.
+an image in the cartridge's assets directory and reading the effect's
+payload are `src/ui/images.h`. The screen builds a picture when it first
+draws it: the file's header, then its directory, then that picture's bytes
+alone are read (each file call on the main stack, as every one is), and
+inflated a row at a time into a bitmap `newBitmap` made, with an inflater of
+about 35 KB that is freed once the rows are in; it holds at most the one on
+screen and the one leaving, frees the one that left once the next has
+landed, and frees both when A or B closes it, so a picture costs memory only
+while it is on screen.
 
 The sounds (`src/ui/sound.h`) are cues, each a short
 note on a synth of its own (`pd->sound->synth`) with its own
@@ -417,9 +458,11 @@ below describes, with the share of the file arrived in the panel. The index
 address is `PLAYER_INDEX_URL` in `downloads.h`, a placeholder, and the Data
 folder's `downloads.json` points it elsewhere.
 
-The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) loads a
-bitmap from a PNG at the size its header declares, draws it as a black block
-and records each draw, and records each note a synth plays; `gallery`,
+The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) makes
+bitmaps that hold real pixels, draws them at their size or scaled and
+records each placement, so a test reads a picture pixel for pixel off what
+it drew; it seeks in a file as the device does, and records each note a
+synth plays; `gallery`,
 `pictures` and `sound` are the test programs. Its network serves canned
 answers a piece a frame behind the permission a test says the person gives,
 answers an address it does not know with 404, and can fall silent; `clock`,
@@ -676,11 +719,11 @@ may come up while the reader is open and idle). The crank, or left and right, st
 them slat by slat: the picture on screen is held an elastic moment,
 stretched the way it will go, then whizzes out as the next whizzes in and
 lands with the clack the sentence wheel makes; each step ticks. A picture is
-a name until it is drawn: `src/ui/images.h` finds the asset at
-`<cartridge path>.assets/<image>` when the screen draws it and lets it go
-when another is on screen or the gallery closes, so pictures never count
-against the world's memory on the console. The pdx holds a compiled image
-under its name without `.png`.
+a name until it is drawn: `src/ui/images.h` finds it in the cartridge's
+assets directory and builds it from its packed rows when the screen draws it,
+and lets it go when another is on screen or the gallery closes, so pictures
+never count against the world's memory on the console. An `.assets` folder
+beside a cartridge is not read.
 
 ### Opening a world
 
@@ -689,11 +732,12 @@ header and caps, and then `sprout.step` once a frame, each inflating 32 KB
 of the body into the block the world is read from, behind
 `Loading Underground Caverns... 37%` with a bar, until the step that is
 done maps the table, builds the catalogue and brings the world's words, and
-the nickname picker follows. The open reads the file whole for the peek and
-lets it go; the load then reads it again with `pd->file->read`, a piece as
-the inflater asks, on the main stack, so the cartridge is never whole in
-memory beside the world being built (on the console that is the file's
-0.98 MB off the load's peak for the caverns). The caverns' 2.7 MB body takes
+the nickname picker follows. The peek and then the load read the file with
+`pd->file->read`, a piece as the inflater asks, on the main stack, the peek
+as far as the preamble and the load to the end of the body and never into
+the assets, so the cartridge is never whole in memory beside the world being
+built (on the console that is the file's 1.0 MB off the load's peak for the
+caverns). The caverns' 2.7 MB body takes
 about 83 steps. A step that fails, a read of the file among them, says why
 on the shelf, as a refused open does.
 
@@ -702,8 +746,9 @@ on the shelf, as a refused open does.
 The shelf lists the `.sproutworld` files at the root of the app and of its
 Data folder and in each one's `worlds/` folder (a copy in Data shadows the
 app's). Each is inspected once, by file name and size, through
-`sprout_peek`: its header and caps alone, so the shelf costs no more for a
-big world than a small one. Each world is a word on a wheel, as the sentence
+`sprout_peek`: its header and caps alone, read from the file a piece at a
+time as far as the preamble, so the shelf costs no more for a big world, or
+one carrying many pictures, than a small one. Each world is a word on a wheel, as the sentence
 builder's choices are: its title, turned by the crank and up and down,
 wrapping, with the builder's tick and clack, and A opens the one at the
 front; the title over it and the panel under it are the frame's. One the
@@ -722,8 +767,10 @@ same. The last word, "more worlds…", opens the download screen.
 The pdx carries the **graduated** worlds, listed in
 `sprout-player/worlds.json` (`{"graduated": [{"world": "<corpus/good name or
 a path>", "title": "…"}]}`). `scripts/playdate-player.mjs` packs each with
-`sprout pack`, with its assets, into the pdx's `worlds/`, as
-`<name>.sproutworld` for the name the world's manifest gives it. Today the
+`sprout pack` into the pdx's `worlds/`, as one `<name>.sproutworld` for
+the name the world's manifest gives it, its pictures inside it: the pdx holds
+no image of a world's. A world sideloaded in disk mode is the one file
+copied into `Data/social.overstory.sprout-player/worlds/`. Today the
 list is the worked microworld `printers_shop` and the studio's finished
 `underground_caverns`. Every world the list names is inside this repository,
 so the build and the gate never read another checkout. A studio world ships as a
@@ -741,9 +788,10 @@ owns it (hole 502). The build fails if the app would grey a listed world.
 
 The **signed index** (`sprout-player/index.schema.json`) is what the
 download screen fetches: `{ "worlds": [ { title, author, version, bytes,
-hash, sha256, url, assets? } ], "signed": "…" }`. `hash` is the bundle
-hash, the world's identity; `sha256` is the SHA-256 of the cartridge file,
-which is what proves the bytes arrived whole. `signed` is an Ed25519
+hash, sha256, url } ], "signed": "…" }`, one file a world. `hash` is the
+bundle hash, the world's identity; `sha256` is the SHA-256 of the cartridge
+file, its pictures among its bytes, which is what proves the bytes arrived
+whole. `signed` is an Ed25519
 signature, in hexadecimal, over the canonical text of `worlds` (no spaces,
 keys in order, integers in decimal; `canonicalText` in
 `scripts/index-signing.mjs`). The app verifies it in C
@@ -756,12 +804,12 @@ revocation list or version counter, so an old signed index can be replayed
 to a device. A world the publisher withdraws is one the next index leaves
 out; a cartridge already downloaded stays on the shelf.
 
-Each file is written as a `.part`, counted as it arrives (a file longer
+The cartridge is written as a `.part`, counted as it arrives (a file longer
 than listed is dropped at once), hashed a chunk at a time and never held in
 memory, checked against the size and SHA-256 in the signed index, and put in
-place only whole. The cartridge goes last, after the engine has confirmed
-its header hash is the one listed. A file is named for the title and the
-first eight digits of the bundle hash, so two builds of one world sit side
+place only whole, after the engine has confirmed its header hash is the one
+listed. It is named for the title and the first eight digits of the bundle
+hash, so two builds of one world sit side
 by side; a newer build does not replace or remove an older one, whose save
 would be orphaned. The index is read to at most 256 KB.
 
@@ -841,7 +889,7 @@ Not yet checked:
   guesses);
 - the budgets, tuned on hardware (the Simulator is far faster);
 - the memory and the time of a big world on a console's 16 MB and 168 MHz:
-  `underground_caverns` packs to 0.98 MB, its stored world is 480 KB, and
+  `underground_caverns` packs to 1.0 MB with its eleven pictures, its stored world is 480 KB, and
   its fullest room polls 344,254 steps into a chip tree of 12,153 readings
   that stays in the session and is read a level at a time; it plays whole
   through `sproutc` and the Simulator;
@@ -851,7 +899,9 @@ Not yet checked:
   `Content-Length`, and whether the network calls need the main stack as
   the file calls do, are unchecked (they are put there to be safe);
 - that a console waking from low-power sleep sends `kEventUnlock`;
-- the time a picture takes to load on a console;
+- a picture built from the cartridge's packed rows on a screen, and the time
+  it takes on a console (the C tests read each one pixel for pixel over the
+  fake);
 - "start over" in the system menu and its question, which the C tests drive
   over the fake;
 - the text sizes on a console: the line height `getFontHeight` gives for
@@ -912,7 +962,9 @@ memory:
   `getBytesAvailable` says is there. The events are `kEventLock`,
   `kEventUnlock`, `kEventLowPower` and `kEventTerminate`; there is no wake
   event.
-- A compiled image is kept in the pdx under its name without `.png`.
+- A bitmap `newBitmap` makes has its rows written through the `data`
+  pointer `getBitmapData` gives, `rowbytes` apart (rows are padded), a set
+  bit white; the disc of words' labels are made so, and a picture is.
 - The data folder in the Simulator is
   `$PLAYDATE_SDK_PATH/Disk/Data/<bundleID>/`, here
   `social.overstory.sprout-player`.

@@ -15,7 +15,7 @@ import {
   sign,
   verify,
 } from 'node:crypto';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CARTRIDGE_EXTENSION, readCartridge } from '@overstory/sprout/lang';
@@ -104,22 +104,11 @@ export function indexIsSigned(index, publicKey) {
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
-/** Every file under `dir`, as paths relative to it with `/`, in order. */
-function filesUnder(dir, prefix = '') {
-  const found = [];
-  for (const name of readdirSync(dir).sort()) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) found.push(...filesUnder(full, `${prefix}${name}/`));
-    else found.push(`${prefix}${name}`);
-  }
-  return found;
-}
-
 const encode = (relative) => relative.split('/').map(encodeURIComponent).join('/');
 
 /**
- * The `worlds` of an index for the cartridges in `dir`: each `.sproutworld`, with the files of its
- * `.assets` folder, if it has one. Addresses are `baseUrl` followed by the file's path below `dir`.
+ * The `worlds` of an index for the cartridges in `dir`: each `.sproutworld`, one file a world, its
+ * pictures inside it. Addresses are `baseUrl` followed by the file's name.
  */
 export function worldsOf(dir, baseUrl) {
   const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
@@ -137,22 +126,6 @@ export function worldsOf(dir, baseUrl) {
       sha256: sha256(bytes),
       url: base + encode(file),
     };
-    const assetsFolder = join(dir, `${file}.assets`);
-    let assets = [];
-    try {
-      assets = filesUnder(assetsFolder).map((path) => {
-        const content = readFileSync(join(assetsFolder, ...path.split('/')));
-        return {
-          path,
-          bytes: content.length,
-          sha256: sha256(content),
-          url: `${base}${encode(file)}.assets/${encode(path)}`,
-        };
-      });
-    } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
-    }
-    if (assets.length > 0) world.assets = assets;
     worlds.push(world);
   }
   if (worlds.length === 0) {

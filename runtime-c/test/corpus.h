@@ -9,7 +9,9 @@
 #define SPROUT_TEST_CORPUS_H
 
 #include "check.h"
+#include "inflate.h"
 #include "json.h"
+#include "load.h"
 #include "world.h"
 
 /* A host with 64 KiB pages, so loading a whole cartridge is not a thousand allocations. */
@@ -44,6 +46,25 @@ static inline char *corpus_cartridge(const char *name, size_t *length) {
   char path[1024];
   snprintf(path, sizeof path, "%s/%s.sproutworld", SPROUT_CARTRIDGES, name);
   return corpus_read(path, length);
+}
+
+/* The inflated body of a corpus world's cartridge in `arena`, its size and where its table begins, as its header says. */
+static inline unsigned char *corpus_body(sprout_arena *arena, const char *name, size_t *length, size_t *table_at) {
+  size_t packed_length, body_length = 0;
+  char *packed = corpus_cartridge(name, &packed_length);
+  char *body = NULL;
+  const char *why = NULL;
+  sprout_cartridge_layout layout;
+  sprout_refusal refusal;
+  CHECK_INT(sprout_cartridge_check_header((const unsigned char *)packed, packed_length, &layout, &refusal), SPROUT_OK);
+  *length = layout.body_bytes;
+  *table_at = layout.table_at;
+  CHECK_INT(sprout_gunzip(arena, (const unsigned char *)packed + SPROUT_CARTRIDGE_HEADER_BYTES,
+                          layout.assets_at - SPROUT_CARTRIDGE_HEADER_BYTES, &body, &body_length, &why),
+            SPROUT_OK);
+  CHECK_INT(body_length, *length);
+  free(packed);
+  return (unsigned char *)body;
 }
 
 /* The language's dump of every corpus world's catalogue, read into `arena`. */

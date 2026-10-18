@@ -51,13 +51,9 @@ static const char *replaced(const char *text, const char *from, const char *to) 
   return out;
 }
 
-static const sprout_json *member(const sprout_json *node, const char *name) {
-  return node != NULL ? sprout_json_get(node, name) : NULL;
-}
-
 static void the_index_the_publisher_signed_is_accepted_and_lists_its_worlds(void) {
   player_index read;
-  const sprout_json *first, *assets;
+  const sprout_json *first;
   open_arena("accepted");
   read = read_index(signed_text);
   CHECK(read.ok, "%s", read.reason);
@@ -65,10 +61,7 @@ static void the_index_the_publisher_signed_is_accepted_and_lists_its_worlds(void
   if (read.ok && read.worlds->count == 2) {
     first = read.worlds->items[0];
     CHECK(strcmp(string_at(first, "title"), "Caf\xc3\xa9 \"Moss\"\tTea") == 0, "%s", string_at(first, "title"));
-    assets = member(first, "assets");
-    CHECK(assets != NULL && assets->count == 2 && strcmp(string_at(assets->items[1], "path"), "pictures/the cabinet.png") == 0,
-          "the second asset's path");
-    CHECK(member(read.worlds->items[1], "assets") == NULL, "the second world has no assets");
+    CHECK(strcmp(string_at(read.worlds->items[1], "url"), "/sprout/bell.sproutworld") == 0, "the second world's address");
   }
   close_arena();
 }
@@ -85,7 +78,7 @@ static void an_index_changed_after_signing_or_signed_by_another_key_is_refused(v
   CHECK(!read.ok && strcmp(read.reason, NOT_TRUSTED) == 0, "a member added: %s", read.reason);
   read = player_index_read(&arena, signed_text, strlen(signed_text), player_index_signed_by, other_key);
   CHECK(!read.ok && strcmp(read.reason, NOT_TRUSTED) == 0, "another key: %s", read.reason);
-  read = read_index(replaced(signed_text, "\"signed\": \"1e4a", "\"signed\": \"zz4a"));
+  read = read_index(replaced(signed_text, "\"signed\": \"cadd", "\"signed\": \"zzdd"));
   CHECK(!read.ok && strcmp(read.reason, NOT_TRUSTED) == 0, "a signature that is not hexadecimal: %s", read.reason);
   read = read_index(replaced(signed_text, "{\n      \"title\": \"Bell\"", "{\n      \"title\": \"Bell\", \"title\": \"Bell\""));
   CHECK(!read.ok && strcmp(read.reason, NOT_TRUSTED) == 0, "a member named twice: %s", read.reason);
@@ -125,21 +118,6 @@ static void a_signed_entry_the_app_cannot_use_names_its_field(void) {
       {"\"sha256\": \"bbbb", "\"sha256\": \"BBBB", "World 1 in the list of worlds has no usable sha256, so the list was not used."},
       {"\"url\": \"https://worlds.example/sprout/cafe-moss.sproutworld\"", "\"uri\": \"x\"",
        "World 1 in the list of worlds has no usable url, so the list was not used."},
-      {"\"path\": \"cellar.png\"", "\"path\": \"../cellar.png\"",
-       "World 1 in the list of worlds has no usable assets path, so the list was not used."},
-      {"\"path\": \"cellar.png\"", "\"path\": \"/etc/passwd\"",
-       "World 1 in the list of worlds has no usable assets path, so the list was not used."},
-      {"\"path\": \"cellar.png\"", "\"path\": \"a//b.png\"",
-       "World 1 in the list of worlds has no usable assets path, so the list was not used."},
-      {"\"path\": \"cellar.png\"", "\"path\": \"a\\\\b.png\"",
-       "World 1 in the list of worlds has no usable assets path, so the list was not used."},
-      {"\"path\": \"cellar.png\"", "\"path\": \"a/./b.png\"",
-       "World 1 in the list of worlds has no usable assets path, so the list was not used."},
-      {"\"path\": \"cellar.png\"", "\"path\": \"c:cellar.png\"",
-       "World 1 in the list of worlds has no usable assets path, so the list was not used."},
-      {"\"sha256\": \"dddd", "\"sha256\": \"00\", \"x\": \"dddd",
-       "World 1 in the list of worlds has no usable assets sha256, so the list was not used."},
-      {"\"bytes\": 80", "\"bytes\": \"80\"", "World 1 in the list of worlds has no usable assets bytes, so the list was not used."},
       {"\"title\": \"Bell\",", "\"title\": [\"Bell\"],", "World 2 in the list of worlds has no usable title, so the list was not used."},
   };
   size_t i;

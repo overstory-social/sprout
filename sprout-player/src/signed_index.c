@@ -36,36 +36,9 @@ static bool is_digest(const sprout_json *value) {
   return true;
 }
 
-/* A path inside a cartridge's assets folder: relative, with no `..`, `.` or empty part, no backslash, colon or control character. */
-static bool is_asset_path(const sprout_json *value) {
-  size_t i, part = 0;
-  if (!is_text(value) || value->bytes[0] == '/') return false;
-  for (i = 0; i <= value->length; i++) {
-    unsigned char c = i < value->length ? (unsigned char)value->bytes[i] : '/';
-    if (c < 0x20 || c == 0x7F || c == '\\' || c == ':') return false;
-    if (c != '/') continue;
-    if (i == part || (i - part == 1 && value->bytes[part] == '.') ||
-        (i - part == 2 && value->bytes[part] == '.' && value->bytes[part + 1] == '.'))
-      return false;
-    part = i + 1;
-  }
-  return true;
-}
-
-/* What is wrong with a listed asset, as a field name, or NULL. */
-static const char *asset_fault(const sprout_json *asset) {
-  if (asset->kind != SPROUT_JSON_OBJECT) return "assets";
-  if (!is_asset_path(sprout_json_get(asset, "path"))) return "assets path";
-  if (!is_count(sprout_json_get(asset, "bytes"))) return "assets bytes";
-  if (!is_digest(sprout_json_get(asset, "sha256"))) return "assets sha256";
-  if (!is_text(sprout_json_get(asset, "url"))) return "assets url";
-  return NULL;
-}
-
 /* What is wrong with a listed world, as a field name ("" when it is not an object), or NULL. */
 static const char *world_fault(const sprout_json *world) {
   static const char *const TEXTS[] = {"title", "author", "version", "url"};
-  const sprout_json *assets;
   size_t i;
   if (world->kind != SPROUT_JSON_OBJECT) return "";
   for (i = 0; i < sizeof TEXTS / sizeof TEXTS[0]; i++)
@@ -73,13 +46,6 @@ static const char *world_fault(const sprout_json *world) {
   if (!is_count(sprout_json_get(world, "bytes"))) return "bytes";
   if (!is_digest(sprout_json_get(world, "hash"))) return "hash";
   if (!is_digest(sprout_json_get(world, "sha256"))) return "sha256";
-  assets = sprout_json_get(world, "assets");
-  if (assets == NULL) return NULL;
-  if (assets->kind != SPROUT_JSON_ARRAY) return "assets";
-  for (i = 0; i < assets->count; i++) {
-    const char *fault = asset_fault(assets->items[i]);
-    if (fault != NULL) return fault;
-  }
   return NULL;
 }
 

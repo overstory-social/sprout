@@ -5,7 +5,7 @@
 // must name a file in the world's folder that the extension accepts as one
 // of its kind. Every value of the type a world can hold starts from one of
 // those literals, so the files they name are every file the world can show;
-// they travel beside its cartridge, and their total size is held to the
+// they travel in its cartridge as their extension packs them, and their total size is held to the
 // host's cap. A world that did not come from a folder has none to look in,
 // so no file is checked for.
 
@@ -137,12 +137,18 @@ export function nameAssets(
       );
       continue;
     }
-    const problem = named.asset.check(file);
-    if (problem !== null) {
-      report.strict(named.at, `${named.path}: ${problem.problem}`, problem.remedy);
+    const packed = named.asset.pack(file);
+    if ('problem' in packed) {
+      report.strict(named.at, `${named.path}: ${packed.problem}`, packed.remedy);
       continue;
     }
-    assets.push({ extension: named.extension, path: named.path, bytes: file.bytes, sha: file.sha });
+    assets.push({
+      extension: named.extension,
+      path: named.path,
+      bytes: file.bytes,
+      sha: file.sha,
+      packed: packed.packed,
+    });
   }
   const assetBytes = assets.reduce((bytes, asset) => bytes + asset.bytes, 0);
   if (caps.assetBytes !== null && assetBytes > caps.assetBytes) {

@@ -5,22 +5,6 @@
 #include "inflate.h"
 #include "table.h"
 
-/* The inflated body of a corpus cartridge in `arena`, and where its table begins. */
-static unsigned char *body_of(sprout_arena *arena, const char *name, size_t *length, size_t *table_at) {
-  size_t packed_length, body_length;
-  char *packed = corpus_cartridge(name, &packed_length);
-  char *body;
-  const char *why;
-  const unsigned char *header = (const unsigned char *)packed;
-  CHECK(packed_length >= 16 && memcmp(packed, "SPRT", 4) == 0);
-  *length = (size_t)header[8] | ((size_t)header[9] << 8) | ((size_t)header[10] << 16) | ((size_t)header[11] << 24);
-  *table_at = (size_t)header[12] | ((size_t)header[13] << 8) | ((size_t)header[14] << 16) | ((size_t)header[15] << 24);
-  CHECK_INT(sprout_gunzip(arena, header + 16, packed_length - 16, &body, &body_length, &why), SPROUT_OK);
-  CHECK_INT(body_length, *length);
-  free(packed);
-  return (unsigned char *)body;
-}
-
 static void a_packed_world_maps_with_its_runs_strings_and_shapes_in_place(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
@@ -30,7 +14,7 @@ static void a_packed_world_maps_with_its_runs_strings_and_shapes_in_place(void) 
   size_t length, at, i, objects = 0, strings = 0;
   unsigned char *body;
   sprout_arena_init(&arena, &host);
-  body = body_of(&arena, "printers_shop", &length, &at);
+  body = corpus_body(&arena, "printers_shop", &length, &at);
   CHECK(at % 8 == 0 && at < length);
   CHECK_INT(sprout_table_map(body + at, length - at, &table, &why), SPROUT_OK);
   CHECK(why == NULL);
@@ -73,7 +57,7 @@ static void a_damaged_table_is_refused_in_words(void) {
   unsigned char *body, *copy;
   uint32_t *children;
   sprout_arena_init(&arena, &host);
-  body = body_of(&arena, "printers_shop", &length, &at);
+  body = corpus_body(&arena, "printers_shop", &length, &at);
   copy = (unsigned char *)sprout_arena_take(&arena, length);
   memcpy(copy, body, length);
 

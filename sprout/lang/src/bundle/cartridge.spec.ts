@@ -20,7 +20,7 @@ const Q = "'";
 /** The inflated body: the preamble's text, and the table's bytes. */
 const bodyOf = (bytes: Uint8Array): { preamble: string; table: Uint8Array; whole: string } => {
   const header = readCartridgeHeader(bytes);
-  const body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES));
+  const body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES, header.assetsAt));
   return {
     preamble: new TextDecoder().decode(body.subarray(0, header.tableAt)).replace(/\0+$/, ''),
     table: body.subarray(header.tableAt),
@@ -43,6 +43,7 @@ const cartridgeWith = (level: number, preamble: string, table: Uint8Array): Uint
   view.setUint16(6, level, true);
   view.setUint32(8, body.length, true);
   view.setUint32(12, tableAt, true);
+  view.setUint32(16, out.length, true);
   out.set(compressed, CARTRIDGE_HEADER_BYTES);
   return out;
 };
@@ -69,22 +70,32 @@ const refusal = (run: () => unknown): string => {
 describe('the header of a cartridge', () => {
   const bytes = emitCartridge(BENCH);
 
-  it('is sixteen bytes: SPRT, the format, the language level, the body size and where the table begins', () => {
+  it('is twenty-four bytes: SPRT, the format, the language level, the body size, where the table begins and where the assets are', () => {
     expect(new TextDecoder().decode(bytes.subarray(0, 4))).toBe('SPRT');
     const view = new DataView(bytes.buffer, bytes.byteOffset);
     expect(view.getUint16(4, true)).toBe(CARTRIDGE_FORMAT);
     expect(view.getUint16(6, true)).toBe(BENCH.level);
     const header = readCartridgeHeader(bytes);
     expect(header).toMatchObject({ format: CARTRIDGE_FORMAT, level: BENCH.level });
-    const body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES));
+    const body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES, header.assetsAt));
     expect(header.bodyBytes).toBe(body.length);
+    // A world that names no file has an empty assets section, at the file's end.
+    expect([header.assetsAt, header.assetsBytes]).toEqual([bytes.length, 0]);
     expect(header.tableAt % 8).toBe(0);
     expect(header.tableAt).toBeLessThan(body.length);
     expect(new TextDecoder().decode(body.subarray(header.tableAt, header.tableAt + 4))).toBe(
       'TBL4',
     );
     // Gzip's own magic follows.
-    expect([...bytes.subarray(16, 18)]).toEqual([0x1f, 0x8b]);
+    expect([...bytes.subarray(24, 26)]).toEqual([0x1f, 0x8b]);
+  });
+
+  it('refuses a file that is not the size its header says, a byte short or a byte long', () => {
+    const said = 'This cartridge cannot be read: it is not the size its header says.';
+    expect(refusal(() => readCartridge(bytes.subarray(0, bytes.length - 1)))).toBe(said);
+    const longer = new Uint8Array(bytes.length + 1);
+    longer.set(bytes);
+    expect(refusal(() => readCartridge(longer))).toBe(said);
   });
 
   it('refuses a newer format, naming both numbers', () => {

@@ -1,5 +1,5 @@
 /*
- * A cartridge built in memory for the host's tests: the sixteen bytes, then
+ * A cartridge built in memory for the host's tests: the header's bytes, then
  * the preamble and a table of no nodes in one stored deflate block inside a gzip frame. The host reads
  * stored, fixed and dynamic blocks alike (inflate.host.test.c pins the
  * dynamic one), so a test need not compress anything.
@@ -9,6 +9,7 @@
 
 #include "check.h"
 #include "inflate.h"
+#include "load.h"
 
 /* A header section with no body behind it: the empty-bodied cartridge. */
 #define EMPTY_BODIED_JSON                                                                          \
@@ -19,12 +20,12 @@
 /* A table of no nodes: its counts, then the one string offset and the one shape offset, each padded. */
 static const unsigned char FIXTURE_EMPTY_TABLE[64] = {'T', 'B', 'L', '4'};
 
-/* The sixteen bytes, then `json` as the preamble (padded to eight) and a table of no nodes, as one stored gzip member. */
+/* The header, then `json` as the preamble (padded to eight) and a table of no nodes, as one stored gzip member, and no assets. */
 static inline unsigned char *build_cartridge(const char *json, unsigned format, unsigned level,
                                              size_t *length) {
   size_t text = strlen(json), table_at = (text + 7) & ~(size_t)7, n = table_at + sizeof FIXTURE_EMPTY_TABLE, at = 0;
   unsigned char *body = (unsigned char *)calloc(n, 1);
-  unsigned char *bytes = (unsigned char *)calloc(16 + 10 + 5 + n + 8, 1);
+  unsigned char *bytes = (unsigned char *)calloc(SPROUT_CARTRIDGE_HEADER_BYTES + 10 + 5 + n + 8, 1);
   unsigned long crc;
   if (bytes == NULL || body == NULL) exit(2);
   memcpy(body, json, text);
@@ -39,7 +40,7 @@ static inline unsigned char *build_cartridge(const char *json, unsigned format, 
   bytes[11] = (unsigned char)((n >> 24) & 0xff);
   bytes[12] = (unsigned char)(table_at & 0xff), bytes[13] = (unsigned char)((table_at >> 8) & 0xff),
   bytes[14] = (unsigned char)((table_at >> 16) & 0xff), bytes[15] = (unsigned char)((table_at >> 24) & 0xff);
-  at = 16;
+  at = SPROUT_CARTRIDGE_HEADER_BYTES;
   bytes[at++] = 0x1f;
   bytes[at++] = 0x8b;
   bytes[at++] = 8;
@@ -60,6 +61,8 @@ static inline unsigned char *build_cartridge(const char *json, unsigned format, 
   bytes[at++] = (unsigned char)((n >> 16) & 0xff);
   bytes[at++] = (unsigned char)((n >> 24) & 0xff);
   free(body);
+  bytes[16] = (unsigned char)(at & 0xff), bytes[17] = (unsigned char)((at >> 8) & 0xff),
+  bytes[18] = (unsigned char)((at >> 16) & 0xff), bytes[19] = (unsigned char)((at >> 24) & 0xff);
   *length = at;
   return bytes;
 }

@@ -344,7 +344,7 @@ function dynamicCodes(reader: Reader): [Huffman, Huffman] {
 }
 
 /** Raw deflate `bytes`, inflated; the bytes and where in `bytes` the data ended. */
-function inflate(bytes: Uint8Array): { data: Uint8Array; end: number } {
+export function inflateRaw(bytes: Uint8Array): { data: Uint8Array; end: number } {
   const reader = new Reader(bytes);
   const out = new Output();
   for (let last = 0; last === 0;) {
@@ -385,7 +385,7 @@ export function gunzip(bytes: Uint8Array): Uint8Array {
   }
   if (flags & 2) at += 2;
   if (at >= bytes.length) throw new Error('the compressed data ends too soon');
-  const { data, end } = inflate(bytes.subarray(at));
+  const { data, end } = inflateRaw(bytes.subarray(at));
   const trailer = at + end;
   if (trailer + 8 > bytes.length) throw new Error('the compressed data ends too soon');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

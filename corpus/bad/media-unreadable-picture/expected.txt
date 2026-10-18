@@ -1,0 +1,7 @@
+cellar.sprout:8:16  damaged.png: This PNG image cannot be read: its IDAT part does not match its checksum, so the file is damaged.
+                    Open the picture in an image editor and save it again as a 1-bit PNG.
+
+cellar.sprout:9:16  wide.png: This image is 70000 by 1 pixels, and an image here is at most 65535 pixels a side.
+                    Make the picture smaller; the Playdate’s screen is 400 by 240.
+
+refused: 2 problems

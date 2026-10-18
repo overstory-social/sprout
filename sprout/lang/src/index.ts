@@ -60,6 +60,7 @@ export * from './bundle/declarations.js';
 export * from './bundle/compile/compile.js';
 export * from './bundle/cartridge.js';
 export type { Cartridge } from './bundle/cartridge-schema.js';
+export type { CartridgeAsset } from './bundle/cartridge-assets.js';
 export type { RecordedCaps } from './bundle/compile/recorded.js';
 export { generateSkill, type SkillOptions } from './bundle/skill/skill.js';
 

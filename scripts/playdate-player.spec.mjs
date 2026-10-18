@@ -3,11 +3,13 @@
 // (`shippingSpecs`); they need `npm run build` for the CLI and no Playdate SDK.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { readCartridgeAssets } from '@overstory/sprout/lang';
 
 import {
   appPollSteps,
@@ -126,7 +128,7 @@ test('a list that cannot be used says what to write', () => {
     assert.throws(() => readGraduated(listFile(value)), pattern);
 });
 
-test('each listed world is packed with its assets into the folder the app carries', async () => {
+test('each listed world is packed as one file, its pictures inside it, into the folder the app carries', async () => {
   const out = join(scratch(), 'worlds');
   const list = readGraduated(
     listFile({
@@ -138,15 +140,11 @@ test('each listed world is packed with its assets into the folder the app carrie
   );
   const staged = await stageWorlds({ list, out });
   assert.equal(staged.length, 2);
-  for (const file of [
-    'chip_tree.sproutworld',
-    'media_room.sproutworld',
-    'media_room.sproutworld.assets/cellar.png',
-    'media_room.sproutworld.assets/pictures/cabinet.png',
-  ]) {
-    assert.ok(existsSync(join(out, file)), file);
-  }
-  assert.equal(existsSync(join(out, 'teashop.sproutworld')), false, 'only what is listed');
+  assert.deepEqual(readdirSync(out).sort(), ['chip_tree.sproutworld', 'media_room.sproutworld']);
+  assert.deepEqual(
+    readCartridgeAssets(readFileSync(join(out, 'media_room.sproutworld'))).map((one) => one.path),
+    ['cellar.png', 'pictures/cabinet-open.png', 'pictures/cabinet.png'],
+  );
   assert.equal(readFileSync(join(out, 'chip_tree.sproutworld')).subarray(0, 4).toString(), 'SPRT');
 });
 

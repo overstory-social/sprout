@@ -3,9 +3,9 @@
  * canned server. The rules: "more worlds..." fetches the index the Data folder's settings name,
  * asking permission with the app's purpose; an index is listed only once its signature verifies
  * against the baked key, and one that does not is refused in words that the shelf repeats; a
- * world chosen arrives whole, its files checked against the index and put in place, the cartridge
- * last, and is shelved; and a world whose bytes are not the ones listed (another checksum, more
- * bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
+ * world chosen arrives whole as one file, its pictures inside it, checked against the index and
+ * put in place, and is shelved; and a world whose bytes are not the ones listed (another checksum,
+ * more bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
  * the network fails is said, and leaving mid-download leaves nothing half written or open. The
  * worlds are the words of a wheel by title, turned by the crank and the d-pad and wrapping, one on
  * the shelf already greyed with the panel saying so.
@@ -16,6 +16,7 @@
 #include "support.h"
 #include "ui/app.h"
 #include "ui/downloads.h"
+#include "ui/images.h"
 #include "ui/shelf.h"
 #include "wheel_support.h"
 
@@ -130,51 +131,46 @@ static char *bytes_of(const char *path, size_t *length) {
   return bytes;
 }
 
-/* ---- a world to download: teashop and one picture, served from the test's own copies ---- */
+/* ---- a world to download: the media room, whose cartridge carries its pictures, served from the test's own copy ---- */
 
 typedef struct served {
-  char hash[65], sha[65], picture_sha[65];
-  char *cartridge, *picture;
-  size_t cartridge_bytes, picture_bytes;
+  char hash[65], sha[65];
+  char *cartridge;
+  size_t cartridge_bytes;
   char index[4096];
   char final[256];
 } served;
 
 static served world;
 
-static void forget_teashop(void) {
+static void forget_world(void) {
   free(world.cartridge);
-  free(world.picture);
-  world.cartridge = world.picture = NULL;
+  world.cartridge = NULL;
 }
 
-/* Lists teashop under the title "Tea Shop", with `hash` (NULL: its own) and the cartridge's true size and checksum. */
-static void list_teashop(const char *hash) {
+/* Lists the media room under the title "Media Room", with `hash` (NULL: its own) and the cartridge's true size and checksum. */
+static void list_world(const char *hash) {
   char command[1200];
   size_t bytes = 0;
   player_opening seen;
-  forget_teashop();
-  snprintf(command, sizeof command, "mkdir -p '%s/served' && cp '%s/teashop.sproutworld' '%s/served/'", fake->data,
+  forget_world();
+  snprintf(command, sizeof command, "mkdir -p '%s/served' && cp '%s/media-room.sproutworld' '%s/served/'", fake->data,
            PLAYER_CARTRIDGES, fake->data);
   CHECK(system(command) == 0, "%s", command);
-  write_text("served/cellar.png", "not really a picture, but bytes all the same");
-  seen = player_inspect(app->session, "served/teashop.sproutworld");
+  seen = player_inspect(app->session, "served/media-room.sproutworld");
   CHECK(seen.ok && seen.hash != NULL, "%s", seen.reason);
   snprintf(world.hash, sizeof world.hash, "%s", seen.ok ? seen.hash : "");
-  CHECK(player_digest(&fake->api, "served/teashop.sproutworld", world.sha, &bytes) == NULL, "the digest");
-  CHECK(player_digest(&fake->api, "served/cellar.png", world.picture_sha, &bytes) == NULL, "the picture's digest");
-  world.cartridge = bytes_of("served/teashop.sproutworld", &world.cartridge_bytes);
-  world.picture = bytes_of("served/cellar.png", &world.picture_bytes);
+  CHECK(player_digest(&fake->api, "served/media-room.sproutworld", world.sha, &bytes) == NULL, "the digest");
+  world.cartridge = bytes_of("served/media-room.sproutworld", &world.cartridge_bytes);
   snprintf(world.index, sizeof world.index,
-           "{\"worlds\":[{\"title\":\"Tea Shop\",\"author\":\"Ada\",\"version\":\"1.0.0\",\"bytes\":%zu,\"hash\":\"%s\","
-           "\"sha256\":\"%s\",\"url\":\"teashop.sproutworld\",\"assets\":[{\"path\":\"pictures/cellar.png\",\"bytes\":%zu,"
-           "\"sha256\":\"%s\",\"url\":\"/files/cellar.png\"}]}],\"signed\":\"00\"}",
-           world.cartridge_bytes, hash != NULL ? hash : world.hash, world.sha, world.picture_bytes, world.picture_sha);
-  snprintf(world.final, sizeof world.final, "worlds/tea-shop-%.8s.sproutworld", world.hash);
+           "{\"worlds\":[{\"title\":\"Media Room\",\"author\":\"Ada\",\"version\":\"1.0.0\",\"bytes\":%zu,\"hash\":\"%s\","
+           "\"sha256\":\"%s\",\"url\":\"media-room.sproutworld\"}],\"signed\":\"00\"}",
+           world.cartridge_bytes, hash != NULL ? hash : world.hash, world.sha);
+  snprintf(world.final, sizeof world.final, "worlds/media-room-%.8s.sproutworld", world.hash);
   fake_serve(fake, INDEX_URL, 200, world.index, strlen(world.index));
 }
 
-/* Whether nothing of the world is in worlds/: no part, no cartridge, no assets folder. */
+/* Whether nothing of the world is in worlds/: no part and no cartridge. */
 static bool nothing_left(void) {
   char command[1200];
   snprintf(command, sizeof command, "test -z \"$(ls -A '%s/worlds' 2>/dev/null)\"", fake->data);
@@ -237,23 +233,21 @@ static void the_signed_index_is_listed_and_one_changed_is_refused(void) {
 }
 
 static void a_chosen_world_arrives_whole_and_is_shelved(void) {
-  char asset[400], part[300];
+  char part[300];
   start("arrives");
-  list_teashop(NULL);
-  fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
-  fake_serve(fake, "https://w.example/files/cellar.png", 200, world.picture, world.picture_bytes);
+  list_world(NULL);
+  fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 200, world.cartridge, world.cartridge_bytes);
   CHECK(open_listed() != NULL, "the screen");
-  CHECK(strcmp(front(), "Tea Shop") == 0 && !greyed(0) && !HAS(panel(), "on your shelf"), "%s", front());
-  fake->piece = 4096;
+  CHECK(strcmp(front(), "Media Room") == 0 && !greyed(0) && !HAS(panel(), "on your shelf"), "%s", front());
+  fake->piece = 1024;
   fake_frame(fake, kButtonA, 0);
-  CHECK(HAS(panel(), "Downloading Tea Shop: file 1 of 2 (Tea Shop, "), "progress: %s", panel());
+  CHECK(HAS(panel(), "Downloading Media Room ("), "progress: %s", panel());
   fake_frame(fake, 0, 0);
   CHECK(HAS(panel(), "%. B stops.") && !HAS(panel(), " 0%"), "the share arrived so far: %s", panel());
-  CHECK(frames_until("Tea Shop is on your shelf.", 400), "%s", panel());
-  snprintf(asset, sizeof asset, "%s.assets/pictures/cellar.png", world.final);
+  CHECK(frames_until("Media Room is on your shelf.", 400), "%s", panel());
   snprintf(part, sizeof part, "%s.part", world.final);
-  CHECK(exists(world.final) && exists(asset) && !exists(part), "the cartridge %s and its picture are in place, no part left",
-        world.final);
+  CHECK(exists(world.final) && !exists(part), "the cartridge %s is in place, no part left", world.final);
+  CHECK(images_has(&fake->api, world.final, "pictures/cabinet.png"), "its pictures came inside it");
   {
     size_t length = 0;
     char *got = bytes_of(world.final, &length);
@@ -261,100 +255,98 @@ static void a_chosen_world_arrives_whole_and_is_shelved(void) {
     free(got);
   }
   fake_frame(fake, kButtonDown, 0);
-  CHECK(strcmp(front(), "Tea Shop") == 0 && greyed(0) && HAS(panel(), "It is on your shelf."), "the list greys it, the panel says why: %s",
+  CHECK(strcmp(front(), "Media Room") == 0 && greyed(0) && HAS(panel(), "It is on your shelf."), "the list greys it, the panel says why: %s",
         panel());
   fake_frame(fake, kButtonA, 0);
-  CHECK(strcmp(panel(), "Tea Shop is already on your shelf.") == 0, "%s", panel());
+  CHECK(strcmp(panel(), "Media Room is already on your shelf.") == 0, "%s", panel());
   fake_frame(fake, kButtonB, 0);
-  CHECK(app->screen == &player_shelf_screen && strcmp(front(), "Teashop") == 0, "the shelf lists it: %s", front());
+  CHECK(app->screen == &player_shelf_screen && strcmp(front(), "Media Room") == 0, "the shelf lists it: %s", front());
   stop();
-  forget_teashop();
+  forget_world();
 }
 
 /* Runs a download of the listed world to its refusal; the panel's words. */
 static const char *refused_download(void) {
   CHECK(open_listed() != NULL, "the screen");
   fake_frame(fake, kButtonA, 0);
-  CHECK(frames_until("Could not download Tea Shop. ", 400), "%s", panel());
+  CHECK(frames_until("Could not download Media Room. ", 400), "%s", panel());
   return panel();
 }
 
 static void a_world_whose_bytes_are_not_the_listed_ones_is_refused_and_leaves_nothing(void) {
   char *changed;
   start("checksum");
-  list_teashop(NULL);
+  list_world(NULL);
   changed = (char *)malloc(world.cartridge_bytes + 1);
   memcpy(changed, world.cartridge, world.cartridge_bytes);
   changed[world.cartridge_bytes / 2] ^= 0x20;
-  fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, changed, world.cartridge_bytes);
+  fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 200, changed, world.cartridge_bytes);
   CHECK(strcmp(refused_download(),
-               "Could not download Tea Shop. Tea Shop does not match the checksum in the list, so it was thrown away.") == 0,
+               "Could not download Media Room. Media Room does not match the checksum in the list, so it was thrown away.") == 0,
         "%s", panel());
   CHECK(nothing_left(), "nothing is left in worlds/");
   stop();
 
   start("longer");
-  list_teashop(NULL);
+  list_world(NULL);
   memcpy(changed, world.cartridge, world.cartridge_bytes);
   changed[world.cartridge_bytes] = 'x';
-  fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, changed, world.cartridge_bytes + 1);
+  fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 200, changed, world.cartridge_bytes + 1);
   CHECK(strcmp(refused_download(),
-               "Could not download Tea Shop. Tea Shop is longer than the list says it is, so it was thrown away.") == 0,
+               "Could not download Media Room. Media Room is longer than the list says it is, so it was thrown away.") == 0,
         "%s", panel());
   CHECK(nothing_left(), "nothing is left in worlds/");
   stop();
 
   start("missing");
-  list_teashop(NULL);
-  fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
-  CHECK(strcmp(refused_download(), "Could not download Tea Shop. There is no pictures/cellar.png at that address (the "
+  list_world(NULL);
+  CHECK(strcmp(refused_download(), "Could not download Media Room. There is no Media Room at that address (the "
                                    "server answered 404).") == 0,
         "%s", panel());
-  CHECK(nothing_left(), "the cartridge's part and the assets folder are gone");
+  CHECK(nothing_left(), "the cartridge's part is gone");
   stop();
 
   start("missing-page");
-  list_teashop(NULL);
+  list_world(NULL);
   {
-    static char page[4096];
+    static char page[1 << 16];
     memset(page, '<', sizeof page);
-    fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
-    fake_serve(fake, "https://w.example/files/cellar.png", 404, page, sizeof page);
+    CHECK(sizeof page > world.cartridge_bytes, "the page is longer than the cartridge");
+    fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 404, page, sizeof page);
   }
-  CHECK(strcmp(refused_download(), "Could not download Tea Shop. There is no pictures/cellar.png at that address (the "
+  CHECK(strcmp(refused_download(), "Could not download Media Room. There is no Media Room at that address (the "
                                    "server answered 404).") == 0,
         "a 404 page longer than the file is still a 404: %s", panel());
   CHECK(nothing_left(), "nothing is left in worlds/");
   stop();
 
   start("another-build");
-  list_teashop("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-  fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
-  fake_serve(fake, "https://w.example/files/cellar.png", 200, world.picture, world.picture_bytes);
-  CHECK(strcmp(refused_download(), "Could not download Tea Shop. The cartridge that arrived is not the build the list "
+  list_world("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+  fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 200, world.cartridge, world.cartridge_bytes);
+  CHECK(strcmp(refused_download(), "Could not download Media Room. The cartridge that arrived is not the build the list "
                                    "describes (its bundle hash differs), so it was thrown away.") == 0,
         "%s", panel());
-  CHECK(nothing_left(), "the picture put in place is taken away with the cartridge");
+  CHECK(nothing_left(), "the cartridge is taken away");
   fake_frame(fake, kButtonDown, 0);
   CHECK(HAS(panel(), "A downloads it."), "moving on clears the refusal: %s", panel());
   stop();
   free(changed);
-  forget_teashop();
+  forget_world();
 }
 
 static void leaving_mid_download_leaves_nothing_behind(void) {
   fake_answer *slow;
   start("leaving");
-  list_teashop(NULL);
-  slow = fake_serve(fake, "https://w.example/sprout/teashop.sproutworld", 200, world.cartridge, world.cartridge_bytes);
+  list_world(NULL);
+  slow = fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 200, world.cartridge, world.cartridge_bytes);
   slow->silent = 1;
   CHECK(open_listed() != NULL, "the screen");
   fake_frame(fake, kButtonA, 0);
   fake_frame(fake, kButtonDown, 0);
-  CHECK(HAS(panel(), "Downloading Tea Shop") && HAS(panel(), "B stops."), "the d-pad does nothing while it runs: %s", panel());
+  CHECK(HAS(panel(), "Downloading Media Room") && HAS(panel(), "B stops."), "the d-pad does nothing while it runs: %s", panel());
   fake->seconds += PLAYER_NET_STALL_SECONDS + 1;
   CHECK(frames_until("stopped answering", 3), "a silent server is given up on: %s", panel());
-  CHECK(strcmp(panel(), "Could not download Tea Shop. w.example stopped answering. Check the Wi-Fi and try again.") == 0, "%s",
+  CHECK(strcmp(panel(), "Could not download Media Room. w.example stopped answering. Check the Wi-Fi and try again.") == 0, "%s",
         panel());
   CHECK(nothing_left(), "nothing is left after the stall");
   fake_frame(fake, kButtonA, 0);
@@ -363,7 +355,7 @@ static void leaving_mid_download_leaves_nothing_behind(void) {
   CHECK(app->screen == &player_shelf_screen && fake->connections_live == 0 && nothing_left(),
         "B mid-download goes back to the shelf with nothing open and nothing written");
   stop();
-  forget_teashop();
+  forget_world();
 }
 
 static void every_way_the_list_cannot_be_had_is_said(void) {

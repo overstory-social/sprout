@@ -8,8 +8,8 @@
 // cross-compiles it from Linux or macOS), and pdex.bin for a console where arm-none-eabi-gcc is.
 // pdc packages Source/ (pdxinfo, the fonts, the worlds) with whatever pdex.* lies there, so the one
 // pdx runs wherever a binary was built for; the system runs the update callback main.c sets. Before
-// that it packs the graduated worlds (sprout-player/worlds.json) into the pdx's worlds/ folder with
-// their assets. The download screen trusts the public key in the file named by
+// that it packs the graduated worlds (sprout-player/worlds.json) into the pdx's worlds/ folder, one
+// cartridge a world, its pictures inside it. The download screen trusts the public key in the file named by
 // SPROUT_INDEX_PUBLIC_KEY (default sprout-player/test/index-test.pub, which anyone can sign for, so
 // a build to publish sets it), which the build bakes in as generated/publickey.h
 // (-DPLAYER_INDEX_PUBLIC_KEY_FILE). `npm run playdate` is this.
@@ -249,8 +249,8 @@ function manifestName(manifest, list, world) {
 }
 
 /**
- * Packs the graduated worlds into `out` with the built CLI, each as `<name>.sproutworld` beside its
- * `.assets` folder, replacing what was there. Returns the list it packed.
+ * Packs the graduated worlds into `out` with the built CLI, each as one `<name>.sproutworld` that
+ * carries its pictures, replacing what was there. Returns the list it packed.
  */
 export async function stageWorlds({
   list = readGraduated(),

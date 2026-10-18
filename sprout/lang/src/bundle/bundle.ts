@@ -171,7 +171,7 @@ export interface BundleSize {
   readonly places: number;
 }
 
-/** A file in the world's folder an extension's value names, and travels beside the cartridge. */
+/** A file in the world's folder an extension's value names, which travels in the cartridge. */
 export interface BundleAsset {
   /** The extension whose value names it. */
   readonly extension: string;
@@ -180,6 +180,8 @@ export interface BundleAsset {
   readonly bytes: number;
   /** The SHA-256 of its content, in hex. */
   readonly sha: string;
+  /** What the cartridge carries for it, as its extension packs it. */
+  readonly packed: Uint8Array;
 }
 
 /** What compiling a closed bundle produces. */
@@ -338,13 +340,15 @@ function canonicalManifest(manifest: Manifest): string {
 
 /**
  * The hash of a closed bundle: the manifest as the compiler read it, the
- * world's own files, and each library by name, level and hash. Two
- * bundles hash alike exactly when they would run alike.
+ * world's own files, each library by name, level and hash, and each file
+ * an extension names by path and hash. Two bundles hash alike exactly when
+ * they would run and show alike.
  */
 export function bundleHashOf(
   manifest: Manifest,
   files: readonly SourceFile[],
   libraries: readonly VendoredLibrary[],
+  assets: readonly Pick<BundleAsset, 'path' | 'sha'>[],
 ): string {
   const parts: [string, string][] = [
     ['manifest', canonicalManifest(manifest)],
@@ -353,6 +357,7 @@ export function bundleHashOf(
         [`library:${library.name}`, `${library.level}:${library.hash}`] as [string, string],
     ),
     ...files.map((file) => [`file:${file.name}`, file.text] as [string, string]),
+    ...assets.map((asset) => [`asset:${asset.path}`, asset.sha] as [string, string]),
   ];
   return hashOfNamed(parts);
 }

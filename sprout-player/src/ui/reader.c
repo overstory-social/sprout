@@ -80,7 +80,7 @@ static void tick(player_app *app, player_reader *reader) {
   }
   if (told.lines.count == 0 && !told.changed) return;
   gallery_init(&pictures, app->pd);
-  kept = transcript_tell(&reader->lines, &told.lines) && images_take_told(&pictures, app->assets, &told.lines);
+  kept = transcript_tell(&reader->lines, &told.lines) && images_take_told(&pictures, app->cartridge, &told.lines);
   kept = player_reader_look(app, reader, NULL) && kept;
   if (!kept) transcript_push(&reader->lines, "notice", TICK_NO_MEMORY, strlen(TICK_NO_MEMORY));
   if (pictures.count > 0)

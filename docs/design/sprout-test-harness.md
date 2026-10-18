@@ -323,14 +323,16 @@ draws reads is this. `media.show("cellar.png")` and
   where there is none. `<path>` is the image's path from the world's folder,
   `/` between folders. The transcript line a text client reads is the caption,
   or `[<path>]`.
-- **The asset** sits at `<cartridge>.assets/<path>`, where `<cartridge>` is the
-  cartridge's file name (`media_room.sproutworld.assets/pictures/cabinet.png`),
-  written by `sprout pack`. It is a PNG of one bit a pixel (grey scale, colour
-  type 0, or palette, colour type 3). The cartridge lists each in its
+- **The asset** is a PNG of one bit a pixel (grey scale, colour type 0, or
+  palette, colour type 3, interlaced or not) in the world's folder, which the
+  compiler decodes and the cartridge carries in its assets section by its path
+  (`pictures/cabinet.png`), packed as its width, its height and its rows
+  (the Playdate design's _The cartridge_). The cartridge lists each in its
   `extensions` section,
   `{"name":"media","major":1,"assets":[{"path":"cellar.png","bytes":80,"sha":"…"}]}`,
-  so a host can check what it loaded. No size is imposed on the picture; the
-  total is the host's `assetBytes` cap, unset by default.
+  and its bundle hash covers each by path and hash. A picture is at most
+  65,535 pixels a side; the total of the files is the host's `assetBytes`
+  cap, unset by default.
 - **In the C API** a turn's extension effect is a `sprout_told_effect` of kind
   `SPROUT_LINE_EXTENSION` with `extension`, `statement` and `payload` (JSON
   text) and its transcript line as its one paragraph (the outcome's `lines`,
@@ -345,16 +347,18 @@ draws reads is this. `media.show("cellar.png")` and
   in the view, and the page `sproutc view` and `sprout view` print has an
   `effects` section after the description when there are any.
 - **The Playdate player draws it.** `sprout-player/src/ui/images.h` finds the
-  asset at `<cartridge path>.assets/<image>` and the pictures screen
-  (`src/ui/pictures.h`) shows each picture a turn asked for on the whole
-  screen, scaled to fit above its caption. `scripts/playdate-player.mjs` packs
-  the assets of the graduated worlds into the pdx. `test/pictures.test.c` and
-  `gallery.test.c` pin it over corpus cartridges through the fake
-  `PlaydateAPI`.
+  picture in the cartridge's assets directory and builds it from its rows, and
+  the pictures screen (`src/ui/pictures.h`) shows each picture a turn asked
+  for on the whole screen, scaled to fit above its caption. The pdx carries
+  the graduated worlds' cartridges and nothing beside them.
+  `test/pictures.test.c` and `gallery.test.c` pin it over corpus cartridges
+  through the fake `PlaydateAPI`, reading each picture drawn pixel for pixel;
+  `runtime-c/test/assets.test.c` pins the section's directory.
 
 `corpus/good/media-room` pins it all: its transcript holds the transcript
 lines, its `view.txt` the page, and `corpus/bad/media-missing-file`,
-`media-not-one-bit` and `media-bad-names` the words of each refusal.
+`media-not-one-bit`, `media-unreadable-picture` and `media-bad-names` the
+words of each refusal.
 
 #### 7e. The Playdate app
 

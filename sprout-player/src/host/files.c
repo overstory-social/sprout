@@ -166,6 +166,17 @@ int player_file_read(PlaydateAPI *pd, SDFile *file, void *buffer, size_t bytes) 
   return (int)(intptr_t)player_on_main_stack(piece_thunk, &c);
 }
 
+static void *seek_thunk(void *ctx) {
+  piece_read *c = (piece_read *)ctx;
+  return (void *)(intptr_t)(c->pd->file->seek(c->file, (int)c->bytes, SEEK_SET) == 0);
+}
+
+bool player_file_seek(PlaydateAPI *pd, SDFile *file, size_t offset) {
+  piece_read c = {pd, file, NULL, offset};
+  if (offset > (size_t)INT32_MAX) return false;
+  return (bool)(intptr_t)player_on_main_stack(seek_thunk, &c);
+}
+
 char *player_read_file(PlaydateAPI *pd, const char *path, size_t *length) {
   file_call c = {pd, path, length, NULL, 0, NULL, NULL, NULL};
   return (char *)player_on_main_stack(read_thunk, &c);
@@ -272,18 +283,8 @@ static void *exists_thunk(void *ctx) {
   return (void *)(intptr_t) true;
 }
 
-static void *bitmap_thunk(void *ctx) {
-  file_call *c = (file_call *)ctx;
-  const char *error = NULL;
-  return c->pd->graphics->loadBitmap(c->path, &error);
-}
-
 bool player_file_exists(PlaydateAPI *pd, const char *path) {
   file_call c = {pd, path, NULL, NULL, 0, NULL, NULL, NULL};
   return (bool)(intptr_t)player_on_main_stack(exists_thunk, &c);
 }
 
-LCDBitmap *player_load_bitmap(PlaydateAPI *pd, const char *path) {
-  file_call c = {pd, path, NULL, NULL, 0, NULL, NULL, NULL};
-  return (LCDBitmap *)player_on_main_stack(bitmap_thunk, &c);
-}

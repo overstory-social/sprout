@@ -52,7 +52,7 @@ static void the_signature_node_made_over_an_index_verifies_here(void) {
   why = player_verify(canonical, signature, key);
   CHECK(why == NULL, "the signed index text: %s", why);
   snprintf(tampered, sizeof tampered, "%s", canonical);
-  tampered[strlen("[{\"assets\":[{\"bytes\":8")] = '1';
+  tampered[strlen("[{\"author\":\"Ada \\\\ Bo\",\"bytes\":2")] = '7';
   CHECK(player_verify(tampered, signature, key) != NULL, "one digit of a size changed");
   end();
 }
