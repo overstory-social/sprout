@@ -112,6 +112,7 @@ describe('worldTitle', () => {
 
   it('is the name as words where it gives none, as the Playdate shelf titles it', () => {
     expect(worldTitle({ name: 'printers_shop' })).toBe('Printers Shop');
+    expect(worldTitle({ name: 'printers_shop', title: '' })).toBe('Printers Shop');
     expect(worldTitle({ name: 'underground_caverns' })).toBe('Underground Caverns');
     expect(worldTitle({ name: 'room_3d' })).toBe('Room 3D');
     expect(worldTitle({ name: "old_3d_room's_door" })).toBe("Old 3D Room's Door");

@@ -139,6 +139,11 @@ export function parseArgs(argv: readonly string[]): Parsed {
   return { command, positional: rest, flags };
 }
 
+/** A packed world's title as `pack` reports it, where the manifest gives one. */
+function titled(manifest: Manifest): string {
+  return manifest.title === undefined ? '' : `, titled "${manifest.title}",`;
+}
+
 /** The world in `dir`, compiled as `check` compiles it; null, with `check`'s page said, where it is refused. */
 function compiled(dir: string, say: (text: string) => void): Bundle | null {
   const result = checkWorld(dir);
@@ -152,11 +157,6 @@ function compiled(dir: string, say: (text: string) => void): Bundle | null {
  * `.sproutworld`, loaded; a folder otherwise, compiled as `check` compiles
  * it. Null, with the page or the reason said, where it cannot be.
  */
-/** A packed world's title as `pack` reports it, where the manifest gives one. */
-function titled(manifest: Manifest): string {
-  return manifest.title === undefined ? '' : `, titled "${manifest.title}",`;
-}
-
 function playable(path: string, say: (text: string) => void): PlayableWorld | null {
   if (!path.endsWith(CARTRIDGE_EXTENSION)) return compiled(path, say);
   try {

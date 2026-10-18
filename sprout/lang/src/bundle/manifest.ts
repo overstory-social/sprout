@@ -73,11 +73,11 @@ const WORD = /[A-Za-z0-9']/;
 
 /**
  * What a person is shown a world as (the spec's The manifest): its title,
- * or where it has none its name as words, each `_` a space and each word
- * begun with a capital, so `printers_shop` is "Printers Shop".
+ * or where it has none its name as words, each `_` a space and the first
+ * letter of each word a capital, so `printers_shop` is "Printers Shop".
  */
 export function worldTitle(manifest: { readonly name: string; readonly title?: string }): string {
-  if (manifest.title !== undefined) return manifest.title;
+  if (manifest.title !== undefined && manifest.title !== '') return manifest.title;
   let inWord = false;
   let words = '';
   for (const written of manifest.name) {
