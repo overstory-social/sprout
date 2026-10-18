@@ -85,9 +85,13 @@ export function received(state: ClientState, message: ServerMessage, now: number
       return { ...state, worlds: message.worlds.map((one) => one.world) };
     case 'admitted':
       return {
-        ...add(state, 'client', `You are in ${message.title} as ${message.nickname}.`),
+        ...add(
+          state,
+          'client',
+          `You are in ${message.title ?? message.world} as ${message.nickname}.`,
+        ),
         world: message.world,
-        title: message.title,
+        title: message.title ?? message.world,
         nickname: message.nickname,
       };
     case 'refused': {

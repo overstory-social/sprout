@@ -18,6 +18,20 @@ const foldAt = (at: number, from: ClientState, ...messages: ServerMessage[]): Cl
 const fold = (...messages: ServerMessage[]): ClientState => foldAt(0, EMPTY, ...messages);
 
 describe('what the client shows', () => {
+  it('names the world by its title, or by its id from a host that sends none', () => {
+    const titled = fold({
+      t: 'admitted',
+      world: 'shop',
+      title: 'The Shop',
+      nickname: 'Marta',
+      returning: false,
+    });
+    expect(titled.title).toBe('The Shop');
+    const bare = fold({ t: 'admitted', world: 'shop', nickname: 'Marta', returning: false });
+    expect(bare.lines.at(-1)?.text).toBe('You are in shop as Marta.');
+    expect(bare.title).toBe('shop');
+  });
+
   it('is the world’s prose by its kind, a payload by what recorded it, and chat styled apart', () => {
     const state = fold(
       { t: 'welcome', server: 's', worlds: [{ world: 'shop', granted: [], declined: [] }] },

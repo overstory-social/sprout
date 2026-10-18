@@ -213,8 +213,8 @@ export const ServerMessage = z.discriminatedUnion('t', [
     .object({
       t: z.literal('admitted'),
       world: named,
-      /** What a person is shown the world as: its manifest's title, or its name as words. */
-      title: named,
+      /** What a person is shown the world as: its manifest's title, or its name as words; a host may leave it out, and `world` is shown. */
+      title: named.optional(),
       nickname: named,
       returning: z.boolean(),
     })
