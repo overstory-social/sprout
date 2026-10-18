@@ -159,7 +159,7 @@ static void leave_world(player_app *app) {
  * they had offered first. The world stays read, so no loading line comes between.
  */
 static void start_over(player_app *app) {
-  char title[128], remembered[64];
+  char title[PLAYER_TITLE_BYTES], remembered[64];
   player_restart restart = player_start_over(app->session);
   size_t length;
   if (!restart.ok) {
@@ -168,7 +168,7 @@ static void start_over(player_app *app) {
     return;
   }
   player_cue(app, PLAYER_CUE_PICK);
-  player_world_title(restart.name, title, sizeof title);
+  player_world_title(restart.name, restart.title, title, sizeof title);
   /* The name is the session's until its next call, which the load below is. */
   length = restart.nickname == NULL ? 0 : restart.nickname->length;
   if (length >= sizeof remembered) length = sizeof remembered - 1;

@@ -8,6 +8,7 @@ import {
   libraryHash,
   MANIFEST_FILE,
   STANDARD_LIBRARY,
+  worldTitle,
   type Manifest,
 } from '@overstory/sprout/lang';
 import { writeScript } from '@overstory/sprout-player';
@@ -35,8 +36,10 @@ export function scaffoldWorld(dir: string, author = userInfo().username): string
   // `person` has its visitors made of `Guest`.
   const visitor = worldFile === fileNamedFor('Person') ? 'Guest' : 'Person';
   const visitorFile = fileNamedFor(visitor);
+  const title = worldTitle({ name });
   const manifest: Manifest = {
     name,
+    title,
     namespace: name,
     version: '0.1.0',
     author,
@@ -72,7 +75,7 @@ export function scaffoldWorld(dir: string, author = userInfo().username): string
   ].join('\n');
   const person = `import * as sprout from ${Q}sprout${Q}\n\nkind ${visitor} is sprout.Visitor { }\n`;
   const readme =
-    `# ${name}\n\nA Sprout microworld. \`sprout check .\` checks it, and ` +
+    `# ${title}\n\nA Sprout microworld. \`sprout check .\` checks it, and ` +
     '`sprout test .` runs its tests, the scripts in `tests/`.\n';
   const test = writeScript({
     about:

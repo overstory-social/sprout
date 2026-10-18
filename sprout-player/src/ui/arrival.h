@@ -19,7 +19,7 @@
 
 typedef struct player_arrival {
   char path[PLAYER_PATH_BYTES]; /* the cartridge */
-  char title[128];
+  char title[PLAYER_TITLE_BYTES];
   bool started;
   size_t read, counted; /* how far the cartridge has been read */
 } player_arrival;

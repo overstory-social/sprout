@@ -100,6 +100,7 @@ static void a_file_that_is_not_a_cartridge_is_refused(void) {
 }
 
 #define ALL_CAPS "\"caps\":{\"optionsPerEnum\":1,\"rolesPerVerb\":1,\"phrasesPerVerb\":1,\"stepsPerIntent\":1,\"phraseCharacters\":1,\"nounsPerObject\":1,\"nounCharacters\":1,\"exitsPerPlace\":1,\"literalCharacters\":1,\"listElements\":1,\"places\":null,\"objects\":null,\"kinds\":null,\"files\":null,\"sourceBytes\":null}"
+#define TITLED_HEADER(title) "\"header\":{\"name\":\"late\",\"title\":" title ",\"namespace\":\"late\",\"version\":\"1.0.0\",\"author\":\"a\",\"license\":\"MIT\",\"level\":1,\"hash\":\"h\",\"files\":[],\"libraries\":[]}"
 #define A_HEADER "\"header\":{\"name\":\"late\",\"namespace\":\"late\",\"version\":\"1.0.0\",\"author\":\"a\",\"license\":\"MIT\",\"level\":1,\"hash\":\"h\",\"files\":[],\"libraries\":[]}"
 
 static void a_damaged_body_is_refused_in_words(void) {
@@ -287,6 +288,7 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   CHECK(world != NULL && sprout_world_peeked(world));
   CHECK(peeked.at < length / 4); /* the preamble is read, and the source no further */
   CHECK_STR(world->header.name, "printers_shop");
+  CHECK(world->header.title == NULL); /* its manifest gives none */
   CHECK_INT(strlen(world->header.hash), 64);
   CHECK(world->caps.options_per_enum > 0);
   CHECK_INT(world->graph.count, 0);
@@ -307,6 +309,27 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   CHECK(world != NULL && sprout_world_peeked(world));
   CHECK_STR(world->header.name, "late");
   sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+  /* A title the manifest gave is read; one that is not text is said so. */
+  bytes = corpus_cartridge("titled", &length);
+  peeking = test_source_of(&peeked, bytes, length, 1024);
+  CHECK_INT(sprout_peek(&host, &peeking, &world, &why), SPROUT_OK);
+  CHECK_STR(world->header.title, "Titled: A World Shown by Its Title");
+  sprout_world_free(world);
+  free(bytes);
+  bytes = cartridge_with("{" TITLED_HEADER("\"Late: The Hour\"") "," ALL_CAPS ",\"extensions\":[]}", (const unsigned char *)"garbage!",
+                         8, &length);
+  peeking = test_source_of(&peeked, bytes, length, 0);
+  CHECK_INT(sprout_peek(&host, &peeking, &world, &why), SPROUT_OK);
+  CHECK_STR(world->header.title, "Late: The Hour");
+  sprout_world_free(world);
+  free(bytes);
+  bytes = cartridge_with("{" TITLED_HEADER("3") "," ALL_CAPS ",\"extensions\":[]}", (const unsigned char *)"garbage!", 8,
+                         &length);
+  peeking = test_source_of(&peeked, bytes, length, 0);
+  CHECK_INT(sprout_peek(&host, &peeking, &world, &why), SPROUT_BAD_INPUT);
+  CHECK_STR(why.text, "This cartridge is not shaped as a cartridge is at `header.title`: it is not what a cartridge holds there.");
   CHECK_INT(heap.pages, 0);
   free(bytes);
   /* A body with no caps is said so. */

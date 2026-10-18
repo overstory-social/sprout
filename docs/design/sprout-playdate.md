@@ -77,8 +77,8 @@ the layout is hole 462.
   file held whole that is not the size its header adds up to.
 - **Body.** Gzip-compressed, two parts. First a JSON preamble held to one
   schema (`bundle/cartridge-schema.ts`) shared by the writer and the reader,
-  everything but the entries: `header` (name, namespace, version, author,
-  license, the highest language level, the bundle hash, the files and
+  everything but the entries: `header` (name, the title where the manifest
+  gives one, namespace, version, author, license, the highest language level, the bundle hash, the files and
   libraries), `caps` (the static caps the world was checked against),
   `extensions` (the ones it pins, by name and major, with their assets),
   `kinds`, `tree` (what the world declares to be where, and where visitors
@@ -757,10 +757,10 @@ the app's, a damaged file) is drawn greyed with the engine's reason on the
 panel and cannot be opened; a world too big for the console's memory is
 refused at its open, with the same words on the shelf afterwards. A world
 whose save could not be written is greyed too, and A on it tries again. A
-long title is cut at the screen's edge. A world is titled by its name as
-words, since a cartridge carries no other title: `printers_shop` is shelved
-as `Printers Shop`, and the picker and the reader's first line call it the
-same. The last word, "more worlds…", opens the download screen.
+long title is cut at the screen's edge. A world is shown by the title its
+manifest gives, which its cartridge's header carries, and otherwise by its
+name as words: `printers_shop` is shelved as `Printers Shop`. The loading
+line, the picker and the reader's first line call it the same. The last word, "more worlds…", opens the download screen.
 
 ### Shipped worlds and downloads
 

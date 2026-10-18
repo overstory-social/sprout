@@ -144,6 +144,7 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
   it('changes when anything the manifest says changes', () => {
     for (const changed of [
       { ...manifest, name: 'other_shop' },
+      { ...manifest, title: "Printer's Shop" },
       { ...manifest, version: '0.3.2' },
       { ...manifest, author: 'Somebody Else' },
       { ...manifest, license: 'Apache-2.0' },
@@ -155,6 +156,14 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
     ] satisfies Manifest[]) {
       expect(bundleHashOf(changed, own, [vendored(sprout)], []), changed.version).not.toBe(hash);
     }
+  });
+
+  it('changes when a title is given or changed, since a title is shown', () => {
+    const titled = bundleHashOf({ ...manifest, title: 'The Shop' }, own, [vendored(sprout)], []);
+    expect(titled).not.toBe(hash);
+    expect(
+      bundleHashOf({ ...manifest, title: 'The Shop, Open Late' }, own, [vendored(sprout)], []),
+    ).not.toBe(titled);
   });
 
   it('changes when a library is pinned at a different version or sha', () => {

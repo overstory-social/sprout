@@ -157,7 +157,7 @@ static void draw(player_app *app, void *ctx) {
   player_nickname *n = (player_nickname *)ctx;
   const player_pen *pen = &app->pen;
   int header = pen->frame_height + 4, bottom = PLAYER_SCREEN_HEIGHT - pen->frame_height - 2;
-  char said[200];
+  char said[PLAYER_TITLE_BYTES + 24]; /* "Who are you in ", the title, "?" */
   text_buffer who;
   if (n->refused.line_count > 0) {
     const char *line = n->refused.bytes;

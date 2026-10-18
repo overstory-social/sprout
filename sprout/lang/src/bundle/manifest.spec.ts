@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { Diagnostics } from '../source/diagnostics.js';
 import { locationOf, SourceFile } from '../source/source.js';
-import { MANIFEST_FIELDS, MANIFEST_FILE, manifestKeySpan, parseManifest } from './manifest.js';
+import {
+  MANIFEST_FIELDS,
+  MANIFEST_FILE,
+  manifestKeySpan,
+  parseManifest,
+  worldTitle,
+} from './manifest.js';
 
 const GOOD = {
   name: 'shop',
@@ -32,6 +38,18 @@ describe('parseManifest', () => {
       extensions: [],
       libraries: [],
     });
+  });
+
+  it('keeps a title that was written, and has none where none was', () => {
+    const { manifest } = read(JSON.stringify({ ...GOOD, title: 'The Shop: Open Late' }));
+    expect(manifest?.title).toBe('The Shop: Open Late');
+    expect(read(JSON.stringify(GOOD)).manifest).not.toHaveProperty('title');
+  });
+
+  it('refuses a title that is not text, at its key', () => {
+    const text =
+      '{\n  "name": "shop",\n  "title": 3,\n  "version": "0.1.0",\n  "author": "marta",\n  "license": "MIT",\n  "level": 1\n}\n';
+    expect(read(text).said).toEqual(["sprout.json:3:3 The manifest's title is not a string."]);
   });
 
   it('keeps a namespace that was written', () => {
@@ -71,7 +89,7 @@ describe('parseManifest', () => {
   });
 
   it('says what to write for exactly the fields a manifest holds, each in its own words', () => {
-    const { manifest } = read(JSON.stringify(GOOD));
+    const { manifest } = read(JSON.stringify({ ...GOOD, title: 'The Shop' }));
     expect(Object.keys(MANIFEST_FIELDS).sort()).toEqual(Object.keys(manifest!).sort());
     for (const [field, write] of Object.entries(MANIFEST_FIELDS)) {
       expect(write, field).toMatch(new RegExp(`^"${field}": `));
@@ -82,5 +100,21 @@ describe('parseManifest', () => {
     const file = new SourceFile(MANIFEST_FILE, '{\n  "level": 1\n}');
     expect(locationOf(manifestKeySpan(file, 'level'))).toBe('sprout.json:2:3');
     expect(locationOf(manifestKeySpan(file, 'files'))).toBe('sprout.json:1:1');
+  });
+});
+
+describe('worldTitle', () => {
+  it('is the title where the manifest gives one, written as it is', () => {
+    expect(
+      worldTitle({ name: 'underground_caverns_2', title: 'Underground Caverns 2: The Revenge' }),
+    ).toBe('Underground Caverns 2: The Revenge');
+  });
+
+  it('is the name as words where it gives none, as the Playdate shelf titles it', () => {
+    expect(worldTitle({ name: 'printers_shop' })).toBe('Printers Shop');
+    expect(worldTitle({ name: 'printers_shop', title: '' })).toBe('Printers Shop');
+    expect(worldTitle({ name: 'underground_caverns' })).toBe('Underground Caverns');
+    expect(worldTitle({ name: 'room_3d' })).toBe('Room 3D');
+    expect(worldTitle({ name: "old_3d_room's_door" })).toBe("Old 3D Room's Door");
   });
 });

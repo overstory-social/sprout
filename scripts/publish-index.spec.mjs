@@ -4,7 +4,14 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -26,12 +33,15 @@ const TEST_KEY = join(player, 'test/index-test.key');
 const TEST_PUBLIC = readFileSync(join(player, 'test/index-test.pub'), 'utf8').trim();
 const fixture = (name) => readFileSync(join(player, 'test/fixtures', name), 'utf8');
 
-/** A folder of cartridges packed by the built CLI: chip-tree (no pictures) and media-room (three, inside its cartridge). */
+/**
+ * A folder of cartridges packed by the built CLI: chip-tree (no pictures), media-room (three, inside
+ * its cartridge) and titled (a manifest title).
+ */
 async function packed() {
   const dir = mkdtempSync(join(tmpdir(), 'sprout-index-'));
   const { main: cli } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
   const quiet = { write: () => true };
-  for (const name of ['chip-tree', 'media-room']) {
+  for (const name of ['chip-tree', 'media-room', 'titled']) {
     const code = await cli(
       ['pack', join(root, 'corpus/good', name), '-o', join(dir, `${name}.sproutworld`)],
       {
@@ -77,7 +87,8 @@ test('an index lists each cartridge with its header, size, SHA-256 and address, 
   );
   assert.deepEqual(
     index.worlds.map((w) => w.title),
-    ['chip_tree', 'media_room'],
+    // A world with no title is listed by its name as words.
+    ['Chip Tree', 'Media Room', 'Titled: A World Shown by Its Title'],
   );
   const [chip, media] = index.worlds;
   assert.equal(chip.url, 'https://worlds.example/sprout/chip-tree.sproutworld');
@@ -113,7 +124,7 @@ test('the command writes index.json beside the cartridges, signed with the key f
     TEST_KEY,
   ]);
   assert.equal(code, 0, said);
-  assert.match(said, /signed 2 worlds into .*index\.json/);
+  assert.match(said, /signed 3 worlds into .*index\.json/);
   const index = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8'));
   assert.equal(indexIsSigned(index, TEST_PUBLIC), true);
   assert.equal(index.worlds[0].url, 'https://worlds.example/sprout/chip-tree.sproutworld');
@@ -130,6 +141,7 @@ test('the key may come from the environment, and --out gathers the cartridges an
     'chip-tree.sproutworld',
     'index.json',
     'media-room.sproutworld',
+    'titled.sproutworld',
   ]);
   assert.equal(existsSync(join(dir, 'index.json')), false, 'the source folder is left alone');
 });
@@ -214,5 +226,5 @@ test('the command runs from the shell as the README says', async () => {
     ],
     { encoding: 'utf8' },
   );
-  assert.match(out, /signed 2 worlds/);
+  assert.match(out, /signed 3 worlds/);
 });

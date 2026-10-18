@@ -46,6 +46,8 @@ const StaticCapsSchema = z.strictObject({
 /** What a cartridge says about itself, before anything of its world is read. */
 const HeaderSchema = z.strictObject({
   name: z.string(),
+  /** What a person is shown the world as; absent where the manifest has none, and the name as words is shown. */
+  title: z.string().optional(),
   namespace: z.string(),
   version: z.string(),
   author: z.string(),

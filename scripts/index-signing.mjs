@@ -18,7 +18,7 @@ import {
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CARTRIDGE_EXTENSION, readCartridge } from '@overstory/sprout/lang';
+import { CARTRIDGE_EXTENSION, readCartridge, worldTitle } from '@overstory/sprout/lang';
 
 const PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 const SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
@@ -118,7 +118,7 @@ export function worldsOf(dir, baseUrl) {
     const bytes = readFileSync(join(dir, file));
     const { header } = readCartridge(bytes);
     const world = {
-      title: header.name,
+      title: worldTitle(header),
       author: header.author,
       version: header.version,
       bytes: bytes.length,

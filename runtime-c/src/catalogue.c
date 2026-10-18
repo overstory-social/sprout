@@ -201,6 +201,7 @@ static sprout_status read_header(loader *l, const sprout_json *header) {
   const sprout_json *level = sprout_json_get(header, "level");
   const sprout_json *files = sprout_json_get(header, "files");
   const sprout_json *libraries = sprout_json_get(header, "libraries");
+  const sprout_json *title = sprout_json_get(header, "title"); /* optional */
   size_t i;
   sprout_status status = SPROUT_OK;
   if (header == NULL || header->kind != SPROUT_JSON_OBJECT) return cat_shaped(l, "header");
@@ -210,7 +211,9 @@ static sprout_status read_header(loader *l, const sprout_json *header) {
   h->author = json_text(l, header, "author", &status);
   h->license = json_text(l, header, "license", &status);
   h->hash = json_text(l, header, "hash", &status);
+  h->title = json_text(l, header, "title", &status);
   NEED(status);
+  if (title != NULL && title->kind != SPROUT_JSON_STRING) return cat_shaped(l, "header.title");
   if (h->name == NULL || h->namespace_name == NULL || h->version == NULL || h->author == NULL ||
       h->license == NULL || h->hash == NULL || level == NULL || level->kind != SPROUT_JSON_NUMBER ||
       files == NULL || files->kind != SPROUT_JSON_ARRAY || libraries == NULL ||

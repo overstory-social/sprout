@@ -1,5 +1,5 @@
 // What a world says about itself before any of it is read (the spec's
-// The world model › The manifest): its name and namespace, its version,
+// The world model › The manifest): its name, title and namespace, its version,
 // who made it and on what terms, the level it was written for, and the
 // extensions it pins. None of it needs a parser. The manifest arrives
 // already read, so where a problem with it was written is found in its
@@ -53,6 +53,37 @@ export const SEMVER =
 export const SEMVER_REMEDY =
   'A version is three numbers with dots, as in 0.1.0; a pre-release or build tag may follow, as in 1.2.0-beta.1.';
 
+/** The most characters a title may hold (the spec's The manifest); the language's, not a host's. */
+export const TITLE_CHARACTERS = 60;
+
+/** A line break, a tab or any other control character, none of which a one-line title holds. */
+const NOT_ONE_LINE = /[\p{Cc}\u2028\u2029]/u;
+
+/** Refuse a title that is empty, too long, or not one line of words. */
+function checkTitle(title: string, at: Span, report: Report): void {
+  const length = [...title].length;
+  if (title.trim() === '') {
+    report.refuse(
+      at,
+      "This world's title is empty.",
+      'Write the words to show this world as, or leave "title" out to show its name as words.',
+    );
+  } else if (length > TITLE_CHARACTERS) {
+    report.refuse(
+      at,
+      `This world's title is ${length} characters long, and ${TITLE_CHARACTERS} is as long as a title may be.`,
+      `Write a shorter title, as in "title": "Underground Caverns 2: The Revenge".`,
+    );
+  }
+  if (NOT_ONE_LINE.test(title)) {
+    report.refuse(
+      at,
+      "This world's title holds a line break, a tab or another control character.",
+      'Write the title as one line of words, with spaces between them.',
+    );
+  }
+}
+
 /** Refuse what the manifest's own fields get wrong, in either mode. */
 export function checkManifest(source: MicroworldSource, report: Report): void {
   const { manifest, manifestFile } = source;
@@ -95,6 +126,8 @@ export function checkManifest(source: MicroworldSource, report: Report): void {
       );
     }
   }
+  if (manifest.title !== undefined)
+    checkTitle(manifest.title, atKey(manifestFile, 'title'), report);
   if (manifest.version.trim() !== '' && !SEMVER.test(manifest.version)) {
     report.refuse(
       atKey(manifestFile, 'version'),

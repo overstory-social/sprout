@@ -3,6 +3,7 @@ import {
   emitCartridge,
   loadCartridge,
   renderDiagnostics,
+  worldTitle,
   type Bundle,
   type HostSeconds,
 } from '@overstory/sprout/lang';
@@ -34,6 +35,8 @@ export type BundleStamp = Pick<Bundle, 'hash' | 'level' | 'extensions' | 'assets
 export interface ServedWorld {
   /** Its name, which clients admit themselves to it by and the store keys it by. */
   readonly id: string;
+  /** What a person is shown it as (`worldTitle`). */
+  readonly title: string;
   readonly dir: string;
   readonly bundle: BundleStamp;
   readonly host: LogHost;
@@ -71,6 +74,7 @@ export function compileWorld(dir: string, config: ServerConfig): Compiled {
   return {
     world: {
       id: catalogue.world,
+      title: worldTitle(bundle.manifest),
       dir,
       bundle: { hash, level, extensions, assets },
       host: {

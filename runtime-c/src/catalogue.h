@@ -237,6 +237,7 @@ typedef struct sprout_extension_pin {
 
 typedef struct sprout_cartridge_header {
   const char *name, *namespace_name, *version, *author, *license, *hash;
+  const char *title; /* what a person is shown the world as; NULL where the manifest gave none */
   long level;
   size_t file_count;
   const char **files;

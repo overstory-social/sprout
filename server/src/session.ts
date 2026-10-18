@@ -262,6 +262,7 @@ export async function admit(
   connection.send({
     t: 'admitted',
     world: served.id,
+    title: served.title,
     nickname: message.nickname,
     returning: arrived.value.returning,
   });

@@ -114,6 +114,7 @@ async function welcomesAndRuns(): Promise<void> {
   expect(await marta.take('admitted')).toEqual({
     t: 'admitted',
     world: 'sequences',
+    title: 'Sequences',
     nickname: 'Marta',
     returning: false,
   });

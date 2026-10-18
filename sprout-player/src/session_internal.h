@@ -36,7 +36,8 @@ struct player_session {
   sprout_loading *loading; /* a world being opened across frames, read a piece a step from the file below */
   SDFile *loading_file;
   char hash[72];
-  char title[96];
+  char name[96];
+  char title[256]; /* the title the world's manifest gives, or "" where it gives none */
   char state_path[PATH_BYTES];
   char log_path[PATH_BYTES];
   bool dirty;          /* a turn committed since the last save was begun */

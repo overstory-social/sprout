@@ -177,6 +177,7 @@ sprout — a Sprout microworld on the command line
 | field | write |
 | --- | --- |
 | `name` | "name": "printers_shop" — lower-case, with letters, digits and _ |
+| `title` | "title": "Printer's Shop", or leave it out to show the name as words |
 | `namespace` | "namespace": "printers_shop", or leave it out to use the name |
 | `version` | "version": "0.1.0" |
 | `author` | "author": "Marta" |

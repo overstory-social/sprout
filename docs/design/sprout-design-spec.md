@@ -324,6 +324,7 @@ The manifest is what a world says about itself before any of it is read.
 | field | what it holds |
 | --- | --- |
 | `name` | the world's own name, which its one `world` declaration repeats |
+| `title` | what a person is shown the world as; optional, and the name as words when unset |
 | `namespace` | the namespace its declarations are unqualified in; optional, and the world's name when unset |
 | `version` | which version of this world this is, as [semver](https://semver.org) |
 | `author` | who made it, as text: a name, an address, a profile |
@@ -336,6 +337,8 @@ The manifest is what a world says about itself before any of it is read.
 None of it needs a parser, and that is the point: whether a bundle is closed and whether it is complete are both settled before a line of the language has been read.
 
 A bundle holds exactly one `world` declaration, and its name is the manifest's `name`: none, more than one, or one under another name is refused.
+
+`title` is the world as a host shows it to a person: on a shelf, in a list of worlds, in the line that says who they are in it. It is one line of at most 60 characters, not empty or only white space, holding no line break, tab or other control character; a title that is not is refused. A world with no `title` is shown as its name in words, each `_` a space and the first letter of each word a capital: `printers_shop` is "Printers Shop". It is part of the manifest, so it travels in the bundle and is part of the bundle's hash.
 
 `files` is what makes a file that did not arrive *missing* rather than merely absent — without it there is nothing for a file to be missing from. What travelled must be exactly what the manifest names; publishing refuses otherwise, and loading says so and runs.
 
