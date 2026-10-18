@@ -20,7 +20,7 @@ import {Thief, Stiletto} from 'thief'
 import {Cyclops, CyclopsRoom, TreasureRoom, Chalice, :flee} from 'cyclops'
 import {treasure_room, cyclops_room, strange_passage} from 'cyclops'
 import {go, look, examine, inventory, wait, help} from 'sprout'
-import {spare, upstairs, downstairs, take, drop, put, give, knock, dig, dig_with, pour, pour_in, pour_on, mung, walk_around, walk_about, through, attack, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, climb_up, climb_down, unlock, lock, score, diagnose, xyzzy, hello, jump, yell, zork, verbose, brief, superbrief, quit, restart, save, restore, curse, echo, ring, untie, burn, leap_at, turn, treasure, odysseus, throw, kick, rub, wave, shake, squeeze, kiss, feed_bare, look_behind, fill, tie, alarm, talk, greet, pray, swim, search, cross, climb_over, duck_under, clear, cut, look_down, listen_here, smell_here, Dest, Mode, :scored, :light, :relight, :room_lit, :grue, :open_gate, :gate_open, :close_gate, :blow, :troll_gone, :glow, :die, :claimed, :settle, :travel, :unbar, :banish, :spend, :hush, :snuffed, :candle_burn, :let_go, :rob, :far_voice, :consume, :thief_gone, :cyclops_gone, :shed, :fall, board, disembark, disembark_here, launch, land, inflate, deflate, plug, turn_with, oil, :where, :berth, :wreck, :flung, :match_out, :rainbow, ashore, lower, rub_with, :shatter, :bad_luck, :bats, :gas, :boom, :gust, :blow_out, exorcise, exorcise_here, :rite, :rite_lit, :rite_read, :won, :shatter_lamp, :troll_flag, :cool, :lamp_age, :finish, :burn_tick, :smash, put_through, :sink} from 'verbs'
+import {spare, upstairs, downstairs, take, drop, put, give, knock, dig, dig_with, pour, pour_in, pour_on, mung, walk_around, walk_about, through, attack, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, climb_up, climb_down, unlock, lock, score, diagnose, xyzzy, hello, jump, yell, zork, verbose, brief, superbrief, quit, restart, save, restore, curse, echo, ring, untie, burn, leap_at, turn, treasure, odysseus, throw, kick, rub, wave, shake, squeeze, kiss, feed_bare, look_behind, fill, tie, alarm, talk, greet, pray, swim, search, cross, climb_over, duck_under, clear, cut, look_down, listen_here, smell_here, Dest, Mode, :scored, :light, :relight, :room_lit, :grue, :open_gate, :gate_open, :close_gate, :blow, :troll_gone, :glow, :die, :claimed, :settle, :travel, :unbar, :banish, :spend, :hush, :snuffed, :candle_burn, :let_go, :rob, :far_voice, :consume, :thief_gone, :cyclops_gone, :shed, :fall, board, disembark, launch, land, inflate, deflate, plug, turn_with, oil, :where, :berth, :wreck, :flung, :match_out, :rainbow, lower, rub_with, :shatter, :bad_luck, :bats, :gas, :boom, :gust, :blow_out, exorcise, :rite, :rite_lit, :rite_read, :won, :shatter_lamp, :troll_flag, :cool, :lamp_age, :finish, :burn_tick, :smash, put_through, :sink} from 'verbs'
 import {behind_house, clearing, forest_1, forest_2, forest_3, forest_path, grating_clearing, north_of_house, south_of_house, west_of_house} from 'above_ground'
 import {cellar, troll_room} from 'cellar'
 import {attic, kitchen, living_room, Bottle} from 'house'
@@ -110,6 +110,9 @@ kind Adventurer is sprout.Visitor {
   // Getting out of a boat something sharp has just got at: once out, the
   // room is asked to swap it for the punctured boat.
   :wrecking false
+  // In the magic boat, by boarding it: the boat's own way out (`get out`)
+  // is a link, which says nothing, so going says it.
+  :aboard false
   // Attacking with something sharp from the magic boat.
   :spiked false
   // How many cloves of garlic are in hand, for the bat, who cannot see into
@@ -345,6 +348,7 @@ kind Adventurer is sprout.Visitor {
   // put the punctured boat in its place.
   on :berth (from) {
     move self to from
+    self.set(:aboard, false)
     if (self.get(:wrecking)) {
       self.set(:wrecking, false)
       send from :wreck
@@ -414,6 +418,18 @@ kind Adventurer is sprout.Visitor {
   as actor for go {
     do {
       self.adjust(:moves, 1)
+      // Out of a beached boat by its own way out: V-DISEMBARK's words. A way
+      // that steps ashore from the water leaves the boat behind, and says
+      // its own.
+      if (self.get(:aboard) && !here.is(MagicBoat)) {
+        self.set(:aboard, false)
+        if (here.count(MagicBoat) > 0) { say "You are on your own feet again." }
+      }
+      // Rowed to a landing: on these reaches every way back into the boat
+      // lands it, at the bank it names.
+      if (here.is(MagicBoat)) {
+        if (here.get(:afloat) && (here.get(:at) == :river_1 || here.get(:at) == :river_3 || here.get(:at) == :river_4 || here.get(:at) == :river_5)) { say "The magic boat comes to a rest on the shore." }
+      }
       // A lamp lights the way in the hand or in an open bag, as the room's
       // own `lit` sees it.
       // The dead need no light to guide them (ALWAYS-LIT).
@@ -1451,15 +1467,6 @@ kind Adventurer is sprout.Visitor {
       else { say "What a bizarre concept!" }
     }
   }
-  as actor for exorcise_here { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
-    do {
-      self.adjust(:moves, 1)
-      if (here.is(HadesGate) && !here.get(:exorcised)) {
-        if (self.count(Bell) > 0 && self.count(BlackBook) > 0 && self.count(Candles) > 0) { say "You must perform the ceremony." }
-        else { say "You aren't equipped for an exorcism." }
-      } else { say "What a bizarre concept!" }
-    }
-  }
   as actor for ask { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
   as actor for lamp_off   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
   as actor for shift      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
@@ -1579,6 +1586,7 @@ kind Adventurer is sprout.Visitor {
           send here :wreck
         } else {
           move self to target
+          self.set(:aboard, true)
           say "You are now in the magic boat."
         }
       }
@@ -1932,6 +1940,7 @@ kind Adventurer is sprout.Visitor {
           send here :wreck
         } else {
           move self to target
+          self.set(:aboard, true)
           say "You are now in the magic boat."
         }
       }
@@ -1945,18 +1954,6 @@ kind Adventurer is sprout.Visitor {
         if (!target.is(MagicBoat)) { refuse "You're not in that!" }
         else if (here.get(:afloat)) { refuse "You realize that getting out here would be fatal." }
       } else { refuse "You're not in that!" }
-    }
-    do {
-      self.adjust(:moves, 1)
-      say "You are on your own feet again."
-      broadcast :where
-    }
-  }
-  as actor for disembark_here {
-    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
-      if (here.is(MagicBoat)) {
-        if (here.get(:afloat)) { refuse "You realize that getting out here would be fatal." }
-      } else { refuse "You are already on your own two feet." }
     }
     do {
       self.adjust(:moves, 1)
@@ -1980,20 +1977,6 @@ kind Adventurer is sprout.Visitor {
     }
   }
   as actor for land {
-    permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
-      if (here.is(MagicBoat)) {
-        if (here.get(:at) == :river_2) { refuse "There is no safe landing spot here." }
-        else if (here.get(:at) == :river_4) { refuse "You can land either to the east or the west." }
-        else if (!(here.get(:at) == :river_1 || here.get(:at) == :river_3 || here.get(:at) == :river_5 || here.get(:at) == :in_stream)) { refuse "You can't go that way." }
-      } else { refuse "You can't go that way." }
-    }
-    do {
-      self.adjust(:moves, 1)
-      send here :come_ashore
-      say ""
-    }
-  }
-  as actor for ashore {
     permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
       if (here.is(MagicBoat)) {
         if (here.get(:at) == :river_2) { refuse "There is no safe landing spot here." }
