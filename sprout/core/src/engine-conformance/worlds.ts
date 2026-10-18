@@ -304,6 +304,40 @@ verb light { role target  "light [target]" }
 export const NAVE = declaredId('chapel', ['nave']);
 export const CANDLE = declaredId('chapel', ['nave', 'candle']);
 
+/**
+ * The hideout: a thief in the hall who is unseen, and a bell whose ringing
+ * sends him into the vault, where he stays unseen.
+ */
+export const HIDEOUT = compiled('hideout', {
+  'hideout.sprout': `world hideout is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    grammar { exit north "north to the vault" -> vault }
+    object bell is Bell {
+      as target for ring { do { say "The bell clangs."  send thief :startled } }
+    }
+    object thief is Thief
+  }
+  object vault is sprout.Place {
+    grammar { exit south "south to the hall" -> hall }
+  }
+}
+message :startled
+verb ring { role target  "ring [target]" }
+kind Bell { grammar { name "bell" } }
+kind Thief is sprout.Actor {
+  grammar { name "thief" }
+  :unseen true
+  on :startled { move self to vault }
+}
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+});
+export const HIDEOUT_HALL = declaredId('hideout', ['hall']);
+export const HIDEOUT_VAULT = declaredId('hideout', ['vault']);
+export const THIEF = declaredId('hideout', ['hall', 'thief']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');

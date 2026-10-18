@@ -89,6 +89,8 @@ sprout_eval_status expr_decode(const sprout_frame *frame, const sprout_decl_type
                                const sprout_stored_value *stored, sprout_value *out);
 sprout_eval_status expr_get(const sprout_frame *frame, const sprout_stored_instance *instance, const char *name,
                             sprout_value *out);
+/* Whether `id` holds the standard library's `:unseen` true (the spec's Range > Unseen); false for what is not live. */
+bool expr_unseen(const sprout_frame *frame, sprout_str id);
 /* What `self` remembers about `actor`: what was written, or the declared default. */
 sprout_eval_status expr_recalled(const sprout_frame *frame, sprout_str actor, const char *name, sprout_value *out);
 

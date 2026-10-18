@@ -90,6 +90,7 @@
 "unknown-word":{"world":"unknown_word","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "unplayed-verb":{"world":"unplayed_verb","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "unsaid-verb":{"world":"unsaid_verb","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"unseen":{"world":"unseen","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "unsent-unhandled":{"world":"unsent_unhandled","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "untimed":{"world":"untimed","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "value-first":{"world":"value_first","serial":0,"instances":[],"visitors":[],"tombstones":[]},

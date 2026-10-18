@@ -53,6 +53,7 @@ import {
   type ResolvedProperty,
 } from './properties.js';
 import { identicalType, showType } from './types.js';
+import { isUnseenOrigin, UNSEEN } from './unseen.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
 import { composedWhereSame } from './contributions.js';
 import { ACTOR, VISITOR } from './actors.js';
@@ -294,9 +295,11 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     written.add(name);
     const came = arrivals.get(name);
     const resolved =
-      came === undefined
-        ? resolveProperty(declared, enums, composer.library, own, diagnostics, remembered)
-        : restate(came, declared, remembered);
+      came !== undefined
+        ? restate(came, declared, remembered)
+        : name === UNSEEN.name
+          ? restateProperty(UNSEEN, declared, remembered, enums, composer.library, own, diagnostics)
+          : resolveProperty(declared, enums, composer.library, own, diagnostics, remembered);
     if (resolved !== null) properties.set(name, resolved);
   };
 
@@ -356,6 +359,8 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   const merged = new Map<string, ResolvedProperty>();
   for (const [name, came] of arrivals) merged.set(name, properties.get(name) ?? came[0]!.property);
   for (const [name, property] of properties) if (!merged.has(name)) merged.set(name, property);
+  // Every object holds `:unseen`, whether or not anything it composes restates it (Range › Unseen).
+  if (!merged.has(UNSEEN.name)) merged.set(UNSEEN.name, UNSEEN);
 
   // --- passages, one per name -------------------------------------------
   const passages = resolvePassages(
@@ -736,6 +741,8 @@ function supersedes(
   kinds: KindSource,
 ): boolean {
   if (restating.origin === restated.origin) return false;
+  // Every kind composes the standard library's `:unseen`.
+  if (isUnseenOrigin(restated)) return true;
   const found = kinds.find(restating.origin);
   return found.found === 'kind' && found.kind.composes.has(restated.origin);
 }

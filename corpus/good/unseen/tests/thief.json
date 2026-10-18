@@ -1,0 +1,33 @@
+{
+  "about": "The thief stands in the hall unseen: not listed and not named. The bell still reaches him, and he slips into the vault unannounced, since he is unseen as he moves, and shows himself there, so the gong sends him back seen.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. You see a bell. You see a heap of leaves." }
+    ] },
+    { "as": "Marta", "type": "examine thief", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "arrive": "Ines" },
+    { "as": "Ines", "type": "north", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves for the vault." },
+      { "reader": "Ines", "kind": "described", "words": "A low vault." }
+    ] },
+    { "as": "Marta", "type": "ring bell", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bell clangs." }
+    ] },
+    { "as": "Ines", "type": "examine thief", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "There is nothing special about the thief." }
+    ] },
+    { "as": "Marta", "type": "examine thief", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Ines", "type": "ring gong", "expect": [
+      { "reader": "Ines", "kind": "said", "words": "The gong booms." },
+      { "reader": "Ines", "kind": "notice", "words": "The thief leaves for the hall." },
+      { "reader": "Marta", "kind": "notice", "words": "The thief arrives from the vault." }
+    ] },
+    { "as": "Marta", "type": "examine thief", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the thief." }
+    ] }
+  ]
+}
