@@ -1,7 +1,7 @@
 /*
- * The worlds the app ships (PLAYER_SHIPPED_DIR, the folder the build packed sprout-player/worlds.json
- * into): the shelf must be able to shelve every one, so a graduated world over this app's caps or
- * too large for its memory fails the build rather than shipping greyed, and each opens whole, its
+ * The graduated worlds (PLAYER_SHIPPED_DIR, the folder apart from the pdx that the build packed
+ * sprout-player/worlds.json into): the shelf must be able to shelve every one, so a graduated world
+ * over this app's caps or too large for its memory fails the build rather than shelving greyed, and each opens whole, its
  * file read a piece at a time as the console reads it. Without the variable there is nothing to
  * check and the test says so.
  */

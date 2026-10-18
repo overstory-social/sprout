@@ -1,9 +1,9 @@
 // Specs for the shipping half of scripts/playdate-player.mjs: the list of graduated worlds, packing
-// them with their assets, and the public key baked into the app. Run by `node --test`
+// them with their assets apart from the pdx, the pdx carrying none, and the public key baked into the app. Run by `node --test`
 // (`shippingSpecs`); they need `npm run build` for the CLI and no Playdate SDK.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -13,6 +13,7 @@ import { readCartridgeAssets } from '@overstory/sprout/lang';
 
 import {
   appPollSteps,
+  noWorlds,
   readGraduated,
   stageWorlds,
   TEST_PUBLIC_KEY,
@@ -30,12 +31,12 @@ function listFile(value) {
   return file;
 }
 
-test("the graduated list in the repository ships the worked microworld and the studio's finished world, once each", () => {
+test("the graduated list in the repository packs the worked microworld and the studio's finished world, once each", () => {
   const list = readGraduated(WORLDS_FILE);
   for (const name of ['printers_shop', 'underground_caverns']) {
     assert.ok(
       list.some((entry) => entry.file === `${name}.sproutworld`),
-      `${name} ships`,
+      `${name} is packed`,
     );
   }
   assert.equal(new Set(list.map((entry) => entry.file)).size, list.length);
@@ -128,7 +129,7 @@ test('a list that cannot be used says what to write', () => {
     assert.throws(() => readGraduated(listFile(value)), pattern);
 });
 
-test('each listed world is packed as one file, its pictures inside it, into the folder the app carries', async () => {
+test('each listed world is packed as one file, its pictures inside it, into the folder named', async () => {
   const out = join(scratch(), 'worlds');
   const list = readGraduated(
     listFile({
@@ -184,6 +185,24 @@ test('a world that does not pack fails the build and names it', async () => {
     stageWorlds({ list, out: join(scratch(), 'worlds') }),
     /Broken .* did not pack/,
   );
+});
+
+test('a cartridge anywhere in the pdx or its Source/ is refused by path, and a folder without one passes', () => {
+  const source = scratch();
+  mkdirSync(join(source, 'fonts'));
+  writeFileSync(join(source, 'pdxinfo'), 'name=Sprout\n');
+  writeFileSync(join(source, 'fonts', 'frame.fnt'), '');
+  noWorlds(source);
+  mkdirSync(join(source, 'worlds'));
+  writeFileSync(join(source, 'worlds', 'teashop.sproutworld'), 'SPRT');
+  assert.throws(
+    () => noWorlds(source),
+    /worlds\/teashop\.sproutworld is a cartridge, and the pdx carries no worlds: delete it/,
+  );
+});
+
+test("the app's Source/ in the repository holds no cartridge", () => {
+  noWorlds(join(root, 'sprout-player/Source'));
 });
 
 test('the public key the app trusts is read from the file named', () => {
