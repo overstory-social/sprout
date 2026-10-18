@@ -65,35 +65,25 @@ bool player_url_parse(const char *url, player_url *parts, char *why, size_t size
 }
 
 bool player_url_resolve(const char *base, const char *address, char *out, size_t size) {
-  player_url parts;
-  char why[8], port[8];
-  text_buffer said;
-  size_t keep, start;
-  if (scheme_length(address) > 0 || !player_url_parse(base, &parts, why, sizeof why)) {
-    if (strlen(address) >= size) return false;
-    memcpy(out, address, strlen(address) + 1);
-    return true;
+  size_t keep = 0, n = strlen(address);
+  bool slash = false;
+  if (scheme_length(address) == 0 && scheme_length(base) > 0) {
+    const char *path = base + scheme_length(base);
+    path += strcspn(path, "/?#");
+    keep = (size_t)(path - base);
+    if (address[0] != '/') {
+      /* The folder of the base's path: up to its last `/` before any query or fragment, or `/` where it has none. */
+      size_t folder = strcspn(path, "?#");
+      while (folder > 0 && path[folder - 1] != '/') folder--;
+      keep += folder;
+      slash = folder == 0;
+    }
   }
-  text_begin(&said, out, size);
-  text_add(&said, parts.ssl ? "https://" : "http://");
-  text_add(&said, parts.server);
-  if (parts.port != (parts.ssl ? 443 : 80)) {
-    text_buffer digits;
-    text_begin(&digits, port, sizeof port);
-    text_add_number(&digits, (uint64_t)parts.port);
-    text_add(&said, ":");
-    text_add(&said, port);
-  }
-  if (address[0] != '/') {
-    /* The folder of the base's path: up to its last `/` before any query or fragment. */
-    keep = strcspn(parts.path, "?#");
-    while (keep > 0 && parts.path[keep - 1] != '/') keep--;
-    parts.path[keep] = '\0';
-    text_add(&said, parts.path);
-  }
-  start = said.length;
-  text_add(&said, address);
-  return said.length == start + strlen(address);
+  if (keep + (slash ? 1 : 0) + n >= size) return false;
+  memcpy(out, base, keep);
+  if (slash) out[keep++] = '/';
+  memcpy(out + keep, address, n + 1);
+  return true;
 }
 
 /* ---- the system's answers, which come by callback ---- */
@@ -127,8 +117,9 @@ static bool same_name(const char *a, const char *b) {
 static void header_read(HTTPConnection *conn, const char *key, const char *value) {
   player_fetch *f = (player_fetch *)http_api->getUserdata(conn);
   size_t n = strlen(value);
-  if (f == NULL || !same_name(key, "location") || n >= sizeof f->location) return;
-  memcpy(f->location, value, n + 1);
+  if (f == NULL || !same_name(key, "location")) return;
+  f->location_too_long = n >= sizeof f->location;
+  if (!f->location_too_long) memcpy(f->location, value, n + 1);
 }
 
 /* ---- words ---- */
@@ -210,6 +201,7 @@ static bool connect_to(player_fetch *f, const char *url) {
   if (!player_url_parse(f->url, &f->parts, f->reason, sizeof f->reason)) return false;
   f->finished = false;
   f->location[0] = '\0';
+  f->location_too_long = false;
   f->status = 0;
   ask = ++asks;
   if (ask == 0) ask = ++asks;
@@ -228,15 +220,19 @@ static bool connect_to(player_fetch *f, const char *url) {
 
 /* Moves on to the address a redirect named; the fetch carries on there. */
 static player_fetch_state follow(player_fetch *f) {
-  char next[PLAYER_URL_BYTES];
-  bool resolved = f->location[0] != '\0' && player_url_resolve(f->url, f->location, next, sizeof next);
+  bool resolved = !f->location_too_long && f->location[0] != '\0' &&
+                  player_url_resolve(f->url, f->location, f->next, sizeof f->next);
   let_go(f);
+  if (!resolved && (f->location_too_long || f->location[0] != '\0')) {
+    fail_with(f, f->parts.server, " sent the app on to an address longer than this app reads.", "");
+    return PLAYER_FETCH_FAILED;
+  }
   if (!resolved || f->hops >= PLAYER_NET_MOST_REDIRECTS) {
     fail_with(f, f->parts.server, " sent the app on to another address too many times, or to none.", "");
     return PLAYER_FETCH_FAILED;
   }
   f->hops++;
-  return connect_to(f, next) ? PLAYER_FETCH_RUNNING : PLAYER_FETCH_FAILED;
+  return connect_to(f, f->next) ? PLAYER_FETCH_RUNNING : PLAYER_FETCH_FAILED;
 }
 
 static bool is_redirect(int status) {
