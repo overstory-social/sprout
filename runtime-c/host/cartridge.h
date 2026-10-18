@@ -1,6 +1,6 @@
 /*
- * A cartridge as the desktop host first sees it: the sixteen bytes and the
- * `header` section of the gzip JSON that follows (the spec's The compiler >
+ * A cartridge as the desktop host first sees it: its header (load.h) and the
+ * `header` section of the preamble that follows (the spec's The compiler >
  * What compiling produces). Loading the rest is the runtime's.
  */
 #ifndef SPROUTC_CARTRIDGE_H
@@ -10,10 +10,7 @@
 
 #include "sprout.h"
 
-/* The bytes before the compressed JSON. */
-#define SPROUTC_CARTRIDGE_HEADER_BYTES 16
-
-/* What the first sixteen bytes say; NULL on success, or words for why the file is no cartridge. */
+/* What the header's first bytes say; NULL on success, or words for why the file is no cartridge. */
 const char *sproutc_cartridge_prefix(const unsigned char *bytes, size_t length, unsigned *format,
                                      unsigned *level);
 

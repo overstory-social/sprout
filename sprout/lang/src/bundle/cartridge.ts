@@ -2,12 +2,15 @@
 // loads in place of the source (the spec's The compiler › What compiling
 // produces; Language levels; Kinds › Libraries and namespaces).
 //
-// Sixteen bytes, then a gzip-compressed body: the magic `SPRT`, the format
-// version and the language level as little-endian 16-bit numbers, the
-// body's inflated size and the offset of its table, as 32-bit numbers. The
-// body is a small JSON preamble (what a shelf and the catalogue read) and
-// then, eight-aligned, the table of `cartridge-table.ts`, which a runtime
-// reads in place. Libraries are statically linked, so the cartridge is
+// Twenty-four bytes, a gzip-compressed body, then the assets: the magic
+// `SPRT`, the format version and the language level as little-endian
+// 16-bit numbers, then as 32-bit numbers the body's inflated size, the
+// offset of its table, and where the assets section begins in the file and
+// its size. The body is a small JSON preamble (what a shelf and the
+// catalogue read) and then, eight-aligned, the table of
+// `cartridge-table.ts`, which a runtime reads in place; the assets section
+// (`cartridge-assets.ts`) holds every file the world's extensions name, so
+// a world is one file. Libraries are statically linked, so the cartridge is
 // closed: it holds the world's declarations resolved, its bodies and prose
 // as trees with every name bound (`cartridge-names.ts`), and the caps it was checked against, and
 // neither source text nor diagnostics. A runtime refuses a format or a
@@ -22,26 +25,36 @@ import { PreambleSchema, type Cartridge, type Preamble } from './cartridge-schem
 import { writeGraph, type Entry, type GraphTables, type Rewrite } from './cartridge-graph.js';
 import { namesWritten } from './cartridge-names.js';
 import { readTable, TableUnreadable, writeTable } from './cartridge-table.js';
+import {
+  assetDirectory,
+  AssetsUnreadable,
+  readAssets,
+  writeAssets,
+  type CartridgeAsset,
+} from './cartridge-assets.js';
 
 /** The four bytes every cartridge begins with. */
 export const CARTRIDGE_MAGIC = 'SPRT';
 
 /** The layout of the file this code writes and reads; raised only when the layout changes, and only the current one is read. */
-export const CARTRIDGE_FORMAT = 4;
+export const CARTRIDGE_FORMAT = 5;
 
 /** The bytes before the compressed body. */
-export const CARTRIDGE_HEADER_BYTES = 16;
+export const CARTRIDGE_HEADER_BYTES = 24;
 
 /** The file extension a cartridge is kept under. */
 export const CARTRIDGE_EXTENSION = '.sproutworld';
 
-/** What the sixteen bytes say. */
+/** What the header's bytes say. */
 export interface CartridgeHeader {
   readonly format: number;
   readonly level: number;
   /** The body's size once inflated, and where its table begins in it. */
   readonly bodyBytes: number;
   readonly tableAt: number;
+  /** Where the assets section begins in the file, which is where the compressed body ends, and its size. */
+  readonly assetsAt: number;
+  readonly assetsBytes: number;
 }
 
 /** A file that cannot be read as a cartridge, said in words for whoever ran it. */
@@ -49,8 +62,14 @@ export class CartridgeUnreadable extends Error {
   override readonly name = 'CartridgeUnreadable';
 }
 
-/** The sixteen bytes that begin a cartridge of this `level`, whose body inflates to `bodyBytes` with its table at `tableAt`. */
-function headerBytes(level: number, bodyBytes: number, tableAt: number): Uint8Array {
+/** The header that begins a cartridge of this `level`, as `CartridgeHeader` names its fields. */
+function headerBytes(
+  level: number,
+  bodyBytes: number,
+  tableAt: number,
+  assetsAt: number,
+  assetsBytes: number,
+): Uint8Array {
   const bytes = new Uint8Array(CARTRIDGE_HEADER_BYTES);
   bytes.set(new TextEncoder().encode(CARTRIDGE_MAGIC));
   const view = new DataView(bytes.buffer);
@@ -58,11 +77,13 @@ function headerBytes(level: number, bodyBytes: number, tableAt: number): Uint8Ar
   view.setUint16(6, level, true);
   view.setUint32(8, bodyBytes, true);
   view.setUint32(12, tableAt, true);
+  view.setUint32(16, assetsAt, true);
+  view.setUint32(20, assetsBytes, true);
   return bytes;
 }
 
 /**
- * What the first sixteen bytes of `bytes` say, refusing a file that is not
+ * What the header of `bytes` says, refusing a file that is not
  * a cartridge, one of a format other than the one this reads, and one
  * written for a language level newer than this compiler's.
  */
@@ -98,7 +119,14 @@ export function readCartridgeHeader(bytes: Uint8Array): CartridgeHeader {
       `This cartridge was made for language level ${level}, and this runtime reads up to level ${LANGUAGE_LEVEL}. Update the runtime, or pack the world again with this one.`,
     );
   }
-  return { format, level, bodyBytes: view.getUint32(8, true), tableAt: view.getUint32(12, true) };
+  return {
+    format,
+    level,
+    bodyBytes: view.getUint32(8, true),
+    tableAt: view.getUint32(12, true),
+    assetsAt: view.getUint32(16, true),
+    assetsBytes: view.getUint32(20, true),
+  };
 }
 
 /**
@@ -107,9 +135,10 @@ export function readCartridgeHeader(bytes: Uint8Array): CartridgeHeader {
  */
 export function readCartridge(bytes: Uint8Array): Cartridge {
   const header = readCartridgeHeader(bytes);
+  const directory = assetsOf(bytes, header);
   let body: Uint8Array;
   try {
-    body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES));
+    body = gunzip(bytes.subarray(CARTRIDGE_HEADER_BYTES, header.assetsAt));
   } catch (thrown) {
     throw new CartridgeUnreadable(
       `This cartridge cannot be read: ${thrown instanceof Error ? thrown.message : String(thrown)}.`,
@@ -153,7 +182,46 @@ export function readCartridge(bytes: Uint8Array): Cartridge {
       `This cartridge is not shaped as a cartridge is at \`table\`: ${thrown.message}.`,
     );
   }
+  const listed = parsed.data.extensions.flatMap((extension) =>
+    (extension.assets ?? []).map((asset) => asset.path),
+  );
+  const held = [...directory.keys()];
+  if (listed.length !== held.length || listed.some((path) => !directory.has(path))) {
+    throw new CartridgeUnreadable(
+      'This cartridge cannot be read: its assets are not the files its extensions list.',
+    );
+  }
   return withEntries(parsed.data, tables);
+}
+
+/** The assets section's directory, refusing a section that is not where the header says or is damaged. */
+function assetsOf(bytes: Uint8Array, header: CartridgeHeader): Map<string, Uint8Array> {
+  if (
+    header.assetsAt < CARTRIDGE_HEADER_BYTES ||
+    header.assetsAt + header.assetsBytes !== bytes.length
+  ) {
+    throw new CartridgeUnreadable(
+      'This cartridge cannot be read: it is not the size its header says.',
+    );
+  }
+  try {
+    return assetDirectory(bytes.subarray(header.assetsAt));
+  } catch (thrown) {
+    if (!(thrown instanceof AssetsUnreadable)) throw thrown;
+    throw new CartridgeUnreadable(`This cartridge's assets cannot be read: ${thrown.message}.`);
+  }
+}
+
+/** Every file a cartridge's extensions name, as their extensions packed them, read and inflated. */
+export function readCartridgeAssets(bytes: Uint8Array): CartridgeAsset[] {
+  const header = readCartridgeHeader(bytes);
+  assetsOf(bytes, header);
+  try {
+    return readAssets(bytes.subarray(header.assetsAt));
+  } catch (thrown) {
+    if (!(thrown instanceof AssetsUnreadable)) throw thrown;
+    throw new CartridgeUnreadable(`This cartridge's assets cannot be read: ${thrown.message}.`);
+  }
 }
 
 /** The cartridge a preamble and its table make together. */
@@ -316,7 +384,7 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
   } as Cartridge;
 }
 
-/** `bundle` as the bytes of a cartridge: the header, then the preamble and the table, gzip-compressed together. */
+/** `bundle` as the bytes of a cartridge: the header, the preamble and the table gzip-compressed together, then the assets. */
 export function emitCartridge(bundle: Bundle): Uint8Array {
   const cartridge = cartridgeOf(bundle);
   const preamble = new TextEncoder().encode(JSON.stringify(preambleOf(cartridge)));
@@ -331,8 +399,11 @@ export function emitCartridge(bundle: Bundle): Uint8Array {
   body.set(preamble);
   body.set(table, tableAt);
   const compressed = gzip(body);
-  const out = new Uint8Array(CARTRIDGE_HEADER_BYTES + compressed.length);
-  out.set(headerBytes(bundle.level, body.length, tableAt));
+  const assets = writeAssets(bundle.assets);
+  const assetsAt = CARTRIDGE_HEADER_BYTES + compressed.length;
+  const out = new Uint8Array(assetsAt + assets.length);
+  out.set(headerBytes(bundle.level, body.length, tableAt, assetsAt, assets.length));
   out.set(compressed, CARTRIDGE_HEADER_BYTES);
+  out.set(assets, assetsAt);
   return out;
 }

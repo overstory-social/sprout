@@ -3,8 +3,8 @@
 //   node scripts/publish-index.mjs <folder> --base-url <url> [--key <file>] [--out <folder>]
 //   node scripts/publish-index.mjs --generate-key <path-prefix>
 //
-// <folder> holds the `.sproutworld` cartridges (and their `.assets` folders) that `sprout pack`
-// wrote. The index lists each with its title, author, version, size, bundle hash, SHA-256 and the
+// <folder> holds the `.sproutworld` cartridges that `sprout pack` wrote, one file a world, its
+// pictures inside it. The index lists each with its title, author, version, size, bundle hash, SHA-256 and the
 // address <url> followed by its file name, and is signed over the canonical text of that list.
 // `index.json` is written into <folder>, or into --out with the cartridges copied beside it, ready
 // to upload so that <url>index.json is the address the app is configured with.
@@ -68,9 +68,7 @@ export function main(args, env, say) {
     if (out !== resolve(folder)) {
       mkdirSync(out, { recursive: true });
       for (const file of readdirSync(folder)) {
-        if (file.endsWith('.sproutworld') || file.endsWith('.sproutworld.assets')) {
-          cpSync(join(folder, file), join(out, file), { recursive: true });
-        }
+        if (file.endsWith('.sproutworld')) cpSync(join(folder, file), join(out, file));
       }
     }
     writeFileSync(join(out, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);

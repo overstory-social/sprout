@@ -45,7 +45,6 @@ int fake_pixel(const fake_playdate *fake, int x, int y) {
 static void fake_clear(LCDColor color) {
   memset(fake_current->frame, color == kColorBlack ? 0xFF : 0x00, sizeof fake_current->frame);
   fake_current->run_count = 0;
-  fake_current->draw_count = 0;
   fake_current->placed_count = 0;
   fake_current->ellipses = 0;
   fake_current->triangles = 0;

@@ -37,6 +37,20 @@ static bool read_cartridge(void *ctx, unsigned char *buffer, size_t bytes, size_
   return true;
 }
 
+/* A cartridge's file opened for a peek, apart from the one a load reads. */
+typedef struct peeked_file {
+  PlaydateAPI *pd;
+  SDFile *file;
+} peeked_file;
+
+static bool read_peeked(void *ctx, unsigned char *buffer, size_t bytes, size_t *got) {
+  peeked_file *p = (peeked_file *)ctx;
+  int n = player_file_read(p->pd, p->file, buffer, bytes);
+  if (n < 0) return false;
+  *got = (size_t)n;
+  return true;
+}
+
 /* Releases the world, its state and the log tail; the session is ready to open another. */
 static void release_world(player_session *session) {
   session_save_abandon(session);
@@ -103,25 +117,30 @@ static void load_failed(sprout_status status, const sprout_refusal *refusal, tex
 }
 
 /*
- * Reads the cartridge at `path` and peeks at its header and caps, checked against the app's
- * static caps: cheap however large the world. On refusal `reason` says why. The bytes are the
- * caller's to free, and `peeked` (when given back) likewise.
+ * Peeks at the header and caps of the cartridge at `path`, read from its file only as far as its
+ * preamble, and checks them against the app's static caps: cheap however large the world or its
+ * pictures. On refusal `reason` says why. `peeked` (when given back) is the caller's to free.
  */
-static bool peek(player_session *session, const char *path, char **bytes, size_t *length, sprout_world **peeked,
-                 char *reason, size_t size) {
+static bool peek(player_session *session, const char *path, sprout_world **peeked, char *reason, size_t size) {
   sprout_refusal refusal;
   sprout_status status;
+  sprout_source source;
+  peeked_file file;
   text_buffer out;
   text_begin(&out, reason, size);
   *peeked = NULL;
-  *bytes = player_read_file(session->pd, path, length);
-  if (*bytes == NULL) {
+  file.pd = session->pd;
+  file.file = player_file_open(session->pd, path);
+  if (file.file == NULL) {
     text_add(&out, "The file ");
     text_add(&out, path);
     text_add(&out, " cannot be read.");
     return false;
   }
-  status = sprout_peek(&session->host.record, *bytes, *length, peeked, &refusal);
+  source.ctx = &file;
+  source.read = read_peeked;
+  status = sprout_peek(&session->host.record, &source, peeked, &refusal);
+  player_file_close(session->pd, file.file);
   if (status != SPROUT_OK) {
     load_failed(status, &refusal, &out);
     return false;
@@ -137,11 +156,9 @@ static bool peek(player_session *session, const char *path, char **bytes, size_t
 player_opening player_inspect(player_session *session, const char *path) {
   player_opening answer;
   sprout_world *world = NULL;
-  char *bytes = NULL;
-  size_t length = 0;
   char reason[512];
   session_answer(session);
-  if (!peek(session, path, &bytes, &length, &world, reason, sizeof reason)) {
+  if (!peek(session, path, &world, reason, sizeof reason)) {
     answer = not_opened(session, reason);
   } else {
     memset(&answer, 0, sizeof answer);
@@ -150,7 +167,6 @@ player_opening player_inspect(player_session *session, const char *path) {
     answer.hash = session_keep(session, world->header.hash);
   }
   if (world != NULL) sprout_world_free(world);
-  player_free(session->pd, bytes);
   return answer;
 }
 
@@ -160,18 +176,11 @@ player_opening player_open(player_session *session, const char *path) {
   sprout_refusal refusal;
   sprout_status status;
   sprout_source source;
-  char *bytes = NULL;
-  size_t length = 0;
   char reason[512];
   text_buffer out;
   session_answer(session);
   release_world(session);
-  /* The peek's copy of the file is let go before the load begins, which reads it again a piece at a time. */
-  if (!peek(session, path, &bytes, &length, &peeked, reason, sizeof reason)) {
-    player_free(session->pd, bytes);
-    return not_opened(session, reason);
-  }
-  player_free(session->pd, bytes);
+  if (!peek(session, path, &peeked, reason, sizeof reason)) return not_opened(session, reason);
   name_files(session, &peeked->header);
   sprout_world_free(peeked);
   text_begin(&out, reason, sizeof reason);

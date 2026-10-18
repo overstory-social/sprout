@@ -48,7 +48,7 @@ static LCDBitmap *held(player_app *app, player_pictures *p, long index, long kee
   slot = p->slots[0].index == keep && keep >= 0 ? &p->slots[1] : &p->slots[0];
   release(app, slot);
   slot->index = index;
-  slot->bitmap = images_load(app->pd, app->assets, p->gallery.pictures[index].image);
+  slot->bitmap = images_load(app->pd, app->cartridge, p->gallery.pictures[index].image);
   return slot->bitmap;
 }
 

@@ -65,7 +65,7 @@ export function assetsIn(root: string): (path: string) => AssetFile | null {
       try {
         if (statSync(file).isFile()) {
           const bytes = readFileSync(file);
-          found = { bytes: bytes.length, sha: sha256(bytes), head: bytes.subarray(0, 64) };
+          found = { bytes: bytes.length, sha: sha256(bytes), content: bytes };
         }
       } catch {
         found = null;

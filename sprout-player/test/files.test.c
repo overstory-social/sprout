@@ -1,4 +1,4 @@
-/* host/files.c: whole files over the Playdate's filesystem, and files read and written a piece at a time. */
+/* host/files.c: whole files over the Playdate's filesystem, and files read (and moved about in) and written a piece at a time. */
 #include <stdlib.h>
 
 #include "host/files.h"
@@ -102,28 +102,11 @@ static void a_folder_lists_its_files_and_marks_its_folders(void) {
   end();
 }
 
-static void a_file_is_found_and_an_image_loaded_where_reading_looks(void) {
-  static const char PNG[] = "\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x05\0\0\0\x03";
-  LCDBitmap *bitmap;
-  int width = 0, height = 0;
-  FILE *file;
-  char full[1100];
+static void a_file_is_found_where_reading_looks(void) {
   begin("exists");
   CHECK(!player_file_exists(&fake->api, "absent"), "a missing file");
   write_text("here.txt", "x");
   CHECK(player_file_exists(&fake->api, "here.txt"), "a file in the Data folder");
-  CHECK(player_load_bitmap(&fake->api, "here.txt") == NULL, "a file that is no image");
-  snprintf(full, sizeof full, "%s/tiny.png", fake->data);
-  file = fopen(full, "wb");
-  CHECK(file != NULL && fwrite(PNG, 1, sizeof PNG - 1, file) == sizeof PNG - 1, "writing a picture");
-  if (file != NULL) fclose(file);
-  bitmap = player_load_bitmap(&fake->api, "tiny.png");
-  CHECK(bitmap != NULL, "an image loads");
-  if (bitmap != NULL) {
-    fake->api.graphics->getBitmapData(bitmap, &width, &height, NULL, NULL, NULL);
-    CHECK(width == 5 && height == 3, "at its size: %d by %d", width, height);
-    fake->api.graphics->freeBitmap(bitmap);
-  }
   end();
 }
 
@@ -132,21 +115,21 @@ static void a_file_written_in_pieces_is_moved_into_place_and_removed(void) {
   size_t length = 0;
   char *bytes;
   begin("pieces");
-  file = player_file_create(&fake->api, "worlds/a b.sproutworld.assets/pictures/cellar.png.part");
+  file = player_file_create(&fake->api, "worlds/a b/pictures/cellar.png.part");
   CHECK(file != NULL, "the folders it is in are made");
   CHECK(player_file_append(&fake->api, file, "one ", 4) && player_file_append(&fake->api, file, "two", 3), "two pieces");
   CHECK(player_file_close(&fake->api, file), "closed");
-  write_text("worlds/a b.sproutworld.assets/pictures/cellar.png", "older");
-  CHECK(player_file_move(&fake->api, "worlds/a b.sproutworld.assets/pictures/cellar.png.part",
-                         "worlds/a b.sproutworld.assets/pictures/cellar.png"),
+  write_text("worlds/a b/pictures/cellar.png", "older");
+  CHECK(player_file_move(&fake->api, "worlds/a b/pictures/cellar.png.part",
+                         "worlds/a b/pictures/cellar.png"),
         "moved over what was there");
-  bytes = player_read_file(&fake->api, "worlds/a b.sproutworld.assets/pictures/cellar.png", &length);
+  bytes = player_read_file(&fake->api, "worlds/a b/pictures/cellar.png", &length);
   CHECK(bytes != NULL && length == 7 && strcmp(bytes, "one two") == 0, "the pieces in order, the older file replaced");
   player_free(&fake->api, bytes);
-  CHECK(!exists("worlds/a b.sproutworld.assets/pictures/cellar.png.part"), "nothing left at the part");
+  CHECK(!exists("worlds/a b/pictures/cellar.png.part"), "nothing left at the part");
   CHECK(!player_file_move(&fake->api, "worlds/absent.part", "worlds/absent"), "a part that is not there cannot be moved");
-  player_file_remove(&fake->api, "worlds/a b.sproutworld.assets");
-  CHECK(!exists("worlds/a b.sproutworld.assets/pictures/cellar.png"), "the folder is removed with everything in it");
+  player_file_remove(&fake->api, "worlds/a b");
+  CHECK(!exists("worlds/a b/pictures/cellar.png"), "the folder is removed with everything in it");
   write_text("worlds/one.txt", "one");
   player_file_remove(&fake->api, "worlds/one.txt");
   CHECK(!exists("worlds/one.txt"), "and a file by itself");
@@ -171,6 +154,12 @@ static void a_file_is_read_a_piece_at_a_time(void) {
     at += (size_t)got;
   }
   CHECK(at == 70000, "read %zu", at);
+  CHECK(file != NULL && player_file_seek(&fake->api, file, 69990) && player_file_read(&fake->api, file, piece, sizeof piece) == 10 &&
+            memcmp(piece, big + 69990, 10) == 0,
+        "a seek reads on from where it moved to");
+  CHECK(file != NULL && player_file_seek(&fake->api, file, 3) && player_file_read(&fake->api, file, piece, 4) == 4 &&
+            memcmp(piece, big + 3, 4) == 0,
+        "back as well as on");
   fake->fail_reads = 1;
   CHECK(file != NULL && player_file_read(&fake->api, file, piece, sizeof piece) < 0, "a read that fails says so");
   fake->fail_reads = 0;
@@ -188,7 +177,7 @@ static void a_file_is_read_a_piece_at_a_time(void) {
 int main(void) {
   test_program("files");
   a_file_is_read_a_piece_at_a_time();
-  a_file_is_found_and_an_image_loaded_where_reading_looks();
+  a_file_is_found_where_reading_looks();
   a_file_is_written_whole_and_read_back();
   a_file_bigger_than_a_chunk_is_read_whole();
   a_write_cut_short_before_the_swap_is_found_by_the_read();

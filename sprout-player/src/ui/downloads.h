@@ -5,11 +5,11 @@
  * finds it.
  *
  * Nothing listed is used until the index's signature verifies against the key the build baked in
- * (the generated `publickey.h`). Each file is written as `<name>.part`, counted as it arrives (one
- * longer than listed is dropped at once), checked against the size and SHA-256 the index gives,
- * and only then moved into place; the cartridge goes last, once the engine has said whether it can
- * be shelved and, if it can, that its bundle hash is the one listed. One the engine refuses is
- * kept and shelved greyed with the engine's reason. What stops a fetch is said in words, and
+ * (the generated `publickey.h`). A world is one file, its cartridge, which carries its pictures: it
+ * is written as `<name>.part`, counted as it arrives (one longer than listed is dropped at once),
+ * checked against the size and SHA-256 the index gives, and moved into place only once the engine
+ * has said whether it can be shelved and, if it can, that its bundle hash is the one listed. One
+ * the engine refuses is kept and shelved greyed with the engine's reason. What stops a fetch is said in words, and
  * leaving the screen tells the shelf what happened to the list.
  */
 #ifndef PLAYER_UI_DOWNLOADS_H
@@ -45,10 +45,9 @@ typedef enum downloads_phase {
   DOWNLOADS_FAILED  /* the list could not be had: `failure` says why */
 } downloads_phase;
 
-/* One file of the world being downloaded: the cartridge first, then each asset beside it. */
+/* The cartridge being downloaded, as the index lists it, and where it goes. */
 typedef struct download_file {
-  bool asset;
-  const char *label; /* the world's title or the asset's path, from the index */
+  const char *label; /* the world's title, from the index */
   const char *url;   /* as the index gives it */
   const char *sha256;
   size_t bytes;
@@ -74,10 +73,9 @@ typedef struct player_downloads {
   char *text;
   size_t length, room;
   bool too_big, short_of_memory;
-  /* the world being downloaded */
+  /* the world being downloaded, NULL while none is, and its cartridge */
   const sprout_json *world;
-  download_file *files;
-  size_t file_count, at; /* `at` is the file being fetched */
+  download_file cartridge;
   SDFile *file;
   size_t written;
   bool overrun, write_failed;

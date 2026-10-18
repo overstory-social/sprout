@@ -28,10 +28,12 @@ bool player_hash_file(PlaydateAPI *pd, const char *path, unsigned char digest[32
  * A file read a piece at a time, for a cartridge too big to hold whole while it loads:
  * `player_file_open` opens the file at `path` where `player_read_file` looks, or gives NULL;
  * `player_file_read` puts its next bytes, up to `bytes`, in `buffer` and gives how many, 0 at its
- * end and negative when they could not be read. It is closed with `player_file_close`.
+ * end and negative when they could not be read; `player_file_seek` moves to `offset` from its
+ * start, false where it cannot. It is closed with `player_file_close`.
  */
 SDFile *player_file_open(PlaydateAPI *pd, const char *path);
 int player_file_read(PlaydateAPI *pd, SDFile *file, void *buffer, size_t bytes);
+bool player_file_seek(PlaydateAPI *pd, SDFile *file, size_t offset);
 
 /* Writes `bytes` as the file at `path`, whole; false when it could not be. */
 bool player_write_file(PlaydateAPI *pd, const char *path, const char *bytes, size_t length);
@@ -60,9 +62,6 @@ void player_file_remove(PlaydateAPI *pd, const char *path);
 
 /* Whether there is a file at `path`, where `player_read_file` looks. */
 bool player_file_exists(PlaydateAPI *pd, const char *path);
-
-/* The image at `path` (a compiled image is named without its `.pdi`), loaded on the main stack; NULL where it cannot be. */
-LCDBitmap *player_load_bitmap(PlaydateAPI *pd, const char *path);
 
 /* A block from the device's allocator. */
 void *player_alloc(PlaydateAPI *pd, size_t bytes);

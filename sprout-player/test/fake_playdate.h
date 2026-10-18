@@ -8,12 +8,11 @@
  * `serif_glyph` or `sans_glyph` pixels a character (FAKE_SERIF_GLYPH and FAKE_SANS_GLYPH unless a
  * test says otherwise), each freed as the C API frees a font
  * (realloc to nothing), and a test can name one that does not load; a character is drawn as a block. A pattern fill paints what its mask lets through, aligned
- * to the screen as the device's is. Bitmaps load from PNG files, the size their header declares, and
- * are drawn as a black block of that size, each draw recorded. Bitmaps made with newBitmap hold real
- * pixels, kept as the device keeps them (a set data bit white, a set mask bit drawn, rows padded to
- * four bytes), and can be drawn into through pushContext, the text drawn into one kept as its own
- * runs; drawn with drawBitmap they are copied onto the screen through their mask and the clip rect,
- * each placement recorded. Lines go any way, and an ellipse is stroked whole; the file calls that change the Data folder are logged; synths keep what they were set to and
+ * to the screen as the device's is. Bitmaps are made with newBitmap (the app loads none from a file)
+ * and hold real pixels, kept as the device keeps them (a set data bit white, a set mask bit drawn,
+ * rows padded to four bytes), and can be drawn into through pushContext, the text drawn into one kept
+ * as its own runs; drawn with drawBitmap or drawScaledBitmap they are copied onto the screen through
+ * their mask and the clip rect, each placement recorded. Lines go any way, and an ellipse is stroked whole; the file calls that change the Data folder are logged; synths keep what they were set to and
  * record each note played. The network serves canned answers: each address a test gives is answered
  * with its status, headers and body, a piece a frame, behind the permission the test says the person
  * gives; an address it does not know is answered 404. The system menu holds up to three items, as the device's does, which a test can choose, and an options item's value a test can set, as the person does from the menu. The SDK's headers are the declarations;
@@ -31,8 +30,6 @@
 #define FAKE_SANS_LINE 22
 #define FAKE_SYNTHS 16
 #define FAKE_NOTES 256
-#define FAKE_BITMAPS 32
-#define FAKE_DRAWS 32
 #define FAKE_MADE 64
 #define FAKE_MADE_RUNS 4
 #define FAKE_PLACED 32
@@ -70,20 +67,6 @@ typedef struct fake_note {
   float pitch, volume, length;
 } fake_note;
 
-/* A bitmap loadBitmap made: the path it was loaded from, its size, and whether it is freed. */
-typedef struct fake_bitmap {
-  int live;
-  char path[512];
-  int width, height;
-} fake_bitmap;
-
-/* One drawBitmap or drawScaledBitmap since the frame was cleared: which bitmap, where, at what scale. */
-typedef struct fake_draw {
-  int bitmap;
-  int x, y;
-  float scale;
-} fake_draw;
-
 /* A bitmap newBitmap made: its pixels as the device holds them (no mask unless it was made clear), and the text drawn into it. */
 typedef struct fake_made {
   int live;
@@ -93,10 +76,11 @@ typedef struct fake_made {
   int run_count;
 } fake_made;
 
-/* One drawBitmap of a made bitmap since the frame was cleared: which, where, and the clip rect it was drawn under. */
+/* One drawBitmap or drawScaledBitmap since the frame was cleared: which made bitmap, where, at what scale, and the clip rect it was drawn under. */
 typedef struct fake_placed {
   int made;
   int x, y;
+  float scale;
   int clipped, clip_x, clip_y, clip_width, clip_height;
 } fake_placed;
 
@@ -154,8 +138,8 @@ typedef struct fake_playdate {
   int fail_writes;
   /* when set, every read of an open file fails, as of a card gone bad */
   int fail_reads;
-  /* the reads of open files made, and the most bytes one asked for; a test empties them to watch from a moment on */
-  size_t reads, read_largest;
+  /* the reads of open files made, the most bytes one asked for, and the seeks; a test empties them to watch from a moment on */
+  size_t reads, read_largest, seeks;
   /* the screen: the frame (a set bit is black), the text drawn since it was cleared, the font loaded */
   uint8_t frame[LCD_ROWS * LCD_ROWSIZE];
   fake_run runs[FAKE_RUNS];
@@ -169,11 +153,6 @@ typedef struct fake_playdate {
   int synth_count;
   fake_note notes[FAKE_NOTES];
   int note_count;
-  /* the bitmaps loaded, how many are held now, and those drawn since the frame was cleared */
-  fake_bitmap bitmaps[FAKE_BITMAPS];
-  int bitmap_count, bitmaps_live;
-  fake_draw draws[FAKE_DRAWS];
-  int draw_count;
   /* the bitmaps made, how many are held now, those placed since the frame was cleared, the contexts pushed
      (a made bitmap's index, or -1 for the screen), and the clip rect on the screen */
   fake_made made[FAKE_MADE];

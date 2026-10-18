@@ -10,20 +10,6 @@
 #include "graph.h"
 #include "inflate.h"
 
-/* The inflated body of a corpus cartridge in `arena`, and where its table begins. */
-static unsigned char *body_of(sprout_arena *arena, const char *name, size_t *length, size_t *table_at) {
-  size_t packed_length, body_length;
-  char *packed = corpus_cartridge(name, &packed_length);
-  char *body;
-  const char *why;
-  const unsigned char *header = (const unsigned char *)packed;
-  *length = (size_t)header[8] | ((size_t)header[9] << 8) | ((size_t)header[10] << 16) | ((size_t)header[11] << 24);
-  *table_at = (size_t)header[12] | ((size_t)header[13] << 8) | ((size_t)header[14] << 16) | ((size_t)header[15] << 24);
-  CHECK_INT(sprout_gunzip(arena, header + 16, packed_length - 16, &body, &body_length, &why), SPROUT_OK);
-  free(packed);
-  return (unsigned char *)body;
-}
-
 /* The files the preamble names, as the JSON array the loader hands the graph. */
 static const sprout_json *files_of(sprout_arena *arena, const unsigned char *body, size_t table_at) {
   sprout_json *root;
@@ -43,7 +29,7 @@ static void a_packed_world_maps_with_its_entries_first_and_its_cells_after(void)
   size_t length, at, i, places = 0, strings = 0;
   unsigned char *body;
   sprout_arena_init(&arena, &host);
-  body = body_of(&arena, "printers_shop", &length, &at);
+  body = corpus_body(&arena, "printers_shop", &length, &at);
   CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files_of(&arena, body, at), error, sizeof error), SPROUT_OK);
   CHECK(graph.count > 0 && graph.count < graph.table.node_count);
   CHECK(graph.file_count > 3);
@@ -200,7 +186,7 @@ static void a_name_is_a_string_or_a_bound_entrys_text(void) {
   CHECK(sprout_name(g, number) == NULL && sprout_name(g, NULL) == NULL);
   CHECK(sprout_node_name(g, bound, "kind") != NULL && sprout_node_name(g, bound, "missing") == NULL);
   /* In a packed world a binding's name is its text, or an entry where the name table binds it. */
-  body = body_of(&arena, "printers_shop", &length, &at);
+  body = corpus_body(&arena, "printers_shop", &length, &at);
   CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files_of(&arena, body, at), error, sizeof error), SPROUT_OK);
   for (i = 0; i < graph.count; i++) {
     const sprout_node *n = &graph.table.nodes[i], *name;
@@ -227,7 +213,7 @@ static void a_map_is_read_by_its_key_node_or_its_text(void) {
   unsigned char *body;
   const sprout_node *map = NULL;
   sprout_arena_init(&arena, &host);
-  body = body_of(&arena, "printers_shop", &length, &at);
+  body = corpus_body(&arena, "printers_shop", &length, &at);
   CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files_of(&arena, body, at), error, sizeof error), SPROUT_OK);
   for (i = 0; i < graph.count && map == NULL; i++) {
     const sprout_node *n = &graph.table.nodes[i];
@@ -256,7 +242,7 @@ static void a_block_that_is_not_a_table_or_names_a_file_not_listed_is_refused(vo
   sprout_json *few;
   sprout_json_error e;
   sprout_arena_init(&arena, &host);
-  body = body_of(&arena, "printers_shop", &length, &at);
+  body = corpus_body(&arena, "printers_shop", &length, &at);
   CHECK_INT(sprout_graph_map(&graph, body + at + 8, length - at - 8, &arena, files_of(&arena, body, at), error, sizeof error),
             SPROUT_BAD_INPUT);
   CHECK_STR(error, "the cartridge's table is not one this runtime reads: it does not begin with `TBL4`");
@@ -284,7 +270,7 @@ static void a_host_that_runs_out_of_memory_is_told_so(void) {
   const sprout_json *files;
   sprout_arena_init(&scratch, &host);
   sprout_arena_init(&arena, &host);
-  body = body_of(&scratch, "printers_shop", &length, &at);
+  body = corpus_body(&scratch, "printers_shop", &length, &at);
   files = files_of(&scratch, body, at);
   heap.refuse_after = heap.pages;
   CHECK_INT(sprout_graph_map(&graph, body + at, length - at, &arena, files, error, sizeof error), SPROUT_NO_MEMORY);

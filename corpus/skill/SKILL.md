@@ -127,8 +127,8 @@ sprout — a Sprout microworld on the command line
   sprout check [dir] [--json]         compile strictly; problems by file:line:column (or JSON); exit 1 on any
   sprout pack dir [-o world.sproutworld]
                                       compile strictly, then write the world as a cartridge: one file a
-                                      runtime loads in place of the source; without -o, <name>.sproutworld;
-                                      the image files it names are copied into <file>.assets/
+                                      runtime loads in place of the source, carrying the image files it
+                                      names; without -o, <name>.sproutworld
   sprout parse [dir]                  every phrase the world accepts
   sprout parse dir "line" [--at place] [--as name]
                                       what a visitor standing there makes of the line, and whether it is refused

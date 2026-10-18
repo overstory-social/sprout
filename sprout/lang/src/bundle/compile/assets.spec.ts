@@ -1,28 +1,34 @@
 import { describe, expect, it } from 'vitest';
 
-import { emitCartridge, preambleOf, readCartridge } from '../cartridge.js';
+import {
+  emitCartridge,
+  preambleOf,
+  readCartridge,
+  readCartridgeAssets,
+  readCartridgeHeader,
+} from '../cartridge.js';
 import { PreambleSchema } from '../cartridge-schema.js';
 import { limitsFrom } from '../limits.js';
 import type { AssetFile } from '../../declare/extensions.js';
 import { MEDIA } from '../../declare/media.js';
 import { locationOf } from '../../source/source.js';
+import { chunk, png } from '../../fixtures/png.js';
 import { refusals, warnings, world, worldFiles, worldLine } from '../../fixtures/compile.js';
 import { compileBundle } from './compile.js';
 
-/** The first bytes of a PNG with the given bit depth and colour type. */
-function pngHead(bitDepth: number, colour: number): Uint8Array {
-  const head = new Uint8Array(33);
-  head.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  head.set([0x49, 0x48, 0x44, 0x52], 12);
-  head[24] = bitDepth;
-  head[25] = colour;
-  return head;
+/** A one-pixel PNG of the given bit depth and colour type, its one pixel set. */
+function pngOf(bitDepth: number, colour: number): Uint8Array {
+  const palette = chunk('PLTE', Uint8Array.from([0, 0, 0, 255, 255, 255]));
+  return png([[true]], { depth: bitDepth, colour, extra: colour === 3 ? [palette] : [] });
 }
+
+/** What a cartridge carries for a one-pixel white picture: one by one, then its row. */
+const ONE_WHITE = Uint8Array.from([1, 0, 1, 0, 0x80]);
 
 const file = (bytes: number, bitDepth = 1, colour = 0): AssetFile => ({
   bytes,
   sha: `sha-of-${bytes}`,
-  head: pngHead(bitDepth, colour),
+  content: pngOf(bitDepth, colour),
 });
 
 /** A world whose lamp shows `statements`, compiled on a host that installs `media` and holds `folder`. */
@@ -72,8 +78,8 @@ describe('the files an extension’s values name', () => {
     );
     expect(diagnostics).toEqual([]);
     expect(bundle!.assets).toEqual([
-      { extension: 'media', path: 'a.png', bytes: 10, sha: 'sha-of-10' },
-      { extension: 'media', path: 'b.png', bytes: 25, sha: 'sha-of-25' },
+      { extension: 'media', path: 'a.png', bytes: 10, sha: 'sha-of-10', packed: ONE_WHITE },
+      { extension: 'media', path: 'b.png', bytes: 25, sha: 'sha-of-25', packed: ONE_WHITE },
     ]);
     expect(bundle!.size.assetBytes).toBe(35);
   });
@@ -92,8 +98,8 @@ describe('the files an extension’s values name', () => {
     );
     expect(diagnostics).toEqual([]);
     expect(bundle!.assets).toEqual([
-      { extension: 'media', path: 'lit.png', bytes: 10, sha: 'sha-of-10' },
-      { extension: 'media', path: 'plain.png', bytes: 20, sha: 'sha-of-20' },
+      { extension: 'media', path: 'lit.png', bytes: 10, sha: 'sha-of-10', packed: ONE_WHITE },
+      { extension: 'media', path: 'plain.png', bytes: 20, sha: 'sha-of-20', packed: ONE_WHITE },
     ]);
   });
 
@@ -157,7 +163,7 @@ describe('the files an extension’s values name', () => {
   });
 
   it('are refused where the file is not a PNG at all', () => {
-    const notPng: AssetFile = { bytes: 3, sha: 'x', head: new TextEncoder().encode('abc') };
+    const notPng: AssetFile = { bytes: 3, sha: 'x', content: new TextEncoder().encode('abc') };
     const { diagnostics } = compiled('    media.show("text.png")', { 'text.png': notPng });
     expect(said(refusals(diagnostics))).toEqual([
       [
@@ -194,6 +200,30 @@ describe('the files an extension’s values name', () => {
     ]);
     const none = compiled('', {}).bundle!;
     expect(readCartridge(emitCartridge(none)).extensions).toEqual([{ name: 'media', major: 1 }]);
+  });
+
+  it('travel in the cartridge, each as its extension packed it, and make it another build', () => {
+    const statements = '    media.show("b.png")\n    media.show("a.png")';
+    const { bundle } = compiled(statements, { 'a.png': file(10), 'b.png': file(25) });
+    expect(readCartridgeAssets(emitCartridge(bundle!))).toEqual([
+      { path: 'a.png', packed: ONE_WHITE },
+      { path: 'b.png', packed: ONE_WHITE },
+    ]);
+    expect(readCartridgeAssets(emitCartridge(compiled('', {}).bundle!))).toEqual([]);
+    const redrawn = { ...file(10), sha: 'another' };
+    const other = compiled(statements, { 'a.png': redrawn, 'b.png': file(25) }).bundle!;
+    expect(other.hash).not.toBe(bundle!.hash);
+  });
+
+  it('are refused, in a cartridge, where its assets section is not the files its extensions list', () => {
+    const { bundle } = compiled('    media.show("a.png")', { 'a.png': file(10) });
+    const bytes = emitCartridge(bundle!);
+    const at = readCartridgeHeader(bytes).assetsAt;
+    const bare = Uint8Array.from(bytes.subarray(0, at));
+    new DataView(bare.buffer).setUint32(20, 0, true);
+    expect(() => readCartridge(bare)).toThrow(
+      'This cartridge cannot be read: its assets are not the files its extensions list.',
+    );
   });
 
   it('may be missing from the caps of a cartridge packed before the cap existed, which reads as unset', () => {

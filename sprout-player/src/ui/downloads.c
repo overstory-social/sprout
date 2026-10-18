@@ -12,7 +12,6 @@
 #define FOLDER "worlds/"
 #define CARTRIDGE ".sproutworld"
 #define PART ".part"
-#define ASSETS ".assets/"
 
 static const char NO_MEMORY[] = "The player ran out of memory opening the download screen.";
 static const char INDEX_TOO_BIG[] = "The list of worlds is larger than this app reads, so it was not used.";
@@ -216,19 +215,10 @@ static void index_arrived(player_app *app, player_downloads *d, player_fetch_sta
 /* ---- one world ---- */
 
 static void cleanup_world(player_app *app, player_downloads *d) {
-  size_t i;
-  if (d->files == NULL) return;
+  if (d->world == NULL) return;
   if (d->file != NULL) player_file_close(app->pd, d->file);
   d->file = NULL;
-  for (i = 0; i < d->file_count; i++) player_file_remove(app->pd, d->files[i].part);
-  if (!player_file_exists(app->pd, d->files[0].final)) {
-    char folder[PLAYER_PATH_BYTES + 8];
-    SAY(folder, d->files[0].final, ".assets");
-    player_file_remove(app->pd, folder);
-  }
-  player_free(app->pd, d->files);
-  d->files = NULL;
-  d->file_count = d->at = 0;
+  if (d->cartridge.part[0] != '\0') player_file_remove(app->pd, d->cartridge.part);
   d->world = NULL;
 }
 
@@ -244,48 +234,34 @@ static void fail_world(player_app *app, player_downloads *d, const char *reason)
   player_cue(app, PLAYER_CUE_REFUSED);
 }
 
-/* The files of `world`, named for its title and the first eight digits of its bundle hash; false when a name will not fit. */
-static bool plan(player_app *app, player_downloads *d, const sprout_json *world) {
-  const sprout_json *assets = sprout_json_get(world, "assets");
-  size_t count = 1 + (assets != NULL ? assets->count : 0), i;
+/* The cartridge of `world`, named for its title and the first eight digits of its bundle hash; false when the name will not fit. */
+static bool plan(player_downloads *d, const sprout_json *world) {
+  download_file *file = &d->cartridge;
   char stem[32], hash[9];
   text_buffer said;
-  d->files = (download_file *)player_alloc(app->pd, count * sizeof *d->files);
-  if (d->files == NULL) return false;
-  memset(d->files, 0, count * sizeof *d->files);
-  d->file_count = count;
-  d->at = 0;
+  memset(file, 0, sizeof *file);
   d->world = world;
   player_downloads_stem(text_of(world, "title"), stem, sizeof stem);
   memcpy(hash, text_of(world, "hash"), 8);
   hash[8] = '\0';
-  for (i = 0; i < count; i++) {
-    download_file *file = &d->files[i];
-    const sprout_json *from = i == 0 ? world : assets->items[i - 1];
-    file->asset = i > 0;
-    file->label = i == 0 ? text_of(world, "title") : text_of(from, "path");
-    file->url = text_of(from, "url");
-    file->sha256 = text_of(from, "sha256");
-    file->bytes = count_of(from, "bytes");
-    text_begin(&said, file->final, sizeof file->final);
-    text_add(&said, FOLDER);
-    text_add(&said, stem);
-    text_add(&said, "-");
-    text_add(&said, hash);
-    text_add(&said, CARTRIDGE);
-    if (i > 0) {
-      text_add(&said, ASSETS);
-      text_add(&said, file->label);
-    }
-    if (said.length + 1 >= sizeof file->final) return false;
-    SAY(file->part, file->final, PART);
-  }
+  file->label = text_of(world, "title");
+  file->url = text_of(world, "url");
+  file->sha256 = text_of(world, "sha256");
+  file->bytes = count_of(world, "bytes");
+  text_begin(&said, file->final, sizeof file->final);
+  text_add(&said, FOLDER);
+  text_add(&said, stem);
+  text_add(&said, "-");
+  text_add(&said, hash);
+  text_add(&said, CARTRIDGE);
+  if (said.length + 1 >= sizeof file->final) return false;
+  SAY(file->part, file->final, PART);
   return true;
 }
 
 static bool take_piece(void *ctx, const char *bytes, size_t length) {
   player_downloads *d = (player_downloads *)ctx;
-  const download_file *file = &d->files[d->at];
+  const download_file *file = &d->cartridge;
   if (d->written + length > file->bytes) {
     d->overrun = true;
     return false;
@@ -298,11 +274,10 @@ static bool take_piece(void *ctx, const char *bytes, size_t length) {
   return true;
 }
 
-/* Starts fetching the file `d->at`. */
-static void next_file(player_app *app, player_downloads *d) {
-  download_file *file;
+/* Starts fetching the cartridge. */
+static void start_file(player_app *app, player_downloads *d) {
+  const download_file *file = &d->cartridge;
   char url[PLAYER_URL_BYTES], said[PLAYER_REASON_BYTES];
-  file = &d->files[d->at];
   d->written = 0;
   d->overrun = d->write_failed = false;
   d->file = player_file_create(app->pd, file->part);
@@ -327,7 +302,7 @@ static void next_file(player_app *app, player_downloads *d) {
 static void finish_world(player_app *app, player_downloads *d);
 
 static void file_arrived(player_app *app, player_downloads *d, player_fetch_state state) {
-  download_file *file = &d->files[d->at];
+  const download_file *file = &d->cartridge;
   char said[PLAYER_REASON_BYTES], digest[65], got[24], listed[24];
   size_t length = 0;
   const char *why;
@@ -367,22 +342,12 @@ static void file_arrived(player_app *app, player_downloads *d, player_fetch_stat
     fail_world(app, d, said);
     return;
   }
-  if (file->asset && !player_file_move(app->pd, file->part, file->final)) {
-    SAY(said, "The file ", file->label, " could not be put in place.", OUT_OF_ROOM);
-    fail_world(app, d, said);
-    return;
-  }
-  if (d->at + 1 == d->file_count) {
-    finish_world(app, d);
-    return;
-  }
-  d->at++;
-  next_file(app, d);
+  finish_world(app, d);
 }
 
-/* Every file is here: the engine is asked about the cartridge, which then goes on the shelf. */
+/* The cartridge is here whole: the engine is asked about it, and it goes on the shelf. */
 static void finish_world(player_app *app, player_downloads *d) {
-  const download_file *cartridge = &d->files[0];
+  const download_file *cartridge = &d->cartridge;
   player_opening verdict = player_inspect(app->session, cartridge->part);
   const char *title = text_of(d->world, "title");
   char notice[sizeof d->notice];
@@ -423,14 +388,13 @@ static void choose(player_app *app, player_downloads *d) {
     player_cue(app, PLAYER_CUE_REFUSED);
     return;
   }
-  if (!plan(app, d, world)) {
-    fail_world(app, d,
-               d->files == NULL ? "The player ran out of memory." : "A file of it has a name too long for this app to store.");
+  if (!plan(d, world)) {
+    fail_world(app, d, "Its file would have a name too long for this app to store.");
     return;
   }
   player_cue(app, PLAYER_CUE_PICK);
   d->phase = DOWNLOADS_WORLD;
-  next_file(app, d);
+  start_file(app, d);
 }
 
 /* ---- the screen ---- */
@@ -506,7 +470,7 @@ static wheel_word world_word(const void *ctx, size_t index) {
 
 /* The words under the list: what is happening, what went wrong, what happened, or what the selected world is. */
 static void panel_words(const player_app *app, const player_downloads *d, char *out, size_t size) {
-  char bytes[24], at[16], of[16], share[16];
+  char bytes[24], share[16];
   if (d->phase == DOWNLOADS_INDEX && d->fetch.asked != 0) {
     const char *const parts[] = {"Asking your permission to reach ", d->fetch.parts.server, "... B stops."};
     put(out, size, parts, 3);
@@ -514,15 +478,12 @@ static void panel_words(const player_app *app, const player_downloads *d, char *
     const char *const parts[] = {"Asking for the list of worlds... B stops."};
     put(out, size, parts, 1);
   } else if (d->phase == DOWNLOADS_WORLD) {
-    const download_file *file = &d->files[d->at];
+    const download_file *file = &d->cartridge;
     player_index_size(file->bytes, bytes, sizeof bytes);
-    number(at, sizeof at, d->at + 1);
-    number(of, sizeof of, d->file_count);
     number(share, sizeof share, file->bytes > 0 ? (uint64_t)d->written * 100u / file->bytes : 0);
     {
-      const char *const parts[] = {"Downloading ", text_of(d->world, "title"), ": file ", at, " of ", of, " (", file->label,
-                                   ", ", bytes, ")... ", share, "%. B stops."};
-      put(out, size, parts, 13);
+      const char *const parts[] = {"Downloading ", text_of(d->world, "title"), " (", bytes, ")... ", share, "%. B stops."};
+      put(out, size, parts, 7);
     }
   } else if (d->phase == DOWNLOADS_FAILED) {
     const char *const parts[] = {d->failure, " A tries again, B goes back."};

@@ -1,6 +1,6 @@
 /*
  * The gallery's queue and motion (ui/gallery.c) and the fit of a picture to the screen
- * (ui/images.c's images_fit_box and images_folder). The rules: each image once, in the order
+ * (ui/images.c's images_fit_box). The rules: each image once, in the order
  * asked; a step holds the picture stretched the way it will go, then whizzes it out as the next
  * comes in from the other side, and lands with exactly one clack; the crank takes a picture each
  * GALLERY_DEGREES_PER_STEP either way, wrapping; one picture never moves; and a picture is never
@@ -84,7 +84,6 @@ static void the_crank_steps_and_wraps_and_one_picture_does_not_move(void) {
 
 static void a_picture_fits_the_box_and_is_never_enlarged(void) {
   images_fit fit;
-  char folder[32];
   begin("fit");
   fit = images_fit_box(64, 40, FAKE_SERIF_LINE);
   CHECK(fit.scale == 1.0f && fit.width == 64 && fit.height == 40, "a small picture as it is");
@@ -92,9 +91,6 @@ static void a_picture_fits_the_box_and_is_never_enlarged(void) {
   CHECK(fit.scale == 0.5f && fit.width == 400 && fit.height == 50, "a wide one to the screen's width");
   fit = images_fit_box(100, 436, FAKE_SERIF_LINE);
   CHECK(fit.height <= 240 - FAKE_SERIF_LINE - 4 && fit.height >= 240 - FAKE_SERIF_LINE - 5, "a tall one above the caption: %d", fit.height);
-  CHECK(images_folder("worlds/a.sproutworld", folder, sizeof folder) && strcmp(folder, "worlds/a.sproutworld.assets/") == 0,
-        "the assets beside the cartridge: %s", folder);
-  CHECK(!images_folder("worlds/a-very-long-name.sproutworld", folder, sizeof folder), "a folder that does not fit is refused");
   end();
 }
 

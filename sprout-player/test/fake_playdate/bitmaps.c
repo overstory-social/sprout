@@ -1,4 +1,4 @@
-/* The fake's bitmaps: those loaded from PNG files, drawn as black blocks, and those made with newBitmap, holding real pixels and drawn through their mask; see fake_playdate.h. */
+/* The fake's bitmaps: those made with newBitmap, holding real pixels and drawn through their mask, at their size or scaled; see fake_playdate.h. */
 #include "fake.h"
 
 #include <stdio.h>
@@ -69,134 +69,65 @@ static void fake_pop_context(void) {
   fake_current->context_count--;
 }
 
-static int bitmap_of(LCDBitmap *bitmap) {
-  int index = (int)((fake_bitmap *)bitmap - fake_current->bitmaps);
-  if (index < 0 || index >= fake_current->bitmap_count || !fake_current->bitmaps[index].live) abort();
-  return index;
-}
-
-/* The size a PNG's header declares, from the file at `path` or `path`.pdi where the game would look. */
-static LCDBitmap *fake_load_bitmap(const char *path, const char **error) {
-  char compiled[600];
-  unsigned char head[24];
-  static const unsigned char SIGNATURE[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
-  SDFile *file = fake_open(path, kFileRead | kFileReadData);
-  fake_bitmap *bitmap;
-  int got;
-  if (file == NULL) {
-    snprintf(compiled, sizeof compiled, "%s.pdi", path);
-    file = fake_open(compiled, kFileRead | kFileReadData);
-  }
-  if (file == NULL) {
-    *error = "no such image";
-    return NULL;
-  }
-  got = fake_read(file, head, sizeof head);
-  fake_close(file);
-  if (got != (int)sizeof head || memcmp(head, SIGNATURE, sizeof SIGNATURE) != 0) {
-    *error = "not an image the fake reads";
-    return NULL;
-  }
-  if (fake_current->bitmap_count == FAKE_BITMAPS) abort();
-  bitmap = &fake_current->bitmaps[fake_current->bitmap_count++];
-  bitmap->live = 1;
-  snprintf(bitmap->path, sizeof bitmap->path, "%s", path);
-  bitmap->width = (int)((unsigned)head[16] << 24 | (unsigned)head[17] << 16 | (unsigned)head[18] << 8 | head[19]);
-  bitmap->height = (int)((unsigned)head[20] << 24 | (unsigned)head[21] << 16 | (unsigned)head[22] << 8 | head[23]);
-  fake_current->bitmaps_live++;
-  return (LCDBitmap *)bitmap;
-}
-
 static void fake_free_bitmap(LCDBitmap *bitmap) {
-  if (is_made(bitmap)) {
-    fake_made *made = &fake_current->made[made_of(bitmap)];
-    int i;
-    for (i = 0; i < fake_current->context_count; i++)
-      if (fake_current->contexts[i] == made - fake_current->made) abort(); /* freed while drawn into */
-    free(made->data);
-    free(made->mask);
-    made->data = made->mask = NULL;
-    made->live = 0;
-    fake_current->made_live--;
-    return;
-  }
-  fake_current->bitmaps[bitmap_of(bitmap)].live = 0;
-  fake_current->bitmaps_live--;
+  fake_made *made = &fake_current->made[made_of(bitmap)];
+  int i;
+  for (i = 0; i < fake_current->context_count; i++)
+    if (fake_current->contexts[i] == made - fake_current->made) abort(); /* freed while drawn into */
+  free(made->data);
+  free(made->mask);
+  made->data = made->mask = NULL;
+  made->live = 0;
+  fake_current->made_live--;
 }
 
 static void fake_bitmap_data(LCDBitmap *bitmap, int *width, int *height, int *rowbytes, uint8_t **mask, uint8_t **data) {
-  const fake_bitmap *held;
-  if (is_made(bitmap)) {
-    fake_made *made = &fake_current->made[made_of(bitmap)];
-    if (width != NULL) *width = made->width;
-    if (height != NULL) *height = made->height;
-    if (rowbytes != NULL) *rowbytes = made->rowbytes;
-    if (mask != NULL) *mask = made->mask;
-    if (data != NULL) *data = made->data;
-    return;
-  }
-  held = &fake_current->bitmaps[bitmap_of(bitmap)];
-  if (width != NULL) *width = held->width;
-  if (height != NULL) *height = held->height;
-  if (rowbytes != NULL) *rowbytes = (held->width + 7) / 8;
-  if (mask != NULL) *mask = NULL;
-  if (data != NULL) *data = NULL;
+  fake_made *made = &fake_current->made[made_of(bitmap)];
+  if (width != NULL) *width = made->width;
+  if (height != NULL) *height = made->height;
+  if (rowbytes != NULL) *rowbytes = made->rowbytes;
+  if (mask != NULL) *mask = made->mask;
+  if (data != NULL) *data = made->data;
 }
 
-static void drawn_at(LCDBitmap *bitmap, int x, int y, float scale) {
-  int index = bitmap_of(bitmap);
-  fake_draw *draw;
-  if (fake_current->draw_count == FAKE_DRAWS) abort();
-  draw = &fake_current->draws[fake_current->draw_count++];
-  draw->bitmap = index;
-  draw->x = x;
-  draw->y = y;
-  draw->scale = scale;
-  fake_fill(x, y, (int)((float)fake_current->bitmaps[index].width * scale), (int)((float)fake_current->bitmaps[index].height * scale),
-       kColorBlack);
-}
-
-/* A made bitmap copied onto the context through its mask, and its placement recorded. */
-static void placed_at(LCDBitmap *bitmap, int x, int y) {
+/* A made bitmap copied onto the context through its mask at `scale`, each pixel of the copy its nearest, and its placement recorded. */
+static void placed_at(LCDBitmap *bitmap, int x, int y, float scale) {
   int index = made_of(bitmap), i, j;
   const fake_made *made = &fake_current->made[index];
+  int width = (int)((float)made->width * scale), height = (int)((float)made->height * scale);
   fake_placed *placed;
   if (fake_current->placed_count == FAKE_PLACED) abort();
   placed = &fake_current->placed[fake_current->placed_count++];
   placed->made = index;
   placed->x = x;
   placed->y = y;
+  placed->scale = scale;
   placed->clipped = fake_current->clipped;
   placed->clip_x = fake_current->clip_x;
   placed->clip_y = fake_current->clip_y;
   placed->clip_width = fake_current->clip_width;
   placed->clip_height = fake_current->clip_height;
-  for (j = 0; j < made->height; j++)
-    for (i = 0; i < made->width; i++) {
-      LCDSolidColor pixel = fake_made_pixel(fake_current, index, i, j);
+  for (j = 0; j < height; j++)
+    for (i = 0; i < width; i++) {
+      LCDSolidColor pixel = fake_made_pixel(fake_current, index, (int)((float)i / scale), (int)((float)j / scale));
       if (pixel != kColorClear) fake_set_pixel(x + i, y + j, pixel == kColorBlack);
     }
 }
 
 static void fake_draw_bitmap(LCDBitmap *bitmap, int x, int y, LCDBitmapFlip flip) {
   if (flip != kBitmapUnflipped) abort();
-  if (is_made(bitmap)) {
-    placed_at(bitmap, x, y);
-    return;
-  }
-  drawn_at(bitmap, x, y, 1.0f);
+  placed_at(bitmap, x, y, 1.0f);
 }
 
 static void fake_draw_scaled_bitmap(LCDBitmap *bitmap, int x, int y, float xscale, float yscale) {
-  if (xscale != yscale) abort();
-  drawn_at(bitmap, x, y, xscale);
+  if (xscale != yscale || xscale <= 0.0f) abort();
+  placed_at(bitmap, x, y, xscale);
 }
 
 void fake_install_bitmaps(fake_playdate *fake) {
   fake->gfx.newBitmap = fake_new_bitmap;
   fake->gfx.pushContext = fake_push_context;
   fake->gfx.popContext = fake_pop_context;
-  fake->gfx.loadBitmap = fake_load_bitmap;
   fake->gfx.freeBitmap = fake_free_bitmap;
   fake->gfx.getBitmapData = fake_bitmap_data;
   fake->gfx.drawBitmap = fake_draw_bitmap;

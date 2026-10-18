@@ -93,16 +93,16 @@ describe('a library’s hash is its source and nothing else', () => {
 });
 
 describe('a bundle’s hash is what the log records beside a publish', () => {
-  const hash = bundleHashOf(manifest, own, [vendored(sprout)]);
+  const hash = bundleHashOf(manifest, own, [vendored(sprout)], []);
 
   it('is the same for the same closed bundle', () => {
-    expect(bundleHashOf(manifest, own, [vendored(sprout)])).toBe(hash);
+    expect(bundleHashOf(manifest, own, [vendored(sprout)], [])).toBe(hash);
   });
 
   it('does not care what order the files or libraries came in', () => {
     const two = [...own, file('room.sprout', 'object room { }')];
-    expect(bundleHashOf(manifest, [...two].reverse(), [vendored(sprout)])).toBe(
-      bundleHashOf(manifest, two, [vendored(sprout)]),
+    expect(bundleHashOf(manifest, [...two].reverse(), [vendored(sprout)], [])).toBe(
+      bundleHashOf(manifest, two, [vendored(sprout)], []),
     );
   });
 
@@ -112,17 +112,33 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
         manifest,
         [file('printers_shop.sprout', 'world x is sprout.World { }')],
         [vendored(sprout)],
+        [],
       ),
     ).not.toBe(hash);
   });
 
+  it('changes when a file an extension names changes, and not with the order they are listed in', () => {
+    const cellar = { path: 'cellar.png', sha: 'a'.repeat(64) };
+    const hall = { path: 'hall.png', sha: 'b'.repeat(64) };
+    const shown = bundleHashOf(manifest, own, [vendored(sprout)], [cellar, hall]);
+    expect(shown).not.toBe(hash);
+    expect(bundleHashOf(manifest, own, [vendored(sprout)], [hall, cellar])).toBe(shown);
+    for (const changed of [
+      [{ ...cellar, sha: 'c'.repeat(64) }, hall],
+      [{ ...cellar, path: 'cellar2.png' }, hall],
+      [cellar],
+    ]) {
+      expect(bundleHashOf(manifest, own, [vendored(sprout)], changed)).not.toBe(shown);
+    }
+  });
+
   it('changes when a library’s source changes', () => {
     const forked = vendored({ ...sprout, files: [file('actor.sprout', 'kind Actor { x }')] });
-    expect(bundleHashOf(manifest, own, [forked])).not.toBe(hash);
+    expect(bundleHashOf(manifest, own, [forked], [])).not.toBe(hash);
   });
 
   it('changes when a library declares a different level', () => {
-    expect(bundleHashOf(manifest, own, [vendored({ ...sprout, level: 2 })])).not.toBe(hash);
+    expect(bundleHashOf(manifest, own, [vendored({ ...sprout, level: 2 })], [])).not.toBe(hash);
   });
 
   it('changes when anything the manifest says changes', () => {
@@ -137,7 +153,7 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
       { ...manifest, libraries: [] },
       { ...manifest, files: ['printers_shop.sprout', 'kiln.prose'] },
     ] satisfies Manifest[]) {
-      expect(bundleHashOf(changed, own, [vendored(sprout)]), changed.version).not.toBe(hash);
+      expect(bundleHashOf(changed, own, [vendored(sprout)], []), changed.version).not.toBe(hash);
     }
   });
 
@@ -150,8 +166,8 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
       ...manifest,
       libraries: [{ name: 'sprout', version: '1.0.0', sha: 'f'.repeat(64) }],
     };
-    expect(bundleHashOf(version, own, [vendored(sprout)])).not.toBe(hash);
-    expect(bundleHashOf(sha, own, [vendored(sprout)])).not.toBe(hash);
+    expect(bundleHashOf(version, own, [vendored(sprout)], [])).not.toBe(hash);
+    expect(bundleHashOf(sha, own, [vendored(sprout)], [])).not.toBe(hash);
   });
 
   it('does not care what order the manifest listed its parts in', () => {
@@ -173,6 +189,6 @@ describe('a bundle’s hash is what the log records beside a publish', () => {
       libraries: [...two.libraries].reverse(),
       files: [...two.files].reverse(),
     };
-    expect(bundleHashOf(reversed, own, [])).toBe(bundleHashOf(two, own, []));
+    expect(bundleHashOf(reversed, own, [], [])).toBe(bundleHashOf(two, own, [], []));
   });
 });

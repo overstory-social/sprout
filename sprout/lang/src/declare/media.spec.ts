@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { frozenPlain, readLiteral, type ExtensionStatementDefinition } from './extensions.js';
 import { IMAGE, MEDIA, MEDIA_MAJOR } from './media.js';
+import { chunk, png } from '../fixtures/png.js';
 
 const show = MEDIA.statements.find((one) => one.name === 'show') as ExtensionStatementDefinition;
 const frame = (...args: (string | undefined)[]) => ({
@@ -10,15 +11,14 @@ const frame = (...args: (string | undefined)[]) => ({
   actor: null,
 });
 
-/** The first bytes of a PNG with the given bit depth and colour type. */
-function head(bitDepth: number, colour: number): Uint8Array {
-  const bytes = new Uint8Array(33);
-  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  bytes.set([0x49, 0x48, 0x44, 0x52], 12);
-  bytes[24] = bitDepth;
-  bytes[25] = colour;
-  return bytes;
-}
+const asset = (content: Uint8Array) =>
+  IMAGE.asset!.pack({ bytes: content.length, sha: '', content });
+
+/** A picture three wide and two high, its corners set. */
+const CORNERS = [
+  [true, false, true],
+  [false, true, false],
+];
 
 describe('the media extension', () => {
   it('is installed at major 1 with one type and one statement', () => {
@@ -77,25 +77,48 @@ describe('an Image', () => {
     expect(IMAGE.asset!.file('pictures/a.png')).toBe('pictures/a.png');
   });
 
-  it('is a file of one bit a pixel: grey scale or indexed', () => {
-    const check = (bitDepth: number, colour: number) =>
-      IMAGE.asset!.check({ bytes: 1, sha: '', head: head(bitDepth, colour) });
-    expect(check(1, 0)).toBeNull();
-    expect(check(1, 3)).toBeNull();
-    expect(check(8, 0)).toMatchObject({
+  it('is a file of one bit a pixel, grey scale or indexed, packed as its size and its rows', () => {
+    // Three by two, then a row of one byte each: the leftmost pixel in the highest bit, white set.
+    const packed = Uint8Array.from([3, 0, 2, 0, 0b10100000, 0b01000000]);
+    expect(asset(png(CORNERS))).toEqual({ packed });
+    const palette = chunk('PLTE', Uint8Array.from([0, 0, 0, 255, 255, 255]));
+    expect(asset(png(CORNERS, { colour: 3, extra: [palette] }))).toEqual({ packed });
+    expect(asset(png(CORNERS, { interlace: true }))).toEqual({ packed });
+  });
+
+  it('is not a picture of more than one bit a pixel', () => {
+    expect(asset(png(CORNERS, { depth: 8 }))).toEqual({
       problem:
         'This image is not black and white: it has 8 bits to a pixel, and an image here has one.',
+      remedy: 'Save the picture again as a 1-bit PNG, black and white without grey.',
     });
-    expect(check(1, 2)).not.toBeNull();
-    expect(check(1, 6)).not.toBeNull();
+    expect(asset(png(CORNERS, { colour: 2 }))).toHaveProperty('problem');
+    expect(asset(png(CORNERS, { colour: 6 }))).toHaveProperty('problem');
   });
 
   it('is not a file that is not a PNG, whatever it holds', () => {
     const text = new TextEncoder().encode('GIF89a and some more bytes to be long enough, ok?');
-    expect(IMAGE.asset!.check({ bytes: text.length, sha: '', head: text })).toMatchObject({
-      problem: 'This file is not a PNG image.',
+    expect(asset(text)).toMatchObject({ problem: 'This file is not a PNG image.' });
+    expect(asset(new Uint8Array(0))).toHaveProperty('problem');
+  });
+
+  it('is not a PNG that is damaged, which is said with what is wrong', () => {
+    const damaged = png(CORNERS);
+    damaged[damaged.length - 20]! ^= 0xff;
+    expect(asset(damaged)).toEqual({
+      problem:
+        'This PNG image cannot be read: its IDAT part does not match its checksum, so the file is damaged.',
+      remedy: 'Open the picture in an image editor and save it again as a 1-bit PNG.',
     });
-    expect(IMAGE.asset!.check({ bytes: 0, sha: '', head: new Uint8Array(0) })).not.toBeNull();
+  });
+
+  it('is at most 65535 pixels a side, which its packed size can say', () => {
+    const wide = [Array.from({ length: 65536 }, () => false)];
+    expect(asset(png(wide))).toEqual({
+      problem: 'This image is 65536 by 1 pixels, and an image here is at most 65535 pixels a side.',
+      remedy: 'Make the picture smaller; the Playdate’s screen is 400 by 240.',
+    });
+    expect(asset(png([Array.from({ length: 65535 }, () => true)]))).toHaveProperty('packed');
   });
 });
 

@@ -408,7 +408,7 @@ export function compileBundle(
     caps,
     size: { files, sourceBytes, assetBytes: named.assetBytes, exemptBytes, ...counts },
     absent: report.absent,
-    hash: bundleHashOf(manifest, arrived, usable),
+    hash: bundleHashOf(manifest, arrived, usable, named.assets),
   };
   return { bundle, diagnostics };
 }

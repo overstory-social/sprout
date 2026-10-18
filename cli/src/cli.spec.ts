@@ -1,6 +1,14 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -10,6 +18,8 @@ import {
   loadCartridge,
   Draws,
   CARTRIDGE_FORMAT,
+  readCartridge,
+  readCartridgeAssets,
   readCartridgeHeader,
   SEED_MAX,
 } from '@overstory/sprout/lang';
@@ -574,5 +584,44 @@ ${pebbles.join('\n')}
     const io = captured();
     expect(main(['play', file, 'x.json'], io)).toBe(1);
     expect(io.out() + io.err()).toContain('not.sproutworld: This is not a Sprout cartridge');
+  });
+});
+
+describe('sprout pack of a world that names files', () => {
+  const MEDIA_ROOM = fileURLToPath(new URL('../../corpus/good/media-room', import.meta.url));
+  const MISSING_FILE = fileURLToPath(
+    new URL('../../corpus/bad/media-missing-file', import.meta.url),
+  );
+
+  it('writes one file, which carries every file the world names, and says how many', () => {
+    const into = mkdtempSync(join(tmpdir(), 'sprout-pack-'));
+    const file = join(into, 'room.sproutworld');
+    const io = captured();
+    expect(main(['pack', MEDIA_ROOM, '-o', file], io)).toBe(0);
+    expect(io.out()).toMatch(
+      new RegExp(`^packed media_room into ${file}: \\d+ bytes, carrying 3 asset files\\n$`),
+    );
+    expect(readdirSync(into)).toEqual(['room.sproutworld']);
+    const bytes = readFileSync(file);
+    expect(readCartridgeAssets(bytes).map((asset) => asset.path)).toEqual([
+      'cellar.png',
+      'pictures/cabinet-open.png',
+      'pictures/cabinet.png',
+    ]);
+    expect(readCartridge(bytes).extensions[0]!.assets!.map((asset) => asset.path)).toEqual([
+      'cellar.png',
+      'pictures/cabinet-open.png',
+      'pictures/cabinet.png',
+    ]);
+  });
+
+  it('refuses at compile, naming the line, when a file it names is missing, and writes nothing', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-pack-')), 'gone.sproutworld');
+    const io = captured();
+    expect(main(['pack', MISSING_FILE, '-o', file], io)).toBe(1);
+    expect(io.out()).toContain(
+      'cellar.sprout:8:16  The file "nowhere.png" is not in this world’s folder.',
+    );
+    expect(existsSync(file)).toBe(false);
   });
 });

@@ -47,6 +47,11 @@ int fake_read(SDFile *file, void *buffer, unsigned length) {
   return (int)fread(buffer, 1, length, (FILE *)file);
 }
 
+static int fake_seek(SDFile *file, int pos, int whence) {
+  fake_current->seeks++;
+  return fseek((FILE *)file, pos, whence);
+}
+
 static int fake_write(SDFile *file, const void *buffer, unsigned length) {
   return (int)fwrite(buffer, 1, length, (FILE *)file);
 }
@@ -103,6 +108,7 @@ void fake_install_files(fake_playdate *fake) {
   fake->file.open = fake_open;
   fake->file.close = fake_close;
   fake->file.read = fake_read;
+  fake->file.seek = fake_seek;
   fake->file.write = fake_write;
   fake->file.mkdir = fake_mkdir;
   fake->file.unlink = fake_unlink;

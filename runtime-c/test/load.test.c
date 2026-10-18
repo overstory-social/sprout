@@ -3,8 +3,9 @@
  * language's cartridge reader uses when it is not one, was made for another format or
  * a newer language level, or is damaged; a host that runs out of memory part
  * way is told so and left holding nothing; a load steps across calls by
- * bytes, reading its source a piece at a time, can be abandoned, and a peek
- * inflates only as far as the preamble.
+ * bytes, reading its source a piece at a time and never past the body into
+ * the assets, can be abandoned, and a peek inflates only as far as the
+ * preamble.
  */
 #include "load.h"
 #include "corpus.h"
@@ -13,23 +14,23 @@
 /* A table of no nodes: its counts, then the one string offset and the one shape offset, each padded. */
 static const unsigned char EMPTY_TABLE[64] = {'T', 'B', 'L', '4'};
 
-/* 16 header bytes, then `preamble`, padded to eight, and `table` as one stored gzip member. */
+/* The header's bytes, then `preamble`, padded to eight, and `table` as one stored gzip member, and no assets. */
 static char *cartridge_with(const char *preamble, const unsigned char *table, size_t table_length, size_t *length) {
   size_t text = strlen(preamble), table_at = (text + 7) & ~(size_t)7, n = table_at + table_length, at;
   unsigned char *body = (unsigned char *)calloc(n, 1);
-  unsigned char *out = (unsigned char *)malloc(16 + 10 + 5 + n + 8);
+  unsigned char *out = (unsigned char *)malloc(SPROUT_CARTRIDGE_HEADER_BYTES + 10 + 5 + n + 8);
   uint32_t crc;
   memcpy(body, preamble, text);
   if (table_length > 0) memcpy(body + table_at, table, table_length);
   crc = sprout_crc32(0, body, n);
-  memset(out, 0, 16);
+  memset(out, 0, SPROUT_CARTRIDGE_HEADER_BYTES);
   memcpy(out, "SPRT", 4);
   out[4] = SPROUT_CARTRIDGE_FORMAT;
   out[6] = 1;
   out[8] = (unsigned char)n, out[9] = (unsigned char)(n >> 8), out[10] = (unsigned char)(n >> 16), out[11] = (unsigned char)(n >> 24);
   out[12] = (unsigned char)table_at, out[13] = (unsigned char)(table_at >> 8), out[14] = (unsigned char)(table_at >> 16),
   out[15] = (unsigned char)(table_at >> 24);
-  at = 16;
+  at = SPROUT_CARTRIDGE_HEADER_BYTES;
   {
     static const unsigned char gz[10] = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3};
     memcpy(out + at, gz, 10);
@@ -50,6 +51,8 @@ static char *cartridge_with(const char *preamble, const unsigned char *table, si
   out[at++] = (unsigned char)(n >> 8);
   out[at++] = 0;
   out[at++] = 0;
+  out[16] = (unsigned char)at, out[17] = (unsigned char)(at >> 8), out[18] = (unsigned char)(at >> 16),
+  out[19] = (unsigned char)(at >> 24);
   *length = at;
   free(body);
   return (char *)out;
@@ -73,19 +76,19 @@ static void refuses(const char *bytes, size_t length, const char *words) {
 static void a_newer_format_or_level_is_refused_naming_the_number(void) {
   size_t length;
   char *bytes = corpus_cartridge("printers_shop", &length);
-  bytes[4] = 5;
+  bytes[4] = 6;
   refuses(bytes, length,
-          "This cartridge is format version 5, and this runtime reads up to version 4. Update the runtime, or pack the world again with this one.");
-  bytes[4] = 4;
+          "This cartridge is format version 6, and this runtime reads up to version 5. Update the runtime, or pack the world again with this one.");
+  bytes[4] = 5;
   bytes[6] = 7;
   refuses(bytes, length,
           "This cartridge was made for language level 7, and this runtime reads up to level 1. Update the runtime, or pack the world again with this one.");
   bytes[6] = 1;
   bytes[4] = 0;
   refuses(bytes, length, "This cartridge says it is format version 0, and versions begin at 1. It is damaged.");
-  bytes[4] = 3;
+  bytes[4] = 4;
   refuses(bytes, length,
-          "This cartridge is format version 3, and this runtime reads version 4. Pack the world again with `sprout pack`.");
+          "This cartridge is format version 4, and this runtime reads version 5. Pack the world again with `sprout pack`.");
   free(bytes);
 }
 
@@ -120,6 +123,15 @@ static void a_damaged_body_is_refused_in_words(void) {
   bytes[8] ^= 1;
   bytes[12] = 4;
   refuses(bytes, length, "This cartridge cannot be read: its body is not the size its header says.");
+  free(bytes);
+  /* The file and where the header says its assets are disagree, or the assets begin inside the header. */
+  bytes = corpus_cartridge("printers_shop", &length);
+  refuses(bytes, length - 1, "This cartridge cannot be read: it is not the size its header says.");
+  bytes[20] = 1;
+  refuses(bytes, length, "This cartridge cannot be read: it is not the size its header says.");
+  bytes[20] = 0;
+  memset(bytes + 16, 0, 4);
+  refuses(bytes, length, "This cartridge cannot be read: it is not the size its header says.");
   free(bytes);
   good = cartridge_of("not json at all", &length);
   refuses(good, length, "This cartridge cannot be read: its preamble is not JSON.");
@@ -268,10 +280,12 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   sprout_loading *loading = NULL;
   sprout_refusal why;
   long before;
-  test_source t;
+  test_source t, peeked;
   sprout_source source = test_source_of(&t, bytes, length, 0);
-  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
+  sprout_source peeking = test_source_of(&peeked, bytes, length, 1024);
+  CHECK_INT(sprout_peek(&host, &peeking, &world, &why), SPROUT_OK);
   CHECK(world != NULL && sprout_world_peeked(world));
+  CHECK(peeked.at < length / 4); /* the preamble is read, and the source no further */
   CHECK_STR(world->header.name, "printers_shop");
   CHECK_INT(strlen(world->header.hash), 64);
   CHECK(world->caps.options_per_enum > 0);
@@ -288,7 +302,8 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   sprout_load_abandon(loading);
   free(bytes);
   bytes = cartridge_with("{" A_HEADER "," ALL_CAPS ",\"extensions\":[]}", (const unsigned char *)"garbage!", 8, &length);
-  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_OK);
+  peeking = test_source_of(&peeked, bytes, length, 0);
+  CHECK_INT(sprout_peek(&host, &peeking, &world, &why), SPROUT_OK);
   CHECK(world != NULL && sprout_world_peeked(world));
   CHECK_STR(world->header.name, "late");
   sprout_world_free(world);
@@ -296,7 +311,8 @@ static void a_peek_reads_the_preamble_and_nothing_else(void) {
   free(bytes);
   /* A body with no caps is said so. */
   bytes = cartridge_of("{" A_HEADER "}", &length);
-  CHECK_INT(sprout_peek(&host, bytes, length, &world, &why), SPROUT_BAD_INPUT);
+  peeking = test_source_of(&peeked, bytes, length, 0);
+  CHECK_INT(sprout_peek(&host, &peeking, &world, &why), SPROUT_BAD_INPUT);
   CHECK_STR(why.text, "This cartridge is not shaped as a cartridge is at `caps`: it is not what a cartridge holds there.");
   CHECK_INT(heap.pages, 0);
   free(bytes);
@@ -414,8 +430,11 @@ static void a_source_that_ends_early_or_runs_on_is_refused(void) {
   while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 4096, &done, &why);
   CHECK_INT(status, SPROUT_BAD_INPUT);
   CHECK_STR(why.text, "This cartridge cannot be read: the compressed data ends early.");
+  /* Bytes between the body's end and where the header says the assets begin. */
   memcpy(longer, bytes, length);
   memcpy(longer + length, "abc", 3);
+  longer[16] = (char)(length + 3), longer[17] = (char)((length + 3) >> 8), longer[18] = (char)((length + 3) >> 16),
+  longer[19] = (char)((length + 3) >> 24);
   done = false;
   source = test_source_of(&t, longer, length + 3, 64);
   status = sprout_load_begin(&host, &source, &loading, &why);
@@ -431,7 +450,37 @@ static void a_source_that_ends_early_or_runs_on_is_refused(void) {
   free(bytes);
 }
 
+static void a_cartridge_carrying_assets_loads_its_body_and_reads_no_further(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  size_t length;
+  char *bytes = corpus_cartridge("media-room", &length);
+  sprout_world *world = NULL;
+  sprout_loading *loading = NULL;
+  sprout_refusal why;
+  sprout_status status;
+  bool done = false;
+  test_source t;
+  sprout_source source = test_source_of(&t, bytes, length, 100);
+  size_t assets_at = (unsigned char)bytes[16] | ((size_t)(unsigned char)bytes[17] << 8) |
+                     ((size_t)(unsigned char)bytes[18] << 16) | ((size_t)(unsigned char)bytes[19] << 24);
+  CHECK(assets_at < length);
+  CHECK_INT(sprout_load_explained(&host, bytes, length, &world, &why), SPROUT_OK);
+  CHECK_STR(world->header.name, "media_room");
+  sprout_world_free(world);
+  status = sprout_load_begin(&host, &source, &loading, &why);
+  while (status == SPROUT_OK && !done) status = sprout_load_step(loading, 4096, &done, &why);
+  CHECK_INT(status, SPROUT_OK);
+  CHECK(t.at <= assets_at); /* the assets are never read by a load */
+  world = sprout_load_finish(loading);
+  CHECK_STR(world->header.name, "media_room");
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+  free(bytes);
+}
+
 int main(void) {
+  RUN(a_cartridge_carrying_assets_loads_its_body_and_reads_no_further);
   RUN(a_load_fed_in_pieces_smaller_than_an_entry_builds_the_world_a_whole_load_does);
   RUN(a_source_that_fails_part_way_refuses_the_load_in_words_and_holds_nothing);
   RUN(a_source_that_ends_early_or_runs_on_is_refused);

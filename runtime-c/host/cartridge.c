@@ -6,10 +6,11 @@
 #include "arena.h"
 #include "inflate.h"
 #include "json.h"
+#include "load.h"
 
 const char *sproutc_cartridge_prefix(const unsigned char *bytes, size_t length, unsigned *format,
                                      unsigned *level) {
-  if (length < SPROUTC_CARTRIDGE_HEADER_BYTES || memcmp(bytes, "SPRT", 4) != 0)
+  if (length < SPROUT_CARTRIDGE_HEADER_BYTES || memcmp(bytes, SPROUT_CARTRIDGE_MAGIC, 4) != 0)
     return "this is not a Sprout cartridge: it does not begin with `SPRT`. Pack a world with `sprout pack`.";
   *format = (unsigned)(bytes[4] | (bytes[5] << 8));
   *level = (unsigned)(bytes[6] | (bytes[7] << 8));
@@ -38,14 +39,22 @@ const char *sproutc_cartridge_describe(FILE *out, const sprout_host *host, const
 
   if (why != NULL) return why;
   if (sprout_arena_init(&arena, host) != SPROUT_OK) return "the host record cannot give the reader memory.";
-  /* The preamble is the JSON before the table, whose offset the header gives, so only that much is inflated; its padding is NULs. */
+  /*
+   * The preamble is the JSON before the table, whose offset the header gives, so only that much is inflated; its
+   * padding is NULs. The compressed body ends where the assets begin.
+   */
   {
     size_t table_at = (size_t)bytes[12] | ((size_t)bytes[13] << 8) | ((size_t)bytes[14] << 16) | ((size_t)bytes[15] << 24);
+    size_t assets_at = (size_t)bytes[16] | ((size_t)bytes[17] << 8) | ((size_t)bytes[18] << 16) | ((size_t)bytes[19] << 24);
     sprout_inflater inflater;
     size_t got = 0;
+    if (assets_at < SPROUT_CARTRIDGE_HEADER_BYTES || assets_at > length) {
+      sprout_arena_reset(&arena);
+      return "the cartridge is not the size its header says.";
+    }
     json = (char *)sprout_arena_take(&arena, table_at + 1);
-    if (json == NULL || sprout_inflate_begin(&inflater, bytes + SPROUTC_CARTRIDGE_HEADER_BYTES,
-                                             length - SPROUTC_CARTRIDGE_HEADER_BYTES, &unpack) != SPROUT_OK) {
+    if (json == NULL || sprout_inflate_begin(&inflater, bytes + SPROUT_CARTRIDGE_HEADER_BYTES,
+                                             assets_at - SPROUT_CARTRIDGE_HEADER_BYTES, &unpack) != SPROUT_OK) {
       sprout_arena_reset(&arena);
       return unpack != NULL ? unpack : "the host record cannot give the reader memory.";
     }

@@ -1,13 +1,15 @@
 /*
  * Loading a cartridge (the spec's The compiler > What compiling produces;
- * Language levels): the sixteen header bytes are checked, the body is
+ * Language levels): the header's bytes are checked, the body is
  * inflated into one block in the world's arena, as many bytes a step as the
  * host allows, from the cartridge held whole or from a source read a piece
  * at a time (so the compressed bytes are never whole in memory), and then
  * read where it lies: the preamble as a JSON tree in
  * the load's scratch, the table mapped in place and checked once, the
  * catalogue built beside them; then the scratch is released. A peek inflates
- * only as far as the preamble. The host's code is not in a cartridge, so the
+ * only as far as the preamble. The assets section after the body is not read
+ * here: a host that draws reads one file of it when it shows it (assets.h).
+ * The host's code is not in a cartridge, so the
  * extensions it pins are only recorded. Nothing is parsed or checked beyond
  * the shape: a cartridge holds a world that published.
  */
@@ -56,9 +58,12 @@ static size_t word(const unsigned char *at) {
   return (size_t)at[0] | ((size_t)at[1] << 8) | ((size_t)at[2] << 16) | ((size_t)at[3] << 24);
 }
 
-sprout_status sprout_cartridge_check_header(const unsigned char *bytes, size_t length, long *format, long *level,
-                                            size_t *body_bytes, size_t *table_at, sprout_refusal *refusal) {
+#define NOT_SIZED_FILE "This cartridge cannot be read: it is not the size its header says."
+
+sprout_status sprout_cartridge_check_header(const unsigned char *bytes, size_t length, sprout_cartridge_layout *layout,
+                                            sprout_refusal *refusal) {
   char number[24], limit[24];
+  long *format = &layout->format, *level = &layout->level;
   if (length < SPROUT_CARTRIDGE_HEADER_BYTES || memcmp(bytes, SPROUT_CARTRIDGE_MAGIC, 4) != 0) {
     say(refusal,
         "This is not a Sprout cartridge: it does not begin with `SPRT`. Pack a world with `sprout pack`.",
@@ -67,8 +72,10 @@ sprout_status sprout_cartridge_check_header(const unsigned char *bytes, size_t l
   }
   *format = (long)bytes[4] | ((long)bytes[5] << 8);
   *level = (long)bytes[6] | ((long)bytes[7] << 8);
-  *body_bytes = word(bytes + 8);
-  *table_at = word(bytes + 12);
+  layout->body_bytes = word(bytes + 8);
+  layout->table_at = word(bytes + 12);
+  layout->assets_at = word(bytes + 16);
+  layout->assets_bytes = word(bytes + 20);
   if (*format > SPROUT_CARTRIDGE_FORMAT) {
     say(refusal, "This cartridge is format version ", decimal(*format, number),
         ", and this runtime reads up to version ", decimal(SPROUT_CARTRIDGE_FORMAT, limit),
@@ -90,6 +97,10 @@ sprout_status sprout_cartridge_check_header(const unsigned char *bytes, size_t l
     say(refusal, "This cartridge was made for language level ", decimal(*level, number),
         ", and this runtime reads up to level ", decimal(SPROUT_LANGUAGE_LEVEL, limit),
         ". Update the runtime, or pack the world again with this one.");
+    return SPROUT_BAD_INPUT;
+  }
+  if (layout->assets_at < SPROUT_CARTRIDGE_HEADER_BYTES) {
+    say(refusal, NOT_SIZED_FILE, NULL, NULL, NULL, NULL);
     return SPROUT_BAD_INPUT;
   }
   return SPROUT_OK;
@@ -243,26 +254,42 @@ static sprout_status body_step(body_reader *b, size_t budget) {
 
 /* ---- the load ---- */
 
+/* A source read no further than the body's end, where the assets section begins. */
+typedef struct body_source {
+  sprout_source file;
+  size_t left;
+} body_source;
+
+static bool body_source_read(void *ctx, unsigned char *buffer, size_t bytes, size_t *got) {
+  body_source *b = (body_source *)ctx;
+  *got = 0;
+  if (bytes > b->left) bytes = b->left;
+  if (bytes == 0) return true;
+  if (!b->file.read(b->file.ctx, buffer, bytes, got)) return false;
+  b->left -= *got;
+  return true;
+}
+
 struct sprout_loading {
   sprout_arena scratch; /* holds this record, the reader and everything the load alone needs */
   sprout_world *world;
   body_reader *reader;
+  body_source body;
   sprout_refusal refusal;
   bool done;
 };
 
 /* The world record in its own arena, the header's format and level checked. */
 static sprout_status begin_world(const sprout_host *host, const unsigned char *header, size_t length,
-                                 sprout_world **out, size_t *body_bytes, size_t *table_at, sprout_refusal *refusal) {
+                                 sprout_world **out, sprout_cartridge_layout *layout, sprout_refusal *refusal) {
   sprout_arena boot;
   sprout_world *world;
   sprout_status status;
-  long format, level;
   *out = NULL;
   status = sprout_arena_init(&boot, host);
   if (status != SPROUT_OK) return status;
   if (header == NULL) length = 0;
-  status = sprout_cartridge_check_header(header, length, &format, &level, body_bytes, table_at, refusal);
+  status = sprout_cartridge_check_header(header, length, layout, refusal);
   if (status != SPROUT_OK) return status;
   world = (sprout_world *)sprout_arena_take(&boot, sizeof *world);
   if (world == NULL) {
@@ -273,8 +300,8 @@ static sprout_status begin_world(const sprout_host *host, const unsigned char *h
   world->host = *host;
   world->arena = boot;
   world->arena.host = &world->host;
-  world->format = format;
-  world->level = level;
+  world->format = layout->format;
+  world->level = layout->level;
   *out = world;
   return SPROUT_OK;
 }
@@ -300,7 +327,9 @@ static sprout_status begin_load(const sprout_host *host, const char *cartridge, 
   sprout_status status;
   unsigned char header[SPROUT_CARTRIDGE_HEADER_BYTES];
   const unsigned char *head = (const unsigned char *)cartridge;
-  size_t head_length = length, body_bytes = 0, table_at = 0;
+  size_t head_length = length;
+  sprout_cartridge_layout layout;
+  sprout_source body;
   if (out != NULL) *out = NULL;
   if (refusal != NULL) refusal->text[0] = '\0';
   if (host == NULL || out == NULL || (source != NULL && source->read == NULL)) return SPROUT_BAD_HOST;
@@ -311,9 +340,15 @@ static sprout_status begin_load(const sprout_host *host, const char *cartridge, 
     }
     head = header;
   }
-  status = begin_world(host, head, head_length, &world, &body_bytes, &table_at, refusal);
+  status = begin_world(host, head, head_length, &world, &layout, refusal);
   if (status == SPROUT_NO_MEMORY) say(refusal, sprout_status_text(status), NULL, NULL, NULL, NULL);
   if (status != SPROUT_OK) return status;
+  /* Held whole, the file ends where its assets do; the body is what lies before them. */
+  if (source == NULL && (layout.assets_at > length || length - layout.assets_at != layout.assets_bytes)) {
+    sprout_world_free(world);
+    say(refusal, NOT_SIZED_FILE, NULL, NULL, NULL, NULL);
+    return SPROUT_BAD_INPUT;
+  }
   sprout_arena_init(&scratch, &world->host);
   loading = (sprout_loading *)sprout_arena_take(&scratch, sizeof *loading);
   if (loading == NULL) {
@@ -325,10 +360,16 @@ static sprout_status begin_load(const sprout_host *host, const char *cartridge, 
   memset(loading, 0, sizeof *loading);
   loading->scratch = scratch;
   loading->world = world;
+  if (source != NULL) {
+    loading->body.file = *source;
+    loading->body.left = layout.assets_at - SPROUT_CARTRIDGE_HEADER_BYTES;
+    body.ctx = &loading->body;
+    body.read = body_source_read;
+  }
   status = begin_body(&loading->reader, world, &loading->scratch,
                       source != NULL ? NULL : (const unsigned char *)cartridge + SPROUT_CARTRIDGE_HEADER_BYTES,
-                      source != NULL ? 0 : length - SPROUT_CARTRIDGE_HEADER_BYTES, source, body_bytes, table_at,
-                      &loading->refusal, peek);
+                      source != NULL ? 0 : layout.assets_at - SPROUT_CARTRIDGE_HEADER_BYTES,
+                      source != NULL ? &body : NULL, layout.body_bytes, layout.table_at, &loading->refusal, peek);
   if (status != SPROUT_OK) {
     if (refusal != NULL) *refusal = loading->refusal;
     if (status == SPROUT_NO_MEMORY) say(refusal, sprout_status_text(status), NULL, NULL, NULL, NULL);
@@ -392,14 +433,14 @@ void sprout_load_abandon(sprout_loading *loading) {
   sprout_world_free(world);
 }
 
-/* A load whole, in one call: begin, every step, finish. */
+/* A load whole, in one call, of the cartridge held whole or read from `source`: begin, every step, finish. */
 static sprout_status load_whole(const sprout_host *host, const char *cartridge, size_t length,
-                                sprout_world **out, sprout_refusal *refusal, bool peek) {
+                                const sprout_source *source, sprout_world **out, sprout_refusal *refusal, bool peek) {
   sprout_loading *loading;
   sprout_status status;
   bool done = false;
   if (out != NULL) *out = NULL;
-  status = begin_load(host, cartridge, length, NULL, &loading, refusal, peek);
+  status = begin_load(host, cartridge, length, source, &loading, refusal, peek);
   if (status != SPROUT_OK) return status;
   status = sprout_load_step(loading, (size_t)-1, &done, refusal);
   if (status != SPROUT_OK) return status;
@@ -407,16 +448,17 @@ static sprout_status load_whole(const sprout_host *host, const char *cartridge, 
   return SPROUT_OK;
 }
 
-sprout_status sprout_peek(const sprout_host *host, const char *cartridge, size_t length, sprout_world **world,
+sprout_status sprout_peek(const sprout_host *host, const sprout_source *source, sprout_world **world,
                           sprout_refusal *refusal) {
-  return load_whole(host, cartridge, length, world, refusal, true);
+  if (source == NULL) return SPROUT_BAD_HOST;
+  return load_whole(host, NULL, 0, source, world, refusal, true);
 }
 
 bool sprout_world_peeked(const sprout_world *world) { return world != NULL && world->peeked; }
 
 sprout_status sprout_load_explained(const sprout_host *host, const char *cartridge, size_t length,
                                     sprout_world **out, sprout_refusal *refusal) {
-  return load_whole(host, cartridge, length, out, refusal, false);
+  return load_whole(host, cartridge, length, NULL, out, refusal, false);
 }
 
 sprout_status sprout_load(const sprout_host *host, const char *cartridge, size_t length,

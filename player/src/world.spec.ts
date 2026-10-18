@@ -106,7 +106,7 @@ describe('readWorld', () => {
 });
 
 describe('the files of a folder that an extension’s values name', () => {
-  it('are looked up by their path from the folder, with their size, hash and first bytes', () => {
+  it('are looked up by their path from the folder, with their size, hash and content', () => {
     const dir = folder({
       'sprout.json': MANIFEST,
       'pictures/a.png': 'a picture, more or less',
@@ -114,7 +114,7 @@ describe('the files of a folder that an extension’s values name', () => {
     const { assets } = readWorld(dir).source!;
     const found = assets!('pictures/a.png');
     expect(found).toMatchObject({ bytes: 23, sha: sha256('a picture, more or less') });
-    expect(new TextDecoder().decode(found!.head)).toBe('a picture, more or less');
+    expect(new TextDecoder().decode(found!.content)).toBe('a picture, more or less');
     expect(assets!('pictures/a.png')).toBe(found);
   });
 

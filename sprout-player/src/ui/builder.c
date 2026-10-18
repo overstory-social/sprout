@@ -117,7 +117,7 @@ static bool take_turn(player_app *app, player_builder *b, const sprout_reading *
   if (!told.ok)
     *kept = transcript_push(t, "notice", told.words, strlen(told.words)) && *kept;
   else
-    *kept = transcript_tell(t, &told.lines) && images_take_told(&b->pictures, app->assets, &told.lines) && *kept;
+    *kept = transcript_tell(t, &told.lines) && images_take_told(&b->pictures, app->cartridge, &told.lines) && *kept;
   *goes_on = told.ok && told.result == SPROUT_RESULT_DONE && told.goes_on;
   return true;
 }

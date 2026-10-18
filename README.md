@@ -115,7 +115,7 @@ WSL2); without `setarch` it prints the remedy, `setarch -R npm run e2e`.
 ## Cartridges and the C runtime
 
 ```sh
-sprout pack corpus/good/chip-tree -o chip-tree.sproutworld   # compile strictly, write the cartridge (and <cartridge>.assets/)
+sprout pack corpus/good/chip-tree -o chip-tree.sproutworld   # compile strictly, write the cartridge, pictures and all
 sprout play chip-tree.sproutworld                            # play, test and view take a cartridge where they take a folder
 npm run build && node scripts/check-runtime-c.mjs            # build runtime-c/, run ctest, play the corpus on the WebAssembly engine against the goldens
 node scripts/write-goldens.mjs <golden>                      # rewrite one file under corpus/goldens on purpose, and print its diff

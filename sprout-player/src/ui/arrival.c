@@ -62,8 +62,8 @@ static player_reader *tell_arrival(player_app *app, const char *title, const cha
   text_add(&you, ".");
   if (transcript_push(&reader->lines, "client", said, strlen(said)) &&
       (notice == NULL || transcript_push(&reader->lines, "notice", notice, strlen(notice))) &&
-      transcript_tell(&reader->lines, lines) && images_take_told(pictures, app->assets, lines) &&
-      player_reader_look(app, reader, &view) && (view == NULL || images_take_view(pictures, app->assets, view)))
+      transcript_tell(&reader->lines, lines) && images_take_told(pictures, app->cartridge, lines) &&
+      player_reader_look(app, reader, &view) && (view == NULL || images_take_view(pictures, app->cartridge, view)))
     return reader;
   player_reader_screen.leave(app, reader);
   return NULL;
@@ -139,7 +139,10 @@ static void update(player_app *app, void *ctx, const player_input *input) {
       refuse(app, arrival, opening.reason);
       return;
     }
-    if (!images_folder(arrival->path, app->assets, sizeof app->assets)) app->assets[0] = '\0';
+    if (strlen(arrival->path) < sizeof app->cartridge)
+      memcpy(app->cartridge, arrival->path, strlen(arrival->path) + 1);
+    else
+      app->cartridge[0] = '\0';
     player_world_title(opening.name, arrival->title, sizeof arrival->title);
   }
   step = player_step(app->session);

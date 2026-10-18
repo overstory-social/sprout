@@ -20,7 +20,7 @@
 #define PLAYER_SCREEN_WIDTH 400
 #define PLAYER_SCREEN_HEIGHT 240
 #define PLAYER_MARGIN 4
-#define PLAYER_ASSETS_BYTES 256
+#define PLAYER_CARTRIDGE_BYTES 256
 
 typedef struct player_shelf player_shelf;
 
@@ -33,7 +33,7 @@ struct player_app {
   bool disc_font_tried;
   player_sound sound;
   player_clock clock;
-  char assets[PLAYER_ASSETS_BYTES]; /* the open world's assets folder, `<cartridge>.assets/` (images.h), or "" */
+  char cartridge[PLAYER_CARTRIDGE_BYTES]; /* the open world's cartridge, whose pictures images.h reads, or "" */
   const player_screen *screen;
   void *ctx;
   const player_screen *next; /* the screen `player_app_show` asked for, shown when the update is over */

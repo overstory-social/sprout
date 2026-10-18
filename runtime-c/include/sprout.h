@@ -169,13 +169,14 @@ sprout_world *sprout_load_finish(sprout_loading *loading);
 void sprout_load_abandon(sprout_loading *loading);
 
 /*
- * Reads only what a shelf needs of a cartridge: its header and the caps it
- * was checked against, into a world with no graph or catalogue, cheap
- * however large the cartridge. Such a world is read through
- * sprout_world_header and sprout_world_caps and freed as any; it opens
- * nothing.
+ * Reads only what a shelf needs of a cartridge, from `source`: its header and
+ * the caps it was checked against, into a world with no graph or catalogue.
+ * The source is read only as far as the preamble, so a peek is as cheap for a
+ * big world, or one carrying pictures, as for a small one. Such a world is
+ * read through sprout_world_header and sprout_world_caps and freed as any; it
+ * opens nothing.
  */
-sprout_status sprout_peek(const sprout_host *host, const char *cartridge, size_t length, sprout_world **world,
+sprout_status sprout_peek(const sprout_host *host, const sprout_source *source, sprout_world **world,
                           sprout_refusal *refusal);
 
 /* Whether a world was peeked rather than loaded. */

@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -26,7 +26,7 @@ const TEST_KEY = join(player, 'test/index-test.key');
 const TEST_PUBLIC = readFileSync(join(player, 'test/index-test.pub'), 'utf8').trim();
 const fixture = (name) => readFileSync(join(player, 'test/fixtures', name), 'utf8');
 
-/** A folder of cartridges packed by the built CLI: chip-tree (no assets) and media-room (three asset files). */
+/** A folder of cartridges packed by the built CLI: chip-tree (no pictures) and media-room (three, inside its cartridge). */
 async function packed() {
   const dir = mkdtempSync(join(tmpdir(), 'sprout-index-'));
   const { main: cli } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
@@ -86,15 +86,10 @@ test('an index lists each cartridge with its header, size, SHA-256 and address, 
   assert.match(chip.sha256, /^[0-9a-f]{64}$/);
   assert.equal(chip.author, 'corpus');
   assert.equal(chip.version, '0.1.0');
-  assert.equal(chip.assets, undefined);
-  assert.deepEqual(
-    media.assets.map((a) => a.path),
-    ['cellar.png', 'pictures/cabinet-open.png', 'pictures/cabinet.png'],
-  );
-  assert.equal(
-    media.assets[2].url,
-    'https://worlds.example/sprout/media-room.sproutworld.assets/pictures/cabinet.png',
-  );
+  // A world is one file: the media room's pictures are counted in its size and its checksum.
+  assert.deepEqual(Object.keys(media).sort(), Object.keys(chip).sort());
+  assert.equal(media.bytes, statSync(join(dir, 'media-room.sproutworld')).size);
+  assert.equal(media.url, 'https://worlds.example/sprout/media-room.sproutworld');
   assert.equal(indexIsSigned(index, TEST_PUBLIC), true);
 });
 
@@ -124,21 +119,18 @@ test('the command writes index.json beside the cartridges, signed with the key f
   assert.equal(index.worlds[0].url, 'https://worlds.example/sprout/chip-tree.sproutworld');
 });
 
-test('the key may come from the environment, and --out gathers the cartridges, assets and index in one folder', async () => {
+test('the key may come from the environment, and --out gathers the cartridges and the index in one folder', async () => {
   const dir = await packed();
   const out = join(mkdtempSync(join(tmpdir(), 'sprout-out-')), 'site');
   const { code, said } = run([dir, '--base-url', 'http://localhost:8000', '--out', out], {
     SPROUT_INDEX_KEY: TEST_KEY,
   });
   assert.equal(code, 0, said);
-  for (const file of [
-    'index.json',
+  assert.deepEqual(readdirSync(out).sort(), [
     'chip-tree.sproutworld',
+    'index.json',
     'media-room.sproutworld',
-    'media-room.sproutworld.assets/pictures/cabinet.png',
-  ]) {
-    assert.equal(existsSync(join(out, file)), true, file);
-  }
+  ]);
   assert.equal(existsSync(join(dir, 'index.json')), false, 'the source folder is left alone');
 });
 
@@ -199,12 +191,6 @@ test('the index the script writes has exactly the members index.schema.json requ
     for (const key of world.required) assert.ok(key in entry, `${key} is listed`);
     for (const key of Object.keys(entry))
       assert.ok(key in world.properties, `${key} is in the schema`);
-    for (const asset of entry.assets ?? []) {
-      assert.deepEqual(
-        Object.keys(asset).sort(),
-        [...world.properties.assets.items.required].sort(),
-      );
-    }
   }
   assert.match(index.signed, new RegExp(schema.properties.signed.pattern));
 });

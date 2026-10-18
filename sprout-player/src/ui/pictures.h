@@ -5,7 +5,7 @@
  * d-pad, steps between them slat by slat, each step ticking and each landing clacking; A or B
  * closes them and the reader takes over. The reader is lent to the screen while it is up.
  *
- * Only what is on screen is held: a picture is loaded from the world's assets when it is first
+ * Only what is on screen is held: a picture is built from the world's cartridge when it is first
  * drawn and freed once another has landed in its place or the screen closes, so pictures never
  * count against the world's memory (the design doc's Images).
  */
