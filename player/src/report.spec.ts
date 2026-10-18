@@ -112,6 +112,26 @@ describe('what a playthrough reached', () => {
   });
 });
 
+describe('an `after command` among the handlers', () => {
+  it('is counted by where it is written, and reached once a command it follows runs', () => {
+    const shed = bundleOf('kiln_yard', {
+      ...KILN_YARD,
+      'yard.sprout': `kind Yard is sprout.Place {
+  describe { text "A kiln yard." }
+  after command { tell actor "Ash settles." }
+}
+`,
+    });
+    const played = (lines: string) =>
+      reportOf(shed, [
+        { name: 'yard.json', played: playSteps(shed, scriptOf(lines, 'yard.json'), 'yard.json') },
+      ]);
+    const written = 'kiln_yard.Yard after command (yard.sprout:3:3)';
+    expect(played('@arrive Marta').reach.handlers?.never).toContain(written);
+    expect(played('@arrive Marta\nMarta> look').reach.handlers?.reached).toEqual([written]);
+  });
+});
+
 describe('what a turn that faulted reached', () => {
   it('is only the words it told of the fault: no thing, verb, handler or passage of what it did', () => {
     const report = reportOf(kilnYard, [run('@arrive Marta\nMarta> kick kiln')]);

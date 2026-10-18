@@ -1,0 +1,73 @@
+{
+  "about": "What follows a command runs after every command a visitor makes, nearest first: the lamp she carries, the room she stands in, then the world. Walking into the falls reads the falls before its roar; a refused command is followed by nothing; a lamp set down, or shut in the tin she carries, follows nobody.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A low cellar, dry and still." }
+    ] },
+    { "as": "Wren", "type": "north", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "Water thunders down a cleft in the rock." },
+      { "reader": "Wren", "kind": "told", "words": "The roar of the water is deafening." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A low cellar, dry and still." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." }
+    ] },
+    { "as": "Marta", "type": "light lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The wick catches." },
+      { "reader": "Marta", "kind": "said", "words": "The lamp burns a little lower." }
+    ] },
+    { "as": "Marta", "type": "light lamp", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "It is already lit." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives from the cellar." },
+      { "reader": "Marta", "kind": "described", "words": "Water thunders down a cleft in the rock." },
+      { "reader": "Marta", "kind": "said", "words": "The lamp burns a little lower." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
+      { "reader": "Marta", "kind": "said", "words": "Somewhere far off, a bell tolls." }
+    ] },
+    { "as": "Marta", "type": "drop lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp down." },
+      { "reader": "Wren", "kind": "told", "words": "Marta puts a lamp down." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "reader": "Wren", "kind": "told", "words": "Marta takes a lamp." },
+      { "reader": "Marta", "kind": "said", "words": "The lamp burns a little lower." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
+    ] },
+    { "as": "Marta", "type": "put lamp in tin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp in a tin." },
+      { "reader": "Wren", "kind": "told", "words": "Marta puts a lamp in a tin." },
+      { "reader": "Marta", "kind": "said", "words": "The lamp burns a little lower." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
+    ] },
+    { "as": "Marta", "type": "close tin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You shut a tin." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
+    ] },
+    { "as": "Marta", "type": "open tin", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open a tin. Inside: a lamp." },
+      { "reader": "Marta", "kind": "said", "words": "Your lamp gutters and goes out." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
+    ] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
+      { "reader": "Marta", "kind": "said", "words": "Time passes." }
+    ] },
+    { "as": "Marta", "type": "south", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the cellar." },
+      { "reader": "Marta", "kind": "described", "words": "A low cellar, dry and still." }
+    ] }
+  ]
+}

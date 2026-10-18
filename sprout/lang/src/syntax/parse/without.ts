@@ -1,6 +1,6 @@
 // `without changed :lit from sprout.LightSource` — a member a composed
 // kind contributes, left out (the spec's Suppressing a contribution):
-// `on :m`, `changed :p`, a guard, or `as <role> for <verb>`, and the kind
+// `on :m`, `changed :p`, `after command`, a guard, or `as <role> for <verb>`, and the kind
 // that declares it. The line never takes the body's next member for what
 // it names, so a `without` left unfinished leaves that member to be read.
 
@@ -54,8 +54,8 @@ export function without(
 }
 
 /**
- * The member a `without` names: `on :m`, `changed :p`, a guard, or `as
- * <role> for <verb>`. Null having said why.
+ * The member a `without` names: `on :m`, `changed :p`, `after command`, a
+ * guard, or `as <role> for <verb>`. Null having said why.
  */
 function memberNamed(
   p: Parser,
@@ -86,6 +86,19 @@ function memberNamed(
     return token.text === 'on'
       ? { kind: 'handler-ref', at, message: p.ident(named) }
       : { kind: 'hook-ref', at, property: p.ident(named) };
+  }
+  // `after command` with its braces after it is the next member, as written.
+  const next = p.peek(1);
+  if (
+    token.kind === 'name' &&
+    token.text === 'after' &&
+    next.kind === 'name' &&
+    next.text === 'command' &&
+    !punct(p.peek(2), '{')
+  ) {
+    p.next();
+    p.next();
+    return { kind: 'after-command-ref', at: spanning(token.at, next.at) };
   }
   // A guard's word with its brackets after it is the next member, a
   // guard as written, and not what this line leaves out.

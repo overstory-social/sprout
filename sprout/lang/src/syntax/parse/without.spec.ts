@@ -60,6 +60,7 @@ describe('`without` names a member and the kind it comes from, in any body', () 
       const lines = [
         'without changed :lit from sprout.LightSource',
         'without on :stir from Bellows',
+        'without after command from Lamp',
         'without depart from sprout.Fixture',
         'without release from Crate',
         'without accept from Crate',

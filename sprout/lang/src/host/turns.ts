@@ -136,8 +136,9 @@ export interface Departure extends WriteInputs {
 
 /**
  * A handler or hook that ran: the kind that wrote it, what it answers
- * (a message as `messageKey` names it, or `changed :p` for a hook), and
- * where it was written, `kiln.sprout:23:9`, which tells two apart.
+ * (a message as `messageKey` names it, `changed :p` for a hook, or
+ * `after command`), and where it was written, `kiln.sprout:23:9`, which
+ * tells two apart.
  */
 export interface Ran {
   readonly origin: string;

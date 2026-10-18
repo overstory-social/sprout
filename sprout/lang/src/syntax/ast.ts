@@ -11,7 +11,12 @@
 
 import type { Node } from '../source/nodes.js';
 import type { GrammarDeclaration } from './ast-grammar.js';
-import type { HandlerDeclaration, HookDeclaration, PassDeclaration } from './ast-events.js';
+import type {
+  AfterCommandDeclaration,
+  HandlerDeclaration,
+  HookDeclaration,
+  PassDeclaration,
+} from './ast-events.js';
 import type { IntentDeclaration, SynonymsDeclaration, VerbDeclaration } from './ast-verbs.js';
 import type { ExtensionStatement, ExtensionUse } from './ast-extensions.js';
 import type { ImportDeclaration } from './ast-imports.js';
@@ -581,6 +586,11 @@ export interface HookRef extends Node {
   readonly property: Ident;
 }
 
+/** `after command` — the hook a kind runs after a visitor's command, named as `without` names it. */
+export interface AfterCommandRef extends Node {
+  readonly kind: 'after-command-ref';
+}
+
 /**
  * The three consent guards, one for each party to a move, in the order
  * the engine asks them: the thing, the container it leaves, the one it
@@ -611,7 +621,7 @@ export interface RoleRef extends Node {
  * combine): an exclusive member is replaced by writing one's own, so it
  * is never left out.
  */
-export type MemberRef = HandlerRef | HookRef | GuardRef | RoleRef;
+export type MemberRef = HandlerRef | HookRef | AfterCommandRef | GuardRef | RoleRef;
 
 /** A member as the author wrote it: `on :stir`, `changed :lit`, `depart`, `as target for unlock`. */
 export function writtenMember(member: MemberRef): string {
@@ -620,6 +630,8 @@ export function writtenMember(member: MemberRef): string {
       return `on :${member.message.text}`;
     case 'hook-ref':
       return `changed :${member.property.text}`;
+    case 'after-command-ref':
+      return 'after command';
     case 'guard-ref':
       return member.guard;
     case 'role-ref':
@@ -743,6 +755,7 @@ export type KindMember =
   | PlayDeclaration
   | HandlerDeclaration
   | HookDeclaration
+  | AfterCommandDeclaration
   | PassDeclaration
   | GrammarDeclaration
   | DescribeDeclaration

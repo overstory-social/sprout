@@ -20,6 +20,7 @@ const PERMIT: BodyKind = { body: 'permit' };
 const DO: BodyKind = { body: 'do' };
 const HANDLER: BodyKind = { body: 'handler', written: 'on :gust' };
 const DESCRIBE: BodyKind = { body: 'describe' };
+const AFTER: BodyKind = { body: 'after' };
 
 /** The statement `text` reads as, which must read. */
 function statementOf(text: string): Statement {
@@ -80,6 +81,21 @@ describe('`say` speaks to the actor, and stands only in a `do`', () => {
     ]);
     expect(spoken('say "Hi."', PERMIT).map(([, message]) => message)).toEqual([
       '`say` speaks, and a `permit` only decides.',
+    ]);
+  });
+});
+
+describe('an `after command` speaks as a `do` does', () => {
+  it('says to the actor and tells the place or one person, and gives no `text`', () => {
+    expect(spoken('say "You fill {self}."', AFTER)).toEqual([]);
+    expect(spoken('tell "{actor} fills {self}."', AFTER)).toEqual([]);
+    expect(spoken('tell actor "You are filled."', AFTER)).toEqual([]);
+    expect(spoken('text "Hi."', AFTER)).toEqual([
+      [
+        'body.sprout:1:1',
+        '`text` gives a `describe` its words, and this is `after command`.',
+        'Use `say` to speak to the actor, or `tell` to speak to the room.',
+      ],
     ]);
   });
 });

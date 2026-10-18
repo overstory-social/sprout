@@ -220,7 +220,7 @@ kind Tagged is sprout.Actor {
 }
 ```
 
-`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
+`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, `after command`, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
 A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. The first time it arrives it is made as a spawn is, with its own copy of each object its kind's body holds, so a world gives its visitors a satchel by writing one in the visitor kind; on a later visit it arrives with what it carried away, and never with those contents again. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
@@ -362,7 +362,7 @@ Everything after `is` is composed; a kind may compose any number of kinds, inclu
 
 `is` composes and the colon does not. The colon marks a property, a message or an option in an expression, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
 
-A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
+A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, an `after command`, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
 
 ### How members combine
 
@@ -374,6 +374,7 @@ Members divide by whether more than one answer makes sense.
 | `remembers` entry | refuse; composer restates to merge |
 | `on :m` handler | all run |
 | `changed :p` hook | all run |
+| `after command` | all run |
 | `depart` / `release` / `accept` | all run; any refusal decides |
 | `as <role> for <verb>` | all `permit` run, any refusal decides; all `do` run |
 | nouns in the grammar block | all apply |
@@ -916,7 +917,32 @@ Within one participant, its plays of the role's category, `as tool for any` and 
 
 The **effect pass** runs every `do`, in the same order. The first role's usually carries the sentence; the others act and mostly stay quiet, so a wheel can learn it is dirty without saying so. When the pass ends, the queue drains.
 
-A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." The answer is decided when the effect pass ends: a line from a handler the queue runs afterward is not the reading's answer, so a `do` that only sends a message is answered with `nothing_happens`, and what the handler then tells the actor follows it. An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
+A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose participants say nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." The answer is decided once the participants' `do`s have run: a line from an `after command`, or from a handler the queue runs afterward, is not the reading's answer, so a `do` that only sends a message is answered with `nothing_happens`, and what the handler then tells the actor follows it. An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
+
+### After a command
+
+A kind or an object may write `after command { … }`, which runs at the end of every command a visitor makes while they carry it or it holds them, so a lamp burns down by the move rather than by the clock:
+
+```sprout
+kind Lamp {
+  :lit false
+  :charge 300
+
+  after command {
+    if (self.get(:lit)) {
+      self.adjust(:charge, -1)
+      if (self.get(:charge) == 0) {
+        self.set(:lit, false)
+        say "Your lamp flickers and goes out."
+      }
+    }
+  }
+}
+```
+
+It runs in the effect pass, once every participant's `do` has run and the reading is answered: after `nothing_happens` where nothing else answered it, and after the description of a place the reading moved the visitor to. What runs is settled as it begins, nearest the visitor first: what they carry, in their hands and inside what they carry wherever every container between passes, as under Carried roles, so never through a shut tin; then the visitor; then each container that holds them, out to the world. Each runs every `after command` its kinds compose, in composition order, and one destroyed before its turn runs nothing. Inside, `self` is the one running, `actor` the visitor and `here` their place as it began, and nothing else is bound. It acts and speaks as a `do` does — `say` and `tell actor` reach the visitor, and a plain `tell` everyone else who hears `self` — and never decides, so `refuse` and `allow` are refused in it. Each thing whose `after command` runs is one event against the turn's budget, and what it runs is charged to the turn's steps.
+
+It follows a visitor's own command, whatever the verb, the engine's included: each turn of a line, as each step of an intent and each thing of `all` or a run is its own turn, under Sequences, again and all. It does not follow a reading its consent pass refused, a `go` whose exit refused, a line the parser answered, an NPC's reading, a reading an `act` performs, a tick, a wake, a message, an arrival or a departure. A body writes one; a second is refused.
 
 ### Word order stops mattering
 
@@ -1623,7 +1649,7 @@ Two people in one place have no verb for speaking freely to each other, because 
 
 ## Time
 
-A world moves without being poked, two ways. A **tick** is ambience: it only means anything when someone is there to perceive it. A **wake** is a process: it happens whether or not anyone stayed to watch.
+A world moves without being poked, two ways. A **tick** is ambience: it only means anything when someone is there to perceive it. A **wake** is a process: it happens whether or not anyone stayed to watch. What happens with every command rather than with time is an `after command`, under Verbs › After a command.
 
 ### Ticks
 
@@ -1882,7 +1908,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `after`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -1999,7 +2025,7 @@ Everything that runs is a **turn**, and there are five kinds:
 
 Write turns on one world are serialized under a lock and run in a transaction: a fault abandons the transaction, and the world is exactly as it was; a maintenance turn abandons only the part that faulted, under Faults. A poll runs against the last committed state, holds no lock, draws no seed, and has its own step budget; it may run while a write turn runs, and sees the state before it.
 
-Within a command turn, the order is fixed: parse; the consent pass; the effect pass, actor first and then roles in declared order; the queue, breadth-first in insertion order, including any reading an `act` starts and the messages a `move` sends; then the views of everyone present are marked stale. `act` runs its reading inline where it stands, and a `move`'s guards run inline where it stands, since guards are pure.
+Within a command turn, the order is fixed: parse; the consent pass; the effect pass, actor first and then roles in declared order, then every `after command` that follows the command; the queue, breadth-first in insertion order, including any reading an `act` starts and the messages a `move` sends; then the views of everyone present are marked stale. `act` runs its reading inline where it stands, and a `move`'s guards run inline where it stands, since guards are pure.
 
 ### The view
 
