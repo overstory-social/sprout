@@ -2,13 +2,18 @@
  * signed_index.c: reading the index of published worlds. The index the publisher signed is
  * accepted under the test key and lists its worlds; a byte changed after signing, another key,
  * no signature, text that is not an index, or one too large is refused in words with nothing
- * used; and an entry the signer vouched for that the app cannot use names its field.
+ * used; and an entry the signer vouched for that the app cannot use names its field. An index
+ * `sprout index` wrote (PLAYER_SIGNED_INDEX, under the key PLAYER_SIGNED_INDEX_KEY names) is
+ * accepted, and each cartridge beside it is named as the app names a download and is the size and
+ * SHA-256 it lists.
  */
 #include <stdlib.h>
 
 #include "host/pd_host.h"
+#include "shipping.h"
 #include "signed_index.h"
 #include "support.h"
+#include "ui/downloads.h"
 
 static const char NOT_TRUSTED[] =
     "The list of worlds did not pass its signature check, so nothing in it was used. "
@@ -150,7 +155,64 @@ static void sizes_are_told_for_a_person(void) {
   end();
 }
 
+/* The whole of the file at `path`, without its trailing newlines, from malloc; NULL where it cannot be read. */
+static char *whole_file(const char *path) {
+  FILE *file = fopen(path, "rb");
+  long size;
+  char *text;
+  if (file == NULL) return NULL;
+  fseek(file, 0, SEEK_END);
+  size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  text = (char *)malloc((size_t)size + 1);
+  if (fread(text, 1, (size_t)size, file) != (size_t)size) size = 0;
+  while (size > 0 && text[size - 1] == '\n') size--;
+  text[size] = '\0';
+  fclose(file);
+  return text;
+}
+
+static void the_index_sprout_index_wrote_is_accepted_with_its_cartridges_beside_it(const char *index_path,
+                                                                                 const char *key_path) {
+  char *text = whole_file(index_path), *published_key = whole_file(key_path), folder[600], command[2000];
+  const char *slash = strrchr(index_path, '/');
+  player_index read;
+  size_t i, accepted;
+  CHECK(text != NULL && published_key != NULL, "reading %s and %s", index_path, key_path);
+  if (text == NULL || published_key == NULL) {
+    free(text);
+    free(published_key);
+    return;
+  }
+  snprintf(folder, sizeof folder, "%.*s", slash == NULL ? 1 : (int)(slash - index_path), slash == NULL ? "." : index_path);
+  open_arena("published");
+  read = player_index_read(&arena, text, strlen(text), player_index_signed_by, published_key);
+  CHECK(read.ok && read.worlds->count > 0, "the index sprout index wrote: %s", read.reason);
+  for (i = 0; read.ok && i < read.worlds->count; i++) {
+    const sprout_json *world = read.worlds->items[i];
+    const char *url = string_at(world, "url"), *name = strrchr(url, '/');
+    char stem[32], wanted[64], sha256[65], beside[700];
+    size_t bytes = 0;
+    player_downloads_stem(string_at(world, "title"), stem, sizeof stem);
+    snprintf(wanted, sizeof wanted, "/%s-%.8s.sproutworld", stem, string_at(world, "hash"));
+    CHECK(name != NULL && strcmp(name, wanted) == 0, "%s is published as %s", string_at(world, "title"), url);
+    if (name == NULL) continue;
+    snprintf(beside, sizeof beside, "beside%s", name);
+    snprintf(command, sizeof command, "mkdir -p '%s/beside' && cp '%s%s' '%s/%s'", fake->data, folder, name, fake->data, beside);
+    CHECK(system(command) == 0, "%s", command);
+    CHECK(player_digest(&fake->api, beside, sha256, &bytes) == NULL, "the digest of %s", beside);
+    CHECK(strcmp(sha256, string_at(world, "sha256")) == 0, "%s has the SHA-256 listed", name + 1);
+    CHECK(bytes == (size_t)sprout_json_get(world, "bytes")->number, "%s is the size listed", name + 1);
+  }
+  accepted = read.ok ? read.worlds->count : 0;
+  close_arena();
+  printf("signed_index: %zu worlds sprout index wrote are accepted\n", accepted);
+  free(text);
+  free(published_key);
+}
+
 int main(void) {
+  const char *published = getenv("PLAYER_SIGNED_INDEX"), *published_key = getenv("PLAYER_SIGNED_INDEX_KEY");
   test_program("signed_index");
   signed_text = fixture_text("index.json");
   key = fixture_text("../index-test.pub");
@@ -159,6 +221,10 @@ int main(void) {
   an_index_unsigned_unreadable_or_too_large_is_refused_in_words();
   a_signed_entry_the_app_cannot_use_names_its_field();
   sizes_are_told_for_a_person();
+  if (published != NULL && published[0] != '\0')
+    the_index_sprout_index_wrote_is_accepted_with_its_cartridges_beside_it(published, published_key == NULL ? "" : published_key);
+  else
+    printf("signed_index: PLAYER_SIGNED_INDEX is not set, no index from sprout index to check\n");
   free(signed_text);
   free(key);
   return finish();

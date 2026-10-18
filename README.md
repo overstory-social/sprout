@@ -81,7 +81,7 @@ editors/language-server  the language server: the whole world checked as it is e
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`, and `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm` from the modules of `engine/`, one world per instance driven from JavaScript (`@overstory/sprout-engine-wasm`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
 sprout-player/    the Playdate app, pure C over the C runtime: the session, the host adapter (`src/host`) and the screens (`src/ui`: shelf, reader, crank sentence builder, nickname picker, pictures, downloads); built by CMake against the Playdate SDK, with C tests over a fake `PlaydateAPI`
-scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the WebAssembly engine against the goldens, the player), `write-goldens.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`, `publish-index.mjs`
+scripts/          the gate's and the e2e's steps: `check-runtime-c.mjs` (build, ctest, the WebAssembly engine against the goldens, the player), `write-goldens.mjs`, `playdate-sdk.sh`, `playdate-player.mjs`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; skill/SKILL.md is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
 docs/design/      the spec, the working notes, the backlog, the reviews
@@ -190,8 +190,8 @@ read the diff; the build never reads outside this repository); a world may list 
 build plays through `sproutc` with the view polled first under the app's poll budget, so the pdx
 never ships a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
 shelf's last row fetches more from a signed index
-(`node scripts/publish-index.mjs --generate-key <prefix>` makes the publisher's key, which never
-enters this repository; `publish-index.mjs <folder> --base-url <url> --key <file>` writes the
+(`sprout keygen <prefix>` makes the publisher's key, which never
+enters this repository; `sprout index <folder> --base-url <url> --key <prefix>.key` writes the
 index; the app is built with the public half through `SPROUT_INDEX_PUBLIC_KEY`, and
 the Data folder's `downloads.json` holds the address, else the placeholder `PLAYER_INDEX_URL` in
 `sprout-player/src/ui/downloads.h`). The design doc,

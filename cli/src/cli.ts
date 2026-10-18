@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 
 import {
   CARTRIDGE_EXTENSION,
@@ -33,12 +33,16 @@ import { checkWorld, formatCheck, formatCheckJson } from './check.js';
 import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { clientConnect, mcpServe, serverStart } from './peers.js';
+import { writeIndex } from './publish.js';
+import { privateKeyOf, readKeyFile, writeKeyPair } from './signing.js';
 import { inspectReadings, inspectScene, inspectView } from './view.js';
 
 // The `sprout` command: six verbs on a microworld folder; `skill`, the
 // builder's reference this compiler generates from its own tables; and
 // `client`, `server` and `mcp`, handed to the terminal client, the server
-// and the MCP host where they are installed. `mcp` says a refused world's
+// and the MCP host where they are installed; and `keygen` and `index`, the
+// publisher's key pair and the signed index the Playdate app downloads
+// worlds from. `mcp` says a refused world's
 // page on stderr, since its stdout may be the protocol's. `parse` with a
 // line, `view`, `play`, `test` and `mcp` run the world on the C engine
 // built for WebAssembly, and refuse in words where it is not built; each
@@ -82,6 +86,14 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
+  sprout keygen prefix                write a new publisher's key pair: prefix.key, the private key, readable
+                                      by its owner only, and prefix.pub, the public key the Playdate app is
+                                      built with; refuses to replace either
+  sprout index dir --base-url url --key prefix.key [-o index.json]
+                                      sign an index of the .sproutworld cartridges in dir for the Playdate app's
+                                      downloads: writes the index (dir/index.json without -o) and, beside it,
+                                      each cartridge as <title>-<first 8 of its hash>.sproutworld, served at
+                                      url followed by that name
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]
@@ -194,13 +206,15 @@ function writeReached(world: PlayableWorld, runs: readonly PlayedRun[], file: st
   writeFileSync(file, writeReport(reportOf(world, runs)));
 }
 
-/** The flags each command that runs a world takes; any other is refused. */
+/** The flags each of these commands takes; any other is refused. */
 const TAKES: Readonly<Record<string, readonly string[]>> = {
   parse: ['at', 'as'],
   view: ['at', 'as', 'scene', 'verb', 'poll-steps'],
   play: ['write', 'report', 'at', 'as', 'seed', 'debug', 'record'],
   test: ['report'],
   mcp: ['http', 'seed', 'record', 'turn-cap', 'advance-per-turn'],
+  index: ['base-url', 'key', 'out'],
+  keygen: [],
 };
 
 /** Thrown, in words naming the flags `command` takes, where `flags` holds one it does not. */
@@ -208,6 +222,7 @@ function onlyFlagsOf(command: string, flags: Parsed['flags']): void {
   const takes = TAKES[command]!;
   const stray = Object.keys(flags).find((flag) => !takes.includes(flag));
   if (stray === undefined) return;
+  if (takes.length === 0) throw new Error(`${command} takes no flags; --${stray} is not one.`);
   const named = takes.map((flag) => `--${flag}`);
   const list =
     named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
@@ -377,6 +392,55 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           say(`wrote ${report}\n`);
         }
         return tested.ok ? 0 : 1;
+      }
+      case 'keygen': {
+        onlyFlagsOf('keygen', flags);
+        const prefix = positional[0];
+        if (prefix === undefined) {
+          throw new Error(
+            'keygen wants where to write the pair, as in `sprout keygen publisher`, which writes publisher.key and publisher.pub.',
+          );
+        }
+        const pair = writeKeyPair(prefix);
+        say(
+          `wrote ${pair.privateFile}, the private key: keep it secret and out of every repository\n` +
+            `wrote ${pair.publicFile}, the public key the Playdate app is built with\n` +
+            `public key ${pair.publicKey}\n`,
+        );
+        return 0;
+      }
+      case 'index': {
+        onlyFlagsOf('index', flags);
+        const folder = positional[0];
+        const baseUrl = flags['base-url'];
+        const key = flags['key'];
+        const out = flags['out'];
+        if (folder === undefined) {
+          throw new Error(
+            'index wants the folder of cartridges, as in `sprout index worlds --base-url https://example.org/worlds/ --key publisher.key`.',
+          );
+        }
+        if (baseUrl === undefined || baseUrl === true)
+          throw new Error(
+            'index wants --base-url, the address the cartridges will be served under: --base-url https://example.org/worlds/',
+          );
+        if (key === undefined || key === true)
+          throw new Error(
+            'index wants --key, the private key file `sprout keygen` wrote: --key publisher.key',
+          );
+        if (out === true) throw new Error('-o wants a file after it: -o site/worlds/index.json');
+        const file = out ?? join(folder, 'index.json');
+        const written = writeIndex({
+          folder,
+          baseUrl,
+          privateKey: privateKeyOf(readKeyFile(key)),
+          out: file,
+        });
+        for (const { name, written: now } of written.placed)
+          say(`${now ? 'wrote' : 'kept'} ${name}\n`);
+        const count = written.index.worlds.length;
+        say(`signed ${count} world${count === 1 ? '' : 's'} into ${file}\n`);
+        return 0;
       }
       case 'skill':
         say(generateSkill({ usage: USAGE, extensions: INSTALLED_EXTENSIONS }));

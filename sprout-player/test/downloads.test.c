@@ -8,10 +8,12 @@
  * more bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
  * the network fails is said, and leaving mid-download leaves nothing half written or open. The
  * worlds are the words of a wheel by title, turned by the crank and the d-pad and wrapping, one on
- * the shelf already greyed with the panel saying so.
+ * the shelf already greyed with the panel saying so. A file is named for its title as the publisher
+ * names it (test/fixtures/stems.json, which `sprout index`'s spec holds to the same names).
  */
 #include <stdlib.h>
 
+#include "host/pd_host.h"
 #include "shipping.h"
 #include "support.h"
 #include "ui/app.h"
@@ -386,8 +388,33 @@ static void every_way_the_list_cannot_be_had_is_said(void) {
   stop();
 }
 
+static void a_file_is_named_for_its_title_as_the_publisher_names_it(void) {
+  player_host host;
+  sprout_arena arena;
+  sprout_json *pairs = NULL;
+  sprout_json_error error;
+  char *text = fixture_text("stems.json");
+  size_t i;
+  begin("stems");
+  player_host_init(&host, &fake->api);
+  sprout_arena_init(&arena, &host.record);
+  CHECK(sprout_json_read(&arena, text, strlen(text), &pairs, &error) == SPROUT_OK, "stems.json: %s", error.text);
+  CHECK(pairs != NULL && pairs->kind == SPROUT_JSON_ARRAY && pairs->count > 0, "stems.json lists titles");
+  for (i = 0; pairs != NULL && i < pairs->count; i++) {
+    const sprout_json *pair = pairs->items[i];
+    char stem[32];
+    player_downloads_stem(pair->items[0]->bytes, stem, sizeof stem);
+    CHECK(strcmp(stem, pair->items[1]->bytes) == 0, "\"%s\" is %s, not %s", pair->items[0]->bytes, stem,
+          pair->items[1]->bytes);
+  }
+  sprout_arena_reset(&arena);
+  free(text);
+  end();
+}
+
 int main(void) {
   test_program("downloads");
+  a_file_is_named_for_its_title_as_the_publisher_names_it();
   the_signed_index_is_listed_and_one_changed_is_refused();
   a_chosen_world_arrives_whole_and_is_shelved();
   a_world_whose_bytes_are_not_the_listed_ones_is_refused_and_leaves_nothing();

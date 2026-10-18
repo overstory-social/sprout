@@ -15,7 +15,8 @@
 // (-DPLAYER_INDEX_PUBLIC_KEY_FILE). `npm run playdate` is this.
 //
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
-// shipping scripts, builds the Simulator target, runs the player's C tests, checks that the app
+// shipping scripts, builds the Simulator target, runs the player's C tests (among them that the app
+// accepts an index `sprout index` signed with a key `sprout keygen` made), checks that the app
 // shelves and opens every graduated world, plays the save the session's end-to-end test wrote through
 // `sproutc`, and plays each graduated world's listed plays (`"plays"` in worlds.json, scripts under
 // the world's folder) through `sproutc` with the view polled first under the app's poll budget, so
@@ -249,6 +250,37 @@ function manifestName(manifest, list, world) {
 }
 
 /**
+ * An index of two corpus cartridges that the built CLI's `sprout index` signs, under a key its
+ * `sprout keygen` makes, in `scratch`: the C tests check the app accepts it. `given`, the paths of
+ * an index and its public key made elsewhere (the e2e's, by the installed CLI), is used in its place.
+ */
+async function signedIndex(scratch, cartridges, given) {
+  if (given !== undefined) return given;
+  const { main } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
+  const folder = join(scratch, 'to-publish');
+  mkdirSync(folder);
+  for (const name of ['chip-tree', 'media-room']) {
+    copyFileSync(join(cartridges, `${name}.sproutworld`), join(folder, `${name}.sproutworld`));
+  }
+  let said = '';
+  const io = {
+    stdout: { write: (text) => ((said += text), true) },
+    stderr: { write: (text) => ((said += text), true) },
+    stdin: process.stdin,
+  };
+  const prefix = join(scratch, 'publisher');
+  const index = join(scratch, 'published', 'index.json');
+  const base = 'https://worlds.example/sprout/';
+  if (
+    main(['keygen', prefix], io) !== 0 ||
+    main(['index', folder, '--base-url', base, '--key', `${prefix}.key`, '-o', index], io) !== 0
+  ) {
+    throw new Error(`sprout keygen and sprout index did not sign an index:\n${said}`);
+  }
+  return { index, key: `${prefix}.pub` };
+}
+
+/**
  * Packs the graduated worlds into `out` with the built CLI, each as one `<name>.sproutworld` that
  * carries its pictures, replacing what was there. Returns the list it packed.
  */
@@ -280,7 +312,7 @@ function publicKeyFile() {
 
 /**
  * Reads the key the download screen trusts from the file named by `keyFile` (64 hexadecimal
- * digits, as scripts/publish-index.mjs --generate-key writes), for the build to bake in. Returns
+ * digits, as `sprout keygen` writes), for the build to bake in. Returns
  * the path of the file read and whether it is the test key; throws, saying what to write, for a
  * file that holds anything else.
  */
@@ -478,8 +510,10 @@ function pureC(pdx) {
  * UndefinedBehaviorSanitizer, from the cartridges the sanitized runtime build packed, and any report
  * fails; the device target is not built then. The sanitized tests and `sproutc` run behind the
  * address-space launcher of player/src/aslr.ts, whose line check-runtime-c.mjs has printed.
+ * `signed`, `{ index, key }`, names an index and public key for the C tests to accept in place of
+ * the one the built CLI signs.
  */
-export async function checkPlayer({ sanitize = false } = {}) {
+export async function checkPlayer({ sanitize = false, signed } = {}) {
   const ran = [];
   const prefix = sanitize ? sanitizedHere().prefix : [];
   const scratch = mkdtempSync(join(tmpdir(), 'sprout-player-'));
@@ -505,12 +539,15 @@ export async function checkPlayer({ sanitize = false } = {}) {
 
     const keep = join(scratch, 'keep');
     mkdirSync(keep);
+    const published = await signedIndex(scratch, cartridges, signed);
     const tests = run(
       'ctest',
       ['--test-dir', dir, '--output-on-failure'],
       {
         PLAYER_KEEP_DIR: keep,
         PLAYER_SHIPPED_DIR: join(pdxSource, 'worlds'),
+        PLAYER_SIGNED_INDEX: published.index,
+        PLAYER_SIGNED_INDEX_KEY: published.key,
         ...(sanitize
           ? {
               ASAN_OPTIONS: 'halt_on_error=1:detect_leaks=1:abort_on_error=0',
@@ -561,6 +598,11 @@ export async function checkPlayer({ sanitize = false } = {}) {
       throw new Error(`ctest did not pass the player's tests ${missing.join(', ')}:\n${tests}`);
     }
     ran.push(`${wanted.length} C test programs passed`);
+    ran.push(
+      signed === undefined
+        ? 'the app accepts an index the built CLI signed'
+        : `the app accepts the index at ${signed.index}`,
+    );
     ran.push(`the app shelves and opens all ${staged.length} graduated worlds`);
 
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
@@ -585,10 +627,10 @@ export async function checkPlayer({ sanitize = false } = {}) {
   return `sprout-player: ${ran.join('; ')}`;
 }
 
-/** Runs the specs of the shipping scripts (the signed index, the graduated list, the world sync); one line of what ran. */
+/** Runs the specs of the shipping scripts (the graduated list, the world sync); one line of what ran. */
 export function shippingSpecs() {
-  const specs = ['publish-index.spec.mjs', 'playdate-player.spec.mjs', 'sync-world.spec.mjs'].map(
-    (name) => join(root, 'scripts', name),
+  const specs = ['playdate-player.spec.mjs', 'sync-world.spec.mjs'].map((name) =>
+    join(root, 'scripts', name),
   );
   run(process.execPath, ['--test', ...specs]);
   return 'shipping script specs passed';
