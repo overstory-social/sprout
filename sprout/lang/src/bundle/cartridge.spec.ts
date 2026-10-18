@@ -170,6 +170,12 @@ describe('the sections of a cartridge', () => {
     expect(readCartridge(emitCartridge(BENCH))).toEqual(JSON.parse(JSON.stringify(cartridge)));
   });
 
+  it('carry a title in the header only where the manifest gives one', () => {
+    expect(cartridge.header).not.toHaveProperty('title');
+    const titled: Bundle = { ...BENCH, manifest: { ...BENCH.manifest, title: 'The Bench: Tried' } };
+    expect(readCartridge(emitCartridge(titled)).header.title).toBe('The Bench: Tried');
+  });
+
   it('are the same bytes every time the same bundle is emitted', () => {
     expect(emitCartridge(BENCH)).toEqual(emitCartridge(BENCH));
   });

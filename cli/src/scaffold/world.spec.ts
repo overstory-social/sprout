@@ -25,6 +25,7 @@ describe('scaffoldWorld', () => {
     const manifest = JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'));
     expect(manifest).toEqual({
       name: 'paper_store',
+      title: 'Paper Store',
       version: '0.1.0',
       author: 'marta',
       license: 'MIT',

@@ -31,6 +31,7 @@ static void every_corpus_cartridge_loads_with_the_header_and_tree_the_dump_holds
     CHECK_INT(world->format, SPROUT_CARTRIDGE_FORMAT);
     CHECK_INT(world->level, corpus_get(entry, "level")->number);
     CHECK_STR(world->header.name, corpus_get(entry, "world")->bytes);
+    check_text_or_null(world->header.title, corpus_get(entry, "title"));
     check_text_or_null(world->arrival, corpus_get(entry, "arrival"));
     CHECK_INT(world->declared_count, declared->count);
     for (i = 0; i < world->declared_count && i < declared->count; i++) {

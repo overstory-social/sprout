@@ -123,7 +123,7 @@ export function App({ session }: { readonly session: Session }) {
   const world =
     state.world === null
       ? ''
-      : `  ·  ${state.world}${state.nickname ? ` as ${state.nickname}` : ''}`;
+      : `  ·  ${state.title ?? state.world}${state.nickname ? ` as ${state.nickname}` : ''}`;
   const inView = shown(rows, transcriptRows, scroll.back);
   const place = state.status?.place ?? (state.closed === null ? 'connecting…' : state.closed);
   return (

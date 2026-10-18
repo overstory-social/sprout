@@ -143,7 +143,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
       memcpy(app->cartridge, arrival->path, strlen(arrival->path) + 1);
     else
       app->cartridge[0] = '\0';
-    player_world_title(opening.name, arrival->title, sizeof arrival->title);
+    player_world_title(opening.name, opening.title, arrival->title, sizeof arrival->title);
   }
   step = player_step(app->session);
   if (!step.ok) {

@@ -553,6 +553,22 @@ ${pebbles.join('\n')}
     expect(bare.err()).toContain('a cartridge carries no tests: name the scripts');
   });
 
+  it('pack carries a manifest’s title into the cartridge’s header and says it did', () => {
+    const dir = worldFolder('lane', LANE);
+    const manifest = JSON.parse(readFileSync(join(dir, 'sprout.json'), 'utf8'));
+    writeFileSync(
+      join(dir, 'sprout.json'),
+      JSON.stringify({ ...manifest, title: 'The Lane: A Walk' }),
+    );
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-pack-')), 'lane.sproutworld');
+    const packed = captured();
+    expect(main(['pack', dir, '-o', file], packed)).toBe(0);
+    expect(packed.out()).toMatch(
+      new RegExp(`^packed lane, titled "The Lane: A Walk", into ${file}: \\d+ bytes\\n$`),
+    );
+    expect(readCartridge(readFileSync(file)).header.title).toBe('The Lane: A Walk');
+  });
+
   it('pack names the file after the world without -o, wants a folder, and refuses a world that does not check', () => {
     const dir = worldFolder('lane', LANE);
     const cwd = process.cwd();

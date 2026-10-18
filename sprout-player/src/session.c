@@ -93,11 +93,13 @@ static player_opening not_opened(player_session *session, const char *reason) {
 
 /* ---- shelving ---- */
 
-/* The title, the hash and the save's paths of the world being opened, from its header. */
+/* The name, the title, the hash and the save's paths of the world being opened, from its header. */
 static void name_files(player_session *session, const sprout_cartridge_header *header) {
   text_buffer out;
-  text_begin(&out, session->title, sizeof session->title);
+  text_begin(&out, session->name, sizeof session->name);
   text_add(&out, header->name);
+  text_begin(&out, session->title, sizeof session->title);
+  if (header->title != NULL) text_add(&out, header->title);
   text_begin(&out, session->hash, sizeof session->hash);
   text_add(&out, header->hash);
   text_begin(&out, session->state_path, sizeof session->state_path);
@@ -164,6 +166,7 @@ player_opening player_inspect(player_session *session, const char *path) {
     memset(&answer, 0, sizeof answer);
     answer.ok = true;
     answer.name = session_keep(session, world->header.name);
+    answer.title = world->header.title == NULL ? NULL : session_keep(session, world->header.title);
     answer.hash = session_keep(session, world->header.hash);
   }
   if (world != NULL) sprout_world_free(world);
@@ -201,7 +204,8 @@ player_opening player_open(player_session *session, const char *path) {
   }
   memset(&answer, 0, sizeof answer);
   answer.ok = true;
-  answer.name = session->title;
+  answer.name = session->name;
+  answer.title = session->title[0] == '\0' ? NULL : session->title;
   answer.hash = session->hash;
   return answer;
 }
@@ -244,7 +248,8 @@ player_opening player_step(player_session *session) {
   answer.read = read;
   answer.counted = counted;
   if (done) {
-    answer.name = session->title;
+    answer.name = session->name;
+    answer.title = session->title[0] == '\0' ? NULL : session->title;
     answer.hash = session->hash;
     answer.word_count = session->world->word_count;
     answer.words = session->world->words;
@@ -622,7 +627,8 @@ player_restart player_start_over(player_session *session) {
   path_with(part, sizeof part, session->state_path, ".part");
   player_file_remove(session->pd, part);
   answer.ok = true;
-  answer.name = session->title;
+  answer.name = session->name;
+  answer.title = session->title[0] == '\0' ? NULL : session->title;
   answer.word_count = session->world->word_count;
   answer.words = session->world->words;
   return answer;

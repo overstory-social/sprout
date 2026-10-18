@@ -24,7 +24,7 @@
 extern const char *const nickname_pool[NICKNAME_POOL_SIZE];
 
 typedef struct player_nickname {
-  char title[128];
+  char title[PLAYER_TITLE_BYTES];
   char *notice; /* what the save had to say, from the device's allocator, told when the visitor arrives; or NULL */
   const char *names[NICKNAME_POOL_SIZE]; /* the names offered, from the pool */
   size_t count, selected;

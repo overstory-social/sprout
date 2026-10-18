@@ -14,6 +14,7 @@ export const MANIFEST_FILE = 'sprout.json';
 
 const ManifestSchema = z.object({
   name: z.string(),
+  title: z.string().optional(),
   namespace: z.string().optional(),
   version: z.string(),
   author: z.string(),
@@ -32,6 +33,7 @@ const ManifestSchema = z.object({
  */
 export const MANIFEST_FIELDS: Readonly<Record<string, string>> = {
   name: '"name": "printers_shop" — lower-case, with letters, digits and _',
+  title: `"title": "Printer's Shop", or leave it out to show the name as words`,
   namespace: '"namespace": "printers_shop", or leave it out to use the name',
   version: '"version": "0.1.0"',
   author: '"author": "Marta"',
@@ -64,6 +66,31 @@ function remedyFor(key: string | null): string {
   return example === undefined || example === null
     ? 'A manifest is a JSON object with a name, a version, an author, a license, a level and a list of files.'
     : `Write ${example}.`;
+}
+
+const LETTER = /[A-Za-z]/;
+const WORD = /[A-Za-z0-9']/;
+
+/**
+ * What a person is shown a world as (the spec's The manifest): its title,
+ * or where it has none its name as words, each `_` a space and each word
+ * begun with a capital, so `printers_shop` is "Printers Shop".
+ */
+export function worldTitle(manifest: { readonly name: string; readonly title?: string }): string {
+  if (manifest.title !== undefined) return manifest.title;
+  let inWord = false;
+  let words = '';
+  for (const written of manifest.name) {
+    let c = written === '_' ? ' ' : written;
+    if (!inWord && LETTER.test(c)) {
+      c = c.toUpperCase();
+      inWord = true;
+    } else if (inWord && !WORD.test(c)) {
+      inWord = false;
+    }
+    words += c;
+  }
+  return words;
 }
 
 /** Where a key was written in the manifest's text, or the head of the file. */

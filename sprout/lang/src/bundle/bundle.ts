@@ -76,6 +76,8 @@ export interface LibraryPin {
 export interface Manifest {
   /** The world's own name, which its `world` declaration repeats. */
   readonly name: string;
+  /** What a person is shown it as, where its name as words will not do (`worldTitle`). */
+  readonly title?: string;
   /** The namespace its declarations are unqualified in: the name unless the manifest says otherwise. */
   readonly namespace: string;
   /** Which version of this world this is. */
@@ -323,6 +325,8 @@ function canonicalManifest(manifest: Manifest): string {
   };
   return JSON.stringify({
     name: manifest.name,
+    // Unset, it is left out of the text hashed, as JSON leaves out what is undefined.
+    title: manifest.title,
     namespace: manifest.namespace,
     version: manifest.version,
     author: manifest.author,

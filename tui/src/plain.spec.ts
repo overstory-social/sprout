@@ -29,7 +29,7 @@ describe('the client as plain lines', () => {
     await played;
     expect(written.split('\n')).toEqual(
       expect.arrayContaining([
-        'You are in sequences as Marta.',
+        'You are in Sequences as Marta.',
         'There is nothing special about the cellar.',
         '[the cellar]',
         '> take key',

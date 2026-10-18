@@ -91,7 +91,7 @@ export class Session {
             'client',
             'The connection to the server was lost: /reconnect to connect again, or /quit.',
           );
-          this.change({ ...lost, world: null, closed: 'lost' });
+          this.change({ ...lost, world: null, title: null, closed: 'lost' });
         }
       },
     });

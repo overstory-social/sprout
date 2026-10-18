@@ -10,6 +10,7 @@ import {
   loadCartridge,
   SEED_MAX,
   type Bundle,
+  type Manifest,
 } from '@overstory/sprout/lang';
 import {
   catalogueFor,
@@ -151,6 +152,11 @@ function compiled(dir: string, say: (text: string) => void): Bundle | null {
  * `.sproutworld`, loaded; a folder otherwise, compiled as `check` compiles
  * it. Null, with the page or the reason said, where it cannot be.
  */
+/** A packed world's title as `pack` reports it, where the manifest gives one. */
+function titled(manifest: Manifest): string {
+  return manifest.title === undefined ? '' : `, titled "${manifest.title}",`;
+}
+
 function playable(path: string, say: (text: string) => void): PlayableWorld | null {
   if (!path.endsWith(CARTRIDGE_EXTENSION)) return compiled(path, say);
   try {
@@ -277,7 +283,9 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const assets = checked.assets.length;
         const carrying =
           assets === 0 ? '' : `, carrying ${assets} asset file${assets === 1 ? '' : 's'}`;
-        say(`packed ${checked.manifest.name} into ${file}: ${bytes.length} bytes${carrying}\n`);
+        say(
+          `packed ${checked.manifest.name}${titled(checked.manifest)} into ${file}: ${bytes.length} bytes${carrying}\n`,
+        );
         return 0;
       }
       case 'parse': {

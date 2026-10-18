@@ -92,7 +92,7 @@ describe('a session with a server', () => {
     await until(
       session,
       () =>
-        session.state.lines.filter((line) => line.text === 'You are in sequences as Marta.')
+        session.state.lines.filter((line) => line.text === 'You are in Sequences as Marta.')
           .length === 2,
     );
     expect(await session.type('/quit')).toBe(false);
