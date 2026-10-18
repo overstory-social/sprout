@@ -4,7 +4,8 @@
  * a purpose string, and waits for the answer without holding up a frame; it hands each piece of
  * the body to a sink as it arrives, follows a redirect up to PLAYER_NET_MOST_REDIRECTS times, and
  * gives up on a server that stops answering. Every refusal is a sentence for the person holding
- * the device. Each call runs on the main stack, as the file calls do (stack.h).
+ * the device. Each call runs on the main stack, as the file calls do (stack.h); since that stack is
+ * small, every address a fetch holds lives in the `player_fetch`, never in a call's frame.
  */
 #ifndef PLAYER_NET_H
 #define PLAYER_NET_H
@@ -15,7 +16,8 @@
 
 #include "pd_api.h"
 
-#define PLAYER_URL_BYTES 512
+/* The longest address read, with its end: room for a signed download address, whose query alone may pass a kilobyte. */
+#define PLAYER_URL_BYTES 2048
 #define PLAYER_SERVER_BYTES 128
 #define PLAYER_NET_REASON_BYTES 384
 #define PLAYER_NET_CHUNK 4096
@@ -35,7 +37,7 @@ typedef struct player_url {
 /* The parts of `url`; false, with the reason in `why`, when it is not an http or https address this app can use. */
 bool player_url_parse(const char *url, player_url *parts, char *why, size_t size);
 
-/* `address` resolved against the address `base` it was found in, into `out`; false when it does not fit. */
+/* `address` resolved against the address `base` it was found in, into `out`; false when it does not fit. Uses no buffer of its own. */
 bool player_url_resolve(const char *base, const char *address, char *out, size_t size);
 
 /* Takes a piece of the body; false stops the fetch at once. */
@@ -59,7 +61,9 @@ typedef struct player_fetch {
   unsigned asked; /* the permission asked for and not yet answered, or 0 */
   int hops;
   bool finished; /* the system said the answer is complete or the connection closed */
-  char location[PLAYER_URL_BYTES];
+  char location[PLAYER_URL_BYTES]; /* a redirect's Location, as sent */
+  bool location_too_long;          /* a Location came that `location` has no room for */
+  char next[PLAYER_URL_BYTES];     /* the Location resolved against `url`: where the fetch goes on to */
   uint64_t heard; /* seconds when the server last sent anything, or the fetch began */
   int status;
   char reason[PLAYER_NET_REASON_BYTES];
