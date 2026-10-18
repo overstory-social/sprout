@@ -86,7 +86,7 @@ typedef struct fake_placed {
 
 /* What the fake server answers at one address. */
 typedef struct fake_answer {
-  char url[512];        /* the whole address, as `https://server/path` (a port only where it is not the scheme's) */
+  char url[4096];       /* the whole address, as `https://server/path` (a port only where it is not the scheme's) */
   int status;
   const char *location; /* a Location header, or NULL */
   const char *body;     /* held, not copied */
@@ -97,7 +97,7 @@ typedef struct fake_answer {
 /* A connection the game made: its address, what it asked, how much of the answer it has had. */
 typedef struct fake_connection {
   int live;
-  char server[256], path[512];
+  char server[256], path[4096];
   int port, ssl;
   void *userdata;
   HTTPHeaderCallback *on_header;
