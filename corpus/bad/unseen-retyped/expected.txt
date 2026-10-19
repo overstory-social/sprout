@@ -1,0 +1,10 @@
+unseen_retyped.sprout:17:22  `:unseen` holds true or false, and 1 is a number.
+                             Write `true` or `false`.
+
+unseen_retyped.sprout:18:26  `:unseen` is not remembered in `sprout`, and whatever composes it keeps that.
+                             Restate it as it is declared there: `:unseen false`.
+
+unseen_retyped.sprout:21:23  `Wraith` gets `:unseen` from both `Thief` and `Spy`, which are two claims on one slot.
+                             If they are meant to be one property, restate it in `Wraith`: `:unseen true`.
+
+refused: 3 problems

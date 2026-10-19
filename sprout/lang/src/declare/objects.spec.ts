@@ -114,6 +114,7 @@ describe('an object is made of its kinds and its own body', () => {
     expect(chest!.kind!.order).toEqual(['shop.Wooden', 'shop.chest']);
     expect([...chest!.kind!.properties.values()].map((p) => [p.name, p.origin])).toEqual([
       ['worn', 'shop.Wooden'],
+      ['unseen', 'sprout'],
       ['lid', 'shop.chest'],
     ]);
   });
@@ -134,7 +135,7 @@ describe('an object is made of its kinds and its own body', () => {
   it('does not take the objects in its body for members of its anonymous kind', () => {
     const { resolved } = objects('object hall is Room {\n  :lit true\n  object lamp is Wooden\n}');
     const hall = resolved.find((o) => o.declaration.name.text === 'hall')!;
-    expect([...hall.kind!.properties.keys()]).toEqual(['lit']);
+    expect([...hall.kind!.properties.keys()]).toEqual(['unseen', 'lit']);
   });
 
   it('composes every declaration, in the order written, whatever holds it', () => {
