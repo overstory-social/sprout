@@ -1,0 +1,16 @@
+{
+  "about": "Called by the horn, the thief writes himself seen before he moves, so his going is told in the hall and his coming in the vault.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "arrive": "Ines" },
+    { "as": "Ines", "type": "north", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ines leaves for the vault." },
+      { "reader": "Ines", "kind": "described", "words": "A low vault." }
+    ] },
+    { "as": "Marta", "type": "blow horn", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The horn sounds." },
+      { "reader": "Marta", "kind": "notice", "words": "The thief leaves for the vault." },
+      { "reader": "Ines", "kind": "notice", "words": "The thief arrives from the hall." }
+    ] }
+  ]
+}

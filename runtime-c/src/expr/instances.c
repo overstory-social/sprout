@@ -179,3 +179,14 @@ sprout_eval_status expr_recalled(const sprout_frame *frame, sprout_str actor, co
   }
   return literal_value(frame, declared->type, &declared->default_value, out);
 }
+
+bool expr_unseen(const sprout_frame *frame, sprout_str id) {
+  const sprout_stored_instance *instance = expr_instance(frame, id);
+  const sprout_property *declared;
+  const sprout_stored_property *held;
+  if (instance == NULL || instance->kind == NULL) return false;
+  declared = sprout_kind_property(instance->kind, "unseen");
+  if (declared == NULL || declared->remembered || declared->type->kind != SPROUT_DECL_BOOLEAN) return false;
+  held = stored_named(instance->properties, instance->property_count, "unseen");
+  return held == NULL ? declared->default_value.boolean : held->value.boolean;
+}

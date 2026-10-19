@@ -3,10 +3,12 @@
  * its kind declares, as the turn stands, and one the record does not keep
  * as its declared default; what `self` remembers about an actor
  * is what was written or else the declared default; and an instance that is
- * not there is the engine's defect, in words.
+ * not there is the engine's defect, in words. Whether a thing is unseen is
+ * its `:unseen` as written or declared, and false for what is not there.
  */
 #include "eval_fixture.h"
 #include "expr/expr.h"
+#include "unseen_fixture.h"
 
 #define PROBE "eval_bench.hall.probe"
 #define VISITOR "eval_bench#1"
@@ -149,6 +151,21 @@ static void a_property_self_does_not_remember_is_the_engines_defect(void) {
   bench_close(&b);
 }
 
+static void unseen_is_what_the_object_holds_its_restated_default_else_false(void) {
+  unseen_bench b;
+  unseen_open(&b);
+  CHECK(expr_unseen(&b.frame, unseen_str("unseen.hall.thief")));
+  CHECK(expr_unseen(&b.frame, unseen_str("unseen.hall.grating")));
+  CHECK(!expr_unseen(&b.frame, unseen_str("unseen.hall.bell")));
+  CHECK(!expr_unseen(&b.frame, b.marta));
+  CHECK(!expr_unseen(&b.frame, unseen_str("unseen.nowhere")));
+  unseen_set(&b, "unseen.hall.thief", false);
+  unseen_set(&b, "unseen.hall.bell", true);
+  CHECK(!expr_unseen(&b.frame, unseen_str("unseen.hall.thief")));
+  CHECK(expr_unseen(&b.frame, unseen_str("unseen.hall.bell")));
+  unseen_close(&b);
+}
+
 int main(void) {
   RUN(a_property_is_read_under_its_declared_type);
   RUN(a_property_is_read_as_the_state_stands);
@@ -158,5 +175,6 @@ int main(void) {
   RUN(matching_is_nominal_and_by_composition);
   RUN(what_self_remembers_is_what_was_written_or_the_default);
   RUN(a_property_self_does_not_remember_is_the_engines_defect);
+  RUN(unseen_is_what_the_object_holds_its_restated_default_else_false);
   return REPORT();
 }

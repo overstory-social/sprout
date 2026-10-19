@@ -1,10 +1,11 @@
 /*
  * Tests for src/parse/reach.c: what a visitor may name (the spec's Range; Range > Sight; Parsing > Choosing a
  * reading), read in the corpus world `grammar`, the dark read in
- * `darkness`, and what a visitor arriving in every corpus world may name, with how near, whether carried and the
+ * `darkness`, what is unseen read in `unseen`, and what a visitor arriving in every corpus world may name, with how near, whether carried and the
  * steps it cost, held to the golden (`corpus/goldens/addresses.json`).
  */
 #include "parse_golden.h"
+#include "unseen_fixture.h"
 
 /* The candidate for `id`, or NULL where it may not be named. */
 static const parse_candidate *find(const parse_candidate *candidates, size_t count, const char *id) {
@@ -77,6 +78,41 @@ static void in_the_dark_a_visitor_names_only_themselves_and_what_they_carry(void
   bench_close(&b);
 }
 
+static void what_is_unseen_and_what_it_holds_may_not_be_named_until_it_is_seen(void) {
+  bench b;
+  parse_candidate *candidates;
+  size_t count;
+  bench_open(&b, "unseen", "Marta");
+  reach(&b, &candidates, &count);
+  CHECK(find(candidates, count, "unseen.hall.bell") != NULL);
+  CHECK(find(candidates, count, "unseen.hall.thief") == NULL);
+  CHECK(find(candidates, count, "unseen.hall.grating") == NULL);
+  CHECK(find(candidates, count, "unseen.hall.niche") == NULL);
+  CHECK(find(candidates, count, "unseen.hall.niche.coin") == NULL);
+  unseen_write(&b.run.draft, b.frame.turn, "unseen.hall.niche", false);
+  unseen_write(&b.run.draft, b.frame.turn, "unseen.hall.thief", false);
+  reach(&b, &candidates, &count);
+  CHECK(find(candidates, count, "unseen.hall.thief") != NULL);
+  CHECK(find(candidates, count, "unseen.hall.niche") != NULL);
+  CHECK(find(candidates, count, "unseen.hall.niche.coin") != NULL);
+  bench_close(&b);
+}
+
+static void a_thing_the_visitor_carries_is_not_named_while_it_is_unseen(void) {
+  bench b;
+  parse_candidate *candidates;
+  size_t count;
+  bench_open(&b, "unseen", "Marta");
+  CHECK_INT(sprout_draft_place(&b.run.draft, bench_str("unseen.hall.bell"), &b.actor), SPROUT_DRAFT_OK);
+  reach(&b, &candidates, &count);
+  CHECK(find(candidates, count, "unseen.hall.bell") != NULL && find(candidates, count, "unseen.hall.bell")->carried);
+  unseen_write(&b.run.draft, b.frame.turn, "unseen.hall.bell", true);
+  reach(&b, &candidates, &count);
+  CHECK(find(candidates, count, "unseen.hall.bell") == NULL);
+  CHECK(count > 0 && sprout_str_same(candidates[0].instance->id, b.actor));
+  bench_close(&b);
+}
+
 /* What the arrived visitor may name, in the golden's order, and the steps it cost. */
 static void reached_alike(bench *b, const sprout_json *world) {
   const sprout_json *expected = sprout_json_get(world, "candidates");
@@ -105,6 +141,8 @@ int main(void) {
   RUN(it_ranks_the_visitors_own_place_below_everything_it_holds);
   RUN(it_says_what_the_visitor_carries);
   RUN(in_the_dark_a_visitor_names_only_themselves_and_what_they_carry);
+  RUN(what_is_unseen_and_what_it_holds_may_not_be_named_until_it_is_seen);
+  RUN(a_thing_the_visitor_carries_is_not_named_while_it_is_unseen);
   RUN(every_corpus_worlds_arrived_visitor_may_name_what_the_typescript_runtime_says);
   return REPORT();
 }

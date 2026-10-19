@@ -282,7 +282,7 @@ describe('the standard library', () => {
   it('makes `sprout.Fixture` a `depart` guard and a passage, and nothing else', () => {
     const fixture = libraryKind('Fixture');
     expect(fixture).toMatchObject({ contains: false, containsActors: false });
-    expect(fixture.properties.size).toBe(0);
+    expect([...fixture.properties.keys()]).toEqual(['unseen']);
     expect(fixture.plays.size).toBe(0);
     expect(fixture.passes).toMatchObject({ any: null, messages: new Map() });
     expect(fixture.guards.depart.map((one) => one.origin)).toEqual(['sprout.Fixture']);
@@ -297,7 +297,7 @@ describe('the standard library', () => {
   it('gives `sprout.Container` a lid, open by default, a capacity of 8, and a pass rule that reads the lid', () => {
     const container = libraryKind('Container');
     expect(container).toMatchObject({ contains: true, containsActors: false });
-    expect([...container.properties.keys()]).toEqual(['open', 'capacity']);
+    expect([...container.properties.keys()]).toEqual(['open', 'capacity', 'unseen']);
     const open = container.properties.get('open')!;
     const capacity = container.properties.get('capacity')!;
     expect([open.type.type, open.declaration.default]).toMatchObject([
@@ -344,7 +344,7 @@ describe('the standard library', () => {
   it('gives `sprout.Lockable` a lock, locked by default, no pass rule, and a permit on the library’s `open`', () => {
     const lockable = libraryKind('Lockable');
     expect(lockable).toMatchObject({ contains: false, containsActors: false });
-    expect([...lockable.properties.keys()]).toEqual(['locked']);
+    expect([...lockable.properties.keys()]).toEqual(['locked', 'unseen']);
     expect(lockable.properties.get('locked')!.declaration.default).toMatchObject({
       kind: 'boolean',
       value: true,
@@ -429,7 +429,7 @@ describe('the standard library', () => {
       (k) => k.library === 'sprout' && k.name === 'Actor',
     )!;
     expect(actor).toMatchObject({ contains: true, containsActors: false });
-    expect([...actor.properties.keys()]).toEqual(['capacity']);
+    expect([...actor.properties.keys()]).toEqual(['capacity', 'unseen']);
     const capacity = actor.properties.get('capacity')!;
     expect(capacity.type.type).toBe('integer');
     expect(capacity.origin).toBe('sprout.Actor');

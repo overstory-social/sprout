@@ -617,6 +617,34 @@ affected by the dark.
 `changed :lit` hook that broadcasts `:illuminating` with the new value.
 A lamp is a kind that composes it and a verb that sets `:lit`.
 
+### Unseen things
+
+Every object has a property `:unseen`, false to start, which the standard
+library gives it. A thing that holds it true is still there and still
+acts, but nobody else can see it: a visitor cannot name it (they are told
+`not_here`), `all` does not take it, the view does not list or offer it,
+`each`, `{for … in}`, `count` and `holds` pass over it, and a lamp that is
+unseen lights nothing. What it holds is hidden with it. When an actor
+moves while it is unseen, nobody reads its `arrives` or `leaves` line.
+
+```sprout
+kind Thief is sprout.Actor {
+  grammar { name "thief" }
+  :unseen true
+
+  on :startled {
+    self.set(:unseen, false)
+    move self to vault
+  }
+}
+```
+
+A kind or an object restates `:unseen true` to start out of sight, and
+only the thing itself sets it. Messages still reach it, and it can still
+`act`, `move` and `tell`, so the thief above hears `:startled` while
+nobody can see him, and shows himself before he runs, so his going is
+told.
+
 ### Links
 
 An exit's destination is fixed in source. A **link** is a way out whose

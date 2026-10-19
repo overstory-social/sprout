@@ -89,12 +89,13 @@ static sprout_eval_status derive(poll *p, derived *d, wanted want, const sprout_
   const sprout_role_options **options;
   size_t *option_counts;
   size_t reached_count, i, n, kept = 0;
-  sprout_str *occupants;
+  sprout_str *occupants, *carried;
+  size_t carried_count = 0;
   bool dark;
   if (want != WANT_READINGS_OF_ONE) EXPR_NEED(sprout_describe(frame, p->place, p->actor, "poll", &d->description));
   EXPR_NEED(sprout_exits_from(frame, p->place, &d->ways, &d->way_count));
   d->has_exits = want != WANT_READINGS_OF_ONE;
-  EXPR_NEED(sprout_range_of(frame, p->actor, NULL, &reached, &reached_count));
+  EXPR_NEED(sprout_range_seen(frame, p->actor, &reached, &reached_count));
   if (want != WANT_READINGS_OF_ONE) {
     /* In the dark nobody else is seen (the spec's Range > Sight). */
     EXPR_NEED(sprout_in_the_dark(frame, p->actor, &dark));
@@ -109,8 +110,13 @@ static sprout_eval_status derive(poll *p, derived *d, wanted want, const sprout_
     d->occupant_count = kept;
     d->has_occupants = true;
     if (sprout_draft_children(&p->draft, p->actor, &held_ids, &n) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
-    d->carried = held_ids;
-    d->carried_count = n;
+    /* What the visitor carries is listed as they see it: an unseen thing is not (the spec's Range > Unseen). */
+    carried = (sprout_str *)sprout_arena_take(p->turn, (n + 1) * sizeof *carried);
+    if (carried == NULL) return SPROUT_EVAL_NO_MEMORY;
+    for (i = 0; i < n; i++)
+      if (!expr_unseen(frame, held_ids[i])) carried[carried_count++] = held_ids[i];
+    d->carried = carried;
+    d->carried_count = carried_count;
     d->has_carried = true;
   }
   if (want == WANT_SCENE) {

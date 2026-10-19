@@ -11,6 +11,7 @@ import { composesKind, kindName, type KindRef } from '../../declare/kinds.js';
 import { ACTOR, isActor, isVisitorKind } from '../../declare/actors.js';
 import { nearestOption, shownName } from '../../declare/enums.js';
 import type { ResolvedProperty } from '../../declare/properties.js';
+import { isUnseenOrigin } from '../../declare/unseen.js';
 import type { Span } from '../../source/source.js';
 import { readable } from '../../source/words.js';
 import { placedWords } from '../names.js';
@@ -155,7 +156,10 @@ export function declaredOn(
 
 /** What `kind` has instead of `name`, and, where the kind is the body's own library's, that it may declare it. */
 function hasInstead(kind: KindRef, name: string, context: CheckContext): string {
-  const has = [...kind.properties.keys()].map((one) => `:${one}`);
+  // `:unseen` as the standard library gives it is every object's, so it is no help in naming what this one has.
+  const has = [...kind.properties.values()]
+    .filter((one) => !isUnseenOrigin(one))
+    .map((one) => `:${one.name}`);
   const held = has.length === 0 ? 'It holds no properties' : `It has ${readable(has)}`;
   if (kind.library !== context.from) return `${held}.`;
   const shown = shownName(kindName(kind), context.from);

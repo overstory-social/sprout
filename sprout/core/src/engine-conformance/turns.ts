@@ -17,6 +17,9 @@ import {
   countOf,
   GAUGE,
   HALL,
+  HIDEOUT,
+  HIDEOUT_HALL,
+  HIDEOUT_VAULT,
   INES,
   MARTA,
   NAVE,
@@ -25,6 +28,7 @@ import {
   seeded,
   storedIn,
   TALLY,
+  THIEF,
   TOWER,
   type EngineCase,
   type MakeEngine,
@@ -441,6 +445,33 @@ export const turnCases: EngineCase[] = [
         [[COUNTER, 10]],
         'the wakes due',
       );
+    },
+  },
+  {
+    name: 'an unseen thing is out of sight',
+    proves:
+      'a thing that holds `:unseen` true is not named by a visitor, and its move is told to nobody, while a message still reaches it',
+    async run(make) {
+      const store = await seeded(HIDEOUT, [
+        [MARTA, HIDEOUT_HALL, 'Marta'],
+        [INES, HIDEOUT_VAULT, 'Ines'],
+      ]);
+      const host = played(make, HIDEOUT);
+      const named = await runCommand(store, 'w', host, command('examine thief'));
+      match(
+        named.effects,
+        [{ visit: MARTA, paragraphs: ['You see nothing like that here.'] }],
+        'naming the thief',
+      );
+      const rung = await runCommand(store, 'w', host, command('ring bell'));
+      ok(rung.committed, 'ringing the bell commits');
+      equal(
+        rung.effects.map((one) => [one.kind, one.visit]),
+        [['said', MARTA]],
+        'who reads what the ringing did',
+      );
+      const thief = (await storedIn(store)).instances.find((one) => one.id === THIEF);
+      equal(thief?.container, HIDEOUT_VAULT, 'where the thief went');
     },
   },
   {

@@ -190,7 +190,7 @@ describe('what a compiled bundle carries', () => {
       'printers_shop.Person',
     ]);
     // `sprout.Actor`'s hands arrive with it, by the ordinary property rules.
-    expect([...bundle!.visitor!.properties.keys()]).toEqual(['capacity']);
+    expect([...bundle!.visitor!.properties.keys()]).toEqual(['capacity', 'unseen']);
   });
 
   it('roots the tree at the manifest’s name, not its namespace', () => {

@@ -2,8 +2,9 @@
  * What is in range of what (the spec's Range; Range > Sight): the live
  * containment tree, whether a target is reached by the path between it and
  * an asker with every container strictly between letting it through, and the
- * walk outward from an asker that a place's `lit` makes. Every node touched
- * costs a step, as the rules count them.
+ * walk outward from an asker that a place's `lit` makes. Sight passes over
+ * what is unseen and what it holds (Range > Unseen), and what an object
+ * can reach does not. Every node touched costs a step, as the rules count them.
  */
 #include "expr.h"
 
@@ -74,8 +75,25 @@ static sprout_eval_status passes_with_hands(const sprout_frame *frame, sprout_st
   return expr_passes(frame, container, asking, open);
 }
 
+/*
+ * Whether anything in `below`, the target and what holds it short of the path to the asker, is unseen to it (the
+ * spec's Range > Unseen): an unseen thing hides itself and what it holds, save inside the acting visitor's open hands.
+ */
+static bool hidden_below(const sprout_frame *frame, const ids *chain, size_t meet, const ids *below, bool hands) {
+  size_t at, from = 0;
+  if (hands && frame->hands.bytes != NULL) {
+    for (at = meet; at < chain->count; at++)
+      if (sprout_str_same(chain->items[at], frame->hands)) return false;
+    for (at = 0; at < below->count; at++)
+      if (sprout_str_same(below->items[at], frame->hands)) from = at + 1;
+  }
+  for (at = from; at < below->count; at++)
+    if (expr_unseen(frame, below->items[at])) return true;
+  return false;
+}
+
 static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
-                                  bool hands, bool *out) {
+                                  bool hands, bool sight, bool *out) {
   ids chain = {NULL, 0, 0}, below = {NULL, 0, 0};
   sprout_str node;
   size_t meet = 0, at;
@@ -101,6 +119,7 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
     have = container_of(frame, node, &node);
   }
   if (!have) return SPROUT_EVAL_OK;
+  if (sight && hidden_below(frame, &chain, meet, &below, hands)) return SPROUT_EVAL_OK;
   if (below.count == 0) {
     for (at = 1; at < meet; at++) {
       EXPR_NEED(passes_with_hands(frame, chain.items[at], asking, hands, &open));
@@ -123,13 +142,13 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
 
 sprout_eval_status expr_reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
                                 bool *out) {
-  return reaches(frame, asker, target, asking, false, out);
+  return reaches(frame, asker, target, asking, false, false, out);
 }
 
 sprout_eval_status expr_seen_by(const sprout_frame *frame, sprout_str id, bool *out) {
   *out = false;
   if (!expr_live(frame, id)) return SPROUT_EVAL_OK;
-  return reaches(frame, frame->self, id, NULL, true, out);
+  return reaches(frame, frame->self, id, NULL, true, true, out);
 }
 
 sprout_eval_status expr_contents_seen(const sprout_frame *frame, sprout_str container, const sprout_str **seen,
@@ -181,6 +200,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
       EXPR_NEED(sight_passes(frame, node_, &open));                                  \
       if (!open) continue;                                                           \
       for (i = 0; i < n; i++) {                                                      \
+        if (expr_unseen(frame, held[i])) continue;                                   \
         REACH(held[i]);                                                              \
         if (!push(frame, &(frontier), held[i])) return SPROUT_EVAL_NO_MEMORY;        \
       }                                                                              \
@@ -189,9 +209,10 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
   REACH(from);
   EXPR_NEED(contents_of(frame, from, &held, &n));
   for (i = 0; i < n; i++) {
+    if (expr_unseen(frame, held[i])) continue;
     if (!push(frame, &own, held[i])) return SPROUT_EVAL_NO_MEMORY;
   }
-  for (i = 0; i < n; i++) REACH(held[i]);
+  for (i = 0; i < own.count; i++) REACH(own.items[i]);
   SWEEP(own);
   has_outer = container_of(frame, from, &outer);
   while (has_outer) {
@@ -204,7 +225,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
     EXPR_NEED(contents_of(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++) {
-      if (sprout_str_same(held[i], inner)) continue;
+      if (sprout_str_same(held[i], inner) || expr_unseen(frame, held[i])) continue;
       if (!push(frame, &ring, held[i])) return SPROUT_EVAL_NO_MEMORY;
     }
     for (i = 0; i < ring.count; i++) REACH(ring.items[i]);
