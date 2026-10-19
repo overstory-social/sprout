@@ -1193,7 +1193,8 @@ everyone else who can hear `self`. It cannot `refuse` or `allow`: the
 command is already done.
 
 It runs after the command's own `do`s, and after the description of a
-room the command walked into, nearest first: what the visitor carries
+room the command walked into, but before what `look`, `examine`,
+`inventory` and `wait` answer; nearest first: what the visitor carries
 (not through a shut box), then the visitor, then the room, any room
 around that, and the world. It does not run after a refused command, a
 command the parser could not read, a character's `act`, a tick or a

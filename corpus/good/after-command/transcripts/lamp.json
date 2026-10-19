@@ -1,5 +1,5 @@
 {
-  "about": "What follows a command runs after every command a visitor makes, nearest first: the lamp she carries, the room she stands in, then the world. Walking into the falls reads the falls before its roar; a refused command is followed by nothing; a lamp set down, or shut in the tin she carries, follows nobody.",
+  "about": "What follows a command runs after every command a visitor makes, nearest first: the lamp she carries, the room she stands in, then the world. Walking into the falls reads the falls before its roar; a refused command is followed by nothing; a lamp set down, or shut in the tin she carries, follows nobody. Each command of a line is followed on its own, and `look` reads the roar before the room.",
   "steps": [
     { "arrive": "Wren", "expect": [
       { "reader": "Wren", "kind": "described", "words": "A low cellar, dry and still." }
@@ -68,6 +68,15 @@
     { "as": "Marta", "type": "south", "expect": [
       { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the cellar." },
       { "reader": "Marta", "kind": "described", "words": "A low cellar, dry and still." }
+    ] },
+    { "as": "Marta", "type": "north then look", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives from the cellar." },
+      { "reader": "Marta", "kind": "described", "words": "Water thunders down a cleft in the rock." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
+      { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
+      { "reader": "Marta", "kind": "described", "words": "Water thunders down a cleft in the rock." }
     ] }
   ]
 }
