@@ -313,9 +313,6 @@ verb exorcise {
   "exorcise [target]"  "banish [target]"  "cast out [target]"  "drive out [target]"
   "drive away [target]"  "exorcise out [target]"  "exorcise away [target]"  "begone [target]"
 }
-// EXORCISE with nothing named: Zork would ask what; the parser here cannot
-// ask, so the visitor is answered as if the spirits were named.
-verb exorcise_here { "exorcise"  "perform exorcism"  "perform an exorcism"  "perform the exorcism"  "perform ceremony"  "perform the ceremony"  "perform the rite"  "begone" }
 // Zork's UNTIE, for the rope.
 verb untie {
   role target: Rope
@@ -348,9 +345,9 @@ verb treasure { "treasure"  "temple"  "say treasure"  "say temple" }
 verb odysseus { "ulysses"  "odysseus"  "say ulysses"  "say odysseus"  "yell ulysses"  "yell odysseus"  "shout ulysses"  "shout odysseus" }
 
 // The boat (v6): getting in and out, launching, landing, and blowing it
-// up. A bare "launch" and "land" in the boat are the boat's own ways out
-// (boat.sprout), offered only where they apply; these take the words a
-// player says with the boat named.
+// up. A bare "launch", "land", "get out", "disembark" and "ashore" in the
+// boat are the boat's own ways out (boat.sprout), offered only where they
+// apply; these take the words a player says with the boat named.
 verb board {
   role target: Vessel
   "board [target]"  "get in [target]"  "get into [target]"  "get on [target]"
@@ -367,10 +364,8 @@ verb disembark {
   // is a word of both, and the reading that is allowed wins.
   synonyms "leave"
 }
-verb disembark_here { "get out"  "disembark"  "climb out"  "step out"  "alight"  "stand up" }
 verb launch { role target: Vessel  "launch [target]"  "push off in [target]"  "push [target] off"  "row [target] out" }
 verb land { role target: Vessel  "land [target]"  "beach [target]"  "ground [target]"  "row [target] ashore" }
-verb ashore { "go ashore"  "row ashore"  "come ashore"  "head for shore"  "head for the shore"  "push off"  "make for the shore" }
 verb inflate {
   role target: Inflatable
   role tool: Pump
