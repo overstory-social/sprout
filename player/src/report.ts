@@ -160,6 +160,11 @@ function declaredIn(bundle: Bundle): Declared {
         handlers.set(at, `${origin} on changed :${property} (${at})`);
       }
     }
+    for (const { origin, declaration } of kind.afterCommand) {
+      if (!ownAt(declaration.at)) continue;
+      const at = locationOf(declaration.at);
+      handlers.set(at, `${origin} after command (${at})`);
+    }
     for (const passage of kind.passages.values()) {
       if (!ownAt(passage.at)) continue;
       const key = `${passage.origin}.${passage.name}`;

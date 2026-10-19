@@ -56,6 +56,7 @@ function acting(kind: KindRef): { readonly origin: string; readonly body: Block 
     ...[...kind.hooks.values()]
       .flat()
       .map((one) => ({ origin: one.origin, body: one.declaration.body })),
+    ...kind.afterCommand.map((one) => ({ origin: one.origin, body: one.declaration.body })),
   ];
 }
 

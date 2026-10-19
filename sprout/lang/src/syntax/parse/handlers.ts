@@ -1,16 +1,22 @@
-// `on :illuminating (from, value) { … }` and `changed :lit (was) { … }`,
-// as a kind, an object or the world writes one (the spec's Events,
-// messages and the bus › Receiving).
+// `on :illuminating (from, value) { … }`, `changed :lit (was) { … }` and
+// `after command { … }`, as a kind, an object or the world writes one (the
+// spec's Events, messages and the bus › Receiving; Verbs › After a command).
 //
 // A handler is `on`, the message with its colon, its parameters in
 // brackets where it names any, and a block; a hook is `changed`, the
 // property, and the same. Parameters are positional and named as the
 // author chose, `_` leaving one unnamed; how many a message passes, and
-// what each is, is the checker's. A head that is wrong still has its
-// block read, so what is wrong inside it is said too, and is then dropped.
+// what each is, is the checker's. `after command` names nothing and takes
+// no parameters. A head that is wrong still has its block read, so what is
+// wrong inside it is said too, and is then dropped.
 
 import type { Ident } from '../ast.js';
-import type { HandlerDeclaration, HookDeclaration, Parameters } from '../ast-events.js';
+import type {
+  AfterCommandDeclaration,
+  HandlerDeclaration,
+  HookDeclaration,
+  Parameters,
+} from '../ast-events.js';
 import type { Token } from '../lexer.js';
 import { isReserved } from '../reserved.js';
 import { spanning, type Span } from '../../source/source.js';
@@ -76,6 +82,56 @@ export function hook(
     parameters: read.parameters,
     body: read.body,
   };
+}
+
+/** `after command { … }`, its `after` next; as `handler`. */
+export function afterCommand(
+  p: Parser,
+  owner: string,
+  startsMember: (token: Token) => boolean,
+): AfterCommandDeclaration | null {
+  const keyword = p.next();
+  const example = 'after command { … }';
+  const command = p.take('name', 'command');
+  if (command === null) {
+    const token = p.peek();
+    // A word written where `command` goes is taken with the refusal; the
+    // body's next member, its brace or a block is not.
+    const missing =
+      p.done || token.kind !== 'name' || p.atDeclarationStart() || startsMember(token);
+    if (!missing) p.next();
+    p.diagnostics.refuse(
+      missing ? p.source.span(keyword.at.end) : token.at,
+      '`after` is followed by `command`: it runs at the end of every command a visitor makes.',
+      `Write \`${example}\`.`,
+    );
+    stepOverRest(p, owner, 'after', startsMember);
+    return null;
+  }
+  const written = 'after command';
+  if (p.at('punct', '(')) {
+    const open = p.peek();
+    parameterList(p, written, example, startsMember, true);
+    p.diagnostics.refuse(
+      open.at,
+      '`after command` takes no parameters: `actor` and `here` are bound inside it already.',
+      `Take the brackets out, as in \`${example}\`.`,
+    );
+    if (p.at('punct', '{'))
+      block(p, { owner, within: written, enclosed: true, startsMember, unclosed: false });
+    return null;
+  }
+  if (!p.at('punct', '{')) {
+    p.diagnostics.refuse(
+      p.source.span(command.at.end),
+      'What `after command` does goes in braces.',
+      `Write \`${example}\`.`,
+    );
+    return null;
+  }
+  const body = block(p, { owner, within: written, enclosed: true, startsMember, unclosed: false });
+  if (body === null) return null;
+  return { kind: 'after-command', at: spanning(keyword.at, body.at), body };
 }
 
 /** What `on` and `changed` share: a symbol, parameters where written, and a block. */

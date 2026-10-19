@@ -19,14 +19,19 @@ import {
   type PropertyDeclaration,
   type RemembersDeclaration,
 } from '../ast.js';
-import type { HandlerDeclaration, HookDeclaration, PassDeclaration } from '../ast-events.js';
+import type {
+  AfterCommandDeclaration,
+  HandlerDeclaration,
+  HookDeclaration,
+  PassDeclaration,
+} from '../ast-events.js';
 import type { Token } from '../lexer.js';
 import type { Node } from '../../source/nodes.js';
 import { spanning, type Span } from '../../source/source.js';
 import { punct, type Parser } from './parser.js';
 import { readable } from '../../source/words.js';
 import { guard, isGuardName } from './guards.js';
-import { handler, hook } from './handlers.js';
+import { afterCommand, handler, hook } from './handlers.js';
 import { passRule } from './passes.js';
 import { isPassage, passage } from './passages.js';
 import { proseFile } from './prose-file.js';
@@ -137,18 +142,23 @@ export function addPlays<M>(
 }
 
 /**
- * Handlers, hooks and pass rules, added to a body's table. One never
- * closed ends where the body's next member starts, which the same table
- * says.
+ * Handlers, hooks, `after command` and pass rules, added to a body's
+ * table. One never closed ends where the body's next member starts, which
+ * the same table says.
  */
 export function addEvents<M>(
   p: Parser,
   owner: string,
-  readers: Map<string, () => M | HandlerDeclaration | HookDeclaration | PassDeclaration | null>,
+  readers: Map<
+    string,
+    () =>
+      M | HandlerDeclaration | HookDeclaration | AfterCommandDeclaration | PassDeclaration | null
+  >,
 ): void {
   const startsMember = startsMemberOf(p, readers);
   readers.set('on', () => handler(p, owner, startsMember));
   readers.set('changed', () => hook(p, owner, startsMember));
+  readers.set('after', () => afterCommand(p, owner, startsMember));
   readers.set('pass', () => passRule(p, startsMember));
 }
 
@@ -354,28 +364,33 @@ function pastGuard(p: Parser, ahead: number): number {
   return at;
 }
 
-/** The words a handler, a hook and a pass rule begin with. */
-const EVENT_WORDS: ReadonlySet<string> = new Set(['on', 'changed', 'pass']);
+/** The words a handler, a hook, `after command` and a pass rule begin with. */
+const EVENT_WORDS: ReadonlySet<string> = new Set(['on', 'changed', 'after', 'pass']);
 
-/** `on :stir`, `changed :lit`, `pass :m` or `pass any`, where one is written at `ahead`; else null. */
+/** `on :stir`, `changed :lit`, `after command`, `pass :m` or `pass any`, where one is written at `ahead`; else null. */
 function eventHeadAt(p: Parser, ahead: number): string | null {
   const word = p.peek(ahead);
   const named = p.peek(ahead + 1);
   if (word.kind !== 'name' || !EVENT_WORDS.has(word.text)) return null;
-  if (named.kind === 'symbol') return `${word.text} :${named.text}`;
+  if (named.kind === 'symbol' && word.text !== 'after') return `${word.text} :${named.text}`;
   if (word.text === 'pass' && named.kind === 'name' && named.text === 'any') return 'pass any';
+  if (word.text === 'after' && named.kind === 'name' && named.text === 'command')
+    return 'after command';
   return null;
 }
 
 /**
- * Past what a handler, a hook or a pass rule names, from just after its
- * word at `ahead`, and then its brackets and its block where each is
- * written and closes; otherwise where it stopped.
+ * Past what a handler, a hook, `after command` or a pass rule names,
+ * from just after its word at `ahead`, and then its brackets and its block
+ * where each is written and closes; otherwise where it stopped.
  */
 function pastEvent(p: Parser, ahead: number): number {
   const named = p.peek(ahead);
   const at =
-    named.kind === 'symbol' || (named.kind === 'name' && named.text === 'any') ? ahead + 1 : ahead;
+    named.kind === 'symbol' ||
+    (named.kind === 'name' && (named.text === 'any' || named.text === 'command'))
+      ? ahead + 1
+      : ahead;
   return pastBracketed(p, pastBracketed(p, at, '(', ')'), '{', '}');
 }
 

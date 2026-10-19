@@ -1,7 +1,8 @@
 // What the compiler builds from what an object does when something reaches
-// it: a handler for a message, a hook on a changed property, and a
-// container's pass rule for what it lets through (the spec's Events ›
-// Receiving, Containers route). Every node keeps the rule `ast.ts` states:
+// it: a handler for a message, a hook on a changed property, the hook that
+// follows a visitor's command, and a container's pass rule for what it lets
+// through (the spec's Events › Receiving, Containers route; Verbs › After a
+// command). Every node keeps the rule `ast.ts` states:
 // a `kind` and an `at`.
 
 import type { Node } from '../source/nodes.js';
@@ -38,6 +39,17 @@ export interface HookDeclaration extends Node {
   /** The property without its colon. */
   readonly property: Ident;
   readonly parameters: Parameters;
+  readonly body: Block;
+}
+
+/**
+ * `after command { … }` — what a thing does at the end of every command a
+ * visitor makes while it holds them or they carry it, with `actor` and
+ * `here` bound (the spec's Verbs › After a command). It binds nothing
+ * else, so it has no parameters.
+ */
+export interface AfterCommandDeclaration extends Node {
+  readonly kind: 'after-command';
   readonly body: Block;
 }
 

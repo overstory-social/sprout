@@ -20,7 +20,7 @@
 // are not composed, an object taking those of the kinds its `is` names,
 // which `exits.ts` resolves; a `describe` is one, which `describe.ts`
 // resolves. Guards, plays,
-// handlers and hooks all run, in closure order less what `without` leaves
+// handlers, hooks and `after command` all run, in closure order less what `without` leaves
 // out, which `guards.ts`, `roles.ts` and `handlers.ts` resolve; a
 // suppression travels to every kind that composes the one that wrote it.
 
@@ -58,10 +58,13 @@ import { composedWhereSame } from './contributions.js';
 import { ACTOR, VISITOR } from './actors.js';
 import { composeGuards, ownGuards, writesGuard } from './guards.js';
 import {
+  composeAfterCommand,
   composeHandlers,
   composeHooks,
+  ownAfterCommand,
   ownHandlers,
   ownHooks,
+  writesAfterCommand,
   writesHandler,
   writesHook,
   type MessageSetting,
@@ -419,6 +422,12 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     suppressed,
     ownHooks(composer.name, composer.members, own, diagnostics),
   );
+  const afterCommand = composeAfterCommand(
+    composed.map(({ kind }) => kind.afterCommand),
+    order,
+    suppressed,
+    ownAfterCommand(composer.name, composer.members, own, diagnostics),
+  );
 
   // --- pass rules, one for each message ---------------------------------
   const passes = composePassRules(
@@ -489,6 +498,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     plays,
     handlers,
     hooks,
+    afterCommand,
     passes,
     grammar,
     exits,
@@ -632,6 +642,8 @@ function declaresMember(
   }
   if (member.kind === 'hook-ref')
     return writesHook(found.kind.hooks, member.property.text, identity);
+  if (member.kind === 'after-command-ref')
+    return writesAfterCommand(found.kind.afterCommand, identity);
   if (member.verb.text === ANY_VERB) {
     const category = member.role.text;
     if (category !== 'target' && category !== 'tool') return false;

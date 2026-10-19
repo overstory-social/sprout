@@ -206,7 +206,7 @@
         },
         {
           "name": "keyword.other.sprout",
-          "match": "\\b(?:adjectives|broadcast|remembers|contains|describe|optional|pronouns|visitors|article|carried|changed|connect|default|destroy|finally|grammar|message|minutes|passage|release|seconds|without|accept|actors|arrive|depart|import|intent|permit|refuse|allow|along|bound|hours|nouns|prose|roams|spawn|world|each|else|enum|exit|from|kind|link|many|move|name|pass|role|send|tell|text|then|verb|wake|when|with|act|any|are|for|let|lit|max|min|say|as|at|do|if|in|of|on|to)\\b"
+          "match": "\\b(?:adjectives|broadcast|remembers|contains|describe|optional|pronouns|visitors|article|carried|changed|connect|default|destroy|finally|grammar|message|minutes|passage|release|seconds|without|accept|actors|arrive|depart|import|intent|permit|refuse|after|allow|along|bound|hours|nouns|prose|roams|spawn|world|each|else|enum|exit|from|kind|link|many|move|name|pass|role|send|tell|text|then|verb|wake|when|with|act|any|are|for|let|lit|max|min|say|as|at|do|if|in|of|on|to)\\b"
         },
         {
           "match": "\\b(cancel)\\s+(wakes)\\b",

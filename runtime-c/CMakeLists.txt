@@ -21,7 +21,7 @@ set(SPROUT_MODULES
   line logged media nickname outcome prose range reading reading_json schedule seeds state status stored stored_check stored_write submit turn typed values view view_json wakes)
 
 # The reading pass's areas, src/reading/<module>.c, each with test/reading_<module>.test.c.
-set(SPROUT_READING_MODULES carried consent effect sure wildcards)
+set(SPROUT_READING_MODULES after carried consent effect sure wildcards)
 
 # The evaluator's areas, src/expr/<module>.c, each with test/expr_<module>.test.c.
 set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators passes range show spawn)
