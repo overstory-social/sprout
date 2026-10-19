@@ -140,7 +140,7 @@ export function checkMoveThrough(statement: MoveThroughStatement, context: Check
     context.diagnostics.refuse(
       statement.thing.at,
       `Only an actor goes through a way out, and \`${shown}\` does not compose \`${ACTOR}\`.`,
-      `Compose \`${ACTOR}\` into \`${shown}\`, or move \`self\` into something, as in \`move self to actor\`.`,
+      `Compose \`${ACTOR}\` into \`${shown}\`, or name what \`self\` goes into, as in \`move self to cellar\`.`,
     );
     return false;
   }

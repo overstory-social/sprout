@@ -485,7 +485,7 @@ describe('`move self` through a way out', () => {
       [
         'b.sprout:1:6',
         `Only an actor goes through a way out, and \`Vessel\` does not compose \`${ACTOR}\`.`,
-        `Compose \`${ACTOR}\` into \`Vessel\`, or move \`self\` into something, as in \`move self to actor\`.`,
+        `Compose \`${ACTOR}\` into \`Vessel\`, or name what \`self\` goes into, as in \`move self to cellar\`.`,
       ],
     ]);
   });

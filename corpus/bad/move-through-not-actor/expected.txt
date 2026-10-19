@@ -1,4 +1,4 @@
 cart.sprout:8:12  Only an actor goes through a way out, and `Cart` does not compose `sprout.Actor`.
-                  Compose `sprout.Actor` into `Cart`, or move `self` into something, as in `move self to actor`.
+                  Compose `sprout.Actor` into `Cart`, or name what `self` goes into, as in `move self to cellar`.
 
 refused: 1 problem

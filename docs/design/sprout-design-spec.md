@@ -700,7 +700,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `reading` in `cannot` | string: the reading as far as it was understood, as the words a visitor would type |
 | `thing` in `not_carrying` | object: what a carried role names that the actor does not carry |
 | `actor` and `here` in `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `nothing_happens`, `dark`, `help` and `fault` | as above |
-| `way` in `no_way` | string: the direction typed, written out, as `north` for `n` |
+| `way` in `no_way` | string: the direction typed, written out, as `north` for `n`; for an actor's `move self`, the direction written, or empty for `along an exit` |
 | `actor` in `gone_away` and `npc_says` | as above |
 | `words` in `npc_says` | string; what the NPC said, its paragraphs as one |
 | `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
