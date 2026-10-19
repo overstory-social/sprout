@@ -1,0 +1,16 @@
+{
+  "name": "capacity_lines",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "40be0dca28fd0d130f92ce85f08756e63b4bc959aab0834b4204cc9737a366c2"
+    }
+  ],
+  "files": ["capacity_lines.sprout", "person.sprout", "kinds.sprout"]
+}

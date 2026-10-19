@@ -1,0 +1,17 @@
+// A container has one capacity: a kind that holds nothing has none to
+// give, a body says it once, and two composed sources are refused until
+// the composer writes its own.
+import * as sprout from 'sprout'
+import {Person, Shelf, Bag, Cart, Barrow, Wagon} from 'kinds'
+
+world capacity_composed is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    object shelf is Shelf
+    object bag is Bag
+    object barrow is Barrow
+    object wagon is Wagon
+  }
+}

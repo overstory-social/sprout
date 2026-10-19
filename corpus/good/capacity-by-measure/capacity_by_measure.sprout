@@ -1,0 +1,28 @@
+// A container may hold by measure: `capacity 100 by :size` adds up the
+// `:size` of what it holds, and a move that would take it past the most is
+// refused with the engine's `too_heavy`. A thing whose kind declares no
+// `:size` measures nothing, and a sack measures its own `:size` alone, not
+// what is in it.
+import * as sprout from 'sprout'
+import {Adventurer} from 'adventurer'
+import {Thing, Paper, Sack} from 'things'
+
+world capacity_by_measure is sprout.World {
+  visitors are Adventurer
+  visitors arrive at crypt
+
+  object crypt is sprout.Place {
+    describe { text "A low stone crypt." }
+
+    object coffin is Thing {
+      :size 55
+      grammar { name "gold coffin"  nouns "coffin" }
+    }
+    object sword is Thing { :size 30 }
+    object lamp is Thing { :size 15 }
+    object leaflet is Paper
+    object sack is Sack {
+      object brick is Thing { :size 35 }
+    }
+  }
+}

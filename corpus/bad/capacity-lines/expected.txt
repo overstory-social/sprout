@@ -1,0 +1,10 @@
+kinds.sprout:8:12   `capacity` is followed by the most it holds, a whole number, and `by` is not one.
+                    Write `capacity 100 by :size`: the most it holds, then the property each thing it holds is measured by.
+
+kinds.sprout:13:15  `capacity 40` says how much it holds and not what it is measured by.
+                    Write `capacity 40 by :size`, naming the integer property each thing it holds is measured by. A count of things is a guard reading `self.count`.
+
+kinds.sprout:17:18  `by` names the property things are measured by, and `size` is not one.
+                    Write the property with its colon: `capacity 40 by :size`.
+
+refused: 3 problems

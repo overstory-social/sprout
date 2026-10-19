@@ -19,7 +19,7 @@
 // each and nouns all apply, which `grammar.ts` resolves; exits and links
 // are not composed, an object taking those of the kinds its `is` names,
 // which `exits.ts` resolves; a `describe` is one, which `describe.ts`
-// resolves. Guards, plays,
+// resolves, and so is a `capacity`, which `capacity.ts` resolves. Guards, plays,
 // handlers and hooks all run, in closure order less what `without` leaves
 // out, which `guards.ts`, `roles.ts` and `handlers.ts` resolve; a
 // suppression travels to every kind that composes the one that wrote it.
@@ -72,6 +72,7 @@ import { composePassRules, ownPassRules } from './passes.js';
 import { composeGrammar, ownGrammar } from './grammar.js';
 import { composeExits, ownExits } from './exits.js';
 import { composeDescribe, ownDescribe } from './describe.js';
+import { composeCapacity } from './capacity.js';
 import {
   ANY_VERB,
   anyPlaysOf,
@@ -454,6 +455,14 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     shown,
     diagnostics,
   );
+  const capacity = composeCapacity(
+    composer,
+    own,
+    composed.map(({ kind, written }) => ({ capacity: kind.capacity, written })),
+    contains || containsActors,
+    shown,
+    diagnostics,
+  );
   order.push(own);
   // Written here, it is judged here. Come from a composed kind, which was
   // judged where it was written, it is refused here only for what this kind
@@ -496,6 +505,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     contains: contains || containsActors,
     containsActors,
     roams,
+    capacity,
     suppressed,
   };
 }

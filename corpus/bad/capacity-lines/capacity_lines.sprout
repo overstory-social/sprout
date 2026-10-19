@@ -1,0 +1,11 @@
+// A capacity line is `capacity`, the most it holds, `by`, and the
+// property each thing is measured by; each of these leaves one out.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world capacity_lines is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place { }
+}

@@ -10,6 +10,7 @@
 
 import {
   GUARD_NAMES,
+  type CapacityDeclaration,
   type ContainsDeclaration,
   type RoamsDeclaration,
   type GuardDeclaration,
@@ -39,6 +40,7 @@ import { without } from './without.js';
 import { grammar } from './grammar.js';
 import { describe } from './describe.js';
 import { synonymsMember } from './synonyms.js';
+import { atFraction } from './types.js';
 
 /** What may be written inside a body, by the word each member begins with. */
 export type MemberReaders<M> = ReadonlyMap<string, () => M | null>;
@@ -68,6 +70,7 @@ export function kindMembers(
   addRemembers(p, readers);
   readers.set('contains', () => contains(p));
   readers.set('roams', () => roams(p));
+  readers.set('capacity', () => capacity(p));
   readers.set('passage', () => passage(p, readers));
   readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));
@@ -527,6 +530,62 @@ function memberReader<M>(
 /** `roams`, alone on its line: an NPC of this kind moves itself to any place. */
 export function roams(p: Parser): RoamsDeclaration {
   return { kind: 'roams', at: p.next().at };
+}
+
+/**
+ * `capacity 100 by :size`: the most a container holds, measured by the
+ * integer property each thing it holds declares. A line missing its
+ * number, its `by` or its property is refused at the gap and read no
+ * further; what follows goes back to the member table.
+ */
+export function capacity(p: Parser): CapacityDeclaration | null {
+  const keyword = p.next();
+  const refuse = (reason: string, remedy: string): null => {
+    p.diagnostics.refuse(p.peek().at, reason, remedy);
+    skipCapacityRest(p, keyword);
+    return null;
+  };
+  const example = 'capacity 100 by :size';
+  const digits = p.take('integer');
+  if (digits === null) {
+    return refuse(
+      `\`capacity\` is followed by the most it holds, a whole number, and ${p.subject(p.peek(), false)} is not one.`,
+      `Write \`${example}\`: the most it holds, then the property each thing it holds is measured by.`,
+    );
+  }
+  if (atFraction(p)) return null;
+  const limit = { kind: 'integer' as const, at: digits.at, value: Number(digits.text) };
+  if (p.take('name', 'by') === null) {
+    return refuse(
+      `\`capacity ${digits.text}\` says how much it holds and not what it is measured by.`,
+      `Write \`capacity ${digits.text} by :size\`, naming the integer property each thing it holds is measured by. A count of things is a guard reading \`self.count\`.`,
+    );
+  }
+  const symbol = p.take('symbol');
+  if (symbol === null) {
+    return refuse(
+      `\`by\` names the property things are measured by, and ${p.subject(p.peek(), false)} is not one.`,
+      `Write the property with its colon: \`capacity ${digits.text} by :size\`.`,
+    );
+  }
+  return { kind: 'capacity', at: spanning(keyword.at, symbol.at), limit, by: p.ident(symbol) };
+}
+
+/**
+ * Step over what is left of a refused `capacity` line: a number, `by`, or
+ * a property, on the keyword's own line. Anything else, and anything on a
+ * later line, is the body's next member and is left for it.
+ */
+function skipCapacityRest(p: Parser, keyword: Token): void {
+  for (;;) {
+    const token = p.peek();
+    const part =
+      token.kind === 'integer' ||
+      token.kind === 'symbol' ||
+      (token.kind === 'name' && token.text === 'by');
+    if (!part || p.source.text.slice(keyword.at.end, token.at.start).includes('\n')) return;
+    p.next();
+  }
 }
 
 /**

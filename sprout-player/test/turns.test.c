@@ -87,7 +87,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
     const char *at = log;
     unsigned long long previous = ~0ULL;
     int seen = 0;
-    CHECK(log != NULL && HAS(log, "\"bundle\":\"4e4a61de"), "the log tail: %s", log);
+    CHECK(log != NULL && HAS(log, "\"bundle\":\"30fe4d49"), "the log tail: %s", log);
     for (; at != NULL && (at = strstr(at, "\"seed\":")) != NULL; seen++) {
       unsigned long long seed = strtoull(at + 7, NULL, 10);
       CHECK(seed <= 4294967295ULL && seed != previous, "seed %llu", seed);

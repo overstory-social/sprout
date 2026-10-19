@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "658d6c6e707552a3095275c85ceeceadbea0ecb358c1031ff8021b8d682e654a"
+      "sha": "40be0dca28fd0d130f92ce85f08756e63b4bc959aab0834b4204cc9737a366c2"
     }
   ],
   "files": ["cloakroom.sprout", "wardrobe.sprout", "rabbit.sprout", "walker.sprout"]

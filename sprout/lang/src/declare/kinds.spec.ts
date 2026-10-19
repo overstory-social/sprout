@@ -38,6 +38,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     contains: false,
     containsActors: false,
     roams: false,
+    capacity: null,
     suppressed: [],
   };
 }
