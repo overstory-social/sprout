@@ -31,6 +31,7 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
   'actors',
   'adjectives',
   'allow',
+  'along',
   'any',
   'are',
   'arrive',

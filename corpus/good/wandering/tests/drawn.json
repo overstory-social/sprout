@@ -1,0 +1,14 @@
+{
+  "about": "The dog wanders along a way drawn from those that lead out of the barn: the ladder refuses, so it is never drawn, and the dog comes out to the yard. In the coop the owl has no way that applies to draw, so nothing moves and its handler ends there.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A muddy yard." }] },
+    { "as": "Marta", "type": "open gate", "expect": [{ "words": "You swing the gate open." }] },
+    { "as": "Marta", "type": "north", "expect": [{ "words": "A dim barn." }] },
+    { "as": "Marta", "type": "shoo dog", "expect": [{ "words": "The dog wags its tail." }] },
+    { "advance": "1 minute", "expect": [{ "words": "The dog leaves for the yard." }] },
+    { "as": "Marta", "type": "south", "expect": [{ "words": "A muddy yard." }] },
+    { "as": "Marta", "type": "in", "expect": [{ "words": "A cramped coop." }] },
+    { "as": "Marta", "type": "shoo owl", "expect": [{ "words": "The owl opens one eye." }] },
+    { "advance": "1 minute", "expect": [{ "level": "info", "text": "coop.owl woke, 60 seconds after it asked" }] }
+  ]
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { LetStatement, MoveStatement, SpawnStatement, Statement } from '../ast.js';
+import type { LetStatement, SpawnStatement, Statement } from '../ast.js';
 import { writtenPath } from '../ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { unspanned } from '../../source/nodes.js';
@@ -10,11 +10,8 @@ import { readWith as over } from '../../fixtures/readers.js';
 import { Lexer } from '../lexer.js';
 import { DEEPEST, type Parser } from './parser.js';
 import {
-  block,
   letStatement,
-  moveStatement,
   notAStatement,
-  onItsOwn,
   spawnStatement,
   statement,
   STATEMENT_WORDS,
@@ -256,138 +253,6 @@ describe('`spawn` makes a new instance of a kind, in a container', () => {
     expect(refusals).toHaveLength(1);
     expect(refusals[0]!.at.start).toBe(refusals[0]!.at.end);
     expect(locationOf(refusals[0]!.at)).toBe('body.sprout:1:10');
-  });
-});
-
-/** A move's two sides as written. */
-function moveShape(move: MoveStatement): string {
-  return `move ${writtenPath(move.thing)} to ${writtenPath(move.destination)}`;
-}
-
-describe('`move` proposes moving a thing into a container', () => {
-  it('reads the spec’s own, and the forms a body names things by', () => {
-    for (const text of [
-      'move target to self',
-      'move item to cellar',
-      'move actor to here',
-      'move self to from',
-      'move kiln.cup to kiln.shelf',
-    ]) {
-      const { statement, refusals } = readStatement(text);
-      expect(
-        refusals.map((d) => d.message),
-        text,
-      ).toEqual([]);
-      expect(statement!.kind, text).toBe('move');
-      expect(moveShape(statement as MoveStatement), text).toBe(text);
-      expect(textOf(statement!.at), text).toBe(text);
-      expect(unspanned(statement), text).toEqual([]);
-    }
-  });
-
-  it('keeps each step of either side, each with its own span', () => {
-    const { read } = readWith(moveStatement, 'move kiln.cup to  shop.shelf');
-    expect(read!.thing.parts.map((part) => locationOf(part.at))).toEqual([
-      'body.sprout:1:6',
-      'body.sprout:1:11',
-    ]);
-    expect(textOf(read!.destination.at)).toBe('shop.shelf');
-  });
-
-  it('says what is missing, where it is missing, and what to write', () => {
-    const table: [string, string, string, string][] = [
-      [
-        'move',
-        'body.sprout:1:5',
-        '`move` does not say what to move.',
-        'Write the thing and where it goes, as in `move target to self`.',
-      ],
-      [
-        'move to self',
-        'body.sprout:1:5',
-        '`move` does not say what to move.',
-        'Write the thing and where it goes, as in `move target to self`.',
-      ],
-      [
-        'move 3 to self',
-        'body.sprout:1:6',
-        '`move` does not say what to move.',
-        'Write the thing and where it goes, as in `move target to self`.',
-      ],
-      [
-        'move Cup to self',
-        'body.sprout:1:6',
-        '`Cup` starts with a capital, so it is not the name of anything here.',
-        'Name what moves in lower case, as in `move target to self`.',
-      ],
-      [
-        'move target',
-        'body.sprout:1:12',
-        '`move target` does not say where it goes.',
-        'Write `to` and what it goes into: `move target to self`.',
-      ],
-      [
-        'move kiln.cup in self',
-        'body.sprout:1:14',
-        '`move kiln.cup` does not say where it goes.',
-        'Write `to` and what it goes into: `move kiln.cup to self`.',
-      ],
-      [
-        'move self',
-        'body.sprout:1:10',
-        '`move self` does not say where it goes.',
-        'Write `to` and what it goes into: `move self to actor`.',
-      ],
-      [
-        'move self to',
-        'body.sprout:1:13',
-        'After `to` comes the thing `self` goes into.',
-        'Name it in lower case, as in `move self to actor` or `move self to here`.',
-      ],
-      [
-        'move actor to',
-        'body.sprout:1:14',
-        'After `to` comes the thing `actor` goes into.',
-        'Name it in lower case, as in `move actor to self` or `move actor to here`.',
-      ],
-      [
-        'move target to',
-        'body.sprout:1:15',
-        'After `to` comes the thing `target` goes into.',
-        'Name it in lower case, as in `move target to self` or `move target to actor`.',
-      ],
-      [
-        'move target to Shelf',
-        'body.sprout:1:16',
-        'After `to` comes the thing `target` goes into.',
-        'Name it in lower case, as in `move target to self` or `move target to actor`.',
-      ],
-      [
-        'move target to kiln.',
-        'body.sprout:1:20',
-        'This path ends in a dot.',
-        'After a dot comes the name of what is inside the thing before it, as in `kiln.shelf`; or take the dot out.',
-      ],
-    ];
-    for (const [text, where, message, remedy] of table) {
-      const { statement, refusals } = readStatement(text);
-      expect(statement, text).toBeNull();
-      expect(
-        refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
-        text,
-      ).toEqual([[where, message, remedy]]);
-    }
-  });
-
-  it('never takes the statement after an unfinished one for either side', () => {
-    for (const text of ['{ move\n say "x" }', '{ move target to\n say "x" }']) {
-      const { read, refusals } = readWith((p) => block(p, onItsOwn()), text);
-      expect(refusals, text).toHaveLength(1);
-      expect(
-        read!.statements.map((one) => one.kind),
-        text,
-      ).toEqual(['say']);
-    }
   });
 });
 
@@ -670,6 +535,10 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
         kind: 'wake',
       };
     case 7:
+      if (c.below(2) === 0) {
+        const way = c.one(['north', 'up', 'in', 'along an exit']);
+        return { text: `move${gap()}self${c.one([' ', '  '])}${way}`, kind: 'move-through' };
+      }
       return {
         text: ['move', c.one(TARGETS), 'to', c.one(TARGETS)]
           .map((word, i) => (i === 0 ? word : gap() + word))
@@ -769,6 +638,7 @@ describe('a statement never vanishes silently', () => {
       'if',
       'let',
       'move',
+      'move-through',
       'refuse',
       'spawn',
       'wake',

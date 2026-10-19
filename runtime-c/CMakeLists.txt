@@ -27,7 +27,7 @@ set(SPROUT_READING_MODULES carried consent effect sure wildcards)
 set(SPROUT_EXPR_MODULES draws faults instances members names nodes operators passes range show spawn)
 
 # The statements' areas, src/stmt/<module>.c, each with test/stmt_<module>.test.c.
-set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speech write)
+set(SPROUT_STMT_MODULES each extension lifecycle links paths propose sends speech through write)
 
 # The turn kinds, src/turn/<module>.c, each with test/turn_<module>.test.c.
 set(SPROUT_TURN_MODULES arrival command departure given maintenance tick wake)

@@ -677,7 +677,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | --- | --- |
 | `self` | the composed kind |
 | `actor` | `sprout.Actor`, a visitor or an NPC; anything more is read through `is()` |
-| `here` | the actor's place: `sprout.Place` where every kind in the world that holds actors composes it, else object |
+| `here` | the actor's place, or in an actor's own handler its own: `sprout.Place` where every kind in the world that holds actors composes it, else object |
 | `seen`, in a `describe` and the passages it invokes | symbol: one of `look`, `arrival` and `poll`, an option written bare, `seen == :look` |
 | `mover`, in a guard | object; whatever proposed the move |
 | a role | the kind or value type the verb declares; object if it declares none |
@@ -1080,7 +1080,7 @@ object cat is Creature {
 
 Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person, and the one its act is aimed at reads what its own part tells that role, under The actor's own part. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
-An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>` in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` as the destination of an exit or a link of the mover's place that applies, or where it is in the mover's own range, which across places means the world passes, so an NPC walks the map as a visitor does unless the world deliberately opens it, as one place hearing another is the world's deliberate act, or its kind `roams`, under Actors and visitors, when it moves itself; a place reached none of these ways is out of range, and the move faults.
+An NPC takes no exit with `act`: an exit is named only by what a visitor types, and `act go` is refused. It changes place with `move self to <place>`, or through a way out of its place with `move self <direction>` or `move self along an exit`, under Moving something, in a handler, a tick or a wake, which runs the same three guards and sends the same messages as any move. Another place is in range of an actor's `move` as the destination of an exit or a link of the mover's place that applies, or where it is in the mover's own range, which across places means the world passes, so an NPC walks the map as a visitor does unless the world deliberately opens it, as one place hearing another is the world's deliberate act, or its kind `roams`, under Actors and visitors, when it moves itself; a place reached none of these ways is out of range, and the move faults.
 
 ### Moving something
 
@@ -1090,6 +1090,13 @@ move item to cellar
 ```
 
 `move <object> to <container>` proposes a move exactly as a typed `take` does: the three guards under Movement and consent run, with `mover` bound to the object whose body ran the statement, and on a refusal nothing moves, the refusal text is said to the actor if there is one, and the body that ran the `move` ends there: the first refusal ends the work, so `take` never says it took what it could not carry. On success the engine performs the write and sends the three messages. `move` is a statement for a `do`, a handler, a hook, a tick or a wake; never a guard, a `permit` or a `describe`. It is how every standard library verb that moves anything is written, and it is available to a trapdoor, a conveyor or a tide on the same terms.
+
+```sprout
+move self north
+move self along an exit
+```
+
+An actor may also move itself through a way out of its place, as `go` takes a visitor. `move self <direction>` takes the exit of that direction that applies, under An exit may be conditional, so the exit's `when` is its consent as it is a visitor's; `move self along an exit` takes one drawn from the turn's seed, a draw below the number of ways out of the place that apply and lead, its exits and set links in the order the place answers them, under Chance › The seed. Either is the move `go` makes: in range wherever the way leads, its three guards run, the places left and entered given the way's label as `way`, and a person who moved reads what the exit says as it is taken. Where the exit of that direction refuses, its words are the refusal; where none applies, or there is no way that leads to draw, nothing moves and the refusal is the `no_way` line, found as every engine line is, given the direction written out as `way`, or empty for a draw. A refusal ends the body as a refused `move` does, and is said to whoever the body speaks to: in a handler, a tick or a wake that is nobody, and the turn's account shows the handler that ran. Only `self` moves through a way, and only in a body whose kind composes `sprout.Actor`; the direction is one of the closed set under Exits, written out.
 
 ### Exits
 
@@ -1475,7 +1482,7 @@ Three statements put words in front of a visitor, and each has an audience.
 
 A **passage** is a named block of words belonging to a kind, for prose too long to sit in the middle of behaviour, and any of the four takes one in place of a string, as does `refuse`.
 
-`actor` and `here` are bound where a person is acting: in a role's `permit` and `do`, in `describe` — where the actor is whoever is looking — and in any passage those invoke. A handler, hook, tick or wake has no actor: it may `tell` the place, and it may `tell` a particular actor it has bound, but it has nobody to `say` to. The compiler enforces this exactly: a passage that renders `{actor}` may only be invoked from a body where `actor` is bound.
+`actor` and `here` are bound where a person is acting: in a role's `permit` and `do`, in `describe` — where the actor is whoever is looking — and in any passage those invoke. A handler, hook, tick or wake has no actor: it may `tell` the place, and it may `tell` a particular actor it has bound, but it has nobody to `say` to. An actor's own handlers — its handlers, ticks and wakes, written in a kind composing `sprout.Actor` — bind `here` all the same, as its own place, so an NPC can name the place it stands in and read through it; `actor` stays unbound in them, and `here` in a hook and in any other kind's handler. The compiler enforces this exactly: a passage that renders `{actor}` may only be invoked from a body where `actor` is bound.
 
 A `describe` also binds `seen`, what it is being read for: `:look` where the reader typed `look` or `examine`, of anything, the place included; `:arrival` where they read it on arriving; and `:poll` where their view is derived. It is read-only, it is given to any passage the `describe` invokes, and it is checked as `actor` is: a passage that reads `seen` may only be invoked where it is bound. A place that shows its name alone on a return visit and the whole of itself on `look` reads `seen` beside a counter it remembers per actor, as under Chance.
 
@@ -1882,7 +1889,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `along`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -1916,7 +1923,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 
 - A write to anything but `self`.
 - `say`, `tell`, `text`, or any write, send, move, act, spawn or destroy in a guard or a `permit`; any of those but `text` in `describe`.
-- `say`, `actor` or `here` in a handler, a hook, a tick or a wake, or in a passage reachable from one.
+- `say` or `actor` in a handler, a hook, a tick or a wake, or in a passage reachable from one; `here` in any of them but an actor's own handler, tick or wake, under Prose, or in a passage reachable from one.
 - `chance`, `random` or `{one of}` in `describe`, in a `when` guard, in a consent guard, in a `permit`, in a pass rule, or in the world's `unseen`, `unremarkable` or `acted`, or a thing's `contents` — including in any passage reachable from one.
 - A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
@@ -1926,6 +1933,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 - A bundle with no `world` declaration or with more than one; a `world` declaration whose name is not the manifest's `name`.
 - A `describe` with no `text`.
 - `act` in a body whose kind does not compose `sprout.Actor`; an `act` that leaves out a tool that is not optional.
+- `move` through a way, `move x north` or `move x along an exit`, of anything but `self`, or in a body whose kind does not compose `sprout.Actor`; a direction outside the closed set, or abbreviated.
 - A visitor kind that does not compose `sprout.Visitor`, or that is not one of the world's own kinds: `visitors are sprout.Visitor` included.
 - `optional` on any role of a verb that has phrases, or on the target of one that has none; a phrase that does not name the verb's target.
 - An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.

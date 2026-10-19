@@ -1,0 +1,4 @@
+bell.sprout:14:9  `here` is not bound inside `on :rang`: only an actor's own handler has a place, and `Bell` does not compose `sprout.Actor`.
+                  Compose `sprout.Actor` into `Bell` if it is an actor, or name the place through what the message passes, as `on :entered (item, from)` names where it came from.
+
+refused: 1 problem

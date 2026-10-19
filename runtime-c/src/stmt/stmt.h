@@ -95,6 +95,11 @@ sprout_eval_status stmt_broadcast(sprout_run *run, const sprout_frame *frame, co
 sprout_eval_status stmt_move(sprout_run *run, const sprout_frame *frame, const sprout_node *statement);
 sprout_eval_status stmt_act(sprout_run *run, const sprout_frame *frame, const sprout_node *statement);
 
+/* ---- through.c ---- */
+
+/* `move self north` or `move self along an exit`: `self` through a way out of its place, as `go` takes a visitor. */
+sprout_eval_status stmt_move_through(sprout_run *run, const sprout_frame *frame, const sprout_node *statement);
+
 /* ---- each.c ---- */
 
 /* What an `each` visits, in order, fixed before the first visit. */

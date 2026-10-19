@@ -290,7 +290,7 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `spawn Crumb in self` | makes a new object of a kind inside something; `let c = spawn …` names it | — | — | yes | — | yes |
 | `destroy self` | removes the object, and what it holds, when the body ends | — | — | yes | — | yes |
 | `finally destroy self` | removes the object once everything the turn sent has been handled | — | — | yes | — | yes |
-| `move self to hall` | proposes a move, which consent may refuse | — | — | yes | — | yes |
+| `move self to hall` | proposes a move, which consent may refuse; an actor goes through a way out with `move self north` or `move self along an exit` | — | — | yes | — | yes |
 | `connect onward to self` | says where one of its own links leads, to a place made while the world runs | — | — | yes | — | yes |
 | `act poke (target: self)` | runs a verb as the object itself, which is an actor | — | — | yes | — | yes |
 | `send self :stir` | sends a message to one thing in range | — | — | yes | — | yes |
@@ -865,7 +865,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 
 None of these may name an enum’s option or a binding:
 
-`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `carried` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `intent` `kind` `let` `link` `lit` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `pronouns` `prose` `refuse` `release` `remembers` `roams` `role` `say` `seconds` `send` `spawn` `tell` `text` `then` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
+`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `allow` `along` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `carried` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `intent` `kind` `let` `link` `lit` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `pronouns` `prose` `refuse` `release` `remembers` `roams` `role` `say` `seconds` `send` `spawn` `tell` `text` `then` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
 
 And no message or verb may be called `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` or `prose`.
 

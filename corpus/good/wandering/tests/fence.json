@@ -1,0 +1,8 @@
+{
+  "about": "Poked, the cat bolts east in a handler of its own message, and the fence refuses in its own words: told to nobody, nothing moves, and the handler ends there, so the yard hears nothing of it.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A muddy yard." }] },
+    { "as": "Marta", "type": "poke cat", "expect": [{ "words": "The cat bristles." }] },
+    { "as": "Marta", "type": "look", "expect": [{ "words": "A muddy yard." }] }
+  ]
+}

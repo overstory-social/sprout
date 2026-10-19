@@ -1553,6 +1553,24 @@ kind Watchman is sprout.Actor {
 }
 ```
 
+A character may also walk out of where it stands, as a visitor does with
+`go`. `move self north` takes the exit north that applies, so its `when`
+decides; `move self along an exit` takes one of the ways out that lead,
+chosen at random. If the exit refuses, or no exit leads that way, or there
+is no way out to choose, nothing moves and the rest of the body does not
+run; in a handler, a tick or a wake nobody hears the refusal. Only `self`
+moves this way, and only in a character's kind. Its own handlers know
+where it stands: `here` is its place.
+
+```sprout
+kind Cat is sprout.Actor {
+  on :woke (elapsed) {
+    tell "The cat sniffs the air of {here}."
+    move self along an exit
+  }
+}
+```
+
 ---
 
 ## 12. Messages
@@ -1734,7 +1752,8 @@ goes nowhere.
 `permit`, a `do`, a `describe` (where the actor is whoever is looking),
 and passages those use. A handler, hook, tick or wake has no actor, so it
 cannot `say`; it can `tell` the place, or `tell` an actor it has bound
-(like `item` in `:entered`).
+(like `item` in `:entered`). A character's own handlers, ticks and wakes
+still bind `here`, as the place it stands in.
 
 ### Passages
 
@@ -2351,7 +2370,8 @@ cat.sprout:4:14  `say` has nobody to speak to inside `on :stir`.
 - A write to anything but `self`.
 - Changing anything, speaking, or rolling dice in a guard or `permit`;
   anything but `text` in `describe`.
-- `say`, `actor` or `here` where nobody is acting.
+- `say` or `actor` where nobody is acting; `here` there too, but in a
+  character's own handler.
 - Dice where they are not allowed (see [Chance](#17-chance)).
 - Type errors: comparing different types, an option that is not in its
   enum, a literal outside a range, arithmetic on non-integers, a

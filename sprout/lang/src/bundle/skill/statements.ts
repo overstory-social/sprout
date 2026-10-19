@@ -83,7 +83,11 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
     example: 'finally destroy self',
     does: 'removes the object once everything the turn sent has been handled',
   },
-  { word: 'move', example: 'move self to hall', does: 'proposes a move, which consent may refuse' },
+  {
+    word: 'move',
+    example: 'move self to hall',
+    does: 'proposes a move, which consent may refuse; an actor goes through a way out with `move self north` or `move self along an exit`',
+  },
   {
     word: 'connect',
     example: 'connect onward to self',

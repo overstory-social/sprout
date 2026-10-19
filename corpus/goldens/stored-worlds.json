@@ -98,7 +98,8 @@
 "visitor-contents":{"world":"visitor_contents","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "visitor-kind":{"world":"visitor_kind","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "wake-delay":{"world":"wake_delay","serial":0,"instances":[],"visitors":[],"tombstones":[]},
-"wakes":{"world":"wakes","serial":0,"instances":[],"visitors":[],"tombstones":[]}
+"wakes":{"world":"wakes","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"wandering":{"world":"wandering","serial":0,"instances":[],"visitors":[],"tombstones":[]}
 },
 "played":[
 {"world":"arrival-order","transcript":"order.json","step":1,"stored":{"world":"arrival_order","serial":2,"instances":[{"id":"arrival_order#1","made":{"from":"visitor"},"container":"arrival_order.hall","arrival":2}],"visitors":[{"visit":"visit:Ines","nickname":"Ines","instance":"arrival_order#1","lastPlace":"arrival_order.hall","referents":[],"lastReading":null}],"tombstones":[]}},

@@ -1,0 +1,16 @@
+{
+  "name": "wandering",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "658d6c6e707552a3095275c85ceeceadbea0ecb358c1031ff8021b8d682e654a"
+    }
+  ],
+  "files": ["wandering.sprout", "person.sprout", "animals.sprout"]
+}

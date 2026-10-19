@@ -1,0 +1,81 @@
+// The animals, and the gate between the yard and the barn.
+import * as sprout from 'sprout'
+import {shoo, poke, open} from 'wandering'
+
+kind Gate is sprout.Fixture {
+  :open false
+  grammar { name "gate"  article the }
+
+  as target for open {
+    do {
+      self.set(:open, true)
+      say "You swing the gate open."
+    }
+  }
+}
+
+message :bolt
+
+// Shooed, the cat sets off north a minute later; poked, it bolts east.
+kind Cat is sprout.Actor {
+  grammar { name "cat"  article the }
+
+  as target for shoo {
+    do {
+      wake in 1 minutes
+      say "The cat flattens its ears."
+    }
+  }
+
+  as target for poke {
+    do {
+      send self :bolt
+      say "The cat bristles."
+    }
+  }
+
+  on :woke (elapsed) {
+    tell "The cat sniffs the air of {here}."
+    move self north
+    tell "The cat pads in from the yard."
+  }
+
+  on :bolt (_) {
+    move self east
+    tell "The cat clears the fence."
+  }
+}
+
+// Shooed, the dog wanders out a minute later by a way drawn from those that lead.
+kind Dog is sprout.Actor {
+  grammar { name "dog"  article the }
+
+  as target for shoo {
+    do {
+      wake in 1 minutes
+      say "The dog wags its tail."
+    }
+  }
+
+  on :woke (elapsed) {
+    move self along an exit
+  }
+}
+
+// Shooed, the owl would leave by a way drawn, and the coop has none while it dozes.
+kind Owl is sprout.Actor {
+  :awake false
+  grammar { name "owl"  article the }
+
+  as target for shoo {
+    do {
+      wake in 1 minutes
+      say "The owl opens one eye."
+    }
+  }
+
+  on :woke (elapsed) {
+    move self along an exit
+    tell "The owl flaps out."
+  }
+}

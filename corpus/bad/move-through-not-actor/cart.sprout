@@ -1,0 +1,12 @@
+// Only an actor goes through a way out, as a visitor goes: a cart is no
+// actor, so it is moved into a place, not walked out of one.
+import {push} from 'move_through_not_actor'
+
+kind Cart {
+  as target for push {
+    do {
+      move self along an exit
+      say "The cart rolls away."
+    }
+  }
+}

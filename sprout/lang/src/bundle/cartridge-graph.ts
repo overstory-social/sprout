@@ -77,6 +77,7 @@ const STATEMENT_KINDS: Record<Statement['kind'] | 'block', true> = {
   spawn: true,
   destroy: true,
   move: true,
+  'move-through': true,
   connect: true,
   act: true,
   send: true,
