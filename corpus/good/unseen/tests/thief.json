@@ -2,7 +2,7 @@
   "about": "The thief stands in the hall unseen: not listed and not named. The bell still reaches him, and he slips into the vault unannounced, since he is unseen as he moves, and shows himself there, so the gong sends him back seen.",
   "steps": [
     { "arrive": "Marta", "expect": [
-      { "reader": "Marta", "kind": "described", "words": "A bare hall. You see a bell. You see a heap of leaves." }
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. You see a bell. You see a heap of leaves. You see a horn." }
     ] },
     { "as": "Marta", "type": "examine thief", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }

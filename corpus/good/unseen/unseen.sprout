@@ -2,10 +2,12 @@
 // stands in the hall unseen: not listed, not named, and his comings and
 // goings unannounced, while a message still reaches him and he still moves.
 // Startled by the bell, he slips into the vault untold, and shows himself
-// there; startled again by the gong, he is seen to go. An open niche is
-// unseen, and so is the coin in it. The grating starts unseen under the leaves, and shows
-// itself when they are swept aside, since only it writes its own
-// `:unseen`. A lamp in the cellar is lit, and unseen, so it lights nothing.
+// there; startled again by the gong, he is seen to go. Called by the horn,
+// he shows himself first, so his going is told. An open niche is unseen,
+// and the coin in it is hidden with it. The grating starts unseen under
+// the leaves, and shows itself when they are swept aside, since only it
+// writes its own `:unseen`. A lamp in the cellar is lit, and unseen, so it
+// lights nothing.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 
@@ -34,6 +36,10 @@ world unseen is sprout.World {
       grammar { name "grating" article a }
       :unseen true
       on :uncovered { self.set(:unseen, false) }
+    }
+    object horn is Thing {
+      grammar { name "horn" article a }
+      as target for blow { do { say "The horn sounds."  send thief :called } }
     }
     object thief is Thief
     object niche is Niche {
@@ -67,8 +73,10 @@ world unseen is sprout.World {
 
 message :startled
 message :uncovered
+message :called
 
 verb ring  { role target  "ring [target]" }
+verb blow  { role target  "blow [target]" }
 verb sweep { role target  "sweep [target]"  "sweep aside [target]" }
 
 kind Thing { }
@@ -87,9 +95,15 @@ kind Thief is sprout.Actor {
       move self to hall
     }
   }
+
+  // Seen before he moves, so the move is told.
+  on :called {
+    self.set(:unseen, false)
+    move self to vault
+  }
 }
 
-// Open, and unseen: neither it nor the coin in it can be named.
+// Open, and unseen: neither it nor the coin it holds can be named.
 kind Niche {
   contains
   grammar { name "niche" article a }

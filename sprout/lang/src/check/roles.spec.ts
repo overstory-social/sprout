@@ -126,7 +126,7 @@ kind Warded {
     ]);
     // What nothing of the world's declares keeps the list of what it has.
     expect(checked(read('actor.get(:scroe) > 3')).map(([, , remedy]) => remedy)).toEqual([
-      'It has `:capacity` and `:unseen`.',
+      'It has `:capacity`.',
     ]);
   });
 

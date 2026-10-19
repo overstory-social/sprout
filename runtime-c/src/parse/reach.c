@@ -1,8 +1,8 @@
 /*
  * What a visitor may name (the spec's Range; Range > Sight, Unseen; Parsing > Choosing a reading): every live thing
  * the range walk the visitor sees reaches but the world, nearest first, each with its nearness and whether the one
- * typing carries it, so nothing unseen and nothing an unseen thing holds. In the dark a visitor names only themselves and what they carry. Every object the walk visits is a step; the
- * rest charges nothing.
+ * typing carries it, so nothing unseen and nothing an unseen thing holds. In the dark a visitor names only
+ * themselves and what they carry. Every object the walk visits is a step; the rest charges nothing.
  *
  * Nearness counts first the ring a thing is in, how far out the container is that it is reached through, then
  * how deep inside that container it lies, and two things are equally near only where both agree. The actor's own
