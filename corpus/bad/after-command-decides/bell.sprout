@@ -1,0 +1,8 @@
+// `after command` runs once the command is done, so it has nothing left to
+// refuse or allow.
+kind Bell {
+  after command {
+    if (here.count > 3) { refuse "The belfry is too crowded." }
+    allow
+  }
+}

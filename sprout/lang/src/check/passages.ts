@@ -176,6 +176,7 @@ function bodiesOf(kind: KindRef): Node[] {
     ...[...kind.plays.values()].flatMap((plays) => plays.map((play) => play.declaration)),
     ...[...kind.handlers.values()].flatMap((handlers) => handlers.map((one) => one.declaration)),
     ...[...kind.hooks.values()].flatMap((hooks) => hooks.map((hook) => hook.declaration)),
+    ...kind.afterCommand.map((after) => after.declaration),
     ...(kind.describe === null ? [] : [kind.describe.declaration]),
     // An exit says its words as a `refuse` or a `say` does.
     ...kind.exits.flatMap((way) =>

@@ -12,7 +12,7 @@ import type { ResolvedProperty } from './properties.js';
 import type { ResolvedPassage } from './passages.js';
 import type { Guards } from './guards.js';
 import type { Plays } from './roles.js';
-import type { Handlers, Hooks } from './handlers.js';
+import type { Handlers, Hooks, ResolvedAfterCommand } from './handlers.js';
 import type { PassRules } from './passes.js';
 import type { ComposedGrammar } from './grammar.js';
 import type { ResolvedExit } from './exits.js';
@@ -95,6 +95,12 @@ export interface KindRef {
    */
   readonly handlers: Handlers;
   readonly hooks: Hooks;
+  /**
+   * What it does after each command of a visitor it holds or who carries
+   * it: every composed kind's `after command` in closure order, its own
+   * last, less what is left out (the spec's Verbs › After a command).
+   */
+  readonly afterCommand: readonly ResolvedAfterCommand[];
   /** What it answers as a container: its own rule for a message, else the one it composes. */
   readonly passes: PassRules;
   /**
@@ -132,7 +138,7 @@ export interface KindRef {
    * Suppressing a contribution). A composed kind's are not repeated
    * here: they shaped that kind's own members, which is how a `without`
    * removes only the copy that came through the kind that wrote it.
-   * `guards`, `plays`, `handlers` and `hooks` already have them removed.
+   * `guards`, `plays`, `handlers`, `hooks` and `afterCommand` already have them removed.
    */
   readonly suppressed: readonly Suppression[];
 }

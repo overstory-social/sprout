@@ -1,0 +1,34 @@
+// A lamp burns down by the command, not by the clock: lit and carried, it
+// is a little lower after every command its bearer makes, and goes out
+// after its fifth. Set down, or shut in a tin, it follows nobody's
+// commands, so it keeps what it has.
+import * as sprout from 'sprout'
+
+verb light { role target: Lamp  "light [target]" }
+
+kind Lamp {
+  :lit false
+  :charge 5
+
+  grammar { name "lamp"  article a }
+
+  as target for light {
+    permit { if (self.get(:lit)) { refuse "It is already lit." } }
+    do {
+      self.set(:lit, true)
+      say "The wick catches."
+    }
+  }
+
+  after command {
+    if (self.get(:lit)) {
+      self.adjust(:charge, -1)
+      if (self.get(:charge) == 0) {
+        self.set(:lit, false)
+        say "Your lamp gutters and goes out."
+      } else {
+        say "The lamp burns a little lower."
+      }
+    }
+  }
+}
