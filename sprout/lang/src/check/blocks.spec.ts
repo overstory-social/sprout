@@ -428,6 +428,26 @@ describe('a handler or a hook acts, with nobody to answer or speak to', () => {
   });
 });
 
+describe('an `after command` acts and speaks as a `do` does, and never decides', () => {
+  const AFTER: BodyKind = { body: 'after' };
+
+  it('writes, spawns, asks to be woken, says and tells, drawing as it likes', () => {
+    expect(
+      check(
+        'self.set(:inked, true)\n    spawn Vessel in self\n    wake in 3 hours\n    say "Hi."\n    tell "Hi."\n    if (chance(2)) { tell self "Hi." }',
+        AFTER,
+      ),
+    ).toEqual([]);
+  });
+
+  it('refuses `refuse` and `allow`, since the command it follows is done', () => {
+    expect(check('refuse "No."\n    allow', AFTER).map(([, m]) => m)).toEqual([
+      '`refuse` decides, and `after command` runs once the command is done.',
+      '`allow` decides, and `after command` runs once the command is done.',
+    ]);
+  });
+});
+
 describe('a `describe` only reads, and gives its words with `text`', () => {
   const DESCRIBE: BodyKind = { body: 'describe' };
   const doing =

@@ -10,9 +10,10 @@
 // (`:at`, which every room by the water keeps as `:reach`), in four ways:
 //
 // - a way a visitor takes in it that leads back into the boat itself
-//   (`launch`, `land`, `west`, `east`): its own `:entered`, from itself,
-//   tells it to put out, land, or row on, whichever its reach means, and
-//   the engine then describes the boat, and so the room around it;
+//   (`launch`, `land`, `west`, `east`, and `ashore` where it lands): its
+//   own `:entered`, from itself, tells it to put out, land, or row on,
+//   whichever its reach means, and the engine then describes the boat, and
+//   so the room around it;
 // - `launch boat` and `land boat`, said with the boat named, which no way
 //   out can take, and so are messages;
 // - the river's current, on the boat's own clock (I-RIVER): two minutes on
@@ -21,7 +22,10 @@
 //   (west at the fourth reach, north and south on the lake).
 //
 // A boat cannot name the room it is in (friction 83), so it keeps its reach,
-// and a visitor who gets out of it asks the room (`:where`, `:berth`).
+// and a visitor who gets out of it by name (`get out of boat`) asks the room
+// (`:where`, `:berth`). Its own ways out, `get out`, `disembark` and
+// `ashore`, are links it connects to the room each time it moves, so only
+// whoever is in it is offered them (friction 137).
 import * as sprout from 'sprout'
 import {Thing, Portable, Scenery, Inflatable, Pluggable} from 'thing'
 import {Box, Bag} from 'box'
@@ -118,6 +122,16 @@ kind MagicBoat is sprout.Place, Bag, Vessel, Inflatable {
   :riders 0 min 0 max 20
   :errand Errand default idle
   :follow Reach default nowhere
+  // Ways out of the boat itself, offered only to whoever is in it: `get
+  // out` and `disembark` onto the room it lies in, and `ashore`, which is
+  // landing where the boat can land and getting out where it is beached. Each is connected
+  // again whenever the boat moves (`:moved`), since a boat cannot name the
+  // room it is in.
+  grammar {
+    link get_out   "get out"
+    link disembark "disembark"
+    link ashore    "ashore"
+  }
   passage short { magic boat }
   passage ldesc { There is a magic boat here. }
 
@@ -135,9 +149,10 @@ kind MagicBoat is sprout.Place, Bag, Vessel, Inflatable {
     if (self.holds(actor)) { text inside_view } else { text examined }
   }
 
-  // The words a way taken in the boat says as it goes: rendered once the
-  // turn is done, so a boat now on a shore has landed.
-  passage rowing {{if self.get(:afloat)}{if self.get(:at) == :river_5}{self.last_reach}{/if}{else}The magic boat comes to a rest on the shore.{/if}}
+  // The words launching says as the boat goes: rendered once the turn is
+  // done, so a boat put out from the Shore is on the last reach. A landing
+  // is the visitor's to say (adventurer.sprout), whichever way it was rowed.
+  passage rowing {{if self.get(:at) == :river_5}{self.last_reach}{/if}}
   passage ashore { The magic boat comes to a rest on the shore, and you clamber out of it onto dry land. }
   passage label_line { Read the label for the boat's instructions. }
   passage beached_line { You can't go anywhere on foot while you are sitting in a magic boat. Get out of it first. }
@@ -148,6 +163,21 @@ kind MagicBoat is sprout.Place, Bag, Vessel, Inflatable {
   // Put out from the Shore, the boat is on the last reach at once.
   passage last_reach { The current takes the boat the moment it leaves the shore, and the shore is already slipping away behind you. The roar ahead is very close. }
   passage falls_line { Unfortunately, the magic boat doesn't provide protection from the rocks and boulders one meets at the bottom of waterfalls. Including this one. }
+
+  // Out of the boat and into the water it floats on is fatal, and stepping
+  // out there is refused (V-DISEMBARK); a way ashore leads to another room.
+  // On the reach with no landing, going ashore is going back into the boat.
+  release (item, to) {
+    if (item.is(Adventurer) && self.get(:afloat) && to.is(Room)) {
+      if (to.get(:reach) == self.get(:at)) {
+        if (self.get(:at) == :river_4) { refuse "You can land either to the east or the west." }
+        else { refuse "You realize that getting out here would be fatal." }
+      }
+    }
+  }
+  accept (item, from) {
+    if (item.is(Adventurer) && from == self && self.get(:at) == :river_2) { refuse "There is no safe landing spot here." }
+  }
 
   without as target for close from Box
   as target for close { do { say "You must tell me how to do that to a magic boat." } }
@@ -302,6 +332,15 @@ kind MagicBoat is sprout.Place, Bag, Vessel, Inflatable {
     }
     self.set(:afloat, self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_4 || self.get(:at) == :river_5 || self.get(:at) == :in_stream || (self.get(:at) == :reservoir && self.get(:full)))
     self.set(:launch_ok, self.get(:at) == :dam_base || self.get(:at) == :white_cliffs_north || self.get(:at) == :white_cliffs_south || self.get(:at) == :sandy_beach || self.get(:at) == :shore || self.get(:at) == :stream_view || ((self.get(:at) == :reservoir_south || self.get(:at) == :reservoir_north) && self.get(:full)))
+    // The ways out of the boat, to the room it now lies in. Ashore, on a
+    // reach where every way back into the boat lands it or none does, is
+    // one of those.
+    if (to.is(Room)) {
+      connect get_out to to
+      connect disembark to to
+      if (self.get(:at) == :river_1 || self.get(:at) == :river_2 || self.get(:at) == :river_3 || self.get(:at) == :river_5) { connect ashore to self }
+      else { connect ashore to to }
+    }
     // Carried by the current or put out or in by name: the one in the boat
     // is told where it now is, as the room would describe itself.
     if (e == :drift || e == :launch || e == :land) {
@@ -418,19 +457,19 @@ object boat is MagicBoat in dam_base.pile {
     exit in    "launch" -> boat say rowing when (self.get(:launch_ok))
     exit in    "launch" refuse afloat_line when (self.get(:afloat))
     exit in    "launch" refuse "You can't launch it here."
-    exit out   "land"   -> boat say rowing when (self.get(:at) == :river_1 || self.get(:at) == :river_3 || self.get(:at) == :river_5)
+    exit out   "land"   -> boat when (self.get(:at) == :river_1 || self.get(:at) == :river_3 || self.get(:at) == :river_5)
     exit out   "land"   refuse "There is no safe landing spot here." when (self.get(:at) == :river_2)
     exit out   "land"   refuse "You can land either to the east or the west." when (self.get(:at) == :river_4)
     exit out   "out"    refuse "The boat is on dry land already. To leave it, get out of it." when (!self.get(:afloat))
     exit out   "out"    refuse label_line
-    exit west  "west"   -> boat say rowing when (self.get(:at) == :river_1 || self.get(:at) == :river_3 || (self.get(:at) == :reservoir && self.get(:full)))
+    exit west  "west"   -> boat when (self.get(:at) == :river_1 || self.get(:at) == :river_3 || (self.get(:at) == :reservoir && self.get(:full)))
     exit west  "west"   -> white_cliffs_south say ashore when (self.get(:at) == :river_4)
     exit west  "west"   refuse "Just in time you steer away from the rocks." when (self.get(:at) == :river_2)
     exit west  "west"   refuse falls_west when (self.get(:at) == :river_5)
     exit west  "west"   refuse "The channel is too narrow." when (self.get(:at) == :in_stream)
     exit west  "west"   refuse beached_line when (!self.get(:afloat))
     exit west  "west"   refuse "You can't go that way."
-    exit east  "east"   -> boat say rowing when (self.get(:at) == :river_4 || self.get(:at) == :river_5 || self.get(:at) == :in_stream)
+    exit east  "east"   -> boat when (self.get(:at) == :river_4 || self.get(:at) == :river_5 || self.get(:at) == :in_stream)
     exit east  "east"   refuse "The White Cliffs prevent your landing here." when (self.get(:at) == :river_1 || self.get(:at) == :river_2)
     exit east  "east"   refuse beached_line when (!self.get(:afloat))
     exit east  "east"   refuse "You can't go that way."

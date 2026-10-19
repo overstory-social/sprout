@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KindDeclaration, KindMember, WithoutDeclaration } from '../ast.js';
-import type { HandlerDeclaration, HookDeclaration } from '../ast-events.js';
+import type {
+  AfterCommandDeclaration,
+  HandlerDeclaration,
+  HookDeclaration,
+} from '../ast-events.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf } from '../../source/source.js';
 import { chooser, read } from '../../fixtures/parse.js';
 import { WELL_FORMED_GUARDS } from '../../fixtures/recovery.js';
 import { atMember, inKindBody, readWith, rest } from '../../fixtures/readers.js';
-import { handler, hook } from './handlers.js';
+import { afterCommand, handler, hook } from './handlers.js';
 import type { Parser } from './parser.js';
 import { without } from './without.js';
 import { worldMembers } from './world.js';
@@ -19,7 +23,9 @@ import { worldMembers } from './world.js';
  */
 function readMembers(members: string) {
   const { p, diagnostics, startsMember } = inKindBody(members, 'Lamp');
-  const read: (HandlerDeclaration | HookDeclaration | WithoutDeclaration)[] = [];
+  const read: (
+    HandlerDeclaration | HookDeclaration | AfterCommandDeclaration | WithoutDeclaration
+  )[] = [];
   for (;;) {
     const word = p.peek().kind === 'name' ? p.peek().text : '';
     const one =
@@ -27,9 +33,11 @@ function readMembers(members: string) {
         ? handler(p, 'Lamp', startsMember)
         : word === 'changed'
           ? hook(p, 'Lamp', startsMember)
-          : word === 'without'
-            ? without(p, startsMember)
-            : undefined;
+          : word === 'after'
+            ? afterCommand(p, 'Lamp', startsMember)
+            : word === 'without'
+              ? without(p, startsMember)
+              : undefined;
     if (one === undefined) break;
     if (one !== null) read.push(one);
   }
@@ -187,6 +195,57 @@ describe('a hook', () => {
   });
 });
 
+describe('an `after command`', () => {
+  it('is read with its block, and names nothing', () => {
+    const { members, said, rest } = readMembers(
+      'after command { tell actor "It hums." }\n  :lit false',
+    );
+    expect(said).toEqual([]);
+    expect(rest).toBe(':lit false\n}\n');
+    expect(members.map((m) => m.kind)).toEqual(['after-command']);
+  });
+
+  it('is read by `afterCommand` directly, spanning its word to its block', () => {
+    const { made, messages } = alone('after command { }', (p) =>
+      afterCommand(p, 'Lamp', () => false),
+    );
+    expect(messages).toEqual([]);
+    expect(made === null ? null : [made.at.start, made.at.end]).toEqual([0, 17]);
+  });
+
+  it('refuses `after` without `command`, taking the word written in its place', () => {
+    const { said, rest } = readMembers('after turn { }\n  :lit false');
+    expect(said).toEqual([
+      [
+        'k.sprout:2:9',
+        '`after` is followed by `command`: it runs at the end of every command a visitor makes.',
+        'Write `after command { … }`.',
+      ],
+    ]);
+    expect(rest).toBe(':lit false\n}\n');
+  });
+
+  it('refuses parameters, and one with no block, keeping the member after each', () => {
+    const { said, rest } = readMembers('after command (who) { }\n  after command\n  :lit false');
+    expect(said.map(([, message]) => message)).toEqual([
+      '`after command` takes no parameters: `actor` and `here` are bound inside it already.',
+      'What `after command` does goes in braces.',
+    ]);
+    expect(rest).toBe(':lit false\n}\n');
+  });
+
+  it('is what `without` names when no block follows, and a member when one does', () => {
+    const { members, messages } = readMembers(
+      'without after command from Lamp\n  after command { }',
+    );
+    expect(messages).toEqual([]);
+    expect(members.map((m) => (m.kind === 'without' ? m.member.kind : m.kind))).toEqual([
+      'after-command-ref',
+      'after-command',
+    ]);
+  });
+});
+
 // --- generated input -------------------------------------------------------
 //
 // The handler reader's share of the parser's recovery rule: over bodies of
@@ -199,6 +258,7 @@ const WELL_FORMED = [
   { name: 'gust', text: 'on :gust {\n    if (self.get(:lit)) { self.set(:lit, false) }\n  }' },
   { name: 'pong', text: 'on :pong (_, value) { }' },
   { name: 'lit', text: 'changed :lit (was) { if (was) { self.adjust(:n, 1) } }' },
+  { name: 'after', text: 'after command {\n    if (self.get(:lit)) { say "It hums." }\n  }' },
 ];
 
 const DEFECTS: readonly string[] = [
@@ -220,6 +280,11 @@ const DEFECTS: readonly string[] = [
   'changed lit { }',
   'changed :lit { if (a) allow }',
   'on { }',
+  'after',
+  'after turn { }',
+  'after command',
+  'after command (who) { }',
+  'after command { refuse }',
 ];
 const UNCLOSED = 'on :stir { if (a) { self.set(:lit, true) }';
 
@@ -258,7 +323,8 @@ describe('a well-formed handler never vanishes, and never answers for its neighb
         const end = start + member.text.length;
         const kept = kind!.members.find((m) => m.at.start === start && m.at.end === end);
         expect(kept, `${text}\n  \`${member.name}\` vanished`).toBeDefined();
-        if (kept?.kind === 'handler' || kept?.kind === 'hook') reached.add(`kept ${member.name}`);
+        if (kept?.kind === 'handler' || kept?.kind === 'hook' || kept?.kind === 'after-command')
+          reached.add(`kept ${member.name}`);
         for (const d of refusals) {
           expect(d.at.start > start && d.at.start < end, `${text}\n  ${d.message}`).toBe(false);
         }
@@ -267,6 +333,7 @@ describe('a well-formed handler never vanishes, and never answers for its neighb
     }
     expect([...reached].sort()).toEqual([
       'contained',
+      'kept after',
       'kept gust',
       'kept illuminating',
       'kept lit',

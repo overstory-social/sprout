@@ -147,4 +147,14 @@ sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const spro
  */
 sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading);
 
+/* ---- after.c ---- */
+
+/*
+ * What follows a person's command: every `after command` of what `actor`
+ * carries, of `actor`, and of each container out to the world, nearest
+ * first, each thing's in composition order (the spec's Verbs > After a
+ * command).
+ */
+sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *frame, sprout_str actor);
+
 #endif

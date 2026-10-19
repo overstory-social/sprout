@@ -15,7 +15,7 @@ export interface Body {
   readonly block: Block | null;
 }
 
-/** Every body a kind runs: its plays' `do`s, its handlers and its hooks. */
+/** Every body a kind runs: its plays' `do`s, its handlers, its hooks and its `after command`s. */
 export function bodiesOf(kind: KindRef): Body[] {
   return [
     ...[...kind.plays.values()]
@@ -27,6 +27,7 @@ export function bodiesOf(kind: KindRef): Body[] {
     ...[...kind.hooks.values()]
       .flat()
       .map((one) => ({ origin: one.origin, block: one.declaration.body })),
+    ...kind.afterCommand.map((one) => ({ origin: one.origin, block: one.declaration.body })),
   ];
 }
 

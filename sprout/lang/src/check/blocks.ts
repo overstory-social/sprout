@@ -13,8 +13,9 @@
 // nothing, so `refuse` and `allow` are refused there. A `do` acts: it
 // writes, spawns, destroys, moves, connects, acts, asks to be woken or
 // takes that back, and speaks, and `refuse` and `allow` are refused
-// there, since the deciding was done. A handler or a hook acts as a `do`
-// does, but nobody is acting, so it tells rather than says, and never
+// there, since the deciding was done. An `after command` acts and speaks
+// as a `do` does, and never refuses either. A handler or a hook acts as a
+// `do` does, but nobody is acting, so it tells rather than says, and never
 // refuses. Who each of `say`, `tell` and `text` speaks to is
 // `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
 // binds `tool`, for the branch each guards, and an `each` binds its
@@ -42,6 +43,8 @@ export type BodyKind =
   | { readonly body: 'guard'; readonly guard: GuardName }
   | { readonly body: 'permit' }
   | { readonly body: 'do' }
+  /** An `after command`, which acts as a `do` does with no verb behind it. */
+  | { readonly body: 'after' }
   | { readonly body: 'describe' }
   /** A handler or a hook, by its head as written: `on :stir`, `changed :lit`. */
   | { readonly body: 'handler'; readonly written: string };
@@ -120,11 +123,13 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'refuse':
       if (deciding) checkPassage(statement, context);
       else if (kind.body === 'handler') undecided(statement.at, 'refuse', kind.written, context);
+      else if (kind.body === 'after') followed(statement.at, 'refuse', context);
       else if (kind.body === 'describe') undescribed(statement.at, 'refuse', context);
       else acts(statement.at, 'refuse', context);
       return;
     case 'allow':
       if (kind.body === 'handler') undecided(statement.at, 'allow', kind.written, context);
+      else if (kind.body === 'after') followed(statement.at, 'allow', context);
       else if (kind.body === 'describe') undescribed(statement.at, 'allow', context);
       else if (!deciding) acts(statement.at, 'allow', context);
       return;
@@ -296,6 +301,17 @@ function acts(at: Span, word: 'refuse' | 'allow', context: CheckContext): void {
     word === 'refuse'
       ? 'Move it to `permit`, where the deciding is done.'
       : 'Take it out: a `do` runs once every `permit` has allowed.',
+  );
+}
+
+/** `refuse` or `allow` in an `after command`, which runs once the command it follows is done. */
+function followed(at: Span, word: 'refuse' | 'allow', context: CheckContext): void {
+  context.diagnostics.refuse(
+    at,
+    `\`${word}\` decides, and \`after command\` runs once the command is done.`,
+    word === 'refuse'
+      ? 'Say what happens with `say` or `tell`; to turn a command away, refuse it in a `permit`.'
+      : 'Take it out: nothing waits on `after command` to allow it.',
   );
 }
 

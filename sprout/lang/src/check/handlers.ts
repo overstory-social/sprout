@@ -1,6 +1,7 @@
-// A handler's body, a hook's and a pass rule's, checked (the spec's
-// Events, messages and the bus › Receiving, Handlers do not refuse,
-// Containers route; The compiler › What it refuses).
+// A handler's body, a hook's, an `after command`'s and a pass rule's,
+// checked (the spec's Events, messages and the bus › Receiving, Handlers
+// do not refuse, Containers route; Verbs › After a command; The compiler ›
+// What it refuses).
 //
 // In a handler `self` is the kind that wrote it, and its parameters are
 // what the message passes, positionally: an authored message's sender, an
@@ -8,16 +9,22 @@
 // message's objects and `elapsed`. A hook binds the value the property had
 // before. Nobody is acting, so `actor` and `here` are not bound, and the
 // body acts as a `do` does without `say`, `refuse` or `allow` (`blocks.ts`).
-// A pass rule is a condition over `self`, the container asked.
+// An `after command` follows a visitor's command, so `actor` is that
+// visitor and `here` their place, and it acts and speaks as a `do` does,
+// but never refuses: the deciding was done before it ran. A pass rule is
+// a condition over `self`, the container asked.
 
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { KindLookup, KindRef } from '../declare/kinds.js';
-import type { ResolvedHandler, ResolvedHook } from '../declare/handlers.js';
+import type { ResolvedAfterCommand, ResolvedHandler, ResolvedHook } from '../declare/handlers.js';
+import type { HereKind } from '../declare/places.js';
 import type { ResolvedPass } from '../declare/passes.js';
 import { writtenPass } from '../syntax/ast-events.js';
-import { nearestOption } from '../declare/enums.js';
+import { nearestOption, SPROUT } from '../declare/enums.js';
 import {
+  actorBinding,
   engineParameters,
+  hereBinding,
   handlerParameters,
   Scope,
   selfBinding,
@@ -125,6 +132,31 @@ export function checkHook(hook: ResolvedHook, self: KindRef, setting: HandlerSet
   return diagnostics.refusals.length === before;
 }
 
+/** Where an `after command` is read: a handler's setting, and what `here` is typed as. */
+export interface AfterCommandSetting extends HandlerSetting {
+  readonly here: HereKind;
+}
+
+/**
+ * Check one `after command` `self` wrote, with `actor`, typed as
+ * `sprout.Actor`, and `here` bound. Returns whether nothing in it was refused.
+ */
+export function checkAfterCommand(
+  after: ResolvedAfterCommand,
+  self: KindRef,
+  setting: AfterCommandSetting,
+): boolean {
+  const { diagnostics } = setting;
+  const before = diagnostics.refusals.length;
+  const body = after.declaration.body;
+  const scope = Scope.root();
+  scope.introduce(selfBinding(self, body.at), diagnostics);
+  scope.introduce(actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), body.at), diagnostics);
+  scope.introduce(hereBinding(setting.here, body.at), diagnostics);
+  checkBlock(body, contextFor(after.declaration, self, scope, setting), { body: 'after' });
+  return diagnostics.refusals.length === before;
+}
+
 /**
  * Check one pass rule `self` wrote: a condition, read with `self` the
  * container asked and nothing else bound. Returns whether it was accepted.
@@ -183,17 +215,29 @@ function checkBody(
       diagnostics,
     );
   }
-  const context: CheckContext = {
+  checkBlock(body, contextFor(declaration, self, scope, setting), { body: 'handler', written });
+}
+
+/** What an acting body that answers no verb is checked in: `scope` over `self`. */
+function contextFor(
+  declaration:
+    | ResolvedHandler['declaration']
+    | ResolvedHook['declaration']
+    | ResolvedAfterCommand['declaration'],
+  self: KindRef,
+  scope: Scope,
+  setting: HandlerSetting,
+): CheckContext {
+  return {
     scope,
     kinds: setting.kinds,
     from: self.library,
     self,
-    diagnostics,
+    diagnostics: setting.diagnostics,
     acting: { verbs: setting.verbs },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
     ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),
     ...(setting.speech === undefined ? {} : { speech: { ...setting.speech, body: declaration } }),
   };
-  checkBlock(body, context, { body: 'handler', written });
 }

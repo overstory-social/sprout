@@ -797,6 +797,7 @@ describe('`without` leaves out one contribution, naming the member and the kind 
     for (const [member, column] of [
       ['changed :lit', 11],
       ['on :stir', 11],
+      ['after command', 11],
       ['depart', 11],
       ['release', 11],
       ['accept', 11],

@@ -42,6 +42,9 @@ export function warnUnsentAndUnhandled(setting: EventSetting): void {
     for (const plays of kind.plays.values()) {
       for (const play of plays) sendsIn(play.origin, play.declaration.do, messages, sent);
     }
+    for (const after of kind.afterCommand) {
+      sendsIn(after.origin, after.declaration.body, messages, sent);
+    }
   }
 
   const warned = new Set<unknown>();

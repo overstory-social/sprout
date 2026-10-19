@@ -1,0 +1,10 @@
+// A room whose noise follows every command made in it: the one who made
+// it is told so, and everyone else there sees them wince.
+import * as sprout from 'sprout'
+
+kind LoudRoom is sprout.Place {
+  after command {
+    tell actor "The roar of the water is deafening."
+    tell "{actor} winces at the noise."
+  }
+}

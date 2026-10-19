@@ -6,10 +6,14 @@ import { runCommand, runCommandLine, runMaintenance, runTick, runWake } from '..
 import { equal, match, ok, rejects } from './check.js';
 import {
   BELFRY,
+  BELFRY_FOLLOWS,
   BELFRY_GONE,
   CANDLE,
   CHAPEL,
   COUNTER,
+  FOLLOWED,
+  FOLLOWED_BELL,
+  FOLLOWED_HALL,
   countOf,
   GAUGE,
   HALL,
@@ -20,6 +24,7 @@ import {
   MARTA,
   NAVE,
   played,
+  propertyOf,
   seeded,
   storedIn,
   TALLY,
@@ -512,6 +517,34 @@ export const turnCases: EngineCase[] = [
       await typed('put candle in tin', 60);
       await typed('close tin', 60);
       equal(await woken(120), [], 'what the candle in the shut tin she carries tells');
+    },
+  },
+  {
+    name: 'what follows a command',
+    proves:
+      'after a person’s command, what they carry, then their place, then the world run their `after command`, nearest first; a refused command is followed by nothing',
+    async run(make) {
+      const store = await seeded(BELFRY_FOLLOWS, [[MARTA, FOLLOWED_HALL, 'Marta']]);
+      const host = played(make, BELFRY_FOLLOWS);
+      const taken = await runCommand(store, 'w', host, command('take bell'));
+      ok(taken.committed, 'the take commits');
+      match(
+        taken.effects,
+        [
+          { kind: 'said', visit: MARTA, paragraphs: ['You take a bell.'] },
+          { kind: 'said', from: FOLLOWED_BELL, visit: MARTA, paragraphs: ['The bell hums.'] },
+          { kind: 'told', from: FOLLOWED_HALL, visit: MARTA, paragraphs: ['The hall echoes.'] },
+        ],
+        'what the take, the bell in her hands and the hall said, in that order',
+      );
+      equal(await propertyOf(store, FOLLOWED, 'commands', 0), 1, 'the commands the world counted');
+      const again = await runCommand(store, 'w', host, command('take bell'));
+      match(
+        again.effects,
+        [{ kind: 'refused', visit: MARTA, paragraphs: ['You already have it.'] }],
+        'a refused take, and nothing after it',
+      );
+      equal(await propertyOf(store, FOLLOWED, 'commands', 0), 1, 'the count after the refusal');
     },
   },
 ];

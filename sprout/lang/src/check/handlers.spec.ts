@@ -10,7 +10,7 @@ import { KindTable } from '../declare/kinds.js';
 import { MessageTable } from '../declare/messages.js';
 import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
-import { checkHandler, checkHook, checkPass } from './handlers.js';
+import { checkAfterCommand, checkHandler, checkHook, checkPass } from './handlers.js';
 
 const SPROUT_TEXT = 'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\n';
 
@@ -60,7 +60,7 @@ function checked(text: string) {
   ).toEqual([]);
 
   const diagnostics = new Diagnostics();
-  const setting = { kinds, verbs, diagnostics };
+  const setting = { kinds, verbs, diagnostics, here: { place: null, unlike: null } };
   const clean: boolean[] = [];
   for (const kind of kinds.all().filter((one) => one.library === 'shop')) {
     for (const runs of kind.handlers.values()) {
@@ -69,6 +69,7 @@ function checked(text: string) {
     for (const runs of kind.hooks.values()) {
       for (const one of runs) clean.push(checkHook(one, kind, setting));
     }
+    for (const one of kind.afterCommand) clean.push(checkAfterCommand(one, kind, setting));
     const { any, messages: rules } = kind.passes;
     for (const one of [...(any === null ? [] : [any]), ...rules.values()]) {
       clean.push(checkPass(one, kind, setting));
@@ -186,6 +187,39 @@ describe('a hook', () => {
     expect(checked('kind Lamp { :lit false  changed :lit (was, now) { } }').messages).toEqual([
       '`changed :lit` binds the value it had before, and nothing else.',
     ]);
+  });
+});
+
+describe('an `after command`', () => {
+  it('binds `actor` as an actor and `here`, and may say, tell and write', () => {
+    const { clean, said } = checked(
+      'kind Lamp { :n 0 min 0 max 9  after command { if (actor.is(sprout.Actor) && here != self) { self.adjust(:n, 1)  say "It hums."  tell actor "Still." } } }',
+    );
+    expect(said).toEqual([]);
+    expect(clean).toEqual([true]);
+  });
+
+  it('refuses `refuse` and `allow`, since the command it follows is done', () => {
+    const { said } = checked('kind Lamp { after command { refuse "No."  allow } }');
+    expect(said).toEqual([
+      [
+        'shop.sprout:5:29',
+        '`refuse` decides, and `after command` runs once the command is done.',
+        'Say what happens with `say` or `tell`; to turn a command away, refuse it in a `permit`.',
+      ],
+      [
+        'shop.sprout:5:43',
+        '`allow` decides, and `after command` runs once the command is done.',
+        'Take it out: nothing waits on `after command` to allow it.',
+      ],
+    ]);
+  });
+
+  it('refuses `text`, and binds no verb’s roles', () => {
+    expect(checked('kind Lamp { after command { text "A lamp." } }').messages).toEqual([
+      '`text` gives a `describe` its words, and this is `after command`.',
+    ]);
+    expect(checked('kind Lamp { after command { tell target "Hm." } }').messages).toHaveLength(1);
   });
 });
 

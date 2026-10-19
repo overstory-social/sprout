@@ -762,8 +762,8 @@ typedef struct sprout_stored_changes {
 } sprout_stored_changes;
 
 /*
- * A handler or hook a turn ran: the kind that wrote it, what it answers (a message by its key, or `changed :p` for
- * a hook), and where it is written, `file:line:column`, which tells two apart.
+ * A handler or hook a turn ran: the kind that wrote it, what it answers (a message by its key, `changed :p` for
+ * a hook, or `after command`), and where it is written, `file:line:column`, which tells two apart.
  */
 typedef struct sprout_ran {
   const char *origin;

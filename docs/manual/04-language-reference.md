@@ -164,7 +164,7 @@ other binding:
 
 ```text
 boolean integer string object symbol true false
-accept act actors allow any are arrive article as at bound broadcast
+accept act actors after allow any are arrive article as at bound broadcast
 carried changed connect contains default depart describe destroy do each else
 enum exit finally for from grammar hours if in kind let link many max
 message min minutes move name nouns of on optional pass passage permit
@@ -312,6 +312,7 @@ world all have one.
 | `as target for verb { … }`               | its part in a verb                                             |      yes       |  yes  |
 | `on :message { … }`                      | a handler for a message                                        |      yes       |  yes  |
 | `changed :prop (was) { … }`              | a hook, run when one of its own properties changes             |      yes       |  yes  |
+| `after command { … }`                    | runs after every command of a visitor who carries it or whom it holds (see [After a command](#after-a-command)) | yes | yes |
 | `pass :message (…)`, `pass any (…)`      | what messages and reach pass through it                        |      yes       |  yes  |
 | `without … from Kind`                    | leaves out one member it would otherwise compose               |      yes       |  yes  |
 | `object name is Kind`                    | an object inside it                                            |      yes       |  yes  |
@@ -916,7 +917,8 @@ kind of body it is:
 - **Guards** (`depart`, `release`, `accept`) and **`permit`** decide.
   They may read, and they may `refuse` or `allow`, but they may not change
   anything.
-- **`do`**, **handlers** (`on :m`) and **hooks** (`changed :p`) act.
+- **`do`**, **`after command`**, **handlers** (`on :m`) and **hooks**
+  (`changed :p`) act. `after command` may do everything a `do` may.
 - **`describe`** gives words and nothing else.
 
 | statement                  | what it does                                                         | guard | `permit` | `do` | `describe` | handler, hook |
@@ -1196,6 +1198,36 @@ participants never `say` anything.
 When a role is several `as` members deep — a world's `Warded` composing
 the library's `Lockable`, both playing `target for unlock` — every
 `permit` runs and any may refuse, and every `do` runs.
+
+### After a command
+
+`after command { … }` runs at the end of every command a visitor makes
+while they carry the thing that writes it, or while it holds them: a
+lamp in their hands, the room they stand in, the world. It is how a lamp
+burns down by the move, or a room's noise follows everything done in it:
+
+```sprout
+kind LoudRoom is sprout.Place {
+  after command {
+    tell actor "The roar of the water is deafening."
+    tell "{actor} winces at the noise."
+  }
+}
+```
+
+Inside, `self` is the thing, `actor` the visitor and `here` their place.
+`say` and `tell actor` speak to the visitor; a plain `tell` speaks to
+everyone else who can hear `self`. It cannot `refuse` or `allow`: the
+command is already done.
+
+It runs after the command's own `do`s, and after the description of a
+room the command walked into, but before what `look`, `examine`,
+`inventory` and `wait` answer; nearest first: what the visitor carries
+(not through a shut box), then the visitor, then the room, any room
+around that, and the world. It does not run after a refused command, a
+command the parser could not read, a character's `act`, a tick or a
+wake. Each command of a line — `take all`, or `open door then go north`
+— is its own command, followed on its own.
 
 ### Set roles
 
@@ -2157,6 +2189,7 @@ inheritance chain and no `super`.
 | ------------------------------------ | ---------------------------------------------------- |
 | a property, a `remembers` entry      | error, unless the composer restates it               |
 | `on :m` handler, `changed :p` hook   | all run                                              |
+| `after command`                      | all run                                              |
 | `depart`, `release`, `accept`        | all run; any refusal decides                         |
 | `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs |
 | `nouns`, `adjectives`                | all apply                                            |

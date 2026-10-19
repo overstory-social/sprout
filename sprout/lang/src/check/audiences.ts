@@ -44,12 +44,12 @@ const QUOTED = {
 export function checkSpoken(statement: Spoken, context: CheckContext, kind: BodyKind): void {
   switch (statement.kind) {
     case 'say':
-      if (kind.body === 'do') checkPassage(statement, context);
+      if (kind.body === 'do' || kind.body === 'after') checkPassage(statement, context);
       else if (kind.body === 'describe') refuseInDescribe(statement, context);
       else refuseSay(statement, context, kind);
       return;
     case 'tell':
-      if (kind.body === 'do' || kind.body === 'handler') {
+      if (kind.body === 'do' || kind.body === 'after' || kind.body === 'handler') {
         if (statement.direction !== null) checkDirected(statement, context);
         else if (statement.to !== null) checkTold(statement.to, context);
         checkPassage(statement, context);
@@ -219,15 +219,17 @@ function refuseText(statement: TextStatement, context: CheckContext, kind: BodyK
   const where =
     kind.body === 'do'
       ? 'this is a `do`'
-      : kind.body === 'handler'
-        ? `this is \`${kind.written}\``
-        : kind.body === 'guard'
-          ? `this is \`${kind.guard}\``
-          : 'this is a `permit`';
+      : kind.body === 'after'
+        ? 'this is `after command`'
+        : kind.body === 'handler'
+          ? `this is \`${kind.written}\``
+          : kind.body === 'guard'
+            ? `this is \`${kind.guard}\``
+            : 'this is a `permit`';
   context.diagnostics.refuse(
     wordOf(statement),
     `\`text\` gives a \`describe\` its words, and ${where}.`,
-    kind.body === 'do'
+    kind.body === 'do' || kind.body === 'after'
       ? 'Use `say` to speak to the actor, or `tell` to speak to the room.'
       : kind.body === 'handler'
         ? 'Use `tell` to speak to the room, or `tell p` to one person.'
