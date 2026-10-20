@@ -155,6 +155,14 @@ sprout — a Sprout microworld on the command line
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
+  sprout keygen prefix                write a new publisher's key pair: prefix.key, the private key, readable
+                                      by its owner only, and prefix.pub, the public key the Playdate app is
+                                      built with; refuses to replace either
+  sprout index dir --base-url url --key prefix.key [-o index.json]
+                                      sign an index of the .sproutworld cartridges in dir for the Playdate app's
+                                      downloads: writes the index (dir/index.json without -o) and, beside it,
+                                      each cartridge as <title>-<first 8 of its hash>.sproutworld, served at
+                                      url followed by that name
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]

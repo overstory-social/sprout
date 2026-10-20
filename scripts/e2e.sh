@@ -18,7 +18,9 @@
 # session, and the recording plays back as written. It serves the new world from the installed `sprout-server`,
 # and the installed terminal client, plain from a pipe, comes in, looks and leaves before the server is stopped. The installed `sprout-language-server`
 # is sent an edit that breaks the new kind and answers with the refusal on
-# its file. The C runtime is built, tested and played against the frozen goldens, with the C compiler required. Runs locally only — there is no CI on this repository.
+# its file. The installed CLI makes a publisher's key pair and signs an index of packed worlds. The C
+# runtime is built, tested and played against the frozen goldens, with the C compiler required, and the
+# player's C tests accept that index. Runs locally only — there is no CI on this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 repo=$(pwd)
@@ -173,7 +175,24 @@ send({ method: 'textDocument/didOpen', params: { textDocument: { uri, languageId
 LSP
 node lsp.cjs | tee lsp.txt
 grep -q 'Fixtur' lsp.txt
-# The C runtime, its tests and the WebAssembly engine against the frozen goldens, a C compiler required.
-(cd "$repo" && node scripts/check-runtime-c.mjs --required | tail -1)
+# The installed CLI makes a publisher's key pair and signs an index of two packed worlds; the
+# player's C tests below accept it, with each cartridge named, sized and hashed as it lists.
+npx sprout keygen publisher > keygen.txt
+grep -q '^public key [0-9a-f]\{64\}$' keygen.txt
+if grep -qF "$(cat publisher.key)" keygen.txt; then
+  echo "sprout keygen printed the private key" >&2
+  exit 1
+fi
+node -e 'process.exit(require("fs").statSync("publisher.key").mode & 0o077 ? 1 : 0)'
+if npx sprout keygen publisher 2> again.txt; then exit 1; fi
+grep -q 'already exists, and a key is never replaced' again.txt
+mkdir to-publish
+npx sprout pack "$shop" -o to-publish/printers_shop.sproutworld > /dev/null
+npx sprout pack shed -o to-publish/shed.sproutworld > /dev/null
+npx sprout index to-publish --base-url https://worlds.example/sprout/ --key publisher.key -o site/index.json
+echo "the installed CLI made a key pair and signed an index of two worlds"
+# The C runtime, its tests and the WebAssembly engine against the frozen goldens, a C compiler required;
+# the player's tests accept the index just signed.
+(cd "$repo" && node scripts/check-runtime-c.mjs --required --signed-index "$sandbox/site/index.json" --signed-index-key "$sandbox/publisher.pub" | tail -1)
 cd / && rm -rf "$sandbox" "$packs"
-echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server to the installed client, the installed language server, and the C runtime against the frozen goldens, at $sha)"
+echo "e2e: green (scaffold, check, parse, view, play (scripted and interactive), test (and its report), skill and mcp from the installed CLI, a world served by the installed server to the installed client, the installed language server, keygen and index from the installed CLI accepted by the player, and the C runtime against the frozen goldens, at $sha)"

@@ -803,12 +803,24 @@ file, its pictures among its bytes, which is what proves the bytes arrived
 whole. `signed` is an Ed25519
 signature, in hexadecimal, over the canonical text of `worlds` (no spaces,
 keys in order, integers in decimal; `canonicalText` in
-`scripts/index-signing.mjs`). The app verifies it in C
+`cli/src/signing.ts`). The app verifies it in C
 (`src/ed25519.c`, tested against RFC 8032) before it reads anything else.
 
 One publisher key is baked into the app at build
 (`SPROUT_INDEX_PUBLIC_KEY=<prefix>.pub`); a new key is a new build. The
-private key never enters the repository. The index has no expiry,
+private key never enters the repository.
+
+A publisher works from the installed CLI. `sprout keygen <prefix>` writes
+`<prefix>.key`, the 32-byte Ed25519 seed as 64 lowercase hexadecimal
+digits, readable by its owner only, and `<prefix>.pub`, the public key the
+same way; it prints the public key and refuses to replace either file.
+`sprout index <folder> --base-url <url> --key <prefix>.key [-o <file>]`
+writes the signed index (`<folder>/index.json` without `-o`) and, beside it,
+each `.sproutworld` in the folder under the name the device gives it,
+`<stem>-<hash8>.sproutworld`, at `<url>` followed by that name. A file
+already there under that name is kept if its bytes are the same and refused
+if they differ, so an index can be made again over cartridges published
+earlier, and a published build is never replaced. The index has no expiry,
 revocation list or version counter, so an old signed index can be replayed
 to a device. A world the publisher withdraws is one the next index leaves
 out; a cartridge already downloaded stays on the shelf.
