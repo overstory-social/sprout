@@ -414,20 +414,36 @@ static void a_file_is_named_for_its_title_as_the_publisher_names_it(void) {
 }
 
 /*
- * The console's permission dialog draws the purpose in a font with no comma and cuts it after about
- * 80 characters, so the purpose keeps to letters, digits and spaces, ends in a full stop, and fits.
+ * The console's permission dialog cuts the purpose after about 80 characters and draws it in the
+ * font pdxinfo's `menuMessageFont` names, so the purpose fits and that font is one Source/fonts packs
+ * into the pdx with a glyph for every character of it (the system's own copy has no comma).
  */
 static void the_purpose_is_one_the_dialog_draws_whole(void) {
-  const char *purpose = PLAYER_NETWORK_PURPOSE;
+  const char *purpose = PLAYER_NETWORK_PURPOSE, *key = "\nmenuMessageFont=";
+  char *pdxinfo = fixture_text("../../Source/pdxinfo"), *font = NULL, *glyphs = NULL, *at, name[256];
   size_t i, length = strlen(purpose);
   begin("purpose");
-  CHECK(length > 1 && length <= 80, "%zu characters: %s", length, purpose);
-  CHECK(length > 0 && purpose[length - 1] == '.', "ends in a full stop: %s", purpose);
-  for (i = 0; i + 1 < length; i++) {
-    char c = purpose[i];
-    CHECK((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ',
-          "character %zu, '%c', is a letter, a digit or a space: %s", i, c, purpose);
+  CHECK(length > 0 && length <= 80, "%zu characters: %s", length, purpose);
+  at = strstr(pdxinfo, key);
+  CHECK(at != NULL, "pdxinfo names a menuMessageFont");
+  if (at != NULL) {
+    at += strlen(key);
+    snprintf(name, sizeof name, "../../Source/%.*s.fnt", (int)strcspn(at, "\r\n"), at);
+    font = name + strlen("../../Source/");
+    CHECK(strncmp(font, "fonts/", 6) == 0, "the font is one the app packs: %s", font);
+    glyphs = fixture_text(name); /* a font not under Source/fonts fails here */
   }
+  for (i = 0; glyphs != NULL && i < length; i++) {
+    char line[16];
+    if (purpose[i] == ' ')
+      snprintf(line, sizeof line, "\nspace\t");
+    else
+      snprintf(line, sizeof line, "\n%c\t", purpose[i]);
+    CHECK((unsigned char)purpose[i] < 0x80 && HAS(glyphs, line), "character %zu, '%c', has a glyph in %s", i, purpose[i],
+          font);
+  }
+  free(pdxinfo);
+  free(glyphs);
   end();
 }
 
