@@ -419,11 +419,12 @@ kind Adventurer is sprout.Visitor {
     do {
       self.adjust(:moves, 1)
       // Out of a beached boat by its own way out: V-DISEMBARK's words. A way
-      // that steps ashore from the water leaves the boat behind, and says
-      // its own.
+      // that steps ashore from the water leaves the boat to follow, and the
+      // landing is said here for every such way, since a link cannot say it.
       if (self.get(:aboard) && !here.is(MagicBoat)) {
         self.set(:aboard, false)
         if (here.count(MagicBoat) > 0) { say "You are on your own feet again." }
+        else { say "The magic boat comes to a rest on the shore, and you clamber out of it onto dry land." }
       }
       // Rowed to a landing: on these reaches every way back into the boat
       // lands it, at the bank it names.
