@@ -27,11 +27,11 @@
 #include "wrap.h"
 
 /*
- * Where the list of worlds is, unless the Data folder's `downloads.json` says
- * `{ "indexUrl": "https://..." }`: a placeholder that names no server (`.invalid` never resolves),
- * until a real one is chosen.
+ * Where the list of worlds is: the index sprout-studio publishes on GitHub Pages, which serves it
+ * from this one server with no redirect. The Data folder's `downloads.json`, as
+ * `{ "indexUrl": "https://..." }`, names another.
  */
-#define PLAYER_INDEX_URL "https://worlds.example.invalid/sprout/index.json"
+#define PLAYER_INDEX_URL "https://overstory-social.github.io/sprout-studio/worlds/index.json"
 #define PLAYER_DOWNLOADS_SETTINGS "downloads.json"
 
 /* What the system's permission dialog says the network is for. */

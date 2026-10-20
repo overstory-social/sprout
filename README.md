@@ -192,11 +192,12 @@ read the diff; the build never reads outside this repository); a world may list 
 build plays through `sproutc` with the view polled first under the app's poll budget, so the build
 never packs a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
 shelf's last row fetches more from a signed index
-(`sprout keygen <prefix>` makes the publisher's key, which never
+(`sprout keygen <prefix>` makes the publisher's key pair, whose private half never
 enters this repository; `sprout index <folder> --base-url <url> --key <prefix>.key` writes the
-index; the app is built with the public half through `SPROUT_INDEX_PUBLIC_KEY`, and
-the Data folder's `downloads.json` holds the address, else the placeholder `PLAYER_INDEX_URL` in
-`sprout-player/src/ui/downloads.h`). The design doc,
+index; the app trusts the publisher's public half, `sprout-player/publisher.pub`, unless
+`SPROUT_INDEX_PUBLIC_KEY` names another, and fetches the index from sprout-studio's GitHub Pages,
+`PLAYER_INDEX_URL` in `sprout-player/src/ui/downloads.h`, unless the Data folder's
+`downloads.json` names another address). The design doc,
 [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md), has the whole of it. For
 players, see the manual's [Playing on the Playdate](docs/manual/06-playdate.md).
 

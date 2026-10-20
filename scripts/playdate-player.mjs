@@ -10,9 +10,9 @@
 // wherever a binary was built for; the system runs the update callback main.c sets. The pdx carries
 // no worlds: the build packs the graduated worlds (sprout-player/worlds.json) into <folder>/worlds,
 // beside the pdx, one cartridge a world, its pictures inside it, for a world is installed on its own
-// (the design doc's Shipped worlds and downloads). The download screen trusts the public key in the file named by
-// SPROUT_INDEX_PUBLIC_KEY (default sprout-player/test/index-test.pub, which anyone can sign for, so
-// a build to publish sets it), which the build bakes in as generated/publickey.h
+// (the design doc's Shipped worlds and downloads). The download screen trusts the publisher's public
+// key, sprout-player/publisher.pub, whose private half signs the studio's index; SPROUT_INDEX_PUBLIC_KEY
+// names another file instead. The build bakes the key in as generated/publickey.h
 // (-DPLAYER_INDEX_PUBLIC_KEY_FILE). `npm run playdate` is this.
 //
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
@@ -51,7 +51,10 @@ const pdxSource = join(player, 'Source');
 /** The graduated worlds the build packs and tests, installed apart from the pdx: `{ "graduated": [ { "world", "title" } ] }`. */
 export const WORLDS_FILE = join(player, 'worlds.json');
 
-/** The public key whose signatures the download screen accepts, unless SPROUT_INDEX_PUBLIC_KEY names another. */
+/** The publisher's public key, whose signatures the download screen accepts unless SPROUT_INDEX_PUBLIC_KEY names another. */
+export const PUBLISHER_PUBLIC_KEY = join(player, 'publisher.pub');
+
+/** The key the gate's builds trust, whose private half is in the repository so the tests can sign an index. */
 export const TEST_PUBLIC_KEY = join(player, 'test/index-test.pub');
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
@@ -303,9 +306,9 @@ export async function stageWorlds({ list = readGraduated(), out }) {
   return list;
 }
 
-/** The file holding the public key the download screen trusts: SPROUT_INDEX_PUBLIC_KEY's, else the test key. */
-function publicKeyFile() {
-  return resolve(process.env.SPROUT_INDEX_PUBLIC_KEY || TEST_PUBLIC_KEY);
+/** The file holding the public key the download screen trusts: SPROUT_INDEX_PUBLIC_KEY's, else the publisher's. */
+export function publicKeyFile(env = process.env) {
+  return resolve(env.SPROUT_INDEX_PUBLIC_KEY || PUBLISHER_PUBLIC_KEY);
 }
 
 /**
@@ -458,7 +461,7 @@ export async function buildPlayer({
   const key = readPublicKey();
   if (key.isTest) {
     console.warn(
-      'The download screen trusts the test public key (sprout-player/test/index-test.pub), whose private half is in the repository, so anyone can sign an index it accepts. Set SPROUT_INDEX_PUBLIC_KEY to the file holding your public key for a build you give to anyone else.',
+      'This pdx trusts the test public key (sprout-player/test/index-test.pub), whose private half is in the repository, so anyone can sign an index it accepts. Unset SPROUT_INDEX_PUBLIC_KEY to trust the publisher key (sprout-player/publisher.pub) in a build you give to anyone else.',
     );
   }
   clearBinaries();

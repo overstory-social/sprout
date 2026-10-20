@@ -3,7 +3,14 @@
 // (`shippingSpecs`); they need `npm run build` for the CLI and no Playdate SDK.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -14,6 +21,8 @@ import { readCartridgeAssets } from '@overstory/sprout/lang';
 import {
   appPollSteps,
   noWorlds,
+  publicKeyFile,
+  PUBLISHER_PUBLIC_KEY,
   readGraduated,
   stageWorlds,
   TEST_PUBLIC_KEY,
@@ -213,7 +222,18 @@ test('the public key the app trusts is read from the file named', () => {
   assert.equal(read.isTest, false);
 });
 
-test('the test key is the default, and is said to be the test key', () => {
+test('the publisher key is the default, and SPROUT_INDEX_PUBLIC_KEY names another', () => {
+  assert.equal(publicKeyFile({}), PUBLISHER_PUBLIC_KEY);
+  assert.equal(publicKeyFile({ SPROUT_INDEX_PUBLIC_KEY: '' }), PUBLISHER_PUBLIC_KEY);
+  assert.equal(publicKeyFile({ SPROUT_INDEX_PUBLIC_KEY: TEST_PUBLIC_KEY }), TEST_PUBLIC_KEY);
+});
+
+test('the publisher key is a key and not the test key; the test key is said to be one', () => {
+  assert.equal(readPublicKey({ keyFile: PUBLISHER_PUBLIC_KEY }).isTest, false);
+  assert.notEqual(
+    readFileSync(PUBLISHER_PUBLIC_KEY, 'utf8').trim(),
+    readFileSync(TEST_PUBLIC_KEY, 'utf8').trim(),
+  );
   assert.equal(readPublicKey({ keyFile: TEST_PUBLIC_KEY }).isTest, true);
 });
 
