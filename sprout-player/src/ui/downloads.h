@@ -35,11 +35,11 @@
 #define PLAYER_DOWNLOADS_SETTINGS "downloads.json"
 
 /*
- * What the system's permission dialog says the network is for, at most 80 characters, since the
- * dialog cuts the purpose after about 80. The dialog draws it in pdxinfo's `menuMessageFont`, the
- * bundled Roobert 11 Medium, because the console's own copy of that face has no comma.
+ * What the system's permission dialog says the network is for: letters, digits, spaces and one
+ * final full stop, at most 80 characters. The console's dialog draws it in its own font, which shows
+ * a comma as a box, and cuts it after about 80 characters.
  */
-#define PLAYER_NETWORK_PURPOSE "Sprout fetches the list of worlds, and the ones you choose, from this server."
+#define PLAYER_NETWORK_PURPOSE "Sprout fetches the list of worlds and the ones you choose from this server."
 
 typedef enum downloads_phase {
   DOWNLOADS_INDEX,  /* the list is being fetched */
