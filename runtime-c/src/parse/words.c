@@ -11,6 +11,7 @@ static const char *const DETERMINERS[] = {"a", "an", "the", "my", "this", "that"
 static const char *const CONNECTORS[] = {"and", ","};
 static const char *const RELATIVE_WORDS[] = {"in", "on", "that", "is", "one"};
 static const char *const ALL_WORDS[] = {"all", "everything"};
+static const char *const HOLDER_WORDS[] = {"from", "off", "out of", "in", "on"};
 static const char *const PARSER_WORDS[] = {"then", "again", "g", "all", "everything", "except"};
 static const char *const DIRECTIONS[] = {"north", "south",     "east",      "west", "northeast", "northwest",
                                          "southeast", "southwest", "up", "down",      "in",        "out"};
@@ -25,8 +26,8 @@ static const char *const ABBREVIATES[] = {"north",     "south",     "east",     
 
 const parse_list parse_lists[] = {LIST("determiners", DETERMINERS),      LIST("connectors", CONNECTORS),
                                   LIST("relativeWords", RELATIVE_WORDS), LIST("allWords", ALL_WORDS),
-                                  LIST("parserWords", PARSER_WORDS),     LIST("directions", DIRECTIONS),
-                                  LIST("wayWords", WAY_WORDS)};
+                                  LIST("holderWords", HOLDER_WORDS),     LIST("parserWords", PARSER_WORDS),
+                                  LIST("directions", DIRECTIONS),        LIST("wayWords", WAY_WORDS)};
 const size_t parse_list_count = sizeof parse_lists / sizeof *parse_lists;
 
 const parse_pairs parse_pair_lists[] = {
@@ -52,6 +53,48 @@ bool parse_is_connector(sprout_str word) { return among(word, CONNECTORS, sizeof
 bool parse_is_way_word(sprout_str word) { return among(word, WAY_WORDS, sizeof WAY_WORDS / sizeof *WAY_WORDS); }
 
 bool parse_is_all(sprout_str word) { return among(word, ALL_WORDS, sizeof ALL_WORDS / sizeof *ALL_WORDS); }
+
+size_t parse_holder_word_at(const sprout_str *words, size_t count, size_t at) {
+  size_t i;
+  for (i = 0; i < sizeof HOLDER_WORDS / sizeof *HOLDER_WORDS; i++) {
+    const char *written = HOLDER_WORDS[i];
+    size_t taken = 0;
+    while (*written != '\0') {
+      const char *space = strchr(written, ' ');
+      size_t length = space == NULL ? strlen(written) : (size_t)(space - written);
+      if (at + taken >= count || words[at + taken].length != length ||
+          memcmp(words[at + taken].bytes, written, length) != 0)
+        break;
+      taken++;
+      written += space == NULL ? length : length + 1;
+    }
+    if (*written == '\0') return taken;
+  }
+  return 0;
+}
+
+/* `length` bytes of `word`, then `tail`, NUL-terminated in `arena`, as `*out`. */
+static bool written(sprout_arena *arena, sprout_str word, size_t length, const char *tail, sprout_str *out) {
+  size_t extra = strlen(tail);
+  char *text = (char *)sprout_arena_take(arena, length + extra + 1);
+  if (text == NULL) return false;
+  memcpy(text, word.bytes, length);
+  memcpy(text + length, tail, extra + 1);
+  out->bytes = text;
+  out->length = length + extra;
+  return true;
+}
+
+bool parse_singulars(sprout_arena *arena, sprout_str word, sprout_str out[3], size_t *count) {
+  size_t n = word.length;
+  *count = 0;
+  if (n < 2 || word.bytes[n - 1] != 's') return true;
+  if (!written(arena, word, n - 1, "", &out[(*count)++])) return false;
+  if (n > 2 && word.bytes[n - 2] == 'e' && !written(arena, word, n - 2, "", &out[(*count)++])) return false;
+  if (n > 3 && word.bytes[n - 3] == 'i' && word.bytes[n - 2] == 'e' && !written(arena, word, n - 3, "y", &out[(*count)++]))
+    return false;
+  return true;
+}
 
 bool parse_is_noun_word(sprout_str word) {
   return parse_is_determiner(word) || parse_is_connector(word) || parse_is_all(word) || parse_is(word, "except") ||

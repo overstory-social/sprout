@@ -1,7 +1,8 @@
 /*
  * Tests for src/parse/all.c: `all` and `except` in a slot (the spec's Parsing > Sequences, again and all), read in
- * the corpus worlds `grammar` (the study) and `all-in-order` (a hall where one
- * kind plays `examine`'s target and a world verb's, and one plays nothing).
+ * the corpus worlds `grammar` (the study), `all-in-order` (a hall where one
+ * kind plays `examine`'s target and a world verb's, and one plays nothing) and `all-narrowed` (a table and a sack
+ * holding things, for `all` before a noun or a holder).
  */
 #include "parse_fixture.h"
 
@@ -148,12 +149,15 @@ static void except_leaves_out_by_name_noun_or_kind_and_names_nothing_where_it_na
   CHECK_INT(filled.things[0].literal, 6);
   /* Every key answers to `metal`, so nothing is left. */
   filled = all_in(&t, "all except metal", "study", "unlock", "tool", 8, &is_all);
-  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 0 && filled.end == 3);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 0 && filled.end == 1 && !filled.narrowed);
   filled = all_in(&t, "all except zebra", "study", "unlock", "tool", 8, &is_all);
   CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 2 && filled.end == 3);
   filled = all_in(&t, "all except", "study", "unlock", "tool", 8, &is_all);
   CHECK(filled.fills == PARSE_FILLS_UNFIT && filled.thing_count == 0);
-  filled = all_in(&t, "all the keys", "study", "unlock", "tool", 8, &is_all);
+  /* What follows `all` and is neither a noun, a holder nor `except` does not match. */
+  filled = all_in(&t, "all and lamp", "study", "unlock", "tool", 8, &is_all);
+  CHECK(filled.fills == PARSE_FILLS_UNFIT && filled.thing_count == 0);
+  filled = all_in(&t, "all from", "study", "unlock", "tool", 8, &is_all);
   CHECK(filled.fills == PARSE_FILLS_UNFIT && filled.thing_count == 0);
   /* A kind's name leaves out every thing of it. */
   filled = all_in(&t, "all except key", "sprout", "take", "target", 20, &is_all);
@@ -255,6 +259,92 @@ static void each_kind_asked_and_each_thing_except_is_weighed_against_is_a_step(v
   bench_close(&t.b);
 }
 
+/* The tea room of `all-narrowed`, reached in its order, the visitor first. */
+static const char *const TEA_ROOM[] = {
+    NULL, "all_narrowed.tea_room.table", "all_narrowed.tea_room.table.orange_cake", "all_narrowed.tea_room.table.red_cake",
+    "all_narrowed.tea_room.table.cup", "all_narrowed.tea_room.table.napkin", "all_narrowed.tea_room.sack",
+    "all_narrowed.tea_room.sack.berries", "all_narrowed.tea_room.blue_cake", "all_narrowed.tea_room.lamp"};
+#define TEA_ROOM_COUNT (sizeof TEA_ROOM / sizeof *TEA_ROOM)
+
+static void open_tea_room(taking *t) {
+  size_t i;
+  bench_open(&t->b, "all-narrowed", "Marta");
+  for (i = 0; i < TEA_ROOM_COUNT; i++)
+    t->candidates[i] = bench_candidate(&t->b, i == 0 ? t->b.actor.bytes : TEA_ROOM[i], i);
+  memset(&t->all, 0, sizeof t->all);
+  t->all.fill.nouns = bench_nouns(&t->b, NULL, 0);
+  t->all.fill.candidates = t->candidates;
+  t->all.fill.candidate_count = TEA_ROOM_COUNT;
+  t->all.actor = t->b.actor;
+  t->all.here = bench_str("all_narrowed.tea_room");
+}
+
+static void a_noun_after_all_keeps_what_it_names_as_a_plural_or_as_typed_or_by_its_kind(void) {
+  taking t;
+  bool is_all;
+  parse_filled filled;
+  open_tea_room(&t);
+  filled = all_in(&t, "all cakes", "sprout", "take", "target", 20, &is_all);
+  CHECK(is_all && filled.narrowed);
+  CHECK_STR(taken(&filled), "orange_cake red_cake blue_cake");
+  /* `all`, and the one word of the noun. */
+  CHECK_INT(filled.things[0].literal, 2);
+  filled = all_in(&t, "all cake", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "orange_cake red_cake blue_cake");
+  filled = all_in(&t, "all the red cakes", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "red_cake");
+  filled = all_in(&t, "all berries", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "berries");
+  /* A kind's name, as `except` reads one. */
+  filled = all_in(&t, "all crockery except the lamp", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "cup napkin berries");
+  /* A set role takes them at once. */
+  filled = all_in(&t, "all cakes", "all_narrowed", "stack", "cakes", 20, &is_all);
+  CHECK_INT(filled.fills, PARSE_FILLS_OPTIONS);
+  CHECK_STR(taken(&filled), "orange_cake red_cake blue_cake");
+  bench_close(&t.b);
+}
+
+static void a_noun_after_all_that_names_nothing_is_the_noun_and_read_as_a_plural(void) {
+  taking t;
+  bool is_all;
+  parse_filled filled;
+  open_tea_room(&t);
+  filled = all_in(&t, "all the keys", "sprout", "take", "target", 20, &is_all);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 1 && filled.end == 3 && filled.plural);
+  bench_close(&t.b);
+}
+
+static void a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_holds_nothing(void) {
+  taking t;
+  bool is_all;
+  parse_filled filled;
+  open_tea_room(&t);
+  filled = all_in(&t, "all from the table", "sprout", "take", "target", 20, &is_all);
+  CHECK(filled.narrowed);
+  CHECK_STR(taken(&filled), "orange_cake red_cake cup napkin");
+  /* `all` and the noun's word, not the holder word, so a verb's own `from [source]` reads it first where it can. */
+  CHECK_INT(filled.things[0].literal, 2);
+  filled = all_in(&t, "all off table", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "orange_cake red_cake cup napkin");
+  filled = all_in(&t, "all out of the sack", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "berries");
+  filled = all_in(&t, "all in the sack", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "berries");
+  filled = all_in(&t, "all cakes on the table except the red cake", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "orange_cake");
+  /* The lamp holds nothing: `all` itself names nothing, narrowed. */
+  filled = all_in(&t, "all from the lamp", "sprout", "take", "target", 20, &is_all);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 0 && filled.end == 1 && filled.narrowed);
+  /* A holder that names nothing in reach is that noun. */
+  filled = all_in(&t, "all from the floor", "sprout", "take", "target", 20, &is_all);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 2 && filled.end == 4 && !filled.plural);
+  /* A holder is one noun, no run. */
+  filled = all_in(&t, "all from the table and sack", "sprout", "take", "target", 20, &is_all);
+  CHECK_INT(filled.fills, PARSE_FILLS_UNFIT);
+  bench_close(&t.b);
+}
+
 int main(void) {
   RUN(everything_is_all_with_except_after_it_and_each_is_neither);
   RUN(words_that_do_not_begin_with_all_or_a_value_role_are_read_as_any_slot);
@@ -267,5 +357,8 @@ int main(void) {
   RUN(an_engine_verbs_open_role_takes_every_thing_but_people_though_some_kind_plays_it);
   RUN(an_engine_verbs_carried_role_takes_only_what_the_actor_carries);
   RUN(each_kind_asked_and_each_thing_except_is_weighed_against_is_a_step);
+  RUN(a_noun_after_all_keeps_what_it_names_as_a_plural_or_as_typed_or_by_its_kind);
+  RUN(a_noun_after_all_that_names_nothing_is_the_noun_and_read_as_a_plural);
+  RUN(a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_holds_nothing);
   return REPORT();
 }

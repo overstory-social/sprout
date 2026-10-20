@@ -166,3 +166,23 @@ bool parse_in_vocabulary(parse_words words, const parse_vocabulary *vocabulary) 
   }
   return true;
 }
+
+bool parse_in_vocabulary_as_plural(sprout_arena *arena, parse_words words, const parse_vocabulary *vocabulary,
+                                   bool *known) {
+  sprout_str singulars[3];
+  parse_words before = words, last;
+  size_t count, i;
+  *known = false;
+  if (words.count == 0) return true;
+  before.count--;
+  if (!parse_in_vocabulary(before, vocabulary)) return true;
+  last.words = &words.words[words.count - 1];
+  last.count = 1;
+  *known = parse_in_vocabulary(last, vocabulary);
+  if (!parse_singulars(arena, words.words[words.count - 1], singulars, &count)) return false;
+  for (i = 0; i < count && !*known; i++) {
+    last.words = &singulars[i];
+    *known = parse_in_vocabulary(last, vocabulary);
+  }
+  return true;
+}

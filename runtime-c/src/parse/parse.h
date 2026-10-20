@@ -55,6 +55,16 @@ bool parse_is_connector(sprout_str word);
 bool parse_is_all(sprout_str word);
 /* `through`, `into`, `down` or `up`, a word that may stand between a direction and a way's label: `south through the crawlway`. */
 bool parse_is_way_word(sprout_str word);
+/*
+ * How many of `words`, from `at`, are a word that names what holds the things `all` takes, `from`, `off`, `out of`,
+ * `in` or `on`; 0 where none stands there.
+ */
+size_t parse_holder_word_at(const sprout_str *words, size_t count, size_t at);
+/*
+ * What `word` is the plural of, where it ends in `s`: the word less `s`, less `es`, and with `ies` written `y`, in
+ * `out`, the last made in `arena`; none where it does not. False where the arena is full.
+ */
+bool parse_singulars(sprout_arena *arena, sprout_str word, sprout_str out[3], size_t *count);
 /* A word the parser reads in a noun: a determiner, a connector, a relative phrase's word, a pronoun, `all`, `everything` or `except`. */
 bool parse_is_noun_word(sprout_str word);
 /* The pronoun a typed word is, `them` being `they`; PARSE_PRONOUN_NONE where it is none a visitor types. */
@@ -246,6 +256,8 @@ typedef struct parse_later parse_later;
 typedef struct parse_filled {
   parse_fills fills;
   size_t start, end;           /* NOTHING */
+  bool plural;                 /* NOTHING: the noun after `all`, whose last word may be a plural */
+  bool narrowed;               /* `all` narrowed by a noun or by what holds the things, NOTHING where none qualifies */
   size_t thing_count;          /* OPTIONS of a thing role, UNFIT, RUN's first item, OUTWARD, ALL */
   const parse_named *things;
   size_t set_count;            /* OPTIONS of a set role */
@@ -297,7 +309,7 @@ typedef struct parse_all_context {
 } parse_all_context;
 
 /*
- * What `words` fill `role` of `verb` with where they are `all`, alone or with `except` and what it leaves out:
+ * What `words` fill `role` of `verb` with where they are `all`, alone or with a noun, what holds them and `except`:
  * `*is_all` false where they do not begin with `all`, or the role takes a value or a way out, and the slot is read
  * as any other. A set role takes every thing at once, as one option; a role that takes one thing takes each in
  * turn (ALL). Each candidate weighed is a step, and each kind asked whether it plays the role.
@@ -321,6 +333,10 @@ sprout_eval_status parse_world_words(const sprout_frame *frame, sprout_arena *ke
 
 /* Whether every one of `words` is one a noun may hold in the world: the vocabulary's, or the parser's own. */
 bool parse_in_vocabulary(parse_words words, const parse_vocabulary *vocabulary);
+
+/* As parse_in_vocabulary, the last of `words` read as typed or as the singular of a plural; false where the arena is full. */
+bool parse_in_vocabulary_as_plural(sprout_arena *arena, parse_words words, const parse_vocabulary *vocabulary,
+                                   bool *known);
 
 /* ---- match.c: where a phrase's slots fall ---- */
 

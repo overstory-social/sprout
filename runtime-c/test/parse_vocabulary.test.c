@@ -106,6 +106,23 @@ static void they_hold_a_noun_only_where_every_one_of_its_words_is_one(void) {
   bench_close(&b);
 }
 
+static void a_noun_after_all_holds_its_last_word_as_typed_or_as_a_plural(void) {
+  bench b;
+  parse_vocabulary vocabulary;
+  bool known;
+  bench_open(&b, "grammar", "Marta");
+  CHECK_INT(parse_world_words(&b.frame, b.frame.turn, &vocabulary), SPROUT_EVAL_OK);
+  CHECK(parse_in_vocabulary_as_plural(b.frame.turn, bench_words(&b, "the brass keys"), &vocabulary, &known) && known);
+  CHECK(parse_in_vocabulary_as_plural(b.frame.turn, bench_words(&b, "the barrels"), &vocabulary, &known) && known);
+  CHECK(parse_in_vocabulary_as_plural(b.frame.turn, bench_words(&b, "the key"), &vocabulary, &known) && known);
+  /* Only the last word is read as a plural, and a plural of no word the world names is none. */
+  CHECK(parse_in_vocabulary_as_plural(b.frame.turn, bench_words(&b, "brasses key"), &vocabulary, &known) && !known);
+  CHECK(parse_in_vocabulary_as_plural(b.frame.turn, bench_words(&b, "zebras"), &vocabulary, &known) && !known);
+  /* Where it is not after `all`, a plural is no word of the world's. */
+  CHECK(!parse_in_vocabulary(bench_words(&b, "the barrels"), &vocabulary));
+  bench_close(&b);
+}
+
 int main(void) {
   RUN(they_are_every_name_noun_and_adjective_of_every_thing_in_reach_or_not_and_its_kinds_names);
   RUN(they_are_the_parsers_own_a_noun_may_hold_but_not_again_or_then);
@@ -114,5 +131,6 @@ int main(void) {
   RUN(every_instance_the_worlds_tree_holds_is_a_step_and_what_the_bundle_writes_none);
   RUN(a_walk_past_the_budget_faults_the_turn);
   RUN(they_hold_a_noun_only_where_every_one_of_its_words_is_one);
+  RUN(a_noun_after_all_holds_its_last_word_as_typed_or_as_a_plural);
   return REPORT();
 }

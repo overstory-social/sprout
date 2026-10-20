@@ -5,6 +5,7 @@ import {
   defaultArticle,
   defaultNouns,
   DETERMINERS,
+  HOLDER_WORDS,
   humanisedIdentifier,
   humanisedKind,
   typedWords,
@@ -29,6 +30,10 @@ describe('words as a visitor types them', () => {
   it('take the spec’s articles and determiners as optional, and split a run on `and` and commas', () => {
     expect(DETERMINERS).toEqual(['a', 'an', 'the', 'my', 'this', 'that']);
     expect(CONNECTORS).toEqual(['and', ',']);
+  });
+
+  it('narrow `all` to what a thing holds by the spec’s five, `out of` among them', () => {
+    expect(HOLDER_WORDS).toEqual(['from', 'off', 'out of', 'in', 'on']);
   });
 });
 

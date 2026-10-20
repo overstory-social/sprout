@@ -1,0 +1,14 @@
+import * as sprout from 'sprout'
+
+kind Cake { }
+
+// A set role takes what `all` names at once: one turn, every cake bound.
+verb stack { role cakes: Cake many  "stack [cakes]" }
+
+kind Stacker is sprout.Actor {
+  as actor for stack {
+    do { say "You stack {cakes.count} cakes." }
+  }
+}
+
+kind Person is Stacker, sprout.Visitor { }

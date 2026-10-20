@@ -1,0 +1,35 @@
+{
+  "about": "`all` before what holds the things: `from`, `off`, `out of`, `in` and `on` take what the table directly holds, with `except` after; an empty table, or one named by no word, is answered.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the tea room." }
+    ] },
+    { "as": "Marta", "type": "take all off the table except the cup and napkin", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." }
+    ] },
+    { "as": "Marta", "type": "take all on the table except the cup", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a napkin." }
+    ] },
+    { "as": "Marta", "type": "take all from the table", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a cup." }
+    ] },
+    { "as": "Marta", "type": "take all off the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take all in the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take all out of the sack", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a berry." }
+    ] },
+    { "as": "Marta", "type": "take all from the lamp", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take all from the floor", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}

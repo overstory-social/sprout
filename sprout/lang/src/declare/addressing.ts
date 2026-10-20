@@ -22,6 +22,12 @@ export const RELATIVE_WORDS: readonly string[] = ['in', 'on', 'that', 'is', 'one
 export const ALL_WORDS: readonly string[] = ['all', 'everything'];
 
 /**
+ * The words that narrow `all` to what a thing directly holds: `take all
+ * from the table` (the spec's Parsing › Sequences, again and all).
+ */
+export const HOLDER_WORDS: readonly string[] = ['from', 'off', 'out of', 'in', 'on'];
+
+/**
  * The words of the parser's own, which join commands and name what a line
  * does again or does to everything (the spec's Parsing › Sequences, again
  * and all).

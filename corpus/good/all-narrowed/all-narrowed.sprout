@@ -1,0 +1,35 @@
+// `all` narrowed (the spec's Parsing › Sequences, again and all): `take
+// all from the table`, `off`, `out of`, `in` or `on` it, takes what the
+// table directly holds, and `take all cakes` what the plural's singular
+// names, each leaving out what `take` would refuse. The table is no
+// container, so the library's `take [target] from [source]` cannot read
+// it; the sack is one, and `take all out of the sack` is read by that
+// phrase. Where nothing qualifies the line is `not_here`, and a plural
+// of no word the world names is `unknown`.
+import * as sprout from 'sprout'
+import {Person, Cake} from 'person'
+
+world all_narrowed is sprout.World {
+  visitors are Person
+  visitors arrive at tea_room
+
+  object tea_room is sprout.Place {
+    grammar { name "tea room"  article the }
+    object table is Table {
+      grammar { article the }
+      object orange_cake is Cake { }
+      object red_cake is Cake { }
+      object cup is Crockery { }
+      object napkin is Crockery { }
+    }
+    object sack is sprout.Container {
+      grammar { article the }
+      object berries is Crockery { grammar { name "berry" } }
+    }
+    object blue_cake is Cake { }
+    object lamp is Crockery { }
+  }
+}
+
+kind Table { contains }
+kind Crockery { }
