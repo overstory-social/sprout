@@ -14,14 +14,14 @@
 // `read` tell the room what was done here, since a thing in a hand cannot
 // reach the room around it (friction 88).
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Flame, Lockable} from 'thing'
+import {Thing, Portable, Scenery, Flame, Lockable, Barrier, Creature, Door, Kissable} from 'thing'
 import {Room} from 'room'
 import {Treasure} from 'items'
 import {Stairs} from 'scenery'
 import {Adventurer} from 'adventurer'
 import {tiny_cave} from 'mirror'
 import {ask} from 'sprout'
-import {take, give, mung, alarm, burn, clear, climb_down, climb_over, climb_up, close, cross, cut, deflate, drink, duck_under, eat, fill, greet, inflate, kick, kiss, knock, lamp_off, lamp_on, land, launch, leap_at, listen, lock, look_behind, look_in, look_under, lower, oil, open, plug, pour, raise, read, ring, rub, rub_with, search, shake, shift, smell, squeeze, talk, tally, through, tie, turn, turn_with, unlock, untie, walk_around, wave, wind, :travel, :rite, :rite_lit, :rite_read, :consume, :die, :reckon} from 'verbs'
+import {take, give, mung, alarm, burn, clear, climb_down, climb_over, climb_up, close, cross, cut, deflate, drink, eat, fill, greet, inflate, kick, kiss, knock, lamp_off, lamp_on, land, launch, leap_at, listen, lock, look_behind, look_in, look_under, lower, oil, open, plug, pour, raise, read, ring, rub, rub_with, search, shake, shift, smell, squeeze, talk, tally, through, tie, turn, turn_with, unlock, untie, walk_around, wave, wind, :travel, :rite, :rite_lit, :rite_read, :consume, :die, :reckon} from 'verbs'
 
 // The Entrance to Hades: the rite's clock, and whether it has been done.
 // `:phase` is 0 while the spirits jeer, 1 while they reel from the bell
@@ -152,9 +152,10 @@ object land_of_the_dead is Room in underground_caverns {
 }
 
 // The evil spirits at the gate (GHOSTS, GHOSTS-F): nothing material reaches
-// them. Spoken to, they jeer; attacked, they ask how; anything else, and
-// you cannot interact with them at all. Exorcised, they are gone.
-kind Ghosts is Scenery {
+// them. Spoken to, they jeer; attacked, they ask how; touched, searched,
+// moved or burned, you cannot interact with them at all. Exorcised, they
+// are gone.
+kind Ghosts is Scenery, Creature {
   grammar { name "evil spirits"  nouns "ghosts", "ghost", "spirits", "spirit", "fiends", "force", "wraiths", "wraith"  adjectives "invisible", "evil" }
   passage short { evil spirits }
   passage unable { You seem unable to interact with these spirits. }
@@ -177,18 +178,10 @@ kind Ghosts is Scenery {
   as target for look_under { do { say unable } }
   without as target for search from Thing
   as target for search { do { say unable } }
-  without as target for cross from Thing
-  as target for cross { do { say unable } }
   without as target for shift from Thing
   as target for shift { do { say unable } }
   without as target for raise from Thing
   as target for raise { do { say unable } }
-  without as target for eat from Thing
-  as target for eat { do { say unable } }
-  without as target for drink from Thing
-  as target for drink { do { say unable } }
-  without as target for tally from Thing
-  as target for tally { do { say unable } }
   without as target for smell from Thing
   as target for smell { do { say unable } }
   without as target for listen from Thing
@@ -197,10 +190,6 @@ kind Ghosts is Scenery {
   as target for climb_up { do { say unable } }
   without as target for climb_down from Thing
   as target for climb_down { do { say unable } }
-  without as target for knock from Thing
-  as target for knock { do { say unable } }
-  without as target for walk_around from Thing
-  as target for walk_around { do { say unable } }
   without as target for kick from Thing
   as target for kick { do { say unable } }
   without as target for rub from Thing
@@ -209,44 +198,30 @@ kind Ghosts is Scenery {
   as target for rub_with { do { say unable } }
   without as target for shake from Thing
   as target for shake { do { say unable } }
-  without as target for squeeze from Thing
-  as target for squeeze { do { say unable } }
-  without as target for kiss from Thing
-  as target for kiss { do { say unable } }
-  without as target for look_behind from Thing
-  as target for look_behind { do { say unable } }
   without as target for fill from Thing
   as target for fill { do { say unable } }
-  without as target for alarm from Thing
+  without as target for alarm from Creature
   as target for alarm { do { say unable } }
   without as target for turn from Thing
   as target for turn { do { say unable } }
-  without as target for leap_at from Thing
-  as target for leap_at { do { say unable } }
   without as target for burn from Thing
   as target for burn { do { say unable } }
-  without as target for climb_over from Thing
-  as target for climb_over { do { say unable } }
-  without as target for duck_under from Thing
-  as target for duck_under { do { say unable } }
-  without as target for clear from Thing
-  as target for clear { do { say unable } }
   without as target for cut from Thing
   as target for cut { do { say unable } }
   without as target for through from Thing
   as target for through { do { say unable } }
-  without as target for talk from Thing
+  without as target for talk from Creature
   as target for talk { do { say jeer } }
   without as target for ask from Thing
   as target for ask { do { say jeer } }
-  without as target for greet from Thing
+  without as target for greet from Creature
   as target for greet { do { say jeer } }
   as recipient for give { do { say unable } }
 }
 
 // The gate of Hell (GATE-PSEUDO): through it is in, if it lets you; touch
 // it any other way and it makes your teeth ache.
-kind HellGate is Scenery, Lockable {
+kind HellGate is Scenery, Lockable, Barrier, Kissable, Door {
   grammar { name "gate"  nouns "gates", "gateway", "portal", "archway"  adjectives "large", "open", "iron" }
   passage short { gate }
   passage ache { The gate is protected by an invisible force. It makes your teeth ache to touch it. }
@@ -271,11 +246,9 @@ kind HellGate is Scenery, Lockable {
   as target for shift { do { say ache } }
   without as target for kick from Thing
   as target for kick { do { say ache } }
-  without as target for kiss from Thing
   as target for kiss { do { say ache } }
-  without as target for knock from Thing
+  without as target for knock from Door
   as target for knock { do { say ache } }
-  without as target for climb_over from Thing
   as target for climb_over { do { say ache } }
   without as target for lock from Lockable
   as target for lock { do { say ache } }

@@ -11,13 +11,13 @@
 // and the water (`Tidal`). Since v7 the way south of the Round Room goes on
 // to the Narrow Passage and the mirrors (mirror.sprout); the heaps that
 // once blocked it sit in a passage southwest that Zork never opened.
-import {Thing, Portable, Scenery, Diggable} from 'thing'
+import {Thing, Portable, Scenery, Diggable, Barrier, Concealing, Crossable, Leapable} from 'thing'
 import {Box} from 'box'
 import {Treasure} from 'items'
 import {DarkRoom, Perilous, ChasmEdge, CanyonEdge} from 'room'
 import {Stairs} from 'scenery'
 import {Adventurer} from 'adventurer'
-import {open, close, look_in, climb_up, climb_down, cross, leap_at, through, read, listen, smell, take, shift, raise, dig, mung, clear, climb_over, duck_under, cut, kick, rub, search, look_behind, look_under, :travel, :troll_gone, :hush, :flung, :tide} from 'verbs'
+import {open, close, look_in, climb_up, climb_down, cross, leap_at, through, read, listen, smell, take, shift, raise, dig, mung, clear, climb_over, cut, kick, rub, search, look_behind, look_under, :travel, :troll_gone, :hush, :flung, :tide} from 'verbs'
 import {troll_room} from 'cellar'
 import {narrow_corridor} from 'mirror'
 import {dome_room} from 'temple'
@@ -213,7 +213,7 @@ object deep_canyon is DarkRoom, CanyonEdge, Tidal in underground_caverns {
     if (self.get(:tide) == 2) { tell "The roar of rushing water is quieter now." }
     else if (self.get(:tide) == 0 && was == 3) { tell "A sound, like that of flowing water, starts to come from below." }
   }
-  object canyon is Scenery {
+  object canyon is Scenery, Leapable {
     grammar { name "canyon"  nouns "edge", "gorge", "ravine", "drop"  adjectives "deep", "south" }
     passage short { canyon }
     describe { text "The canyon falls away to the north, sheer and black, too deep for your light to find the bottom.{if deep_canyon.get(:tide) == 3} From far below there is no sound at all.{else} From somewhere far below comes the sound of water, going about its business.{/if}" }
@@ -351,13 +351,12 @@ object engravings_cave is DarkRoom in underground_caverns {
 // A narrow crack, as Zork's CRACK is: nobody fits through it.
 // The Round Room's cave-in and the heaps sorted from it: whatever is tried
 // on them, the one reason, a roof that is still coming down.
-kind Rubble is Scenery, Diggable {
+kind Rubble is Scenery, Diggable, Barrier, Concealing {
   passage no_take { You lay a hand on the nearest rock, and the roof overhead answers with a trickle of grit and a long, considering creak. The cave-in has not finished falling in, and it would rather finish on you than not. You leave the heaps as you found them. }
   without as target for shift from Thing
   as target for shift { do { say no_take } }
   without as target for raise from Thing
   as target for raise { do { say no_take } }
-  without as target for clear from Thing
   as target for clear { do { say no_take } }
   without as target for kick from Thing
   as target for kick { do { say no_take } }
@@ -367,11 +366,9 @@ kind Rubble is Scenery, Diggable {
   as target for rub { do { say no_take } }
   without as target for search from Thing
   as target for search { do { say "You find nothing among the heaps but rock, sorted by size." } }
-  without as target for look_behind from Thing
   as target for look_behind { do { say "Behind the heaps the roof has come down all the way to the floor, and grit is still trickling from it." } }
   without as target for look_under from Thing
   as target for look_under { do { say no_take } }
-  without as target for climb_over from Thing
   as target for climb_over { do { say "The heaps are easy enough to climb; it is the cave-in behind them that goes all the way up to the roof, and the roof is still coming down." } }
   as target for dig { do { say no_take } }
   without as target for through from Thing
@@ -391,7 +388,7 @@ kind Crack is Scenery {
 
 // A chasm, as Zork's CHASM-PSEUDO has it: too wide to cross or leap, and
 // whatever is put or thrown into it is never seen again.
-kind Abyss is Box {
+kind Abyss is Box, Crossable, Leapable {
   grammar { name "chasm"  nouns "ravine", "gorge", "abyss", "edge", "bottom"  adjectives "bottomless", "deep" }
   :open true
   :ndesc true
@@ -406,9 +403,8 @@ kind Abyss is Box {
   as target for close { do { say "You must tell me how to do that to a chasm." } }
   without as target for open from Box
   as target for open { do { say "You must tell me how to do that to a chasm." } }
-  without as target for cross from Thing
   as target for cross { do { say "It's too far to jump, and there's no bridge." } }
-  without as target for leap_at from Thing
+  without as target for leap_at from Leapable
   as target for leap_at { do { say "You look before leaping, and realize that you would never survive." } }
   without as target for climb_down from Thing
   as target for climb_down { do { say "Are you out of your mind?" } }

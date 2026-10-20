@@ -18,13 +18,15 @@
 // as only he can. Killed, he leaves his stiletto and his treasures where he
 // fell, and in his lair his hidden hoard shows itself.
 //
-// A handler has no `here`, so each of his turns starts by asking the room
-// he stands in to show itself (`broadcast :prowl`; the room answers
-// `:survey`), and in that answer `from` is his room. He roams, so he moves
-// himself from room to room by the index the rooms keep (`:tour`), and no
-// turn of his opens the world's gate to anyone else.
+// While unseen he holds `:unseen` true: nobody can name him, list him or
+// read him come and go, and he still robs and moves. Each of his turns is a
+// `:survey` he sends himself, read against `here`, the room he stands in.
+// He roams, so he moves himself from room to room by the index the rooms
+// keep (`:tour`), as Zork's I-THIEF takes the next room on its list
+// wherever it lies, and no turn of his opens the world's gate to anyone
+// else.
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery} from 'thing'
+import {Thing, Portable, Scenery, Creature} from 'thing'
 import {Weapon, Knife, Treasure} from 'items'
 import {Room, DarkRoom} from 'room'
 import {Maze, DeadEnd} from 'maze'
@@ -34,7 +36,7 @@ import {Egg} from 'tree'
 import {Chalice, TreasureRoom} from 'cyclops'
 import {ask} from 'sprout'
 import {examine} from 'sprout'
-import {take, drop, open, close, look_in, search, attack, give, throw, listen, talk, greet, alarm, shift, :blow, :expire, :settle, :wander, :thief_start, :prowl, :survey, :rob, :summon, :defend, :pinch, :unveil, :pry, :thief_gone, :keeper} from 'verbs'
+import {take, drop, open, close, look_in, search, attack, give, throw, listen, talk, greet, alarm, shift, :blow, :expire, :settle, :wander, :thief_start, :survey, :rob, :summon, :pinch, :unveil, :pry, :thief_gone, :keeper} from 'verbs'
 import {cellar, troll_room} from 'cellar'
 import {east_of_chasm, gallery, studio} from 'gallery'
 import {maze_1, maze_2, maze_3, maze_4, dead_end_1, maze_5, dead_end_2, maze_6, maze_7, maze_8, dead_end_3, maze_9, maze_10, maze_11, grating_room, maze_12, dead_end_4, maze_13, maze_14, maze_15} from 'maze'
@@ -105,17 +107,14 @@ kind Stiletto is Weapon {
   describe { text "It is a stiletto: a thin, three-sided blade on a plain black hilt, made for going between things, ribs among them. It is spotless. Its owner takes better care of it than of anything else he owns, which is saying something, since everything else he owns used to be somebody else's." }
 }
 
-kind Thief is Thing, sprout.Actor {
+kind Thief is Thing, sprout.Actor, Creature {
   roams
   grammar { name "thief"  nouns "robber", "man", "person", "gentleman", "individual", "crook"  adjectives "shady", "suspicious", "seedy", "suspicious-looking", "seedy-looking" }
   :capacity 60
-  // Seen or unseen (Zork's INVISIBLE, cleared): unseen, he is not to be
-  // named, and his hands are out of reach.
-  :shown false
-  :ndesc true
-  pass any (self.get(:shown))
-  as target for any { permit { if (!self.get(:shown)) { refuse "You can't see any such thing." } } }
-  as tool for any   { permit { if (!self.get(:shown)) { refuse "You can't see any such thing." } } }
+  // Zork's INVISIBLE: unseen until he lets himself be seen. Seen, his bag
+  // and his stiletto are in sight; unseen, nothing reaches into his hands.
+  :unseen true
+  pass any (!self.get(:unseen))
 
   object bag is LargeBag
   object stiletto is Stiletto { :wielded true }
@@ -136,12 +135,7 @@ kind Thief is Thing, sprout.Actor {
   // Out cold, his chance in a hundred of coming round (Zork's V-PROB),
   // 25 more each turn.
   :rouse 0 min 0 max 100
-  // Which part of his turn the room's `:survey` answers: 1 the room he
-  // stands in, 2 the room he has just moved on to, 3 his lair, which he
-  // has come to defend.
-  :phase 0 min 0 max 3
-  // Where he stands, and where he goes next, by the rooms' `:tour`.
-  :at 30 min 0 max 80
+  // Where he goes next, by the rooms' `:tour`.
   :next 0 min 0 max 80
   :rushing false
   // Whether a visitor stands in his room, as the last survey found.
@@ -193,18 +187,18 @@ kind Thief is Thing, sprout.Actor {
 
   without as target for listen from Thing
   as target for listen { do { say "The thief says nothing, as you have not been formally introduced." } }
-  without as target for talk from Thing
+  without as target for talk from Creature
   as target for talk { do { say "The thief is a strong, silent type." } }
   without as target for ask from Thing
   as target for ask { do { say "The thief is a strong, silent type." } }
-  without as target for greet from Thing
+  without as target for greet from Creature
   as target for greet {
     do {
       if (self.get(:strength) < 0) { say "The thief, being temporarily incapacitated, is unable to acknowledge your greeting with his usual graciousness." }
       else { say "The thief bows his head to you in greeting." }
     }
   }
-  without as target for alarm from Thing
+  without as target for alarm from Creature
   as target for alarm {
     do {
       if (self.get(:strength) < 0) { say "He seems to be deeply unconscious, and in no hurry to stop being so." }
@@ -249,8 +243,7 @@ kind Thief is Thing, sprout.Actor {
             if (self.get(:loot) > 0) { say "You evidently frightened the robber, though you didn't hit him. He flees, but the contents of his bag fall on the floor." }
             else { say "You evidently frightened the robber, though you didn't hit him. He flees." }
             each b: LargeBag in self { send b :disgorge with 3 }
-            self.set(:shown, false)
-            self.set(:ndesc, true)
+            self.set(:unseen, true)
             if (here.is(Room)) { send actor :settle with here.get(:glow) }
           } else {
             say "You missed. The thief makes no attempt to take the knife, though it would be a fine addition to the collection in his bag. He does seem angered by your attempt."
@@ -300,7 +293,7 @@ kind Thief is Thing, sprout.Actor {
   on :unloaded (from, value) {
     self.set(:junked, false)
     if (self.get(:dead) && value == 1) {
-      if (self.get(:at) == 28) { broadcast :unveil }
+      if (here.is(TreasureRoom)) { broadcast :unveil }
       else if (self.get(:booty)) { tell "His booty remains." }
     }
   }
@@ -314,58 +307,52 @@ kind Thief is Thing, sprout.Actor {
     }
   }
 
-  // One of his turns: he asks the room he is in to show itself.
+  // One of his turns.
   on :woke (elapsed) {
     if (!self.get(:dead)) {
       cancel wakes
       wake in 1 minutes
-      self.set(:phase, 1)
-      broadcast :prowl
+      send self :survey with 1
     }
   }
 
   // Somebody has walked into his lair. If he is there, unseen, he shows
   // himself; if he is anywhere else, he comes, by passages unknown to you.
-  on :defend {
-    if (!self.get(:dead) && self.get(:strength) > 0) {
-      self.set(:phase, 3)
-      broadcast :prowl
-    }
-  }
   on :summon {
     if (!self.get(:dead) && self.get(:strength) > 0) {
-      self.set(:started, true)
-      self.set(:rushing, true)
-      self.set(:announced, false)
-      self.set(:phase, 3)
-      send self :wander
+      if (here.is(TreasureRoom)) { send self :survey with 3 }
+      else {
+        self.set(:started, true)
+        self.set(:rushing, true)
+        self.set(:announced, false)
+        send self :wander
+      }
     }
   }
 
-  // The room he stands in, shown: his turn (Zork's I-THIEF and I-FIGHT).
-  on :survey (from) {
-    if (from.is(Room) && !self.get(:dead) && self.get(:phase) > 0) {
-      let ph = self.get(:phase)
-      self.set(:phase, 0)
+  // His turn, in the room he stands in (Zork's I-THIEF and I-FIGHT).
+  // `value` is which part of it: 1 a turn of his clock, 2 the room he has
+  // just moved on to, 3 his lair, which he has come to defend.
+  on :survey (from, value) {
+    if (from == self && here.is(Room) && !self.get(:dead)) {
+      let ph = value
       self.set(:stay, false)
-      self.set(:at, from.get(:tour))
-      self.set(:company, from.count(Adventurer) > 0)
+      self.set(:company, here.count(Adventurer) > 0)
       if (ph == 3) {
         // TREASURE-ROOM-FCN and THIEF-IN-TREASURE. The scream and the
         // gesture are the visitor's to tell, as they come in, so that they
         // come before the room (friction 92); the lair keeps `:keeper` so
         // that they know he is there to come.
-        self.set(:shown, true)
-        self.set(:ndesc, false)
+        self.set(:unseen, false)
         self.set(:fighting, true)
-        each s: Stiletto in from { move s to self }
-        each t: Treasure in from {
+        each s: Stiletto in here { move s to self }
+        each t: Treasure in here {
           if (!t.is(Chalice)) {
             each b: LargeBag in self { move t to b }
             self.adjust(:loot, 1)
           }
         }
-        each a: Adventurer in from { send a :settle with 2 }
+        each a: Adventurer in here { send a :settle with 2 }
       } else if (self.get(:strength) < 0) {
         // Out cold (I-FIGHT's AWAKEN): with somebody watching, a growing
         // chance each turn of coming round; left alone, at once.
@@ -376,34 +363,33 @@ kind Thief is Thing, sprout.Actor {
             self.set(:strength, 0 - self.get(:strength))
             send treasure_room :keeper with true
             self.set(:fighting, true)
-            each s: Stiletto in from { move s to self }
+            each s: Stiletto in here { move s to self }
           } else { self.adjust(:rouse, 25) }
         } else {
           self.set(:rouse, 0)
           self.set(:strength, 0 - self.get(:strength))
           send treasure_room :keeper with true
-          each s: Stiletto in from { move s to self }
+          each s: Stiletto in here { move s to self }
         }
       } else {
         // I-THIEF.
-        if (from.is(TreasureRoom) && !self.get(:company)) {
+        if (here.is(TreasureRoom) && !self.get(:company)) {
           // Alone in his lair: he empties his bag of what is worth having
           // (DEPOSIT-BOOTY), and opens the egg if he has it.
-          if (self.get(:shown)) {
-            self.set(:shown, false)
-            self.set(:ndesc, true)
+          if (!self.get(:unseen)) {
+            self.set(:unseen, true)
           }
-          each s: Stiletto in from { move s to self }
+          each s: Stiletto in here { move s to self }
           each b: LargeBag in self { send b :disgorge with 1 }
-        } else if (self.get(:company) && from.is(TreasureRoom)) {
+        } else if (self.get(:company) && here.is(TreasureRoom)) {
           // THIEF-VS-ADVENTURER's first clause: in his own lair, with a
           // visitor in it, he neither shows himself, nor robs, nor leaves,
           // nor runs; he stands and fights until one of them is dead.
-        } else if (self.get(:company) && from.is(DarkRoom) && from.count(Troll) == 0) {
+        } else if (self.get(:company) && here.is(DarkRoom) && here.count(Troll) == 0) {
           // THIEF-VS-ADVENTURER. First, Zork's WINNING?: his strength
           // against the visitor's, and a chance.
           self.set(:md, 2)
-          each a: Adventurer in from {
+          each a: Adventurer in here {
             self.set(:md, a.get(:fight))
             if (a.get(:score) >= 70) { self.adjust(:md, 1) }
             if (a.get(:score) >= 140) { self.adjust(:md, 1) }
@@ -420,37 +406,34 @@ kind Thief is Thing, sprout.Actor {
           else { self.set(:winning, w < 10) }
           self.set(:pilfer, false)
           if (!self.get(:announced)) {
-            if (!self.get(:shown) && random(10) < 3) {
+            if (self.get(:unseen) && random(10) < 3) {
               if (self.count(Stiletto) > 0) {
-                self.set(:shown, true)
-                self.set(:ndesc, false)
+                self.set(:unseen, false)
                 self.set(:announced, true)
                 self.set(:stay, true)
                 tell "Someone carrying a large bag is casually leaning against one of the walls here. He does not speak, but it is clear from his aspect that the bag will be taken only over his dead body."
-                each a: Adventurer in from { send a :settle with 2 }
+                each a: Adventurer in here { send a :settle with 2 }
               }
-            } else if (self.get(:shown) && self.get(:fighting) && !self.get(:winning)) {
+            } else if (!self.get(:unseen) && self.get(:fighting) && !self.get(:winning)) {
               tell "Your opponent, determining discretion to be the better part of valor, decides to terminate this little contretemps. With a rueful nod of his head, he steps backward into the gloom and disappears."
-              self.set(:shown, false)
-              self.set(:ndesc, true)
+              self.set(:unseen, true)
               self.set(:fighting, false)
               self.set(:stay, true)
-              each s: Stiletto in from { move s to self }
-              each a: Adventurer in from { send a :settle with from.get(:glow) }
-            } else if (self.get(:shown) && self.get(:fighting) && random(10) < 9) {
-            } else if (self.get(:shown) && random(10) < 3) {
+              each s: Stiletto in here { move s to self }
+              each a: Adventurer in here { send a :settle with here.get(:glow) }
+            } else if (!self.get(:unseen) && self.get(:fighting) && random(10) < 9) {
+            } else if (!self.get(:unseen) && random(10) < 3) {
               tell "The holder of the large bag just left, looking disgusted. Fortunately, he took nothing."
-              self.set(:shown, false)
-              self.set(:ndesc, true)
+              self.set(:unseen, true)
               self.set(:stay, true)
-              each s: Stiletto in from { move s to self }
-              each a: Adventurer in from { send a :settle with from.get(:glow) }
+              each s: Stiletto in here { move s to self }
+              each a: Adventurer in here { send a :settle with here.get(:glow) }
             } else if (random(10) < 7) {
             } else {
               self.set(:announced, true)
               self.set(:pilfer, true)
             }
-          } else if (self.get(:shown) && random(10) < 3) {
+          } else if (!self.get(:unseen) && random(10) < 3) {
             self.set(:pilfer, true)
           }
           // He robs the room of its treasures, or, if it has none, its
@@ -458,7 +441,7 @@ kind Thief is Thing, sprout.Actor {
           // visitor's own); seen, he leaves with them.
           if (self.get(:pilfer)) {
             self.set(:took, 0)
-            each t: Treasure in from {
+            each t: Treasure in here {
               if (t.get(:tvalue) > 0 && !t.get(:sacred)) {
                 each b: LargeBag in self { move t to b }
                 self.adjust(:loot, 1)
@@ -466,35 +449,33 @@ kind Thief is Thing, sprout.Actor {
               }
             }
             if (self.get(:took) > 0) {
-              if (self.get(:shown)) { tell "The thief just left, still carrying his large bag. You may not have noticed that he appropriated the valuables in the room." }
+              if (!self.get(:unseen)) { tell "The thief just left, still carrying his large bag. You may not have noticed that he appropriated the valuables in the room." }
               else { tell "A seedy-looking individual with a large bag just wandered through the room. On the way through, he quietly abstracted some valuables from the room, mumbling something about \"Doing unto others before...\"" }
             } else {
-              each a: Adventurer in from {
-                if (self.get(:shown)) { send a :rob with 2 } else { send a :rob with 1 }
+              each a: Adventurer in here {
+                if (!self.get(:unseen)) { send a :rob with 2 } else { send a :rob with 1 }
               }
             }
-            if (self.get(:shown)) {
-              self.set(:shown, false)
-              self.set(:ndesc, true)
+            if (!self.get(:unseen)) {
+              self.set(:unseen, true)
               self.set(:fighting, false)
-              each s: Stiletto in from { move s to self }
-              each a: Adventurer in from { send a :settle with from.get(:glow) }
+              each s: Stiletto in here { move s to self }
+              each a: Adventurer in here { send a :settle with here.get(:glow) }
             }
           }
         } else {
           // Somewhere nobody is, or nobody he cares to meet: he goes on
           // unseen, robbing the room of its treasures if anybody has been
           // in it, and of a lesser thing now and then.
-          if (self.get(:shown)) {
-            self.set(:shown, false)
-            self.set(:ndesc, true)
-            each a: Adventurer in from { send a :settle with from.get(:glow) }
+          if (!self.get(:unseen)) {
+            self.set(:unseen, true)
+            each a: Adventurer in here { send a :settle with here.get(:glow) }
           }
-          if (from.get(:visited)) {
+          if (here.get(:visited)) {
             // ROB of the room, as Zork's I-THIEF robs a lit room with the
             // visitor in it: silently in Zork, but here a treasure gone from
             // under the visitor's eyes is told with STEAL-JUNK's own line.
-            each t: Treasure in from {
+            each t: Treasure in here {
               if (t.get(:tvalue) > 0 && !t.get(:sacred) && random(4) < 3) {
                 each b: LargeBag in self { move t to b }
                 self.adjust(:loot, 1)
@@ -502,10 +483,10 @@ kind Thief is Thing, sprout.Actor {
               }
             }
             self.set(:done, false)
-            if (from.is(Maze) || from.is(DeadEnd)) {
+            if (here.is(Maze) || here.is(DeadEnd)) {
               // ROB-MAZE: in the maze, the first thing he has his eye on,
               // said aloud; anyone else in the maze hears it.
-              each t: Portable in from {
+              each t: Portable in here {
                 if (!self.get(:done) && !t.get(:sacred) && random(10) < 4) {
                   self.set(:done, true)
                   send t :pinch with random(10) < 6
@@ -514,7 +495,7 @@ kind Thief is Thing, sprout.Actor {
             } else {
               // STEAL-JUNK: one lesser thing, now and then, and his
               // stiletto always.
-              each t: Portable in from {
+              each t: Portable in here {
                 if (!self.get(:done) && !t.get(:sacred) && (t.is(Stiletto) || random(10) == 0)) {
                   if (t.is(Treasure)) {
                     if (t.get(:tvalue) == 0) {
@@ -541,23 +522,23 @@ kind Thief is Thing, sprout.Actor {
         // I-FIGHT: seen, with somebody here, he fights if he is fighting,
         // and now and then starts to; anywhere else he stops fighting, and
         // stops admiring whatever he was given.
-        if (ph == 1 && !(self.get(:company) && self.get(:shown))) {
+        if (ph == 1 && !(self.get(:company) && !self.get(:unseen))) {
           self.set(:engrossed, false)
           self.set(:staggered, false)
           self.set(:fighting, false)
         }
-        if (ph == 1 && self.get(:company) && self.get(:shown)) {
+        if (ph == 1 && self.get(:company) && !self.get(:unseen)) {
           if (self.get(:engrossed)) { self.set(:engrossed, false) }
           else if (self.get(:fighting) || (self.get(:announced) && random(10) < 2)) {
             self.set(:fighting, true)
             if (self.get(:staggered)) {
               self.set(:staggered, false)
               tell "The thief slowly regains his feet."
-            } else if (self.count(Stiletto) == 0 && from.count(Stiletto) > 0) {
-              each s: Stiletto in from { move s to self }
+            } else if (self.count(Stiletto) == 0 && here.count(Stiletto) > 0) {
+              each s: Stiletto in here { move s to self }
               tell "The robber, somewhat surprised at this turn of events, nimbly retrieves his stiletto."
             } else {
-              each a: Adventurer in from {
+              each a: Adventurer in here {
                 if (self.count(Stiletto) > 0) { each s: Stiletto in self { act attack (target: a, weapon: s) } }
                 else { act attack (target: a) }
               }
@@ -565,14 +546,13 @@ kind Thief is Thing, sprout.Actor {
           }
         }
         // On to the next room, unseen, unless something here keeps him.
-        if (ph == 1 && !self.get(:shown) && !self.get(:stay)) {
-          each s: Stiletto in from { move s to self }
-          if (from.get(:tour) >= 70 || from.get(:tour) == 0) { self.set(:next, 1) }
-          else { self.set(:next, from.get(:tour) + 1) }
-          self.set(:phase, 2)
+        if (ph == 1 && self.get(:unseen) && !self.get(:stay)) {
+          each s: Stiletto in here { move s to self }
+          if (here.get(:tour) >= 70 || here.get(:tour) == 0) { self.set(:next, 1) }
+          else { self.set(:next, here.get(:tour) + 1) }
           self.set(:announced, false)
           send self :wander
-        } else if (!from.is(TreasureRoom)) {
+        } else if (!here.is(TreasureRoom)) {
           // DROP-JUNK: now and then he lets fall something not worth his bag.
           self.set(:junked, self.get(:company))
           each b: LargeBag in self { send b :disgorge with 2 }
@@ -581,11 +561,12 @@ kind Thief is Thing, sprout.Actor {
     }
   }
 
-  // To his lair, or on round the Empire.
+  // To his lair, or on round the Empire; then the room he has come to.
   on :wander {
     if (self.get(:rushing)) {
       self.set(:rushing, false)
       move self to treasure_room
+      send self :survey with 3
     } else {
       if (self.get(:next) == 1) { move self to cellar
       } else if (self.get(:next) == 2) { move self to troll_room
@@ -658,6 +639,7 @@ kind Thief is Thing, sprout.Actor {
       } else if (self.get(:next) == 69) { move self to entrance_to_hades
       } else if (self.get(:next) == 70) { move self to land_of_the_dead
       }
+      send self :survey with 2
     }
   }
 
@@ -838,8 +820,7 @@ kind Thief is Thing, sprout.Actor {
       if (self.get(:strength) > 0) {
         cancel wakes
         wake in 1 minutes
-        self.set(:phase, 1)
-        broadcast :prowl
+        send self :survey with 1
       }
     }
   }

@@ -12,7 +12,7 @@ import {WhiteHouse, DistantHouse, Boards, BoardedWindow, FrontDoor, TreeAbove, T
 import {KitchenWindow, Outdoors} from 'house'
 import {Leaves, Ground, GratingAbove} from 'grating'
 import {grating_room} from 'maze'
-import {take, open, read, cross, climb_up, climb_down, climb_over, duck_under, :window_sync, :reveal, :travel, :grate_open, :grate_revealed, :won} from 'verbs'
+import {take, open, read, cross, climb_up, climb_down, climb_over, :window_sync, :reveal, :travel, :grate_open, :grate_revealed, :won} from 'verbs'
 import {kitchen} from 'house'
 import {canyon_view} from 'river'
 import {stone_barrow} from 'barrow'
@@ -372,9 +372,8 @@ object grating_clearing is Forest, ClearingPicture in underground_caverns {
   object trees is Trees {
     passage view { The trees stand all around the clearing in a ring, large and close, leaving it the only open sky for some way. }
   }
-  object ground is Ground {
-    object grating is GratingAbove
-  }
+  object ground is Ground
+  object grating is GratingAbove
   object house is DistantHouse
 }
 

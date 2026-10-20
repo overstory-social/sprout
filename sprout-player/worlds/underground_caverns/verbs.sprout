@@ -4,11 +4,13 @@
 import {Box} from 'box'
 import * as sprout from 'sprout'
 import {inventory} from 'sprout'
-import {Portable, Inflatable, Switchable, Lockable, Tieable, Lowerable, Pluggable, Mechanism, Diggable} from 'thing'
+import {Portable, Inflatable, Switchable, Lockable, Tieable, Lowerable, Pluggable, Mechanism, Diggable, Creature, Door, Crossable, Barrier, Leapable, Kissable, Squeezable, Concealing, Countable, Drinkable} from 'thing'
 import {Grating} from 'grating'
 import {River, WaterAbout, Shovel} from 'river'
 import {Lake, Stream, Pump} from 'reservoir'
-import {Water} from 'items'
+import {Water, Food} from 'items'
+import {Rubble} from 'east'
+import {WhiteHouse} from 'scenery'
 import {Canary} from 'tree'
 import {SkeletonKey} from 'remains'
 import {Sceptre, Bell, Rope} from 'temple'
@@ -119,13 +121,13 @@ verb raise { role target  "raise [target]"  "lift [target]"  "lift up [target]" 
 // Zork's LOWER, for the basket on its chain (v7).
 verb lower { role target: Lowerable  "lower [target]"  "let down [target]"  "send down [target]"  "lower down [target]" }
 
-verb eat { role target  "eat [target]"  "consume [target]"  "devour [target]"  "taste [target]" }
+verb eat { role target: Food  "eat [target]"  "consume [target]"  "devour [target]"  "taste [target]" }
 
-verb drink { role target  "drink [target]"  "sip [target]"  "swallow [target]" }
+verb drink { role target: Drinkable  "drink [target]"  "sip [target]"  "swallow [target]" }
 
 verb wind { role target: Canary  "wind [target]"  "wind up [target]" }
 
-verb tally { role target  "count [target]" }
+verb tally { role target: Countable  "count [target]" }
 
 verb smell { role target  "smell [target]"  "sniff [target]" }
 // `smell` alone: Zork would ask what; the parser here cannot ask, so the
@@ -144,7 +146,7 @@ verb unlock { role target: Lockable  role tool: SkeletonKey carried  "unlock [ta
 
 verb lock { role target: Lockable  "lock [target]" }
 
-verb knock { role target  "knock on [target]"  "knock at [target]"  "rap on [target]"  "rap at [target]" }
+verb knock { role target: Door  "knock on [target]"  "knock at [target]"  "rap on [target]"  "rap at [target]" }
 
 // Zork's DIG: with no tool, the visitor's own pair of hands.
 verb dig {
@@ -187,7 +189,7 @@ verb mung {
 }
 
 verb walk_around {
-  role target
+  role target: WhiteHouse
   "walk around [target]"  "go around [target]"  "run around [target]"  "step around [target]"
   "proceed around [target]"
 }
@@ -233,9 +235,9 @@ verb rub { role target  "rub [target]"  "touch [target]"  "feel [target]"  "pat 
 verb rub_with { role target  role tool carried  "rub [target] with [tool]"  "touch [target] with [tool]"  "feel [target] with [tool]"  "pat [target] with [tool]"  "poke [target] with [tool]"  "tap [target] with [tool]" }
 verb wave { role target: Sceptre  "wave [target]"  "brandish [target]"  "flourish [target]" }
 verb shake { role target  "shake [target]" }
-verb squeeze { role target  "squeeze [target]" }
-verb kiss { role target  "kiss [target]"  "hug [target]"  "embrace [target]" }
-verb look_behind { role target  "look behind [target]" }
+verb squeeze { role target: Squeezable  "squeeze [target]" }
+verb kiss { role target: Kissable  "kiss [target]"  "hug [target]"  "embrace [target]" }
+verb look_behind { role target: Concealing  "look behind [target]" }
 verb fill {
   role target
   role tool
@@ -248,29 +250,24 @@ verb tie {
   "tie up [target]"  "tie [target]"
 }
 // Zork's ALARM: waking someone who is out cold.
-verb alarm { role target  "wake [target]"  "wake up [target]"  "awaken [target]"  "rouse [target]"  "startle [target]"  "surprise [target]" }
+verb alarm { role target: Creature  "wake [target]"  "wake up [target]"  "awaken [target]"  "rouse [target]"  "startle [target]"  "surprise [target]" }
 // Zork's TELL, and HELLO said to someone.
-verb talk { role target  "talk to [target]"  "speak to [target]"  "tell [target]"  "ask [target]"  "chat with [target]" }
-verb greet { role target  "hello [target]"  "hi [target]"  "greet [target]"  "say hello to [target]" }
+verb talk { role target: Creature  "talk to [target]"  "speak to [target]"  "tell [target]"  "ask [target]"  "chat with [target]" }
+verb greet { role target: Creature  "hello [target]"  "hi [target]"  "greet [target]"  "say hello to [target]" }
 // Zork's CROSS, and the ways of getting past a rope a visitor might try,
 // which only the rope adds to it.
-verb cross { role target  "cross [target]"  "ford [target]" }
+verb cross { role target: Crossable  "cross [target]"  "ford [target]" }
 verb pray { "pray" }
 
 // Not Zork's words, but the ones players reach for at a barrier: over it,
 // under it, clearing it away. Each thing answers in Zork's voice.
 verb climb_over {
-  role target
+  role target: Barrier
   "climb over [target]"  "step over [target]"  "hop over [target]"  "vault over [target]"
   "vault [target]"  "clamber over [target]"
 }
-verb duck_under {
-  role target
-  "duck under [target]"  "crawl under [target]"  "go under [target]"  "slip under [target]"
-  "squeeze under [target]"
-}
 verb clear {
-  role target
+  role target: Rubble
   "clear [target]"  "clear away [target]"  "clear [target] away"  "clear out [target]"
   "shift [target] aside"
 }
@@ -332,7 +329,7 @@ verb burn {
 }
 // Zork's LEAP with something to leap at: over it, into it, across it.
 verb leap_at {
-  role target
+  role target: Leapable
   "jump [target]"  "jump over [target]"  "jump into [target]"  "jump in [target]"
   "jump across [target]"  "leap over [target]"  "leap into [target]"  "leap across [target]"
 }
@@ -438,7 +435,7 @@ verb upstairs { "go upstairs"  "upstairs"  "climb upstairs"  "walk upstairs"  "r
 verb downstairs { "go downstairs"  "downstairs"  "climb downstairs"  "walk downstairs"  "run downstairs"  "head downstairs" }
 // Mercy, as players offer it to the disarmed troll: Zork has no SPARE.
 verb spare {
-  role target
+  role target: sprout.Actor
   "spare [target]"  "let [target] go"  "let [target] live"  "show mercy to [target]"
   "have mercy on [target]"  "forgive [target]"  "spare the life of [target]"
 }
@@ -564,20 +561,16 @@ message :candle_burn with integer
 // The rope, let go of at the Dome's rail.
 message :let_go
 // The thief (thief.sprout). His clock starts the first time anyone goes
-// down into the Cellar; each of his turns he asks the room he is in to
-// show itself (`:prowl`, answered `:survey`), since a handler has no
-// `here`; he walks the Empire by the world's gate.
+// down into the Cellar; each of his turns is a `:survey` he sends himself,
+// saying which part of his turn it is.
 message :thief_start
-message :prowl
-message :survey
+message :survey with integer
 // The thief robs a visitor, who hands over what he takes (the hands are
 // the visitor's own): 1 while he passes unseen, 2 as he leaves, seen.
 message :rob with integer
 // The Treasure Room, entered: the thief comes to defend it, from wherever
-// he is (`:summon`, through the world) or from where he stood unseen in it
-// (`:defend`).
+// he is, or from where he stood unseen in it.
 message :summon
-message :defend
 // The thief tells his lair whether he is there to come to its defense:
 // false while he lies out cold and once he is dead.
 message :keeper with boolean
@@ -617,8 +610,9 @@ message :flooded
 message :flung with boolean
 // The rainbow over Aragain Falls, solid (true) or only light (false).
 message :rainbow with boolean
-// Somebody in a boat asks the room it lies in for a way out of it (a
-// handler has no `here`): the room answers with itself, `:berth`. A room
+// Somebody in a boat asks the room it lies in for a way out of it (their
+// `here` is the boat, and nothing names the place the boat is in): the room
+// answers with itself, `:berth`. A room
 // told `:wreck` swaps the inflated boat in it for a punctured one.
 message :where
 message :berth
@@ -650,11 +644,6 @@ message :rite_read
 message :reckon
 // The bell, red hot, cooled by water poured on it.
 message :cool
-// The brass lantern's battery, burning down (1 a bit dimmer, 2 definitely
-// dimmer, 3 nearly out, 4 burned out).
-message :lamp_age with integer
-// A move made with the brass lantern lit in hand.
-message :burn_tick
 // The brass lantern thrown and smashed.
 message :shatter_lamp
 // The score at 350 (Zork's WON-FLAG): the map in the trophy case, and the

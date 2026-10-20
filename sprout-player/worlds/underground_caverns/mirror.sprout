@@ -17,7 +17,7 @@
 // world's gate, carries the rooms' contents across by way of a room nobody
 // visits (`mirror_limbo`) before going itself (adventurer.sprout).
 import * as sprout from 'sprout'
-import {Thing, Scenery, Portable} from 'thing'
+import {Thing, Scenery, Portable, Concealing, Kissable} from 'thing'
 import {Room, DarkRoom} from 'room'
 import {Stairs} from 'scenery'
 import {Adventurer} from 'adventurer'
@@ -43,7 +43,7 @@ kind MirrorRoom {
 
 // The mirror (MIRROR-MIRROR). Each room has its own, and each knows the
 // room its rubbing leads to.
-kind Mirror is Scenery {
+kind Mirror is Scenery, Kissable, Concealing {
   grammar { name "mirror"  nouns "reflection", "glass", "looking-glass"  adjectives "enormous", "huge", "south", "tall" }
   :mung false
   :leads Dest default mirror_1
@@ -61,11 +61,9 @@ kind Mirror is Scenery {
   as target for look_in {
     do { if (self.get(:mung)) { say broken } else { say whole } }
   }
-  without as target for look_behind from Thing
   as target for look_behind { do { say "The mirror fills the wall. There is nothing behind it but more wall, which is the usual arrangement." } }
   without as target for search from Thing
   as target for search { do { if (self.get(:mung)) { say broken } else { say whole } } }
-  without as target for kiss from Thing
   as target for kiss { do { if (self.get(:mung)) { say "You would cut your lip." } else { say "The ugly person in the mirror kisses you back, without enthusiasm." } } }
   without as target for through from Thing
   as target for through { do { say "You hit your head against the mirror as you attempt this feat. The ugly person on the other side does the same." } }

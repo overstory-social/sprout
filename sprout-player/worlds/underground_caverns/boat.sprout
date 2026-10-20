@@ -28,7 +28,7 @@
 // `ashore`, are links it connects to the room each time it moves, so only
 // whoever is in it is offered them (friction 137).
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Inflatable, Pluggable} from 'thing'
+import {Thing, Portable, Scenery, Inflatable, Pluggable, Concealing} from 'thing'
 import {Box, Bag} from 'box'
 import {Readable, Rejecting, Sharp} from 'items'
 import {Room, DarkRoom} from 'room'
@@ -55,7 +55,7 @@ enum Errand { idle, steer, drift, follow, land, launch }
 
 // The folded boat. It holds the magic boat, out of sight, until it is
 // blown up; the boat folds back into a new one when it is let down.
-kind Pile is Portable, Inflatable {
+kind Pile is Portable, Inflatable, Concealing {
   contains
   pass any (false)
   // The folded boat still hears the dam, so it knows the lake when it is
@@ -73,7 +73,6 @@ kind Pile is Portable, Inflatable {
   as target for read { do { say back_words } }
   without as target for turn from Thing
   as target for turn { do { say "You turn the pile over, which takes some doing. {self.back_words}" } }
-  without as target for look_behind from Thing
   as target for look_behind { do { say back_words } }
   passage seaworthy { The boat inflates and appears seaworthy. }
   without as target for inflate from Inflatable

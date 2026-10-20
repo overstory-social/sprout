@@ -20,7 +20,7 @@ import {Thief, Stiletto} from 'thief'
 import {Cyclops, CyclopsRoom, TreasureRoom, Chalice, :flee} from 'cyclops'
 import {treasure_room, cyclops_room, strange_passage} from 'cyclops'
 import {go, look, examine, inventory, wait, help} from 'sprout'
-import {spare, upstairs, downstairs, take, drop, put, give, knock, dig, dig_with, pour, pour_in, pour_on, mung, walk_around, walk_about, through, attack, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, climb_up, climb_down, unlock, lock, score, diagnose, xyzzy, hello, jump, yell, zork, verbose, brief, superbrief, quit, restart, save, restore, curse, echo, ring, untie, burn, leap_at, turn, treasure, odysseus, throw, kick, rub, wave, shake, squeeze, kiss, feed_bare, look_behind, fill, tie, alarm, talk, greet, pray, swim, search, cross, climb_over, duck_under, clear, cut, look_down, listen_here, smell_here, Dest, Mode, :scored, :light, :relight, :room_lit, :grue, :open_gate, :gate_open, :close_gate, :blow, :troll_gone, :glow, :die, :claimed, :settle, :travel, :unbar, :banish, :spend, :hush, :snuffed, :candle_burn, :let_go, :rob, :far_voice, :consume, :thief_gone, :cyclops_gone, :shed, :fall, board, disembark, launch, land, inflate, deflate, plug, turn_with, oil, :where, :berth, :wreck, :flung, :match_out, :rainbow, lower, rub_with, :shatter, :bad_luck, :bats, :gas, :boom, :gust, :blow_out, exorcise, :rite, :rite_lit, :rite_read, :won, :shatter_lamp, :troll_flag, :cool, :lamp_age, :finish, :burn_tick, :smash, put_through, :sink} from 'verbs'
+import {spare, upstairs, downstairs, take, drop, put, give, knock, dig, dig_with, pour, pour_in, pour_on, mung, walk_around, walk_about, through, attack, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, climb_up, climb_down, unlock, lock, score, diagnose, xyzzy, hello, jump, yell, zork, verbose, brief, superbrief, quit, restart, save, restore, curse, echo, ring, untie, burn, leap_at, turn, treasure, odysseus, throw, kick, rub, wave, shake, squeeze, kiss, feed_bare, look_behind, fill, tie, alarm, talk, greet, pray, swim, search, cross, climb_over, clear, cut, look_down, listen_here, smell_here, Dest, Mode, :scored, :light, :relight, :room_lit, :grue, :open_gate, :gate_open, :close_gate, :blow, :troll_gone, :glow, :die, :claimed, :settle, :travel, :unbar, :banish, :spend, :hush, :snuffed, :candle_burn, :let_go, :rob, :far_voice, :consume, :thief_gone, :cyclops_gone, :shed, :fall, board, disembark, launch, land, inflate, deflate, plug, turn_with, oil, :where, :berth, :wreck, :flung, :match_out, :rainbow, lower, rub_with, :shatter, :bad_luck, :bats, :gas, :boom, :gust, :blow_out, exorcise, :rite, :rite_lit, :rite_read, :won, :shatter_lamp, :troll_flag, :cool, :finish, :smash, put_through, :sink} from 'verbs'
 import {behind_house, clearing, forest_1, forest_2, forest_3, forest_path, grating_clearing, north_of_house, south_of_house, west_of_house} from 'above_ground'
 import {cellar, troll_room} from 'cellar'
 import {attic, kitchen, living_room, Bottle} from 'house'
@@ -47,6 +47,10 @@ import {ask} from 'sprout'
 
 kind Adventurer is sprout.Visitor {
   :capacity 30
+  // Zork's load: a visitor carries 100 by weight, each thing weighing its
+  // own `:size`. The engine refuses a move into the hands past it, with
+  // the world's `too_heavy`.
+  capacity 100 by :size
   :score 0 min -100 max 350
   :deaths 0 min 0 max 3
   :light 0 min 0 max 9
@@ -55,6 +59,8 @@ kind Adventurer is sprout.Visitor {
   :fight 2 min -9 max 9
   :staggered false
   :healing false
+  // The load, as the engine weighs it, for the checks that must say so
+  // before anything moves: a line of several things, and `read`'s take.
   :load 0 min 0 max 900
   :dest Dest default forest_1
   :devoured false
@@ -70,8 +76,10 @@ kind Adventurer is sprout.Visitor {
   // How many gold coffins are in hand, for the hole in the Altar's floor,
   // which cannot see into the hands of the one going down it (friction 72).
   :coffins 0 min 0 max 9
-  // Zork's MOVES: every command but the ones about the game itself.
+  // Zork's MOVES: every command but the ones about the game itself, which
+  // set `:aside` so that it goes uncounted.
   :moves 0 min 0 max 1000000
+  :aside false
   // The move by which the next wound point heals (Zork's I-CURE tick, read
   // by DIAGNOSE): a wake's own time cannot be read, so the hands keep it.
   :cure_at 0 min 0 max 1000000
@@ -123,8 +131,10 @@ kind Adventurer is sprout.Visitor {
   :in_crawl false
   // The mirror broken by these hands: Zork's LUCKY, gone.
   :unlucky false
-  // Scratch, for the Gas Room: a flame in hand.
+  // Scratch, for the Gas Room: a flame in hand, and gone off already this
+  // turn.
   :flaming false
+  :gassed false
   // Hades (v8). Whether the Altar has been seen, after which a death is
   // spent as a spirit before the gates of Hell (JIGS-UP); whether this
   // visitor is that spirit (Zork's DEAD); standing at the Altar, whose hole
@@ -223,7 +233,6 @@ kind Adventurer is sprout.Visitor {
     This gives you the rank of {self.rank}.
   }
 
-  // What carrying weighs, as Zork weighs it: a load of 100 at most.
   on :entered (item, from) {
     if (item.is(Thing)) { self.adjust(:load, item.get(:size)) }
     if (item.is(SkeletonKey)) { self.adjust(:keys, 1) }
@@ -271,14 +280,18 @@ kind Adventurer is sprout.Visitor {
       }
     }
   }
-  // BOOM-ROOM: a flame in hand, or in an open box in hand, in the Gas Room.
+  // BOOM-ROOM: a flame in hand, or in an open box in hand, in the Gas Room,
+  // asked on the way in and after every command there. Once is enough: a
+  // visitor who walks in is asked twice in the one turn, and a match struck
+  // there has already gone off (`:boom`).
   on :gas (from) {
     self.set(:flaming, false)
     each f: Flame in self { if (f.get(:lit)) { self.set(:flaming, true) } }
     each b: Box in self {
       if (b.get(:open)) { each f: Flame in b { if (f.get(:lit)) { self.set(:flaming, true) } } }
     }
-    if (self.get(:flaming) && !self.get(:dead)) {
+    if (self.get(:flaming) && !self.get(:dead) && !self.get(:gassed)) {
+      self.set(:gassed, true)
       // The room passed through is never described (friction 100): told.
       if (from.is(DarkRoom)) {
         if (self.get(:light) > 0 || from.get(:floor_lit)) { tell self "{from.full}" }
@@ -290,6 +303,7 @@ kind Adventurer is sprout.Visitor {
   }
   // A match struck in the Gas Room: the match has said how sad it is.
   on :boom {
+    self.set(:gassed, true)
     tell self "** BOOOOOOOOOOOM **"
     send self :die
   }
@@ -320,10 +334,11 @@ kind Adventurer is sprout.Visitor {
     }
   }
 
-  // I-LANTERN: a move made with the brass lantern lit in hand spends a
-  // move of its battery.
-  changed :moves (was) {
-    each l: Lamp in self { if (l.get(:lit)) { send l :burn_tick } }
+  // Zork's CLOCKER: every command counts a move, but the ones about the
+  // game itself (`score`, `verbose`, `quit` and the like), which say so.
+  after command {
+    if (self.get(:aside)) { self.set(:aside, false) }
+    else { self.adjust(:moves, 1) }
   }
 
   // SCORE-UPD: at 350, the whisper, the map in the trophy case and the
@@ -390,15 +405,9 @@ kind Adventurer is sprout.Visitor {
   // The sceptre, waved in hand at the rainbow: its news has to get out of
   // the pocket to reach the rooms the rainbow joins.
   pass :rainbow (true)
+  // The candles, burning in hand at the gates of Hell, tell the gates.
+  pass :rite_lit (true)
   on :match_out (from) { if (self.holds(from)) { tell self "The match has gone out." } }
-  // The brass lantern's battery, said to whoever holds it or stands by it.
-  pass :lamp_age (true)
-  on :lamp_age (from, value) {
-    if (value == 1) { tell self "The lamp appears a bit dimmer." }
-    else if (value == 2) { tell self "The lamp is definitely dimmer now." }
-    else if (value == 3) { tell self "The lamp is nearly out." }
-    else { tell self "You'd better have more light than from the brass lantern." }
-  }
   on :candle_burn (from, value) {
     if (value == 1) { tell self "The candles grow shorter." }
     else if (value == 2) { tell self "The candles are becoming quite short." }
@@ -417,7 +426,6 @@ kind Adventurer is sprout.Visitor {
   // what is told on arrival (the sword's glow, the songbird) after it.
   as actor for go {
     do {
-      self.adjust(:moves, 1)
       // Out of a beached boat by its own way out: V-DISEMBARK's words. A way
       // that steps ashore from the water leaves the boat to follow, and the
       // landing is said here for every such way, since a link cannot say it.
@@ -457,7 +465,7 @@ kind Adventurer is sprout.Visitor {
       // and his gesture come before the room is described, as in Zork.
       if (here.is(TreasureRoom) && !self.get(:dead)) {
         if (here.get(:keeper)) {
-          if (here.count(Thief) == 0) { say scream }
+          if (!here.get(:harbors)) { say scream }
           if (here.count(Treasure) > here.count(Chalice)) { say vanish }
         }
       }
@@ -694,6 +702,7 @@ kind Adventurer is sprout.Visitor {
 
   // JIGS-UP. Killed while already dead, it is the end (FINISH).
   on :die {
+    self.set(:gassed, false)
     if (self.get(:finished)) { }
     else if (self.get(:dead)) {
       tell self "It takes a talented person to be killed while already dead. YOU are such a talent. Unfortunately, it takes a talented person to deal with it. I am not such a talent. Sorry."
@@ -798,7 +807,7 @@ kind Adventurer is sprout.Visitor {
       } else if (self.get(:dest) == :treasure) {
         if (!self.get(:own_light) && !underground_caverns.treasure_room.get(:alight)) { tell self "You have moved into a dark place." }
         if (underground_caverns.treasure_room.get(:keeper)) {
-          if (underground_caverns.treasure_room.count(Thief) == 0) { tell self scream }
+          if (!underground_caverns.treasure_room.get(:harbors)) { tell self scream }
           if (underground_caverns.treasure_room.count(Treasure) > underground_caverns.treasure_room.count(Chalice)) { tell self vanish }
         }
         move self to treasure_room
@@ -1013,7 +1022,6 @@ kind Adventurer is sprout.Visitor {
       }
     }
     do {
-      self.adjust(:moves, 1)
       self.set(:carry, self.get(:load))
       self.set(:fresh, 0)
       let several = target.count > 1
@@ -1058,9 +1066,6 @@ kind Adventurer is sprout.Visitor {
             else {
               move t to self
               self.adjust(:carry, t.get(:size))
-              // LLD-ROOM's M-END: burning candles in hand while the spirits
-              // reel from the bell.
-              if (t.is(Candles) && here.is(HadesGate)) { if (t.get(:lit)) { send here :rite_lit } }
               if (t.is(RustyKnife)) {
                 if (self.count(Sword) > 0) { say "{if several}{t.short}: {/if}As you touch the rusty knife, your sword gives a single pulse of blinding blue light." }
               }
@@ -1089,7 +1094,6 @@ kind Adventurer is sprout.Visitor {
 
   as actor for drop { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_none } }
     do {
-      self.adjust(:moves, 1)
       let several = target.count > 1
       each t of target {
         // Dropped out of a box in hand, a treasure has been held.
@@ -1149,7 +1153,6 @@ kind Adventurer is sprout.Visitor {
   // through the world's gate; from below, the grating is overhead.
   as actor for put_through { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(GratingAbove)) {
         if (item.is(Thing)) {
           if (item.get(:size) > 20) { say "It won't fit through the grating." }
@@ -1165,7 +1168,6 @@ kind Adventurer is sprout.Visitor {
   }
   as actor for put { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (item == container) { say "How can you do that?" }
       // The leak, the punctured boat, the tube, the tool chests: each
       // answers for itself, and nothing goes in.
@@ -1226,7 +1228,6 @@ kind Adventurer is sprout.Visitor {
 
   as actor for attack { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } }
     do {
-      self.adjust(:moves, 1)
       // Zork's RUSTY-KNIFE-FCN: whatever it is turned on, it turns on its
       // bearer. Named, or the only weapon in hand against the troll.
       self.set(:suicide, false)
@@ -1340,7 +1341,6 @@ kind Adventurer is sprout.Visitor {
 
   as actor for jump { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "jump jump ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(TreeTop)) {
         say "In a feat of unaccustomed daring, you manage to land on your feet without killing yourself."
         self.set(:dest, :path)
@@ -1358,11 +1358,10 @@ kind Adventurer is sprout.Visitor {
     }
   }
 
-  as actor for score { permit { if (self.get(:dead)) { refuse dead_score }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "score score ..." } } } do { say score_line } }
+  as actor for score { permit { if (self.get(:dead)) { refuse dead_score }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "score score ..." } } } do { self.set(:aside, true)  say score_line } }
 
   as actor for diagnose { permit { if (self.get(:dead)) { refuse dead_diag }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "diagnose diagnose ..." } } }
     do {
-      self.adjust(:moves, 1)
       // Zork's V-DIAGNOSE: the wound, the moves until it is cured (the
       // points still to heal after this one, twenty moves each, and what is
       // left of this one), and what strength is left, the score counting.
@@ -1391,57 +1390,50 @@ kind Adventurer is sprout.Visitor {
     }
   }
 
-  as actor for xyzzy { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "xyzzy xyzzy ..." } } } do { self.adjust(:moves, 1)  say "A hollow voice says \"Fool.\"" } }
+  as actor for xyzzy { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "xyzzy xyzzy ..." } } } do { say "A hollow voice says \"Fool.\"" } }
   as actor for hello { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "hello hello ..." } } }
     do {
-      self.adjust(:moves, 1)
       say "{one of}Hello.{or}Good day.{or}Nice weather we've been having lately.{or}Goodbye.{/one of}"
     }
   }
-  as actor for yell { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "yell yell ..." } } } do { self.adjust(:moves, 1)  say "Aaaarrrrgggghhhh!" } }
-  as actor for zork { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "zork zork ..." } } } do { self.adjust(:moves, 1)  say "At your service!" } }
-  as actor for curse { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "curse curse ..." } } } do { self.adjust(:moves, 1)  say "Such language in a high-class establishment like this!" } }
+  as actor for yell { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "yell yell ..." } } } do { say "Aaaarrrrgggghhhh!" } }
+  as actor for zork { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "zork zork ..." } } } do { say "At your service!" } }
+  as actor for curse { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "curse curse ..." } } } do { say "Such language in a high-class establishment like this!" } }
 
-  // Every other verb counts a move, as Zork's CLOCKER does; `score`,
-  // `verbose`, `brief`, `superbrief`, `quit`, `restart`, `save` and
-  // `restore`, which are about the game rather than in it, do not.
   // The Loud Room's echo: no help to be had there either.
-  as actor for help { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "help help ..." } } } }
+  as actor for help { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "help help ..." } } } do { self.set(:aside, true) } }
   // DEAD-FUNCTION's LOOK: the room, as the dead see it.
   as actor for look       { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "look look ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (self.get(:dead)) {
         say "The room looks strange and unearthly and objects appear indistinct."
         if (here.is(DarkRoom)) { if (!here.get(:daylight) && !here.get(:floor_lit)) { say "Although there is no light, the room seems dimly illuminated." } }
       }
     }
   }
-  as actor for examine    { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for inventory  { permit { if (self.get(:dead)) { refuse dead_none }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "inventory inventory ..." } } } do { self.adjust(:moves, 1) } }
+  as actor for examine    { permit { if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for inventory  { permit { if (self.get(:dead)) { refuse dead_none }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "inventory inventory ..." } } } }
   // Zork's V-WAIT passes three moves, stopped by the first clock with
   // something to say; a turn here is one move, and the host keeps the
   // clock. In the boat on the river the current is that clock, and comes
   // now (friction 106).
-  as actor for wait       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_wait }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "wait wait ..." } } } do { self.adjust(:moves, 1)  if (here.is(MagicBoat)) { send here :hurry } } }
-  as actor for open       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
-  as actor for close      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for wait       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_wait }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "wait wait ..." } } } do { if (here.is(MagicBoat)) { send here :hurry } } }
+  as actor for open       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for close      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
   // The black book read while the spirits cower (LLD-ROOM's READ).
   as actor for read { permit { if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(BlackBook) && here.is(HadesGate)) {
         if (here.get(:phase) == 2 && !here.get(:exorcised)) { send here :rite_read }
       }
     }
   }
-  as actor for look_in    { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for look_under { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for look_in    { permit { if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for look_under { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // CANDLES-FCN: lit with nothing named, with the match, if one burns.
   :kindled false
   as actor for lamp_on { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_light } }
     do {
-      self.adjust(:moves, 1)
       self.set(:kindled, false)
       if (target.is(Candles)) {
         if (!target.get(:lit) && target.get(:stage) < 4) {
@@ -1460,7 +1452,6 @@ kind Adventurer is sprout.Visitor {
   // things to perform it with; elsewhere, a bizarre concept.
   as actor for exorcise { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(HadesGate) && !here.get(:exorcised)) {
         if (self.count(Bell) > 0 && self.count(BlackBook) > 0 && self.count(Candles) > 0) { say "You must perform the ceremony." }
         else { say "You aren't equipped for an exorcism." }
@@ -1468,28 +1459,26 @@ kind Adventurer is sprout.Visitor {
       else { say "What a bizarre concept!" }
     }
   }
-  as actor for ask { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for lamp_off   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for shift      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for raise      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for lower      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for ask { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for lamp_off   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for shift      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for raise      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for lower      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // HOT-BELL-F's RUB WITH: what burns is consumed against the hot bell.
   as actor for rub_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(Bell)) { if (target.get(:hot)) { if (tool.is(Thing)) { if (tool.get(:burnable) && self.holds(tool)) { send tool :consume } } } }
     }
   }
   // Garlic eaten out of hand is gone from it at once: what it would tell
   // the hand as it goes is dropped with it.
-  as actor for eat        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1)  if (target.is(Garlic) && self.holds(target)) { self.adjust(:garlics, -1) } } }
-  as actor for drink      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for eat        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { if (target.is(Garlic) && self.holds(target)) { self.adjust(:garlics, -1) } } }
+  as actor for drink      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
   // Winding the canary in the forest the first time: its own part sings,
   // and the songbird's bauble is set down here by the winder, since what is
   // in a hand cannot reach the room around it. Up the tree, it falls.
   as actor for wind { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       let songful = here.is(Songful)
       if (target.is(Canary) && songful) {
         if (!target.get(:broken) && !target.get(:sung)) {
@@ -1502,22 +1491,22 @@ kind Adventurer is sprout.Visitor {
       }
     }
   }
-  as actor for tally      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for tally      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   as actor for feed_bare { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
+      self.set(:aside, true)
       if (target.is(Thing)) { say "What do you want to feed the {target.short}?" }
       else { say "What do you want to feed?" }
     }
   }
-  as actor for smell      { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for listen     { permit { if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for search     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for cross      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for smell      { permit { if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for listen     { permit { if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for search     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for cross      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // `listen` with nothing named. In the forest, the songbird the forest
   // keeps mentioning; in the maze, the maze; elsewhere, nothing much.
   as actor for listen_here { permit { if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "listen listen ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(Forest)) { say "You hear in the distance the chirping of a song bird." }
       else if (here.is(Maze) || here.is(DeadEnd)) { say "You hear nothing. The silence is the same silence as in every other part of the maze, which is no help at all." }
       else if (here.is(CanyonEdge)) { say "You can hear the sound of flowing water from below, a long way down, going somewhere in a hurry." }
@@ -1536,7 +1525,6 @@ kind Adventurer is sprout.Visitor {
   // `smell` alone, as `listen` alone: the forest, the maze, or nothing much.
   as actor for smell_here { permit { if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "smell smell ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(Forest)) { say "You smell pine, damp earth and leaf mould, as forests do." }
       else if (here.is(Maze) || here.is(DeadEnd)) { say "The air smells of cold, damp stone. It smells the same in every part of the maze, which is no help at all." }
       // GAS-PSEUDO, in the Gas Room and the Smelly Room above it.
@@ -1545,16 +1533,14 @@ kind Adventurer is sprout.Visitor {
       else { say "You smell nothing out of the ordinary." }
     }
   }
-  as actor for climb_down { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for climb_over { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for duck_under { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for clear      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for cut        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for climb_down { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for climb_over { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for clear      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for cut        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // `look down`: over the Dome's rail, into a chasm or a canyon, out of a
   // tree; anywhere else, at the floor.
   as actor for look_down { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "down down ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(DomeRoom)) {
         if (here.get(:roped)) { say "Beyond the railing the dome falls away to the floor of a room below, a good twenty feet down. The rope hangs into it from the rail and ends some ten feet short of the floor." }
         else { say "Beyond the railing the dome falls away to the floor of a room below, a good twenty feet down: too far to drop, and nothing between you and it but air." }
@@ -1568,9 +1554,9 @@ kind Adventurer is sprout.Visitor {
       else { say "You see the floor, where you left it." }
     }
   }
-  as actor for unlock     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for knock      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for walk_around { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for unlock     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for knock      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for walk_around { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // Climbing into the magic boat is boarding it.
   as actor for through {
     permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
@@ -1580,7 +1566,6 @@ kind Adventurer is sprout.Visitor {
       }
     }
     do {
-      self.adjust(:moves, 1)
       if (target.is(MagicBoat)) {
         if (self.count(Sharp) > 0) {
           say "Oops! Something sharp seems to have slipped and punctured the boat. The boat deflates to the sounds of hissing, sputtering, and cursing."
@@ -1597,7 +1582,6 @@ kind Adventurer is sprout.Visitor {
   // it) into his; what he does with it is his part of the reading.
   as actor for give { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (recipient.is(Troll)) { move item to recipient }
       else if (recipient.is(Thief)) {
         // Into his hands, and so his bag: a light that goes with it lights
@@ -1624,7 +1608,6 @@ kind Adventurer is sprout.Visitor {
   // down to the path below), or into the troll's, who catches it.
   as actor for throw { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_none } }
     do {
-      self.adjust(:moves, 1)
       if (bound aim) {
         if (aim.is(Troll)) { move target to aim }
         else if (target.is(Water)) { }
@@ -1699,7 +1682,6 @@ kind Adventurer is sprout.Visitor {
   :spilled false
   as actor for shake { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       self.set(:spilled, false)
       if (target.is(Bag)) {
         if (target.get(:open) && target.count(Thing) > 0) {
@@ -1711,17 +1693,16 @@ kind Adventurer is sprout.Visitor {
     }
   }
 
-  as actor for kick        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for rub         { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
-  as actor for wave        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for squeeze     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for kiss        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for look_behind { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for fill        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for kick        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for rub         { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for wave        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for squeeze     { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for kiss        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for look_behind { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for fill        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // Tied to the Dome's railing, the rope leaves the hand for the rail.
   as actor for tie { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(Rope) && here.is(DomeRoom) && !target.get(:tied)) {
         if (bound tool) {
           if (tool.is(Railing) && !here.holds(target)) { move target to here }
@@ -1729,13 +1710,12 @@ kind Adventurer is sprout.Visitor {
       }
     }
   }
-  as actor for alarm       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } } do { self.adjust(:moves, 1) } }
-  as actor for talk        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for greet       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for alarm       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } } }
+  as actor for talk        { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for greet       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // Zork's V-PRAY: at the Altar, a prayer is answered, with the Forest.
   as actor for pray { permit { if (self.get(:finished)) { refuse over }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "pray pray ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (self.get(:dead)) {
         // DEAD-FUNCTION's PRAY: at the Altar, life again, in the forest.
         if (here.is(AltarRoom)) {
@@ -1754,7 +1734,6 @@ kind Adventurer is sprout.Visitor {
   // Zork's ECHO: in the Loud Room, while it roars, the word that quiets it.
   as actor for echo { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(Room)) {
         if (here.get(:deafening)) {
           send here :hush
@@ -1767,7 +1746,6 @@ kind Adventurer is sprout.Visitor {
   // thief's lair; in the lair, the way back.
   as actor for treasure { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "treasure treasure ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(TempleRoom)) {
         self.set(:dest, :treasure)
         send underground_caverns :open_gate
@@ -1783,7 +1761,6 @@ kind Adventurer is sprout.Visitor {
   // cause to remember, and he goes, through the east wall.
   as actor for odysseus { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "ulysses ulysses ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(CyclopsRoom)) {
         if (here.get(:cstate) <= 2) {
           each c: Cyclops in here { send c :flee }
@@ -1798,7 +1775,6 @@ kind Adventurer is sprout.Visitor {
   passage rite_bell { The bell suddenly becomes red hot and falls to the ground. The wraiths, as if paralyzed, stop their jeering and slowly turn to face you. On their ashen faces, the expression of a long-forgotten terror takes shape. }
   as actor for ring { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(Bell)) {
         if (target.get(:hot)) {
           if (bound tool) { if (tool.is(Thing)) { if (tool.get(:burnable) && self.holds(tool)) { send tool :consume } } }
@@ -1819,28 +1795,17 @@ kind Adventurer is sprout.Visitor {
       }
     }
   }
-  as actor for untie   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
-  // The candles lit in hand at the gates of Hell (LLD-ROOM's M-END).
-  as actor for burn { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } }
-    do {
-      self.adjust(:moves, 1)
-      if (target.is(Candles) && here.is(HadesGate) && self.holds(target)) {
-        if (!target.get(:lit) && target.get(:stage) < 4) {
-          if (bound tool) { if (tool.is(Matchbook)) { if (tool.get(:lit)) { send here :rite_lit } } }
-        }
-      }
-    }
-  }
-  as actor for leap_at { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for turn    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
+  as actor for untie   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for burn { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for leap_at { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for turn    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
   as actor for swim  { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "swim swim ..." } } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(Riverside) || here.is(OnTheRiver) || here.is(MagicBoat)) { say "Swimming isn't usually allowed in the dungeon." }
       else { say "Go jump in a lake!" }
     }
   }
-  as actor for walk_about { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "walk walk ..." } } } do { self.adjust(:moves, 1)  say "Use compass directions for movement." } }
+  as actor for walk_about { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant }  if (here.is(Room)) { if (here.get(:deafening)) { refuse "walk walk ..." } } } do { say "Use compass directions for movement." } }
 
   // Zork's DIG: with nothing else to dig with, a pair of hands. Zork asks
   // what to dig in when told only `dig`; the parser here cannot ask, so the
@@ -1850,7 +1815,6 @@ kind Adventurer is sprout.Visitor {
   // shovel finds no reason (V-DIG).
   as actor for dig { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(Sand)) {
         if (!bound tool && self.get(:shovels) > 0) { say "(with the shovel)" }
       } else if (bound tool) {
@@ -1862,24 +1826,22 @@ kind Adventurer is sprout.Visitor {
   }
   as actor for dig_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (here.is(SandyCave)) {
         say "(in the sand)"
         each d: Sand in here { send d :dig_sand }
       } else { say "There's no reason to be digging here." }
     }
   }
-  as actor for pour    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for pour_in { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for pour    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for pour_in { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // HOT-BELL-F's POUR-ON: water cools the red hot bell, which a thing in
   // a hand cannot reach to tell.
   as actor for pour_on { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (item.is(Water) && target.is(Bell)) { if (target.get(:hot)) { send target :cool } }
     }
   }
-  as actor for mung    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } } do { self.adjust(:moves, 1) } }
+  as actor for mung    { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_vain } } }
   // Climbing the Studio's chimney by name is going up it, on the same terms.
   as actor for climb_up {
     permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } 
@@ -1889,28 +1851,33 @@ kind Adventurer is sprout.Visitor {
         else if (self.count(Thing) > 2) { refuse overloaded }
       }
     }
-    do { self.adjust(:moves, 1) }
+   
   }
-  as actor for lock       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for lock       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
   // UPSTAIRS and DOWNSTAIRS: the stairs of the room, climbed the way they
   // are asked, as CLIMB UP and CLIMB DOWN climb them; where there are none,
   // the way does not go.
   as actor for upstairs { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
       if (here.count(Stairs) > 0) { each s: Stairs in here { act climb_up (target: s) } }
-      else { say "You can't go that way." }
+      else {
+        self.set(:aside, true)
+        say "You can't go that way."
+      }
     }
   }
   as actor for downstairs { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
       if (here.count(Stairs) > 0) { each s: Stairs in here { act climb_down (target: s) } }
-      else { say "You can't go that way." }
+      else {
+        self.set(:aside, true)
+        say "You can't go that way."
+      }
     }
   }
   // Mercy: the troll, disarmed and pleading, takes it as a troll would.
   as actor for spare { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } }
     do {
-      self.adjust(:moves, 1)
       if (target.is(Troll)) {
         if (target.count(Axe) == 0) { say "You lower your weapon. The troll stops pleading at once, and looks, gratefully and for a long time, at the axe on the floor." }
         else { say "The troll, who is holding the axe, does not appear to be the one in need of mercy." }
@@ -1920,9 +1887,9 @@ kind Adventurer is sprout.Visitor {
       else { say "It is in no danger from you." }
     }
   }
-  as actor for verbose    { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "verbose verbose ..." } } } do { self.set(:mode, :verbose)  say "Maximum verbosity." } }
-  as actor for brief      { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "brief brief ..." } } } do { self.set(:mode, :brief)  say "Brief descriptions." } }
-  as actor for superbrief { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "superbrief superbrief ..." } } } do { self.set(:mode, :superbrief)  say "Superbrief descriptions." } }
+  as actor for verbose    { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "verbose verbose ..." } } } do { self.set(:aside, true)  self.set(:mode, :verbose)  say "Maximum verbosity." } }
+  as actor for brief      { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "brief brief ..." } } } do { self.set(:aside, true)  self.set(:mode, :brief)  say "Brief descriptions." } }
+  as actor for superbrief { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "superbrief superbrief ..." } } } do { self.set(:aside, true)  self.set(:mode, :superbrief)  say "Superbrief descriptions." } }
   // The magic boat (v6, boat.sprout): in, out, out on the water and back.
   // PRE-BOARD: on the ground, and not already in it; something sharp in
   // hand punctures it (RBOAT-FUNCTION).
@@ -1934,7 +1901,6 @@ kind Adventurer is sprout.Visitor {
       }
     }
     do {
-      self.adjust(:moves, 1)
       if (target.is(MagicBoat)) {
         if (self.count(Sharp) > 0) {
           say "Oops! Something sharp seems to have slipped and punctured the boat. The boat deflates to the sounds of hissing, sputtering, and cursing."
@@ -1957,7 +1923,6 @@ kind Adventurer is sprout.Visitor {
       } else { refuse "You're not in that!" }
     }
     do {
-      self.adjust(:moves, 1)
       say "You are on your own feet again."
       broadcast :where
     }
@@ -1972,7 +1937,6 @@ kind Adventurer is sprout.Visitor {
       } else { refuse "You're not in the boat!" }
     }
     do {
-      self.adjust(:moves, 1)
       send here :put_out
       say ""
     }
@@ -1986,30 +1950,39 @@ kind Adventurer is sprout.Visitor {
       } else { refuse "You can't go that way." }
     }
     do {
-      self.adjust(:moves, 1)
       send here :come_ashore
       say ""
     }
   }
-  as actor for inflate   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
-  as actor for deflate   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
-  as actor for plug      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
-  as actor for turn_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } do { self.adjust(:moves, 1) } }
-  as actor for oil       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } do { self.adjust(:moves, 1) } }
+  as actor for inflate   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for deflate   { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for plug      { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
+  as actor for turn_with { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_beyond } } }
+  as actor for oil       { permit { if (self.get(:finished)) { refuse over }  if (self.get(:dead)) { refuse dead_cant } } }
 
   as actor for quit {
     do {
+      self.set(:aside, true)
       say score_line
       say "There is no quitting the Great Underground Empire from inside it. Walk away whenever you like; it will keep your place, and your score, until you come back."
     }
   }
   as actor for restart { permit { if (here.is(Room)) { if (here.get(:deafening)) { refuse "restart restart ..." } } }
-    do { say "The Great Underground Empire cannot be started over from inside it. What is done here stays done." }
+    do {
+      self.set(:aside, true)
+      say "The Great Underground Empire cannot be started over from inside it. What is done here stays done."
+    }
   }
   as actor for save {
-    do { say "The Empire keeps your place for you whether you ask or not. There is nothing to save." }
+    do {
+      self.set(:aside, true)
+      say "The Empire keeps your place for you whether you ask or not. There is nothing to save."
+    }
   }
   as actor for restore {
-    do { say "The Empire keeps your place for you whether you ask or not. There is nothing to restore." }
+    do {
+      self.set(:aside, true)
+      say "The Empire keeps your place for you whether you ask or not. There is nothing to restore."
+    }
   }
 }

@@ -1,6 +1,6 @@
 // The kinds of portable thing Zork treats specially: weapons, treasures,
 // food and drink, and things with writing on them.
-import {Portable, Thing} from 'thing'
+import {Portable, Thing, Drinkable} from 'thing'
 import {Adventurer} from 'adventurer'
 import {eat, drink, read, pour, pour_in, pour_on, give, throw, :glow, :claimed} from 'verbs'
 import {TrophyCase} from 'house'
@@ -58,7 +58,6 @@ kind Treasure is Portable {
 
 // Something to eat. Eaten, it is gone for good, as in Zork.
 kind Food is Portable {
-  without as target for eat from Thing
   as target for eat {
     // V-EAT: in hand, or in something in hand.
     permit {
@@ -128,7 +127,7 @@ kind Garlic is Food {
 
 // Water, from the glass bottle: it slips through the fingers, and is drunk
 // where it stands.
-kind Water is Thing {
+kind Water is Thing, Drinkable {
   grammar { name "quantity of water"  nouns "water", "liquid", "h2o", "drink" }
   :size 4
   passage short { quantity of water }
@@ -136,7 +135,6 @@ kind Water is Thing {
   // Behind the bottle's shut stopper it is seen and named, as Zork's
   // TRANSBIT shows it, and not to be had: WATER-F's and V-DRINK's lines.
   passage stoppered { The bottle is closed. }
-  without as target for drink from Thing
   as target for drink {
     permit { if (self.get(:sealed)) { refuse "You'll have to open the glass bottle first." } }
     do {
