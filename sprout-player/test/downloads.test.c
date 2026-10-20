@@ -1,16 +1,17 @@
 /*
  * ui/downloads.c: the download screen, driven through the app a frame at a time over the fake's
  * canned server. The rules: "more worlds..." fetches the index the Data folder's settings name,
- * asking permission with the app's purpose; an index is listed only once its signature verifies
- * against the baked key, and one that does not is refused in words that the shelf repeats; a
- * world chosen arrives whole as one file, its pictures inside it, checked against the index and
- * put in place, and is shelved; and a world whose bytes are not the ones listed (another checksum,
- * more bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
- * the network fails is said, and leaving mid-download leaves nothing half written or open. The
- * worlds are the words of a wheel by title, turned by the crank and the d-pad and wrapping, one on
- * the shelf already greyed with the panel saying so; of several builds of one world only the newest is a word, and the
- * panel and the download are that build's. A file is named for its title as the publisher
- * names it (test/fixtures/stems.json, which `sprout index`'s spec holds to the same names).
+ * asking permission with the app's purpose, which the dialog draws whole; an index is listed only
+ * once its signature verifies against the baked key, and one that does not is refused in words that
+ * the shelf repeats; a world chosen arrives whole as one file, its pictures inside it, checked
+ * against the index and put in place, and is shelved; and a world whose bytes are not the ones
+ * listed (another checksum, more bytes, a missing file, another build) is refused in words and
+ * leaves nothing behind. Every way the network fails is said, and leaving mid-download leaves
+ * nothing half written or open. The worlds are the words of a wheel by title, turned by the crank
+ * and the d-pad and wrapping, one on the shelf already greyed with the panel saying so; of several
+ * builds of one world only the newest is a word, and the panel and the download are that build's. A
+ * file is named for its title as the publisher names it (test/fixtures/stems.json, which `sprout
+ * index`'s spec holds to the same names).
  */
 #include <stdlib.h>
 
@@ -443,8 +444,43 @@ static void a_file_is_named_for_its_title_as_the_publisher_names_it(void) {
   end();
 }
 
+/*
+ * The console's permission dialog cuts the purpose after about 80 characters and draws it in the
+ * font pdxinfo's `menuMessageFont` names, so the purpose fits and that font is one Source/fonts packs
+ * into the pdx with a glyph for every character of it (the system's own copy has no comma).
+ */
+static void the_purpose_is_one_the_dialog_draws_whole(void) {
+  const char *purpose = PLAYER_NETWORK_PURPOSE, *key = "\nmenuMessageFont=";
+  char *pdxinfo = fixture_text("../../Source/pdxinfo"), *font = NULL, *glyphs = NULL, *at, name[256];
+  size_t i, length = strlen(purpose);
+  begin("purpose");
+  CHECK(length > 0 && length <= 80, "%zu characters: %s", length, purpose);
+  at = strstr(pdxinfo, key);
+  CHECK(at != NULL, "pdxinfo names a menuMessageFont");
+  if (at != NULL) {
+    at += strlen(key);
+    snprintf(name, sizeof name, "../../Source/%.*s.fnt", (int)strcspn(at, "\r\n"), at);
+    font = name + strlen("../../Source/");
+    CHECK(strncmp(font, "fonts/", 6) == 0, "the font is one the app packs: %s", font);
+    glyphs = fixture_text(name); /* a font not under Source/fonts fails here */
+  }
+  for (i = 0; glyphs != NULL && i < length; i++) {
+    char line[16];
+    if (purpose[i] == ' ')
+      snprintf(line, sizeof line, "\nspace\t");
+    else
+      snprintf(line, sizeof line, "\n%c\t", purpose[i]);
+    CHECK((unsigned char)purpose[i] < 0x80 && HAS(glyphs, line), "character %zu, '%c', has a glyph in %s", i, purpose[i],
+          font);
+  }
+  free(pdxinfo);
+  free(glyphs);
+  end();
+}
+
 int main(void) {
   test_program("downloads");
+  the_purpose_is_one_the_dialog_draws_whole();
   a_file_is_named_for_its_title_as_the_publisher_names_it();
   the_signed_index_is_listed_and_one_changed_is_refused();
   a_chosen_world_arrives_whole_and_is_shelved();
