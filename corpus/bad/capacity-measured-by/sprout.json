@@ -1,0 +1,16 @@
+{
+  "name": "capacity_measured_by",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "ebeb3c0f9af04c70dd4e60caa497e5b73cfaf028a89b323e58b33b0405402068"
+    }
+  ],
+  "files": ["capacity_measured_by.sprout", "kinds.sprout"]
+}

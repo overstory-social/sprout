@@ -13,6 +13,8 @@
 "brief":{"world":"brief","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "cancel-wakes":{"world":"cancel_wakes","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "cannot":{"world":"cannot","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"capacity-arrival":{"world":"capacity_arrival","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"capacity-by-measure":{"world":"capacity_by_measure","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "carried":{"world":"carried","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "carried-across":{"world":"carried_across","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "carried-tells":{"world":"carried_tells","serial":0,"instances":[],"visitors":[],"tombstones":[]},

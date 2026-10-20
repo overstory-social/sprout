@@ -1,0 +1,10 @@
+kinds.sprout:10:3   `Shelf` has a capacity and holds nothing.
+                    Write `contains` in `Shelf`, or compose a kind that holds things, such as `sprout.Container`.
+
+kinds.sprout:15:3   `Bag` says its capacity twice.
+                    A container has one capacity. Remove one of the lines.
+
+kinds.sprout:27:22  `Barrow` gets its capacity from both `Cart` and `Tub`, and a container has one.
+                    Write `capacity … by :…` in `Barrow` to say which it holds by.
+
+refused: 3 problems

@@ -305,6 +305,27 @@ export const NAVE = declaredId('chapel', ['nave']);
 export const CANDLE = declaredId('chapel', ['nave', 'candle']);
 
 /**
+ * The yard: a porter who carries 5 by `:size`, beside a stone of 9 and a
+ * pebble of 1, so the stone is too heavy for them and the pebble is not.
+ */
+export const YARD = compiled('yard', {
+  'yard.sprout': `world yard is sprout.World {
+  visitors are Porter
+  visitors arrive at court
+  object court is sprout.Place {
+    object stone is Load { :size 9 }
+    object pebble is Load { :size 1 }
+  }
+}
+`,
+  'porter.sprout': 'kind Porter is sprout.Visitor {\n  capacity 5 by :size\n}\n',
+  'load.sprout': 'kind Load {\n  :size 0 min 0 max 99\n}\n',
+});
+export const COURT = declaredId('yard', ['court']);
+export const STONE = declaredId('yard', ['court', 'stone']);
+export const PEBBLE = declaredId('yard', ['court', 'pebble']);
+
+/**
  * The hideout: a thief in the hall who is unseen, and a bell whose ringing
  * sends him into the vault, where he stays unseen.
  */

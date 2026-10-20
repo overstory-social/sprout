@@ -104,6 +104,7 @@ export function kind(
     contains: contains || containsActors,
     containsActors,
     roams: false,
+    capacity: null,
     suppressed: [],
   };
 }

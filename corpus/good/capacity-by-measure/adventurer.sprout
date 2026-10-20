@@ -1,0 +1,11 @@
+// An adventurer carries by load as well as by count: `sprout.Actor`'s
+// `:capacity` of eight things still holds beside it. The world says
+// `too_heavy` in its own words, one for the hands and one for a container.
+import * as sprout from 'sprout'
+
+kind Adventurer is sprout.Visitor {
+  capacity 100 by :size
+  passage too_heavy {
+    {if to.is(Adventurer)}Your load is too heavy.{else}{item} will not fit in {to}.{/if}
+  }
+}

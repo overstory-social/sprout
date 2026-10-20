@@ -14,6 +14,7 @@ import {
   addRemembers,
   apart,
   body,
+  capacity,
   contains,
   startsMemberOf,
   type MemberReaders,
@@ -78,6 +79,7 @@ export function worldMembers(
   addRemembers(p, readers);
   readers.set('visitors', () => visitors(p));
   readers.set('contains', () => contains(p));
+  readers.set('capacity', () => capacity(p));
   readers.set('passage', () => passage(p, readers));
   readers.set('prose', () => proseFile(p));
   readers.set('without', () => without(p, startsMemberOf(p, readers)));

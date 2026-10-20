@@ -94,6 +94,7 @@ export function kind(library: string, name: string, ...composes: string[]): Kind
     contains: false,
     containsActors: false,
     roams: false,
+    capacity: null,
     suppressed: [],
   };
 }

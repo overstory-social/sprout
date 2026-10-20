@@ -45,11 +45,18 @@ static void check_kind(sprout_arena *arena, const sprout_kind_def *kind, const s
   const sprout_json *order = corpus_get(row, "order");
   const sprout_json *passages = corpus_get(row, "passages");
   const sprout_json *plays = corpus_get(row, "plays");
+  const sprout_json *capacity;
   CHECK_STR(kind->qualified, corpus_get(row, "name")->bytes);
   CHECK(kind->spawnable == corpus_get(row, "spawnable")->boolean);
   CHECK(kind->contains == corpus_get(row, "contains")->boolean);
   CHECK(kind->contains_actors == corpus_get(row, "containsActors")->boolean);
   CHECK(kind->roams == corpus_get(row, "roams")->boolean);
+  capacity = corpus_get(row, "capacity");
+  CHECK(kind->has_capacity == (capacity->kind != SPROUT_JSON_NULL));
+  if (kind->has_capacity && capacity->kind != SPROUT_JSON_NULL) {
+    CHECK(kind->capacity_limit == corpus_get(capacity, "limit")->number);
+    CHECK_STR(kind->capacity_by, corpus_get(capacity, "by")->bytes);
+  }
   CHECK_INT(kind->order_count, order->count);
   for (i = 0; i < kind->order_count && i < order->count; i++)
     CHECK_STR(kind->order[i], order->items[i]->bytes);

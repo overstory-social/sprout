@@ -1,0 +1,32 @@
+import * as sprout from 'sprout'
+
+kind Person is sprout.Visitor { }
+
+kind Thing {
+  :size 1
+}
+
+kind Shelf {
+  capacity 10 by :size
+}
+
+kind Bag is sprout.Container {
+  capacity 10 by :size
+  capacity 12 by :size
+}
+
+kind Cart is sprout.Container {
+  capacity 30 by :size
+}
+
+kind Tub is sprout.Container {
+  capacity 20 by :size
+}
+
+// Two sources and no capacity of its own.
+kind Barrow is Cart, Tub { }
+
+// Its own capacity settles which.
+kind Wagon is Cart, Tub {
+  capacity 60 by :size
+}

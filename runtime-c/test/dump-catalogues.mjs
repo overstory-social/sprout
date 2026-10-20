@@ -51,6 +51,7 @@ function kindOf(kind, spawnable) {
     contains: kind.contains,
     containsActors: kind.containsActors,
     roams: kind.roams,
+    capacity: kind.capacity === null ? null : { limit: kind.capacity.limit, by: kind.capacity.by },
     properties: [...kind.properties.values()].map((property) => ({
       name: property.name,
       type: typeKey(property.type),

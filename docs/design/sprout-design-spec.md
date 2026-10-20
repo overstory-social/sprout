@@ -228,7 +228,7 @@ kind Tagged is sprout.Actor {
 }
 ```
 
-`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, `after command`, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
+`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, a `capacity`, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, `after command`, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
 A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. The first time it arrives it is made as a spawn is, with its own copy of each object its kind's body holds, so a world gives its visitors a satchel by writing one in the visitor kind; on a later visit it arrives with what it carried away, and never with those contents again. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
@@ -370,7 +370,7 @@ Everything after `is` is composed; a kind may compose any number of kinds, inclu
 
 `is` composes and the colon does not. The colon marks a property, a message or an option in an expression, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
 
-A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, an `after command`, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
+A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a `capacity`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, an `after command`, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
 
 ### How members combine
 
@@ -386,7 +386,7 @@ Members divide by whether more than one answer makes sense.
 | `depart` / `release` / `accept` | all run; any refusal decides |
 | `as <role> for <verb>` | all `permit` run, any refusal decides; all `do` run |
 | nouns in the grammar block | all apply |
-| `name`, `article` | refuse |
+| `name`, `article`, `capacity` | refuse |
 | `contains`, `contains actors`, `roams` | idempotent |
 | `pass :m`, `pass any` | refuse |
 | a passage | refuse, unless all but one are `default` |
@@ -469,7 +469,17 @@ kind Container {
 }
 ```
 
-`contains` is the primitive. Whether an object has contents is a declared capability the engine asks about, never a name the engine recognises, so a library's container and the standard library's container are equally real. Capacity is a property `sprout.Container` and `sprout.Actor` declare and their own `accept` guards read; the engine reads no property by name.
+`contains` is the primitive. Whether an object has contents is a declared capability the engine asks about, never a name the engine recognises, so a library's container and the standard library's container are equally real. A capacity counted in things is a property `sprout.Container` and `sprout.Actor` declare and their own `accept` guards read; the engine reads no property by name.
+
+A container may instead hold by measure, which no guard can write, since what goes in may be of any kind:
+
+```sprout
+kind Adventurer is sprout.Visitor {
+  capacity 100 by :size
+}
+```
+
+`capacity <n> by :<p>` makes `n` the most that the `:p` of everything the container directly holds may add up to. `n` is a whole number, and `:p` an integer property some kind declares, and an integer wherever one does. A thing whose kind declares no `:p` measures 0, a value below 0 counts as 0, and each thing measures its own `:p` alone, so a box weighs what it weighs and not what is in it. Once a move's three guards allow, the engine refuses one that would take its destination past `n`, through the world's `too_heavy` line, given `item` and `to`. A body declares at most one `capacity`, and only where it holds things; it is an exclusive member, so the composer's own replaces a composed one. It stands beside a counted capacity rather than replacing it: an adventurer that composes `sprout.Actor` still carries no more than eight things.
 
 ### Libraries and namespaces
 
@@ -715,7 +725,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `readings` in `help` | a set of readings; one renders as the words a visitor types for it |
 | `actor` in `acted` | as above |
 | `reading` in `acted` | string; the line as it was typed |
-| `item` in `inside_itself`, `item` and `to` in `crowded`, and `item` in `arrives` and `leaves` | object |
+| `item` in `inside_itself`, `item` and `to` in `crowded` and `too_heavy`, and `item` in `arrives` and `leaves` | object |
 | `from` in `arrives`, `to` in `leaves` | object: the place left or entered, inside `{if bound …}` only, since a visitor coming in from outside the world, or leaving it, has none |
 | `way` in `arrives` and `leaves` | string: the label of the exit or link the move went through, inside `{if bound way}` only |
 
@@ -1447,7 +1457,7 @@ accept  (item, from)  // the container it is entering
 
 The engine asks in that order and stops at the first refusal, which supplies the text the actor reads. Thing before source before destination puts the most specific voice first: a pot too soft to lift should say so before the shelf mentions being crowded.
 
-Inside a guard, `mover` is bound to whatever proposed the move — the actor of a `take`, the object whose body ran `move` — as an object. A guard ends in `allow`, in `refuse "…"`, or by reaching its end, which allows. Where a guard is not written, the engine allows; every policy, including capacity, is a guard some kind wrote.
+Inside a guard, `mover` is bound to whatever proposed the move — the actor of a `take`, the object whose body ran `move` — as an object. A guard ends in `allow`, in `refuse "…"`, or by reaching its end, which allows. Where a guard is not written, the engine allows; every policy but a capacity by measure, under Containment is a declaration, is a guard some kind wrote, and that one the engine asks after the three.
 
 ```sprout
 accept (item, from) {
@@ -1487,7 +1497,7 @@ This is the mirror of routing. Routing is policy, so containers own it and may a
 
 ### After the move
 
-Once every guard allows, the engine performs the single write and then tells the world: `:left (item, to)` to the old container, `:entered (item, from)` to the new one, and `:moved (from, to)` to the thing itself. When the thing is an actor, the engine also speaks, since both containers are places: every visitor in range of the old place reads its `leaves` passage and every other object in range of it is sent `:departed (actor, to)`; every visitor in range of the new place reads its `arrives` and every other object in range of it is sent `:arrived (actor, from)`; and the one who moved reads the new place's description. The description is read where the body that made the move ends, the effect pass for a reading's move, and before every line the queue then produces, so a place's `:entered` that tells the arrival "Your sword is glowing." is read after the place; it is derived from the turn's state once the queue is empty. The one who moved hears neither notice. A move that would make a container hold itself is refused before any guard, in the world's `inside_itself` passage.
+Once every guard allows, and the destination has room by any measure it holds by, the engine performs the single write and then tells the world: `:left (item, to)` to the old container, `:entered (item, from)` to the new one, and `:moved (from, to)` to the thing itself. When the thing is an actor, the engine also speaks, since both containers are places: every visitor in range of the old place reads its `leaves` passage and every other object in range of it is sent `:departed (actor, to)`; every visitor in range of the new place reads its `arrives` and every other object in range of it is sent `:arrived (actor, from)`; and the one who moved reads the new place's description. The description is read where the body that made the move ends, the effect pass for a reading's move, and before every line the queue then produces, so a place's `:entered` that tells the arrival "Your sword is glowing." is read after the place; it is derived from the turn's state once the queue is empty. The one who moved hears neither notice. A move that would make a container hold itself is refused before any guard, in the world's `inside_itself` passage.
 
 These are ordinary queued messages. They run after the move is committed, so they may write, send and narrate freely. A move must not make a container hold itself; a `move` that would is refused by the engine before any guard is asked.
 
@@ -1549,7 +1559,7 @@ A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and ca
 
 ### Engine lines
 
-Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `dark`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
+Every line a person reads is prose, and every line the engine speaks for itself is a named passage an author may replace: `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying`, `meant`, `pronoun_correction`, `nothing_happens`, `unremarkable`, `unseen`, `dark`, `fault`, `missing`, `displaced`, `inside_itself`, `crowded`, `too_heavy`, `waited`, `help`, `acted`, `gone_away` and `npc_says`, whose defaults `sprout.World` writes; `arrives` and `leaves`, whose defaults `sprout.Place` writes; and `inventory`, whose default `sprout.Actor` writes. What each is given is under Where types come from.
 
 When the engine says one, it is the first found of: the actor's own passage of that name, from its body or its kinds; its place's; the world's; and the standard library's default. The actor is the one the line is about — the one acting or looking, the one moving for `arrives` and `leaves`, the one leaving for `gone_away`, the NPC for `npc_says` — and its place is where it stands, or, for `leaves`, the place it left. A `default` passage yields to any other along the way, so the library's defaults are said only where nothing nearer writes one. The cat's own `arrives` beats the paper store's, the paper store's beats the world's, and a place may answer `not_here` in its own words.
 
@@ -1953,7 +1963,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 - `say`, `actor` or `here` in a handler, a hook, a tick or a wake, or in a passage reachable from one.
 - `chance`, `random` or `{one of}` in `describe`, in a `when` guard, in a consent guard, in a `permit`, in a pass rule, or in the world's `unseen`, `unremarkable` or `acted`, or a thing's `contents` — including in any passage reachable from one.
 - A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
-- A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article` — arriving from two sources.
+- A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article`, `capacity` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
 - A composition written with the colon rather than `is`.
 - A world that does not compose the standard library's `World`; anything but a world composing it.
@@ -1972,6 +1982,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 - `visitors arrive at` naming the world itself; a kind named for the world.
 - `tell inside` or `tell outside` in a body whose kind does not declare `contains actors`.
 - `roams` in a body whose kind does not compose `sprout.Actor`, or composes `sprout.Visitor`; a kind that composes `sprout.Visitor` and a kind that roams.
+- `capacity` in a body whose kind holds nothing, or twice in one body; a `capacity` past the largest integer, or by a property no kind declares or one declares as other than an integer.
 - An `extension` line after a declaration, naming an extension the manifest does not pin or at another major, or naming one twice; an extension's type or statement in a file that does not name it; a list of an extension's type.
 - A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
 - Any static cap exceeded.
@@ -2183,6 +2194,7 @@ kind World {
   passage displaced default       { The place you were standing is gone. }
   passage inside_itself default   { {item} cannot go inside itself. }
   passage crowded default         { There is no room in {to} for {item}. }
+  passage too_heavy default       { {to} cannot hold {item}. }
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
   passage acted default           { {actor} tries to {reading}. }

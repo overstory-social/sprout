@@ -1,0 +1,13 @@
+{
+  "about": "A guard is not asked by a poll, so `all` does not leave out what the measure would refuse: it takes the coffin, the sword and the lamp, 100 in all, and the leaflet that measures nothing, and stops at the sack, which is too heavy.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A low stone crypt." }] },
+    { "as": "Marta", "type": "take all", "expect": [
+      { "words": "You take a gold coffin." },
+      { "words": "You take a sword." },
+      { "words": "You take a lamp." },
+      { "words": "You take a leaflet." },
+      { "words": "Your load is too heavy." }
+    ] }
+  ]
+}

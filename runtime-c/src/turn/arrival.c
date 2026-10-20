@@ -99,7 +99,7 @@ sprout_eval_status turn_enter(turn_run *run, sprout_str visitor, sprout_str plac
   const sprout_stored_instance *destination = sprout_draft_instance(&run->draft, place);
   const sprout_node *guards;
   sprout_owed *owed;
-  bool away;
+  bool away, heavy;
   size_t i;
   memset(out, 0, sizeof *out);
   EXPR_NEED(turned_away(&frame, visitor, place, &away));
@@ -129,6 +129,22 @@ sprout_eval_status turn_enter(turn_run *run, sprout_str visitor, sprout_str plac
     out->refused = true;
     return refusal_to(&frame, visitor, refusal.by, &refusal.said, refusal.bindings, refusal.binding_count,
                       &out->refusal);
+  }
+  /* A place that holds by measure weighs the visitor coming in, as it would any move. */
+  EXPR_NEED(sprout_move_too_heavy(&frame, visitor, place, &heavy));
+  if (heavy) {
+    sprout_effect_binding *bound;
+    sprout_speech said;
+    sprout_str by;
+    sprout_engine_said(&frame, "too_heavy", &visitor, NULL, &by, &said);
+    bound = (sprout_effect_binding *)sprout_arena_take(x->turn, 2 * sizeof *bound);
+    if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
+    bound[0].name = "item";
+    bound[0].bound = sprout_evaluated_object(visitor);
+    bound[1].name = "to";
+    bound[1].bound = sprout_evaluated_object(place);
+    out->refused = true;
+    return refusal_to(&frame, visitor, by, &said, bound, 2, &out->refusal);
   }
   if (sprout_draft_place(&run->draft, visitor, &place) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
   EXPR_NEED(send_to(x, SPROUT_MSG_ENTERED, place, visitor, true, world, place));
