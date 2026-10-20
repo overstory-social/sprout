@@ -1,0 +1,14 @@
+// The way an actor goes is a direction written out, or `along an exit`.
+import * as sprout from 'sprout'
+
+kind Cat is sprout.Actor {
+  on :tick (elapsed) {
+    move self n
+  }
+  on :spawned (from) {
+    move self barn
+  }
+  on :woke (elapsed) {
+    move self along exit
+  }
+}

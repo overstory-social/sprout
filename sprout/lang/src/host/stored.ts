@@ -22,7 +22,7 @@
 
 import { z } from 'zod';
 
-import { DIRECTIONS, type Direction } from '../declare/directions.js';
+import { DIRECTIONS, type Direction } from '../syntax/directions.js';
 import { qualifiedName } from '../declare/enums.js';
 import { showType, type ValueType } from '../declare/types.js';
 import { idForm } from './ids.js';

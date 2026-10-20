@@ -7,7 +7,7 @@
  * traversable and not mentioned. An exit that refuses applies as any exit
  * does, deciding its direction, and is never offered: going that way is
  * answered with its words, and nothing moves. Asking is a function over a
- * frame, charged one step for each exit asked.
+ * frame, charged one step for each exit asked; taking one is a move.
  */
 #ifndef SPROUT_EXITS_H
 #define SPROUT_EXITS_H
@@ -51,5 +51,14 @@ typedef struct sprout_saying {
  */
 sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str place, const sprout_way *taken,
                                       sprout_saying *out);
+
+/*
+ * `actor` taken through `taken`, a way out of `place` that leads, as `go`
+ * takes a visitor: the move made through it, and what the exit says as it
+ * is taken said to `actor` where `person`. *went says whether it moved; where
+ * it did not, `refusal` says why, and nothing of it is recorded here.
+ */
+sprout_eval_status sprout_take_way(sprout_exec *x, const sprout_frame *frame, sprout_str actor, sprout_str place,
+                                   const sprout_way *taken, bool person, bool *went, sprout_move_refusal *refusal);
 
 #endif

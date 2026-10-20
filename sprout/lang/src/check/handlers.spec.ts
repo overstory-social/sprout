@@ -10,9 +10,11 @@ import { KindTable } from '../declare/kinds.js';
 import { MessageTable } from '../declare/messages.js';
 import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
+import { hereKindOf } from '../declare/places.js';
 import { checkAfterCommand, checkHandler, checkHook, checkPass } from './handlers.js';
 
-const SPROUT_TEXT = 'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\n';
+const SPROUT_TEXT =
+  'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\nkind Place { contains actors }\n';
 
 const DECLARED = `message :illuminating with boolean
 message :gust
@@ -60,7 +62,7 @@ function checked(text: string) {
   ).toEqual([]);
 
   const diagnostics = new Diagnostics();
-  const setting = { kinds, verbs, diagnostics, here: { place: null, unlike: null } };
+  const setting = { kinds, here: hereKindOf(kinds.all(), kinds), verbs, diagnostics };
   const clean: boolean[] = [];
   for (const kind of kinds.all().filter((one) => one.library === 'shop')) {
     for (const runs of kind.handlers.values()) {
@@ -132,6 +134,52 @@ describe('a handler', () => {
     expect(messages).toEqual([
       '`actor` is not bound inside `on :gust`: nobody is acting when a message arrives.',
     ]);
+  });
+
+  it('binds `here` in an actor’s own handler, typed as its place, and never `actor`', () => {
+    const where = checked(
+      'kind Cat is sprout.Actor { :n 0  on :gust { if (here.is(sprout.Place) && here != self) { self.set(:n, 1) } } }',
+    );
+    expect(where.said).toEqual([]);
+    const typed = checked(
+      'kind Cat is sprout.Actor { :n 0  on :gust { if (here.get(:n) > 0) { } } }',
+    );
+    expect(typed.messages).toHaveLength(1);
+    expect(typed.messages[0]).toContain('sprout.Place');
+    expect(
+      checked(
+        'kind Cat is sprout.Actor { :n 0  on :gust { if (actor != self) { self.set(:n, 1) } } }',
+      ).messages,
+    ).toEqual(['`actor` is not bound inside `on :gust`: nobody is acting when a message arrives.']);
+  });
+
+  it('refuses `here` in a handler of a kind that is not an actor, saying why', () => {
+    expect(
+      checked('kind Rock { :n 0  on :gust { if (here != self) { self.set(:n, 1) } } }').said,
+    ).toEqual([
+      [
+        'shop.sprout:5:34',
+        "`here` is not bound inside `on :gust`: only an actor's own handler has a place, and `Rock` does not compose `sprout.Actor`.",
+        'Compose `sprout.Actor` into `Rock` if it is an actor, or name the place through what the message passes, as `on :entered (item, from)` names where it came from.',
+      ],
+    ]);
+  });
+
+  it('refuses `here` in an actor’s hook, which no place is given', () => {
+    expect(
+      checked(
+        'kind Cat is sprout.Actor { :n 0  changed :n { if (here != self) { self.set(:n, 1) } } }',
+      ).messages,
+    ).toEqual([
+      '`here` is not bound inside `changed :n`: nobody is acting when a message arrives.',
+    ]);
+  });
+
+  it('lets a parameter take the name `here` in an actor’s handler, as it may `actor`', () => {
+    const { said } = checked(
+      'kind Dog is sprout.Actor { :n 0  on :arrived (here, from) { if (here != self) { self.set(:n, 1) } } }',
+    );
+    expect(said).toEqual([]);
   });
 
   it('lets an engine message’s parameter take the name `actor`, as `:arrived` passes one', () => {

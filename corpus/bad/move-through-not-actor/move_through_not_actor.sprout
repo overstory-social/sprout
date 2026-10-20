@@ -1,0 +1,17 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cart} from 'cart'
+
+world move_through_not_actor is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { exit north "north" -> barn }
+    object cart is Cart
+  }
+
+  object barn is sprout.Place
+}
+
+verb push { role target  "push [target]" }

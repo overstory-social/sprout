@@ -23,7 +23,7 @@ import { writtenPath, type KindExpr, type KindMember } from '../syntax/ast.js';
 import type { GrammarExit, GrammarLine, GrammarLink } from '../syntax/ast-grammar.js';
 import { isReserved } from '../syntax/reserved.js';
 import type { Diagnostics } from '../source/diagnostics.js';
-import { ABBREVIATIONS, DIRECTIONS, type Direction } from './directions.js';
+import { ABBREVIATIONS, DIRECTIONS, type Direction } from '../syntax/directions.js';
 
 /** The host's figure for the static cap on a place's exits. Never this layer's number. */
 export interface ExitCaps {

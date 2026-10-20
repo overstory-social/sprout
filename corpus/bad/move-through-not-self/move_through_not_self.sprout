@@ -1,0 +1,17 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Kennel} from 'kennel'
+
+world move_through_not_self is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { exit north "north" -> barn }
+    object kennel is Kennel
+  }
+
+  object barn is sprout.Place
+}
+
+verb whistle { role target  "whistle at [target]" }

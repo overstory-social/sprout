@@ -1,0 +1,59 @@
+// An NPC that knows where it is and walks the ways out of it (the spec's
+// Verbs › Moving something; Prose). On its own wake a cat names the place
+// it stands in, which an actor's handler binds as `here`, and goes north
+// through the yard's gate while the gate is open, the exit's `when` its
+// consent; while it is shut there is no way north, so nothing moves,
+// nothing is said, and the handler ends there. Bolting east, it meets the
+// fence, which refuses, and the same holds: an actor's way out that does
+// not go says nothing, even in the `do` of a visitor's reading, which is
+// then answered as any reading that said nothing is. A dog in the barn
+// wanders out by a way drawn from those that lead, of which there is one,
+// the ladder refusing; and an owl in a coop it cannot leave has no way to
+// draw.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Cat, Dog, Owl, Gate} from 'animals'
+
+world wandering is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      article the
+      name "yard"
+      exit north "through the gate" -> barn when (gate.get(:open))
+      exit east "east" refuse "The fence is too high."
+      exit in "into the coop" -> coop
+    }
+    describe { text "A muddy yard." }
+    object gate is Gate
+    object cat is Cat
+  }
+
+  object barn is sprout.Place {
+    grammar {
+      article the
+      name "barn"
+      exit south "out to the yard" -> yard
+      exit up "up the ladder" refuse "The ladder is rotten."
+    }
+    describe { text "A dim barn." }
+    object dog is Dog
+  }
+
+  object coop is sprout.Place {
+    grammar {
+      article the
+      name "coop"
+      exit out "out to the yard" -> yard when (owl.get(:awake))
+    }
+    describe { text "A cramped coop." }
+    object owl is Owl
+  }
+}
+
+verb shoo  { role target  "shoo [target]" }
+verb poke  { role target  "poke [target]" }
+verb nudge { role target  "nudge [target]" }
+verb open  { role target  "open [target]" }

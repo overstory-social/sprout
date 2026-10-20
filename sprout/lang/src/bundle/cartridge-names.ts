@@ -55,6 +55,7 @@ export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameFi
   member: { member: 'name' },
   message: { name: 'name' },
   move: { thing: 'path', destination: 'path' },
+  'move-through': { thing: 'path', direction: 'name' },
   'named-type': { library: 'name', name: 'name' },
   object: { name: 'name', placedIn: 'path' },
   option: { name: 'name' },

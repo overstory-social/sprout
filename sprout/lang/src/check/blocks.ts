@@ -28,7 +28,14 @@ import type { Block, CallExpr, Expr, IfStatement, Statement } from '../syntax/as
 import type { GuardName } from '../syntax/ast.js';
 import type { Span } from '../source/source.js';
 import { branchScope, checkCondition, isEffect, type CheckContext } from './check.js';
-import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
+import {
+  checkDestroy,
+  checkEffect,
+  checkLet,
+  checkMove,
+  checkMoveThrough,
+  checkSpawn,
+} from './statements.js';
 import { checkAct } from './act.js';
 import { checkConnect } from './exits.js';
 import { checkBroadcast, checkSend } from './sends.js';
@@ -149,6 +156,10 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'move':
       if (reads !== null) readOnly('move', statement.at, context, reads);
       else checkMove(statement, context);
+      return;
+    case 'move-through':
+      if (reads !== null) readOnly('move', statement.at, context, reads);
+      else checkMoveThrough(statement, context);
       return;
     case 'connect':
       if (reads !== null) readOnly('connect', statement.at, context, reads);

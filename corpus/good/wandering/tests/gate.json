@@ -1,0 +1,15 @@
+{
+  "about": "On its own wake the cat names the yard it stands in, `here` in its handler, and tries the way north: while the gate is shut no exit north applies, so nothing moves, nothing is said of it, and the handler ends there. Once the gate is open the exit's `when` holds, the cat goes through, the yard sees it leave, and what the handler says after the move is said in the barn.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A muddy yard." }] },
+    { "as": "Marta", "type": "shoo cat", "expect": [{ "words": "The cat flattens its ears." }] },
+    { "advance": "1 minute", "expect": [{ "words": "The cat sniffs the air of the yard." }] },
+    { "as": "Marta", "type": "open gate", "expect": [{ "words": "You swing the gate open." }] },
+    { "as": "Marta", "type": "shoo cat", "expect": [{ "words": "The cat flattens its ears." }] },
+    {
+      "advance": "1 minute",
+      "expect": [{ "words": "The cat sniffs the air of the yard." }, { "words": "The cat leaves for the barn." }]
+    },
+    { "as": "Marta", "type": "north", "expect": [{ "words": "A dim barn." }] }
+  ]
+}

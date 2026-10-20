@@ -314,6 +314,20 @@ export interface MoveStatement extends Node {
 }
 
 /**
+ * `move self north`, `move self along an exit` — `self` proposes to go
+ * through a way out of its place, the exit of a direction or one drawn
+ * from the turn's seed, as `go` takes a visitor (the spec's Verbs ›
+ * Moving something).
+ */
+export interface MoveThroughStatement extends Node {
+  readonly kind: 'move-through';
+  /** What moves, as written; only `self` may, which the checker holds it to. */
+  readonly thing: ObjectPath;
+  /** The direction as written; null for `along an exit`, a way drawn. */
+  readonly direction: Ident | null;
+}
+
+/**
  * `connect onward to cell` — `self`'s link of that name assigned the
  * place a binding holds (the spec's Verbs › Links). A link is write-only:
  * nothing reads it back.
@@ -465,6 +479,7 @@ export type Statement =
   | SpawnStatement
   | DestroyStatement
   | MoveStatement
+  | MoveThroughStatement
   | ConnectStatement
   | ActStatement
   | SendStatement

@@ -8,7 +8,7 @@
 // thing of a poll the log holds; a view is valid until a committed write
 // turn names its visitor stale.
 
-import type { Direction } from '../declare/directions.js';
+import type { Direction } from '../syntax/directions.js';
 import type { Plain } from '../declare/extensions.js';
 import type { Fault } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
