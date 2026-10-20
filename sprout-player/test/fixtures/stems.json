@@ -8,8 +8,11 @@
   ["","world"],
   ["ÉÉÉ","world"],
   ["abcdefghijklmnopqrstuvwxyz0123","abcdefghijklmnopqrstuvwx"],
-  ["abcdefghijklmnopqrstuvw x","abcdefghijklmnopqrstuvwx"],
+  ["abcdefghijklmnopqrstuvw x","abcdefghijklmnopqrstuvw"],
   ["abcdefghijklmnopqrstuv x y","abcdefghijklmnopqrstuv-x"],
+  ["abcdefghijklmnopqrstuvwx yz","abcdefghijklmnopqrstuvwx"],
   ["Zork I: The Great Underground Empire","zork-i-the-great-undergr"],
-  ["Titled: A World Shown by Its Title","titled-a-world-shown-byi"]
+  ["Titled: A World Shown by Its Title","titled-a-world-shown-by"],
+  ["The Long Night of Pumpkins","the-long-night-of-pumpki"],
+  ["Supercalifragilisticexpialidocious","supercalifragilisticexpi"]
 ]
