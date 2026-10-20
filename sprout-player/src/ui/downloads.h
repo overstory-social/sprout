@@ -91,7 +91,8 @@ extern const player_screen player_downloads_screen;
 /* Opens the download screen from the shelf and starts fetching the list; where there is no memory for it, says so. */
 void player_downloads_open(player_app *app);
 
-/* A file-name stem from a world's title: lower-case letters and digits joined by hyphens, at most 24 long, else `world`. */
+/* A file-name stem from a world's title: lower-case letters and digits joined by hyphens, cut at 24 with no hyphen left at
+ * the end, else `world`. */
 void player_downloads_stem(const char *title, char *out, size_t size);
 
 #endif

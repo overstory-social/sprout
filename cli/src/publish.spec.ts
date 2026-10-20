@@ -100,7 +100,7 @@ describe('writeIndex', () => {
       'Media Room',
       'Titled: A World Shown by Its Title',
     ]);
-    expect(index.worlds[2]!.url).toMatch(/\/titled-a-world-shown-byi-[0-9a-f]{8}\.sproutworld$/);
+    expect(index.worlds[2]!.url).toMatch(/\/titled-a-world-shown-by-[0-9a-f]{8}\.sproutworld$/);
     const site = join(out, '..');
     for (const world of index.worlds) {
       const name = publishedName(world.title, world.hash);

@@ -829,8 +829,11 @@ The cartridge is written as a `.part`, counted as it arrives (a file longer
 than listed is dropped at once), hashed a chunk at a time and never held in
 memory, checked against the size and SHA-256 in the signed index, and put in
 place only whole, after the engine has confirmed its header hash is the one
-listed. It is named for the title and the first eight digits of the bundle
-hash, so two builds of one world sit side
+listed. It is named `<stem>-<hash8>.sproutworld`: the stem is the title's
+ASCII letters, in lower case, and digits, each run of anything else between
+them one hyphen, cut to its first 24 characters with a hyphen the cut leaves
+at the end dropped (`world` where nothing is left), and `<hash8>` is the
+first eight digits of the bundle hash, so two builds of one world sit side
 by side; a newer build does not replace or remove an older one, whose save
 would be orphaned. The index is read to at most 256 KB.
 
