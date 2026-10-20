@@ -1,0 +1,77 @@
+{
+  "worlds": [
+    {
+      "title": "Underground Caverns",
+      "author": "studio",
+      "version": "0.9.0",
+      "bytes": 4096,
+      "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "url": "/sprout/caverns-0-9-0.sproutworld"
+    },
+    {
+      "title": "Bell",
+      "author": "Eve",
+      "version": "0.1.0",
+      "bytes": 4096,
+      "hash": "3333333333333333333333333333333333333333333333333333333333333333",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "url": "/sprout/bell.sproutworld"
+    },
+    {
+      "title": "Underground Caverns",
+      "author": "studio",
+      "version": "0.10.0",
+      "bytes": 4096,
+      "hash": "5555555555555555555555555555555555555555555555555555555555555555",
+      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "url": "/sprout/caverns-0-10-0.sproutworld"
+    },
+    {
+      "title": "Moss",
+      "author": "Bo",
+      "version": "0.1.0",
+      "bytes": 4096,
+      "hash": "7777777777777777777777777777777777777777777777777777777777777777",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "url": "/sprout/moss-first.sproutworld"
+    },
+    {
+      "title": "Underground Caverns",
+      "author": "Ada",
+      "version": "0.1.0",
+      "bytes": 4096,
+      "hash": "9999999999999999999999999999999999999999999999999999999999999999",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "url": "/sprout/caverns-ada.sproutworld"
+    },
+    {
+      "title": "Underground Caverns",
+      "author": "studio",
+      "version": "0.10.0",
+      "bytes": 4096,
+      "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "url": "/sprout/caverns-0-10-0-again.sproutworld"
+    },
+    {
+      "title": "Moss",
+      "author": "Bo",
+      "version": "0.1.0",
+      "bytes": 4096,
+      "hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "url": "/sprout/moss-second.sproutworld"
+    },
+    {
+      "title": "Moss",
+      "author": "Bo",
+      "version": "0.1.0",
+      "bytes": 4096,
+      "hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "url": "/sprout/moss-third.sproutworld"
+    }
+  ],
+  "signed": "0ff160de9203dba8b276848dfabe0f7cb625f685e3d70135067cba769d5d915bccda1662d8bed0f80dd1ab6e9dec5dac157df7cfeb0e6b3ab9785c37fe263e06"
+}
