@@ -238,11 +238,12 @@ describe('the visitor kind’s own body declares no behaviour', () => {
     ]);
   });
 
-  it('refuses a handler, a hook and a pass rule, each at the member', () => {
+  it('refuses a handler, a hook, an `after command` and a pass rule, each at the member', () => {
     const text = [
       'kind Person is sprout.Visitor {',
       '  on :stir { }',
       '  changed :stamina { }',
+      '  after command { }',
       '  pass any (true)',
       '}',
     ];
@@ -251,6 +252,7 @@ describe('the visitor kind’s own body declares no behaviour', () => {
     ).toEqual([
       ['on', ...behaviour('answer a message with `on :stir`', 'on :stir')],
       ['changed', ...behaviour('watch a property with `changed :stamina`', 'changed :stamina')],
+      ['after', ...behaviour('follow a command with `after command`', 'after command')],
       ['pass', ...behaviour('say what passes with `pass any`', 'pass any (…)')],
     ]);
   });

@@ -1,16 +1,22 @@
-// Which handlers and hooks run, and in what order, on a composed kind (the
-// spec's Kinds, composition and libraries › How members combine, the rows
-// "`on :m` handler: all run" and "`changed :p` hook: all run"; Suppressing
-// a contribution; Events, messages and the bus › Receiving).
+// Which handlers, hooks and `after command`s run, and in what order, on a
+// composed kind (the spec's Kinds, composition and libraries › How members
+// combine, the rows "`on :m` handler", "`changed :p` hook" and "`after
+// command`": all run; Suppressing a contribution; Events, messages and the
+// bus › Receiving; Verbs › After a command).
 //
-// Both compose as guards do, through `contributions.ts`: each origin's
+// All three compose as guards do, through `contributions.ts`: each origin's
 // runs once, in closure order, the composer's own last, less what a
 // `without` leaves out. A handler is keyed by the message it answers as
 // `messageKey` names it, resolved from the library of the kind that wrote
-// it, so two libraries' `:stir` are two messages; a hook by the property.
+// it, so two libraries' `:stir` are two messages; a hook by the property;
+// a kind writes one `after command`, so those are one list.
 
 import type { Ident, KindMember } from '../syntax/ast.js';
-import type { HandlerDeclaration, HookDeclaration } from '../syntax/ast-events.js';
+import type {
+  AfterCommandDeclaration,
+  HandlerDeclaration,
+  HookDeclaration,
+} from '../syntax/ast-events.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Suppression } from './kinds.js';
 import { composeContributions, composedWhereSame } from './contributions.js';
@@ -35,6 +41,12 @@ export interface ResolvedHandler {
 export interface ResolvedHook {
   readonly origin: string;
   readonly declaration: HookDeclaration;
+}
+
+/** One kind's `after command`, as a composed kind runs it. */
+export interface ResolvedAfterCommand {
+  readonly origin: string;
+  readonly declaration: AfterCommandDeclaration;
 }
 
 /** Every handler a composed kind runs, by `messageKey`, in run order. */
@@ -124,6 +136,54 @@ export function ownHooks(
     own.set(name, { origin, declaration: member });
   }
   return own;
+}
+
+/** The `after command` a composer's own body writes; one written twice is refused at the second. */
+export function ownAfterCommand(
+  composer: string,
+  members: readonly KindMember[],
+  origin: string,
+  diagnostics: Diagnostics,
+): ResolvedAfterCommand | undefined {
+  let own: ResolvedAfterCommand | undefined;
+  for (const member of members) {
+    if (member.kind !== 'after-command') continue;
+    if (own !== undefined) {
+      diagnostics.refuse(
+        member.at,
+        `\`${composer}\` writes \`after command\` twice.`,
+        'A kind follows a command once. Keep one, and write what both do in it, with `if` where they differ.',
+      );
+      continue;
+    }
+    own = { origin, declaration: member };
+  }
+  return own;
+}
+
+/**
+ * The `after command`s a composer runs: its composed kinds', each origin
+ * once and in closure order, less what its own `suppressed` leaves out,
+ * then its own.
+ */
+export function composeAfterCommand(
+  composed: readonly (readonly ResolvedAfterCommand[])[],
+  order: readonly string[],
+  suppressed: readonly Suppression[],
+  own: ResolvedAfterCommand | undefined,
+): readonly ResolvedAfterCommand[] {
+  return composeContributions(
+    composed,
+    order,
+    suppressed,
+    own,
+    ({ member, source }, after) => member.kind === 'after-command-ref' && source === after.origin,
+  );
+}
+
+/** Whether a kind runs an `after command` written by `origin` itself. */
+export function writesAfterCommand(runs: readonly ResolvedAfterCommand[], origin: string): boolean {
+  return runs.some((one) => one.origin === origin);
 }
 
 /**

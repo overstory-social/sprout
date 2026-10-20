@@ -244,6 +244,9 @@ typedef struct sprout_reached {
  */
 sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, const char *asking,
                                    const sprout_reached **reached, size_t *count);
+/* The same walk for any message as the asker sees it: what is unseen, and what it holds, is not reached. */
+sprout_eval_status sprout_range_seen(const sprout_frame *frame, sprout_str asker, const sprout_reached **reached,
+                                     size_t *count);
 
 /* ---- move.c ---- */
 

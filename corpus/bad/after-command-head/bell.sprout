@@ -1,0 +1,9 @@
+// `after` is followed by `command`, and `after command` binds `actor` and
+// `here` itself, so it takes no parameters.
+kind Bell {
+  after turn { tell actor "The bell hums." }
+}
+
+kind Gong {
+  after command (who) { tell who "The gong hums." }
+}

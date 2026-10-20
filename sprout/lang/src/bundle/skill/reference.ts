@@ -155,6 +155,12 @@ export const MEMBER_TABLE: readonly Entry[] = [
     means: 'a hook, run when one of its own properties changes',
   },
   {
+    word: 'after',
+    example: 'after command { tell actor "The probe hums." }',
+    means:
+      'run at the end of every command a visitor makes while they carry it or it holds them, with `actor` and `here` bound',
+  },
+  {
     word: 'pass',
     example: 'pass any (true)',
     means: 'whether a message sent inside it passes out, or from outside in',

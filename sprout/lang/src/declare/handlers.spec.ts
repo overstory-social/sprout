@@ -8,10 +8,13 @@ import { EnumTable } from './enums.js';
 import { KindTable, type KindRef } from './kinds.js';
 import { MessageTable } from './messages.js';
 import {
+  composeAfterCommand,
   composeHandlers,
   namedMessage,
+  ownAfterCommand,
   ownHandlers,
   ownHooks,
+  writesAfterCommand,
   writesHandler,
   writesHook,
 } from './handlers.js';
@@ -135,6 +138,60 @@ describe('hooks compose', () => {
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
       '`K` writes `changed :lit` twice.',
     ]);
+  });
+});
+
+describe('`after command`s compose', () => {
+  const origins = (kind: KindRef) => kind.afterCommand.map((one) => one.origin);
+
+  it('all run, in closure order, the composer’s own last, a diamond’s shared kind once', () => {
+    const { kind, messages } = composed(
+      [
+        'kind A { after command { } }',
+        'kind B is A { after command { } }',
+        'kind C is A { }',
+        'kind D is B, C { after command { } }',
+      ].join('\n'),
+    );
+    expect(messages).toEqual([]);
+    expect(origins(kind('D'))).toEqual(['shop.A', 'shop.B', 'shop.D']);
+    expect(origins(kind('C'))).toEqual(['shop.A']);
+  });
+
+  it('leave out what `without` names, and only from the kind that wrote it', () => {
+    const { kind, messages } = composed(
+      [
+        'kind Lamp { after command { } }',
+        'kind Safe is Lamp { without after command from Lamp }',
+        'kind Both is Safe, Lamp { }',
+      ].join('\n'),
+    );
+    expect(messages).toEqual([]);
+    expect(origins(kind('Safe'))).toEqual([]);
+    expect(origins(kind('Both'))).toEqual(['shop.Lamp']);
+  });
+
+  it('refuse a `without` naming one a kind does not write', () => {
+    const { messages } = composed(
+      'kind Lamp { }\nkind Safe is Lamp { without after command from Lamp }',
+    );
+    expect(messages).toEqual(['`Lamp` has no `after command` to leave out.']);
+  });
+
+  it('are what `ownAfterCommand` and `composeAfterCommand` build, one to a body', () => {
+    const diagnostics = new Diagnostics();
+    const [declared] = parseDeclarations(
+      new SourceFile('k.sprout', 'kind K { after command { } after command { } }'),
+      diagnostics,
+    ) as [KindDeclaration];
+    const own = ownAfterCommand('K', declared.members as KindMember[], 'shop.K', diagnostics);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      '`K` writes `after command` twice.',
+    ]);
+    const runs = composeAfterCommand([], [], [], own);
+    expect(runs.map((one) => one.origin)).toEqual(['shop.K']);
+    expect(writesAfterCommand(runs, 'shop.K')).toBe(true);
+    expect(writesAfterCommand(runs, 'shop.L')).toBe(false);
   });
 });
 

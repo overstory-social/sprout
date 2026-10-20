@@ -27,7 +27,7 @@ type Owner = (typeof OWNERS)[number];
 
 /** The members every body holds, with `holds` first where the owner says one more, and `grammar` and `describe` where it is a thing's. */
 const membersOf = (owner: Owner): string =>
-  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, ${owner.holds === null ? '`roams`, ' : ''}\`capacity\`, \`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, ${owner.holds === null ? '`roams`, ' : ''}\`capacity\`, \`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`after\`, \`pass\` and \`object\``;
 
 /** A member by its name where it is a property, and otherwise by what it is. */
 const named = (members: readonly WorldMember[]): string[] =>
@@ -122,7 +122,7 @@ describe('`capacity <n> by :<property>`', () => {
 
 describe('a body, read directly', () => {
   it('reads to its own brace and hands that brace back', () => {
-    const { p, diagnostics } = parserOver('K { :open true\n contains } after', {
+    const { p, diagnostics } = parserOver('K { :open true\n contains } later', {
       name: 'b.sprout',
     });
     const name = p.next();
@@ -136,7 +136,7 @@ describe('a body, read directly', () => {
     expect(diagnostics.refusals).toEqual([]);
     expect(read?.members.map((m) => m.kind)).toEqual(['property', 'contains']);
     expect(read?.close.text).toBe('}');
-    expect(p.peek().text).toBe('after');
+    expect(p.peek().text).toBe('later');
   });
 
   it('is null, having said so under the name it was given, where it is never closed', () => {
@@ -292,6 +292,17 @@ describe('a world, a kind and an object read their bodies by one rule', () => {
     );
     expect(refusals.map((d) => d.message)).toEqual([
       '`on :stir` and `pass any` are written after the `}` that ends `Lamp`.',
+    ]);
+  });
+
+  it('names an `after command` after a stray `}` as one member, its braces stepped over', () => {
+    const { refusals } = readBody(
+      'kind Lamp {\n  :lit false\n}\n  after command { if (self.get(:lit)) { say "Hm." } }\n  :dim false\n}\n',
+      'kind',
+      'k.sprout',
+    );
+    expect(refusals.map((d) => d.message)).toEqual([
+      '`after command` and `:dim` are written after the `}` that ends `Lamp`.',
     ]);
   });
 

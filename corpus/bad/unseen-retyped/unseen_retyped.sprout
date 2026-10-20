@@ -1,0 +1,21 @@
+// `:unseen` is the standard library's, and every object holds it as a
+// boolean: a kind may restate its default, and may not give it another type
+// or remember it about each actor, or claim it twice from two kinds.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world unseen_retyped is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object ghost is Ghost
+    object wraith is Wraith
+  }
+}
+
+kind Ghost { :unseen 1 }
+kind Shade { remembers { :unseen false } }
+kind Thief { :unseen true }
+kind Spy { :unseen true }
+kind Wraith is Thief, Spy { }

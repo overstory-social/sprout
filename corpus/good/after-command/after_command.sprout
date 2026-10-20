@@ -1,0 +1,41 @@
+// What follows a command (the spec's Verbs › After a command). After every
+// command a visitor makes, what they carry, then the place they stand in,
+// then the world, each run their `after command`, nearest first: the lamp
+// in their hands, the loud room, and the world, which counts the commands
+// and rings a bell at the fourth. The room's description is read before
+// what follows the command that walked into it; a refused command is
+// followed by nothing; and what is not carried, or is shut in a tin they
+// carry, follows nobody.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+import {LoudRoom} from 'loud_room'
+
+world after_command is sprout.World {
+  visitors are Person
+  visitors arrive at cellar
+
+  :commands 0
+
+  after command {
+    self.adjust(:commands, 1)
+    if (self.get(:commands) == 4) { say "Somewhere far off, a bell tolls." }
+  }
+
+  object cellar is sprout.Place {
+    grammar {
+      article the
+      exit north "up to the falls" -> falls
+    }
+    describe { text "A low cellar, dry and still." }
+    object lamp is Lamp
+  }
+
+  object falls is LoudRoom {
+    grammar {
+      article the
+      exit south "down to the cellar" -> cellar
+    }
+    describe { text "Water thunders down a cleft in the rock." }
+  }
+}

@@ -224,6 +224,7 @@ A body is what is between a declaration’s braces. Besides these, every body ho
 | `as target for poke { do { say "Poked." } }` | its part in a verb: a `permit` that may refuse, and a `do` that acts | yes | yes |
 | `on :stir { tell "Stirred." }` | a handler for a message | yes | yes |
 | `changed :lit (was) { tell "It flickers." }` | a hook, run when one of its own properties changes | yes | yes |
+| `after command { tell actor "The probe hums." }` | run at the end of every command a visitor makes while they carry it or it holds them, with `actor` and `here` bound | yes | yes |
 | `pass any (true)` | whether a message sent inside it passes out, or from outside in | yes | yes |
 | `object pin is Pin` | a thing inside it | yes | yes |
 | `visitors are Person` | the world’s kind for visitors, and `visitors arrive at yard`, where they start | — | yes |
@@ -866,7 +867,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 
 None of these may name an enum’s option or a binding:
 
-`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `carried` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `intent` `kind` `let` `link` `lit` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `pronouns` `prose` `refuse` `release` `remembers` `roams` `role` `say` `seconds` `send` `spawn` `tell` `text` `then` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
+`boolean` `integer` `string` `object` `symbol` `true` `false` `accept` `act` `actors` `adjectives` `after` `allow` `any` `are` `arrive` `article` `as` `at` `bound` `broadcast` `carried` `changed` `connect` `contains` `default` `depart` `describe` `destroy` `do` `each` `else` `enum` `exit` `finally` `for` `from` `grammar` `hours` `if` `import` `in` `intent` `kind` `let` `link` `lit` `many` `max` `message` `min` `minutes` `move` `name` `nouns` `of` `on` `optional` `pass` `passage` `permit` `pronouns` `prose` `refuse` `release` `remembers` `roams` `role` `say` `seconds` `send` `spawn` `tell` `text` `then` `to` `verb` `visitors` `wake` `when` `with` `without` `world`
 
 And no message or verb may be called `describe`, `depart`, `release`, `accept`, `permit`, `do`, `passage` or `prose`.
 

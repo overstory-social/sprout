@@ -1,0 +1,7 @@
+bell.sprout:5:27  `refuse` decides, and `after command` runs once the command is done.
+                  Say what happens with `say` or `tell`; to turn a command away, refuse it in a `permit`.
+
+bell.sprout:6:5   `allow` decides, and `after command` runs once the command is done.
+                  Take it out: nothing waits on `after command` to allow it.
+
+refused: 2 problems

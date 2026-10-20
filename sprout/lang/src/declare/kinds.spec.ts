@@ -31,6 +31,7 @@ function kind(library: string, name: string, ...composes: string[]): KindRef {
     plays: NO_PLAYS,
     handlers: new Map(),
     hooks: new Map(),
+    afterCommand: [],
     passes: NO_PASS_RULES,
     grammar: NO_GRAMMAR,
     exits: [],

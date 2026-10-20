@@ -63,11 +63,11 @@ describe('a kind declaration', () => {
   });
 
   it('is read directly, from its word to its closing brace', () => {
-    const { p, diagnostics } = parserOver('kind Crate is Heavy { contains } after');
+    const { p, diagnostics } = parserOver('kind Crate is Heavy { contains } later');
     const kind = kindDeclaration(p);
     expect(diagnostics.refusals).toEqual([]);
     expect(composed(kind!)).toEqual(['Heavy']);
-    expect(p.peek().text).toBe('after');
+    expect(p.peek().text).toBe('later');
   });
 
   it('holds the objects its body writes apart from its members', () => {
@@ -286,7 +286,7 @@ describe('what is refused, where, and what the author is told to write', () => {
       [
         'k.sprout:2:3',
         'A kind is not made of `visitors`.',
-        'It holds its properties, `remembers`, `contains`, `roams`, `capacity`, `passage`, `prose`, `without`, `synonyms`, `grammar`, `describe`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `pass` and `object`.',
+        'It holds its properties, `remembers`, `contains`, `roams`, `capacity`, `passage`, `prose`, `without`, `synonyms`, `grammar`, `describe`, `depart`, `release`, `accept`, `as`, `on`, `changed`, `after`, `pass` and `object`.',
       ],
     ]);
     expect(membersOf(kind!)).toEqual([':open']);

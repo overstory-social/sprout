@@ -5,7 +5,7 @@
 // checked for what it wrote itself — a named kind, an object's anonymous
 // kind, the world — and nothing is checked twice for being composed: a
 // kind's guard or play is checked once, against the kind that wrote it: a
-// consent guard, a role's `permit` and `do`, a handler, a hook, a pass
+// consent guard, a role's `permit` and `do`, a handler, a hook, an `after command`, a pass
 // rule, an exit's destination and guard, a place's `lit`, and a `describe`. Each body's names resolve
 // from where it is written, and what each reaches is recorded.
 
@@ -16,7 +16,7 @@ import type { HereKind } from '../../declare/places.js';
 import type { VerbTable } from '../../declare/verbs.js';
 import { checkGuard } from '../../check/guards.js';
 import { checkPlay } from '../../check/roles.js';
-import { checkHandler, checkHook, checkPass } from '../../check/handlers.js';
+import { checkAfterCommand, checkHandler, checkHook, checkPass } from '../../check/handlers.js';
 import { checkExit } from '../../check/exits.js';
 import { checkLit } from '../../check/lit.js';
 import { checkDescribe } from '../../check/describe.js';
@@ -112,6 +112,9 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Bo
     }
     for (const hooks of kind.hooks.values()) {
       for (const hook of hooks) if (hook.origin === own) checkHook(hook, kind, setting);
+    }
+    for (const after of kind.afterCommand) {
+      if (after.origin === own) checkAfterCommand(after, kind, setting);
     }
     const { any, messages } = kind.passes;
     for (const pass of [...(any === null ? [] : [any]), ...messages.values()]) {

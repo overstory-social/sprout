@@ -10,11 +10,12 @@
  * most; and otherwise makes the
  * one write and queues what the engine tells the world where something
  * answers it, the move's notices walked as `:arrived` and `:departed` are
- * routed.
+ * routed, and given for no actor unseen as it moves.
  */
 #include "exec_fixture.h"
 #include "expr/expr.h"
 #include "stmt/stmt.h"
+#include "turn_fixture.h"
 
 static sprout_eval_status move(exec_case *c, const char *mover, const char *item, const char *to, sprout_move_end *end,
                                sprout_move_refusal *refusal) {
@@ -359,6 +360,32 @@ static void the_golden_move_cases_end_as_the_typescript_runtime_did(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+static void an_actor_unseen_as_it_moves_is_told_to_nobody(void) {
+  turn_world w;
+  sprout_outcome out;
+  memset(&w, 0, sizeof w);
+  tw_open(&w, "unseen");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_arrive(&w, "v-ines", "Ines", 1001, &out);
+  sprout_outcome_free(&out);
+  tw_go(&w, "v-ines", "north", "north to the vault", "vault", 1002, &out);
+  sprout_outcome_free(&out);
+  /* Unseen as he goes, the thief's move to the vault is told to nobody there or here. */
+  tw_do(&w, "v-marta", "ring", "hall.bell", 1003, &out);
+  CHECK(tw_told(&out, "v-marta", "The bell clangs."));
+  CHECK(!tw_told(&out, "v-ines", "The thief arrives from the hall."));
+  CHECK(!tw_told(&out, "v-marta", "The thief leaves for the vault."));
+  sprout_outcome_free(&out);
+  CHECK(strcmp(tw_instance(&w, "unseen.hall.thief")->container.bytes, "unseen.vault") == 0);
+  /* Seen once there, his move back is told at both ends. */
+  tw_do(&w, "v-ines", "ring", "vault.gong", 1004, &out);
+  CHECK(tw_told(&out, "v-ines", "The thief leaves for the hall."));
+  CHECK(tw_told(&out, "v-marta", "The thief arrives from the vault."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_move_every_party_allows_makes_the_one_write_and_queues_what_the_engine_tells);
   RUN(the_first_refusal_decides_and_nothing_is_written);
@@ -371,5 +398,6 @@ int main(void) {
   RUN(a_container_that_holds_by_measure_refuses_what_would_take_it_past_its_most);
   RUN(a_measure_below_nothing_counts_as_nothing_and_what_is_already_in_counts_once);
   RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
+  RUN(an_actor_unseen_as_it_moves_is_told_to_nobody);
   return REPORT();
 }
