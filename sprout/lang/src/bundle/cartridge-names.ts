@@ -27,6 +27,7 @@ export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameFi
   bound: { name: 'name' },
   broadcast: { message: 'name' },
   call: { method: 'name' },
+  capacity: { by: 'name' },
   connect: { link: 'name', destination: 'path' },
   each: { variable: 'name' },
   enum: { name: 'name' },

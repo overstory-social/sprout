@@ -199,4 +199,55 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
       expect(reached.keys(), owner.kind).toEqual([...SORTS, 'across', 'never closed'].sort());
     }
   });
+
+  it('over generated bodies, a refused `capacity` steps over only its own parts', () => {
+    // Properties may share a line with any member, so a refused capacity
+    // line, wherever it stands among them, keeps every property beside it
+    // and says one thing.
+    const DEFECTS = [
+      'capacity by :size',
+      'capacity :size',
+      'capacity 10 :size',
+      'capacity 10 by',
+      'capacity 10 by 4',
+      'capacity 10.5 by :size',
+      'capacity "ten" by :size',
+      'capacity ten by :size',
+    ];
+    const c = chooser(20_261_018);
+    for (let i = 0; i < 400; i++) {
+      const names = c
+        .shuffled(['alpha', 'bravo', 'charlie', 'delta'])
+        .filter(() => c.below(3) !== 0);
+      const properties = names.map((name) => wellFormed(c, name));
+      const at = c.below(properties.length + 1);
+      const defect = c.one(DEFECTS);
+      // What follows the defect may share its line, as properties may; what
+      // comes before it is on lines of its own, since a word after a list
+      // default on its line is refused whatever the word.
+      // A line that ends in `by` with a property after it on the line reads
+      // as a capacity measured by that property, a reading of what was
+      // written; only on a line of its own is it a defect.
+      const glue = c.below(2) === 0 && !defect.endsWith(' by') ? ' ' : '\n  ';
+      const before = properties
+        .slice(0, at)
+        .map((one) => `${one}\n  `)
+        .join('');
+      const after = properties
+        .slice(at)
+        .map((one) => `${glue}${one}`)
+        .join('');
+      const body = `${before}${defect}${after}`;
+      for (const owner of OWNERS) {
+        const text = `${owner.open}\n  ${body}\n${owner.close}\n`;
+        const { result, said, threw } = reading(text, parseDeclarations);
+        expect(threw, text).toBeNull();
+        expect(keptBy(owner, result), text).toEqual(expect.arrayContaining(names));
+        expect(
+          said.filter((d) => d.severity === 'refusal'),
+          text,
+        ).toHaveLength(1);
+      }
+    }
+  });
 });

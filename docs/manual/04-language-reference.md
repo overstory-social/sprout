@@ -304,6 +304,7 @@ world all have one.
 | `remembers { :visits 0 min 0 max 99 }`   | properties kept separately for each actor                      |      yes       |  yes  |
 | `contains`, `contains actors`            | it holds things; `contains actors` holds people too            |      yes       |  yes  |
 | `roams`                                  | a character of it moves itself to any place (see [Characters moving](#characters-moving)) | yes |   —   |
+| `capacity 100 by :size`                  | it holds no more than what is in it measures (see [Holding by measure](#holding-by-measure)) | yes |  yes  |
 | `grammar { … }`                          | its name, article and nouns, and a place's exits and links     |      yes       |   —   |
 | `describe { … }`                         | what someone looking at it reads                               |      yes       |   —   |
 | `passage name { … }`                     | a named piece of writing                                       |      yes       |  yes  |
@@ -1542,6 +1543,30 @@ guard, with the world's `inside_itself` passage. A move that would bring
 one more person into a full place (if the host limits it) is refused with
 the world's `crowded` passage.
 
+### Holding by measure
+
+A guard can count what a container holds, but it cannot weigh it, since
+what goes in may be of any kind. A container that holds by weight or size
+says so in one line:
+
+```sprout
+kind Adventurer is sprout.Visitor {
+  capacity 100 by :size
+}
+
+kind Thing {
+  :size 0 min 0 max 100
+}
+```
+
+Everything the container holds adds its `:size` together, and a move that
+would take the total past 100 is refused, after the three guards have
+allowed it, with the world's `too_heavy` passage. A thing whose kind has
+no `:size` weighs nothing, and a box weighs only its own `:size`, not what
+is inside it. The property must be a whole number wherever it is declared.
+The adventurer above still carries no more than eight things, the count
+`sprout.Actor` keeps.
+
 ### Guards
 
 ```sprout
@@ -2362,6 +2387,7 @@ So a character can have its own `arrives`, and a place its own
 | `displaced`       | The place you were standing is gone.                                |
 | `inside_itself`   | {item} cannot go inside itself.                                     |
 | `crowded`         | There is no room in {to} for {item}.                                |
+| `too_heavy`       | {to} cannot hold {item}.                                       |
 | `waited`          | Time passes.                                                        |
 | `help`            | You can type: …                                                     |
 | `acted`           | {actor} tries to {reading}.                                         |

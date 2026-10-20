@@ -574,6 +574,18 @@ export interface RoamsDeclaration extends Node {
   readonly kind: 'roams';
 }
 
+/**
+ * `capacity 100 by :size` — the most a container holds, measured by an
+ * integer property of what it holds (the spec's Containment is a
+ * declaration). The engine sums it over the contents at every move in.
+ */
+export interface CapacityDeclaration extends Node {
+  readonly kind: 'capacity';
+  readonly limit: IntegerLiteral;
+  /** The property each thing is measured by, written with its colon. */
+  readonly by: Ident;
+}
+
 /** `on :stir` — a handler, named by the message it answers. */
 export interface HandlerRef extends Node {
   readonly kind: 'handler-ref';
@@ -748,6 +760,7 @@ export type KindMember =
   | RemembersDeclaration
   | ContainsDeclaration
   | RoamsDeclaration
+  | CapacityDeclaration
   | WithoutDeclaration
   | PassageDeclaration
   | ProseFileDeclaration

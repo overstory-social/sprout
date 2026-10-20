@@ -78,6 +78,7 @@ import { wordSetOf } from '../words.js';
 import { objectsIn } from '../../declare/objects.js';
 import { resolveScopedSynonyms } from '../../declare/synonyms.js';
 import { nameAssets } from './assets.js';
+import { checkMeasures } from './measured.js';
 import { oneWorld, worldKinds } from './world.js';
 
 /** What a host brings to a compile. */
@@ -211,6 +212,7 @@ export function compileBundle(
     ),
     ...(world === null ? [] : [world]),
   ];
+  checkMeasures(everyKind, report.diagnostics);
   const named = nameAssets(
     source,
     byLibrary.get(manifest.namespace) ?? [],

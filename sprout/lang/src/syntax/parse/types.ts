@@ -351,8 +351,9 @@ function elementsAfterClose(p: Parser): void {
     // `without changed`. A bare word with a value straight after it is
     // likewise a property that lost its colon, `faulty "x"`, and a word
     // with a bracket or a brace after it is how a guard or a block
-    // starts, `accept (item, from)`, `remembers {`. Each belongs to
-    // whatever reads next.
+    // starts, `accept (item, from)`, `remembers {`, as a word with a
+    // property after it is `on :stir` or `capacity 10 by :size` gone
+    // wrong. Each belongs to whatever reads next.
     const next = p.peek(ahead + 1);
     const valueLed =
       next.kind === 'string' ||
@@ -362,7 +363,11 @@ function elementsAfterClose(p: Parser): void {
     const wordLed =
       depth === 0 &&
       bareWord(token) &&
-      (bareWord(next) || valueLed || punct(next, '(') || punct(next, '{'));
+      (bareWord(next) ||
+        valueLed ||
+        next.kind === 'symbol' ||
+        punct(next, '(') ||
+        punct(next, '{'));
     if (
       token.kind === 'end' ||
       token.kind === 'symbol' ||

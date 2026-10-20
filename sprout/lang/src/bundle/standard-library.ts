@@ -43,6 +43,7 @@ kind World {
   passage displaced default       { The place you were standing is gone. }
   passage inside_itself default   { {item} cannot go inside itself. }
   passage crowded default         { There is no room in {to} for {item}. }
+  passage too_heavy default       { {to} cannot hold {item}. }
   passage waited default          { Time passes. }
   passage help default            { You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for} }
   passage acted default           { {actor} tries to {reading}. }

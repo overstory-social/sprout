@@ -145,6 +145,7 @@ function behaviourOf(member: KindMember): Behaviour | null {
     case 'remembers':
     case 'contains':
     case 'roams':
+    case 'capacity':
     case 'without':
     case 'passage':
     case 'prose-file':

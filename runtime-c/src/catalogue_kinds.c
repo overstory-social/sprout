@@ -290,7 +290,7 @@ static sprout_status read_play_groups(loader *l, const sprout_node *map, const s
 
 sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def **out) {
   sprout_kind_def *kind;
-  const sprout_node *properties, *passages, *plays;
+  const sprout_node *properties, *passages, *plays, *capacity;
   size_t i;
   *out = NULL;
   if (node == NULL || node->kind == SPROUT_NODE_NULL) return SPROUT_OK;
@@ -317,6 +317,16 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
   kind->contains = cat_bool(l->graph, node, "contains");
   kind->contains_actors = cat_bool(l->graph, node, "containsActors");
   kind->roams = cat_bool(l->graph, node, "roams");
+  capacity = sprout_node_get(l->graph, node, "capacity");
+  if (capacity != NULL && capacity->kind != SPROUT_NODE_NULL) {
+    const sprout_node *limit = sprout_node_get(l->graph, capacity, "limit");
+    kind->capacity_by = cat_text(l->graph, capacity, "by");
+    if (capacity->kind != SPROUT_NODE_OBJECT || limit == NULL || limit->kind != SPROUT_NODE_NUMBER ||
+        kind->capacity_by == NULL)
+      return cat_shaped(l, "a kind's capacity");
+    kind->has_capacity = true;
+    kind->capacity_limit = sprout_node_number(l->graph, limit);
+  }
 
   properties = sprout_node_get(l->graph, node, "properties");
   if (properties == NULL || properties->kind != SPROUT_NODE_MAP)

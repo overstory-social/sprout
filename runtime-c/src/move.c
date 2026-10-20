@@ -4,7 +4,9 @@
  * engine's, so a move is the engine polling everyone with standing: the
  * thing's `depart`, then the source's `release`, then the destination's
  * `accept`, each list in its kind's run order, and the first refusal decides:
- * nothing after it is asked. This is the one place the tree changes.
+ * nothing after it is asked. Once all three allow, a destination that holds
+ * by measure (`capacity 100 by :size`) refuses what would take it past its
+ * most with the engine's `too_heavy`. This is the one place the tree changes.
  *
  * An actor's `move` reaches a place outside its range only as the
  * destination of an exit or a link of its own place that applies, so an NPC
@@ -48,6 +50,40 @@ static bool turned_away(const sprout_frame *frame, sprout_str item, sprout_str t
   for (i = 0; i < count; i++)
     if (!sprout_str_same(held[i], item) && sprout_is_person(frame, held[i])) standing++;
   return standing >= limit.value;
+}
+
+/* What `id` measures by `by`: its own value, held at nothing below 0, and 0 where its kind declares no such property. */
+static sprout_eval_status measure_of(const sprout_frame *frame, sprout_str id, const char *by, double *out) {
+  const sprout_stored_instance *instance = expr_instance(frame, id);
+  const sprout_property *property;
+  sprout_value held;
+  *out = 0;
+  EXPR_NEED(expr_spend(frame));
+  if (instance == NULL || instance->kind == NULL) return SPROUT_EVAL_OK;
+  property = sprout_kind_property(instance->kind, by);
+  if (property == NULL || property->remembered || property->type->kind != SPROUT_DECL_INTEGER) return SPROUT_EVAL_OK;
+  EXPR_NEED(expr_get(frame, instance, by, &held));
+  if (held.kind == SPROUT_NUMBER && held.as.number > 0) *out = held.as.number;
+  return SPROUT_EVAL_OK;
+}
+
+/* Each thing measures its own value alone, so a box weighs what it weighs and not what is in it. */
+sprout_eval_status sprout_move_too_heavy(const sprout_frame *frame, sprout_str item, sprout_str to, bool *heavy) {
+  const sprout_stored_instance *destination = sprout_draft_instance(frame->draft, to);
+  const sprout_str *held;
+  size_t count, i;
+  double total, one;
+  *heavy = false;
+  if (destination == NULL || destination->kind == NULL || !destination->kind->has_capacity) return SPROUT_EVAL_OK;
+  if (sprout_draft_children(frame->draft, to, &held, &count) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;
+  EXPR_NEED(measure_of(frame, item, destination->kind->capacity_by, &total));
+  for (i = 0; i < count; i++) {
+    if (sprout_str_same(held[i], item)) continue;
+    EXPR_NEED(measure_of(frame, held[i], destination->kind->capacity_by, &one));
+    total += one;
+  }
+  *heavy = total > destination->kind->capacity_limit;
+  return SPROUT_EVAL_OK;
 }
 
 static sprout_eval_status names_of(const sprout_frame *frame, const char *first, sprout_str a, const char *second,
@@ -193,7 +229,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
                                         sprout_move_refusal *refusal) {
   sprout_str world = x->draft->base->world, from, standing = {NULL, 0};
   const sprout_stored_instance *moving = sprout_draft_instance(x->draft, item), *destination, *mover_instance;
-  bool reached = false, actor, allowed;
+  bool reached = false, actor, allowed, heavy;
   sprout_send send;
   sprout_str parameters[2];
   memset(refusal, 0, sizeof *refusal);
@@ -288,6 +324,14 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
   if (!allowed) {
     *end = SPROUT_MOVE_REFUSED_BY_GUARD;
     return SPROUT_EVAL_OK;
+  }
+  EXPR_NEED(sprout_move_too_heavy(frame, item, to, &heavy));
+  if (heavy) {
+    sprout_str by;
+    sprout_engine_said(frame, "too_heavy", &mover, standing.bytes == NULL ? NULL : &standing, &by, &refusal->said);
+    refusal->by = by;
+    *end = SPROUT_MOVE_REFUSED_BY_ENGINE;
+    return names_of(frame, "item", item, "to", to, refusal);
   }
 
   if (sprout_draft_place(x->draft, item, &to) != SPROUT_DRAFT_OK) return SPROUT_EVAL_NO_MEMORY;

@@ -1,0 +1,15 @@
+// What a capacity measures by is an integer property some kind declares:
+// nothing declares `:heft`, and a scroll's `:size` is text.
+import * as sprout from 'sprout'
+import {Person, Sack, Chest, Scroll} from 'kinds'
+
+world capacity_measured_by is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object sack is Sack
+    object chest is Chest
+    object scroll is Scroll
+  }
+}

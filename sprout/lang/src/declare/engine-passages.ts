@@ -51,6 +51,7 @@ export const WORLD_LINES = [
   { name: 'displaced', binds: {} },
   { name: 'inside_itself', binds: { item: 'object' } },
   { name: 'crowded', binds: { item: 'object', to: 'object' } },
+  { name: 'too_heavy', binds: { item: 'object', to: 'object' } },
   { name: 'waited', binds: {} },
   { name: 'help', binds: { ...ACTING, readings: 'readings' } },
   { name: 'acted', binds: { actor: 'actor', reading: 'text' }, polled: true },

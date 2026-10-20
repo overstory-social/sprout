@@ -1,0 +1,18 @@
+import * as sprout from 'sprout'
+
+kind Thing {
+  :size 1
+}
+
+kind Sack is sprout.Container {
+  capacity by :size
+  :open false
+}
+
+kind Crate is sprout.Container {
+  capacity 40 :size
+}
+
+kind Bin is sprout.Container {
+  capacity 40 by size
+}

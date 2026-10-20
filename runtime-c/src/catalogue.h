@@ -95,6 +95,9 @@ typedef struct sprout_kind_def {
   const sprout_play_group **plays_by_verb; /* the same groups in code-unit order of their verb, then role, then library */
   bool contains, contains_actors;
   bool roams; /* an NPC of it moves itself to any place */
+  bool has_capacity;
+  double capacity_limit;   /* `capacity 100 by :size`: the most its contents may measure */
+  const char *capacity_by; /* the integer property each thing it holds is measured by */
   bool composes_world, composes_visitor, composes_actor;
   bool spawnable; /* a spawn may name it: not the world's, not a visitor's */
   const sprout_node *node; /* guards, handlers, hooks, passes, grammar and exits stay here */
