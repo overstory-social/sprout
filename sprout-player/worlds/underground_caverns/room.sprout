@@ -13,8 +13,7 @@ import {Thing, Scenery} from 'thing'
 import {Light} from 'lamp'
 import {Box} from 'box'
 import {Adventurer} from 'adventurer'
-import {Thief} from 'thief'
-import {read, listen, search, look_in, look_under, look_behind, Reach, :scored, :relight, :room_lit, :wall_look, :hush, :snuffed, :prowl, :survey, :where, :berth, :wreck} from 'verbs'
+import {read, listen, search, look_in, look_under, look_behind, Reach, :scored, :relight, :room_lit, :wall_look, :hush, :snuffed, :where, :berth, :wreck} from 'verbs'
 import {MagicBoat, Wreck} from 'boat'
 extension media 1
 
@@ -55,15 +54,6 @@ kind Room is sprout.Place {
   // Where the room comes in the thief's round of the Empire, or 0 for a
   // room he never enters (Zork's SACREDBIT, above ground, and the house).
   :tour 0 min 0 max 80
-
-  // The thief comes and goes unseen, as Zork's INVISIBLE thief does: the
-  // engine's notice of an actor arriving and leaving says nothing of him.
-  passage arrives { {if item.is(Thief)}{else}{item} arrives{if bound from} from {from}{/if}.{/if} }
-  passage leaves  { {if item.is(Thief)}{else}{item} leaves{if bound to} for {to}{/if}.{/if} }
-
-  // A handler has no `here`, so the thief asks the room he is in to show
-  // itself, and works on it from its answer (thief.sprout).
-  on :prowl (from) { if (from.is(Thief)) { send from :survey } }
 
   // Which reach of the river, the stream or the reservoir this is, for the
   // magic boat (boat.sprout); `nowhere` for a room the water does not touch.
@@ -148,7 +138,6 @@ kind Room is sprout.Place {
   as tool for any { permit { refuse "You can't see any such thing." } }
 
   on :entered (item, from) {
-    if (item.is(Thief)) { send item :survey }
     if (item.is(Adventurer)) {
       self.set(:visited, true)
       send wall :wall_look with self.get(:walls)
@@ -305,8 +294,6 @@ kind Grue is Scenery {
   as target for look_in { do { say absent } }
   without as target for look_under from Thing
   as target for look_under { do { say absent } }
-  without as target for look_behind from Thing
-  as target for look_behind { do { say absent } }
 }
 
 // The rooms with a picture compose one of these, and the room's describe shows it.

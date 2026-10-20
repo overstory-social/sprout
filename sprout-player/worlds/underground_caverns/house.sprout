@@ -3,7 +3,7 @@
 // the trap door one door; each side keeps the other in step by a message
 // the world lets pass between rooms.
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery} from 'thing'
+import {Thing, Portable, Scenery, Door} from 'thing'
 import {Box, Bag} from 'box'
 import {Lamp} from 'lamp'
 import {Sword, Knife, Treasure, Food, Water, Lunch, Garlic} from 'items'
@@ -22,11 +22,10 @@ import {cellar} from 'cellar'
 // The room outside the kitchen window.
 kind Outdoors { }
 
-kind KitchenWindow is Scenery {
+kind KitchenWindow is Scenery, Door {
   grammar { name "kitchen window"  nouns "window"  adjectives "small" }
   :open false
   :opened_once false
-  :door true
   passage short { kitchen window }
 
   describe {
@@ -256,10 +255,9 @@ object living_room is Room, LivingRoomPicture in underground_caverns {
   object rug is Rug {
     object trap_door is TrapDoor
   }
-  object wooden_door is Scenery {
+  object wooden_door is Scenery, Door {
     grammar { name "wooden door"  nouns "door", "lettering", "writing", "engravings", "opening"  adjectives "wooden", "gothic", "strange", "west", "cyclops-shaped" }
     passage short { wooden door }
-    :door true
     without as target for open from Thing
     without as target for read from Thing
     as target for open { do { say "The door cannot be opened." } }
@@ -379,10 +377,9 @@ kind Rug is Scenery {
 }
 
 // The trap door, from the Living Room.
-kind TrapDoor is Scenery {
+kind TrapDoor is Scenery, Door {
   grammar { name "trap door"  nouns "door", "trapdoor", "trap-door", "cover"  adjectives "trap", "dusty" }
   :open false
-  :door true
   passage short { trap door }
   passage open_view {
     It is a square trap door of heavy planks, set flush into the floor where the rug used to hide it, with an iron ring to lift it by.

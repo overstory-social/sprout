@@ -1,11 +1,11 @@
 // The pile of leaves in the Clearing, and the grating it hides. The grating
-// lies in the ground, which shows nothing of it until the leaves are moved.
+// is unseen until the leaves are moved.
 // It is one grating seen from two rooms, the Clearing above and the Grating
 // Room below, as Zork's GRATE is one object in LOCAL-GLOBALS; here each room
 // holds its own, and the two keep each other in step by messages the world
 // lets pass. It is locked with a skull-and-crossbones lock that only the
 // skeleton key opens, and only from below (GRATE-FUNCTION).
-import {Thing, Portable, Scenery, Lockable} from 'thing'
+import {Thing, Portable, Scenery, Lockable, Countable, Door} from 'thing'
 import {open, close, unlock, lock, look_under, tally, shift, look_in, :reveal, :grate_open, :grate_unlock, :grate_revealed, :open_gate, :gate_open, :close_gate} from 'verbs'
 import {grating_clearing} from 'above_ground'
 import {grating_room} from 'maze'
@@ -13,7 +13,7 @@ import {SkeletonKey} from 'remains'
 import {Adventurer} from 'adventurer'
 extension media 1
 
-kind Leaves is Portable {
+kind Leaves is Portable, Countable {
   :burnable true
   grammar { name "pile of leaves"  nouns "leaves", "leaf", "pile" }
   :size 25
@@ -47,19 +47,13 @@ kind Leaves is Portable {
     }
   }
 
-  without as target for tally from Thing
   as target for tally { do { say "There are 69,105 leaves here." } }
 }
 
-// The ground under the Clearing: nothing in it can be seen or named until
-// it is uncovered. The grating's news passes through it all the same.
+// The ground of the Clearing, bare where the leaves lay once they are
+// moved.
 kind Ground is Scenery {
-  contains
   :revealed false
-  pass any (self.get(:revealed))
-  pass :grate_open (true)
-  pass :grate_unlock (true)
-  pass :grate_revealed (true)
   grammar { name "ground"  nouns "dirt", "earth", "floor" }
   passage short { ground }
   describe {
@@ -72,10 +66,9 @@ kind Ground is Scenery {
 // The grating, from either side. Both sides know whether it is unlocked
 // (Zork's GRUNLOCK) and whether it is open; the side below knows too
 // whether the leaves still lie on it, for they fall when it opens.
-kind Grating is Scenery, Lockable {
+kind Grating is Scenery, Lockable, Door {
   grammar { name "grating"  nouns "grate", "bars"  adjectives "iron", "heavy" }
   passage short { grating }
-  :door true
   :unlocked false
   :open false
   :revealed false
@@ -110,8 +103,11 @@ kind Grating is Scenery, Lockable {
   }
 }
 
-// The grating from the Clearing: the lock is on the other side.
+// The grating from the Clearing: the lock is on the other side. It cannot
+// be seen or named until the leaves are moved off it.
 kind GratingAbove is Grating {
+  :unseen true
+  on :grate_revealed (from) { self.set(:unseen, false) }
   passage view {
     It is a heavy iron grating, set securely into the ground and rusted to the colour of the leaves that hid it. Below it is only darkness.
 

@@ -7,7 +7,7 @@
 // its visitor, the score is read out, and every verb but those that look,
 // read and count is answered with the end (the adventurer's `:finished`).
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery} from 'thing'
+import {Thing, Portable, Scenery, Barrier, Crossable, Door} from 'thing'
 import {Room} from 'room'
 import {Readable} from 'items'
 import {Adventurer} from 'adventurer'
@@ -62,9 +62,8 @@ kind Barrow is Scenery {
 
 // The huge stone door (BARROW-DOOR, BARROW-DOOR-FCN): open, and too heavy
 // to be anything else.
-kind BarrowDoor is Scenery {
+kind BarrowDoor is Scenery, Door {
   grammar { name "stone door"  nouns "door", "doorway", "slab"  adjectives "huge", "stone", "open", "heavy" }
-  :door true
   passage short { stone door }
   describe { text "The door is a single slab of stone, taller than you and a good deal heavier, standing open on a pivot so worn and so perfectly balanced that it seems a breath would move it. It does not move. The door is open." }
   without as target for open from Thing
@@ -98,7 +97,7 @@ object inside_barrow is Room in underground_caverns {
   on :entered (item, from) {
     if (item.is(Adventurer)) { send item :finish }
   }
-  object door is Scenery {
+  object door is Scenery, Door {
     grammar { name "stone door"  nouns "door", "doorway"  adjectives "huge", "stone", "closed", "heavy" }
     passage short { stone door }
     passage shut { The door has closed behind you, inexorably, and it is not the kind of door that opens again. }
@@ -107,7 +106,7 @@ object inside_barrow is Room in underground_caverns {
     as target for open { do { say shut } }
     without as target for through from Thing
     as target for through { do { say shut } }
-    without as target for knock from Thing
+    without as target for knock from Door
     as target for knock { do { say "Nobody's home, and nobody is coming." } }
   }
   object sign is Scenery {
@@ -118,13 +117,11 @@ object inside_barrow is Room in underground_caverns {
     without as target for read from Thing
     as target for read { do { say words } }
   }
-  object footbridge is Scenery {
+  object footbridge is Scenery, Crossable, Barrier {
     grammar { name "wooden footbridge"  nouns "bridge", "footbridge"  adjectives "small", "wooden", "foot" }
     passage short { wooden footbridge }
     describe { text "It is a small wooden footbridge, plain and sound, spanning the stream in a single modest arch. It looks like the easiest thing you have been asked to do in some time, which is exactly how it would look." }
-    without as target for cross from Thing
     as target for cross { do { say "{inside_barrow.bridge_line}" } }
-    without as target for climb_over from Thing
     as target for climb_over { do { say "{inside_barrow.bridge_line}" } }
   }
   object stream is Scenery {

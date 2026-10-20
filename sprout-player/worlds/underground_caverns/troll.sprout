@@ -15,7 +15,7 @@
 // while he is fighting: a wake every minute while somebody stands in his
 // room, the Troll Room.
 import * as sprout from 'sprout'
-import {Thing, Scenery} from 'thing'
+import {Thing, Scenery, Creature, Squeezable} from 'thing'
 import {Weapon, Axe} from 'items'
 import {Adventurer} from 'adventurer'
 import {ask} from 'sprout'
@@ -32,7 +32,7 @@ kind Belly is Scenery {
   describe { text "It is large and green and makes a noise like distant furniture being moved. Whatever went down it is not coming back up for you." }
 }
 
-kind Troll is Thing, sprout.Actor {
+kind Troll is Thing, sprout.Actor, Squeezable, Creature {
   // He holds his axe in plain sight, and in reach; what he has eaten is in
   // his belly, which shows nothing.
   pass any (true)
@@ -113,7 +113,7 @@ kind Troll is Thing, sprout.Actor {
   }
 
   // Zork's ALARM: he is rudely awakened, or was never asleep.
-  without as target for alarm from Thing
+  without as target for alarm from Creature
   as target for alarm {
     do {
       if (self.get(:strength) < 0) {
@@ -124,11 +124,11 @@ kind Troll is Thing, sprout.Actor {
     }
   }
 
-  without as target for talk from Thing
+  without as target for talk from Creature
   as target for talk { do { say "The troll isn't much of a conversationalist." } }
   without as target for ask from Thing
   as target for ask { do { say "The troll isn't much of a conversationalist." } }
-  without as target for greet from Thing
+  without as target for greet from Creature
   as target for greet {
     do {
       if (self.get(:strength) < 0) { say "Unfortunately, the troll can't hear you." }
@@ -137,7 +137,6 @@ kind Troll is Thing, sprout.Actor {
   }
   without as target for shake from Thing
   as target for shake { do { say "This seems to have no effect." } }
-  without as target for squeeze from Thing
   as target for squeeze { do { say "The troll does not understand this." } }
 
   // A gift, as Zork's TROLL-FCN takes it, handed to him or thrown at him:

@@ -1,7 +1,7 @@
 // The scenery Zork keeps in LOCAL-GLOBALS and shows in several rooms: the
 // white house, its boards and boarded windows, the front door, the trees.
 // Here each room that shows one has its own.
-import {Thing, Scenery} from 'thing'
+import {Thing, Scenery, Door} from 'thing'
 import {open, read, shift, look_in, climb_up, climb_down, walk_around, Dest, :travel} from 'verbs'
 
 kind WhiteHouse is Scenery {
@@ -16,7 +16,6 @@ kind WhiteHouse is Scenery {
   // Zork's HOUSE-AROUND: walking around the house takes the visitor to the
   // next side of it, west, north, behind, south and west again.
   :around Dest default north_side
-  without as target for walk_around from Thing
   as target for walk_around { do { send actor :travel with self.get(:around)  say "" } }
 }
 
@@ -42,9 +41,8 @@ kind BoardedWindow is Scenery {
   as target for open { do { say "The windows are boarded and can't be opened." } }
 }
 
-kind FrontDoor is Scenery {
+kind FrontDoor is Scenery, Door {
   grammar { name "door"  adjectives "front", "boarded" }
-  :door true
   passage short { door }
   without as target for open from Thing
   without as target for read from Thing

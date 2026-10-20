@@ -8,7 +8,7 @@
 // at its end (FALLS-ROOM, RAINBOW-FCN, SCEPTRE-FUNCTION); and the canyon,
 // Canyon Bottom, Rocky Ledge and Canyon View, up to the forest.
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Diggable} from 'thing'
+import {Thing, Portable, Scenery, Diggable, Crossable, Drinkable, Leapable} from 'thing'
 import {Box, Bag} from 'box'
 import {Treasure} from 'items'
 import {Room, DarkRoom, Perilous} from 'room'
@@ -296,11 +296,7 @@ object end_of_rainbow is Room, RainbowFoot, RainbowEnd, Riverside in underground
   }
   on :rainbow (from, value) {
     self.set(:solid, value)
-    // The pot of gold appears the first time the rainbow is made solid.
-    if (value && !self.get(:pot_shown)) {
-      self.set(:pot_shown, true)
-      spawn PotOfGold in self
-    }
+    if (value) { self.set(:pot_shown, true) }
   }
   passage body {
     You are on a small, rocky beach on the continuation of the Frigid River past the Falls. The beach is narrow due to the presence of the White Cliffs. The river canyon opens here and sunlight shines in from above. A rainbow crosses over the falls to the east and a narrow path continues to the southwest.
@@ -308,6 +304,8 @@ object end_of_rainbow is Room, RainbowFoot, RainbowEnd, Riverside in underground
   object rainbow is Rainbow
   object river is River
   object cliffs is Cliffs
+  // Unseen until the rainbow is first made solid.
+  object pot is PotOfGold { :unseen true }
   object water is WaterAbout
   object beach is Scenery {
     grammar { name "rocky beach"  nouns "beach", "shore", "rocks"  adjectives "small", "rocky", "narrow" }
@@ -395,7 +393,7 @@ object canyon_view is Room, CanyonRim in underground_caverns {
     as target for climb_up   { do { say "You are at the top already." } }
     as target for climb_down { do { send actor :travel with :ledge  say "" } }
   }
-  object canyon is Scenery {
+  object canyon is Scenery, Leapable {
     grammar { name "Great Canyon"  nouns "canyon", "gorge", "view"  adjectives "great", "river" }
     passage short { Great Canyon }
     describe { text "The Great Canyon falls away below you, a vast gash in the earth with the Frigid River at the bottom of it, so far down that the river looks like a thread somebody dropped. It is a marvelous view, and you are standing on the edge of it." }
@@ -432,7 +430,7 @@ object canyon_view is Room, CanyonRim in underground_caverns {
 
 // The Frigid River, wherever it runs: what is put or thrown in it is gone
 // for good, and nobody swims it (RIVER-FUNCTION).
-kind River is Box {
+kind River is Box, Crossable, Leapable, Drinkable {
   grammar { name "river"  nouns "frigid", "water", "current"  adjectives "frigid", "mighty" }
   :open true
   :ndesc true
@@ -446,25 +444,22 @@ kind River is Box {
   as target for close { do { say "You must tell me how to do that to a river." } }
   without as target for open from Box
   as target for open { do { say "You must tell me how to do that to a river." } }
-  without as target for cross from Thing
   as target for cross { do { say "You'd need a boat for that." } }
   without as target for through from Thing
   as target for through { do { say swim_no } }
-  without as target for leap_at from Thing
+  without as target for leap_at from Leapable
   as target for leap_at { do { say swim_no } }
   passage no_take { The water slips through your fingers. }
-  without as target for drink from Thing
   as target for drink { do { say "Thank you very much. I was rather thirsty (from all this talking, probably)." } }
 }
 
 // The water underfoot or alongside, where there is no river to be named
 // (Zork's GLOBAL-WATER).
-kind WaterAbout is Scenery {
+kind WaterAbout is Scenery, Drinkable {
   grammar { name "water"  nouns "water", "quantity" }
   passage short { water }
   describe { text "The water is cold and clear and moving, as water down here mostly is." }
   passage no_take { The water slips through your fingers. }
-  without as target for drink from Thing
   as target for drink { do { say "Thank you very much. I was rather thirsty (from all this talking, probably)." } }
   without as target for through from Thing
   as target for through { do { say "You can't swim in the dungeon." } }
@@ -483,22 +478,22 @@ kind Cliffs is Scenery {
 
 // The canyon wall above the river, which may be climbed (CLIFF-OBJECT):
 // each room says which way.
-kind ClimbableCliff is Scenery {
+kind ClimbableCliff is Scenery, Leapable {
   grammar { name "cliff"  nouns "wall", "walls", "cliffs", "ledge", "rock"  adjectives "rocky", "sheer", "canyon" }
   passage short { cliff }
   describe { text "The wall of the river canyon is rough and broken and seamed with ledges, the kind of cliff that is climbable if you are careful and not if you are not." }
   without as target for climb_up from Thing
   without as target for climb_down from Thing
-  without as target for leap_at from Thing
+  without as target for leap_at from Leapable
   as target for leap_at { do { say "That would be very unwise. Perhaps even fatal." } }
 }
 
 // Aragain Falls, near or far.
-kind Falls is Scenery {
+kind Falls is Scenery, Leapable {
   grammar { name "falls"  nouns "waterfall", "aragain", "cataract", "spray"  adjectives "aragain", "enormous" }
   passage short { falls }
   describe { text "Aragain Falls are enormous: the whole of the Frigid River going over the edge at once, in a white thundering curtain, about 450 feet straight down into a boil of spray. The noise is like being inside a drum." }
-  without as target for leap_at from Thing
+  without as target for leap_at from Leapable
   as target for leap_at { do { say "It's a long way..." } }
   without as target for climb_down from Thing
   as target for climb_down { do { say "It's a long way..." } }
@@ -506,7 +501,7 @@ kind Falls is Scenery {
 
 // The rainbow, wherever it is seen from (RAINBOW-FCN). Each room says
 // whether it is solid.
-kind Rainbow is Scenery {
+kind Rainbow is Scenery, Crossable {
   grammar { name "rainbow"  nouns "bow", "arc", "colors", "colours", "stairs", "bannister" }
   passage short { rainbow }
   describe {
@@ -517,7 +512,6 @@ kind Rainbow is Scenery {
     } else if (here.is(RainbowTop)) { text "Underfoot the rainbow is firm, faintly warm, and colored in broad bands from red at one edge to violet at the other. It does not bear thinking about, so you don't." }
     else { text "Far up the canyon a rainbow hangs over Aragain Falls, small and perfect, like a painting of a rainbow." }
   }
-  without as target for cross from Thing
   as target for cross {
     do {
       if (here.is(RainbowFoot)) {
@@ -681,6 +675,7 @@ kind Scarab is Treasure {
 }
 
 kind PotOfGold is Treasure {
+  on :rainbow (from, value) { if (value) { self.set(:unseen, false) } }
   grammar { name "pot of gold"  nouns "pot", "gold", "treasure", "crock"  adjectives "gold" }
   :size 15
   :value 10

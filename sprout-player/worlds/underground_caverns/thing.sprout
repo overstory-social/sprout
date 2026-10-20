@@ -12,7 +12,7 @@ import {ask} from 'sprout'
 import {Light} from 'lamp'
 import {Weapon} from 'items'
 import {Thief} from 'thief'
-import {lower, rub_with, board, disembark, launch, land, inflate, deflate, plug, turn_with, oil, take, knock, climb_over, duck_under, clear, cut, walk_around, through, give, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, unlock, lock, climb_up, climb_down, pour, pour_in, pour_on, mung, throw, kick, rub, wave, shake, squeeze, kiss, look_behind, fill, tie, alarm, talk, greet, search, cross, ring, untie, burn, leap_at, turn, :fall, :landed, :sealed, :consume, :die, :pinch, :far_voice, :sink} from 'verbs'
+import {lower, rub_with, board, disembark, launch, land, inflate, deflate, plug, turn_with, oil, take, knock, climb_over, clear, cut, walk_around, through, give, open, close, read, look_in, look_under, lamp_on, lamp_off, shift, raise, eat, drink, wind, tally, smell, listen, unlock, lock, climb_up, climb_down, pour, pour_in, pour_on, mung, throw, kick, rub, wave, shake, squeeze, kiss, look_behind, fill, tie, alarm, talk, greet, search, cross, ring, untie, burn, leap_at, turn, :fall, :landed, :sealed, :consume, :die, :pinch, :far_voice, :sink} from 'verbs'
 import {Room} from 'room'
 import {Abyss} from 'east'
 import {River} from 'river'
@@ -26,8 +26,6 @@ kind Thing {
   :ndesc false
   :falling false
   :size 5 min 0 max 100
-  // Zork's DOORBIT, for knocking.
-  :door false
   // Inside a shut glass container: seen, and out of reach.
   :sealed false
   // Zork's BURNBIT: it catches fire.
@@ -88,41 +86,25 @@ kind Thing {
   as target for look_in    { do { say "You can't look inside a {self.short}." } }
   as target for look_under { do { say "There is nothing but dust there." } }
   as target for search     { do { say "You find nothing unusual." } }
-  as target for cross      { do { say "You can't cross that!" } }
   as target for shift      { do { say "You can't move the {self.short}." } }
   as target for raise      { do { say "Playing in this way with the {self.short} {self.hacked}" } }
-  as target for eat        { do { say "I don't think that the {self.short} would agree with you." } }
-  as target for drink      { do { say "I don't think that the {self.short} would agree with you." } }
-  as target for tally      { do { say "You have lost your mind." } }
   as target for smell      { do { say "It smells like a {self.short}." } }
   as target for listen     { do { say "The {self.short} makes no sound." } }
   as target for climb_up   { do { say "You can't do that!" } }
   as target for climb_down { do { say "You can't do that!" } }
-  as target for knock {
-    do {
-      if (self.get(:door)) { say "Nobody's home." }
-      else { say "Why knock on a {self.short}?" }
-    }
-  }
   as target for mung       { do { say "Nice try." } }
-  as target for walk_around { do { say "Use compass directions for movement." } }
   // Zork's HACK-HACK, and the rest of its small change.
   as target for kick    { do { say "Kicking the {self.short} {self.hacked}" } }
   as target for rub     { do { say "Fiddling with the {self.short} {self.hacked}" } }
   as target for rub_with { do { say "Fiddling with the {self.short} {self.hacked}" } }
   as target for shake   { do { say "You can't take it; thus, you can't shake it!" } }
-  as target for squeeze { do { say "How singularly useless." } }
-  as target for kiss    { do { say "I'd sooner kiss a pig." } }
-  as target for look_behind { do { say "There is nothing behind the {self.short}." } }
   as target for fill {
     do {
       if (bound tool) { say "You may know how to do that, but I don't." }
       else { say "There's nothing to fill it with." }
     }
   }
-  as target for alarm    { do { say "The {self.short} isn't sleeping." } }
   as target for turn     { do { say "Your bare hands don't appear to be enough." } }
-  as target for leap_at  { do { say "{one of}Very good. Now you can go to the second grade.{or}Are you enjoying yourself?{or}Wheeeeeeeeee!!!!!{or}Do you expect me to applaud?{/one of}" } }
   // Zork's PRE-BURN and V-BURN: something burning to do it with, and then a
   // thing that burns is gone, and the one holding it with it.
   as target for burn {
@@ -144,11 +126,6 @@ kind Thing {
       } else { say "You didn't say with what!" }
     }
   }
-  // Over it, under it, clearing it away, cutting it: not Zork's words, but
-  // the ones a barrier invites, and answered as Zork answers the rest.
-  as target for climb_over { do { say "You can't do that!" } }
-  as target for duck_under { do { say "There's no getting under the {self.short}." } }
-  as target for clear      { do { say "The {self.short} is as clear as it is going to get." } }
   // Zork's V-CUT, short of the slicing of what burns.
   as target for cut {
     do {
@@ -159,9 +136,7 @@ kind Thing {
       } else { say "You'll have to say what to cut the {self.short} with." }
     }
   }
-  as target for talk    { do { say "You can't talk to the {self.short}!" } }
   as target for ask     { do { say "You can't talk to the {self.short}!" } }
-  as target for greet   { do { say "It's a well known fact that only schizophrenics say \"Hello\" to a {self.short}." } }
   as target for through { do { say "You hit your head against the {self.short} as you attempt this feat." } }
   as recipient for give {
     do {
@@ -225,6 +200,38 @@ kind Mechanism is Thing {
 // no default of its own, since the digger's part answers `dig`; it is here
 // only to type `dig`'s target.
 kind Diggable is Thing { }
+
+// Whom a visitor might talk to, greet or wake: the troll, the thief, the
+// Cyclops, the bat and the spirits. Zork's answers for anyone who has none
+// of their own.
+kind Creature is Thing {
+  as target for talk  { do { say "You can't talk to the {self.short}!" } }
+  as target for greet { do { say "It's a well known fact that only schizophrenics say \"Hello\" to a {self.short}." } }
+  as target for alarm { do { say "The {self.short} isn't sleeping." } }
+}
+
+// What a visitor might knock on (Zork's DOORBIT): the doors, the grating, the kitchen window
+// and the gates of Hell.
+kind Door is Thing {
+  as target for knock { do { say "Nobody's home." } }
+}
+
+// What answers one verb in its own words, and so types that verb's role, as
+// Diggable types `dig`'s: what a visitor might cross (the rivers, the lake,
+// the rainbow, the bridges), climb over (the railing, the rubble, the gate,
+// the footbridge), jump over or into (the water, the chasm, the canyons, the
+// cliffs, the hole), kiss, squeeze, look behind, count or drink.
+kind Crossable is Thing { }
+kind Barrier is Thing { }
+kind Leapable is Thing {
+  // Zork's V-SKIP, for what has no words of its own: the canyons.
+  as target for leap_at { do { say "{one of}Very good. Now you can go to the second grade.{or}Are you enjoying yourself?{or}Wheeeeeeeeee!!!!!{or}Do you expect me to applaud?{/one of}" } }
+}
+kind Kissable is Thing { }
+kind Squeezable is Thing { }
+kind Concealing is Thing { }
+kind Countable is Thing { }
+kind Drinkable is Thing { }
 
 // A thing that can be carried off. Only these answer `take all`.
 kind Portable is Thing {

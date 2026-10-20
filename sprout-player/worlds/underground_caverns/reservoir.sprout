@@ -9,7 +9,7 @@
 // changes (`changed :tide`); so is the drowning of anyone caught on the
 // lake bed as it refills.
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Diggable} from 'thing'
+import {Thing, Portable, Scenery, Diggable, Crossable, Leapable} from 'thing'
 import {Box} from 'box'
 import {Treasure} from 'items'
 import {Room, DarkRoom} from 'room'
@@ -211,7 +211,7 @@ object atlantis_room is DarkRoom in underground_caverns {
 
 // The lake, as Zork's LAKE-PSEUDO and STREAM-PSEUDO answer it: too wide,
 // too deep, and, with the gates open, not much of a lake.
-kind Lake is Scenery {
+kind Lake is Scenery, Crossable, Leapable {
   grammar { name "lake"  nouns "reservoir", "water", "stream"  adjectives "large", "wide", "deep" }
   :low false
   on :tide (from, value) { self.set(:low, value == 2 || value == 3) }
@@ -221,22 +221,22 @@ kind Lake is Scenery {
     if (self.get(:low)) { text "Where the lake was is a broad expanse of mud with a wide stream winding across it, which is not much of a lake." }
     else { text "The lake is wide and dark and very still, and the far side of it is a long way off. It is far too deep and wide for crossing." }
   }
-  without as target for cross from Thing
   as target for cross { do { if (self.get(:low)) { say dry } else { say "It's too wide to cross." } } }
   without as target for through from Thing
   as target for through { do { if (self.get(:low)) { say dry } else { say "You can't swim in this lake." } } }
+  without as target for leap_at from Leapable
   as target for leap_at { do { if (self.get(:low)) { say dry } else { say "You can't swim in this lake." } } }
   passage no_take { The water slips through your fingers. }
 }
 
-kind Stream is Scenery {
+kind Stream is Scenery, Crossable, Leapable {
   grammar { name "stream"  nouns "water", "brook", "current"  adjectives "gently", "flowing", "gentle" }
   passage short { stream }
   describe { text "The stream is clear and cold and in no particular hurry, flowing from west to east over a bed of grey pebbles." }
-  without as target for cross from Thing
   as target for cross { do { say "The other side is a sheer rock cliff." } }
   without as target for through from Thing
   as target for through { do { say "You can't swim in the stream." } }
+  without as target for leap_at from Leapable
   as target for leap_at { do { say "You can't swim in the stream." } }
   passage no_take { The water slips through your fingers. }
 }

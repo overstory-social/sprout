@@ -10,7 +10,7 @@ import {Adventurer} from 'adventurer'
 import {Thief} from 'thief'
 import {DarkRoom, Room} from 'room'
 import {Box} from 'box'
-import {lamp_on, lamp_off, :light, :relight, :lamp_age, :snuffed, :shatter_lamp, :burn_tick} from 'verbs'
+import {lamp_on, lamp_off, :light, :relight, :snuffed, :shatter_lamp} from 'verbs'
 extension media 1
 
 kind Light is Portable, sprout.LightSource, Switchable {
@@ -28,10 +28,9 @@ kind Lamp is Light {
   // Scratch, for putting it out: how many other lights are left.
   :others 0 min 0 max 50
   // Zork's I-LANTERN and LAMP-TABLE: 385 moves of light in the battery,
-  // spent a move at a time while it is lit in its bearer's hand (the
-  // bearer counts the moves: a wake every move would roll the NPCs' dice
-  // differently, friction 91); a bit dimmer with 185 moves left,
-  // definitely dimmer with 85, nearly out with 15, then burned out.
+  // spent a move at a time while it is lit and carried; a bit dimmer with
+  // 185 moves left, definitely dimmer with 85, nearly out with 15, then
+  // burned out.
   :life 385 min 0 max 385
   :age 0 min 0 max 4
   :burned_out false
@@ -106,28 +105,30 @@ kind Lamp is Light {
     }
   }
 
-  // The battery, burning down while the lamp is lit (I-LANTERN, LIGHT-INT):
-  // what it says is told by whoever holds it or stands by it, since a held
-  // thing's own voice goes no further than the pocket (friction 73).
-  on :burn_tick {
-    if (self.get(:lit) && !self.get(:burned_out)) {
+  // The battery, burning down by the move while the lamp is lit and carried
+  // (I-LANTERN, LIGHT-INT). A command about the game itself is no move, and
+  // its bearer, who counts after the things they carry, has not yet
+  // forgotten that it was one.
+  after command {
+    let counted = !(actor.is(Adventurer) && actor.get(:aside))
+    if (counted && self.get(:lit) && !self.get(:burned_out)) {
       self.adjust(:life, -1)
       if (self.get(:life) <= 0) {
         self.set(:burned_out, true)
         self.set(:lit, false)
         self.set(:age, 4)
-        broadcast :lamp_age with 4
+        say "You'd better have more light than from the brass lantern."
         broadcast :snuffed
       } else {
         if (self.get(:life) <= 15 && self.get(:age) < 3) {
           self.set(:age, 3)
-          broadcast :lamp_age with 3
+          say "The lamp is nearly out."
         } else if (self.get(:life) <= 85 && self.get(:age) < 2) {
           self.set(:age, 2)
-          broadcast :lamp_age with 2
+          say "The lamp is definitely dimmer now."
         } else if (self.get(:life) <= 185 && self.get(:age) < 1) {
           self.set(:age, 1)
-          broadcast :lamp_age with 1
+          say "The lamp appears a bit dimmer."
         }
       }
     }

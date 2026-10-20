@@ -7,6 +7,7 @@
 // other, and an actor may move to any of them (Range; Actors and visitors).
 import * as sprout from 'sprout'
 import {Person} from 'person'
+import {Adventurer} from 'adventurer'
 import {go} from 'sprout'
 import {west_of_house} from 'above_ground'
 import {:shatter, :open_gate, :gate_open, :close_gate, :trap_sync, :window_sync, :troll_gone, :unbar, :grate_unlock, :grate_open, :grate_revealed, :dome_rope, :thief_start, :summon, :far_voice, :magic, :cyclops_gone, :tide, :gate_flag, :rainbow, :flooded, :won} from 'verbs'
@@ -62,4 +63,5 @@ world underground_caverns is sprout.World {
   passage nothing_happens { Nothing happens. }
   passage waited          { Time passes... }
   passage not_carrying    { You don't have {thing}. }
+  passage too_heavy       { {if to.is(Adventurer)}{to.too_heavy}{else}{to} cannot hold {item}.{/if} }
 }

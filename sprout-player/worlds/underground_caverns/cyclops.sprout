@@ -14,7 +14,7 @@
 // tables, with his fists. The name of Odysseus, said in his hearing, sends
 // him through the east wall in a panic.
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Tieable} from 'thing'
+import {Thing, Portable, Scenery, Tieable, Creature, Door} from 'thing'
 import {Box, Bag} from 'box'
 import {Treasure, Lunch, Garlic, Water} from 'items'
 import {Room, DarkRoom} from 'room'
@@ -22,7 +22,7 @@ import {Stairs} from 'scenery'
 import {Adventurer} from 'adventurer'
 import {Thief} from 'thief'
 import {ask} from 'sprout'
-import {take, put, open, close, look_in, attack, give, throw, listen, talk, greet, alarm, mung, kick, burn, tie, climb_up, climb_down, through, shift, :travel, :clock, :cyc_state, :magic, :cyclops_gone, :uncork, :consume, :summon, :defend, :keeper, :unveil, :wall_look, :die, search} from 'verbs'
+import {take, put, open, close, look_in, attack, give, throw, listen, talk, greet, alarm, mung, kick, burn, tie, climb_up, climb_down, through, shift, :travel, :clock, :cyc_state, :magic, :cyclops_gone, :uncork, :consume, :summon, :keeper, :unveil, :wall_look, :die, search} from 'verbs'
 import {maze_15} from 'maze'
 import {living_room} from 'house'
 extension media 1
@@ -42,6 +42,11 @@ kind TreasureRoom is DarkRoom {
   // tells it (a room cannot read him out of its range).
   :keeper true
   on :keeper (from, value) { self.set(:keeper, value) }
+  // Whether he is in it: unseen, he is out of its sight, but not out of
+  // the moves it hears of.
+  :harbors false
+  on :entered (item, from) { if (item.is(Thief)) { self.set(:harbors, true) } }
+  on :left (item, to) { if (item.is(Thief)) { self.set(:harbors, false) } }
 }
 
 object cyclops_room is CyclopsRoom in underground_caverns {
@@ -118,7 +123,7 @@ object cyclops_room is CyclopsRoom in underground_caverns {
 }
 
 // Zork's CYCLOPS. He holds nothing; what he eats goes no further.
-kind Cyclops is Thing, sprout.Actor, Tieable {
+kind Cyclops is Thing, sprout.Actor, Tieable, Creature {
   grammar { name "cyclops"  nouns "monster", "eye", "giant", "tongue", "mouth"  adjectives "hungry", "giant", "sleeping", "enflamed", "man-sized" }
   :ndesc true
   // Zork's CYCLOWRATH: 0 calm; more and more, the angrier he grows;
@@ -163,7 +168,7 @@ kind Cyclops is Thing, sprout.Actor, Tieable {
       else { say "You can hear his stomach rumbling." }
     }
   }
-  without as target for talk from Thing
+  without as target for talk from Creature
   as target for talk {
     do {
       if (self.get(:asleep)) { say "No use talking to him. He's fast asleep." }
@@ -177,7 +182,7 @@ kind Cyclops is Thing, sprout.Actor, Tieable {
       else { say "The cyclops prefers eating to making conversation." }
     }
   }
-  without as target for greet from Thing
+  without as target for greet from Creature
   as target for greet { do { say "The cyclops bows his head to you in greeting." } }
   without as target for tie from Tieable
   as target for tie { do { say "You cannot tie the cyclops, though he is fit to be tied." } }
@@ -187,7 +192,7 @@ kind Cyclops is Thing, sprout.Actor, Tieable {
   // Waking him (ALARM, KICK, ATTACK, BURN, MUNG on a sleeping cyclops): he
   // remembers how cross he was, and comes up fighting.
   passage roused { The cyclops yawns and stares at the thing that woke him up. }
-  without as target for alarm from Thing
+  without as target for alarm from Creature
   as target for alarm {
     do {
       if (self.get(:asleep)) { say roused  send self :waken }
@@ -433,9 +438,8 @@ object strange_passage is DarkRoom in underground_caverns {
   passage body {
     This is a long passage. To the west is one entrance. On the east there is an old wooden door, with a large opening in it (about cyclops sized).
   }
-  object door is Scenery {
+  object door is Scenery, Door {
     grammar { name "wooden door"  nouns "door", "opening", "hole", "lettering"  adjectives "old", "wooden", "large", "east", "cyclops-sized" }
-    :door true
     passage short { wooden door }
     describe { text "It is an old wooden door, much nailed, with a large opening smashed through the middle of it at about the height and width of a cyclops in a hurry. The splinters all point east. Through the opening you can see the inside of a house." }
     without as target for open from Thing
@@ -476,10 +480,7 @@ object treasure_room is TreasureRoom in underground_caverns {
   // Somebody is in the lair: its owner comes to defend it
   // (TREASURE-ROOM-FCN), from wherever he is.
   on :entered (item, from) {
-    if (item.is(Adventurer)) {
-      if (self.count(Thief) > 0) { each t: Thief in self { send t :defend } }
-      else { broadcast :summon }
-    }
+    if (item.is(Adventurer)) { broadcast :summon }
   }
   // The thief, dying here: what he hid shows itself (ROBBER-FUNCTION's
   // F-DEAD).
@@ -552,7 +553,7 @@ kind Chalice is Box, Treasure {
   as target for take {
     permit {
       each t: Thief in here {
-        if (t.get(:shown) && t.get(:fighting) && t.get(:strength) > 0) { refuse "You'd be stabbed in the back first." }
+        if (t.get(:fighting) && t.get(:strength) > 0) { refuse "You'd be stabbed in the back first." }
       }
     }
   }

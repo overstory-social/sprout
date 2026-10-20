@@ -3,14 +3,14 @@
 // dungeon.zil has them in MAZE-5. The skeleton's ghost (SKELETON) and the
 // knife's will (RUSTY-KNIFE-FCN) are Zork's; the bag answers as Zork's
 // STUPID-CONTAINER does.
-import {Thing, Portable, Scenery, Switchable} from 'thing'
+import {Thing, Portable, Scenery, Switchable, Kissable} from 'thing'
 import {Weapon, Treasure} from 'items'
 import {open, close, look_in, lamp_on, rub, shift, raise, attack, kick, kiss, smell, listen, :spend, :banish} from 'verbs'
 
 // The skeleton. Taking it, moving it, touching it, raising it, kicking it,
 // kissing it or attacking it brings the ghost, who banishes the visitor's
 // valuables, and the room's, to the Land of the Living Dead.
-kind Skeleton is Scenery {
+kind Skeleton is Scenery, Kissable {
   grammar { name "skeleton"  nouns "bones", "body", "remains"  adjectives "luckless", "dead", "deceased" }
   passage short { skeleton }
   passage curse {
@@ -26,7 +26,6 @@ kind Skeleton is Scenery {
   without as target for shift from Thing
   without as target for raise from Thing
   without as target for kick from Thing
-  without as target for kiss from Thing
   as target for rub   { do { say curse  send actor :banish } }
   as target for shift { do { say curse  send actor :banish } }
   as target for raise { do { say curse  send actor :banish } }

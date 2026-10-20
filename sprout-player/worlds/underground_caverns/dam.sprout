@@ -12,7 +12,7 @@
 // `:tide` broadcast the world lets through. A room cannot read another's
 // state (friction 89), so each keeps its own copy (`Tidal`).
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Flame, Pluggable, Mechanism, Switchable} from 'thing'
+import {Thing, Portable, Scenery, Flame, Pluggable, Mechanism, Switchable, Countable, Crossable, Leapable, Squeezable} from 'thing'
 import {Box, Bag} from 'box'
 import {Readable, Rejecting, Sharp} from 'items'
 import {Room, DarkRoom, DamPicture} from 'room'
@@ -27,6 +27,8 @@ import {deep_canyon} from 'east'
 import {reservoir_south} from 'reservoir'
 
 message :rise
+// The blue button pushed: the leak bursts.
+message :burst
 
 // A room that keeps its own note of the dam: 0 gates shut and the
 // reservoir full, 1 open and still full, 2 open and drained, 3 shut and
@@ -57,7 +59,7 @@ object dam_room is Room, Tidal, Riverside, DamPicture in underground_caverns {
     There is a control panel here, on which a large metal bolt is mounted. Directly above the bolt is a small green plastic bubble{if self.get(:gate_flag)} which is glowing serenely{/if}.
   }
 
-  object dam is Scenery, Pluggable {
+  object dam is Scenery, Pluggable, Crossable, Leapable {
     grammar { name "dam"  nouns "gate", "gates", "sluice", "sluices", "fcd", "structure"  adjectives "sluice", "flood", "control" }
     passage short { dam }
     passage examined { Flood Control Dam #3 is a great curved wall of grey concrete, 256 feet tall at the center by the guidebook's count, holding back the reservoir to the west with the air of something that has been asked to do this for a very long time and has not been thanked. {if dam_room.get(:tide) == 1 || dam_room.get(:tide) == 2}Below, the sluice gates stand open, and the river pours through them in a white, roaring rush.{else if dam_room.get(:tide) == 3}The sluice gates at its foot are shut, and the water behind it is a long way below the top, climbing back up the stained concrete as you watch.{else}The sluice gates at its foot are shut, and water spills in a thin, glassy sheet over the top of it.{/if} }
@@ -77,9 +79,8 @@ object dam_room is Room, Tidal, Riverside, DamPicture in underground_caverns {
     }
     without as target for climb_down from Thing
     as target for climb_down { do { send actor :travel with :dam_base  say "" } }
-    without as target for cross from Thing
     as target for cross { do { say "You are standing on it. The paths go north, south and west, and a scramble down." } }
-    without as target for leap_at from Thing
+    without as target for leap_at from Leapable
     as target for leap_at { do { say "The dam is 256 feet tall at the center, and the guidebook does not say what is at the bottom of it besides rocks. You decline." } }
   }
   object panel is Scenery {
@@ -298,7 +299,7 @@ object maintenance_room is DarkRoom in underground_caverns {
         else {
           self.set(:jammed, true)
           say "There is a rumbling sound and a stream of water appears to burst from the east wall of the room (apparently, a leak has occurred in a pipe)."
-          spawn Leak in here
+          send underground_caverns.maintenance_room.leak :burst
         }
       }
     }
@@ -313,6 +314,7 @@ object maintenance_room is DarkRoom in underground_caverns {
     passage short { doorways }
     describe { text "There are doorways to the west and the south, both leading back to the lobby, as though the room could not decide which way it would rather you left." }
   }
+  object leak is Leak { :unseen true }
 }
 
 object dam_base is Room, Riverside in underground_caverns {
@@ -357,7 +359,7 @@ kind Screwdriver is Portable {
 
 // The tube: it holds the gunk, gives it up when squeezed open, and takes
 // nothing in (TUBE-FUNCTION).
-kind Tube is Bag, Rejecting {
+kind Tube is Bag, Rejecting, Squeezable {
   grammar { name "tube"  nouns "toothpaste", "paste"  adjectives "tooth" }
   :open false
   :capacity 7
@@ -375,7 +377,6 @@ kind Tube is Bag, Rejecting {
   without as target for read from Thing
   as target for read { do { say label_words } }
   as container for put { do { say "The tube refuses to accept anything." } }
-  without as target for squeeze from Thing
   as target for squeeze {
     do {
       if (!self.get(:open)) { say "The tube is closed." }
@@ -424,8 +425,8 @@ kind Button is Scenery {
   without as target for shift from Thing
 }
 
-// The leak in the Maintenance Room's east wall, from the moment the blue
-// button is pushed: the room fills a level every minute (every other move,
+// The leak in the Maintenance Room's east wall, unseen until the blue
+// button is pushed, and from that moment the room fills a level every minute (every other move,
 // at the host's half-minute a turn; Zork's I-MAINT-ROOM rises every move),
 // and drowns whoever is in it when it is full. The gunk stops it.
 kind Leak is Box, Rejecting, Pluggable {
@@ -437,7 +438,10 @@ kind Leak is Box, Rejecting, Pluggable {
   passage examined {
     {if self.get(:level) < 0}The leak in the pipe in the east wall has been plugged with a fat grey wad of gunk, which is holding, for now, by some miracle of Zorkian technology. The floor is still wet.{else}Water is bursting from a split in a pipe low on the east wall, in a fan of spray that is filling the room a good deal faster than seems fair. It is a small leak, as leaks go: small enough, perhaps, to be stopped with something.{/if}
   }
-  on :spawned (from) { send self :rise }
+  on :burst {
+    self.set(:unseen, false)
+    send self :rise
+  }
   on :woke (elapsed) { send self :rise }
   on :rise {
     if (self.get(:level) > 0) {
@@ -490,7 +494,7 @@ kind Leak is Box, Rejecting, Pluggable {
 // and a flame (MATCH-FUNCTION). Zork's MATCH is MATCH, MATCHES and
 // MATCHBOOK, and not BOOK: "book" is the black book's alone, so a line that
 // names the book in the Egyptian Room never means the matchbook in hand.
-kind Matchbook is Readable, Flame {
+kind Matchbook is Readable, Flame, Countable {
   grammar { name "matchbook"  nouns "match", "matches"  adjectives "match" }
   :size 2
   :has_fdesc true
@@ -579,7 +583,6 @@ kind Matchbook is Readable, Flame {
       broadcast :snuffed
     }
   }
-  without as target for tally from Thing
   as target for tally { do { say tally_line } }
   without as target for open from Thing
   as target for open { do { say tally_line } }

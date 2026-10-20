@@ -1,6 +1,6 @@
 // Under the house: the Cellar, where the trap door is barred behind
 // whoever comes down the first time, and the Troll Room.
-import {Thing, Scenery} from 'thing'
+import {Thing, Scenery, Door} from 'thing'
 import {Axe} from 'items'
 import {DarkRoom, CellarPicture, TrollRoomPicture} from 'room'
 import {Stairs} from 'scenery'
@@ -90,10 +90,9 @@ object cellar is DarkRoom, CellarPicture in underground_caverns {
     as target for climb_down { do { say "The stairs don't lead downward." } }
   }
 
-  object trap_door is Scenery {
+  object trap_door is Scenery, Door {
     grammar { name "trap door"  nouns "door", "trapdoor", "trap-door", "cover"  adjectives "trap", "dusty" }
     :open false
-    :door true
     passage short { trap door }
     passage open_view {
       High overhead is the underside of the trap door: rough planks and iron bands, and not a handle or a ring to be had from this side.
@@ -120,7 +119,7 @@ object cellar is DarkRoom, CellarPicture in underground_caverns {
     without as target for shift from Thing
     without as target for raise from Thing
     without as target for mung from Thing
-    without as target for knock from Thing
+    without as target for knock from Door
     without as target for through from Thing
     without as target for climb_up from Thing
     as target for open {

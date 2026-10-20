@@ -10,7 +10,7 @@
 // coffin, as Zork's COFFIN-CURE does. The bell, the book and the candles
 // are for the exorcism at the gates of Hell (hades.sprout).
 import * as sprout from 'sprout'
-import {Thing, Portable, Scenery, Flame, Tieable, Switchable} from 'thing'
+import {Thing, Portable, Scenery, Flame, Tieable, Switchable, Barrier, Countable, Kissable, Leapable} from 'thing'
 import {Light} from 'lamp'
 import {Box} from 'box'
 import {Treasure, Readable, Water, Sharp} from 'items'
@@ -19,7 +19,7 @@ import {Matchbook} from 'dam'
 import {Room, DarkRoom} from 'room'
 import {Stairs} from 'scenery'
 import {Adventurer} from 'adventurer'
-import {open, close, look_in, read, climb_over, leap_at, through, climb_up, climb_down, tie, untie, ring, burn, turn, tally, lamp_on, lamp_off, wave, raise, take, kiss, listen, smell, rub, rub_with, :travel, :cool, :dome_rope, :consume, :snuffed, :open_gate, :gate_open, :close_gate, :die, :relight, :candle_burn, :let_go, :rainbow, :light, :blow_out} from 'verbs'
+import {open, close, look_in, read, climb_over, leap_at, through, climb_up, climb_down, tie, untie, ring, burn, turn, tally, lamp_on, lamp_off, wave, raise, take, kiss, listen, smell, rub, rub_with, :travel, :cool, :dome_rope, :consume, :snuffed, :open_gate, :gate_open, :close_gate, :die, :relight, :candle_burn, :let_go, :rainbow, :light, :blow_out, :rite_lit} from 'verbs'
 import {engravings_cave} from 'east'
 import {HadesGate} from 'hades'
 import {BelowAltar, tiny_cave} from 'mirror'
@@ -191,7 +191,7 @@ object altar is AltarRoom in underground_caverns {
     object book is BlackBook
     object candles is Candles
   }
-  object hole is Scenery {
+  object hole is Scenery, Leapable {
     grammar { name "small hole"  nouns "hole", "corner", "darkness"  adjectives "small", "dark" }
     passage short { small hole }
     describe { text "The hole in the corner of the floor is small and round and goes straight down into darkness. A cold draught comes up out of it, and with it a faint sound, like a great many people sighing a very long way off. It is wide enough for a body, though not for much of a coffin, and you probably could not get back up it." }
@@ -204,7 +204,7 @@ object altar is AltarRoom in underground_caverns {
     as target for climb_down { do { if (actor.is(Adventurer)) { if (actor.get(:coffins) > 0) { say down } else { send actor :travel with :tiny_cave  say "" } } } }
     without as target for through from Thing
     as target for through { do { if (actor.is(Adventurer)) { if (actor.get(:coffins) > 0) { say down } else { send actor :travel with :tiny_cave  say "" } } } }
-    without as target for leap_at from Thing
+    without as target for leap_at from Leapable
     as target for leap_at { do { if (actor.is(Adventurer)) { if (actor.get(:coffins) > 0) { say down } else { send actor :travel with :tiny_cave  say "" } } } }
   }
   object hall is TempleHall {
@@ -302,7 +302,7 @@ kind Rope is Portable, Tieable {
 }
 
 // The Dome's wooden railing, from beside it or from twenty feet below.
-kind Railing is Scenery {
+kind Railing is Scenery, Barrier, Leapable {
   grammar { name "wooden railing"  nouns "railing", "rail", "banister"  adjectives "wooden" }
   passage short { wooden railing }
   passage view default { It is a wooden railing. }
@@ -311,7 +311,6 @@ kind Railing is Scenery {
   without as target for look_in from Thing
   as target for look_in { do { say below } }
   // Over the Dome's rail is Zork's leap, and its end (DOME-ROOM-FCN).
-  without as target for climb_over from Thing
   as target for climb_over {
     do {
       if (here.is(DomeRoom)) {
@@ -320,7 +319,7 @@ kind Railing is Scenery {
       } else { say "The railing is twenty feet over your head." }
     }
   }
-  without as target for leap_at from Thing
+  without as target for leap_at from Leapable
   as target for leap_at {
     do {
       if (here.is(DomeRoom)) {
@@ -332,12 +331,11 @@ kind Railing is Scenery {
 }
 
 // The dome, from its rim or from the floor beneath it.
-kind Dome is Scenery {
+kind Dome is Scenery, Kissable {
   grammar { name "dome"  nouns "ceiling", "bowl"  adjectives "large", "stone" }
   passage short { dome }
   passage view default { It is a large dome. }
   describe { text view }
-  without as target for kiss from Thing
   as target for kiss { do { say "No." } }
 }
 
@@ -413,7 +411,7 @@ kind Torch is Treasure, Flame {
 // The candles on the altar: lit, and burning down once somebody has
 // disturbed them, as Zork's I-CANDLES has them; put out, there is nothing
 // down here to light them again but the torch, which is too much for them.
-kind Candles is Flame {
+kind Candles is Flame, Countable {
   grammar { name "pair of candles"  nouns "candles", "candle", "pair", "wax"  adjectives "burning", "two" }
   :lit true
   :has_fdesc true
@@ -429,6 +427,12 @@ kind Candles is Flame {
   passage ldesc { There is a pair of candles here{if self.get(:lit)} (providing light){/if}. }
   describe {
     text "They are two tall candles of yellow wax, {if self.get(:stage) == 0}hardly burned at all{else if self.get(:stage) == 1}burned down a fair way{else if self.get(:stage) == 2}burned down to stubs{else}burned down to almost nothing{/if}. {if self.get(:lit)}The candles are burning.{else}The candles are out.{/if}"
+  }
+
+  // Burning in hand at the gates of Hell while the spirits reel from the
+  // bell, after any command there (LLD-ROOM's M-END): the gates are told.
+  after command {
+    if (self.get(:lit) && here.is(HadesGate)) { send here :rite_lit }
   }
 
   // Blown out by the draught in the Tiny Cave (CAVE2-ROOM), in hand.
@@ -531,7 +535,6 @@ kind Candles is Flame {
       } else { say "You should say what to light them with." }
     }
   }
-  without as target for tally from Thing
   as target for tally { do { say "Let's see, how many objects in a pair? Don't tell me, I'll get it." } }
 }
 

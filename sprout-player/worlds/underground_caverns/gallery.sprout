@@ -2,7 +2,7 @@
 // with the one painting the vandals left, and the Studio, whose chimney is
 // the way back up into the Kitchen. Room names and descriptions are Zork's,
 // from dungeon.zil; the chimney's rule is UP-CHIMNEY-FUNCTION's.
-import {Thing, Scenery} from 'thing'
+import {Thing, Scenery, Door} from 'thing'
 import {Treasure, Readable} from 'items'
 import {Room, DarkRoom, Perilous, ChimneyFoot, ChasmEdge} from 'room'
 import {Adventurer} from 'adventurer'
@@ -138,9 +138,8 @@ object studio is DarkRoom, ChimneyFoot in underground_caverns {
     passage short { paint }
     describe { text "Paint is everywhere: on the floor, on the walls, on the door, in drips and fans and handprints, sixty-nine colors by the count of someone with time to count. Strangely enough, none of it is on anything worth stealing." }
   }
-  object door is Scenery {
+  object door is Scenery, Door {
     grammar { name "door"  nouns "doorway"  adjectives "open", "south", "painted" }
-    :door true
     passage short { door }
     describe { text "The door at the south end of the room stands open, held there by paint: so many coats of it that it has not closed in years, and would not thank you for trying." }
     without as target for open from Thing
