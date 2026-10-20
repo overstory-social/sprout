@@ -5,7 +5,7 @@
  * order the kind answers them; an exit that refuses applies as any exit
  * does and is never offered. Every exit asked is a step. What a way says as
  * it is taken is asked of the place that has it, and taking a way is a move
- * through it, whose refusal is recorded as a refused `move`'s is.
+ * through it, whose refusal is handed back unsaid.
  */
 #include "reading_fixture.h"
 
@@ -168,16 +168,17 @@ static bool take(exec_bench *b, exec_case *c, const char *direction) {
   const sprout_way *found;
   size_t count, j, at = 0;
   bool went = true;
+  sprout_move_refusal refusal;
   reading_open(b, c, saying, "bench.shop");
   CHECK_INT(sprout_exits_from(&c->frame, exec_str("bench.shop"), &found, &count), SPROUT_EVAL_OK);
   for (j = 0; j < count; j++)
     if (found[j].direction != NULL && strcmp(found[j].direction, direction) == 0) at = j;
-  CHECK_INT(sprout_take_way(&c->x, &c->frame, exec_str("bench.shop.cat"), exec_str("bench.shop"), &found[at], true, &went),
+  CHECK_INT(sprout_take_way(&c->x, &c->frame, exec_str("bench.shop.cat"), exec_str("bench.shop"), &found[at], true, &went, &refusal),
             SPROUT_EVAL_OK);
   return went;
 }
 
-static void taking_a_way_moves_its_taker_and_a_refusal_is_recorded_with_nothing_said_of_the_way(void) {
+static void taking_a_way_moves_its_taker_and_a_refusal_is_handed_back_unsaid(void) {
   exec_bench b;
   exec_case c;
   size_t j;
@@ -185,11 +186,10 @@ static void taking_a_way_moves_its_taker_and_a_refusal_is_recorded_with_nothing_
   CHECK(take(&b, &c, "north"));
   CHECK(sprout_str_same(sprout_draft_instance(c.x.draft, exec_str("bench.shop.cat"))->container, exec_str("bench.yard")));
   exec_case_close(&c);
-  /* The vault is shut: its `accept` refuses, nothing moves, and the door's words are not said. */
+  /* The vault is shut: its `accept` refuses, nothing moves, and nothing is said, the refusal left to the caller. */
   CHECK(!take(&b, &c, "east"));
   CHECK(sprout_str_same(sprout_draft_instance(c.x.draft, exec_str("bench.shop.cat"))->container, exec_str("bench.shop")));
-  CHECK(c.x.effect_count >= 1 && c.x.effects[c.x.effect_count - 1].kind == SPROUT_EFFECT_REFUSED);
-  for (j = 0; j < c.x.effect_count; j++) CHECK(c.x.effects[j].kind != SPROUT_EFFECT_SAID);
+  for (j = 0; j < c.x.effect_count; j++) CHECK(c.x.effects[j].kind != SPROUT_EFFECT_SAID && c.x.effects[j].kind != SPROUT_EFFECT_REFUSED);
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -202,6 +202,6 @@ int main(void) {
   RUN(asking_too_many_ways_exhausts_the_steps);
   RUN(what_a_way_says_as_it_is_taken_is_asked_of_its_place);
   RUN(a_link_says_nothing);
-  RUN(taking_a_way_moves_its_taker_and_a_refusal_is_recorded_with_nothing_said_of_the_way);
+  RUN(taking_a_way_moves_its_taker_and_a_refusal_is_handed_back_unsaid);
   return REPORT();
 }

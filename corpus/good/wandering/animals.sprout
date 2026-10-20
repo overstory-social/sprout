@@ -1,6 +1,6 @@
 // The animals, and the gate between the yard and the barn.
 import * as sprout from 'sprout'
-import {shoo, poke, open} from 'wandering'
+import {shoo, poke, nudge, open} from 'wandering'
 
 kind Gate is sprout.Fixture {
   :open false
@@ -16,7 +16,8 @@ kind Gate is sprout.Fixture {
 
 message :bolt
 
-// Shooed, the cat sets off north a minute later; poked, it bolts east.
+// Shooed, the cat sets off north a minute later; poked, it bolts east;
+// nudged, it tries the fence at once, in the `do` of the visitor's reading.
 kind Cat is sprout.Actor {
   grammar { name "cat"  article the }
 
@@ -31,6 +32,13 @@ kind Cat is sprout.Actor {
     do {
       send self :bolt
       say "The cat bristles."
+    }
+  }
+
+  as target for nudge {
+    do {
+      move self east
+      say "The cat clears the fence."
     }
   }
 

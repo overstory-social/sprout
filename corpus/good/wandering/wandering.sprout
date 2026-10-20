@@ -2,9 +2,11 @@
 // Verbs › Moving something; Prose). On its own wake a cat names the place
 // it stands in, which an actor's handler binds as `here`, and goes north
 // through the yard's gate while the gate is open, the exit's `when` its
-// consent; while it is shut there is no way north, and the cat's refusal
-// is told to nobody and ends the handler. Bolting east, it meets the
-// fence, which refuses in its own words, to nobody. A dog in the barn
+// consent; while it is shut there is no way north, so nothing moves,
+// nothing is said, and the handler ends there. Bolting east, it meets the
+// fence, which refuses, and the same holds: an actor's way out that does
+// not go says nothing, even in the `do` of a visitor's reading, which is
+// then answered as any reading that said nothing is. A dog in the barn
 // wanders out by a way drawn from those that lead, of which there is one,
 // the ladder refusing; and an owl in a coop it cannot leave has no way to
 // draw.
@@ -53,4 +55,5 @@ world wandering is sprout.World {
 
 verb shoo  { role target  "shoo [target]" }
 verb poke  { role target  "poke [target]" }
+verb nudge { role target  "nudge [target]" }
 verb open  { role target  "open [target]" }

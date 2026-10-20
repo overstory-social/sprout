@@ -1617,8 +1617,8 @@ A character may also walk out of where it stands, as a visitor does with
 `go`. `move self north` takes the exit north that applies, so its `when`
 decides; `move self along an exit` takes one of the ways out that lead,
 chosen at random. If the exit refuses, or no exit leads that way, or there
-is no way out to choose, nothing moves and the rest of the body does not
-run; in a handler, a tick or a wake nobody hears the refusal. Only `self`
+is no way out to choose, nothing moves, nothing is said to anyone, and the
+rest of the body does not run. Only `self`
 moves this way, and only in a character's kind. Its own handlers know
 where it stands: `here` is its place.
 

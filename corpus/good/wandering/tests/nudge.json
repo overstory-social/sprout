@@ -1,0 +1,7 @@
+{
+  "about": "Nudged, the cat tries the fence east in the `do` of Marta's reading: the fence refuses, nothing moves, nothing is said of it, and the `do` ends there, so its `say` never runs. The reading is not refused by it: having said nothing, it is answered as any reading that says nothing is.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A muddy yard." }] },
+    { "as": "Marta", "type": "nudge cat", "expect": [{ "words": "Nothing much comes of that." }] }
+  ]
+}

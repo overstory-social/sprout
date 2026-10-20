@@ -36,7 +36,7 @@ static bool stands_in(turn_world *w, const char *id, const char *place) {
   return it->container.length == strlen(place) && memcmp(it->container.bytes, place, it->container.length) == 0;
 }
 
-static void a_direction_no_exit_answers_refuses_to_nobody_and_ends_the_handler(void) {
+static void a_direction_no_exit_answers_says_nothing_and_ends_the_handler(void) {
   turn_world w;
   sprout_outcome out;
   tw_open(&w, "wandering");
@@ -68,7 +68,7 @@ static void an_exit_whose_when_holds_takes_the_actor_through(void) {
   tw_close(&w);
 }
 
-static void an_exit_that_refuses_is_the_refusal_and_nothing_after_it_runs(void) {
+static void an_exit_that_refuses_says_nothing_and_nothing_after_it_runs(void) {
   turn_world w;
   sprout_outcome out;
   tw_open(&w, "wandering");
@@ -78,6 +78,22 @@ static void an_exit_that_refuses_is_the_refusal_and_nothing_after_it_runs(void) 
   CHECK(out.committed);
   CHECK(tw_told(&out, "v-marta", "The cat bristles."));
   CHECK_INT(out.line_count, 1);
+  CHECK(stands_in(&w, "wandering.yard.cat", "wandering.yard"));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void in_a_visitors_do_it_says_nothing_and_does_not_refuse_the_reading(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "wandering");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "nudge", "yard.cat", 1000, &out);
+  CHECK(out.committed);
+  CHECK(!out.refused);
+  CHECK(!tw_told(&out, "v-marta", "The cat clears the fence."));
+  CHECK(!tw_told(&out, "v-marta", "You can't go that way."));
   CHECK(stands_in(&w, "wandering.yard.cat", "wandering.yard"));
   sprout_outcome_free(&out);
   tw_close(&w);
@@ -109,7 +125,7 @@ static void a_way_drawn_is_among_those_that_lead_and_the_seed_chooses(void) {
   }
 }
 
-static void a_draw_with_no_way_to_draw_refuses_and_ends_the_handler(void) {
+static void a_draw_with_no_way_to_draw_says_nothing_and_ends_the_handler(void) {
   turn_world w;
   sprout_outcome out;
   tw_open(&w, "wandering");
@@ -126,10 +142,11 @@ static void a_draw_with_no_way_to_draw_refuses_and_ends_the_handler(void) {
 }
 
 int main(void) {
-  RUN(a_direction_no_exit_answers_refuses_to_nobody_and_ends_the_handler);
+  RUN(a_direction_no_exit_answers_says_nothing_and_ends_the_handler);
   RUN(an_exit_whose_when_holds_takes_the_actor_through);
-  RUN(an_exit_that_refuses_is_the_refusal_and_nothing_after_it_runs);
+  RUN(an_exit_that_refuses_says_nothing_and_nothing_after_it_runs);
+  RUN(in_a_visitors_do_it_says_nothing_and_does_not_refuse_the_reading);
   RUN(a_way_drawn_is_among_those_that_lead_and_the_seed_chooses);
-  RUN(a_draw_with_no_way_to_draw_refuses_and_ends_the_handler);
+  RUN(a_draw_with_no_way_to_draw_says_nothing_and_ends_the_handler);
   return REPORT();
 }

@@ -54,11 +54,11 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
 
 /*
  * `actor` taken through `taken`, a way out of `place` that leads, as `go`
- * takes a visitor: the move made through it, a refusal of the move recorded
- * as a refused `move`'s is, and what the exit says as it is taken said to
- * `actor` where `person`. *went says whether it moved.
+ * takes a visitor: the move made through it, and what the exit says as it
+ * is taken said to `actor` where `person`. *went says whether it moved; where
+ * it did not, `refusal` says why, and nothing of it is recorded here.
  */
 sprout_eval_status sprout_take_way(sprout_exec *x, const sprout_frame *frame, sprout_str actor, sprout_str place,
-                                   const sprout_way *taken, bool person, bool *went);
+                                   const sprout_way *taken, bool person, bool *went, sprout_move_refusal *refusal);
 
 #endif

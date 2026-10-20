@@ -263,18 +263,17 @@ static sprout_eval_status acting_names(const sprout_frame *frame, sprout_str act
 }
 
 sprout_eval_status sprout_take_way(sprout_exec *x, const sprout_frame *frame, sprout_str actor, sprout_str place,
-                                   const sprout_way *taken, bool person, bool *went) {
+                                   const sprout_way *taken, bool person, bool *went, sprout_move_refusal *refusal) {
   sprout_saying saying;
   sprout_effect said;
   sprout_move_end end;
-  sprout_move_refusal refusal;
   sprout_str *to;
   memset(&saying, 0, sizeof saying);
   *went = false;
   /* What the exit says is asked of the place before the move, and said to the one who went as the move is made. */
   if (person) EXPR_NEED(sprout_exit_saying(frame, place, taken, &saying));
-  EXPR_NEED(sprout_move_instance(x, frame, actor, actor, taken->to, SPROUT_REACH_EXIT, taken->label, &end, &refusal));
-  if (end != SPROUT_MOVE_DONE) return sprout_record_refusal(x, frame, &refusal);
+  EXPR_NEED(sprout_move_instance(x, frame, actor, actor, taken->to, SPROUT_REACH_EXIT, taken->label, &end, refusal));
+  if (end != SPROUT_MOVE_DONE) return SPROUT_EVAL_OK;
   *went = true;
   if (!saying.says) return SPROUT_EVAL_OK;
   memset(&said, 0, sizeof said);
