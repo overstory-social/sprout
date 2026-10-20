@@ -1,0 +1,4 @@
+kennel.sprout:8:12  `move actor north` sends something through a way out, and only `self` goes that way, as a visitor goes.
+                    Write `move self north` in the body of the actor that should go, or move `actor` into something, as in `move actor to self`.
+
+refused: 1 problem

@@ -1,0 +1,10 @@
+cat.sprout:6:15   `n` is what a visitor may type for `north`, and a body writes the direction out.
+                  Write `move self north`.
+
+cat.sprout:9:15   `barn` is not a direction, so `move self barn` names no way out.
+                  Write `to` before what it goes into, `move self to barn`, or a direction: `north`, `south`, `east`, `west`, `northeast`, `northwest`, `southeast`, `southwest`, `up`, `down`, `in` and `out`.
+
+cat.sprout:12:20  `along` is followed by `an exit`: the way is drawn from those that lead out.
+                  Write `move self along an exit`, or name a direction, as in `move self north`.
+
+refused: 3 problems

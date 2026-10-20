@@ -1,0 +1,16 @@
+// Only an actor's own handler has a place of its own, `here`; a bell is
+// no actor, so `here` names nothing in its handler.
+import {:rang, ring} from 'handler_here_not_actor'
+
+kind Bell {
+  :rung false
+  as target for ring {
+    do {
+      send self :rang
+      say "Ding."
+    }
+  }
+  on :rang {
+    if (here.is(Bell)) { self.set(:rung, true) }
+  }
+}

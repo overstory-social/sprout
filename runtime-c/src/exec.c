@@ -156,6 +156,7 @@ static sprout_eval_status statement(sprout_run *run, sprout_frame *scope, const 
   }
   if (strcmp(kind, "destroy") == 0) return stmt_destroy(run, scope, node);
   if (strcmp(kind, "move") == 0) return stmt_move(run, scope, node);
+  if (strcmp(kind, "move-through") == 0) return stmt_move_through(run, scope, node);
   if (strcmp(kind, "connect") == 0) return stmt_connect(run, scope, node);
   if (strcmp(kind, "act") == 0) return stmt_act(run, scope, node);
   if (strcmp(kind, "send") == 0) return stmt_send(run, scope, node);

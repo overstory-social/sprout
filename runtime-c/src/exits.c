@@ -5,7 +5,8 @@
  * place's range, or to a declared object destroyed; and a destination that
  * is absent, destroyed, gone or no longer a place. A guard only reads, and is
  * charged to the turn's steps as any reading is, so a guard too dear to ask
- * faults as any work does.
+ * faults as any work does. Taking a way, as `go` and `move self north` do,
+ * is the move through it and what it says as it is taken.
  */
 #include <string.h>
 
@@ -245,4 +246,45 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
   out->by = place;
   return spoken_by(frame, sprout_node_get(&frame->world->graph, says, "said"), sprout_node_text(&frame->world->graph, applied.items[0].exit, "origin"), instance,
                    &out->said);
+}
+
+/* `actor` and `here`, the names a line said to the one who went renders with. */
+static sprout_eval_status acting_names(const sprout_frame *frame, sprout_str actor, sprout_str here,
+                                       const sprout_effect_binding **out, size_t *count) {
+  sprout_effect_binding *bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, 2 * sizeof *bound);
+  if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
+  bound[0].name = "actor";
+  bound[0].bound = sprout_evaluated_object(actor);
+  bound[1].name = "here";
+  bound[1].bound = sprout_evaluated_object(here);
+  *out = bound;
+  *count = 2;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_take_way(sprout_exec *x, const sprout_frame *frame, sprout_str actor, sprout_str place,
+                                   const sprout_way *taken, bool person, bool *went, sprout_move_refusal *refusal) {
+  sprout_saying saying;
+  sprout_effect said;
+  sprout_move_end end;
+  sprout_str *to;
+  memset(&saying, 0, sizeof saying);
+  *went = false;
+  /* What the exit says is asked of the place before the move, and said to the one who went as the move is made. */
+  if (person) EXPR_NEED(sprout_exit_saying(frame, place, taken, &saying));
+  EXPR_NEED(sprout_move_instance(x, frame, actor, actor, taken->to, SPROUT_REACH_EXIT, taken->label, &end, refusal));
+  if (end != SPROUT_MOVE_DONE) return SPROUT_EVAL_OK;
+  *went = true;
+  if (!saying.says) return SPROUT_EVAL_OK;
+  memset(&said, 0, sizeof said);
+  to = (sprout_str *)sprout_arena_take(x->turn, sizeof *to);
+  if (to == NULL) return SPROUT_EVAL_NO_MEMORY;
+  *to = actor;
+  said.kind = SPROUT_EFFECT_SAID;
+  said.to = to;
+  said.to_count = 1;
+  said.by = saying.by;
+  said.said = saying.said;
+  EXPR_NEED(acting_names(frame, actor, place, &said.bindings, &said.binding_count));
+  return sprout_exec_record(x, &said);
 }

@@ -6,10 +6,12 @@
  * a delivery to something with no handler costs nothing; a queue drained and
  * filled again takes no more room; a destroyed object's
  * sends and what is queued to it are dropped; and what `finally destroy self`
- * marked goes once the queue is empty.
+ * marked goes once the queue is empty. An actor's handler is given `here`,
+ * its own place.
  */
 #include "exec_fixture.h"
 #include "stmt/stmt.h"
+#include "turn_fixture.h"
 
 static const sprout_message *message_named(const exec_case *c, const char *name) {
   size_t i;
@@ -196,6 +198,26 @@ static void the_golden_bus_cases_end_as_the_typescript_runtime_did(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+static void an_actors_handler_is_given_its_own_place_as_here(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_turn_input wake = tw_input(SPROUT_TURN_WAKE, 1060);
+  const sprout_stored_instance *cat;
+  tw_open(&w, "wandering");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "shoo", "yard.cat", 1000, &out);
+  sprout_outcome_free(&out);
+  cat = tw_instance(&w, "wandering.yard.cat");
+  CHECK(cat != NULL && cat->wake_count == 1);
+  wake.object = "wandering.yard.cat";
+  wake.serial = cat->wakes[0].serial;
+  CHECK_INT(tw_run(&w, wake, 0, &out), SPROUT_OK);
+  CHECK(tw_told(&out, "v-marta", "The cat sniffs the air of the yard."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_queued_message_carries_the_depth_of_the_body_that_queued_it);
   RUN(the_queue_drains_breadth_first_and_a_handlers_sends_wait_behind_it);
@@ -205,6 +227,7 @@ int main(void) {
   RUN(a_destroyed_objects_sends_and_deliveries_are_dropped);
   RUN(a_cascade_past_the_depth_budget_faults_at_the_hosts_figure);
   RUN(events_past_the_budget_fault_at_the_hosts_figure);
+  RUN(an_actors_handler_is_given_its_own_place_as_here);
   RUN(the_golden_bus_cases_end_as_the_typescript_runtime_did);
   return REPORT();
 }

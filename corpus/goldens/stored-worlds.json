@@ -102,7 +102,8 @@
 "visitor-contents":{"world":"visitor_contents","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "visitor-kind":{"world":"visitor_kind","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "wake-delay":{"world":"wake_delay","serial":0,"instances":[],"visitors":[],"tombstones":[]},
-"wakes":{"world":"wakes","serial":0,"instances":[],"visitors":[],"tombstones":[]}
+"wakes":{"world":"wakes","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"wandering":{"world":"wandering","serial":0,"instances":[],"visitors":[],"tombstones":[]}
 },
 "played":[
 {"world":"after-command","transcript":"lamp.json","step":1,"stored":{"world":"after_command","serial":4,"instances":[{"id":"after_command#1","made":{"from":"visitor"},"container":"after_command.cellar","arrival":4},{"id":"after_command#2","made":{"from":"given","kind":"after_command.Person","path":["tin"]},"container":"after_command#1","arrival":3}],"visitors":[{"visit":"visit:Wren","nickname":"Wren","instance":"after_command#1","lastPlace":"after_command.cellar","referents":[],"lastReading":null}],"tombstones":[]}},

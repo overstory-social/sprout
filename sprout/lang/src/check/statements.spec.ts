@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DestroyStatement, MoveStatement, SpawnStatement, Statement } from '../syntax/ast.js';
+import type {
+  DestroyStatement,
+  MoveStatement,
+  MoveThroughStatement,
+  SpawnStatement,
+  Statement,
+} from '../syntax/ast.js';
 import { letBinding, showBindingType, valueOf } from './bindings.js';
 import { narrowingOf, type CheckContext } from './check.js';
-import { checkDestroy, checkEffect, checkLet, checkMove, checkSpawn } from './statements.js';
+import {
+  checkDestroy,
+  checkEffect,
+  checkLet,
+  checkMove,
+  checkMoveThrough,
+  checkSpawn,
+} from './statements.js';
 import { kindName, type KindLookup } from '../declare/kinds.js';
 import { ACTOR } from '../declare/actors.js';
 import { Diagnostics } from '../source/diagnostics.js';
@@ -437,5 +450,43 @@ describe('`move` moves one thing into something that holds things', () => {
     const { passed, said } = moved('move tools to tool', warded());
     expect(passed).toBe(false);
     expect(said.map(([where]) => where)).toEqual(['b.sprout:1:6', 'b.sprout:1:15']);
+  });
+});
+
+describe('`move self` through a way out', () => {
+  /** Check a way out: whether it passed, and everything said, where it was said. */
+  function through(text: string, context: CheckContext) {
+    const passed = checkMoveThrough(parsed(text) as MoveThroughStatement, context);
+    return {
+      passed,
+      said: context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    };
+  }
+  const cat = kind('Cat', [], [ACTOR], true);
+
+  it('takes `self` of an actor, by a direction or a way drawn', () => {
+    for (const text of ['move self north', 'move self in', 'move self along an exit']) {
+      expect(through(text, bodyOf(cat)), text).toEqual({ passed: true, said: [] });
+    }
+  });
+
+  it('refuses anything but `self`, which only goes where it goes itself', () => {
+    expect(through('move target north', vessel()).said).toEqual([
+      [
+        'b.sprout:1:6',
+        '`move target north` sends something through a way out, and only `self` goes that way, as a visitor goes.',
+        'Write `move self north` in the body of the actor that should go, or move `target` into something, as in `move target to self`.',
+      ],
+    ]);
+  });
+
+  it('refuses `self` of a kind that is not an actor', () => {
+    expect(through('move self along an exit', vessel()).said).toEqual([
+      [
+        'b.sprout:1:6',
+        `Only an actor goes through a way out, and \`Vessel\` does not compose \`${ACTOR}\`.`,
+        `Compose \`${ACTOR}\` into \`Vessel\`, or name what \`self\` goes into, as in \`move self to cellar\`.`,
+      ],
+    ]);
   });
 });

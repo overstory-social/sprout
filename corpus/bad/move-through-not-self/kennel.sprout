@@ -1,0 +1,12 @@
+// Only `self` goes through a way out: a kennel cannot send its dog north.
+import * as sprout from 'sprout'
+import {whistle} from 'move_through_not_self'
+
+kind Kennel is sprout.Actor {
+  as target for whistle {
+    do {
+      move actor north
+      say "Off you go."
+    }
+  }
+}

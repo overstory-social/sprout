@@ -193,7 +193,10 @@ static sprout_eval_status bodies_for(const sprout_exec *x, const sprout_send *se
   return SPROUT_EVAL_OK;
 }
 
-/* The frame a handler or a hook runs in: `self` the recipient, and each parameter it names bound. */
+/*
+ * The frame a handler or a hook runs in: `self` the recipient, `here` its place where it is an actor and the
+ * body a handler (the spec's Prose), and each parameter it names bound, a parameter shadowing `here`.
+ */
 static sprout_eval_status frame_for(sprout_exec *x, const sprout_send *send, const sprout_node *body, sprout_frame *out) {
   const sprout_node *parameters = sprout_node_get(&x->world->graph, sprout_node_get(&x->world->graph, body, "declaration"), "parameters");
   const char *origin = sprout_node_text(&x->world->graph, body, "origin"), *dot = origin == NULL ? NULL : strchr(origin, '.');
@@ -204,6 +207,15 @@ static sprout_eval_status frame_for(sprout_exec *x, const sprout_send *send, con
   library = sprout_arena_copy(x->turn, origin, (size_t)(dot - origin));
   if (library == NULL) return SPROUT_EVAL_NO_MEMORY;
   *out = sprout_exec_frame(x, send->recipient, library, NULL);
+  if (send->message != SPROUT_MSG_CHANGED) {
+    const sprout_stored_instance *recipient = sprout_draft_instance(x->draft, send->recipient);
+    sprout_str place;
+    if (recipient != NULL && recipient->kind->composes_actor && sprout_surround_of(out, send->recipient, &place)) {
+      const sprout_binding *here = sprout_bind(out, "here", sprout_evaluated_object(place));
+      if (here == NULL) return SPROUT_EVAL_NO_MEMORY;
+      out->bindings = here;
+    }
+  }
   for (i = 0; parameters != NULL && i < parameters->count && i < given; i++) {
     const sprout_binding *bound;
     const sprout_node *parameter = sprout_item(&x->world->graph, parameters, i);

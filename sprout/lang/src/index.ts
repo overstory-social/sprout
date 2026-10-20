@@ -38,7 +38,7 @@ export * from './declare/properties.js';
 export * from './declare/messages.js';
 export * from './declare/verbs.js';
 export * from './declare/addressing.js';
-export * from './declare/directions.js';
+export * from './syntax/directions.js';
 export * from './declare/grammar.js';
 export * from './declare/describe.js';
 export * from './declare/world.js';

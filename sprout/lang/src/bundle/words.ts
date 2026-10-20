@@ -21,7 +21,7 @@ import {
   humanisedKind,
   typedWords,
 } from '../declare/addressing.js';
-import { ABBREVIATIONS, DIRECTIONS } from '../declare/directions.js';
+import { ABBREVIATIONS, DIRECTIONS } from '../syntax/directions.js';
 import { TYPED_PRONOUNS } from '../syntax/ast-grammar.js';
 import type { KindRef } from '../declare/kinds.js';
 import type { ScopedSynonym } from '../declare/synonyms.js';

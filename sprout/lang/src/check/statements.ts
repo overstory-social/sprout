@@ -1,5 +1,5 @@
 // What the compiler checks of a statement: a `let`, a call that writes,
-// `spawn`, `destroy` and `move` (the spec's Properties › Naming a value;
+// `spawn`, `destroy`, `move` and `move` through a way out (the spec's Properties › Naming a value;
 // The world model › Spawning, Destroying; Verbs › Moving something; The
 // compiler › What it refuses). Expressions inside them are `check.ts`'s.
 //
@@ -19,6 +19,7 @@ import type {
   Ident,
   LetStatement,
   MoveStatement,
+  MoveThroughStatement,
   ObjectPath,
   SpawnStatement,
 } from '../syntax/ast.js';
@@ -34,7 +35,7 @@ import { kindName, type KindRef } from '../declare/kinds.js';
 import { shownName } from '../declare/enums.js';
 import { WORLD } from '../declare/sprout-world.js';
 import { writtenKind } from '../declare/compose.js';
-import { aVisitorMade, isVisitorKind } from '../declare/actors.js';
+import { ACTOR, aVisitorMade, isActor, isVisitorKind } from '../declare/actors.js';
 import {
   bindingType,
   checkEffectCall,
@@ -116,6 +117,34 @@ export function checkMove(statement: MoveStatement, context: CheckContext): bool
     example: `move ${moved} to ${moved === 'self' ? 'actor' : 'self'}`,
   });
   return moves && holds;
+}
+
+/**
+ * `move self north`, `move self along an exit` — an actor taking a way
+ * out of its place, as `go` takes a visitor: only `self`, and only in a
+ * kind composing `sprout.Actor`. The direction is the parser's.
+ */
+export function checkMoveThrough(statement: MoveThroughStatement, context: CheckContext): boolean {
+  const moved = writtenPath(statement.thing);
+  const way = statement.direction === null ? 'along an exit' : statement.direction.text;
+  if (moved !== 'self') {
+    context.diagnostics.refuse(
+      statement.thing.at,
+      `\`move ${moved} ${way}\` sends something through a way out, and only \`self\` goes that way, as a visitor goes.`,
+      `Write \`move self ${way}\` in the body of the actor that should go, or move \`${moved}\` into something, as in \`move ${moved} to self\`.`,
+    );
+    return false;
+  }
+  if (context.self !== null && !isActor(context.self)) {
+    const shown = shownName(kindName(context.self), context.from);
+    context.diagnostics.refuse(
+      statement.thing.at,
+      `Only an actor goes through a way out, and \`${shown}\` does not compose \`${ACTOR}\`.`,
+      `Compose \`${ACTOR}\` into \`${shown}\`, or name what \`self\` goes into, as in \`move self to cellar\`.`,
+    );
+    return false;
+  }
+  return true;
 }
 
 /** `destroy self` — refused only where `self` is the world, which is never destroyed. */
