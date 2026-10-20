@@ -450,13 +450,13 @@ frames, saying so on the screen; the system's answer, the header that carries
 a redirect's `Location`, and the end of an answer all come by callback, and
 the screen polls. The index is read and verified by `src/signed_index.h`
 against the key the build bakes in as the generated `publickey.h`
-(`PLAYER_INDEX_PUBLIC_KEY_FILE`, which `scripts/playdate-player.mjs` sets
-from `SPROUT_INDEX_PUBLIC_KEY`), and a world is written a
+(`PLAYER_INDEX_PUBLIC_KEY_FILE`: `publisher.pub`, unless
+`scripts/playdate-player.mjs` is given `SPROUT_INDEX_PUBLIC_KEY`), and a world is written a
 piece at a time (`player_file_create` and its kin in `src/host/files.h`),
 hashed with `player_digest`, and shelved as Shipped worlds and downloads
 below describes, with the share of the file arrived in the panel. The index
-address is `PLAYER_INDEX_URL` in `downloads.h`, a placeholder, and the Data
-folder's `downloads.json` points it elsewhere.
+address is `PLAYER_INDEX_URL` in `downloads.h`, sprout-studio's GitHub Pages,
+and the Data folder's `downloads.json` points it elsewhere.
 
 The fake PlaydateAPI the C tests drive (`test/fake_playdate.h`) makes
 bitmaps that hold real pixels, draws them at their size or scaled and
@@ -806,9 +806,13 @@ keys in order, integers in decimal; `canonicalText` in
 `cli/src/signing.ts`). The app verifies it in C
 (`src/ed25519.c`, tested against RFC 8032) before it reads anything else.
 
-One publisher key is baked into the app at build
-(`SPROUT_INDEX_PUBLIC_KEY=<prefix>.pub`); a new key is a new build. The
-private key never enters the repository.
+One publisher key is baked into the app at build: `sprout-player/publisher.pub`,
+whose private half is sprout-studio's Actions secret and signs the index it
+publishes. `SPROUT_INDEX_PUBLIC_KEY=<prefix>.pub` bakes in another; a new
+key is a new build. The private key never enters the repository. The test
+key, `sprout-player/test/index-test.pub`, has its private half in the
+repository so the tests can sign an index; the gate's builds trust it, and
+`npm run playdate` warns when a pdx is built to trust it.
 
 A publisher works from the installed CLI. `sprout keygen <prefix>` writes
 `<prefix>.key`, the 32-byte Ed25519 seed as 64 lowercase hexadecimal
@@ -837,9 +841,12 @@ first eight digits of the bundle hash, so two builds of one world sit side
 by side; a newer build does not replace or remove an older one, whose save
 would be orphaned. The index is read to at most 256 KB.
 
-The index address is `PLAYER_INDEX_URL` in `src/ui/downloads.h`, a placeholder that
-never resolves until a real one is chosen; `downloads.json` in the Data
-folder points a built app elsewhere. The worlds the index lists are the
+The index address is `PLAYER_INDEX_URL` in `src/ui/downloads.h`,
+`https://overstory-social.github.io/sprout-studio/worlds/index.json`, where
+sprout-studio publishes its finished worlds on GitHub Pages; Pages serves the
+index and the cartridges from that one server with no redirect, so the
+system asks permission once. `downloads.json` in the Data folder,
+`{ "indexUrl": "https://..." }`, points a built app elsewhere. The worlds the index lists are the
 words of a wheel, as on the shelf, each by its title; the panel under it
 says who made the one at the front, its version and size, and A downloads
 it. One already on the shelf is greyed, the panel says so, and A on it does

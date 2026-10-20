@@ -66,9 +66,10 @@ set(PLAYER_SOURCES
   src/ui/transcript.c src/ui/wheel.c src/ui/wrap.c)
 
 # The publisher's public key, whose signature the download screen requires on the index of worlds,
-# baked in as generated/publickey.h. scripts/playdate-player.mjs names the file it reads
-# (SPROUT_INDEX_PUBLIC_KEY, else the test key, whose private half is in the repository).
-set(PLAYER_INDEX_PUBLIC_KEY_FILE "${CMAKE_CURRENT_SOURCE_DIR}/test/index-test.pub" CACHE FILEPATH
+# baked in as generated/publickey.h: publisher.pub unless PLAYER_INDEX_PUBLIC_KEY_FILE names another,
+# as scripts/playdate-player.mjs does from SPROUT_INDEX_PUBLIC_KEY and for the gate's builds, which
+# trust test/index-test.pub so the tests can sign an index.
+set(PLAYER_INDEX_PUBLIC_KEY_FILE "${CMAKE_CURRENT_SOURCE_DIR}/publisher.pub" CACHE FILEPATH
   "The file holding the index's public key as 64 hexadecimal digits")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PLAYER_INDEX_PUBLIC_KEY_FILE}")
 file(READ "${PLAYER_INDEX_PUBLIC_KEY_FILE}" PLAYER_INDEX_PUBLIC_KEY)
