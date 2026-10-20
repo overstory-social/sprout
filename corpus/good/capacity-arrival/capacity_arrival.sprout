@@ -1,0 +1,14 @@
+// Entering the world is a move, so a place that holds by measure weighs a
+// visitor coming in: a climber of 20 does not fit on a ledge that holds 10.
+import * as sprout from 'sprout'
+import {Climber} from 'climber'
+
+world capacity_arrival is sprout.World {
+  visitors are Climber
+  visitors arrive at ledge
+
+  object ledge is sprout.Place {
+    capacity 10 by :size
+    describe { text "A narrow ledge." }
+  }
+}

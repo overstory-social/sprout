@@ -41,6 +41,7 @@ import { grammar } from './grammar.js';
 import { describe } from './describe.js';
 import { synonymsMember } from './synonyms.js';
 import { atFraction } from './types.js';
+import { isReserved } from '../reserved.js';
 
 /** What may be written inside a body, by the word each member begins with. */
 export type MemberReaders<M> = ReadonlyMap<string, () => M | null>;
@@ -535,33 +536,58 @@ export function roams(p: Parser): RoamsDeclaration {
 /**
  * `capacity 100 by :size`: the most a container holds, measured by the
  * integer property each thing it holds declares. A line missing its
- * number, its `by` or its property is refused at the gap and read no
- * further; what follows goes back to the member table.
+ * number, its `by` or its property is refused at the gap, and what is
+ * left of it is stepped over; what follows goes back to the member table.
  */
 export function capacity(p: Parser): CapacityDeclaration | null {
   const keyword = p.next();
   const refuse = (reason: string, remedy: string): null => {
     p.diagnostics.refuse(p.peek().at, reason, remedy);
-    skipCapacityRest(p, keyword);
+    skipCapacityRest(p);
     return null;
   };
   const example = 'capacity 100 by :size';
   const digits = p.take('integer');
   if (digits === null) {
+    // What stands where the number goes is the line's own, unless it
+    // begins a member: text in quotes, or a word the language does not keep.
+    const wrong = p.peek();
+    const stepped =
+      wrong.kind === 'string' ||
+      (wrong.kind === 'name' &&
+        wrong.text !== 'by' &&
+        !isReserved(wrong.text) &&
+        !p.atDeclarationStart());
+    if (stepped) {
+      p.diagnostics.refuse(
+        wrong.at,
+        `\`capacity\` is followed by the most it holds, a whole number, and ${p.subject(wrong, false)} is not one.`,
+        `Write \`${example}\`: the most it holds, then the property each thing it holds is measured by.`,
+      );
+      p.next();
+      skipCapacityRest(p);
+      return null;
+    }
     return refuse(
       `\`capacity\` is followed by the most it holds, a whole number, and ${p.subject(p.peek(), false)} is not one.`,
       `Write \`${example}\`: the most it holds, then the property each thing it holds is measured by.`,
     );
   }
-  if (atFraction(p)) return null;
+  if (atFraction(p)) {
+    skipCapacityRest(p);
+    return null;
+  }
   const limit = { kind: 'integer' as const, at: digits.at, value: Number(digits.text) };
-  if (p.take('name', 'by') === null) {
+  const by = p.take('name', 'by');
+  if (by === null) {
     return refuse(
       `\`capacity ${digits.text}\` says how much it holds and not what it is measured by.`,
       `Write \`capacity ${digits.text} by :size\`, naming the integer property each thing it holds is measured by. A count of things is a guard reading \`self.count\`.`,
     );
   }
-  const symbol = p.take('symbol');
+  // The property is written on the line of its `by`: one on a later line
+  // is a property of the body's, which is left for it.
+  const symbol = p.at('symbol') && onOneLine(p, by, p.peek()) ? p.next() : null;
   if (symbol === null) {
     return refuse(
       `\`by\` names the property things are measured by, and ${p.subject(p.peek(), false)} is not one.`,
@@ -572,20 +598,27 @@ export function capacity(p: Parser): CapacityDeclaration | null {
 }
 
 /**
- * Step over what is left of a refused `capacity` line: a number, `by`, or
- * a property, on the keyword's own line. Anything else, and anything on a
- * later line, is the body's next member and is left for it.
+ * Step over what is left of a refused `capacity` line, part by part: a
+ * `by`, and the property written on its line after it. A property with no
+ * `by` before it is the line's own only where no value follows it on the
+ * line, since one with a value after it is a property of the body's.
  */
-function skipCapacityRest(p: Parser, keyword: Token): void {
-  for (;;) {
-    const token = p.peek();
-    const part =
-      token.kind === 'integer' ||
-      token.kind === 'symbol' ||
-      (token.kind === 'name' && token.text === 'by');
-    if (!part || p.source.text.slice(keyword.at.end, token.at.start).includes('\n')) return;
-    p.next();
-  }
+function skipCapacityRest(p: Parser): void {
+  const by = p.take('name', 'by');
+  if (!p.at('symbol')) return;
+  const symbol = p.peek();
+  const next = p.peek(1);
+  const alone =
+    next.kind === 'end' ||
+    next.kind === 'symbol' ||
+    punct(next, '}') ||
+    !onOneLine(p, symbol, next);
+  if (by !== null ? onOneLine(p, by, symbol) : alone) p.next();
+}
+
+/** Whether nothing but spaces and comments on one line stand between two tokens. */
+function onOneLine(p: Parser, before: Token, after: Token): boolean {
+  return !p.source.text.slice(before.at.end, after.at.start).includes('\n');
 }
 
 /**

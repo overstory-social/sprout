@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "40be0dca28fd0d130f92ce85f08756e63b4bc959aab0834b4204cc9737a366c2"
+      "sha": "ebeb3c0f9af04c70dd4e60caa497e5b73cfaf028a89b323e58b33b0405402068"
     }
   ],
   "files": ["chest.sprout", "person.sprout", "synonyms_in_kind.sprout"]

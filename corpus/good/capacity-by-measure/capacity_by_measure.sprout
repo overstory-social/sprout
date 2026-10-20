@@ -5,7 +5,7 @@
 // what is in it.
 import * as sprout from 'sprout'
 import {Adventurer} from 'adventurer'
-import {Thing, Paper, Sack} from 'things'
+import {Thing, Paper, Sack, Balloon} from 'things'
 
 world capacity_by_measure is sprout.World {
   visitors are Adventurer
@@ -24,5 +24,15 @@ world capacity_by_measure is sprout.World {
     object sack is Sack {
       object brick is Thing { :size 35 }
     }
+  }
+
+  // A balloon measures below nothing, which counts as nothing, so the
+  // chest's stone and balloon come to 35 and the pin's 10 is too much.
+  object vault is sprout.Place {
+    object chest is Sack {
+      object stone is Thing { :size 35 }
+      object balloon is Balloon
+    }
+    object pin is Thing { :size 10 }
   }
 }

@@ -29,7 +29,7 @@ static const struct {
     {"displaced", "The place you were standing is gone."},
     {"inside_itself", "{item} cannot go inside itself."},
     {"crowded", "There is no room in {to} for {item}."},
-    {"too_heavy", "{item} is too heavy for {to}."},
+    {"too_heavy", "{to} cannot hold {item}."},
     {"waited", "Time passes."},
     {"help", "You can type: {for reading of readings}{reading}{if $last}.{else}, {/if}{/for}"},
     {"acted", "{actor} tries to {reading}."},

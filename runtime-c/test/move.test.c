@@ -268,10 +268,10 @@ static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(vo
   free(file);
 }
 
-/* A sack that holds 40 by `:size`, a brick of 35 in it, is moved into by the crypt: the result, and its refusal's line. */
-static void into_the_sack(const char *item, sprout_move_end *end, const char **line, size_t *bindings, bool *placed) {
+/* `place` moves `item` into `holder`, which holds 40 by `:size`: the result, and its refusal's line. */
+static void moved_into(const char *place, const char *item, const char *holder, sprout_move_end *end, const char **line,
+                       size_t *bindings, bool *placed) {
   static char said[64];
-  static const char *const crypt = "capacity_by_measure.crypt", *const sack = "capacity_by_measure.crypt.sack";
   test_heap heap;
   sprout_host host = corpus_host(&heap);
   size_t length;
@@ -295,20 +295,28 @@ static void into_the_sack(const char *item, sprout_move_end *end, const char **l
   sprout_meter_begin(&meter, &host, SPROUT_TURN_COMMAND);
   sprout_draws_begin(&draws, 1);
   sprout_exec_begin(&x, world, &draft, &turn, &meter, &draws, &fault, 0);
-  frame = sprout_exec_frame(&x, exec_str(crypt), "capacity_by_measure", NULL);
-  CHECK_INT(sprout_move_instance(&x, &frame, exec_str(crypt), exec_str(item), exec_str(sack), SPROUT_REACH_RANGE, NULL,
+  frame = sprout_exec_frame(&x, exec_str(place), "capacity_by_measure", NULL);
+  CHECK_INT(sprout_move_instance(&x, &frame, exec_str(place), exec_str(item), exec_str(holder), SPROUT_REACH_RANGE, NULL,
                                  end, &refusal),
             SPROUT_EVAL_OK);
   snprintf(said, sizeof said, "%s", *end == SPROUT_MOVE_REFUSED_BY_ENGINE ? refusal.said.name : "");
   *line = said;
     *bindings = refusal.binding_count;
   moved = sprout_draft_instance(&draft, exec_str(item));
-  *placed = moved != NULL && sprout_str_same(moved->container, exec_str(sack));
+  *placed = moved != NULL && sprout_str_same(moved->container, exec_str(holder));
     CHECK(*end != SPROUT_MOVE_REFUSED_BY_GUARD);
   sprout_arena_reset(&turn);
   sprout_state_free(state);
   sprout_world_free(world);
   free(cartridge);
+}
+
+static void into_the_sack(const char *item, sprout_move_end *end, const char **line, size_t *bindings, bool *placed) {
+  moved_into("capacity_by_measure.crypt", item, "capacity_by_measure.crypt.sack", end, line, bindings, placed);
+}
+
+static void into_the_chest(const char *item, sprout_move_end *end, const char **line, size_t *bindings, bool *placed) {
+  moved_into("capacity_by_measure.vault", item, "capacity_by_measure.vault.chest", end, line, bindings, placed);
 }
 
 static void a_container_that_holds_by_measure_refuses_what_would_take_it_past_its_most(void) {
@@ -324,6 +332,21 @@ static void a_container_that_holds_by_measure_refuses_what_would_take_it_past_it
   CHECK(!placed);
   /* The leaflet's kind declares no `:size`, so it measures nothing and goes in. */
   into_the_sack("capacity_by_measure.crypt.leaflet", &end, &line, &bindings, &placed);
+  CHECK_INT(end, SPROUT_MOVE_DONE);
+  CHECK(placed);
+}
+
+static void a_measure_below_nothing_counts_as_nothing_and_what_is_already_in_counts_once(void) {
+  sprout_move_end end;
+  const char *line;
+  size_t bindings;
+  bool placed;
+  /* The stone's 35 and the balloon's -10, held at nothing, come to 35: the pin's 10 takes the chest past its 40. */
+  into_the_chest("capacity_by_measure.vault.pin", &end, &line, &bindings, &placed);
+  CHECK_INT(end, SPROUT_MOVE_REFUSED_BY_ENGINE);
+  CHECK_STR(line, "too_heavy");
+  /* The stone moved into the chest it is already in is weighed once, 35, and not again on top of itself. */
+  into_the_chest("capacity_by_measure.vault.chest.stone", &end, &line, &bindings, &placed);
   CHECK_INT(end, SPROUT_MOVE_DONE);
   CHECK(placed);
 }
@@ -346,6 +369,7 @@ int main(void) {
   RUN(an_actor_moved_between_places_is_spoken_of_and_a_description_is_owed);
   RUN(a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed);
   RUN(a_container_that_holds_by_measure_refuses_what_would_take_it_past_its_most);
+  RUN(a_measure_below_nothing_counts_as_nothing_and_what_is_already_in_counts_once);
   RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
   return REPORT();
 }

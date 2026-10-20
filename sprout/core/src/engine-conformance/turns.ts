@@ -109,7 +109,7 @@ export const turnCases: EngineCase[] = [
       const refused = await runCommand(store, 'w', host, command('take stone'));
       match(
         refused.effects,
-        [{ kind: 'refused', visit: MARTA, paragraphs: ['A stone is too heavy for you.'] }],
+        [{ kind: 'refused', visit: MARTA, paragraphs: ['You cannot hold a stone.'] }],
         'what taking the stone says',
       );
       const held = async (id: string) =>

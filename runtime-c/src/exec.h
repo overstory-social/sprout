@@ -291,6 +291,13 @@ sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame,
                                       sprout_str actor, sprout_str other, const char *way);
 
 /*
+ * Whether `item` would take `to` past the most it holds by measure (`capacity 100 by :size`): what `to` holds
+ * already, `item` aside, and `item`, each by its own value alone. False where `to` holds by no measure. Each thing
+ * weighed is a step.
+ */
+sprout_eval_status sprout_move_too_heavy(const sprout_frame *frame, sprout_str item, sprout_str to, bool *heavy);
+
+/*
  * Whether `to` is in range of a move `mover` proposes of `item`: any place where `mover` roams and moves itself; in
  * its range; or an exit or link of its place leads there. `item` with NULL bytes is a destination read before the
  * item is known.

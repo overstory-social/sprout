@@ -304,7 +304,7 @@ world all have one.
 | `remembers { :visits 0 min 0 max 99 }`   | properties kept separately for each actor                      |      yes       |  yes  |
 | `contains`, `contains actors`            | it holds things; `contains actors` holds people too            |      yes       |  yes  |
 | `roams`                                  | a character of it moves itself to any place (see [Characters moving](#characters-moving)) | yes |   —   |
-| `capacity 100 by :size`                  | it holds no more than what is in it measures (see [Holding by measure](#holding-by-measure)) | yes |   —   |
+| `capacity 100 by :size`                  | it holds no more than what is in it measures (see [Holding by measure](#holding-by-measure)) | yes |  yes  |
 | `grammar { … }`                          | its name, article and nouns, and a place's exits and links     |      yes       |   —   |
 | `describe { … }`                         | what someone looking at it reads                               |      yes       |   —   |
 | `passage name { … }`                     | a named piece of writing                                       |      yes       |  yes  |
@@ -2326,7 +2326,7 @@ So a character can have its own `arrives`, and a place its own
 | `displaced`       | The place you were standing is gone.                                |
 | `inside_itself`   | {item} cannot go inside itself.                                     |
 | `crowded`         | There is no room in {to} for {item}.                                |
-| `too_heavy`       | {item} is too heavy for {to}.                                       |
+| `too_heavy`       | {to} cannot hold {item}.                                       |
 | `waited`          | Time passes.                                                        |
 | `help`            | You can type: …                                                     |
 | `acted`           | {actor} tries to {reading}.                                         |

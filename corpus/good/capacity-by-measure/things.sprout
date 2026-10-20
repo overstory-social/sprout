@@ -11,3 +11,7 @@ kind Sack is Thing, sprout.Container {
   :size 5
   capacity 40 by :size
 }
+
+kind Balloon {
+  :size -10 min -10 max 0
+}

@@ -27,7 +27,7 @@ type Owner = (typeof OWNERS)[number];
 
 /** The members every body holds, with `holds` first where the owner says one more, and `grammar` and `describe` where it is a thing's. */
 const membersOf = (owner: Owner): string =>
-  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, ${owner.holds === null ? '`roams`, `capacity`, ' : ''}\`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
+  `\`remembers\`, ${owner.holds === null ? '' : `\`${owner.holds}\`, `}\`contains\`, ${owner.holds === null ? '`roams`, ' : ''}\`capacity\`, \`passage\`, \`prose\`, \`without\`, \`synonyms\`, ${owner.holds === null ? '`grammar`, `describe`, ' : ''}\`depart\`, \`release\`, \`accept\`, \`as\`, \`on\`, \`changed\`, \`pass\` and \`object\``;
 
 /** A member by its name where it is a property, and otherwise by what it is. */
 const named = (members: readonly WorldMember[]): string[] =>
@@ -91,6 +91,31 @@ describe('`capacity <n> by :<property>`', () => {
       expect(text.slice(refusals[0]!.at.start, refusals[0]!.at.end)).toBe(at);
       expect(named(members)).toContain('a');
       expect(members.some((m) => m.kind === 'capacity')).toBe(false);
+    });
+  }
+
+  it('refuses a fraction once, and steps over the rest of its line', () => {
+    const { members, refusals } = readBody(
+      'kind Sack is sprout.Container {\n  capacity 10.5 by :size\n  :a 1\n}\n',
+    );
+    expect(refusals.map((r) => r.message)).toEqual(['Sprout has no fractions.']);
+    expect(named(members)).toEqual(['a']);
+  });
+
+  // Properties may share a line with a member, so a refused capacity
+  // steps over only its own parts and keeps every property beside it.
+  const besides = [
+    { line: 'capacity by :size :max 5 :min 1', kept: ['max', 'min'] },
+    { line: 'capacity 10 :max 5', kept: ['max'] },
+    { line: 'capacity 10 by :size :max 5', kept: ['max'], wellFormed: true },
+    { line: 'capacity 10.5 by :size :max 5', kept: ['max'] },
+    { line: 'capacity 10 by 4 :max 5', kept: ['max'] },
+  ];
+  for (const { line, kept, wellFormed } of besides) {
+    it(`keeps the properties written on one line with \`${line}\``, () => {
+      const { members, refusals } = readBody(`kind Sack is sprout.Container { ${line} }\n`);
+      expect(named(members).filter((name) => name !== 'capacity')).toEqual(kept);
+      expect(refusals).toHaveLength(wellFormed === true ? 0 : 1);
     });
   }
 });

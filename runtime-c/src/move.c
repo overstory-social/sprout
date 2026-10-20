@@ -67,13 +67,9 @@ static sprout_eval_status measure_of(const sprout_frame *frame, sprout_str id, c
   return SPROUT_EVAL_OK;
 }
 
-/*
- * Whether `item` would take `to` past the most it holds by measure: what `to` holds already, `item` aside, and
- * `item`, each by its own value alone, so a box weighs what it weighs and not what is in it. Each thing weighed is a
- * step.
- */
-static sprout_eval_status too_heavy(const sprout_frame *frame, sprout_str item, sprout_str to,
-                                    const sprout_stored_instance *destination, bool *heavy) {
+/* Each thing measures its own value alone, so a box weighs what it weighs and not what is in it. */
+sprout_eval_status sprout_move_too_heavy(const sprout_frame *frame, sprout_str item, sprout_str to, bool *heavy) {
+  const sprout_stored_instance *destination = sprout_draft_instance(frame->draft, to);
   const sprout_str *held;
   size_t count, i;
   double total, one;
@@ -327,7 +323,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     *end = SPROUT_MOVE_REFUSED_BY_GUARD;
     return SPROUT_EVAL_OK;
   }
-  EXPR_NEED(too_heavy(frame, item, to, destination, &heavy));
+  EXPR_NEED(sprout_move_too_heavy(frame, item, to, &heavy));
   if (heavy) {
     sprout_str by;
     sprout_engine_said(frame, "too_heavy", &mover, standing.bytes == NULL ? NULL : &standing, &by, &refusal->said);
