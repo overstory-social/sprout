@@ -1,15 +1,16 @@
 /*
  * ui/downloads.c: the download screen, driven through the app a frame at a time over the fake's
  * canned server. The rules: "more worlds..." fetches the index the Data folder's settings name,
- * asking permission with the app's purpose; an index is listed only once its signature verifies
- * against the baked key, and one that does not is refused in words that the shelf repeats; a
- * world chosen arrives whole as one file, its pictures inside it, checked against the index and
- * put in place, and is shelved; and a world whose bytes are not the ones listed (another checksum,
- * more bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
- * the network fails is said, and leaving mid-download leaves nothing half written or open. The
- * worlds are the words of a wheel by title, turned by the crank and the d-pad and wrapping, one on
- * the shelf already greyed with the panel saying so. A file is named for its title as the publisher
- * names it (test/fixtures/stems.json, which `sprout index`'s spec holds to the same names).
+ * asking permission with the app's purpose, which the dialog draws whole; an index is listed only
+ * once its signature verifies against the baked key, and one that does not is refused in words that
+ * the shelf repeats; a world chosen arrives whole as one file, its pictures inside it, checked
+ * against the index and put in place, and is shelved; and a world whose bytes are not the ones
+ * listed (another checksum, more bytes, a missing file, another build) is refused in words and
+ * leaves nothing behind. Every way the network fails is said, and leaving mid-download leaves
+ * nothing half written or open. The worlds are the words of a wheel by title, turned by the crank
+ * and the d-pad and wrapping, one on the shelf already greyed with the panel saying so. A file is
+ * named for its title as the publisher names it (test/fixtures/stems.json, which `sprout index`'s
+ * spec holds to the same names).
  */
 #include <stdlib.h>
 
@@ -412,8 +413,27 @@ static void a_file_is_named_for_its_title_as_the_publisher_names_it(void) {
   end();
 }
 
+/*
+ * The console's permission dialog draws the purpose in a font with no comma and cuts it after about
+ * 80 characters, so the purpose keeps to letters, digits and spaces, ends in a full stop, and fits.
+ */
+static void the_purpose_is_one_the_dialog_draws_whole(void) {
+  const char *purpose = PLAYER_NETWORK_PURPOSE;
+  size_t i, length = strlen(purpose);
+  begin("purpose");
+  CHECK(length > 1 && length <= 80, "%zu characters: %s", length, purpose);
+  CHECK(length > 0 && purpose[length - 1] == '.', "ends in a full stop: %s", purpose);
+  for (i = 0; i + 1 < length; i++) {
+    char c = purpose[i];
+    CHECK((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ',
+          "character %zu, '%c', is a letter, a digit or a space: %s", i, c, purpose);
+  }
+  end();
+}
+
 int main(void) {
   test_program("downloads");
+  the_purpose_is_one_the_dialog_draws_whole();
   a_file_is_named_for_its_title_as_the_publisher_names_it();
   the_signed_index_is_listed_and_one_changed_is_refused();
   a_chosen_world_arrives_whole_and_is_shelved();

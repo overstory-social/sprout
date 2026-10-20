@@ -34,9 +34,12 @@
 #define PLAYER_INDEX_URL "https://overstory-social.github.io/sprout-studio/worlds/index.json"
 #define PLAYER_DOWNLOADS_SETTINGS "downloads.json"
 
-/* What the system's permission dialog says the network is for. */
-#define PLAYER_NETWORK_PURPOSE \
-  "Sprout fetches the list of published worlds, and the worlds you choose from it, from this server."
+/*
+ * What the system's permission dialog says the network is for. Letters, digits, spaces and a final
+ * full stop only, and at most 80 characters: the dialog's font has no comma and it cuts the purpose
+ * after about 80 characters.
+ */
+#define PLAYER_NETWORK_PURPOSE "Sprout fetches published worlds from this server."
 
 typedef enum downloads_phase {
   DOWNLOADS_INDEX,  /* the list is being fetched */
