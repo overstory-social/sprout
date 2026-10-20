@@ -7,6 +7,7 @@ import { objectOf, OPEN_OBJECT, valueOf } from '../bindings.js';
 import { ACTOR } from '../../declare/actors.js';
 import type { Expr } from '../../syntax/ast.js';
 import { integer } from '../../declare/types.js';
+import { UNSEEN } from '../../declare/unseen.js';
 import {
   at,
   bodyOf,
@@ -54,6 +55,15 @@ describe('a receiver’s kind', () => {
     const context = vessel();
     expect(declaredOn(KEY, word(':wear'), context)).toBe(KEY.properties.get('wear'));
     expect(declaredOn(KEY, word(':waer'), context)).toBeNull();
+    expect(saidBy(context)).toEqual([
+      '`Key` has no `:waer`. Did you mean `:wear`? It has `:wear` and `:opens`: name one of those, or declare `:waer` in `Key` with its default.',
+    ]);
+  });
+
+  it('leaves the standard library’s `:unseen` out of what it suggests, since every object has it', () => {
+    const context = vessel();
+    const seen = { ...KEY, properties: new Map([...KEY.properties, [UNSEEN.name, UNSEEN]]) };
+    expect(declaredOn(seen, word(':waer'), context)).toBeNull();
     expect(saidBy(context)).toEqual([
       '`Key` has no `:waer`. Did you mean `:wear`? It has `:wear` and `:opens`: name one of those, or declare `:waer` in `Key` with its default.',
     ]);

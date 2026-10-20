@@ -1,8 +1,8 @@
 /*
- * What a visitor may name (the spec's Range; Range > Sight; Parsing > Choosing a reading): every live thing the
- * range walk reaches but the world, nearest first, each with its nearness and whether the one typing carries it.
- * In the dark a visitor names only themselves and what they carry. Every object the walk visits is a step; the
- * rest charges nothing.
+ * What a visitor may name (the spec's Range; Range > Sight, Unseen; Parsing > Choosing a reading): every live thing
+ * the range walk the visitor sees reaches but the world, nearest first, each with its nearness and whether the one
+ * typing carries it, so nothing unseen and nothing an unseen thing holds. In the dark a visitor names only
+ * themselves and what they carry. Every object the walk visits is a step; the rest charges nothing.
  *
  * Nearness counts first the ring a thing is in, how far out the container is that it is reached through, then
  * how deep inside that container it lies, and two things are equally near only where both agree. The actor's own
@@ -114,7 +114,7 @@ sprout_eval_status parse_reach_of(const sprout_frame *frame, sprout_str actor, p
   *out = NULL;
   *count = 0;
   if (self == NULL || !self->has_container) return expr_engine(frame, "the one typing stands nowhere.");
-  EXPR_NEED(sprout_range_of(frame, actor, NULL, &reached, &reached_count));
+  EXPR_NEED(sprout_range_seen(frame, actor, &reached, &reached_count));
   near = (size_t *)sprout_arena_take(frame->turn, (reached_count + 1) * sizeof *near);
   carried = (bool *)sprout_arena_take(frame->turn, reached_count + 1);
   candidates = (parse_candidate *)sprout_arena_take(frame->turn, (reached_count + 1) * sizeof *candidates);

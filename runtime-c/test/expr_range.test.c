@@ -2,10 +2,12 @@
  * Tests for src/expr/range.c: what is live in the containment tree, whether
  * a target is in range of an asker by the path between them (every container
  * strictly between letting it through), what a container holds that `self`
- * can see, and the walk outward that a place's `lit` makes.
+ * can see, and the walk outward that a place's `lit` makes; what `self` sees
+ * and sight pass over what is unseen (Range > Unseen).
  */
 #include "eval_fixture.h"
 #include "expr/expr.h"
+#include "unseen_fixture.h"
 
 #define HALL "eval_bench.hall"
 #define PROBE "eval_bench.hall.probe"
@@ -105,6 +107,74 @@ static void sight_walks_outward_from_where_a_thing_stands(void) {
   bench_close(&b);
 }
 
+static bool among(const sprout_str *ids, size_t count, const char *id) {
+  size_t i;
+  for (i = 0; i < count; i++)
+    if (sprout_str_is(ids[i], id)) return true;
+  return false;
+}
+
+static void what_is_unseen_is_reached_and_not_seen_but_by_itself_and_what_it_holds(void) {
+  unseen_bench b;
+  bool reached = false, seen = true;
+  unseen_open(&b);
+  CHECK_INT(expr_reaches(&b.frame, b.marta, unseen_str("unseen.hall.niche.coin"), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_seen_by(&b.frame, unseen_str("unseen.hall.niche.coin"), &seen), SPROUT_EVAL_OK);
+  CHECK(!seen);
+  CHECK_INT(expr_seen_by(&b.frame, unseen_str("unseen.hall.thief"), &seen), SPROUT_EVAL_OK);
+  CHECK(!seen);
+  CHECK_INT(expr_seen_by(&b.frame, unseen_str("unseen.hall.bell"), &seen), SPROUT_EVAL_OK);
+  CHECK(seen);
+  b.frame.self = unseen_str("unseen.hall.niche");
+  CHECK_INT(expr_seen_by(&b.frame, unseen_str("unseen.hall.niche"), &seen), SPROUT_EVAL_OK);
+  CHECK(seen);
+  CHECK_INT(expr_seen_by(&b.frame, unseen_str("unseen.hall.niche.coin"), &seen), SPROUT_EVAL_OK);
+  CHECK(seen);
+  b.frame.self = unseen_str("unseen.hall.niche.coin");
+  CHECK_INT(expr_seen_by(&b.frame, unseen_str("unseen.hall.niche"), &seen), SPROUT_EVAL_OK);
+  CHECK(seen);
+  unseen_close(&b);
+}
+
+static void a_container_shows_nothing_unseen_save_in_the_acting_visitors_open_hands(void) {
+  unseen_bench b;
+  const sprout_str *seen;
+  size_t count;
+  unseen_open(&b);
+  CHECK_INT(sprout_draft_place(&b.run.draft, unseen_str("unseen.hall.bell"), &b.marta), SPROUT_DRAFT_OK);
+  unseen_set(&b, "unseen.hall.bell", true);
+  b.frame.self = unseen_str("unseen.hall");
+  CHECK_INT(expr_contents_seen(&b.frame, unseen_str("unseen.hall"), &seen, &count), SPROUT_EVAL_OK);
+  CHECK(among(seen, count, "unseen.hall.leaves"));
+  CHECK(!among(seen, count, "unseen.hall.thief") && !among(seen, count, "unseen.hall.grating"));
+  b.frame.hands = b.marta;
+  CHECK_INT(expr_contents_seen(&b.frame, b.marta, &seen, &count), SPROUT_EVAL_OK);
+  CHECK(among(seen, count, "unseen.hall.bell"));
+  /* An unseen visitor's hands are open to their own refusal's words too. */
+  unseen_write(&b.run.draft, b.frame.turn, tw_person(&b.w, "v-marta"), true);
+  CHECK_INT(expr_contents_seen(&b.frame, b.marta, &seen, &count), SPROUT_EVAL_OK);
+  CHECK(among(seen, count, "unseen.hall.bell"));
+  b.frame.hands = (sprout_str){NULL, 0};
+  CHECK_INT(expr_contents_seen(&b.frame, b.marta, &seen, &count), SPROUT_EVAL_OK);
+  CHECK_INT(count, 0);
+  unseen_close(&b);
+}
+
+static void sight_does_not_see_what_is_unseen(void) {
+  unseen_bench b;
+  const sprout_str *seen;
+  size_t count;
+  unseen_open(&b);
+  CHECK_INT(expr_seen_from(&b.frame, unseen_str("unseen.cellar"), &seen, &count), SPROUT_EVAL_OK);
+  CHECK(among(seen, count, "unseen.cellar"));
+  CHECK(!among(seen, count, "unseen.cellar.lamp"));
+  unseen_set(&b, "unseen.cellar.lamp", false);
+  CHECK_INT(expr_seen_from(&b.frame, unseen_str("unseen.cellar"), &seen, &count), SPROUT_EVAL_OK);
+  CHECK(among(seen, count, "unseen.cellar.lamp"));
+  unseen_close(&b);
+}
+
 int main(void) {
   RUN(what_is_in_the_tree_is_live_and_what_is_not_is_not);
   RUN(a_target_is_in_range_when_every_container_between_lets_it_through);
@@ -112,5 +182,8 @@ int main(void) {
   RUN(every_node_the_walk_touches_costs_a_step);
   RUN(a_container_shows_what_self_can_see_in_its_order);
   RUN(sight_walks_outward_from_where_a_thing_stands);
+  RUN(what_is_unseen_is_reached_and_not_seen_but_by_itself_and_what_it_holds);
+  RUN(a_container_shows_nothing_unseen_save_in_the_acting_visitors_open_hands);
+  RUN(sight_does_not_see_what_is_unseen);
   return REPORT();
 }

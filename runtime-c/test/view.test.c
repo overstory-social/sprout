@@ -5,7 +5,7 @@
  * world and the bench cases for what a view is for: the ways out, a set role, a value role's options, a
  * refusal, `inside_itself`, the dark, a visitor whose place is gone and a poll that spends its budget. A filler
  * says whether `all` would take it, by the parser's rule, and carries the words its verb's phrase puts before its
- * role's slot. A poll draws nothing and writes nothing.
+ * role's slot. What is unseen is neither listed nor offered. A poll draws nothing and writes nothing.
  */
 #include "view_fixture.h"
 #include "turn_fixture.h"
@@ -559,6 +559,37 @@ static void a_poll_that_faults_on_an_object_lays_the_fault_against_it(void) {
   tw_close(&w);
 }
 
+/* Whether any reading the view offers types `word`. */
+static bool offers_word(const sprout_seen_view *view, const char *word) {
+  size_t i, at, length = strlen(word);
+  for (i = 0; i < view->reading_count; i++)
+    for (at = 0; at + length <= view->readings[i].typed.length; at++)
+      if (memcmp(view->readings[i].typed.bytes + at, word, length) == 0) return true;
+  return false;
+}
+
+static void the_view_neither_lists_nor_offers_what_is_unseen(void) {
+  turn_world w;
+  sprout_outcome arrived;
+  sprout_seen_view view;
+  memset(&w, 0, sizeof w);
+  tw_open(&w, "unseen");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &arrived);
+  sprout_outcome_free(&arrived);
+  CHECK_INT(sprout_view(w.world, w.state, &w.host, "v-marta", &view), SPROUT_OK);
+  CHECK_INT(view.occupant_count, 0);
+  CHECK(offers_word(&view, "bell"));
+  CHECK(!offers_word(&view, "thief") && !offers_word(&view, "grating") && !offers_word(&view, "coin"));
+  sprout_view_free(&view);
+  tw_arrive(&w, "v-ines", "Ines", 1001, &arrived);
+  sprout_outcome_free(&arrived);
+  CHECK_INT(sprout_view(w.world, w.state, &w.host, "v-marta", &view), SPROUT_OK);
+  CHECK_INT(view.occupant_count, 1);
+  CHECK(view.occupant_count == 1 && sprout_str_is(view.occupants[0].name, "Ines"));
+  sprout_view_free(&view);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_scene_lists_the_verbs_and_a_verbs_readings_come_alone_as_the_whole_poll_gives_them);
   RUN(a_verbs_readings_that_spend_their_budget_are_no_readings);
@@ -577,5 +608,6 @@ int main(void) {
   RUN(a_poll_writes_nothing);
   RUN(a_visit_the_world_never_saw_and_a_visitor_who_is_away_have_no_view);
   RUN(a_host_that_cannot_give_a_page_is_told_so_and_leaks_nothing);
+  RUN(the_view_neither_lists_nor_offers_what_is_unseen);
   return REPORT();
 }

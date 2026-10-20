@@ -121,8 +121,8 @@ describe('two kinds of one name, in two files', () => {
     const made = (name: string) => result.bundle!.objects.find((object) => object.name === name)!;
     expect(made('iron').kind.composes.has('w/iron/key.Key')).toBe(true);
     expect(made('brass').kind.composes.has('w/brass/key.Key')).toBe(true);
-    expect([...made('iron').kind.properties.keys()]).toEqual(['heavy']);
-    expect([...made('brass').kind.properties.keys()]).toEqual(['shiny']);
+    expect([...made('iron').kind.properties.keys()]).toEqual(['heavy', 'unseen']);
+    expect([...made('brass').kind.properties.keys()]).toEqual(['shiny', 'unseen']);
   });
 });
 

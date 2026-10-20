@@ -1,8 +1,9 @@
 /*
  * What an object can reach (the spec's The world model > Range; Events,
  * messages and the bus > Sending): the walk a broadcast makes and the one a
- * move's notices make. Every node reached is one step of the turn's budget
- * (Limits > Runtime budgets).
+ * move's notices make, and the same walk as a visitor sees it, passing over
+ * what is unseen and what it holds (Range > Unseen). Every node reached is
+ * one step of the turn's budget (Limits > Runtime budgets).
  *
  * Two invariants. The asker always reaches itself, its own contents and the
  * surface of every container out to the first that refuses, whatever that
@@ -16,6 +17,7 @@
 typedef struct walk {
   const sprout_frame *frame;
   const char *asking;
+  bool sight; /* what is unseen, and what it holds, is passed over */
   sprout_reached *reached;
   size_t count, capacity;
 } walk;
@@ -76,6 +78,7 @@ static sprout_eval_status sweep(walk *w, ids *frontier) {
     EXPR_NEED(expr_passes(w->frame, node, w->asking, &open));
     if (!open) continue;
     for (i = 0; i < n; i++) {
+      if (w->sight && expr_unseen(w->frame, held[i])) continue;
       EXPR_NEED(reach(w, held[i], SPROUT_VIA_PASSED));
       EXPR_NEED(push(w->frame, frontier, held[i]));
     }
@@ -83,9 +86,9 @@ static sprout_eval_status sweep(walk *w, ids *frontier) {
   return SPROUT_EVAL_OK;
 }
 
-sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, const char *asking,
-                                   const sprout_reached **reached, size_t *count) {
-  walk w = {frame, asking, NULL, 0, 0};
+static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker, const char *asking, bool sight,
+                                    const sprout_reached **reached, size_t *count) {
+  walk w = {frame, asking, sight, NULL, 0, 0};
   ids own = {NULL, 0, 0}, ring = {NULL, 0, 0};
   const sprout_str *held;
   size_t n, i;
@@ -93,8 +96,9 @@ sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, 
   bool has_outer;
   EXPR_NEED(reach(&w, asker, SPROUT_VIA_SELF));
   EXPR_NEED(contents(frame, asker, &held, &n));
-  for (i = 0; i < n; i++) EXPR_NEED(push(frame, &own, held[i]));
-  for (i = 0; i < n; i++) EXPR_NEED(reach(&w, held[i], SPROUT_VIA_HELD));
+  for (i = 0; i < n; i++)
+    if (!sight || !expr_unseen(frame, held[i])) EXPR_NEED(push(frame, &own, held[i]));
+  for (i = 0; i < own.count; i++) EXPR_NEED(reach(&w, own.items[i], SPROUT_VIA_HELD));
   EXPR_NEED(sweep(&w, &own));
   has_outer = container_of(frame, asker, &outer);
   while (has_outer) {
@@ -108,7 +112,8 @@ sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, 
     EXPR_NEED(contents(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++)
-      if (!sprout_str_same(held[i], inner)) EXPR_NEED(push(frame, &ring, held[i]));
+      if (!sprout_str_same(held[i], inner) && (!sight || !expr_unseen(frame, held[i])))
+        EXPR_NEED(push(frame, &ring, held[i]));
     for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], SPROUT_VIA_PASSED));
     EXPR_NEED(sweep(&w, &ring));
     inner = outer;
@@ -117,4 +122,14 @@ sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, 
   *reached = w.reached;
   *count = w.count;
   return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_range_of(const sprout_frame *frame, sprout_str asker, const char *asking,
+                                   const sprout_reached **reached, size_t *count) {
+  return walk_from(frame, asker, asking, false, reached, count);
+}
+
+sprout_eval_status sprout_range_seen(const sprout_frame *frame, sprout_str asker, const sprout_reached **reached,
+                                     size_t *count) {
+  return walk_from(frame, asker, NULL, true, reached, count);
 }
