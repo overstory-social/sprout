@@ -101,6 +101,9 @@ static void access_answered(bool allowed, void *userdata) {
 
 static void wifi_answered(PDNetErr error) { wifi_error = error; }
 
+/* The Wi-Fi going down has nothing to report, but the console calls the callback unchecked, so it is never NULL. */
+static void wifi_slept(PDNetErr error) { (void)error; }
+
 static void request_over(HTTPConnection *conn) {
   player_fetch *f = (player_fetch *)http_api->getUserdata(conn);
   if (f != NULL) f->finished = true;
@@ -335,7 +338,7 @@ static void *ready_thunk(void *ctx) {
 
 static void *finish_thunk(void *ctx) {
   net_call *c = (net_call *)ctx;
-  if (has_http(c->pd)) c->pd->network->setEnabled(false, NULL);
+  if (has_http(c->pd)) c->pd->network->setEnabled(false, wifi_slept);
   return NULL;
 }
 
