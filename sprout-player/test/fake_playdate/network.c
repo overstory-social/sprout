@@ -27,8 +27,9 @@ fake_answer *fake_serve(fake_playdate *fake, const char *url, int status, const 
 static WifiStatus fake_wifi_status(void) { return fake_current->wifi; }
 
 static void fake_set_enabled(bool flag, void (*callback)(PDNetErr err)) {
+  if (callback == NULL) abort(); /* the console's system software calls it unchecked */
   fake_current->wifi_enabled = flag;
-  if (flag && callback != NULL) callback(NET_OK);
+  if (flag) callback(NET_OK);
 }
 
 static enum accessReply fake_request_access(const char *server, int port, bool usessl, const char *purpose,
