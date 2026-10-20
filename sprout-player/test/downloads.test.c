@@ -8,7 +8,8 @@
  * more bytes, a missing file, another build) is refused in words and leaves nothing behind. Every way
  * the network fails is said, and leaving mid-download leaves nothing half written or open. The
  * worlds are the words of a wheel by title, turned by the crank and the d-pad and wrapping, one on
- * the shelf already greyed with the panel saying so. A file is named for its title as the publisher
+ * the shelf already greyed with the panel saying so; of several builds of one world only the newest is a word, and the
+ * panel and the download are that build's. A file is named for its title as the publisher
  * names it (test/fixtures/stems.json, which `sprout index`'s spec holds to the same names).
  */
 #include <stdlib.h>
@@ -187,6 +188,21 @@ static player_downloads *open_listed(void) {
   return d;
 }
 
+/* Lists the media room as three builds: 1.10.0 itself, an older one before it and one of the same version after it,
+ * the other two at addresses the fake does not serve. */
+static void list_builds(void) {
+  static const char BUILD[] = "{\"title\":\"Media Room\",\"author\":\"Ada\",\"version\":\"%s\",\"bytes\":%zu,\"hash\":\"%s\","
+                              "\"sha256\":\"%s\",\"url\":\"%s\"}";
+  static const char OTHER_HASH[] = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  char older[600], newest[600], same[600];
+  list_world(NULL);
+  snprintf(older, sizeof older, BUILD, "1.9.0", world.cartridge_bytes, OTHER_HASH, world.sha, "media-room-older.sproutworld");
+  snprintf(newest, sizeof newest, BUILD, "1.10.0", world.cartridge_bytes, world.hash, world.sha, "media-room.sproutworld");
+  snprintf(same, sizeof same, BUILD, "1.10.0", world.cartridge_bytes, OTHER_HASH, world.sha, "media-room-again.sproutworld");
+  snprintf(world.index, sizeof world.index, "{\"worlds\":[%s,%s,%s],\"signed\":\"00\"}", older, newest, same);
+  fake_serve(fake, INDEX_URL, 200, world.index, strlen(world.index));
+}
+
 /* ---- the scenarios ---- */
 
 static void the_signed_index_is_listed_and_one_changed_is_refused(void) {
@@ -336,6 +352,21 @@ static void a_world_whose_bytes_are_not_the_listed_ones_is_refused_and_leaves_no
   forget_world();
 }
 
+static void of_several_builds_the_newest_is_offered_and_downloaded(void) {
+  start("newest");
+  list_builds();
+  fake_serve(fake, "https://w.example/sprout/media-room.sproutworld", 200, world.cartridge, world.cartridge_bytes);
+  CHECK(open_listed() != NULL, "the screen");
+  CHECK(strcmp(front(), "Media Room") == 0 && wheel_placed_entry(wheel_up(), 1) < 0 && screen()->worlds->count == 1,
+        "three builds are one word: %s", word(1));
+  CHECK(HAS(panel(), "by Ada, version 1.10.0, "), "the panel is the newest build's: %s", panel());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(frames_until("Media Room is on your shelf.", 400), "the newest build is the one fetched: %s", panel());
+  CHECK(exists(world.final), "the cartridge %s is in place", world.final);
+  stop();
+  forget_world();
+}
+
 static void leaving_mid_download_leaves_nothing_behind(void) {
   fake_answer *slow;
   start("leaving");
@@ -417,6 +448,7 @@ int main(void) {
   a_file_is_named_for_its_title_as_the_publisher_names_it();
   the_signed_index_is_listed_and_one_changed_is_refused();
   a_chosen_world_arrives_whole_and_is_shelved();
+  of_several_builds_the_newest_is_offered_and_downloaded();
   a_world_whose_bytes_are_not_the_listed_ones_is_refused_and_leaves_nothing();
   leaving_mid_download_leaves_nothing_behind();
   every_way_the_list_cannot_be_had_is_said();
