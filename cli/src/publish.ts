@@ -45,8 +45,9 @@ const STEM_MOST = 24;
 
 /**
  * The file-name stem the app makes of a title: its ASCII letters, lower
- * case, and digits, each run of anything else between them one hyphen, at
- * most 24 long; `world` where nothing is left.
+ * case, and digits, each run of anything else between them one hyphen, cut
+ * to its first 24 characters with a hyphen the cut leaves at the end dropped;
+ * `world` where nothing is left.
  */
 export function publishedStem(title: string): string {
   let stem = '';
@@ -55,11 +56,15 @@ export function publishedStem(title: string): string {
     if (stem.length >= STEM_MOST) break;
     const c = byte >= 0x41 && byte <= 0x5a ? byte + 0x20 : byte;
     if ((c >= 0x61 && c <= 0x7a) || (c >= 0x30 && c <= 0x39)) {
-      if (hyphen && stem.length > 0 && stem.length + 1 < STEM_MOST) stem += '-';
+      if (hyphen && stem.length > 0) {
+        stem += '-';
+        if (stem.length >= STEM_MOST) break;
+      }
       hyphen = false;
       stem += String.fromCharCode(c);
     } else hyphen = true;
   }
+  if (stem.endsWith('-')) stem = stem.slice(0, -1);
   return stem === '' ? 'world' : stem;
 }
 

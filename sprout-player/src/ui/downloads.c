@@ -78,7 +78,10 @@ void player_downloads_stem(const char *title, char *out, size_t size) {
     char c = *title;
     if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
     if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
-      if (hyphen && n > 0 && n + 1 < most) out[n++] = '-';
+      if (hyphen && n > 0) {
+        out[n++] = '-';
+        if (n == most) break;
+      }
       hyphen = false;
       out[n++] = c;
     } else {
@@ -86,6 +89,7 @@ void player_downloads_stem(const char *title, char *out, size_t size) {
     }
   }
   if (size == 0) return;
+  if (n > 0 && out[n - 1] == '-') n--;
   out[n] = '\0';
   if (n == 0) {
     text_buffer said;
