@@ -1,25 +1,22 @@
 {
-  "about": "A noun holding a word nothing in the world is named by is `unknown`; one whose every word names something somewhere, and that names nothing in reach, is `not_here`, as is `drop everything` with nothing to drop.",
+  "about": "A line a verb's phrase reads whose noun names nothing in reach is `not_here`, whether a word of it names nothing in the world or names something elsewhere; a line no phrase reads is `unknown`, whatever its nouns.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
     ] },
-    { "as": "Marta", "type": "take ball again", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
-    ] },
-    { "as": "Marta", "type": "take the ball now", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
-    ] },
-    { "as": "Marta", "type": "examine through the ball", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
-    ] },
-    { "as": "Marta", "type": "take ball from floor", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
-    ] },
-    { "as": "Marta", "type": "take gong", "expect": [
+    { "as": "Marta", "type": "take jewels", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] },
-    { "as": "Marta", "type": "put ball in gong", "expect": [
+    { "as": "Marta", "type": "examine fence", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "put ball in jewels", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take ball again", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take gong", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] },
     { "as": "Marta", "type": "take the ball in the box", "expect": [
@@ -27,6 +24,15 @@
     ] },
     { "as": "Marta", "type": "drop everything", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "xyzzy jewels", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "frobnicate the ball", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "go jewels", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
     ] },
     { "as": "Marta", "type": "take ball", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You take a ball." }
