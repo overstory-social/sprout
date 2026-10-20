@@ -20,7 +20,7 @@
 // are not composed, an object taking those of the kinds its `is` names,
 // which `exits.ts` resolves; a `describe` is one, which `describe.ts`
 // resolves. Guards, plays,
-// handlers and hooks all run, in closure order less what `without` leaves
+// handlers, hooks and `after command` all run, in closure order less what `without` leaves
 // out, which `guards.ts`, `roles.ts` and `handlers.ts` resolve; a
 // suppression travels to every kind that composes the one that wrote it.
 
@@ -53,15 +53,19 @@ import {
   type ResolvedProperty,
 } from './properties.js';
 import { identicalType, showType } from './types.js';
+import { isUnseenOrigin, UNSEEN } from './unseen.js';
 import { ownPassages, passageArrivals, resolvePassages } from './passages.js';
 import { composedWhereSame } from './contributions.js';
 import { ACTOR, VISITOR } from './actors.js';
 import { composeGuards, ownGuards, writesGuard } from './guards.js';
 import {
+  composeAfterCommand,
   composeHandlers,
   composeHooks,
+  ownAfterCommand,
   ownHandlers,
   ownHooks,
+  writesAfterCommand,
   writesHandler,
   writesHook,
   type MessageSetting,
@@ -294,9 +298,11 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     written.add(name);
     const came = arrivals.get(name);
     const resolved =
-      came === undefined
-        ? resolveProperty(declared, enums, composer.library, own, diagnostics, remembered)
-        : restate(came, declared, remembered);
+      came !== undefined
+        ? restate(came, declared, remembered)
+        : name === UNSEEN.name
+          ? restateProperty(UNSEEN, declared, remembered, enums, composer.library, own, diagnostics)
+          : resolveProperty(declared, enums, composer.library, own, diagnostics, remembered);
     if (resolved !== null) properties.set(name, resolved);
   };
 
@@ -356,6 +362,8 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
   const merged = new Map<string, ResolvedProperty>();
   for (const [name, came] of arrivals) merged.set(name, properties.get(name) ?? came[0]!.property);
   for (const [name, property] of properties) if (!merged.has(name)) merged.set(name, property);
+  // Every object holds `:unseen`, whether or not anything it composes restates it (Range › Unseen).
+  if (!merged.has(UNSEEN.name)) merged.set(UNSEEN.name, UNSEEN);
 
   // --- passages, one per name -------------------------------------------
   const passages = resolvePassages(
@@ -418,6 +426,12 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     order,
     suppressed,
     ownHooks(composer.name, composer.members, own, diagnostics),
+  );
+  const afterCommand = composeAfterCommand(
+    composed.map(({ kind }) => kind.afterCommand),
+    order,
+    suppressed,
+    ownAfterCommand(composer.name, composer.members, own, diagnostics),
   );
 
   // --- pass rules, one for each message ---------------------------------
@@ -489,6 +503,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
     plays,
     handlers,
     hooks,
+    afterCommand,
     passes,
     grammar,
     exits,
@@ -632,6 +647,8 @@ function declaresMember(
   }
   if (member.kind === 'hook-ref')
     return writesHook(found.kind.hooks, member.property.text, identity);
+  if (member.kind === 'after-command-ref')
+    return writesAfterCommand(found.kind.afterCommand, identity);
   if (member.verb.text === ANY_VERB) {
     const category = member.role.text;
     if (category !== 'target' && category !== 'tool') return false;
@@ -736,6 +753,8 @@ function supersedes(
   kinds: KindSource,
 ): boolean {
   if (restating.origin === restated.origin) return false;
+  // Every kind composes the standard library's `:unseen`.
+  if (isUnseenOrigin(restated)) return true;
   const found = kinds.find(restating.origin);
   return found.found === 'kind' && found.kind.composes.has(restated.origin);
 }

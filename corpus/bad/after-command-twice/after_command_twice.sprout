@@ -1,0 +1,12 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Bell} from 'bell'
+
+world after_command_twice is sprout.World {
+  visitors are Person
+  visitors arrive at belfry
+
+  object belfry is sprout.Place {
+    object bell is Bell
+  }
+}

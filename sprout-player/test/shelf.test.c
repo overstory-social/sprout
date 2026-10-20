@@ -1,7 +1,7 @@
 /*
  * ui/shelf.c: the shelf screen, driven through the app a frame at a time. The rules: it lists the
  * cartridges at the root and in worlds/ of the app and the Data folder, each once, in path order,
- * titled by the world's name, and nothing else, each a word on the wheel and "more worlds..." the
+ * titled by the world's title or else its name as words, and nothing else, each a word on the wheel and "more worlds..." the
  * last; the wheel turns with the d-pad and the crank, a step as the crank passes halfway, ticking
  * and settling with a clack, and wraps through "more worlds..."; a world refused at its open keeps
  * the reason on the shelf, greyed, the reason on the panel; a world whose save could not be written
@@ -207,15 +207,48 @@ static void a_world_whose_save_failed_is_greyed_until_a_save_is_written(void) {
   end();
 }
 
-static void a_world_is_titled_by_its_name_as_words(void) {
+static void a_world_is_titled_by_its_title_or_its_name_as_words(void) {
   char title[64];
   begin("titles");
-  player_world_title("printers_shop", title, sizeof title);
+  player_world_title("printers_shop", NULL, title, sizeof title);
   CHECK(strcmp(title, "Printers Shop") == 0, "%s", title);
-  player_world_title("old_3d_room's_door", title, sizeof title);
+  player_world_title("old_3d_room's_door", NULL, title, sizeof title);
   CHECK(strcmp(title, "Old 3D Room's Door") == 0, "%s", title);
-  player_world_title("printers_shop", title, 5);
+  player_world_title("printers_shop", NULL, title, 5);
   CHECK(strcmp(title, "Prin") == 0, "cut to the room: %s", title);
+  player_world_title("underground_caverns_2", "Underground Caverns 2: The Revenge", title, sizeof title);
+  CHECK(strcmp(title, "Underground Caverns 2: The Revenge") == 0, "the title, as written: %s", title);
+  player_world_title("printers_shop", "", title, sizeof title);
+  CHECK(strcmp(title, "Printers Shop") == 0, "an empty title is none: %s", title);
+  end();
+}
+
+#define TITLED "Titled: A World Shown by Its Title"
+
+static void a_titled_world_is_shown_by_its_title_from_the_shelf_to_the_reader(void) {
+  const player_reader *reader;
+  const char *first;
+  int n;
+  begin("titled");
+  app_folder("app");
+  put("app", "titled.sproutworld", "titled.sproutworld");
+  start();
+  fake_frame(fake, 0, 0);
+  CHECK(strcmp(front(), TITLED) == 0, "the shelf shows the manifest's title: %s", front());
+  fake_frame(fake, kButtonA, 0);
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Loading " TITLED "... "),
+        "the loading line names it by its title");
+  for (n = 0; n < 10000 && app->screen != &player_nickname_screen; n++) fake_frame(fake, 0, 0);
+  CHECK(app->screen == &player_nickname_screen, "the picker came up");
+  CHECK(fake_run_at(fake, PLAYER_MARGIN, 0) != NULL && strcmp(fake_run_at(fake, PLAYER_MARGIN, 0)->text, "Who are you in " TITLED "?") == 0,
+        "the picker asks by the title: %s", fake_run_at(fake, PLAYER_MARGIN, 0) != NULL ? fake_run_at(fake, PLAYER_MARGIN, 0)->text : "");
+  CHECK(reader_within(10000), "the reader came up");
+  reader = (const player_reader *)app->ctx;
+  first = reader->lines.count > 0 ? reader->lines.paragraphs[reader->lines.first].bytes : "";
+  /* The line is wrapped to the column, so the title is its first row whole. */
+  CHECK(strncmp(first, "- You are in " TITLED " as", strlen("- You are in " TITLED " as")) == 0,
+        "the reader's first line names it by its title: %s", first);
+  player_app_free(app);
   end();
 }
 
@@ -226,6 +259,7 @@ int main(void) {
   opening_a_world_reaches_the_reader();
   a_world_refused_at_its_open_keeps_the_reason_on_the_shelf();
   a_world_whose_save_failed_is_greyed_until_a_save_is_written();
-  a_world_is_titled_by_its_name_as_words();
+  a_world_is_titled_by_its_title_or_its_name_as_words();
+  a_titled_world_is_shown_by_its_title_from_the_shelf_to_the_reader();
   return finish();
 }

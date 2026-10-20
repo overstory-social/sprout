@@ -2,11 +2,13 @@
  * Tests for src/range.c: the walk outward from an asker (the spec's The world
  * model > Range) reaches itself, its own contents, and each container
  * outward with what it holds, nearest first, stopping at the first container
- * that refuses the question and reaching that one only as a surface. Every
+ * that refuses the question and reaching that one only as a surface; the walk
+ * a visitor sees passes over what is unseen (Range > Unseen). Every
  * walk the golden holds is made here and must reach the
  * same objects the same way, for the same steps.
  */
 #include "exec_fixture.h"
+#include "unseen_fixture.h"
 
 static const char *via_name(sprout_via via) {
   switch (via) {
@@ -95,9 +97,38 @@ static void a_walk_that_runs_out_of_steps_faults(void) {
   exec_bench_close(&b);
 }
 
+/* Whether the walk reached `id`. */
+static bool walked_to(const sprout_reached *walked, size_t count, const char *id) {
+  size_t i;
+  for (i = 0; i < count; i++)
+    if (sprout_str_same(walked[i].node, unseen_str(id))) return true;
+  return false;
+}
+
+static void the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds(void) {
+  unseen_bench b;
+  const sprout_reached *walked;
+  size_t count;
+  unseen_open(&b);
+  CHECK_INT(sprout_range_of(&b.frame, b.marta, NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK(walked_to(walked, count, "unseen.hall.thief"));
+  CHECK(walked_to(walked, count, "unseen.hall.niche.coin"));
+  CHECK_INT(sprout_range_seen(&b.frame, b.marta, &walked, &count), SPROUT_EVAL_OK);
+  CHECK(walked_to(walked, count, "unseen.hall.bell"));
+  CHECK(!walked_to(walked, count, "unseen.hall.thief"));
+  CHECK(!walked_to(walked, count, "unseen.hall.niche"));
+  CHECK(!walked_to(walked, count, "unseen.hall.niche.coin"));
+  /* The unseen thing sees itself, and its place, as anything does. */
+  CHECK_INT(sprout_range_seen(&b.frame, unseen_str("unseen.hall.niche"), &walked, &count), SPROUT_EVAL_OK);
+  CHECK(walked_to(walked, count, "unseen.hall.niche") && walked_to(walked, count, "unseen.hall.niche.coin"));
+  CHECK(walked_to(walked, count, "unseen.hall"));
+  unseen_close(&b);
+}
+
 int main(void) {
   RUN(every_golden_walk_reaches_what_the_typescript_walk_did);
   RUN(a_walk_is_charged_at_least_a_step_for_every_object_it_reaches);
   RUN(a_walk_that_runs_out_of_steps_faults);
+  RUN(the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds);
   return REPORT();
 }

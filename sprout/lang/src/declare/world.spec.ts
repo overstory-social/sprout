@@ -24,7 +24,7 @@ describe('a world is the root of the one tree', () => {
     expect(said).toEqual([]);
     expect(kind!.name).toBe('printers_shop');
     expect(kindName(visitor!)).toBe('printers_shop.Creature');
-    expect([...kind!.properties.keys()]).toEqual(['season']);
+    expect([...kind!.properties.keys()]).toEqual(['unseen', 'season']);
   });
 
   it('holds what belongs to no single place, by the ordinary property rules', () => {

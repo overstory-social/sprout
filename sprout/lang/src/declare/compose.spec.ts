@@ -187,7 +187,7 @@ describe('a written kind is read from the composer’s library, then the standar
   it('composes the world’s own `Container` over the standard library’s', () => {
     const { kind } = compose('kind Container { :lid false }\nkind Crate is Container { }');
     expect(kind!.order).toEqual(['shop.Container', 'shop.Crate']);
-    expect([...kind!.properties.keys()]).toEqual(['lid']);
+    expect([...kind!.properties.keys()]).toEqual(['lid', 'unseen']);
   });
 });
 
@@ -197,6 +197,7 @@ describe('a property from one origin is one property, however many paths reach i
     expect(said).toEqual([]);
     expect([...kind!.properties.values()].map((p) => [p.name, p.origin])).toEqual([
       ['worn', 'shop.A'],
+      ['unseen', 'sprout'],
     ]);
   });
 
@@ -205,6 +206,7 @@ describe('a property from one origin is one property, however many paths reach i
     expect([...kind!.properties.values()].map((p) => [p.name, p.origin, p.remembered])).toEqual([
       ['lid', 'shop.Crate', false],
       ['seen', 'shop.Crate', true],
+      ['unseen', 'sprout', false],
     ]);
   });
 
@@ -394,6 +396,45 @@ describe('a restatement keeps the composed type', () => {
         '`:capacity` holds integer 0 to 99 in `sprout.Container`, and whatever composes it keeps that type.',
         'Restate only its default, as in `:capacity 40`; a property holding something else takes a name of its own.',
       ],
+    ]);
+  });
+});
+
+describe('every composer holds the standard library’s `:unseen`, which it may restate', () => {
+  it('holds it false, from `sprout`, where nothing it composes says otherwise', () => {
+    const { kind, said } = compose('kind Rib { }');
+    expect(said).toEqual([]);
+    const unseen = kind!.properties.get('unseen')!;
+    expect([unseen.origin, unseen.type, unseen.declaration.default]).toMatchObject([
+      'sprout',
+      { type: 'boolean' },
+      { kind: 'boolean', value: false },
+    ]);
+  });
+
+  it('takes a restatement as its origin, and passes it to whatever composes it', () => {
+    const { kind, said } = compose('kind Thief { :unseen true }\nkind Cutpurse is Thief { }');
+    expect(said).toEqual([]);
+    const unseen = kind!.properties.get('unseen')!;
+    expect([unseen.origin, unseen.declaration.default]).toMatchObject([
+      'shop.Thief',
+      { kind: 'boolean', value: true },
+    ]);
+  });
+
+  it('refuses it written to hold anything but a boolean', () => {
+    const { said } = compose('kind Thief { :unseen 3 }');
+    expect(said.map(([at, message]) => [at, message])).toEqual([
+      ['shop.sprout:1:22', '`:unseen` holds true or false, and 3 is a number.'],
+    ]);
+  });
+
+  it('refuses two kinds restating it apart, as any two origins are', () => {
+    const { said } = compose(
+      'kind Thief { :unseen true }\nkind Ghost { :unseen true }\nkind Wraith is Thief, Ghost { }',
+    );
+    expect(said.map(([, message]) => message)).toEqual([
+      '`Wraith` gets `:unseen` from both `Thief` and `Ghost`, which are two claims on one slot.',
     ]);
   });
 });
@@ -756,6 +797,7 @@ describe('`without` leaves out one contribution, naming the member and the kind 
     for (const [member, column] of [
       ['changed :lit', 11],
       ['on :stir', 11],
+      ['after command', 11],
       ['depart', 11],
       ['release', 11],
       ['accept', 11],

@@ -334,9 +334,23 @@ static void a_status_past_three_lines_is_clipped_and_the_transcript_keeps_its_ro
   end();
 }
 
-static void with_no_world_shipped_the_shelf_says_so(void) {
+/* The panel's lines drawn this frame, joined by a space as the wrap broke them. */
+static void panel_said(int panel, char *out, size_t size) {
+  const fake_run *line;
+  int n;
+  out[0] = '\0';
+  for (n = 0; n < 3 && (line = fake_run_at(fake, PLAYER_MARGIN, panel + n * LINE)) != NULL; n++)
+    snprintf(out + strlen(out), size - strlen(out), "%s%s", n > 0 ? " " : "", line->text);
+}
+
+/*
+ * A fresh install: the app carries no worlds and none are in its Data folder, so the shelf holds only
+ * "more worlds..." and its panel says the shelf is empty and how to fill it.
+ */
+static void on_a_fresh_install_the_shelf_holds_only_more_worlds(void) {
   const char *why = NULL;
   player_app *app;
+  char said[1024];
   int panel = 240 - (LINE * 3 + 8) + 2;
   begin("none");
   app_folder("app");
@@ -345,8 +359,9 @@ static void with_no_world_shipped_the_shelf_says_so(void) {
   fake->api.system->setUpdateCallback(player_app_update, app);
   fake_frame(fake, 0, 0);
   CHECK(strcmp(shelf_front(), "more worlds...") == 0 && fake->placed_count == 1, "the one word is more worlds: %s", shelf_front());
-  CHECK(fake_run_at(fake, PLAYER_MARGIN, panel) != NULL && HAS(fake_run_at(fake, PLAYER_MARGIN, panel)->text, "No worlds are on the"),
-        "the panel says the shelf is empty: %s", fake_run_at(fake, PLAYER_MARGIN, panel) ? fake_run_at(fake, PLAYER_MARGIN, panel)->text : "(none)");
+  panel_said(panel, said, sizeof said);
+  CHECK(strcmp(said, "No worlds are on the shelf. A looks for more worlds to download.") == 0, "the panel says the shelf is empty: %s",
+        said);
   fake_frame(fake, kButtonA, 0);
   CHECK(app->screen == &player_downloads_screen, "A on more worlds opens the download screen");
   fake_frame(fake, kButtonB, 0);
@@ -894,7 +909,7 @@ int main(void) {
   the_reader_shows_the_arrival_under_the_status_line();
   the_rows_fill_the_column_under_the_status();
   a_status_past_three_lines_is_clipped_and_the_transcript_keeps_its_rows();
-  with_no_world_shipped_the_shelf_says_so();
+  on_a_fresh_install_the_shelf_holds_only_more_worlds();
   a_cartridge_that_cannot_be_opened_is_told_in_words();
   the_reader_ticks_while_awake_and_tells_what_a_tick_told();
   a_due_tick_waits_for_the_hands_to_rest();

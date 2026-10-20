@@ -3,7 +3,8 @@
  * address is taken apart and resolved as a browser would; a fetch asks permission for its server
  * with the purpose it was given, waits for the person's answer and is refused in words when it is
  * not given; the body reaches the sink whole and in order, whatever the pieces; a redirect is
- * followed, and a chain too long refused; a server that falls silent is given up on; a sink that
+ * followed, to another server and to a signed address over a kilobyte long, and a chain too long or
+ * an address past PLAYER_URL_BYTES refused; a server that falls silent is given up on; a sink that
  * refuses stops the fetch; and every fetch, however it ends, lets its connection go.
  */
 #include "host/net.h"
@@ -65,6 +66,9 @@ static void addresses_are_taken_apart_and_resolved(void) {
   CHECK(player_url_resolve("https://w.example/sprout/index.json", "http://other.example/x", out, sizeof out) &&
             strcmp(out, "http://other.example/x") == 0,
         "%s", out);
+  CHECK(player_url_resolve("https://w.example?v=2", "bell.sproutworld", out, sizeof out) &&
+            strcmp(out, "https://w.example/bell.sproutworld") == 0,
+        "%s", out);
   CHECK(!player_url_resolve("https://w.example/sprout/index.json", "bell.sproutworld", out, 20), "too long for its room");
   end();
 }
@@ -113,6 +117,47 @@ static void a_status_is_handed_back_and_a_redirect_followed(void) {
   CHECK(player_fetch_start(&f, &fake->api, "https://w.example/loop", PURPOSE, take, &t, fake->seconds), "%s", f.reason);
   CHECK(run(&f, 50) == PLAYER_FETCH_FAILED &&
             strcmp(f.reason, "w.example sent the app on to another address too many times, or to none.") == 0,
+        "%s", f.reason);
+  CHECK(fake->connections_live == 0, "every connection is let go");
+  end();
+}
+
+/* A signed download address, as a release asset's redirect gives: `https://assets.example/a/b.sproutworld?` and a query, `length` long in all. */
+static void signed_address(char *out, size_t length) {
+  static const char start[] = "https://assets.example/a/b.sproutworld?X-Signature=";
+  size_t i;
+  memcpy(out, start, sizeof start - 1);
+  for (i = sizeof start - 1; i < length; i++) out[i] = (char)('a' + i % 26);
+  out[length] = '\0';
+}
+
+static void a_redirect_to_a_long_address_on_another_server_is_followed(void) {
+  static taken t;
+  static char signed_url[PLAYER_URL_BYTES + 64];
+  player_fetch f;
+  fake_answer *moved;
+  int asks;
+  begin("long redirect");
+  signed_address(signed_url, 1200);
+  moved = fake_serve(fake, "https://w.example/release/b.sproutworld", 302, "", 0);
+  moved->location = signed_url;
+  fake_serve(fake, signed_url, 200, "world", 5);
+  memset(&t, 0, sizeof t);
+  asks = fake->asks;
+  CHECK(player_fetch_start(&f, &fake->api, "https://w.example/release/b.sproutworld", PURPOSE, take, &t, fake->seconds), "%s",
+        f.reason);
+  CHECK(run(&f, 20) == PLAYER_FETCH_DONE && f.status == 200 && t.length == 5 && memcmp(t.bytes, "world", 5) == 0,
+        "a Location of 1200 bytes is followed: %d %s", f.status, f.reason);
+  CHECK(strcmp(f.url, signed_url) == 0 && strcmp(f.parts.server, "assets.example") == 0, "%s", f.parts.server);
+  CHECK(fake->asks == asks + 2, "the new server is asked for again: %d", fake->asks - asks);
+
+  signed_address(signed_url, PLAYER_URL_BYTES);
+  moved = fake_serve(fake, "https://w.example/release/c.sproutworld", 302, "", 0);
+  moved->location = signed_url;
+  CHECK(player_fetch_start(&f, &fake->api, "https://w.example/release/c.sproutworld", PURPOSE, take, &t, fake->seconds), "%s",
+        f.reason);
+  CHECK(run(&f, 20) == PLAYER_FETCH_FAILED &&
+            strcmp(f.reason, "w.example sent the app on to an address longer than this app reads.") == 0,
         "%s", f.reason);
   CHECK(fake->connections_live == 0, "every connection is let go");
   end();
@@ -196,6 +241,7 @@ int main(void) {
   addresses_are_taken_apart_and_resolved();
   a_body_reaches_the_sink_whole_whatever_the_pieces();
   a_status_is_handed_back_and_a_redirect_followed();
+  a_redirect_to_a_long_address_on_another_server_is_followed();
   permission_is_asked_and_its_refusal_said();
   no_network_no_wifi_and_a_silent_server_are_told();
   a_sink_that_refuses_stops_the_fetch_and_cancel_lets_go();

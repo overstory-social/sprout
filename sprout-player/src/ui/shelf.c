@@ -22,13 +22,23 @@ static const char SAVE_FAILED[] =
 
 /* ---- titles ---- */
 
+static void copy_text(char *out, size_t size, const char *text) {
+  text_buffer buffer;
+  text_begin(&buffer, out, size);
+  text_add(&buffer, text);
+}
+
 static bool is_letter(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 static bool is_word(char c) { return is_letter(c) || (c >= '0' && c <= '9') || c == '\''; }
 
-void player_world_title(const char *name, char *title, size_t size) {
+void player_world_title(const char *name, const char *title, char *out, size_t size) {
   size_t i;
   bool in_word = false;
   if (size == 0) return;
+  if (title != NULL && title[0] != '\0') {
+    copy_text(out, size, title);
+    return;
+  }
   for (i = 0; name[i] != '\0' && i + 1 < size; i++) {
     char c = name[i] == '_' ? ' ' : name[i];
     if (!in_word && is_letter(c)) {
@@ -37,9 +47,9 @@ void player_world_title(const char *name, char *title, size_t size) {
     } else if (in_word && !is_word(c)) {
       in_word = false;
     }
-    title[i] = c;
+    out[i] = c;
   }
-  title[i] = '\0';
+  out[i] = '\0';
 }
 
 /* ---- listing ---- */
@@ -87,25 +97,22 @@ static shelf_entry *entry_at(const player_shelf *shelf, const char *path) {
   return NULL;
 }
 
-static void copy_text(char *out, size_t size, const char *text) {
-  text_buffer buffer;
-  text_begin(&buffer, out, size);
-  text_add(&buffer, text);
-}
-
 /* A new entry for the cartridge at `path`, asked of the session. */
 static void inspect(player_app *app, const char *path, shelf_entry *entry) {
   player_opening verdict = player_inspect(app->session, path);
   const char *base = strrchr(path, '/');
   char name[PLAYER_PATH_BYTES];
+  const char *title = NULL;
   memset(entry, 0, sizeof *entry);
   copy_text(entry->path, sizeof entry->path, path);
   copy_text(name, sizeof name, base != NULL ? base + 1 : path);
-  if (verdict.ok && verdict.name != NULL)
+  if (verdict.ok && verdict.name != NULL) {
     copy_text(name, sizeof name, verdict.name);
-  else
+    title = verdict.title;
+  } else {
     name[strlen(name) - (sizeof CARTRIDGE - 1)] = '\0';
-  player_world_title(name, entry->title, sizeof entry->title);
+  }
+  player_world_title(name, title, entry->title, sizeof entry->title);
   entry->ok = verdict.ok;
   if (verdict.ok && verdict.hash != NULL) copy_text(entry->hash, sizeof entry->hash, verdict.hash);
   if (!verdict.ok) copy_text(entry->reason, sizeof entry->reason, verdict.reason != NULL ? verdict.reason : "");

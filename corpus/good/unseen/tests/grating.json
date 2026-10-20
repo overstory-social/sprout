@@ -1,0 +1,21 @@
+{
+  "about": "The grating lies unseen under the leaves until they are swept aside, when it shows itself, by writing its own `:unseen`. The coin in the unseen niche cannot be named, though the niche is open.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "examine grating", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take coin", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "sweep leaves", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You sweep the leaves aside." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. You see a bell. You see a heap of leaves. You see a grating. You see a horn." }
+    ] },
+    { "as": "Marta", "type": "examine grating", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a grating." }
+    ] }
+  ]
+}

@@ -349,8 +349,8 @@ draws reads is this. `media.show("cellar.png")` and
 - **The Playdate player draws it.** `sprout-player/src/ui/images.h` finds the
   picture in the cartridge's assets directory and builds it from its rows, and
   the pictures screen (`src/ui/pictures.h`) shows each picture a turn asked
-  for on the whole screen, scaled to fit above its caption. The pdx carries
-  the graduated worlds' cartridges and nothing beside them.
+  for on the whole screen, scaled to fit above its caption. A world's
+  pictures travel only in its cartridge, and the pdx carries no cartridge.
   `test/pictures.test.c` and `gallery.test.c` pin it over corpus cartridges
   through the fake `PlaydateAPI`, reading each picture drawn pixel for pixel;
   `runtime-c/test/assets.test.c` pins the section's directory.
@@ -400,7 +400,7 @@ variable is not set).
   `shelf.test.c` and `nickname.test.c` their screens (the filters folding as
   the host folds, a name the engine refuses told in its words), and
   `pictures.test.c` the pictures.
-- **The listed plays of the shipped worlds.** Each graduated world may list
+- **The listed plays of the graduated worlds.** Each graduated world may list
   plays in `sprout-player/worlds.json` (the studio's `underground_caverns`,
   pinned in `sprout-player/worlds/`, lists the whole of Zork,
   `tests/walkthrough.json`); the player step plays
@@ -422,8 +422,9 @@ variable is not set).
   made over the committed index fixture (`sprout-player/test/fixtures/index.json`,
   signed with the test key in `sprout-player/test/`, whose private half is
   public on purpose and trusted by nothing real); `shipped.test.c` shelves
-  every world in the packed `worlds/` folder, so a graduated world the app
-  would grey fails the build. `canonical.test.c` holds the canonical text to
+  every world in the folder the build packed the graduated worlds into, apart
+  from the pdx, so a graduated world the app would grey fails the build, and
+  `ui.test.c` pins the empty shelf of a fresh install. `canonical.test.c` holds the canonical text to
   the fixture's and its rules over generated objects; `signed_index.test.c`
   accepts the signed index and refuses one changed after signing or signed by
   another key, one unsigned, oversized or not JSON, and each signed entry the
@@ -443,11 +444,12 @@ variable is not set).
   key (the canonical text, the index built from packed cartridges and checked
   against `index.schema.json`, the refusals, key generation) and `scripts/playdate-player.spec.mjs` packs a fake
   `worlds.json` (names or paths, a list that cannot be used, assets copied, a
-  world that does not pack, the public key read); `scripts/playdate-player.mjs`
+  world that does not pack, a cartridge in `Source/` or the pdx refused, the
+  public key read); `scripts/playdate-player.mjs`
   runs both and the build's check of the graduated list.
 - **The sanitizers** run the player's C tests too (7c).
 - **The build itself is a test.** The Simulator target must compile and `pdc`
-  must package the pdx with no compiled script in it, and the device target is built too where
+  must package the pdx with no compiled script and no cartridge in it, and the device target is built too where
   `arm-none-eabi-gcc` is installed.
 
 What no part can do is run the Simulator or a console, fetch over a real

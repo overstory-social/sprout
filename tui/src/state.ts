@@ -52,6 +52,8 @@ export interface ClientState {
   readonly verbs: readonly ListedVerb[];
   /** The world admitted to, and under what nickname; null before admission and after leaving. */
   readonly world: string | null;
+  /** What the world admitted to is shown as; null whenever `world` is. */
+  readonly title: string | null;
   readonly nickname: string | null;
   /** The worlds the server serves. */
   readonly worlds: readonly string[];
@@ -69,6 +71,7 @@ export const EMPTY: ClientState = {
   status: null,
   verbs: [],
   world: null,
+  title: null,
   nickname: null,
   worlds: [],
   closed: null,
@@ -82,8 +85,13 @@ export function received(state: ClientState, message: ServerMessage, now: number
       return { ...state, worlds: message.worlds.map((one) => one.world) };
     case 'admitted':
       return {
-        ...add(state, 'client', `You are in ${message.world} as ${message.nickname}.`),
+        ...add(
+          state,
+          'client',
+          `You are in ${message.title ?? message.world} as ${message.nickname}.`,
+        ),
         world: message.world,
+        title: message.title ?? message.world,
         nickname: message.nickname,
       };
     case 'refused': {
@@ -123,7 +131,12 @@ export function received(state: ClientState, message: ServerMessage, now: number
     case 'chat':
       return add(state, 'chat', `${message.from}: ${message.line}`);
     case 'bye':
-      return { ...add(state, 'client', message.text), world: null, closed: message.reason };
+      return {
+        ...add(state, 'client', message.text),
+        world: null,
+        title: null,
+        closed: message.reason,
+      };
   }
 }
 

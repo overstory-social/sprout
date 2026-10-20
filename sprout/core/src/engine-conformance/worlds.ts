@@ -304,6 +304,68 @@ verb light { role target  "light [target]" }
 export const NAVE = declaredId('chapel', ['nave']);
 export const CANDLE = declaredId('chapel', ['nave', 'candle']);
 
+/**
+ * The hideout: a thief in the hall who is unseen, and a bell whose ringing
+ * sends him into the vault, where he stays unseen.
+ */
+export const HIDEOUT = compiled('hideout', {
+  'hideout.sprout': `world hideout is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    grammar { exit north "north to the vault" -> vault }
+    object bell is Bell {
+      as target for ring { do { say "The bell clangs."  send thief :startled } }
+    }
+    object thief is Thief
+  }
+  object vault is sprout.Place {
+    grammar { exit south "south to the hall" -> hall }
+  }
+}
+message :startled
+verb ring { role target  "ring [target]" }
+kind Bell { grammar { name "bell" } }
+kind Thief is sprout.Actor {
+  grammar { name "thief" }
+  :unseen true
+  on :startled { move self to vault }
+}
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+});
+export const HIDEOUT_HALL = declaredId('hideout', ['hall']);
+export const HIDEOUT_VAULT = declaredId('hideout', ['vault']);
+export const THIEF = declaredId('hideout', ['hall', 'thief']);
+
+/**
+ * The belfry: a bell that hums after every command of whoever carries it,
+ * a hall that echoes after every command made in it, and a world that
+ * counts them (the spec's Verbs › After a command).
+ */
+export const BELFRY_FOLLOWS = compiled('followed', {
+  'followed.sprout': `world followed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  :commands 0
+  after command { self.adjust(:commands, 1) }
+  object hall is Hall {
+    object bell is Bell
+  }
+}
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'hall.sprout': 'kind Hall is sprout.Place { after command { tell actor "The hall echoes." } }\n',
+  'bell.sprout': `kind Bell {
+  grammar { name "bell" }
+  after command { say "The bell hums." }
+}
+`,
+});
+export const FOLLOWED = declaredId('followed', []);
+export const FOLLOWED_HALL = declaredId('followed', ['hall']);
+export const FOLLOWED_BELL = declaredId('followed', ['hall', 'bell']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');

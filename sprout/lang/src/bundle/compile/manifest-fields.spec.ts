@@ -6,7 +6,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { Manifest, MicroworldSource } from '../bundle.js';
 import { locationOf, SourceFile, textOf } from '../../source/source.js';
-import { atKey, atValue, checkManifest, NAMESPACE, SEMVER } from './manifest-fields.js';
+import {
+  atKey,
+  atValue,
+  checkManifest,
+  NAMESPACE,
+  SEMVER,
+  TITLE_CHARACTERS,
+} from './manifest-fields.js';
 import { compileBundle } from './compile.js';
 import { Report } from './report.js';
 import { refusals, world } from '../../fixtures/compile.js';
@@ -121,6 +128,27 @@ describe('the manifest’s own fields', () => {
     expect(refused({ extensions: [{ name: 'media', major: -1 }] })).toEqual([
       'sprout.json:4:28 The extension "media" is pinned to major version -1.',
     ]);
+  });
+
+  it('take a title of up to TITLE_CHARACTERS characters, counting each character once', () => {
+    expect(refused({ title: 'Underground Caverns 3: The Undergroundest Yet' })).toEqual([]);
+    expect(refused({ title: 'é'.repeat(TITLE_CHARACTERS) })).toEqual([]);
+    expect(refused({ title: '🐉'.repeat(TITLE_CHARACTERS) })).toEqual([]);
+  });
+
+  it('refuse a title that is too long, empty, or not one line, at its key', () => {
+    const text = TEXT.replace('{\n', '{\n  "title": "…",\n');
+    expect(refused({ title: 'x'.repeat(TITLE_CHARACTERS + 1) }, text)).toEqual([
+      `sprout.json:2:3 This world's title is ${TITLE_CHARACTERS + 1} characters long, and ${TITLE_CHARACTERS} is as long as a title may be.`,
+    ]);
+    expect(refused({ title: '  ' }, text)).toEqual([
+      "sprout.json:2:3 This world's title is empty.",
+    ]);
+    for (const broken of ['The Shop\nOpen Late', 'The Shop\tOpen Late', 'The Shop\u2028Open']) {
+      expect(refused({ title: broken }, text), JSON.stringify(broken)).toEqual([
+        "sprout.json:2:3 This world's title holds a line break, a tab or another control character.",
+      ]);
+    }
   });
 
   it('refuse one extension pinned twice', () => {

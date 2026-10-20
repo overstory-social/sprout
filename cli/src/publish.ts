@@ -14,7 +14,12 @@ import { createHash, type KeyObject } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { CARTRIDGE_EXTENSION, CartridgeUnreadable, readCartridge } from '@overstory/sprout/lang';
+import {
+  CARTRIDGE_EXTENSION,
+  CartridgeUnreadable,
+  readCartridge,
+  worldTitle,
+} from '@overstory/sprout/lang';
 
 import { signWorlds } from './signing.js';
 
@@ -97,9 +102,10 @@ function cartridgesIn(folder: string, baseUrl: string): Published[] {
       if (!(err instanceof CartridgeUnreadable)) throw err;
       throw new Error(`${from}: ${err.message}`);
     }
-    const name = publishedName(header.name, header.hash);
+    const title = worldTitle(header);
+    const name = publishedName(title, header.hash);
     const world: IndexedWorld = {
-      title: header.name,
+      title,
       author: header.author,
       version: header.version,
       bytes: bytes.length,

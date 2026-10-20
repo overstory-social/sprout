@@ -27,7 +27,7 @@
 
 typedef struct shelf_entry {
   char path[PLAYER_PATH_BYTES];
-  char title[128];
+  char title[PLAYER_TITLE_BYTES];
   char hash[65]; /* the bundle hash, when it can be opened */
   bool ok;      /* it can be opened */
   bool blocked; /* greyed because its save could not be written; opening it tries the save again */
@@ -77,8 +77,11 @@ bool player_shelf_blocked(const player_shelf *shelf, const char *path);
  */
 void player_shelf_unsaved(player_app *app);
 
-/* A world's name as words, as the shelf titles it: `printers_shop` is `Printers Shop`. */
-void player_world_title(const char *name, char *title, size_t size);
+/*
+ * What a world is shown as (the spec's The manifest): its `title` where its manifest gives one (NULL
+ * where not), and otherwise its name as words, `printers_shop` as `Printers Shop`; cut to `size`.
+ */
+void player_world_title(const char *name, const char *title, char *out, size_t size);
 
 /* The bands of the shelf and the download screen, in a frame `frame_height` tall: the title over its rule, and the panel's three lines under theirs. */
 int player_shelf_header(int frame_height);

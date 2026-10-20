@@ -1,0 +1,6 @@
+// A kind follows a command once: two `after command`s in one body are
+// refused at the second.
+kind Bell {
+  after command { tell actor "The bell hums." }
+  after command { tell "The bell sways." }
+}

@@ -338,6 +338,7 @@ export function cartridgeOf(bundle: Bundle): Cartridge {
   return {
     header: {
       name: manifest.name,
+      ...(manifest.title === undefined ? {} : { title: manifest.title }),
       namespace: manifest.namespace,
       version: manifest.version,
       author: manifest.author,

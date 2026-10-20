@@ -18,10 +18,30 @@ const foldAt = (at: number, from: ClientState, ...messages: ServerMessage[]): Cl
 const fold = (...messages: ServerMessage[]): ClientState => foldAt(0, EMPTY, ...messages);
 
 describe('what the client shows', () => {
+  it('names the world by its title, or by its id from a host that sends none', () => {
+    const titled = fold({
+      t: 'admitted',
+      world: 'shop',
+      title: 'The Shop',
+      nickname: 'Marta',
+      returning: false,
+    });
+    expect(titled.title).toBe('The Shop');
+    const bare = fold({ t: 'admitted', world: 'shop', nickname: 'Marta', returning: false });
+    expect(bare.lines.at(-1)?.text).toBe('You are in shop as Marta.');
+    expect(bare.title).toBe('shop');
+  });
+
   it('is the world’s prose by its kind, a payload by what recorded it, and chat styled apart', () => {
     const state = fold(
       { t: 'welcome', server: 's', worlds: [{ world: 'shop', granted: [], declined: [] }] },
-      { t: 'admitted', world: 'shop', nickname: 'Marta', returning: false },
+      {
+        t: 'admitted',
+        world: 'shop',
+        title: 'The Shop: Open Late',
+        nickname: 'Marta',
+        returning: false,
+      },
       {
         t: 'effects',
         seq: 1,
@@ -53,7 +73,7 @@ describe('what the client shows', () => {
     expect(state.worlds).toEqual(['shop']);
     expect(state.world).toBe('shop');
     expect(state.lines.map((line) => [line.kind, line.text])).toEqual([
-      ['client', 'You are in shop as Marta.'],
+      ['client', 'You are in The Shop: Open Late as Marta.'],
       ['said', 'You take a key.\nIt is cold.'],
       ['extension', '[media show]'],
       ['chat', 'Ines: hello'],
@@ -107,7 +127,7 @@ describe('what the client shows', () => {
     expect(healthOf(welcomed, 0)).toBe('connecting');
     const open = fold(
       { t: 'welcome', server: 's', worlds: [{ world: 'shop', granted: [], declined: [] }] },
-      { t: 'admitted', world: 'shop', nickname: 'Marta', returning: false },
+      { t: 'admitted', world: 'shop', title: 'Shop', nickname: 'Marta', returning: false },
     );
     expect(healthOf(open, 0)).toBe('open');
     const faulted = foldAt(1000, open, {
@@ -161,7 +181,13 @@ describe('what the client shows of a picture', () => {
   it('is its transcript line, in the kind of an extension, since the client draws nothing', () => {
     const state = fold(
       { t: 'welcome', server: 's', worlds: [{ world: 'media_room', granted: [], declined: [] }] },
-      { t: 'admitted', world: 'media_room', nickname: 'Ines', returning: false },
+      {
+        t: 'admitted',
+        world: 'media_room',
+        title: 'Media Room',
+        nickname: 'Ines',
+        returning: false,
+      },
       {
         t: 'effects',
         seq: 1,

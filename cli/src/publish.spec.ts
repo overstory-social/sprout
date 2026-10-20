@@ -26,10 +26,13 @@ const player = join(root, 'sprout-player');
 const TEST_KEY = privateKeyOf(readKeyFile(join(player, 'test/index-test.key')));
 const TEST_PUBLIC = readFileSync(join(player, 'test/index-test.pub'), 'utf8').trim();
 
-/** A new folder holding chip-tree (no pictures) and media-room (three, inside its cartridge), packed under the names given. */
+/**
+ * A new folder holding chip-tree (no pictures), media-room (three, inside its cartridge) and titled
+ * (a manifest title), packed under the names given.
+ */
 function packed(names: Record<string, string> = {}): string {
   const dir = mkdtempSync(join(tmpdir(), 'sprout-index-'));
-  for (const world of ['chip-tree', 'media-room']) {
+  for (const world of ['chip-tree', 'media-room', 'titled']) {
     const bundle = checkWorld(join(root, 'corpus/good', world)).bundle!;
     writeFileSync(join(dir, names[world] ?? `${world}.sproutworld`), emitCartridge(bundle));
   }
@@ -91,7 +94,13 @@ describe('writeIndex', () => {
     const index = read(out);
     expect(index).toEqual(written.index);
     expect(worldsAreSigned(index.worlds, index.signed, TEST_PUBLIC)).toBe(true);
-    expect(index.worlds.map((w) => w.title)).toEqual(['chip_tree', 'media_room']);
+    // A world with no title is listed by its name as words.
+    expect(index.worlds.map((w) => w.title)).toEqual([
+      'Chip Tree',
+      'Media Room',
+      'Titled: A World Shown by Its Title',
+    ]);
+    expect(index.worlds[2]!.url).toMatch(/\/titled-a-world-shown-byi-[0-9a-f]{8}\.sproutworld$/);
     const site = join(out, '..');
     for (const world of index.worlds) {
       const name = publishedName(world.title, world.hash);
@@ -160,7 +169,11 @@ describe('writeIndex', () => {
       privateKey: TEST_KEY,
       out,
     });
-    expect(index.worlds.map((w) => w.title)).toEqual(['chip_tree', 'media_room']);
+    expect(index.worlds.map((w) => w.title)).toEqual([
+      'Chip Tree',
+      'Media Room',
+      'Titled: A World Shown by Its Title',
+    ]);
   });
 
   it('refuses, writing nothing, where a published cartridge would be replaced by other bytes', () => {

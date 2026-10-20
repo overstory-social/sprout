@@ -10,6 +10,7 @@ import {
   loadCartridge,
   SEED_MAX,
   type Bundle,
+  type Manifest,
 } from '@overstory/sprout/lang';
 import {
   catalogueFor,
@@ -148,6 +149,11 @@ export function parseArgs(argv: readonly string[]): Parsed {
   }
   const [command = null, ...rest] = positional;
   return { command, positional: rest, flags };
+}
+
+/** A packed world's title as `pack` reports it, where the manifest gives one. */
+function titled(manifest: Manifest): string {
+  return manifest.title === undefined ? '' : `, titled "${manifest.title}",`;
 }
 
 /** The world in `dir`, compiled as `check` compiles it; null, with `check`'s page said, where it is refused. */
@@ -292,7 +298,9 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const assets = checked.assets.length;
         const carrying =
           assets === 0 ? '' : `, carrying ${assets} asset file${assets === 1 ? '' : 's'}`;
-        say(`packed ${checked.manifest.name} into ${file}: ${bytes.length} bytes${carrying}\n`);
+        say(
+          `packed ${checked.manifest.name}${titled(checked.manifest)} into ${file}: ${bytes.length} bytes${carrying}\n`,
+        );
         return 0;
       }
       case 'parse': {

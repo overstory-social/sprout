@@ -1,7 +1,7 @@
 /*
  * Tests for src/answers.c: a person who moved reads the place they arrived in, and one who typed `look` reads
  * the place they stand in, both after what the turn's bodies said (the spec's Verbs > Engine verbs; The runtime
- * > Effects).
+ * > Effects); and `help` offers nothing unseen (Range > Unseen).
  */
 #include "turn_fixture.h"
 
@@ -40,8 +40,38 @@ static void a_look_is_answered_with_the_place_and_a_body_that_spoke_is_heard_alo
   tw_close(&w);
 }
 
+/* Whether a line the outcome told `visit` holds `word`. */
+static bool told_word(const sprout_outcome *out, const char *visit, const char *word) {
+  size_t i, at, length = strlen(word);
+  for (i = 0; i < out->line_count; i++) {
+    if (out->lines[i].recipient_length != strlen(visit) || memcmp(out->lines[i].recipient, visit, out->lines[i].recipient_length) != 0)
+      continue;
+    for (at = 0; at + length <= out->lines[i].text_length; at++)
+      if (memcmp(out->lines[i].text + at, word, length) == 0) return true;
+  }
+  return false;
+}
+
+static void help_offers_nothing_that_is_unseen(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading reading;
+  memset(&w, 0, sizeof w);
+  tw_open(&w, "unseen");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  reading = tw_reading("sprout.help", tw_person(&w, "v-marta"), &filling, NULL, NULL);
+  tw_command(&w, "v-marta", &reading, 1001, &out);
+  CHECK(told_word(&out, "v-marta", "ring bell"));
+  CHECK(!told_word(&out, "v-marta", "thief") && !told_word(&out, "v-marta", "coin"));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_person_who_moved_reads_the_place_they_arrived_in);
   RUN(a_look_is_answered_with_the_place_and_a_body_that_spoke_is_heard_alone);
+  RUN(help_offers_nothing_that_is_unseen);
   return REPORT();
 }

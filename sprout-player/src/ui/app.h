@@ -21,6 +21,8 @@
 #define PLAYER_SCREEN_HEIGHT 240
 #define PLAYER_MARGIN 4
 #define PLAYER_CARTRIDGE_BYTES 256
+/* A world's title as shown: the spec's 60 characters at most, each up to four bytes of UTF-8. */
+#define PLAYER_TITLE_BYTES 256
 
 typedef struct player_shelf player_shelf;
 

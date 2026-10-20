@@ -135,7 +135,7 @@ for (const name of worlds) {
     const read = readCartridge(bytes);
     const loaded = dumpCatalogue(loadCartridge(bytes, { caps: DEFAULT_LIMITS.caps }), read.caps);
     lines.push(
-      `${JSON.stringify(name)}:${JSON.stringify({ level: read.header.level, ...loaded })}`,
+      `${JSON.stringify(name)}:${JSON.stringify({ level: read.header.level, title: read.header.title ?? null, ...loaded })}`,
     );
   } catch (error) {
     console.error(`the language did not read ${name}'s cartridge back: ${error.message}`);

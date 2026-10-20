@@ -1,0 +1,7 @@
+bell.sprout:4:9   `after` is followed by `command`: it runs at the end of every command a visitor makes.
+                  Write `after command { … }`.
+
+bell.sprout:8:17  `after command` takes no parameters: `actor` and `here` are bound inside it already.
+                  Take the brackets out, as in `after command { … }`.
+
+refused: 2 problems

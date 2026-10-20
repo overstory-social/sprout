@@ -128,6 +128,12 @@ function behaviourOf(member: KindMember): Behaviour | null {
       const hook = `changed :${member.property.text}`;
       return { at: member.at, does: `watch a property with \`${hook}\``, written: hook };
     }
+    case 'after-command':
+      return {
+        at: member.at,
+        does: 'follow a command with `after command`',
+        written: 'after command',
+      };
     case 'pass': {
       const rule = writtenPass(member);
       return { at: member.at, does: `say what passes with \`${rule}\``, written: `${rule} (…)` };

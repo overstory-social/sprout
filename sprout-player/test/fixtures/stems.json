@@ -10,5 +10,6 @@
   ["abcdefghijklmnopqrstuvwxyz0123","abcdefghijklmnopqrstuvwx"],
   ["abcdefghijklmnopqrstuvw x","abcdefghijklmnopqrstuvwx"],
   ["abcdefghijklmnopqrstuv x y","abcdefghijklmnopqrstuv-x"],
-  ["Zork I: The Great Underground Empire","zork-i-the-great-undergr"]
+  ["Zork I: The Great Underground Empire","zork-i-the-great-undergr"],
+  ["Titled: A World Shown by Its Title","titled-a-world-shown-byi"]
 ]

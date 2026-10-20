@@ -51,7 +51,7 @@ static player_reader *tell_arrival(player_app *app, const char *title, const cha
                                    const told_list *lines, gallery *pictures) {
   player_reader *reader = player_reader_new(app);
   const sprout_seen_view *view = NULL;
-  char said[256];
+  char said[PLAYER_TITLE_BYTES + 160]; /* "You are in ", the title, " as ", the nickname */
   text_buffer you;
   if (reader == NULL) return NULL;
   text_begin(&you, said, sizeof said);
@@ -143,7 +143,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
       memcpy(app->cartridge, arrival->path, strlen(arrival->path) + 1);
     else
       app->cartridge[0] = '\0';
-    player_world_title(opening.name, arrival->title, sizeof arrival->title);
+    player_world_title(opening.name, opening.title, arrival->title, sizeof arrival->title);
   }
   step = player_step(app->session);
   if (!step.ok) {
@@ -158,7 +158,7 @@ static void update(player_app *app, void *ctx, const player_input *input) {
 static void draw(player_app *app, void *ctx) {
   player_arrival *arrival = (player_arrival *)ctx;
   const player_pen *pen = &app->pen;
-  char said[200];
+  char said[PLAYER_TITLE_BYTES + 40]; /* "Loading ", the title, the share */
   text_buffer loading;
   uint64_t share = arrival->counted > 0 ? (uint64_t)arrival->read * 100u / arrival->counted : 0;
   int width = PLAYER_SCREEN_WIDTH - 2 * PLAYER_MARGIN;

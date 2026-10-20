@@ -93,7 +93,7 @@ object composing_room is sprout.Place {
 
 `contains actors` is a declared capability beside `contains`, not a kind the engine knows by name. An actor's **place** is the nearest ancestor declaring it: that is what `tell` reaches, what a visitor leaves when they go, and what a description describes. A wardrobe that declares it can be entered, and everything that follows from being somewhere follows from that one line.
 
-A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count, read after the description. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. Each range is walked as a message of that name is routed, under Containers route: a container answers with its `pass :arrived`, or `pass :departed`, where it writes one, and with its `pass any` otherwise, except the world, which answers only with a rule written for the notice and refuses where it writes none. So a move's notices stay in the places it joins even while the world opens its `pass any` to carry someone across the map, under Acting, and a world that wants every place to hear of every arrival says so: `pass :arrived (true)`. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
+A place's `accept` decides who may enter. When an actor enters, every visitor in range of the place reads the `arrives` line, every other object in range of it is sent `:arrived (actor, from)`, and the one arriving reads the place's description; its `:entered` handler is for anything the author wants to add or count, read after the description. Leaving is the mirror: the `leaves` line and `:departed (actor, to)`, across the range of the place left. An actor unseen as it moves is told by neither, under Range › Unseen. Each range is walked as a message of that name is routed, under Containers route: a container answers with its `pass :arrived`, or `pass :departed`, where it writes one, and with its `pass any` otherwise, except the world, which answers only with a rule written for the notice and refuses where it writes none. So a move's notices stay in the places it joins even while the world opens its `pass any` to carry someone across the map, under Acting, and a world that wants every place to hear of every arrival says so: `pass :arrived (true)`. Both lines know where from and where to — "Marta arrives from the drying loft." — and whose line is said follows Engine lines, under Prose: the mover's own first, so the cat may wander over to the paper store where a person arrives.
 
 Exits live in the grammar block, because an exit is surface: a direction, a label for the chip, and where it leads. So does whether a place can be seen, its `lit`, under Range › Sight.
 
@@ -163,7 +163,7 @@ An object reaches a target when nothing strictly between them on the containment
 
 An object always reaches **itself and its own contents**: a shut chest can still count what it holds and speak to it, because a lid stops others looking in, not the chest looking down. Without that, every container would go blind the moment it closed. It also always reaches **the surface of its own container** — the thing it is inside, even when nothing beyond it is — so a visitor shut in a wardrobe can still name the wardrobe and open it.
 
-A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against, while their place is lit, under Sight. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides; a noun holding a word nothing in the world is named by is `unknown` instead, under Parsing › When nothing matches. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
+A visitor's range is computed from the visitor, so it is their hands and then their place, and it is what a command's nouns resolve against, while their place is lit, under Sight, less what is unseen, under Unseen. A key in a shut chest cannot be named until the chest is open — which is what makes a lid mean anything, and what a player already expects. A command whose phrase reads but whose noun nothing in range answers to is answered with the world's `not_here`, "You see nothing like that here.", which says no more of what a lid or a wall hides; a noun holding a word nothing in the world is named by is `unknown` instead, under Parsing › When nothing matches. Where the phrases a line could be read by disagree, a reading wins, then a partial reading's `cannot` or `not_carrying`, then `not_here`, then `unknown`, under Parsing: `cannot` names what the world understood of what is in range, `not_carrying` the thing in range the visitor does not carry, and `not_here` names nothing. Because `sprout.Actor` does not pass, what another visitor carries is out of range: you can name Marta, and not the key in her pocket.
 
 A refusal's words are the one place a body sees into a person's hands. The words a `refuse` gives, in a guard, a `permit`, a `do` or an exit, and every passage they render, are read with the acting visitor's hands open, as sight reads them under Sight: the visitor bound as `actor`, or in a guard, which binds none, as `mover`. So `actor.count(K)`, `actor.holds(x)` and `{for x in actor}` there see what the actor carries, and a place refusing a way down can say "You haven't a prayer of getting the coffin down there." Only that visitor's own hands open, so an NPC's refusal opens none, and a shut container in them stays shut. Everywhere else, a description included, what the actor carries is out of range as above.
 
@@ -189,6 +189,14 @@ The condition is over the place, read-only and pure, and polled for whoever look
 `x.sees(K, :p)` is read only in a `lit`. It is true when something `x` sees composes `K` and holds the boolean `:p` true, and what `x` sees is what its range reaches, save that a person's hands are open to sight: a lamp someone carries lights the place they stand in, though `sprout.Actor` passes nothing, and a lamp in a shut chest lights nothing. Nothing else may read through a person this way, except a refusal's words, which see into the acting visitor's hands under Range.
 
 While a visitor's place is not lit, their nouns resolve only against what they carry, so anything further is answered with `not_here`, and the place's description, to them, is the world's `dark` line, "It is too dark to see.". Messages, an NPC's range, `tell`, `each`, `get` and `send` are unchanged: they reach as range says.
+
+### Unseen
+
+A thing may be in place and acting but out of sight. Every object holds `:unseen`, a boolean the standard library declares for every object, false by default. It composes as a property of one origin that every kind composes: a kind or an object restates it to start unseen, `:unseen true`, keeping its type, and only the object itself writes it, `self.set(:unseen, true)`.
+
+While an object holds it true, it and what it holds are out of sight of everything but itself and what it holds: not listed and not addressable, as an absent object is under What absent means, though still in range. A visitor's nouns do not resolve to it, so a line naming it is answered with `not_here`, and `all` does not take it; the view neither lists it, among the people there or what the visitor carries, nor offers a reading of it; `each`, `{for … in}`, `count` and `holds` pass over it; and `sees` does not see it, so an unseen lamp lights nothing. Its moves are not told: a move of an actor that holds `:unseen` true when the move is made reads no `arrives` or `leaves` and sends no `:arrived` or `:departed`, so a thief who writes `self.set(:unseen, false)` before he moves is seen to go, and one who writes it after arrives unannounced and is there to be seen. A refusal's words still see what the acting visitor carries, unseen or not, as they see into their hands under Range.
+
+Everything else is unchanged: its handlers, hooks, ticks and wakes run, it may `act` and `move`, and `get`, `send`, `broadcast` and `tell` reach as range says, to it and from it. So a grating under a heap of leaves starts `:unseen true` and writes it false when the leaves, swept aside, send it word.
 
 ### Actors and visitors
 
@@ -220,7 +228,7 @@ kind Tagged is sprout.Actor {
 }
 ```
 
-`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
+`sprout.Actor` declares the hands, their capacity, and the guards that make a person's things their own. Every object that composes `sprout.Actor` is an actor and may `act`. A world's own kind — the **visitor kind** — composes `sprout.Visitor`, the standard library's kind for a person, which composes `sprout.Actor`; it adds whatever this story needs a person to have, and has no behaviour of its own, since a person acts by typing: its own body may declare properties, a `remembers` block, passages, a grammar block and a `describe`, may leave out a member it composes with `without`, and is refused a handler, hook, `after command`, tick, wake, play, guard or pass rule. What it composes runs as it would for any object, so behaviour a person needs is written on a kind the visitor kind composes. `item.is(sprout.Actor)` is an ordinary nominal test rather than a name the engine knows.
 
 A **visitor** is an instance of the visitor kind with a person behind it. It sits in the tree, holds what it carries, and has a place — and alone among objects, nobody wrote its declaration. It arrives where the world says visitors arrive, or, on a later visit, where it last stood if that place still exists and still accepts it. The first time it arrives it is made as a spawn is, with its own copy of each object its kind's body holds, so a world gives its visitors a satchel by writing one in the visitor kind; on a later visit it arrives with what it carried away, and never with those contents again. `visitors arrive at` names a place inside the world, never the world itself, even where the world declares `contains actors`; it is written in the world's body, so a place directly in the world is named bare and one deeper by its path: `visitors arrive at kiln.back_room`.
 
@@ -324,6 +332,7 @@ The manifest is what a world says about itself before any of it is read.
 | field | what it holds |
 | --- | --- |
 | `name` | the world's own name, which its one `world` declaration repeats |
+| `title` | what a person is shown the world as; optional, and the name as words when unset |
 | `namespace` | the namespace its declarations are unqualified in; optional, and the world's name when unset |
 | `version` | which version of this world this is, as [semver](https://semver.org) |
 | `author` | who made it, as text: a name, an address, a profile |
@@ -336,6 +345,8 @@ The manifest is what a world says about itself before any of it is read.
 None of it needs a parser, and that is the point: whether a bundle is closed and whether it is complete are both settled before a line of the language has been read.
 
 A bundle holds exactly one `world` declaration, and its name is the manifest's `name`: none, more than one, or one under another name is refused.
+
+`title` is the world as a host shows it to a person: on a shelf, in a list of worlds, in the line that says who they are in it. It is one line of at most 60 characters, not empty or only white space, holding no line break, tab or other control character; a title that is not is refused. A world with no `title` is shown as its name in words, each `_` a space and the first letter of each word a capital: `printers_shop` is "Printers Shop". It is part of the manifest, so it travels in the bundle and is part of the bundle's hash.
 
 `files` is what makes a file that did not arrive *missing* rather than merely absent — without it there is nothing for a file to be missing from. What travelled must be exactly what the manifest names; publishing refuses otherwise, and loading says so and runs.
 
@@ -359,7 +370,7 @@ Everything after `is` is composed; a kind may compose any number of kinds, inclu
 
 `is` composes and the colon does not. The colon marks a property, a message or an option in an expression, labels a role in `act`, and gives a role or a loop variable its kind; a declaration that composes with it, `kind Crate: sprout.Container`, is refused, and the refusal says to write `is`.
 
-A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
+A kind body may declare properties, `remembers` blocks, `contains`, `contains actors`, `roams`, a grammar block, `as <role> for <verb>` members, consent guards, handlers, hooks, an `after command`, pass rules, passages and the `prose` file that holds them, and one `describe`. An object's body may declare the same. Either may hold objects, under Objects, where its kind holds things.
 
 ### How members combine
 
@@ -371,6 +382,7 @@ Members divide by whether more than one answer makes sense.
 | `remembers` entry | refuse; composer restates to merge |
 | `on :m` handler | all run |
 | `changed :p` hook | all run |
+| `after command` | all run |
 | `depart` / `release` / `accept` | all run; any refusal decides |
 | `as <role> for <verb>` | all `permit` run, any refusal decides; all `do` run |
 | nouns in the grammar block | all apply |
@@ -478,7 +490,7 @@ A bundle's language level is the highest level of any of its parts, library sour
 
 Every standard library kind, verb and passage is ordinary Sprout composed from the primitives in this document. If a standard library kind cannot be written in Sprout, the language is missing something and the language is what changes.
 
-So `sprout.Container` is the code above; `sprout.Fixture` is a `depart` guard and a passage; `sprout.LightSource` is a property, `:lit`, and a `changed` hook that broadcasts `:illuminating` with it, which a place's `lit` asks after with `sees`; `take` is a verb whose `do` is one `move` and two lines of prose. There are no magic property names. `:open` and `:capacity` belong to `sprout.Container` the way any property belongs to the kind that declared it, and a kind that does not compose it has those names free.
+So `sprout.Container` is the code above; `sprout.Fixture` is a `depart` guard and a passage; `sprout.LightSource` is a property, `:lit`, and a `changed` hook that broadcasts `:illuminating` with it, which a place's `lit` asks after with `sees`; `take` is a verb whose `do` is one `move` and two lines of prose. The engine reads one property by name, `:unseen`, which every object holds, under Range › Unseen, and no other. `:open` and `:capacity` belong to `sprout.Container` the way any property belongs to the kind that declared it, and a kind that does not compose it has those names free.
 
 ### Splitting a kind along the type seam
 
@@ -913,7 +925,32 @@ Within one participant, its plays of the role's category, `as tool for any` and 
 
 The **effect pass** runs every `do`, in the same order. The first role's usually carries the sentence; the others act and mostly stay quiet, so a wheel can learn it is dirty without saying so. When the pass ends, the queue drains.
 
-A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose effect pass says nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." The answer is decided when the effect pass ends: a line from a handler the queue runs afterward is not the reading's answer, so a `do` that only sends a message is answered with `nothing_happens`, and what the handler then tells the actor follows it. An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
+A participant with no `permit` consents. A participant with no `do` does nothing. A visitor's reading whose participants say nothing to them is answered with the world's `nothing_happens` passage, so that acting is never met with silence. What answers is what a participant `say`s, `tell`s or `refuse`s to the actor; a place's notice of someone the reading moved, `leaves` or `arrives`, does not count, so a `do` that sends the cat out of the room without a word reads "The cat leaves." and then "Nothing much comes of that." The answer is decided once the participants' `do`s have run: a line from an `after command`, or from a handler the queue runs afterward, is not the reading's answer, so a `do` that only sends a message is answered with `nothing_happens`, and what the handler then tells the actor follows it. An NPC's reading that says nothing has no output. The compiler warns about a verb that no player ever `say`s for, and only a `say` counts, since a `tell actor` or a `refuse` is not the verb speaking.
+
+### After a command
+
+A kind or an object may write `after command { … }`, which runs at the end of every command a visitor makes while they carry it or it holds them, so a lamp burns down by the move rather than by the clock:
+
+```sprout
+kind Lamp {
+  :lit false
+  :charge 300
+
+  after command {
+    if (self.get(:lit)) {
+      self.adjust(:charge, -1)
+      if (self.get(:charge) == 0) {
+        self.set(:lit, false)
+        say "Your lamp flickers and goes out."
+      }
+    }
+  }
+}
+```
+
+It runs in the effect pass, once every participant's `do` has run: after `nothing_happens` where nothing else answered it, and after the description of a place the reading moved the visitor to, but before what an engine verb answers, which follows the queue, so `look` in a loud room reads the roar and then the room. What runs is settled as it begins, nearest the visitor first: what they carry, in their hands and inside what they carry wherever every container between passes, as under Carried roles, so never through a shut tin; then the visitor; then each container that holds them, out to the world. Each runs every `after command` its kinds compose, in composition order, and one destroyed before its turn runs nothing. Inside, `self` is the one running, `actor` the visitor and `here` their place as it began, and nothing else is bound. It acts and speaks as a `do` does — `say` and `tell actor` reach the visitor, and a plain `tell` everyone else who hears `self` — and never decides, so `refuse` and `allow` are refused in it. Each thing whose `after command` runs is one event against the turn's budget, and what it runs is charged to the turn's steps.
+
+It follows a visitor's own command, whatever the verb, the engine's included: each turn of a line, as each step of an intent and each thing of `all` or a run is its own turn, under Sequences, again and all. It does not follow a reading its consent pass refused, a `go` whose exit refused, a line the parser answered, an NPC's reading, a reading an `act` performs, a tick, a wake, a message, an arrival or a departure. A body writes one; a second is refused.
 
 ### Word order stops mattering
 
@@ -1620,7 +1657,7 @@ Two people in one place have no verb for speaking freely to each other, because 
 
 ## Time
 
-A world moves without being poked, two ways. A **tick** is ambience: it only means anything when someone is there to perceive it. A **wake** is a process: it happens whether or not anyone stayed to watch.
+A world moves without being poked, two ways. A **tick** is ambience: it only means anything when someone is there to perceive it. A **wake** is a process: it happens whether or not anyone stayed to watch. What happens with every command rather than with time is an `after command`, under Verbs › After a command.
 
 ### Ticks
 
@@ -1775,7 +1812,7 @@ A **value type**: how it is written as a literal, how it persists, how it prints
 
 **Statements**, with their arguments, a compile-time check, and whether they may appear in `describe`. A statement allowed in `describe` records its effect into the view; one that is not is refused there. None may appear in a guard or a `permit`. Who reads what a statement records follows where it stands: in a reading's `do`, whoever reads what that body says; in a handler, a hook, a tick or a wake, the people in the recorder's place, as a plain `tell` reaches them; in a `describe`, the one looking. Recorded with nobody to read it, it is no effect. An **effect** shape a host validates against, each statement's own: the effect carries the extension, the statement, its payload and, as its words, its transcript line, and a payload that is not plain JSON or that its schema refuses, or a transcript that is empty, faults the turn naming the extension. A **transcript line** — the words a text-only client shows instead, made from the payload when the statement runs and charged to each reader's output. And a paragraph for the generated skill, in a builder's terms.
 
-An extension may **not** add properties to every object. A property belongs to the kind that declares it, so an extension that wants one ships a library alongside: `media.Illustrated` declares `:image`, and an object composes it. The value type is the extension's; the property is ordinary.
+An extension may **not** add properties to every object. A property belongs to the kind that declares it, `:unseen` alone being every object's, so an extension that wants one ships a library alongside: `media.Illustrated` declares `:image`, and an object composes it. The value type is the extension's; the property is ordinary.
 
 ### Activation and absence
 
@@ -1879,7 +1916,7 @@ Source is the truth. A definition is rebuilt from source every time a world load
 - A comment is `//` to the end of the line, or `/* … */` across lines. A `/* … */` closes at the first `*/` and does not nest; one that is never closed is a refusal at its opening.
 - Text in quotes takes the escapes `\"`, `\\`, `\n` and `\{`; a backslash before anything else is a refusal. A passage takes the same escapes, and `\{` is how it writes a literal brace.
 - A `:` followed by a lower-case letter is a symbol: a property, a message, or an option in an expression. Anywhere else it is punctuation, which is why a label is written with the space, `act nuzzle (target: p)`.
-- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
+- The reserved words are the type names `boolean`, `integer`, `string` and `object`; the value-role word `symbol`; the literals `true` and `false`; and the words of the language's own syntax: `accept`, `act`, `actors`, `adjectives`, `after`, `allow`, `any`, `are`, `arrive`, `article`, `as`, `at`, `bound`, `broadcast`, `carried`, `changed`, `connect`, `contains`, `default`, `depart`, `describe`, `destroy`, `do`, `each`, `else`, `enum`, `exit`, `finally`, `for`, `from`, `grammar`, `hours`, `if`, `import`, `in`, `intent`, `kind`, `let`, `link`, `lit`, `many`, `max`, `message`, `min`, `minutes`, `move`, `name`, `nouns`, `object`, `of`, `on`, `optional`, `pass`, `passage`, `permit`, `pronouns`, `prose`, `refuse`, `release`, `remembers`, `roams`, `role`, `say`, `seconds`, `send`, `spawn`, `tell`, `text`, `then`, `to`, `verb`, `visitors`, `wake`, `when`, `with`, `without` and `world`. None may name an enum's option or a binding.
 
 ### One tier
 
@@ -1996,11 +2033,11 @@ Everything that runs is a **turn**, and there are five kinds:
 
 Write turns on one world are serialized under a lock and run in a transaction: a fault abandons the transaction, and the world is exactly as it was; a maintenance turn abandons only the part that faulted, under Faults. A poll runs against the last committed state, holds no lock, draws no seed, and has its own step budget; it may run while a write turn runs, and sees the state before it.
 
-Within a command turn, the order is fixed: parse; the consent pass; the effect pass, actor first and then roles in declared order; the queue, breadth-first in insertion order, including any reading an `act` starts and the messages a `move` sends; then the views of everyone present are marked stale. `act` runs its reading inline where it stands, and a `move`'s guards run inline where it stands, since guards are pure.
+Within a command turn, the order is fixed: parse; the consent pass; the effect pass, actor first and then roles in declared order, then every `after command` that follows the command; the queue, breadth-first in insertion order, including any reading an `act` starts and the messages a `move` sends; then the views of everyone present are marked stale. `act` runs its reading inline where it stands, and a `move`'s guards run inline where it stands, since guards are pure.
 
 ### The view
 
-A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. A role only the actor plays and the actor's own part moves, as `take`'s target, is not offered filled with the visitor's own place, so `take` is not offered it and `examine` is; and a reading its consent pass allows whose `do` would move a thing into something it holds, itself or a container it is inside, is greyed with the world's `inside_itself`, as the move would be refused. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault; the view of one whose place is not lit is as Range › Sight says. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
+A visitor's **view** is what a poll produces: the description of their place, rendered with them as `actor`; the exits that apply, with their labels; who else is there, which is every other actor in their range under the pass rules and not unseen, so someone inside an open wardrobe in the place is listed and someone inside a shut one is not; what they carry that is not unseen; and every reading the parser could build from what is in range — verb, fillers, the options of each value role, given per role in the order the verb declares them, a symbol option as the words a visitor types for it — with the result of its consent pass, so a client can offer a chip, grey it, and say why. A role only the actor plays and the actor's own part moves, as `take`'s target, is not offered filled with the visitor's own place, so `take` is not offered it and `examine` is; and a reading its consent pass allows whose `do` would move a thing into something it holds, itself or a container it is inside, is greyed with the world's `inside_itself`, as the move would be refused. Two things written alike give two offers typed alike, as the parser would rank and draw between them. The view of a visitor whose place is gone is the world's `displaced` and nothing else, with no fault; the view of one whose place is not lit is as Range › Sight says. A view is derived when a client asks and is valid until the world's next committed write turn, which names every visitor whose view it made stale, so a host may cache it per visitor until then.
 
 A host may poll a view in parts: the **scene**, which is the view without its readings and with each verb a reading could be built for, one whose every role something in range, a way out or a value can fill, in the order the parser tries them; and then the readings of any one verb, as the whole view would give them. Each part is a poll of its own, under its own budget, so a place too full to offer whole still offers each verb.
 

@@ -6,20 +6,29 @@ import { runCommand, runCommandLine, runMaintenance, runTick, runWake } from '..
 import { equal, match, ok, rejects } from './check.js';
 import {
   BELFRY,
+  BELFRY_FOLLOWS,
   BELFRY_GONE,
   CANDLE,
   CHAPEL,
   COUNTER,
+  FOLLOWED,
+  FOLLOWED_BELL,
+  FOLLOWED_HALL,
   countOf,
   GAUGE,
   HALL,
+  HIDEOUT,
+  HIDEOUT_HALL,
+  HIDEOUT_VAULT,
   INES,
   MARTA,
   NAVE,
   played,
+  propertyOf,
   seeded,
   storedIn,
   TALLY,
+  THIEF,
   TOWER,
   type EngineCase,
   type MakeEngine,
@@ -439,6 +448,33 @@ export const turnCases: EngineCase[] = [
     },
   },
   {
+    name: 'an unseen thing is out of sight',
+    proves:
+      'a thing that holds `:unseen` true is not named by a visitor, and its move is told to nobody, while a message still reaches it',
+    async run(make) {
+      const store = await seeded(HIDEOUT, [
+        [MARTA, HIDEOUT_HALL, 'Marta'],
+        [INES, HIDEOUT_VAULT, 'Ines'],
+      ]);
+      const host = played(make, HIDEOUT);
+      const named = await runCommand(store, 'w', host, command('examine thief'));
+      match(
+        named.effects,
+        [{ visit: MARTA, paragraphs: ['You see nothing like that here.'] }],
+        'naming the thief',
+      );
+      const rung = await runCommand(store, 'w', host, command('ring bell'));
+      ok(rung.committed, 'ringing the bell commits');
+      equal(
+        rung.effects.map((one) => [one.kind, one.visit]),
+        [['said', MARTA]],
+        'who reads what the ringing did',
+      );
+      const thief = (await storedIn(store)).instances.find((one) => one.id === THIEF);
+      equal(thief?.container, HIDEOUT_VAULT, 'where the thief went');
+    },
+  },
+  {
     name: 'a carried thing tells its holder',
     proves:
       'a `tell` from a thing in a person’s hands reaches that person and nobody else in the place, and from inside a shut container they carry reaches nobody',
@@ -481,6 +517,34 @@ export const turnCases: EngineCase[] = [
       await typed('put candle in tin', 60);
       await typed('close tin', 60);
       equal(await woken(120), [], 'what the candle in the shut tin she carries tells');
+    },
+  },
+  {
+    name: 'what follows a command',
+    proves:
+      'after a person’s command, what they carry, then their place, then the world run their `after command`, nearest first; a refused command is followed by nothing',
+    async run(make) {
+      const store = await seeded(BELFRY_FOLLOWS, [[MARTA, FOLLOWED_HALL, 'Marta']]);
+      const host = played(make, BELFRY_FOLLOWS);
+      const taken = await runCommand(store, 'w', host, command('take bell'));
+      ok(taken.committed, 'the take commits');
+      match(
+        taken.effects,
+        [
+          { kind: 'said', visit: MARTA, paragraphs: ['You take a bell.'] },
+          { kind: 'said', from: FOLLOWED_BELL, visit: MARTA, paragraphs: ['The bell hums.'] },
+          { kind: 'told', from: FOLLOWED_HALL, visit: MARTA, paragraphs: ['The hall echoes.'] },
+        ],
+        'what the take, the bell in her hands and the hall said, in that order',
+      );
+      equal(await propertyOf(store, FOLLOWED, 'commands', 0), 1, 'the commands the world counted');
+      const again = await runCommand(store, 'w', host, command('take bell'));
+      match(
+        again.effects,
+        [{ kind: 'refused', visit: MARTA, paragraphs: ['You already have it.'] }],
+        'a refused take, and nothing after it',
+      );
+      equal(await propertyOf(store, FOLLOWED, 'commands', 0), 1, 'the count after the refusal');
     },
   },
 ];

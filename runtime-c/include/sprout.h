@@ -169,11 +169,11 @@ sprout_world *sprout_load_finish(sprout_loading *loading);
 void sprout_load_abandon(sprout_loading *loading);
 
 /*
- * Reads only what a shelf needs of a cartridge, from `source`: its header and
- * the caps it was checked against, into a world with no graph or catalogue.
- * The source is read only as far as the preamble, so a peek is as cheap for a
- * big world, or one carrying pictures, as for a small one. Such a world is
- * read through sprout_world_header and sprout_world_caps and freed as any; it
+ * Reads only what a shelf needs of a cartridge, from `source`: its header
+ * (the name, the title where the manifest gives one, the hash) and the caps it
+ * was checked against, into a world with no graph or catalogue. The source is
+ * read only as far as the preamble, so a peek is as cheap for a big world, or
+ * one carrying pictures, as for a small one. Such a world is freed as any; it
  * opens nothing.
  */
 sprout_status sprout_peek(const sprout_host *host, const sprout_source *source, sprout_world **world,
@@ -762,8 +762,8 @@ typedef struct sprout_stored_changes {
 } sprout_stored_changes;
 
 /*
- * A handler or hook a turn ran: the kind that wrote it, what it answers (a message by its key, or `changed :p` for
- * a hook), and where it is written, `file:line:column`, which tells two apart.
+ * A handler or hook a turn ran: the kind that wrote it, what it answers (a message by its key, `changed :p` for
+ * a hook, or `after command`), and where it is written, `file:line:column`, which tells two apart.
  */
 typedef struct sprout_ran {
   const char *origin;

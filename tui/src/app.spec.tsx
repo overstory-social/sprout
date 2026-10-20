@@ -30,11 +30,11 @@ describe('the client on a terminal', () => {
     await settle();
     const rows = plain(app.lastFrame()).split('\n');
     expect(rows).toHaveLength(24);
-    expect(rows[0]).toBe(`● connected  ${session.address}  ·  sequences as Marta`);
+    expect(rows[0]).toBe(`● connected  ${session.address}  ·  Sequences as Marta`);
     // The transcript sits at the foot of its space, the newest line last.
     expect(rows.slice(1, 17).every((row) => row === '')).toBe(true);
     expect(rows.slice(17, 19)).toEqual([
-      'You are in sequences as Marta.',
+      'You are in Sequences as Marta.',
       'There is nothing special about the cellar.',
     ]);
     expect(rows[19]).toMatch(/^─+$/);
@@ -59,7 +59,7 @@ describe('the client on a terminal', () => {
     await settle();
     const rows = plain(app.lastFrame()).split('\n');
     expect(rows.slice(15, 19)).toEqual([
-      'You are in sequences as Marta.',
+      'You are in Sequences as Marta.',
       'There is nothing special about the cellar.',
       '> take key',
       'You take a key.',

@@ -131,7 +131,7 @@ static sprout_eval_status help_for(sprout_exec *x, const sprout_frame *frame, sp
   sprout_effect_binding *bound;
   size_t way_count, reached_count, offer_count, i, j, kept = 0;
   EXPR_NEED(sprout_exits_from(frame, here, &ways, &way_count));
-  EXPR_NEED(sprout_range_of(frame, actor, NULL, &reached, &reached_count));
+  EXPR_NEED(sprout_range_seen(frame, actor, &reached, &reached_count));
   EXPR_NEED(sprout_offers_to(x, frame, actor, ways, way_count, reached, reached_count, &offers, &offer_count));
   typed = (sprout_str *)sprout_arena_take(frame->turn, (offer_count + 1) * sizeof *typed);
   if (typed == NULL) return SPROUT_EVAL_NO_MEMORY;

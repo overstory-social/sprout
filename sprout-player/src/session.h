@@ -34,6 +34,7 @@ typedef struct player_opening {
   bool done;               /* step: the world is open */
   size_t read, counted;    /* step: bytes of the body inflated so far, of all there are */
   const char *name, *hash; /* the world's name and bundle hash: inspect and open when ok, step once done */
+  const char *title;       /* with the name: the title its manifest gives, or NULL where it gives none */
   size_t word_count;
   const char *const *words; /* step once done: the words the world reads, which no nickname may be */
   const char *reason;
@@ -167,6 +168,7 @@ typedef struct player_restart {
   bool ok;
   const char *reason;
   const char *name;           /* the world's name */
+  const char *title;          /* the title its manifest gives, or NULL where it gives none */
   size_t word_count;
   const char *const *words;   /* the words the world reads, which no nickname may be */
   const sprout_str *nickname; /* the name the visitor had, which the device offers first again, or NULL */

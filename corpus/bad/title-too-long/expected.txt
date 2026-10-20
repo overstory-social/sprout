@@ -1,0 +1,4 @@
+sprout.json:3:3  This world's title is 76 characters long, and 60 is as long as a title may be.
+                 Write a shorter title, as in "title": "Underground Caverns 2: The Revenge".
+
+refused: 1 problem

@@ -1,0 +1,9 @@
+{
+  "about": "A lit lamp that is unseen lights nothing, so the cellar it stands in is dark.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "It is too dark to see." }
+    ] }
+  ]
+}

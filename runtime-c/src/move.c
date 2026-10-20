@@ -124,6 +124,8 @@ sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame,
   sprout_str by;
   size_t i, n = 0;
   bool world = sprout_str_same(other, x->draft->base->world);
+  /* An unseen actor comes and goes unannounced (the spec's Range > Unseen). */
+  if (expr_unseen(frame, actor)) return SPROUT_EVAL_OK;
   EXPR_NEED(told_of(frame, place, actor, leaving ? "departed" : "arrived", &heard));
   for (i = 0; i < heard.sent_count; i++) {
     memset(&send, 0, sizeof send);

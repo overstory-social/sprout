@@ -6,10 +6,11 @@
 // binary this machine can build: the Simulator library of this platform (pdex.so or pdex.dylib),
 // pdex.dll for the Windows Simulator where x86_64-w64-mingw32-gcc is on the path (llvm-mingw
 // cross-compiles it from Linux or macOS), and pdex.bin for a console where arm-none-eabi-gcc is.
-// pdc packages Source/ (pdxinfo, the fonts, the worlds) with whatever pdex.* lies there, so the one
-// pdx runs wherever a binary was built for; the system runs the update callback main.c sets. Before
-// that it packs the graduated worlds (sprout-player/worlds.json) into the pdx's worlds/ folder, one
-// cartridge a world, its pictures inside it. The download screen trusts the public key in the file named by
+// pdc packages Source/ (pdxinfo, the fonts) with whatever pdex.* lies there, so the one pdx runs
+// wherever a binary was built for; the system runs the update callback main.c sets. The pdx carries
+// no worlds: the build packs the graduated worlds (sprout-player/worlds.json) into <folder>/worlds,
+// beside the pdx, one cartridge a world, its pictures inside it, for a world is installed on its own
+// (the design doc's Shipped worlds and downloads). The download screen trusts the public key in the file named by
 // SPROUT_INDEX_PUBLIC_KEY (default sprout-player/test/index-test.pub, which anyone can sign for, so
 // a build to publish sets it), which the build bakes in as generated/publickey.h
 // (-DPLAYER_INDEX_PUBLIC_KEY_FILE). `npm run playdate` is this.
@@ -47,7 +48,7 @@ const root = join(fileURLToPath(import.meta.url), '../..');
 const player = join(root, 'sprout-player');
 const pdxSource = join(player, 'Source');
 
-/** The graduated worlds the pdx carries: `{ "graduated": [ { "world", "title" } ] }`. */
+/** The graduated worlds the build packs and tests, installed apart from the pdx: `{ "graduated": [ { "world", "title" } ] }`. */
 export const WORLDS_FILE = join(player, 'worlds.json');
 
 /** The public key whose signatures the download screen accepts, unless SPROUT_INDEX_PUBLIC_KEY names another. */
@@ -281,13 +282,10 @@ async function signedIndex(scratch, cartridges, given) {
 }
 
 /**
- * Packs the graduated worlds into `out` with the built CLI, each as one `<name>.sproutworld` that
- * carries its pictures, replacing what was there. Returns the list it packed.
+ * Packs the graduated worlds into the folder `out` with the built CLI, each as one
+ * `<name>.sproutworld` that carries its pictures, replacing what was there. Returns the list it packed.
  */
-export async function stageWorlds({
-  list = readGraduated(),
-  out = join(pdxSource, 'worlds'),
-} = {}) {
+export async function stageWorlds({ list = readGraduated(), out }) {
   const { main } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
@@ -326,10 +324,26 @@ export function readPublicKey({ keyFile = publicKeyFile() } = {}) {
   return { keyFile, isTest: resolve(keyFile) === TEST_PUBLIC_KEY };
 }
 
-/** Removes what an earlier build left in Source/: the binaries the pdx is made from. */
+/**
+ * Removes what an earlier build left in Source/: the binaries the pdx is made from. Throws where
+ * Source/ holds a cartridge, since the pdx carries no worlds.
+ */
 function clearBinaries() {
   for (const name of readdirSync(pdxSource)) {
     if (name.startsWith('pdex.')) rmSync(join(pdxSource, name), { force: true });
+  }
+  noWorlds(pdxSource);
+}
+
+/** Throws where `folder` holds a cartridge at any depth: neither Source/ nor the pdx carries a world. */
+export function noWorlds(folder) {
+  const world = readdirSync(folder, { recursive: true }).find((name) =>
+    String(name).endsWith('.sproutworld'),
+  );
+  if (world !== undefined) {
+    throw new Error(
+      `${join(folder, String(world))} is a cartridge, and the pdx carries no worlds: delete it. The build packs the graduated worlds beside the pdx.`,
+    );
   }
 }
 
@@ -425,7 +439,8 @@ function placeBinary(dir, built, pdex) {
 /**
  * What `npm run playdate` does: one pdx with every binary this machine can build, the host's
  * Simulator library always, pdex.dll where the MinGW cross compiler is installed and this is not
- * Windows, pdex.bin where arm-none-eabi-gcc is. Returns the pdx and the binaries it carries.
+ * Windows, pdex.bin where arm-none-eabi-gcc is; and the graduated worlds' cartridges in
+ * `<out>/worlds`, apart from it. Returns the pdx, the binaries it carries and the cartridges.
  */
 export async function buildPlayer({
   out = join(player, 'build'),
@@ -438,7 +453,8 @@ export async function buildPlayer({
       'PLAYDATE_SDK_PATH is not set to a Playdate SDK. Run `export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"`.',
     );
   }
-  await stageWorlds();
+  const worlds = join(out, 'worlds');
+  const staged = await stageWorlds({ out: worlds });
   const key = readPublicKey();
   if (key.isTest) {
     console.warn(
@@ -480,10 +496,10 @@ export async function buildPlayer({
   }
   const pdx = join(out, 'sprout-player.pdx');
   packagePdx(sdk, pdxSource, pdx, binaries);
-  return { pdx, binaries, skipped };
+  return { pdx, binaries, skipped, worlds, cartridges: staged.map(({ file }) => file) };
 }
 
-/** Runs pdc over `source` into `pdx`; throws where a binary in `binaries` was not packaged. */
+/** Runs pdc over `source` into `pdx`; throws where a binary in `binaries` was not packaged or the pdx holds a world. */
 function packagePdx(sdk, source, pdx, binaries) {
   rmSync(pdx, { recursive: true, force: true });
   run(join(sdk, 'bin/pdc'), ['-sdkpath', sdk, source, pdx]);
@@ -491,6 +507,7 @@ function packagePdx(sdk, source, pdx, binaries) {
     if (!existsSync(join(pdx, name))) throw new Error(`pdc did not package ${name} into ${pdx}`);
   }
   pureC(pdx);
+  noWorlds(pdx);
 }
 
 /**
@@ -506,6 +523,8 @@ function pureC(pdx) {
 
 /**
  * The gate's part. Returns one line saying which parts ran; throws with the failing command's words.
+ * The graduated worlds are packed into a scratch folder apart from the pdx, and the C tests that
+ * read PLAYER_SHIPPED_DIR and the listed plays read them there.
  * With `sanitize` the Simulator target and its tests are built under AddressSanitizer and
  * UndefinedBehaviorSanitizer, from the cartridges the sanitized runtime build packed, and any report
  * fails; the device target is not built then. The sanitized tests and `sproutc` run behind the
@@ -519,7 +538,8 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'sprout-player-'));
   try {
     ran.push(shippingSpecs());
-    const staged = await stageWorlds();
+    const worlds = join(scratch, 'worlds');
+    const staged = await stageWorlds({ out: worlds });
     clearBinaries();
     const cartridges = join(sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild, 'cartridges');
     if (!existsSync(cartridges))
@@ -535,6 +555,7 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
       if (!existsSync(join(pdx, file))) throw new Error(`the pdx has no ${file}`);
     }
     pureC(pdx);
+    noWorlds(pdx);
     ran.push(sanitize ? 'Simulator pdx built under the sanitizers' : 'Simulator pdx built');
 
     const keep = join(scratch, 'keep');
@@ -545,7 +566,7 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
       ['--test-dir', dir, '--output-on-failure'],
       {
         PLAYER_KEEP_DIR: keep,
-        PLAYER_SHIPPED_DIR: join(pdxSource, 'worlds'),
+        PLAYER_SHIPPED_DIR: worlds,
         PLAYER_SIGNED_INDEX: published.index,
         PLAYER_SIGNED_INDEX_KEY: published.key,
         ...(sanitize
@@ -608,7 +629,7 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
     ran.push(roundTrip(keep, cartridges, sproutcDir, prefix));
     ran.push(builtMatchesTyped(keep, cartridges, sproutcDir, prefix));
-    ran.push(checkPlays(staged, join(pdxSource, 'worlds'), sproutcDir, scratch, prefix));
+    ran.push(checkPlays(staged, worlds, sproutcDir, scratch, prefix));
 
     if (sanitize) {
       ran.push('device target not built under the sanitizers');
@@ -704,9 +725,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       device: !args.includes('--no-device'),
       windows: !args.includes('--no-windows'),
     });
-    console.log(`pdx: ${built.pdx}`);
+    console.log(`pdx: ${built.pdx} (it carries no worlds)`);
     console.log(`carries: ${built.binaries.join(', ')}`);
     if (built.skipped.length > 0) console.log(`not built: ${built.skipped.join(', ')}`);
+    console.log(`worlds: ${built.worlds}/ (${built.cartridges.join(', ')})`);
+    console.log(
+      "Install a world by copying its .sproutworld into Data/social.overstory.sprout-player/worlds/ on the console's data disk (the Simulator's Disk folder holds the same Data/).",
+    );
     console.log(`Open it:  "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" "${built.pdx}"`);
   } catch (err) {
     console.error(err.message);

@@ -35,7 +35,7 @@ sprout_bound_kind sprout_role_takes(const sprout_role *role) {
 sprout_eval_status sprout_perform(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
                                   sprout_reading_end *end, sprout_permit_refusal *refusal) {
   bool refused;
-  size_t i, owed_from = x->owed_count;
+  size_t i;
   for (i = 0; i < reading->verb->role_count; i++) {
     const sprout_role *role = &reading->verb->roles[i];
     const sprout_filled *held = &reading->roles[i];
@@ -59,9 +59,6 @@ sprout_eval_status sprout_perform(sprout_exec *x, const sprout_frame *frame, con
     return SPROUT_EVAL_OK;
   }
   EXPR_NEED(sprout_effect_pass(x, frame, reading));
-  /* A typed command's descriptions are read once everything its participants said is said. */
-  if (x->acting == 0)
-    for (i = owed_from; i < x->owed_count; i++) x->owed[i].after = x->effect_count;
   *end = sprout_draft_instance(x->draft, reading->actor) == NULL ? SPROUT_READING_GONE : SPROUT_READING_ACTED;
   return SPROUT_EVAL_OK;
 }
