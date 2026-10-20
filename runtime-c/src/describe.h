@@ -38,7 +38,7 @@ typedef struct sprout_description {
 } sprout_description;
 
 /*
- * What `actor` reads looking at `thing`, for `seen` (`look`, `arrival` or `poll`): each statement
+ * What `actor` reads looking at `thing`, for `seen` (`look`, `examine`, `arrival` or `poll`): each statement
  * of its describe a step and each expression as a body's is charged. An actor who is away looks at
  * nothing, which is the engine's defect.
  */

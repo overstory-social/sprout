@@ -1,0 +1,24 @@
+{
+  "about": "The bucket is a place someone stands in. Examined from the well or from inside it, it describes itself; looked from inside it, or arrived in, it describes the well seen from it.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "The bottom of a dry well. A bucket hangs on its rope." }
+    ] },
+    { "as": "Marta", "type": "examine bucket", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A wooden bucket, banded with iron, big enough to stand in." }
+    ] },
+    { "as": "Marta", "type": "board bucket", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You climb into the bucket." },
+      { "reader": "Marta", "kind": "described", "words": "From the bucket you see the round stone walls of the well, and daylight far above." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "From the bucket you see the round stone walls of the well, and daylight far above." }
+    ] },
+    { "as": "Marta", "type": "examine bucket", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A wooden bucket, banded with iron, big enough to stand in." }
+    ] },
+    { "as": "Marta", "type": "look at bucket", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A wooden bucket, banded with iron, big enough to stand in." }
+    ] }
+  ]
+}

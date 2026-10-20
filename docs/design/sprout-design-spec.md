@@ -697,7 +697,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `self` | the composed kind |
 | `actor` | `sprout.Actor`, a visitor or an NPC; anything more is read through `is()` |
 | `here` | the actor's place, or in an actor's own handler its own: `sprout.Place` where every kind in the world that holds actors composes it, else object |
-| `seen`, in a `describe` and the passages it invokes | symbol: one of `look`, `arrival` and `poll`, an option written bare, `seen == :look` |
+| `seen`, in a `describe` and the passages it invokes | symbol: one of `look`, `examine`, `arrival` and `poll`, an option written bare, `seen == :look` |
 | `mover`, in a guard | object; whatever proposed the move |
 | a role | the kind or value type the verb declares; object if it declares none |
 | a set role | as above, as a set |
@@ -1528,7 +1528,7 @@ A **passage** is a named block of words belonging to a kind, for prose too long 
 
 `actor` and `here` are bound where a person is acting: in a role's `permit` and `do`, in `describe` — where the actor is whoever is looking — and in any passage those invoke. A handler, hook, tick or wake has no actor: it may `tell` the place, and it may `tell` a particular actor it has bound, but it has nobody to `say` to. An actor's own handlers — its handlers, ticks and wakes, written in a kind composing `sprout.Actor` — bind `here` all the same, as its own place, so an NPC can name the place it stands in and read through it; `actor` stays unbound in them, and `here` in a hook and in any other kind's handler. The compiler enforces this exactly: a passage that renders `{actor}` may only be invoked from a body where `actor` is bound.
 
-A `describe` also binds `seen`, what it is being read for: `:look` where the reader typed `look` or `examine`, of anything, the place included; `:arrival` where they read it on arriving; and `:poll` where their view is derived. It is read-only, it is given to any passage the `describe` invokes, and it is checked as `actor` is: a passage that reads `seen` may only be invoked where it is bound. A place that shows its name alone on a return visit and the whole of itself on `look` reads `seen` beside a counter it remembers per actor, as under Chance.
+A `describe` also binds `seen`, what it is being read for: `:look` where the reader typed `look`; `:examine` where they typed `examine`, of anything, the place they stand in included; `:arrival` where they read it on arriving; and `:poll` where their view is derived. It is read-only, it is given to any passage the `describe` invokes, and it is checked as `actor` is: a passage that reads `seen` may only be invoked where it is bound. A place that shows its name alone on a return visit and the whole of itself on `look` reads `seen` beside a counter it remembers per actor, as under Chance; a thing someone can stand in, a bucket or a boat, is the place of whoever is inside it, and describes itself where `seen` is `:examine` and what is seen from it otherwise, so `examine bucket` reads the bucket from inside it or out and `look` from inside it reads the well.
 
 ### Passages
 
