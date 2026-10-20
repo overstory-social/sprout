@@ -34,7 +34,7 @@ import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { clientConnect, mcpServe, serverStart } from './peers.js';
 import { writeIndex } from './publish.js';
-import { privateKeyOf, readKeyFile, writeKeyPair } from './signing.js';
+import { readPrivateKeyFile, writeKeyPair } from './signing.js';
 import { inspectReadings, inspectScene, inspectView } from './view.js';
 
 // The `sprout` command: six verbs on a microworld folder; `skill`, the
@@ -433,7 +433,7 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
         const written = writeIndex({
           folder,
           baseUrl,
-          privateKey: privateKeyOf(readKeyFile(key)),
+          privateKey: readPrivateKeyFile(key),
           out: file,
         });
         for (const { name, written: now } of written.placed)

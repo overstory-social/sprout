@@ -10,6 +10,7 @@ import {
   privateKeyOf,
   publicKeyHex,
   readKeyFile,
+  readPrivateKeyFile,
   signWorlds,
   worldsAreSigned,
   writeKeyPair,
@@ -76,6 +77,29 @@ describe('readKeyFile', () => {
     expect(() => readKeyFile(bad)).toThrow(/should hold 64 lowercase hexadecimal digits/);
     expect(() => readKeyFile(join(dir, 'absent.key'))).toThrow(/cannot be read/);
     expect(readKeyFile(TEST_KEY)).toHaveLength(32);
+  });
+});
+
+describe('readPrivateKeyFile', () => {
+  it('reads the private half, and refuses the public one in words', () => {
+    const prefix = join(scratch(), 'publisher');
+    const pair = writeKeyPair(prefix);
+    expect(publicKeyHex(readPrivateKeyFile(pair.privateFile))).toBe(pair.publicKey);
+    expect(() => readPrivateKeyFile(pair.publicFile)).toThrow(
+      `${pair.publicFile} is a public key; --key wants the private key \`sprout keygen\` wrote beside it, ${pair.privateFile}.`,
+    );
+  });
+
+  it('refuses a private key whose .pub beside it is another key', () => {
+    const dir = scratch();
+    const pair = writeKeyPair(join(dir, 'publisher'));
+    writeFileSync(pair.publicFile, `${TEST_PUBLIC}\n`);
+    expect(() => readPrivateKeyFile(pair.privateFile)).toThrow(
+      /publisher\.key is not the private half of .*publisher\.pub beside it/,
+    );
+    const copied = join(dir, 'plain.key');
+    writeFileSync(copied, readFileSync(TEST_KEY));
+    expect(publicKeyHex(readPrivateKeyFile(copied))).toBe(TEST_PUBLIC);
   });
 });
 

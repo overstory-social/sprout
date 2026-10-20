@@ -65,6 +65,26 @@ export function privateKeyOf(seed: Buffer): KeyObject {
   });
 }
 
+/**
+ * The private key in the file `path`, refusing a public key file: one named
+ * `.pub`, or a `.key` whose `.pub` beside it is not its public half.
+ */
+export function readPrivateKeyFile(path: string): KeyObject {
+  if (path.endsWith('.pub')) {
+    throw new Error(
+      `${path} is a public key; --key wants the private key \`sprout keygen\` wrote beside it, ${path.slice(0, -4)}.key.`,
+    );
+  }
+  const key = privateKeyOf(readKeyFile(path));
+  const beside = `${path.endsWith('.key') ? path.slice(0, -4) : path}.pub`;
+  if (existsSync(beside) && readFileSync(beside, 'utf8').trim() !== publicKeyHex(key)) {
+    throw new Error(
+      `${path} is not the private half of ${beside} beside it: --key wants the private key \`sprout keygen\` wrote with that public key.`,
+    );
+  }
+  return key;
+}
+
 /** The 32-byte public key of a private key, as 64 hexadecimal digits. */
 export function publicKeyHex(privateKey: KeyObject): string {
   return createPublicKey(privateKey)
