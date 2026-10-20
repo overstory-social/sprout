@@ -434,10 +434,15 @@ variable is not set).
   over the fake network and files (a world that arrives whole and is shelved,
   a tampered index, bytes that are not the listed ones, leaving mid-download,
   every way the list cannot be had) and asserts what is left on disk (nothing,
-  for a world that did not arrive). In Node, `scripts/publish-index.spec.mjs` signs
-  with the test key (the canonical text, the index built from packed
-  cartridges and checked against `index.schema.json`, the command's refusals,
-  key generation) and `scripts/playdate-player.spec.mjs` packs a fake
+  for a world that did not arrive), and names a file for its title as
+  `test/fixtures/stems.json` holds, which `sprout index`'s spec holds the CLI
+  to as well. `signed_index.test.c` also accepts an index that the built CLI's
+  `sprout index` signed, under a key its `sprout keygen` made, and checks each
+  cartridge beside it is named as the app names a download and is the size and
+  SHA-256 listed; the e2e gives it the installed CLI's instead. In Node,
+  `cli/src/signing.spec.ts` and `cli/src/publish.spec.ts` sign with the test
+  key (the canonical text, the index built from packed cartridges and checked
+  against `index.schema.json`, the refusals, key generation) and `scripts/playdate-player.spec.mjs` packs a fake
   `worlds.json` (names or paths, a list that cannot be used, assets copied, a
   world that does not pack, a cartridge in `Source/` or the pdx refused, the
   public key read); `scripts/playdate-player.mjs`

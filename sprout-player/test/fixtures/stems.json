@@ -1,0 +1,15 @@
+[
+  ["chip_tree","chip-tree"],
+  ["Café \"Moss\"\tTea","caf-moss-tea"],
+  ["Underground Caverns","underground-caverns"],
+  ["  --Leading and trailing--  ","leading-and-trailing"],
+  ["A","a"],
+  ["!!!","world"],
+  ["","world"],
+  ["ÉÉÉ","world"],
+  ["abcdefghijklmnopqrstuvwxyz0123","abcdefghijklmnopqrstuvwx"],
+  ["abcdefghijklmnopqrstuvw x","abcdefghijklmnopqrstuvwx"],
+  ["abcdefghijklmnopqrstuv x y","abcdefghijklmnopqrstuv-x"],
+  ["Zork I: The Great Underground Empire","zork-i-the-great-undergr"],
+  ["Titled: A World Shown by Its Title","titled-a-world-shown-byi"]
+]

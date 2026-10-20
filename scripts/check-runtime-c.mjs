@@ -29,15 +29,27 @@
 // do, and once more without the parser (-DSPROUT_PARSER=OFF), as the Playdate takes the runtime, running
 // the one test that build has. The player step needs PLAYDATE_SDK_PATH (scripts/playdate-sdk.sh fetches
 // the SDK); without it the step is skipped and the last line says so. Where the variable is set, a failing
-// step fails this script, in the gate and in the e2e alike.
+// step fails this script, in the gate and in the e2e alike. Among the player's tests the app accepts an
+// index signed by the built CLI's `sprout index`; `--signed-index <index.json> --signed-index-key <file.pub>`
+// gives one signed elsewhere in its place (the e2e's, by the installed CLI).
 
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { runtimeCBuild as build, runtimeCRoot as root, sanitizedHere } from './runtime-c-build.mjs';
 
 const required = process.argv.includes('--required');
 const sanitize = process.argv.includes('--sanitize');
+const optionOf = (flag) => {
+  const at = process.argv.indexOf(flag);
+  return at >= 0 ? process.argv[at + 1] : undefined;
+};
+const signedIndex = optionOf('--signed-index');
+const signedIndexKey = optionOf('--signed-index-key');
+if ((signedIndex === undefined) !== (signedIndexKey === undefined)) {
+  console.log('runtime-c: give --signed-index and --signed-index-key together');
+  process.exit(1);
+}
 
 const has = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
 
@@ -106,7 +118,11 @@ async function playerStep(sanitized) {
     return;
   }
   try {
-    console.log(await checkPlayer({ sanitize: sanitized }));
+    const signed =
+      signedIndex === undefined
+        ? undefined
+        : { index: resolve(signedIndex), key: resolve(signedIndexKey) };
+    console.log(await checkPlayer({ sanitize: sanitized, signed }));
   } catch (err) {
     console.log(`sprout-player: FAILED, ${err.message}`);
     process.exit(1);

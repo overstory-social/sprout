@@ -641,3 +641,88 @@ describe('sprout pack of a world that names files', () => {
     expect(existsSync(file)).toBe(false);
   });
 });
+
+describe('keygen and index', () => {
+  const key = join(fileURLToPath(import.meta.url), '../../../sprout-player/test/index-test.key');
+
+  it('keygen writes a pair and prints the public key and the paths, never the private key', () => {
+    const prefix = join(mkdtempSync(join(tmpdir(), 'sprout-keygen-')), 'publisher');
+    const io = captured();
+    expect(main(['keygen', prefix], io)).toBe(0);
+    const seed = readFileSync(`${prefix}.key`, 'utf8').trim();
+    const publicKey = readFileSync(`${prefix}.pub`, 'utf8').trim();
+    expect(io.out()).toBe(
+      `wrote ${prefix}.key, the private key: keep it secret and out of every repository\n` +
+        `wrote ${prefix}.pub, the public key the Playdate app is built with\n` +
+        `public key ${publicKey}\n`,
+    );
+    expect(io.out() + io.err()).not.toContain(seed);
+    const again = captured();
+    expect(main(['keygen', prefix], again)).toBe(1);
+    expect(again.err()).toBe(
+      `sprout: ${prefix}.key already exists, and a key is never replaced: give another name.\n`,
+    );
+    expect(readFileSync(`${prefix}.key`, 'utf8').trim()).toBe(seed);
+  });
+
+  it('keygen wants a prefix and takes no flags', () => {
+    const bare = captured();
+    expect(main(['keygen'], bare)).toBe(1);
+    expect(bare.err()).toMatch(/keygen wants where to write the pair/);
+    const flagged = captured();
+    expect(main(['keygen', 'x', '--force'], flagged)).toBe(1);
+    expect(flagged.err()).toBe('sprout: keygen takes no flags; --force is not one.\n');
+  });
+
+  it('index signs the cartridges in a folder into index.json beside them, saying what it wrote', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sprout-index-'));
+    const file = join(dir, 'lane.sproutworld');
+    expect(main(['pack', worldFolder('lane', LANE), '-o', file], captured())).toBe(0);
+    const io = captured();
+    expect(main(['index', dir, '--base-url', 'https://w.example/', '--key', key], io)).toBe(0);
+    const index = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8')) as {
+      worlds: { hash: string; url: string }[];
+    };
+    const name = `lane-${index.worlds[0]!.hash.slice(0, 8)}.sproutworld`;
+    expect(index.worlds[0]!.url).toBe(`https://w.example/${name}`);
+    expect(io.out()).toBe(`wrote ${name}\nsigned 1 world into ${join(dir, 'index.json')}\n`);
+    const again = captured();
+    expect(
+      main(
+        [
+          'index',
+          dir,
+          '--base-url',
+          'https://w.example/',
+          '--key',
+          key,
+          '-o',
+          join(dir, 'index.json'),
+        ],
+        again,
+      ),
+    ).toBe(0);
+    expect(again.out()).toBe(`kept ${name}\nsigned 1 world into ${join(dir, 'index.json')}\n`);
+  });
+
+  it('index says in words what it wants', () => {
+    const cases: [string[], string][] = [
+      [['index'], 'index wants the folder of cartridges'],
+      [['index', '.', '--key', key], 'index wants --base-url'],
+      [['index', '.', '--base-url', 'https://w.example/'], 'index wants --key'],
+      [
+        ['index', '.', '--base-url', 'https://w.example/', '--key', key, '-o'],
+        '-o wants a file after it',
+      ],
+      [
+        ['index', '.', '--seed', '1'],
+        'index takes no --seed; it takes --base-url, --key and --out.',
+      ],
+    ];
+    for (const [argv, words] of cases) {
+      const io = captured();
+      expect(main(argv, io)).toBe(1);
+      expect(io.err()).toContain(words);
+    }
+  });
+});
