@@ -17,6 +17,7 @@ import type { PassRules } from './passes.js';
 import type { ComposedGrammar } from './grammar.js';
 import type { ResolvedExit } from './exits.js';
 import type { ResolvedDescribe } from './describe.js';
+import type { Capacity } from './capacity.js';
 import { lookingFrom, qualifiedName, SPROUT, type EnumTable } from './enums.js';
 import {
   composeKind,
@@ -132,6 +133,8 @@ export interface KindRef {
   readonly containsActors: boolean;
   /** Whether an NPC of it moves itself to any place (the spec's Actors and visitors › roams). */
   readonly roams: boolean;
+  /** What it holds by measure, `capacity 100 by :size`; null where it holds by no measure. */
+  readonly capacity: Capacity | null;
   /**
    * The contributions this kind's own `without` lines leave out, each a
    * member and the kind in its closure that declares it (the spec's

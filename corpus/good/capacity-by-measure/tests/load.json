@@ -1,0 +1,15 @@
+{
+  "about": "The adventurer carries by load: the coffin, the sword and the sack come to 90, the sack weighing its own 5 and not the brick in it, so the lamp's 15 is too heavy, in the world's words for the hands; the leaflet measures nothing and is taken; with the coffin put down the lamp is taken, and the sack, holding the brick's 35, has no room for it, in the world's words for a container, and takes the leaflet.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A low stone crypt." }] },
+    { "as": "Marta", "type": "take coffin", "expect": [{ "words": "You take a gold coffin." }] },
+    { "as": "Marta", "type": "take sword", "expect": [{ "words": "You take a sword." }] },
+    { "as": "Marta", "type": "take sack", "expect": [{ "words": "You take a sack." }] },
+    { "as": "Marta", "type": "take lamp", "expect": [{ "words": "Your load is too heavy." }] },
+    { "as": "Marta", "type": "take leaflet", "expect": [{ "words": "You take a leaflet." }] },
+    { "as": "Marta", "type": "drop coffin", "expect": [{ "words": "You put a gold coffin down." }] },
+    { "as": "Marta", "type": "take lamp", "expect": [{ "words": "You take a lamp." }] },
+    { "as": "Marta", "type": "put lamp in sack", "expect": [{ "words": "A lamp will not fit in a sack." }] },
+    { "as": "Marta", "type": "put leaflet in sack", "expect": [{ "words": "You put a leaflet in a sack." }] }
+  ]
+}

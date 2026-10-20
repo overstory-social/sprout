@@ -105,6 +105,12 @@ export const MEMBER_TABLE: readonly Entry[] = [
     example: 'roams',
     means: 'an NPC of it moves itself to any place, with `move self to <place>`',
   },
+  {
+    word: 'capacity',
+    example: 'capacity 100 by :size',
+    means:
+      'it holds no more than its contents’ `:size` adds up to, an integer property the things declare; a move past it is refused with `too_heavy`',
+  },
   { word: 'passage', example: 'passage hum { {self} hums. }', means: 'named words, said by name' },
   {
     word: 'prose',
@@ -179,7 +185,7 @@ function memberWords(): { kind: Set<string>; world: Set<string> } {
 
 /**
  * Every member example but the world's own, in one kind, an actor so that
- * it may write `roams`, with what each needs beside it; `synonyms`, which
+ * it may write `roams` and holds things for `capacity`, with what each needs beside it; `synonyms`, which
  * no kind holds, on the object of it.
  */
 export function membersProbe(): Snippet {
@@ -193,6 +199,7 @@ export function membersProbe(): Snippet {
       'probe.sprout': [
         'kind Probe is Bell, sprout.Actor {',
         '  :lit false',
+        '  :size 1',
         ...own.map((entry) => `  ${entry.example}`),
         '}',
         '',

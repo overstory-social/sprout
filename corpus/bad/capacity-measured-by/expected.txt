@@ -1,0 +1,7 @@
+kinds.sprout:6:18   Nothing declares `:heft`, so nothing could be measured by it.
+                    Declare it on the kinds of what goes in, as a whole number each starts at: `:heft 0`.
+
+kinds.sprout:10:18  `:size` holds string in `Scroll`, and a capacity measures by a whole number.
+                    Measure by an integer property, or give `Scroll`'s `:size` another name.
+
+refused: 2 problems

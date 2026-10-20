@@ -11,6 +11,7 @@ import {
   CANDLE,
   CHAPEL,
   COUNTER,
+  COURT,
   FOLLOWED,
   FOLLOWED_BELL,
   FOLLOWED_HALL,
@@ -23,13 +24,16 @@ import {
   INES,
   MARTA,
   NAVE,
+  PEBBLE,
   played,
   propertyOf,
   seeded,
+  STONE,
   storedIn,
   TALLY,
   THIEF,
   TOWER,
+  YARD,
   type EngineCase,
   type MakeEngine,
 } from './worlds.js';
@@ -102,6 +106,31 @@ export const turnCases: EngineCase[] = [
         'what the one who typed is told',
       );
       equal(await storedIn(store), before, 'the stored world');
+    },
+  },
+  {
+    name: 'a move past what its destination holds by measure is refused',
+    proves:
+      'a take that would carry the taker past its capacity by measure is refused in the engine’s `too_heavy` and moves nothing, and one within it is taken',
+    async run(make) {
+      const store = await seeded(YARD, [[MARTA, COURT, 'Marta']]);
+      const host = played(make, YARD);
+      const refused = await runCommand(store, 'w', host, command('take stone'));
+      match(
+        refused.effects,
+        [{ kind: 'refused', visit: MARTA, paragraphs: ['You cannot hold a stone.'] }],
+        'what taking the stone says',
+      );
+      const held = async (id: string) =>
+        (await storedIn(store)).instances.find((one) => one.id === id)?.container;
+      equal(await held(STONE), undefined, 'the stone, still where it was declared');
+      const taken = await runCommand(store, 'w', host, command('take pebble'));
+      match(
+        taken.effects,
+        [{ kind: 'said', visit: MARTA, paragraphs: ['You take a pebble.'] }],
+        'what taking the pebble says',
+      );
+      ok((await held(PEBBLE)) !== undefined, 'the pebble, moved');
     },
   },
   {

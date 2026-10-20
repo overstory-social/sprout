@@ -1,0 +1,6 @@
+{
+  "about": "Entering the world is a move: the ledge holds 10 by `:size`, and a climber of 20 coming in is refused in the library's `too_heavy`.",
+  "steps": [
+    { "arrive": "Marta", "expect": [{ "words": "A ledge cannot hold you." }] }
+  ]
+}

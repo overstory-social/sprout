@@ -1,0 +1,17 @@
+import * as sprout from 'sprout'
+
+kind Thing {
+  :size 0 min 0 max 100
+}
+
+// Paper declares no `:size`, so it measures nothing.
+kind Paper { }
+
+kind Sack is Thing, sprout.Container {
+  :size 5
+  capacity 40 by :size
+}
+
+kind Balloon {
+  :size -10 min -10 max 0
+}

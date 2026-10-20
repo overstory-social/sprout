@@ -1,0 +1,15 @@
+import * as sprout from 'sprout'
+
+kind Person is sprout.Visitor { }
+
+kind Sack is sprout.Container {
+  capacity 20 by :heft
+}
+
+kind Chest is sprout.Container {
+  capacity 50 by :size
+}
+
+kind Scroll {
+  :size "long"
+}
