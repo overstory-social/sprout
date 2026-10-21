@@ -136,17 +136,6 @@ static void articles_connectors_and_all_are_the_lists_words(void) {
   CHECK(!parse_is_all(bench_str("each")));
 }
 
-static void a_noun_may_hold_the_parsers_own_words_but_not_again_or_then(void) {
-  static const char *const own[] = {"a",  "an",  "the", "my", "this", "that", "and", ",",          "in",    "on",
-                                    "is", "one", "it",  "them", "him", "her",  "all", "everything", "except"};
-  size_t i;
-  for (i = 0; i < sizeof own / sizeof *own; i++) CHECK(parse_is_noun_word(bench_str(own[i])));
-  CHECK(!parse_is_noun_word(bench_str("again")));
-  CHECK(!parse_is_noun_word(bench_str("then")));
-  CHECK(!parse_is_noun_word(bench_str("they")));
-  CHECK(!parse_is_noun_word(bench_str("north")));
-}
-
 int main(void) {
   RUN(the_lists_are_the_typescript_parsers_in_order);
   RUN(a_direction_is_written_out_or_abbreviated_and_in_and_out_have_no_shorter_form);
@@ -154,6 +143,5 @@ int main(void) {
   RUN(articles_connectors_and_all_are_the_lists_words);
   RUN(a_holder_word_is_one_word_or_out_of_and_is_counted_where_it_stands);
   RUN(a_plural_is_read_less_s_less_es_and_with_ies_as_y);
-  RUN(a_noun_may_hold_the_parsers_own_words_but_not_again_or_then);
   return REPORT();
 }

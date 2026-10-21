@@ -4,8 +4,8 @@
 // names, each leaving out what `take` would refuse. The table is no
 // container, so the library's `take [target] from [source]` cannot read
 // it; the sack is one, and `take all out of the sack` is read by that
-// phrase. Where nothing qualifies the line is `not_here`, and a plural
-// of no word the world names is `unknown`.
+// phrase. Where nothing qualifies, or a noun names nothing in reach,
+// the line is `not_here`.
 import * as sprout from 'sprout'
 import {Person, Cake} from 'person'
 

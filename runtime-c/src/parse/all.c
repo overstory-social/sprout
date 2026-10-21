@@ -164,12 +164,11 @@ static bool holds_connector(parse_words words) {
   return false;
 }
 
-/* Where nothing qualifies: the words from `start` to `end` name nothing in reach, the last read as a plural where `plural`. */
-static void named_nothing(parse_filled *out, size_t start, size_t end, bool plural) {
+/* Where nothing qualifies: the words from `start` to `end` name nothing in reach. */
+static void named_nothing(parse_filled *out, size_t start, size_t end) {
   out->fills = PARSE_FILLS_NOTHING;
   out->start = start;
   out->end = end;
-  out->plural = plural;
 }
 
 sprout_eval_status parse_all_in(const parse_all_context *context, parse_words words, const sprout_role *role,
@@ -204,7 +203,7 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
     if (named == NULL) return SPROUT_EVAL_NO_MEMORY;
     EXPR_NEED(plural_named(context, noun, named, &matched));
     if (matched == 0) {
-      named_nothing(out, 1, holder, true);
+      named_nothing(out, 1, holder);
       return SPROUT_EVAL_OK;
     }
     literal += matched;
@@ -220,7 +219,7 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
     if (held == NULL) return SPROUT_EVAL_NO_MEMORY;
     EXPR_NEED(held_by(context, noun, held, &matched));
     if (matched == 0) {
-      named_nothing(out, holder + holder_words, except, false);
+      named_nothing(out, holder + holder_words, except);
       return SPROUT_EVAL_OK;
     }
     literal += matched;
@@ -245,7 +244,7 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
       }
       EXPR_NEED(left_out(context, slice(after, nouns[n].start, nouns[n].end), left, &any));
       if (!any) {
-        named_nothing(out, except + 1 + nouns[n].start, except + 1 + nouns[n].end, false);
+        named_nothing(out, except + 1 + nouns[n].start, except + 1 + nouns[n].end);
         return SPROUT_EVAL_OK;
       }
       literal += nouns[n].end - nouns[n].start;
@@ -270,7 +269,7 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
   out->narrowed = named != NULL || held != NULL;
   /* Nothing qualifies: `all` itself, a word the parser reads, is what names nothing. */
   if (reached == 0) {
-    named_nothing(out, 0, 1, false);
+    named_nothing(out, 0, 1);
     return SPROUT_EVAL_OK;
   }
   if (role->many) {

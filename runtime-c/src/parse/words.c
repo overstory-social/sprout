@@ -96,12 +96,6 @@ bool parse_singulars(sprout_arena *arena, sprout_str word, sprout_str out[3], si
   return true;
 }
 
-bool parse_is_noun_word(sprout_str word) {
-  return parse_is_determiner(word) || parse_is_connector(word) || parse_is_all(word) || parse_is(word, "except") ||
-         among(word, RELATIVE_WORDS, sizeof RELATIVE_WORDS / sizeof *RELATIVE_WORDS) ||
-         among(word, PRONOUN_WORDS, sizeof PRONOUN_WORDS / sizeof *PRONOUN_WORDS);
-}
-
 parse_pronoun parse_pronoun_in(sprout_str word) {
   size_t i;
   for (i = 0; i < sizeof PRONOUN_WORDS / sizeof *PRONOUN_WORDS; i++)

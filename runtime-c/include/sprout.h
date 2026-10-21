@@ -563,9 +563,9 @@ typedef struct sprout_parsed {
  * after an `and` or a comma that splits the line; a pronoun's correction and a draw's `meant` are among its asides.
  * `again` runs the visitor's last reading where it still fits its verb. It answers a line no reading reads:
  * `cannot` or `not_carrying` where a phrase reads it in part, the partial reading a tie drawn; `no_way` or an exit's
- * own words where it names a way that does not go; `not_here` where a noun names nothing in reach but is made of the
- * world's words, a way out written elsewhere is named, an object's synonym names its object out of reach, or `all`
- * leaves nothing; and `unknown` otherwise. A handed turn runs its planned reading where what it binds is still in
+ * own words where it names a way that does not go; `not_here` where a noun names nothing in reach, a way out written
+ * elsewhere is named, an object's synonym names its object out of reach, or `all` leaves nothing; and `unknown`
+ * otherwise. A handed turn runs its planned reading where what it binds is still in
  * reach, and `not_here` where it is not; with an item to re-read, it reads the item's words alone, every other role
  * as the line bound it (the spec's Parsing > Sequences, again and all).
  */

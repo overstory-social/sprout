@@ -1,9 +1,8 @@
-// A noun holding a word nothing in the world is named by (the spec's
-// Parsing › When nothing matches). The line is the grammar's failure, not
-// reach's, so it is answered with `unknown`: `take ball again`, `examine
-// through the ball`. Where every word of the noun names something
-// somewhere, as `gong` does from the cellar, or the parser's own `the`
-// and `in` do, a noun that names nothing in reach is still `not_here`.
+// A noun naming nothing in reach, whatever its words (the spec's Parsing ›
+// When nothing matches). Where a verb's phrase reads the line, a noun that
+// names nothing here is `not_here`, whether its words name something
+// elsewhere, as `gong` does from the cellar, or nothing in the world at all,
+// as `jewels` and `ball again` do. A line no phrase reads is `unknown`.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 

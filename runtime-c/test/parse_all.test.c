@@ -305,13 +305,13 @@ static void a_noun_after_all_keeps_what_it_names_as_a_plural_or_as_typed_or_by_i
   bench_close(&t.b);
 }
 
-static void a_noun_after_all_that_names_nothing_is_the_noun_and_read_as_a_plural(void) {
+static void a_noun_after_all_that_names_nothing_is_the_noun(void) {
   taking t;
   bool is_all;
   parse_filled filled;
   open_tea_room(&t);
   filled = all_in(&t, "all the keys", "sprout", "take", "target", 20, &is_all);
-  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 1 && filled.end == 3 && filled.plural);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 1 && filled.end == 3);
   bench_close(&t.b);
 }
 
@@ -338,7 +338,7 @@ static void a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_ho
   CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 0 && filled.end == 1 && filled.narrowed);
   /* A holder that names nothing in reach is that noun. */
   filled = all_in(&t, "all from the floor", "sprout", "take", "target", 20, &is_all);
-  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 2 && filled.end == 4 && !filled.plural);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 2 && filled.end == 4);
   /* A holder is one noun, no run. */
   filled = all_in(&t, "all from the table and sack", "sprout", "take", "target", 20, &is_all);
   CHECK_INT(filled.fills, PARSE_FILLS_UNFIT);
@@ -358,7 +358,7 @@ int main(void) {
   RUN(an_engine_verbs_carried_role_takes_only_what_the_actor_carries);
   RUN(each_kind_asked_and_each_thing_except_is_weighed_against_is_a_step);
   RUN(a_noun_after_all_keeps_what_it_names_as_a_plural_or_as_typed_or_by_its_kind);
-  RUN(a_noun_after_all_that_names_nothing_is_the_noun_and_read_as_a_plural);
+  RUN(a_noun_after_all_that_names_nothing_is_the_noun);
   RUN(a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_holds_nothing);
   return REPORT();
 }

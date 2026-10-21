@@ -5,9 +5,8 @@
  * still names what it named when the line was typed, and the item's own answer, draw and `meant` belong to its own
  * turn. A value role's words bind against what the item names. What the line bound must still be in reach, or the
  * turn is `not_here`, as a planned turn's is. The item is answered as any line's noun is: `not_here` where it names
- * nothing, `unknown` where a word of it names nothing in the world, `not_carrying` where a carried role names only
- * what the actor does not carry, and `cannot` where what it names cannot fill the role, written through a phrase of
- * the verb as the visitor would type it.
+ * nothing in reach, `not_carrying` where a carried role names only what the actor does not carry, and `cannot` where
+ * what it names cannot fill the role, written through a phrase of the verb as the visitor would type it.
  */
 #include <string.h>
 
@@ -317,18 +316,6 @@ sprout_eval_status parse_read_item(sprout_exec *x, const sprout_frame *frame, sp
     for (i = 0; i < options; i++) EXPR_NEED(ranked_of(&it, &filled, i, &out->readings.ranked[i]));
     out->readings.count = out->readings.capacity = options;
     return SPROUT_EVAL_OK;
-  }
-  /* A word nothing in the world is named by is the grammar's failure, not reach's. */
-  if (filled.fills == PARSE_FILLS_NOTHING) {
-    parse_vocabulary vocabulary;
-    parse_words noun;
-    EXPR_NEED(parse_world_words(frame, frame->turn, &vocabulary));
-    noun.words = typed + filled.start;
-    noun.count = filled.end - filled.start;
-    if (!parse_in_vocabulary(noun, &vocabulary)) {
-      out->answer = "unknown";
-      return SPROUT_EVAL_OK;
-    }
   }
   if ((filled.fills != PARSE_FILLS_OUTWARD && filled.fills != PARSE_FILLS_UNFIT) || filled.thing_count == 0) {
     out->answer = "not_here";

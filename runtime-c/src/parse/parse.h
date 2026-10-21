@@ -4,12 +4,11 @@
  * (address.c), what an actor can name (reach.c), what a noun names (nouns.c), a run of things in a role that
  * takes one (runs.c), the way out a slot's words name (exits.c), what a slot's words fill its role with
  * (fill.c), `all` and `except` (all.c), where a phrase's slots fall in a line (match.c), the readings a placement
- * makes (readings.c), choosing among them (rank.c), a line read in part (partial.c), the words a noun may be made
- * of anywhere in the world (vocabulary.c), an object's synonym out of reach (offered.c), the engine's answers to what
- * it cannot read (answers.c), a run's items after its first (later.c), `and` or a comma between two commands
- * (chain.c), a reading a line planned (planned.c), the last reading run again (again.c), an item of a run read on
- * its own turn (item.c), and a line read as the command turn reads it (command.c, `parse_command_turn` inside the
- * turn and `sprout_parse` for a host). Every step is charged where `corpus/goldens/addresses.json` pins it. Scratch is the
+ * makes (readings.c), choosing among them (rank.c), a line read in part (partial.c), an object's synonym out of reach
+ * (offered.c), the engine's answers to what it cannot read (answers.c), a run's items after its first (later.c),
+ * `and` or a comma between two commands (chain.c), a reading a line planned (planned.c), the last reading run again
+ * (again.c), an item of a run read on its own turn (item.c), and a line read as the command turn reads it
+ * (command.c, `parse_command_turn` inside the turn and `sprout_parse` for a host). Every step is charged where `corpus/goldens/addresses.json` pins it. Scratch is the
  * turn's arena, or a phrase's rewound for the next; a reading kept is copied out of it, and what a host reads is
  * copied into the arena it hands in.
  */
@@ -65,8 +64,6 @@ size_t parse_holder_word_at(const sprout_str *words, size_t count, size_t at);
  * `out`, the last made in `arena`; none where it does not. False where the arena is full.
  */
 bool parse_singulars(sprout_arena *arena, sprout_str word, sprout_str out[3], size_t *count);
-/* A word the parser reads in a noun: a determiner, a connector, a relative phrase's word, a pronoun, `all`, `everything` or `except`. */
-bool parse_is_noun_word(sprout_str word);
 /* The pronoun a typed word is, `them` being `they`; PARSE_PRONOUN_NONE where it is none a visitor types. */
 parse_pronoun parse_pronoun_in(sprout_str word);
 /* The pronoun a grammar block's `pronouns` value names; PARSE_PRONOUN_NONE for NULL. */
@@ -256,7 +253,6 @@ typedef struct parse_later parse_later;
 typedef struct parse_filled {
   parse_fills fills;
   size_t start, end;           /* NOTHING */
-  bool plural;                 /* NOTHING: the noun after `all`, whose last word may be a plural */
   bool narrowed;               /* `all` narrowed by a noun or by what holds the things, NOTHING where none qualifies */
   size_t thing_count;          /* OPTIONS of a thing role, UNFIT, RUN's first item, OUTWARD, ALL */
   const parse_named *things;
@@ -316,27 +312,6 @@ typedef struct parse_all_context {
  */
 sprout_eval_status parse_all_in(const parse_all_context *context, parse_words words, const sprout_role *role,
                                 const sprout_verb *verb, bool *is_all, parse_filled *out);
-
-/* ---- vocabulary.c: the words a noun may be made of anywhere in the world ---- */
-
-/* Every word some thing in the world is named by, or was or could be, and every kind's name; not the parser's own. */
-typedef struct parse_vocabulary {
-  const sprout_str *words;
-  size_t count;
-} parse_vocabulary;
-
-/*
- * The world's words, kept in `keep`: what the bundle writes, which costs nothing, and what each live thing is
- * called, every instance in the world's tree a step.
- */
-sprout_eval_status parse_world_words(const sprout_frame *frame, sprout_arena *keep, parse_vocabulary *out);
-
-/* Whether every one of `words` is one a noun may hold in the world: the vocabulary's, or the parser's own. */
-bool parse_in_vocabulary(parse_words words, const parse_vocabulary *vocabulary);
-
-/* As parse_in_vocabulary, the last of `words` read as typed or as the singular of a plural; false where the arena is full. */
-bool parse_in_vocabulary_as_plural(sprout_arena *arena, parse_words words, const parse_vocabulary *vocabulary,
-                                   bool *known);
 
 /* ---- match.c: where a phrase's slots fall ---- */
 

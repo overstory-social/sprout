@@ -29,7 +29,7 @@
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] },
     { "as": "Marta", "type": "take all from the floor", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
     ] }
   ]
 }
