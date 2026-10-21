@@ -1,0 +1,22 @@
+// The hall and the lamp described anew: prose is never stored, so a save
+// reads the new words.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world lamplight is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { name "hall" exit down "to the cellar" -> cellar }
+    describe { text "A narrow hall that smells of lamp oil." }
+    object lamp is Lamp
+  }
+  object cellar is sprout.Place {
+    grammar { name "cellar" exit up "to the hall" -> hall }
+    describe { text "A damp cellar." }
+  }
+}
+
+verb light { role target  "light [target]" }

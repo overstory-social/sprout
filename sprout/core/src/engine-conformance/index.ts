@@ -4,6 +4,7 @@ import { questionCases } from './questions.js';
 import { replayCases } from './replay.js';
 import { tickerCases } from './ticker.js';
 import { turnCases } from './turns.js';
+import { versionCases } from './versions.js';
 import type { EngineCase, MakeEngine } from './worlds.js';
 
 // The engine conformance suite: what every engine a host may name must
@@ -19,7 +20,7 @@ import type { EngineCase, MakeEngine } from './worlds.js';
 export * from './worlds.js';
 export { bundleOn, playedTally } from './replay.js';
 
-/** Every case, by area: turns, admission and the log, polls, rounds of ticks, the engine reached directly, and replay. */
+/** Every case, by area: turns, admission and the log, polls, rounds of ticks, the engine reached directly, replay, and saves across versions. */
 export const engineCases: readonly EngineCase[] = [
   ...turnCases,
   ...admissionCases,
@@ -27,6 +28,7 @@ export const engineCases: readonly EngineCase[] = [
   ...tickerCases,
   ...questionCases,
   ...replayCases,
+  ...versionCases,
 ];
 
 /** Run every case against the engines `make` makes, throwing on the first failure. */

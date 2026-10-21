@@ -27,6 +27,7 @@ import type { VerbLookup } from '../declare/verbs.js';
 import type { MessageLookup } from '../declare/messages.js';
 import type { NameTable } from '../check/names.js';
 import type { Node } from '../source/nodes.js';
+import type { Span } from '../source/source.js';
 import { declaredId, type InstanceId } from './ids.js';
 import {
   typedIntentPhrasesOf,
@@ -45,6 +46,8 @@ export interface DeclaredEntry {
   readonly kind: KindRef | null;
   /** Its position in a walk of the declared tree, so siblings keep their declared order. */
   readonly rank: number;
+  /** Where it is declared, in a world's file or the body of a kind that gives it. */
+  readonly at: Span;
 }
 
 export interface Catalogue {
@@ -164,6 +167,7 @@ export function catalogueFrom(parts: CatalogueParts, caps: StaticCaps): Catalogu
       container: declaredId(name, placement.container),
       kind: placement.kind,
       rank: head,
+      at: placement.declaration.at,
     });
     queue.push(...placement.holds.values());
   }

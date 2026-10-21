@@ -209,7 +209,8 @@ typedef struct sprout_str {
 
 /*
  * Lays a state over the world it is played in (the spec's The runtime >
- * State): a stored record is read against its declaration, a property at its
+ * State), the build that wrote it or a later compatible one (Across
+ * versions): a stored record is read against its declaration, a property at its
  * default is not kept, declared objects with nothing stored and no tombstone
  * are made at their defaults, and a destroyed one never is. A store of another
  * world, a record its declaration cannot explain, a property its kind does not

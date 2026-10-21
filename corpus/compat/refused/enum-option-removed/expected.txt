@@ -1,0 +1,6 @@
+lamplight 0.1.0 → 0.1.1: 0.1.1 keeps saves of 0.1.0, and 1 change would break one:
+
+lamp.sprout:8:3: `:flame` of `Lamp` held one of low, steady, roaring, and now holds one of low, steady: `roaring` is no longer one of its options, so a save that holds a value it no longer can cannot be read.
+  Let it hold every value it held again, or make this a breaking version.
+
+refused: put it right, or make this a breaking version, 0.2.0.

@@ -5,8 +5,10 @@
 // corpus/skill/SKILL.md, so a change to any table the skill is generated
 // from shows as a diff of it. A good world with a `view.txt` also prints
 // exactly that page from `sprout view`, so what a visitor is offered and
-// what fills each role cannot drift. `--write` regenerates the expected pages and the skill; review the diff like any
-// other change.
+// what fills each role cannot drift. Each pair under corpus/compat, an `old` and a `new` build of
+// one world, prints exactly its expected.txt from `sprout compat`, and exits 0 under `accepted/`
+// and 1 under `refused/`, so what the check says breaks a save cannot drift. `--write`
+// regenerates the expected pages and the skill; review the diff like any other change.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,6 +18,14 @@ const cli = join('cli', 'bin', 'sprout.js');
 const check = (dir) => {
   try {
     return { code: 0, out: execFileSync('node', [cli, 'check', dir], { encoding: 'utf8' }) };
+  } catch (err) {
+    return { code: err.status, out: String(err.stdout) + String(err.stderr) };
+  }
+};
+const compat = (dir) => {
+  try {
+    const args = [cli, 'compat', join(dir, 'old'), join(dir, 'new')];
+    return { code: 0, out: execFileSync('node', args, { encoding: 'utf8' }) };
   } catch (err) {
     return { code: err.status, out: String(err.stdout) + String(err.stderr) };
   }
@@ -89,6 +99,30 @@ for (const dir of dirs('corpus/bad')) {
     console.error(`✗ ${dir}: the page changed\n--- expected\n${expected}--- actual\n${out}`);
   } else console.log(`✓ ${dir} fails as expected`);
 }
+for (const [group, wants] of [
+  ['accepted', 0],
+  ['refused', 1],
+]) {
+  for (const dir of dirs(join('corpus', 'compat', group))) {
+    const { code, out } = compat(dir);
+    const expectedFile = join(dir, 'expected.txt');
+    if (code !== wants) {
+      failed++;
+      console.error(`✗ ${dir}: \`sprout compat\` should exit ${wants}, and exited ${code}\n${out}`);
+      continue;
+    }
+    if (write) {
+      writeFileSync(expectedFile, out);
+      console.log(`wrote ${expectedFile}`);
+      continue;
+    }
+    const expected = existsSync(expectedFile) ? readFileSync(expectedFile, 'utf8') : '';
+    if (expected !== out) {
+      failed++;
+      console.error(`✗ ${dir}: the page changed\n--- expected\n${expected}--- actual\n${out}`);
+    } else console.log(`✓ ${dir} is ${group} as expected`);
+  }
+}
 const skillFile = join('corpus', 'skill', 'SKILL.md');
 const skill = execFileSync('node', [cli, 'skill'], { encoding: 'utf8' });
 if (write) {
@@ -105,5 +139,5 @@ if (failed > 0) {
   process.exit(1);
 }
 console.log(
-  `✓ corpus: every good world passes, every bad one fails as expected, every view is current, and the skill is current`,
+  `✓ corpus: every good world passes, every bad one fails as expected, every view is current, every compat pair says what it should, and the skill is current`,
 );

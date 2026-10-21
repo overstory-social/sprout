@@ -228,6 +228,42 @@ describe('writeIndex', () => {
     );
   });
 
+  it('signs two builds of one world where the later keeps what it says it keeps, and refuses them where it does not, writing nothing', () => {
+    const builds = (pair: string): string => {
+      const dir = mkdtempSync(join(tmpdir(), 'sprout-builds-'));
+      for (const which of ['old', 'new']) {
+        const bundle = checkWorld(join(root, 'corpus/compat', pair, which)).bundle!;
+        writeFileSync(join(dir, `lamplight-${which}.sproutworld`), emitCartridge(bundle));
+      }
+      return dir;
+    };
+    const kept = builds('accepted/added-room');
+    const { index } = writeIndex({
+      folder: kept,
+      baseUrl: 'https://w.example/',
+      privateKey: TEST_KEY,
+      out: join(kept, 'index.json'),
+    });
+    expect(index.worlds.map((world) => world.version).sort()).toEqual(['0.1.0', '0.1.1']);
+
+    const broken = builds('refused/enum-option-removed');
+    expect(() =>
+      writeIndex({
+        folder: broken,
+        baseUrl: 'https://w.example/',
+        privateKey: TEST_KEY,
+        out: join(broken, 'index.json'),
+      }),
+    ).toThrow(
+      /lamplight-old\.sproutworld and then .*lamplight-new\.sproutworld cannot both be published:\nlamplight 0\.1\.0 → 0\.1\.1: 0\.1\.1 keeps saves of 0\.1\.0, and 1 change would break one:[^]*`roaring` is no longer one of its options/,
+    );
+    expect(existsSync(join(broken, 'index.json'))).toBe(false);
+    expect(readdirSync(broken).sort()).toEqual([
+      'lamplight-new.sproutworld',
+      'lamplight-old.sproutworld',
+    ]);
+  });
+
   it('refuses two different cartridges that would be published under one name', () => {
     const dir = packed();
     // The media room with a byte of one of its pictures changed: the same header, other bytes.

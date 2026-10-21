@@ -1,0 +1,1 @@
+lamplight 0.1.0 → 0.1.1: nothing breaks a save of 0.1.0, so it opens in 0.1.1.

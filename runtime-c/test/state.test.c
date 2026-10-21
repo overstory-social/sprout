@@ -6,10 +6,10 @@
  * value not of its type are refused in a sentence naming the record; and
  * the stored worlds edited against their
  * world come out as the golden holds them, byte for byte, or are refused in
- * the words it holds.
+ * the words it holds. A save played on the earlier build of a corpus/compat
+ * pair opens on the later one as the spec's State › Across versions reads it.
  */
-#include "corpus.h"
-#include "state.h"
+#include "turn_fixture.h"
 
 static sprout_str S(const char *text) {
   sprout_str s;
@@ -480,6 +480,102 @@ static void a_declared_object_moved_out_before_its_container_was_destroyed_is_wh
   sprout_world_free(world);
 }
 
+/* ---- a save across versions ---- */
+
+/* A save of the earlier build of the corpus/compat pair `pair`, played: Ann lights the lamp and goes down to the cellar. */
+static char *played_on_the_earlier_build(const char *pair) {
+  char name[128];
+  turn_world w;
+  sprout_outcome out;
+  char *bytes;
+  snprintf(name, sizeof name, "compat-%s-old", pair);
+  tw_open(&w, name);
+  tw_arrive(&w, "v1", "Ann", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v1", "light", "hall.lamp", 10, &out);
+  CHECK(tw_told(&out, "v1", "The lamp roars into light."));
+  sprout_outcome_free(&out);
+  tw_go(&w, "v1", "down", "to the cellar", "cellar", 20, &out);
+  sprout_outcome_free(&out);
+  bytes = tw_bytes(&w);
+  tw_close(&w);
+  return bytes;
+}
+
+/* `save` read and opened on the later build of `pair`, in `w`; the status the open came to, with `why`. */
+static sprout_status opened_on_the_later_build(turn_world *w, const char *pair, const char *save, sprout_refusal *why) {
+  char name[128];
+  sprout_status status;
+  snprintf(name, sizeof name, "compat-%s-new", pair);
+  tw_open(w, name);
+  sprout_state_free(w->state);
+  w->state = NULL;
+  status = sprout_state_read(&w->host, save, strlen(save), &w->state, why);
+  if (status == SPROUT_OK) status = sprout_state_open(w->state, w->world, why);
+  return status;
+}
+
+static void a_save_opens_on_a_later_build_that_added_a_room_and_keeps_what_it_held(void) {
+  char *save = played_on_the_earlier_build("accepted-added-room");
+  turn_world w;
+  sprout_refusal why;
+  const sprout_stored_visitor *ann;
+  CHECK_INT(opened_on_the_later_build(&w, "accepted-added-room", save, &why), SPROUT_OK);
+  CHECK_INT(tw_property(&w, "lamplight.hall.lamp", "lit"), 1);
+  CHECK(tw_instance(&w, "lamplight.attic") != NULL);
+  ann = sprout_state_find_visitor(w.state, S("v1"));
+  CHECK(ann != NULL);
+  CHECK_STR(tw_instance(&w, ann->instance.bytes)->container.bytes, "lamplight.cellar");
+  tw_close(&w);
+  free(save);
+}
+
+static void a_property_the_later_build_adds_reads_its_default_on_an_old_save(void) {
+  char *save = played_on_the_earlier_build("accepted-new-property");
+  turn_world w;
+  sprout_refusal why;
+  const sprout_stored_instance *lamp;
+  CHECK_INT(opened_on_the_later_build(&w, "accepted-new-property", save, &why), SPROUT_OK);
+  lamp = tw_instance(&w, "lamplight.hall.lamp");
+  CHECK(lamp != NULL && sprout_kind_property(lamp->kind, "polished") != NULL);
+  CHECK_INT(tw_property(&w, "lamplight.hall.lamp", "polished"), 0);
+  CHECK_INT(tw_property(&w, "lamplight.hall.lamp", "lit"), 1);
+  tw_close(&w);
+  free(save);
+}
+
+static void a_save_holding_an_option_the_later_build_removed_is_refused_in_words(void) {
+  char *save = played_on_the_earlier_build("refused-enum-option-removed");
+  turn_world w;
+  sprout_refusal why;
+  CHECK_INT(opened_on_the_later_build(&w, "refused-enum-option-removed", save, &why), SPROUT_BAD_INPUT);
+  CHECK_STR(why.text, "The stored state is not readable at instances[1].properties: `:flame` of "
+                      "`lamplight.hall.lamp` is not a value of its type, `lamplight.Flame`.");
+  tw_close(&w);
+  free(save);
+}
+
+static void a_visitor_who_stood_in_a_place_the_later_build_renamed_is_displaced_on_their_next_turn(void) {
+  char *save = played_on_the_earlier_build("refused-renamed-room");
+  turn_world w;
+  sprout_refusal why;
+  sprout_filling none;
+  sprout_reading look;
+  sprout_outcome out;
+  char ann[64];
+  CHECK_INT(opened_on_the_later_build(&w, "refused-renamed-room", save, &why), SPROUT_OK);
+  /* A copy, since the turn's commit replaces the record the id was read from. */
+  snprintf(ann, sizeof ann, "%s", tw_person(&w, "v1"));
+  look = tw_reading("sprout.look", ann, &none, NULL, NULL);
+  tw_command(&w, "v1", &look, 30, &out);
+  CHECK(tw_told(&out, "v1", "The place you were standing is gone."));
+  sprout_outcome_free(&out);
+  CHECK(tw_instance(&w, ann) != NULL);
+  CHECK_STR(tw_instance(&w, ann)->container.bytes, "lamplight.hall");
+  tw_close(&w);
+  free(save);
+}
+
 int main(void) {
   RUN(a_new_worlds_store_opened_is_the_initial_state_which_the_diff_form_writes_as_nothing);
   RUN(a_declared_objects_container_is_its_id_up_to_the_last_dot_in_every_corpus_world);
@@ -498,5 +594,9 @@ int main(void) {
   RUN(a_reading_of_a_verb_the_world_does_not_declare_is_let_go);
   RUN(a_destroyed_container_takes_every_declared_child_with_it_by_exact_id_set);
   RUN(a_declared_object_moved_out_before_its_container_was_destroyed_is_where_stored_and_holds_its_own);
+  RUN(a_save_opens_on_a_later_build_that_added_a_room_and_keeps_what_it_held);
+  RUN(a_property_the_later_build_adds_reads_its_default_on_an_old_save);
+  RUN(a_save_holding_an_option_the_later_build_removed_is_refused_in_words);
+  RUN(a_visitor_who_stood_in_a_place_the_later_build_renamed_is_displaced_on_their_next_turn);
   return REPORT();
 }

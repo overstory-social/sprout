@@ -1,12 +1,14 @@
 /*
  * A state read against the world it belongs to (the spec's The runtime >
- * State; The compiler > What absent means). Opening lays the stored diff over
- * the world a fresh load makes: every record is read under its declaration,
- * and one the declaration cannot explain, a property the kind does not
- * declare or a value not of its type is refused in a sentence naming the
- * record, since a save is keyed to the cartridge that wrote it; the declared
- * objects nothing is stored for are made at their defaults, and never one
- * past its tombstone. Records end up in the order a save writes them.
+ * State, Across versions; The compiler > What absent means). Opening lays the
+ * stored diff over the world a fresh load makes, the build that wrote it or a
+ * later compatible one alike: every record is read under its declaration, and
+ * one the declaration cannot explain, a property the kind does not declare or
+ * a value not of its type is refused in a sentence naming the record, since
+ * the check a compatible version passes keeps every one of them readable; the
+ * declared objects nothing is stored for are made at their defaults, and
+ * never one past its tombstone. Records end up in the order a save writes
+ * them.
  */
 #include <string.h>
 
@@ -594,7 +596,8 @@ static sprout_status refuse_property(opening *o, size_t i, const char *field, co
 
 /*
  * The record's properties under its kind: each must be one the kind holds (or, in memory, remembers) and a
- * value of its type, since the cartridge that wrote the save declares them; one at its default is not kept.
+ * value of its type, since the build that wrote the save, or a compatible later one, declares them; one at its default
+ * is not kept.
  */
 static sprout_status read_properties(opening *o, size_t i, const char *field, sprout_stored_instance *in,
                                      sprout_stored_property *list, size_t count, bool remembered, size_t *kept) {

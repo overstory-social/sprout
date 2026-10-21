@@ -1,7 +1,8 @@
-// Packs every `corpus/good` world into a cartridge under the folder named on
-// the command line, for the C tests that load them. The CLI is the built one,
-// run in this process; a CLI that is not built, or a world that does not
-// pack, fails the setup in words (for a world, the ones `sprout pack` printed).
+// Packs every `corpus/good` world, and both builds of every `corpus/compat`
+// pair, into a cartridge under the folder named on the command line, for
+// the C tests that load them. The CLI is the built one, run in this
+// process; a CLI that is not built, or a world that does not pack, fails
+// the setup in words (for a world, the ones `sprout pack` printed).
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -24,20 +25,28 @@ mkdirSync(out, { recursive: true });
 let said = '';
 const quiet = { write: (text) => ((said += text), true) };
 let packed = 0;
-for (const name of readdirSync(join(root, 'corpus/good')).sort()) {
+/** Packs the world folder `dir` as `<name>.sproutworld`, or fails the setup with what `sprout pack` said. */
+async function pack(dir, name) {
   said = '';
-  const code = await main(
-    ['pack', join(root, 'corpus/good', name), '-o', join(out, `${name}.sproutworld`)],
-    {
-      stdout: quiet,
-      stderr: quiet,
-      stdin: process.stdin,
-    },
-  );
+  const code = await main(['pack', dir, '-o', join(out, `${name}.sproutworld`)], {
+    stdout: quiet,
+    stderr: quiet,
+    stdin: process.stdin,
+  });
   if (code !== 0) {
     console.error(`${name} did not pack:\n${said}`);
     process.exit(1);
   }
   packed++;
 }
+for (const name of readdirSync(join(root, 'corpus/good')).sort())
+  await pack(join(root, 'corpus/good', name), name);
+// Each build of each corpus/compat pair, as compat-<group>-<case>-<old|new>.
+for (const group of ['accepted', 'refused'])
+  for (const name of readdirSync(join(root, 'corpus/compat', group)).sort())
+    for (const build of ['old', 'new'])
+      await pack(
+        join(root, 'corpus/compat', group, name, build),
+        `compat-${group}-${name}-${build}`,
+      );
 console.log(`packed ${packed} worlds into ${out}`);
