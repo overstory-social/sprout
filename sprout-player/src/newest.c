@@ -112,6 +112,30 @@ int player_version_order(player_text a, player_text b) {
   return compare_run(x.pre, y.pre);
 }
 
+/* Whether the numeric identifier `id` is zero; semver writes it with no leading zero. */
+static bool is_zero(player_text id) { return id.length == 1 && id.at[0] == '0'; }
+
+bool player_version_keeps_saves(player_text earlier, player_text later) {
+  version x, y;
+  player_text a, b;
+  int depth;
+  if (earlier.at == NULL || later.at == NULL) return false;
+  x = read_version(earlier.at, earlier.length);
+  y = read_version(later.at, later.length);
+  if (!x.ok || !y.ok) return false;
+  if (x.pre.length > 0 || y.pre.length > 0) return player_version_order(earlier, later) == 0;
+  if (compare_run(x.core, y.core) > 0) return false;
+  /* The caret: the major must agree, and under a major of 0 the minor too, and under 0.0 the patch. */
+  a = x.core;
+  b = y.core;
+  for (depth = 0; depth < 3; depth++) {
+    player_text one = next_identifier(&a), other = next_identifier(&b);
+    if (compare_identifier(one, other) != 0) return false;
+    if (!is_zero(one)) return true;
+  }
+  return true;
+}
+
 /* ---- builds ---- */
 
 static bool same_text(player_text a, player_text b) {

@@ -113,7 +113,7 @@ static void record_the_arrival(const char *cartridge, const char *nickname) {
   s = session_new();
   opened = player_open_whole(s, cartridge);
   CHECK(opened.ok && opened.done, "%s", opened.reason);
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && loaded.fresh, "%s", loaded.words);
   admitted = player_admit(s, nickname);
   CHECK(admitted.ok && admitted.admitted, "%s", admitted.words);
@@ -563,8 +563,9 @@ static bool saved_file(const char *suffix) {
 
 /*
  * "start over" in the system menu: chosen on the shelf it does nothing; chosen in the reader it asks
- * on screen what it will do, B goes back to the reader as it was, and A forgets the world's save and
- * brings the nickname screen up again, the name the visitor had offered first, for a fresh arrival.
+ * on screen what it will do, B goes back to the reader as it was, and A forgets the world's save, writes
+ * the fresh world's at once, and brings the nickname screen up again, the name the visitor had offered
+ * first, for a fresh arrival.
  */
 static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) {
   static const char *const shipped[] = {"chip-tree.sproutworld"};
@@ -621,7 +622,9 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   fake_frame(fake, 0, 0);
   fake_frame(fake, kButtonA, 0);
   CHECK(on_nickname(), "A brings the nickname screen up again, with no loading between");
-  CHECK(!saved_file(".json") && !saved_file(".log"), "the save and the log are gone");
+  snprintf(command, sizeof command, "! grep -q '\"kind\"' '%s'/saves/*.log", fake->data);
+  CHECK(saved_file(".json") && saved_file(".log") && system(command) == 0,
+        "the save and the log are the fresh world's, written at once, with no entry from before");
   CHECK(strcmp(name_offered(), before) == 0, "the name the visitor had is offered first: %s, was %s", name_offered(), before);
   frames = frames_until_reader(100);
   CHECK(on_reader(), "the reader came up after %d frames", frames);

@@ -4,7 +4,8 @@
  * when they share a title and an author; of those, the highest version wins by semver.org's
  * precedence, since the spec's The manifest gives `version` as semver, and the first listed wins among
  * equals, since neither an index nor a folder carries a publish order. A version that is not semver
- * ranks below any that is, and two such are equal.
+ * ranks below any that is, and two such are equal. Whether a later build keeps an earlier one's save is
+ * semver's caret read strictly, as the spec's State › Across versions gives it.
  */
 #ifndef PLAYER_NEWEST_H
 #define PLAYER_NEWEST_H
@@ -24,6 +25,13 @@ player_text player_text_of(const char *text);
 /* How version `a` ranks against `b`: below zero when lower, zero when equal, above zero when higher; an unknown
  * version ranks as one that is not semver. */
 int player_version_order(player_text a, player_text b);
+
+/*
+ * Whether a save made under version `earlier` is kept under `later` (the spec's State › Across versions):
+ * `later` is not before it and not a breaking version of it, a pre-release compatible only with itself.
+ * False where either is unknown or not semver.
+ */
+bool player_version_keeps_saves(player_text earlier, player_text later);
 
 /* A build as the ranking reads it; one whose author or version is not known is a world of its own. */
 typedef struct player_build {

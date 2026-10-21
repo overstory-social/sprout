@@ -175,7 +175,7 @@ static void start_over(player_app *app) {
   if (length > 0) memcpy(remembered, restart.nickname->bytes, length);
   remembered[length] = '\0';
   player_arrival_pick(app, app->shelf->opened, title, restart.words, restart.word_count,
-                      restart.nickname != NULL ? remembered : NULL);
+                      restart.nickname != NULL ? remembered : NULL, NULL, true);
 }
 
 /* The question whether to start over: A does, B goes back to the screen on show. */

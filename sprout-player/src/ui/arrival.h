@@ -1,8 +1,9 @@
 /*
  * The screen that opens a world from the shelf and brings the visitor into it: the cartridge
  * read a step a frame behind a loading line (the design doc's Opening a world), so a big world
- * never holds up a frame; the save loaded; and the nickname screen (nickname.h) shown, offering
- * the names the world's words and the others present leave free. Once the visitor is admitted,
+ * never holds up a frame; the save loaded, or an earlier build's where the world has none
+ * (session.h); and the nickname screen (nickname.h) shown, offering the names the world's words
+ * and the others present leave free. Once the visitor is admitted,
  * the reader is shown with the arrival told and the status from the view, behind the pictures the
  * arrival and the place asked for (pictures.h). What stops it is told on the message screen,
  * which goes back to the shelf, and the world closed. A world refused at its open or a step is
@@ -20,22 +21,29 @@
 typedef struct player_arrival {
   char path[PLAYER_PATH_BYTES]; /* the cartridge */
   char title[PLAYER_TITLE_BYTES];
+  bool has_earlier; /* an earlier build's save may be carried forward (shelf.h): its hash and version below */
+  char earlier_hash[65], earlier_version[PLAYER_VERSION_BYTES];
   bool started;
   size_t read, counted; /* how far the cartridge has been read */
 } player_arrival;
 
 extern const player_screen player_arrival_screen;
 
-/* An arrival at the world at `path`, titled `title` until its header names it; NULL when there is no memory for it. */
-player_arrival *player_arrival_new(player_app *app, const char *path, const char *title);
+/*
+ * An arrival at the world at `path`, titled `title` until its header names it, and `earlier` (or NULL)
+ * the build whose save it may carry forward; NULL when there is no memory for it.
+ */
+player_arrival *player_arrival_new(player_app *app, const char *path, const char *title, const shelf_entry *earlier);
 
 /*
  * The world at `path`, titled `title`, is read, and `words` are those it reads: its save is
- * loaded and the nickname screen offers the names those words and the others present leave free,
- * the save's last name first, else `remembered` (NULL or a name the device kept for the world).
+ * loaded, or `earlier`'s (NULL or a build whose save the load may carry, session.h), and the
+ * nickname screen offers the names those words and the others present leave free, the save's last
+ * name first, else `remembered` (NULL or a name the device kept for the world). A world
+ * `started_over` is saved at once, so that no earlier build's save is carried into it afterwards.
  */
 void player_arrival_pick(player_app *app, const char *path, const char *title, const char *const *words,
-                         size_t word_count, const char *remembered);
+                         size_t word_count, const char *remembered, const player_earlier *earlier, bool started_over);
 
 /*
  * The visitor was admitted as `nickname` into the world titled `title`, and the admission told

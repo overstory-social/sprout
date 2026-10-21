@@ -1,6 +1,9 @@
 /* What the C tests share; see support.h. */
 #include "support.h"
 
+#include "host/pd_host.h"
+#include "inflate.h"
+
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -261,6 +264,98 @@ bool reading_from(player_session *session, const char *verb, const char *thing, 
   }
   CHECK(false, "the view offers no %s %s", verb, thing);
   return false;
+}
+
+/* ---- builds of one world ---- */
+
+/* `bytes` as one gzip member of stored blocks, into `out`, which has room for `length` and 5 bytes a block and 18 more. */
+static size_t gzip_stored(const unsigned char *bytes, size_t length, unsigned char *out) {
+  static const unsigned char HEADER[10] = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff};
+  uint32_t crc = sprout_crc32(0, bytes, length);
+  size_t at = sizeof HEADER, done = 0, i;
+  memcpy(out, HEADER, sizeof HEADER);
+  do {
+    size_t block = length - done < 65535 ? length - done : 65535;
+    out[at++] = done + block == length ? 1 : 0;
+    out[at++] = (unsigned char)(block & 0xff);
+    out[at++] = (unsigned char)(block >> 8);
+    out[at++] = (unsigned char)(~block & 0xff);
+    out[at++] = (unsigned char)((~block >> 8) & 0xff);
+    memcpy(out + at, bytes + done, block);
+    at += block;
+    done += block;
+  } while (done < length);
+  for (i = 0; i < 4; i++) out[at++] = (unsigned char)((crc >> (8 * i)) & 0xff);
+  for (i = 0; i < 4; i++) out[at++] = (unsigned char)(((uint32_t)length >> (8 * i)) & 0xff);
+  return at;
+}
+
+/* Overwrites the first `from` in `text` with `to`, of the same length; whether there was one. */
+static bool overwrite(char *text, const char *from, const char *to) {
+  char *at = strstr(text, from);
+  CHECK(at != NULL && strlen(from) == strlen(to), "the teashop's header has %s", from);
+  if (at == NULL || strlen(from) != strlen(to)) return false;
+  memcpy(at, to, strlen(to));
+  return true;
+}
+
+static uint32_t word_at(const unsigned char *bytes) {
+  return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
+}
+
+static void put_word(unsigned char *bytes, size_t value) {
+  size_t i;
+  for (i = 0; i < 4; i++) bytes[i] = (unsigned char)((value >> (8 * i)) & 0xff);
+}
+
+void build_of(const char *path, const char *version, const char *author, char digit) {
+  char from[1200], to[1200], field[64];
+  FILE *file;
+  long size;
+  unsigned char *cartridge = NULL, *gzipped = NULL;
+  char *body = NULL;
+  size_t body_bytes = 0, assets_at, gzipped_bytes;
+  const char *why = NULL;
+  player_host host;
+  sprout_arena arena;
+  player_host_init(&host, &fake->api);
+  sprout_arena_init(&arena, &host.record);
+  snprintf(from, sizeof from, "%s/teashop.sproutworld", PLAYER_CARTRIDGES);
+  snprintf(to, sizeof to, "mkdir -p '%s/worlds'", fake->data);
+  CHECK(system(to) == 0, "%s", to);
+  snprintf(to, sizeof to, "%s/%s", fake->data, path);
+  file = fopen(from, "rb");
+  CHECK(file != NULL, "%s", from);
+  if (file == NULL) return;
+  fseek(file, 0, SEEK_END);
+  size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  cartridge = (unsigned char *)malloc((size_t)size);
+  CHECK(fread(cartridge, 1, (size_t)size, file) == (size_t)size, "reading %s", from);
+  fclose(file);
+  assets_at = word_at(cartridge + 16);
+  CHECK(sprout_gunzip(&arena, cartridge + 24, assets_at - 24, &body, &body_bytes, &why) == SPROUT_OK, "%s", why);
+  snprintf(field, sizeof field, "\"version\":\"%s\"", version);
+  if (body != NULL && overwrite(body, "\"version\":\"0.1.0\"", field)) {
+    snprintf(field, sizeof field, "\"author\":\"%s\"", author);
+    overwrite(body, "\"author\":\"Ada\"", field);
+    snprintf(field, sizeof field, "\"hash\":\"%c", digit);
+    overwrite(body, "\"hash\":\"2", field);
+    gzipped = (unsigned char *)malloc(body_bytes + 5 * (body_bytes / 65535 + 1) + 18);
+    gzipped_bytes = gzip_stored((const unsigned char *)body, body_bytes, gzipped);
+    put_word(cartridge + 16, 24 + gzipped_bytes);
+    file = fopen(to, "wb");
+    CHECK(file != NULL, "%s", to);
+    if (file != NULL) {
+      fwrite(cartridge, 1, 24, file);
+      fwrite(gzipped, 1, gzipped_bytes, file);
+      fwrite(cartridge + assets_at, 1, (size_t)size - assets_at, file);
+      fclose(file);
+    }
+  }
+  free(gzipped);
+  free(cartridge);
+  sprout_arena_reset(&arena);
 }
 
 /* ---- JSON ---- */

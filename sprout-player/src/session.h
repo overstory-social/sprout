@@ -50,19 +50,37 @@ player_opening player_open(player_session *session, const char *path);
 /* Reads on a little of the world being opened; the name, hash and words once done. */
 player_opening player_step(player_session *session);
 
+/* Whether there is a save of the build with bundle hash `hash` on the device. */
+bool player_has_save(player_session *session, const char *hash);
+
+/*
+ * An earlier build of the world being opened, by its bundle hash and its manifest's version, whose
+ * save the load reads where the world has none of its own (the spec's State › Across versions).
+ */
+typedef struct player_earlier {
+  const char *hash, *version;
+} player_earlier;
+
 /* The save read, or the world started: who the device's visitor was, and who else stands in it. */
 typedef struct player_loaded {
   bool ok;
   bool fresh;                 /* no save was read: the world starts anew */
+  bool carried;               /* the earlier build's save was read: this build's from its next save on */
+  bool outgrown;              /* the earlier build's save was not read, `words` says why, and is kept where it is */
   bool recovered;             /* the last session ended with the visitor in the world, who has left now, quietly */
   const sprout_str *nickname; /* the visitor the save remembers, or NULL */
   size_t present_count;
   const sprout_str *present; /* the nicknames of the others who stand in the world */
   uint64_t last;             /* the greatest host seconds the save recorded */
-  const char *words;         /* "" or why the save was set aside; when not `ok`, why nothing was loaded */
+  const char *words;         /* "" or what the player is told of the save: why it was set aside, carried or not read; when not `ok`, why nothing was loaded */
 } player_loaded;
 
-player_loaded player_load(player_session *session);
+/*
+ * Reads the open world's save, or where it has none and `earlier` (or NULL) names a build with one,
+ * that build's save where its version keeps it, opened against this build; and otherwise starts the
+ * world anew. The earlier build's files are never changed.
+ */
+player_loaded player_load(player_session *session, const player_earlier *earlier);
 
 /*
  * What the turns of one call told. `ok` false: nothing was run, `words` says why, and `lines` is

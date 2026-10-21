@@ -1,4 +1,4 @@
-/* savelog.c: the log tail the save keeps beside the stored world. */
+/* savelog.c: the log tail the save keeps beside the stored world, read under the bundle it names, and its turn and redeploy entries. */
 #include <stdlib.h>
 
 #include "host/files.h"
@@ -47,13 +47,13 @@ static void the_tail_and_the_clamps_seconds_are_written_and_read_back(void) {
   free(text);
   savelog_clear(session);
   session->host.last_seconds = 50;
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->host.last_seconds == 123456, "the clamp starts from what was recorded");
   CHECK(session->log_count == 2 && strcmp(session->log[1], "{\"kind\":\"command\"}") == 0, "the entries");
   /* A recorded time earlier than the clock already seen never moves it back. */
   session->host.last_seconds = 999999;
   savelog_clear(session);
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->host.last_seconds == 999999, "never back");
   end();
 }
@@ -72,12 +72,12 @@ static void the_time_passed_ahead_of_the_device_is_written_and_read_back(void) {
         "%s", text);
   free(text);
   session->host.ahead_seconds = 0;
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->host.ahead_seconds == 3690, "read back: %llu", (unsigned long long)session->host.ahead_seconds);
   /* A save made before any time passed has none, and reads as none. */
   session->host.ahead_seconds = 0;
   write_text("saves/abc.log", "{\"format\":1,\"bundle\":\"abc\",\"lastSeconds\":5}\n");
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->host.ahead_seconds == 0, "none recorded");
   end();
 }
@@ -87,16 +87,35 @@ static void a_log_of_another_bundle_or_a_damaged_one_is_not_read(void) {
   begin("other");
   session = logged("abc");
   write_text("saves/abc.log", "{\"format\":1,\"bundle\":\"zzz\",\"lastSeconds\":777}\n{\"kind\":\"command\"}\n");
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->log_count == 0 && session->host.last_seconds == 0, "another bundle's log");
   write_text("saves/abc.log", "this is not JSON\n{\"kind\":\"command\"}\n");
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->log_count == 0 && session->host.last_seconds == 0, "a damaged header");
   write_text("saves/abc.log", "{\"format\":1,\"bundle\":\"abc\",\"lastSeconds\":-4}\n");
-  savelog_read(session);
+  savelog_read(session, session->log_path, session->hash);
   CHECK(session->host.last_seconds == 0, "a negative time");
   savelog_clear(session);
   CHECK(session->log_count == 0, "nothing to read from a missing file");
+  end();
+}
+
+/* Another bundle's log is read where it is named, as a save carried to a later build reads the earlier's. */
+static void a_log_named_with_its_bundle_is_read_and_a_redeploy_is_its_entry(void) {
+  player_session *session;
+  begin("named");
+  session = logged("abc");
+  write_text("saves/zzz.log", "{\"format\":1,\"bundle\":\"zzz\",\"lastSeconds\":777}\n{\"kind\":\"command\"}\n");
+  savelog_read(session, "saves/zzz.log", "abc");
+  CHECK(session->log_count == 0 && session->host.last_seconds == 0, "not under another bundle's name");
+  savelog_read(session, "saves/zzz.log", "zzz");
+  CHECK(session->log_count == 1 && session->host.last_seconds == 777, "under its own: %zu", session->log_count);
+  savelog_redeploy(session, true);
+  savelog_redeploy(session, false);
+  CHECK(session->log_count == 3 && strcmp(session->log[1], "{\"kind\":\"redeploy\",\"bundle\":\"abc\",\"kept\":true}") == 0 &&
+            strcmp(session->log[2], "{\"kind\":\"redeploy\",\"bundle\":\"abc\",\"kept\":false}") == 0,
+        "a redeploy names this bundle and whether it kept the state: %s", session->log_count > 1 ? session->log[1] : "");
+  savelog_clear(session);
   end();
 }
 
@@ -145,6 +164,7 @@ int main(void) {
   the_tail_and_the_clamps_seconds_are_written_and_read_back();
   the_time_passed_ahead_of_the_device_is_written_and_read_back();
   a_log_of_another_bundle_or_a_damaged_one_is_not_read();
+  a_log_named_with_its_bundle_is_read_and_a_redeploy_is_its_entry();
   a_turn_that_ran_is_kept_as_its_entry_and_one_that_kept_nothing_is_not();
   return finish();
 }
