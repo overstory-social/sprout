@@ -1,4 +1,4 @@
-// Specs for the shipping half of scripts/playdate-player.mjs: the list of graduated worlds, packing
+// Specs for the shipping half of scripts/playdate-player.mjs: the lists of graduated and test-only worlds, packing
 // them with their assets apart from the pdx, the pdx carrying none, and the public key baked into the app. Run by `node --test`
 // (`shippingSpecs`); they need `npm run build` for the CLI and no Playdate SDK.
 
@@ -24,6 +24,7 @@ import {
   publicKeyFile,
   PUBLISHER_PUBLIC_KEY,
   readGraduated,
+  readWorldLists,
   stageWorlds,
   TEST_PUBLIC_KEY,
   unmetExpectation,
@@ -40,17 +41,24 @@ function listFile(value) {
   return file;
 }
 
-test("the graduated list in the repository packs the worked microworld and the studio's finished world, once each", () => {
-  const list = readGraduated(WORLDS_FILE);
-  for (const name of ['printers_shop', 'underground_caverns']) {
-    assert.ok(
-      list.some((entry) => entry.file === `${name}.sproutworld`),
-      `${name} is packed`,
-    );
-  }
-  assert.equal(new Set(list.map((entry) => entry.file)).size, list.length);
-  for (const entry of list) assert.ok(existsSync(join(entry.dir, 'sprout.json')), entry.world);
-  const caverns = list.find((entry) => entry.file === 'underground_caverns.sproutworld');
+test("the build ships the worked microworld alone, and the studio's caverns are the gate's to test, not to ship", async () => {
+  const { graduated, testOnly } = readWorldLists(WORLDS_FILE);
+  assert.deepEqual(
+    graduated.map((entry) => [entry.file, entry.title]),
+    [['printers_shop.sproutworld', "Printer's Shop"]],
+    "Printer's Shop is the one world the build ships",
+  );
+  assert.deepEqual(readGraduated(WORLDS_FILE), graduated);
+  const out = join(scratch(), 'worlds');
+  await stageWorlds({ out });
+  assert.deepEqual(readdirSync(out), ['printers_shop.sproutworld'], 'the build packs it alone');
+
+  assert.deepEqual(
+    testOnly.map((entry) => entry.file),
+    ['underground_caverns.sproutworld'],
+    'the caverns come from the studio index, and the gate still tests the snapshot',
+  );
+  const [caverns] = testOnly;
   assert.deepEqual(caverns.plays, ['tests/walkthrough.json'], 'the whole of Zork is a listed play');
   assert.equal(caverns.dir, join(root, 'sprout-player/worlds/underground_caverns'));
   const pin = JSON.parse(readFileSync(join(caverns.dir, 'source.json'), 'utf8'));
@@ -59,6 +67,46 @@ test("the graduated list in the repository packs the worked microworld and the s
     pin.commit,
     /^[0-9a-f]{40}$/,
     'the snapshot names the studio commit it was copied at',
+  );
+});
+
+test('the test-only list may be left out, is read as the graduated one is, and shares its names with it', () => {
+  assert.deepEqual(
+    readWorldLists(listFile({ graduated: [{ world: 'teashop', title: 'T' }] })).testOnly,
+    [],
+  );
+  const lists = readWorldLists(
+    listFile({
+      graduated: [{ world: 'teashop', title: 'T' }],
+      testOnly: [{ world: 'chip-tree', title: 'C', plays: ['transcripts/chips.json'] }],
+    }),
+  );
+  assert.deepEqual(
+    lists.testOnly.map((entry) => [entry.file, entry.plays]),
+    [['chip_tree.sproutworld', ['transcripts/chips.json']]],
+  );
+  assert.deepEqual(
+    readGraduated(listFile({ graduated: [], testOnly: [{ world: 'chip-tree', title: 'C' }] })),
+    [],
+    'a test-only world is not shipped',
+  );
+  assert.throws(
+    () =>
+      readWorldLists(
+        listFile({
+          graduated: [{ world: 'chip-tree', title: 'A' }],
+          testOnly: [{ world: 'corpus/good/chip-tree', title: 'B' }],
+        }),
+      ),
+    /the world "chip_tree" is listed twice/,
+  );
+  assert.throws(
+    () => readWorldLists(listFile({ graduated: [], testOnly: [{ world: 'chip-tree' }] })),
+    /entry 1 of "testOnly" needs a "world" and a "title"/,
+  );
+  assert.throws(
+    () => readWorldLists(listFile({ graduated: [], testOnly: {} })),
+    /"testOnly" for worlds the gate tests and the build does not ship/,
   );
 });
 
@@ -149,7 +197,10 @@ test('each listed world is packed as one file, its pictures inside it, into the 
     }),
   );
   const staged = await stageWorlds({ list, out });
-  assert.equal(staged.length, 2);
+  assert.deepEqual(
+    staged.map((entry) => entry.cartridge),
+    [join(out, 'chip_tree.sproutworld'), join(out, 'media_room.sproutworld')],
+  );
   assert.deepEqual(readdirSync(out).sort(), ['chip_tree.sproutworld', 'media_room.sproutworld']);
   assert.deepEqual(
     readCartridgeAssets(readFileSync(join(out, 'media_room.sproutworld'))).map((one) => one.path),

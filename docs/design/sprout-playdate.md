@@ -772,28 +772,32 @@ live, a world is installed by copying its `.sproutworld` into
 disk mode), which the shelf lists. A save lives in the Data folder keyed by
 the bundle hash, so it does not care where its cartridge came from.
 
-The **graduated** worlds are listed in `sprout-player/worlds.json`
-(`{"graduated": [{"world": "<corpus/good name or a path>", "title": "…"}]}`).
-`scripts/playdate-player.mjs` packs each with `sprout pack` into
-`sprout-player/build/worlds/`, beside the pdx and not in it, as one
-`<name>.sproutworld` for the name the world's manifest gives it, its pictures
-inside it, and prints where they are; the gate packs them into a scratch
-folder and runs its checks against them there. Today the list is the worked
-microworld `printers_shop` and the studio's finished
-`underground_caverns`. Every world the list names is inside this repository,
-so the build and the gate never read another checkout. A studio world ships as a
-pinned snapshot under `sprout-player/worlds/<world>/`: the files the studio
-commits under `worlds/<world>/world`, less its `tests/` but for the plays this
-list names, and a `source.json` (`{ repository, world, commit }`) naming the
-studio commit they were copied at. New content lands in sprout-studio; when it
-is worth shipping, `node scripts/sync-world.mjs <world> <path to a
-sprout-studio checkout>`, run by hand, replaces the snapshot with the world at
-that checkout's HEAD and rewrites the pin, and its diff is read before it is
+The **graduated** worlds, the ones the build ships, are listed in
+`sprout-player/worlds.json` (`{"graduated": [{"world": "<corpus/good name or
+a path>", "title": "…"}], "testOnly": [ … ]}`). `scripts/playdate-player.mjs`
+packs each with `sprout pack` into `sprout-player/build/worlds/`, beside the
+pdx and not in it, as one `<name>.sproutworld` for the name the world's
+manifest gives it, its pictures inside it, and prints where they are. Today
+that is the worked microworld `printers_shop` alone. The **test-only** worlds,
+`testOnly`, are the gate's: it packs both lists into scratch folders and runs
+the same checks against each, and the build never packs a test-only world.
+Today that is the studio's `underground_caverns`, which a player gets from the
+studio's signed index through "more worlds…"; the gate keeps its snapshot to
+play its walkthrough and to measure the app against the biggest world there
+is. Every world either list names is inside this repository, so the build and
+the gate never read another checkout. A studio world is a pinned snapshot
+under `sprout-player/worlds/<world>/`: the files the studio commits under
+`worlds/<world>/world`, less its `tests/` but for the plays its entry names,
+and a `source.json` (`{ repository, world, commit }`) naming the studio commit
+they were copied at. New content lands in sprout-studio, which publishes it to
+its index; `node scripts/sync-world.mjs <world> <path to a sprout-studio
+checkout>`, run by hand, replaces the snapshot with the world at that
+checkout's HEAD and rewrites the pin, and its diff is read before it is
 committed. It refuses, writing nothing, a checkout with no such world, no
-manifest, uncommitted changes to the world or no origin, and a world this list
-has no entry for. The studio will write this file; until then this repository
-owns it (hole 502). The build fails if the app would grey a listed world, and
-if `Source/` or the pdx holds a cartridge.
+manifest, uncommitted changes to the world or no origin, and a world neither
+list has an entry for. The studio will write this file; until then this repository
+owns it (hole 502). The gate fails if the app would grey a world either list
+names, and the build if `Source/` or the pdx holds a cartridge.
 
 The **signed index** (`sprout-player/index.schema.json`) is what the
 download screen fetches: `{ "worlds": [ { title, author, version, bytes,
@@ -867,7 +871,8 @@ default is 10,000: a poll lists every reading a visitor could make, and the
 studio's `underground_caverns` spends 344,254 steps in its fullest room (the
 living room with every treasure in the case, 12,153 readings, a 2.7 MB chip
 tree); under 10,000 it faulted in 343 of its walkthrough's 354 rooms. The
-build holds each graduated world's listed plays to that figure. The other
+gate holds the listed plays of every world `worlds.json` names, shipped or
+test-only, to that figure. The other
 steps are the spec's and are not tuned: the Simulator runs far faster than
 the console. The ten static caps with figures are checked
 against a cartridge's recorded ones when it is shelved, and one recorded
@@ -889,8 +894,8 @@ and the turns built from the chips must leave the stored world the
 same lines typed leave); the download screen over a fake network, files and
 engine; the signature check against RFC 8032; every packed world shelved; the empty
 shelf of a fresh install;
-the Node specs for the index and the build; and each graduated world's
-listed plays (`"plays"` in `worlds.json`, scripts under the world's folder)
+the Node specs for the index and the build; and the listed plays of each
+world `worlds.json` names, graduated or test-only (`"plays"`, scripts under the world's folder)
 played through `sproutc play --offered` over the packed cartridge, the view
 polled before every command under the app's poll budget and each reading
 required to be among what it offers, a set role one member at a time, as the
@@ -903,7 +908,7 @@ compiled script and no cartridge in it; the device target is built too where
 ### What has run on a screen, and what has not
 
 The app has run on the Linux Simulator (SDK 3.1.2, under WSLg): the shelf
-with both graduated worlds, the arrival's loading line and bar, the nickname
+with `printers_shop` and `underground_caverns` on it, the arrival's loading line and bar, the nickname
 screen with the remembered name first, the reader, the sentence builder's
 fonts, greyed leaves and their reasons, the disc of words under the d-pad
 and the crank, the arrival's picture with its caption, the download screen's
@@ -1022,7 +1027,7 @@ The Simulator pdx, and the player's checks, need the SDK:
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # once
-npm run playdate                                             # builds the one pdx, packs the graduated worlds beside it in sprout-player/build/worlds/
+npm run playdate                                             # builds the one pdx, packs the graduated worlds (Printer's Shop) beside it in sprout-player/build/worlds/
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 node scripts/check-runtime-c.mjs                             # now also builds the Simulator target and runs the player's C tests
 ```
@@ -1071,8 +1076,8 @@ the spec_ with the alternatives; none is closed until Eric decides it.
 - **500.** What the app settles for the host: budgets, static caps, time and
   ticks, visits, nicknames, saves, and the sentence builder's order and
   set roles.
-- **502.** What "graduated" means, the index and its signing, takedown, and
-  the device's file handling.
+- **502.** What "graduated" means and the test-only list beside it, the
+  index and its signing, takedown, and the device's file handling.
 - **The media paragraph** (_Extensions on a host that is not TypeScript, and
   the `media` extension_ in the working notes): the sentence the spec needs
   for extensions on a host that is not TypeScript, optional statement
