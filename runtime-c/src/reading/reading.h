@@ -137,6 +137,10 @@ sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *fram
 sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
                                            sprout_str actor, bool *moves);
 
+/* Whether that move takes what fills `role` somewhere other than the actor: a role whose things the actor carries. */
+sprout_eval_status sprout_moves_its_filler_away(const sprout_frame *frame, const sprout_verb *verb,
+                                                const sprout_role *role, sprout_str actor, bool *away);
+
 /* ---- effect.c ---- */
 
 /*

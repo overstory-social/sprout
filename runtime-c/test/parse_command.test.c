@@ -2,8 +2,8 @@
  * Tests for src/parse/command.c: a typed line read as the command turn it begins reads it, under that turn's budget
  * and seed and writing nothing (the spec's Parsing > Matching a line, Choosing a reading, Pronouns, Synonyms, When
  * nothing matches; Verbs > Exits; The runtime > Turns), in the corpus worlds: the
- * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms`, `all-leaves-out-refused`, `no-way` and
- * `out-of-reach-synonym`. A line reads to
+ * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms`, `all-leaves-out-refused`, `no-way`,
+ * `out-of-reach-synonym`, `all-narrowed` and `drop-all-on`. A line reads to
  * the best of its readings, a tie drawn from the turn's stream; a line no reading reads is answered as answers.c
  * says; a line `and` splits, `again` and a turn a line handed are read as sequences are (their own cases are
  * parse_chain, parse_again, parse_planned, parse_item and parse_later's).
@@ -513,6 +513,36 @@ static void a_narrowed_all_that_leaves_nothing_is_not_here_before_another_phrase
   close_hall(&p);
 }
 
+static void drop_all_on_a_thing_puts_what_is_held_there_and_is_never_narrowed_to_what_it_holds(void) {
+  parsing p;
+  open_world(&p, "drop-all-on");
+  command(&p, "sprout.take", "drop_all_on.tea_room.orange_cake");
+  command(&p, "sprout.take", "drop_all_on.tea_room.red_cake");
+  /* The table is a container: `drop [item] on [surface]` reads it, the first cake held its first turn. */
+  read_as(&p, "drop all on the table");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.reading.verb, "sprout.put_on");
+  CHECK_STR(bound_to(&p, "item"), "drop_all_on.tea_room.orange_cake");
+  CHECK_STR(bound_to(&p, "surface"), "drop_all_on.tea_room.table");
+  read_as(&p, "put all on the table");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(bound_to(&p, "surface"), "drop_all_on.tea_room.table");
+  /* No phrase that begins `drop` reads `in`, and `in` is no holder in drop's target. */
+  read_as(&p, "drop all in the sack");
+  answered(&p, "unknown");
+  close_hall(&p);
+  open_world(&p, "all-narrowed");
+  command(&p, "sprout.take", "all_narrowed.tea_room.blue_cake");
+  /* The table only `contains`: the phrase reads it in part, rather than `all` narrowed to nothing held there. */
+  read_as(&p, "drop all on the table");
+  answered(&p, "cannot");
+  /* `take` places nothing, so `on` there still says what holds the things. */
+  read_as(&p, "take all on the table");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(bound_to(&p, "target"), "all_narrowed.tea_room.table.orange_cake");
+  close_hall(&p);
+}
+
 static void a_noun_after_all_naming_nothing_in_reach_is_not_here_as_any_noun_is(void) {
   parsing p;
   open_world(&p, "unknown-word");
@@ -569,6 +599,7 @@ int main(void) {
   RUN(a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way);
   RUN(a_narrowed_all_that_leaves_nothing_is_not_here_before_another_phrase_read_in_part);
   RUN(a_noun_after_all_naming_nothing_in_reach_is_not_here_as_any_noun_is);
+  RUN(drop_all_on_a_thing_puts_what_is_held_there_and_is_never_narrowed_to_what_it_holds);
   RUN(an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the_object);
   RUN(a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional);
   RUN(the_engine_verbs_read_by_the_phrases_the_library_gives_them);

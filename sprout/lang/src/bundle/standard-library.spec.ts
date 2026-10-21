@@ -145,7 +145,15 @@ describe('the standard library', () => {
       ['sprout/place.sprout', ['kind Place']],
       [
         'sprout/actor.sprout',
-        ['import from container', 'verb take', 'verb drop', 'verb put', 'verb give', 'kind Actor'],
+        [
+          'import from container',
+          'verb take',
+          'verb drop',
+          'verb put',
+          'verb put_on',
+          'verb give',
+          'kind Actor',
+        ],
       ],
       ['sprout/visitor.sprout', ['import from actor', 'kind Visitor']],
       ['sprout/fixture.sprout', ['import from actor', 'kind Fixture']],
@@ -179,12 +187,13 @@ describe('the standard library', () => {
     expect(phrases('go')).toContain('[way]');
   });
 
-  it('gives the actor `take`, `drop`, `put` and `give`, the container a container, the recipient an actor, and `take` an optional source a container', () => {
+  it('gives the actor `take`, `drop`, `put`, `put_on` and `give`, the container and the surface a container, the recipient an actor, and `take` an optional source a container', () => {
     const actor = verbsByFile().get('sprout/actor.sprout')!;
     expect(Object.fromEntries(actor.map((verb) => [verb.name, rolesOf(verb)]))).toEqual({
       take: ['target:open', 'source:sprout.Container?'],
       drop: ['target:open'],
       put: ['item:open', 'container:sprout.Container'],
+      put_on: ['item:open', 'surface:sprout.Container'],
       give: ['item:open', 'recipient:sprout.Actor'],
     });
   });
@@ -241,11 +250,12 @@ describe('the standard library', () => {
     ]);
   });
 
-  it('gives `sprout.Actor` the actor’s part in `take`, `drop`, `put` and `give`, each a permit and a do', () => {
+  it('gives `sprout.Actor` the actor’s part in `take`, `drop`, `put`, `put_on` and `give`, each a permit and a do', () => {
     expect(playsOf('Actor')).toEqual({
       'as actor for sprout.take': 'sprout.Actor: permit do',
       'as actor for sprout.drop': 'sprout.Actor: permit do',
       'as actor for sprout.put': 'sprout.Actor: permit do',
+      'as actor for sprout.put_on': 'sprout.Actor: permit do',
       'as actor for sprout.give': 'sprout.Actor: permit do',
     });
     expect(
@@ -256,6 +266,8 @@ describe('the standard library', () => {
         'drops',
         'put_in',
         'puts_in',
+        'placed_on',
+        'places_on',
         'given',
         'received',
         'gives',
@@ -270,6 +282,8 @@ describe('the standard library', () => {
       drops: '{actor} puts {target} down.',
       put_in: 'You put {item} in {container}.',
       puts_in: '{actor} puts {item} in {container}.',
+      placed_on: 'You put {item} on {surface}.',
+      places_on: '{actor} puts {item} on {surface}.',
       given: 'You give {item} to {recipient}.',
       received: '{actor} gives you {item}.',
       gives: '{actor} gives {item} to {recipient}.',
@@ -474,6 +488,8 @@ describe('the standard library', () => {
       'not_held',
       'not_in_source',
       'not_yours',
+      'placed_on',
+      'places_on',
       'put_in',
       'puts_in',
       'received',
@@ -568,7 +584,7 @@ describe('the standard library', () => {
     // Change this only with the library, and rerun
     // `node scripts/pin-standard-library.mjs` so the corpus pins it too.
     expect(libraryHash(STANDARD_LIBRARY)).toBe(
-      'ebeb3c0f9af04c70dd4e60caa497e5b73cfaf028a89b323e58b33b0405402068',
+      '288fb32a046731445e67b4f5794e445fc3bb1de81d98420b9ab26e2f5cb22e41',
     );
   });
 });

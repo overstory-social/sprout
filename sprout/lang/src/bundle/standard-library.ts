@@ -83,6 +83,7 @@ import {Container} from ${Q}container${Q}
 verb take { role target  role source: Container  "take [target]"  "get [target]"  "pick up [target]"  "pick [target] up"  "grab [target]"  "take [target] from [source]"  "take [target] out of [source]" }
 verb drop { role target  "drop [target]"  "put down [target]"  "put [target] down"  "drop [target] here"  "put down [target] here"  "put [target] down here" }
 verb put  { role item  role container: Container  "put [item] in [container]"  "put [item] into [container]"  "place [item] in [container]"  "insert [item] into [container]" }
+verb put_on { role item  role surface: Container  "put [item] on [surface]"  "drop [item] on [surface]" }
 verb give { role item  role recipient: Actor  "give [item] to [recipient]"  "hand [item] to [recipient]"  "offer [item] to [recipient]" }
 
 kind Actor {
@@ -112,6 +113,11 @@ kind Actor {
     do     { move item to container  say put_in  tell puts_in }
   }
 
+  as actor for put_on {
+    permit { if (!self.holds(item)) { refuse not_held } }
+    do     { move item to surface  say placed_on  tell places_on }
+  }
+
   as actor for give {
     permit {
       if (!self.holds(item))        { refuse not_held }
@@ -126,6 +132,8 @@ kind Actor {
   passage drops default       { {actor} puts {target} down. }
   passage put_in default      { You put {item} in {container}. }
   passage puts_in default     { {actor} puts {item} in {container}. }
+  passage placed_on default   { You put {item} on {surface}. }
+  passage places_on default   { {actor} puts {item} on {surface}. }
   passage given default       { You give {item} to {recipient}. }
   passage received default    { {actor} gives you {item}. }
   passage gives default       { {actor} gives {item} to {recipient}. }

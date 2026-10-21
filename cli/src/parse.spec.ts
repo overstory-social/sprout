@@ -84,6 +84,10 @@ sprout.put (item, container: sprout.Container)
   place [item] in [container]
   insert [item] into [container]
 
+sprout.put_on (item, surface: sprout.Container)
+  put [item] on [surface]
+  drop [item] on [surface]
+
 sprout.give (item, recipient: sprout.Actor)
   give [item] to [recipient]
   hand [item] to [recipient]

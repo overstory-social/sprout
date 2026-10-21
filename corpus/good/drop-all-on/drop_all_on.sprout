@@ -1,0 +1,28 @@
+// The standard library's `put_on` puts things on a container (the
+// spec's Parsing › Sequences, again and all, and The standard library it
+// needs): `drop all on the table` and `put all on the table` put each
+// thing in hand on the table, since `in` and `on` after `all` say where a
+// role's things go where the actor's own `do` takes them from the actor,
+// while `take all on the table` still takes what the table holds. The
+// lamp is no container, so nothing is put on it, and nothing reads `drop
+// all in the sack`.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world drop_all_on is sprout.World {
+  visitors are Person
+  visitors arrive at tea_room
+
+  object tea_room is sprout.Place {
+    grammar { name "tea room"  article the }
+    object table is sprout.Container, sprout.Fixture { grammar { article the } }
+    object sack is sprout.Container, sprout.Fixture { grammar { article the } }
+    object orange_cake is Cake { }
+    object red_cake is Cake { }
+    object cup is Crockery { }
+    object lamp is Crockery { }
+  }
+}
+
+kind Cake { }
+kind Crockery { }

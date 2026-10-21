@@ -2035,7 +2035,7 @@ their first arrival: that is how a world hands out a satchel.
   pick a pocket.
 - `accept`: things fit if there is room, so a gift arrives if the hands
   are free.
-- The actor's part in `take`, `drop`, `put` and `give`, and the
+- The actor's part in `take`, `drop`, `put`, `put_on` and `give`, and the
   `inventory` passage.
 
 ### Visitors come and go
@@ -2408,7 +2408,7 @@ any of its lines. `sprout skill` prints its full source.
 | ----------------- | -------------------------------------------------------------------------------- |
 | `sprout.World`    | what every world composes; holds the engine's own lines (below)                  |
 | `sprout.Place`    | `contains actors`; the `arrives` and `leaves` passages                           |
-| `sprout.Actor`    | hands (`:capacity 8`), a private pocket, the guards that protect a person, and `take`, `drop`, `put`, `give` |
+| `sprout.Actor`    | hands (`:capacity 8`), a private pocket, the guards that protect a person, and `take`, `drop`, `put`, `put_on`, `give` |
 | `sprout.Visitor`  | a person: `sprout.Actor`, marked as having someone behind it                     |
 | `sprout.Fixture`  | cannot be picked up; says `immovable`                                            |
 | `sprout.Container`| `:open true`, `:capacity 8`; passes things while open; plays `open` and `close`  |
@@ -2422,6 +2422,7 @@ any of its lines. `sprout skill` prints its full source.
 | `take`   | `target`, `source: Container`      | `take [target]`, `get [target]`, `pick up [target]`, `pick [target] up`, `grab [target]`, `take [target] from [source]`, `take [target] out of [source]` |
 | `drop`   | `target`                           | `drop [target]`, `put down [target]`, `put [target] down`, `drop [target] here`, `put down [target] here`, `put [target] down here` |
 | `put`    | `item`, `container: Container`     | `put [item] in [container]`, `put [item] into [container]`, `place [item] in [container]`, `insert [item] into [container]` |
+| `put_on` | `item`, `surface: Container`       | `put [item] on [surface]`, `drop [item] on [surface]`       |
 | `give`   | `item`, `recipient: Actor`         | `give [item] to [recipient]`, `hand [item] to [recipient]`, `offer [item] to [recipient]` |
 | `open`   | `target: Container`                | `open [target]`                                             |
 | `close`  | `target: Container`                | `close [target]`, `shut [target]`                           |
@@ -2477,7 +2478,7 @@ what a character says: `words` is their line, its paragraphs as one.
 
 ### The actor's and container's lines
 
-`sprout.Actor`: `taken`, `takes`, `dropped`, `drops`, `put_in`, `puts_in`,
+`sprout.Actor`: `taken`, `takes`, `dropped`, `drops`, `put_in`, `puts_in`, `placed_on`, `places_on`,
 `given`, `received`, `gives`, `not_carried`, `not_held`, `not_in_source`,
 `held_fast`, `not_yours`, `hands_full`, `inventory`. `sprout.Container`: `contents`,
 `shut`, `full`, `opened` (which includes `contents`), `opens`, `closed`,

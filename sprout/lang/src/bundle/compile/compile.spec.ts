@@ -224,6 +224,7 @@ describe('what a compiled bundle carries', () => {
       'take',
       'drop',
       'put',
+      'put_on',
       'give',
       'Actor',
       'Visitor',

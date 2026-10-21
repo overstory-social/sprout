@@ -1,0 +1,93 @@
+{
+  "about": "`drop all on the table` and `put all on the table` put each thing in hand on it, and someone there sees it; `take all on the table` still takes what it holds; `drop all in the sack` is read by nothing, and the lamp, no container, holds nothing put on it.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the tea room." }
+    ] },
+    { "arrive": "Ana", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Ana arrives." },
+      { "reader": "Ana", "kind": "described", "words": "There is nothing special about the tea room." }
+    ] },
+    { "as": "Marta", "type": "take all except the table and the sack", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes an orange cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a red cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a cup." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a cup." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a lamp." }
+    ] },
+    { "as": "Marta", "type": "drop all on the table", "expect": [
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put an orange cake on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts an orange cake on the table." },
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put a red cake on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a red cake on the table." },
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put a cup on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a cup on the table." },
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a lamp on the table." }
+    ] },
+    { "as": "Marta", "type": "look in the table", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Inside: an orange cake, a red cake, a cup, a lamp." }
+    ] },
+    { "as": "Marta", "type": "take all on the table except the cup", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes an orange cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a red cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a lamp." }
+    ] },
+    { "as": "Marta", "type": "put all on the table", "expect": [
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put an orange cake on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts an orange cake on the table." },
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put a red cake on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a red cake on the table." },
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp on the table." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a lamp on the table." }
+    ] },
+    { "as": "Marta", "type": "take all off the table", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a cup." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a cup." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes an orange cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a red cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." },
+      { "reader": "Ana", "kind": "told", "words": "Marta takes a lamp." }
+    ] },
+    { "as": "Marta", "type": "drop all in the sack", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] },
+    { "as": "Marta", "type": "drop all on the lamp", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't drop the red cake on the lamp." }
+    ] },
+    { "as": "Marta", "type": "close the sack", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You shut the sack." },
+      { "reader": "Ana", "kind": "told", "words": "Marta shuts the sack." }
+    ] },
+    { "as": "Marta", "type": "drop all on the sack", "expect": [
+      { "level": "info", "text": "step: sprout.put_on" },
+      { "reader": "Marta", "kind": "refused", "words": "The sack is shut." }
+    ] }
+  ]
+}

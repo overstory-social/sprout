@@ -6,7 +6,7 @@
 #include "state.h"
 #include "support.h"
 
-#define CHIP_TREE_HASH "b41706ded67d4f12a6bdc6e5d1cf6fb6f378ff15da940fb3ff3903e3d0a27302"
+#define CHIP_TREE_HASH "36bb4ced95b8bcd37b97bac92ced31a3d7506f4fc31a049f2e1ae25a4a302dd8"
 
 /* Whether `words` holds `word`. */
 static bool has_word(const player_opening *answer, const char *word) {
