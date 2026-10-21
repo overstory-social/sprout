@@ -1,0 +1,38 @@
+{
+  "about": "`all` before a plural takes what its singular names, `-s`, `-es` or `-ies` read off, or what a kind's name names; a set role takes them at once; once nothing qualifies, or a plural names nothing in reach, it is `not_here`; `all` before a run is `unknown`.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the tea room." }
+    ] },
+    { "as": "Marta", "type": "stack all cakes", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You stack 3 cakes." }
+    ] },
+    { "as": "Marta", "type": "take all cakes except the red cake", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a blue cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." }
+    ] },
+    { "as": "Marta", "type": "take all cakes", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." }
+    ] },
+    { "as": "Marta", "type": "take all cakes", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take all berries", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a berry." }
+    ] },
+    { "as": "Marta", "type": "take all crockery from the table", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a cup." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a napkin." }
+    ] },
+    { "as": "Marta", "type": "take all keys", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take all and lamp", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}

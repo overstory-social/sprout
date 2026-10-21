@@ -97,6 +97,9 @@ describe('the world’s word set', () => {
     for (const word of ['it', 'them', 'him', 'her']) expect(fixed, word).toContain(word);
     // And the parser's own words.
     for (const word of ['then', 'again', 'g', 'all', 'except']) expect(fixed, word).toContain(word);
+    // And the words that narrow `all` to what a thing holds, `out of` as its two words.
+    for (const word of ['from', 'off', 'out', 'of']) expect(fixed, word).toContain(word);
+    expect(fixed).not.toContain('out of');
     expect(fixed).not.toContain('take');
     const shop = compiledWorld('shop', {
       'shop.sprout':

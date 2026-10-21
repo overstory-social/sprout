@@ -185,6 +185,7 @@ typedef struct trying {
   bool has_going;            /* a way out named does not go */
   parse_filled going;        /* the first: an exit that refuses, or a direction none answers */
   bool not_here;             /* a placement's noun names nothing in reach, or `all` leaves nothing */
+  bool narrowed_nothing;     /* every slot of a placement read, and `all` narrowed by a noun or a holder leaves nothing */
 } trying;
 
 static parse_words words_between(parse_words words, size_t start, size_t end) {
@@ -282,6 +283,9 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
     }
     return SPROUT_EVAL_OK;
   }
+  for (i = 0; i < count; i++)
+    if (fills[i]->narrowed && fills[i]->fills == PARSE_FILLS_NOTHING && fills[i]->start == 0 && fills[i]->end == 1)
+      t->narrowed_nothing = true;
   if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
     /* An object's synonym typed where the object is out of reach. */
     if (t->phrase != NULL && t->phrase->only != NULL) {
@@ -298,6 +302,7 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   if (several > 1) return SPROUT_EVAL_OK;
   EXPR_NEED(parse_placement_readings(t->x, frame, t->all.actor, &placement, t->keep, &t->readings, &nothing));
   t->not_here = t->not_here || nothing;
+  for (i = 0; i < count && nothing; i++) t->narrowed_nothing = t->narrowed_nothing || fills[i]->narrowed;
   return SPROUT_EVAL_OK;
 }
 
@@ -520,12 +525,15 @@ static sprout_status understood(reader *r, const parse_readings *readings, parse
 }
 
 /*
- * The world's answer to a line no reading reads: the partial reading chosen, a tie drawn, as `cannot` or
+ * The world's answer to a line no reading reads: `not_here` where `all` narrowed by a noun or a holder leaves
+ * nothing; else the partial reading chosen, a tie drawn, as `cannot` or
  * `not_carrying`; else the first way out named that does not go, `no_way` or the exit's own words; else `not_here`
  * where a noun names nothing in reach, and `unknown` otherwise.
  */
 static sprout_status unread(reader *r, const trying *t) {
   sprout_said_binding given;
+  /* A line read whole, `all` narrowed to what is in reach, is owed `not_here` rather than another phrase's part. */
+  if (t->narrowed_nothing) return answer(r, "not_here", NULL);
   if (t->partials.count > 0) {
     const parse_partial *chosen;
     size_t among;

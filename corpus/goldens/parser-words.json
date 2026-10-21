@@ -3,6 +3,7 @@
   "connectors": ["and", ","],
   "relativeWords": ["in", "on", "that", "is", "one"],
   "allWords": ["all", "everything"],
+  "holderWords": ["from", "off", "out of", "in", "on"],
   "parserWords": ["then", "again", "g", "all", "everything", "except"],
   "directions": [
     "north",
