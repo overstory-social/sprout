@@ -48,21 +48,21 @@ describe('a describe', () => {
           'describe {',
           '    if (seen == :arrival) { text "A lamp." } else { text full }',
           '  }',
-          '  passage full { The lamp{if seen == :look}, looked at{/if}. {self.more} }',
+          '  passage full { The lamp{if seen == :examine}, examined{/if}. {self.more} }',
           '  passage more { {if seen != :poll}It hums.{/if} }',
         ].join('\n'),
       ),
     ).toEqual([]);
   });
 
-  it('checks an option compared with `seen` against `look`, `arrival` and `poll`', () => {
+  it('checks an option compared with `seen` against `look`, `examine`, `arrival` and `poll`', () => {
     expect(
       refusedIn('describe { if (seen == :looked) { text "Seen." } else { text "A lamp." } }'),
     ).toEqual([
       [
         'lamp.sprout:4:26',
         '`Seen` has no option `looked`. Did you mean `look`?',
-        'Options: look, arrival, poll.',
+        'Options: look, examine, arrival, poll.',
       ],
     ]);
   });
