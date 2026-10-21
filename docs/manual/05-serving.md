@@ -36,12 +36,17 @@ Everything else in the config is optional:
 | --- | --- | --- |
 | `listen` | the address and port | `127.0.0.1:4700` |
 | `log_level` | the lowest level the server logs: `error`, `warning`, `info` or `debug` | `info` |
+| `log_depth` | what of each turn a world's log keeps: `play` (how many lines it said, and a digest of them) or `debug` (every line) | `play` |
 | `tick_seconds` | how often each place with someone in it is ticked | 5 |
 | `wakes_while_empty` | whether wakes run while nobody is in a world | `false` |
+| `[store]` | `kind = "memory"`, the one store in this build, and `keep_log`, how many of a world's newest log entries it keeps | `memory`, 2000 |
 | `[limits]` | any cap or budget from the reference's Limits, by its name: `steps = 20000` | the figures in the reference |
+| `blessed_libraries` | the hashes of the libraries whose source does not count against a world's caps | the standard library's |
 
-A problem with the config is named by its line and key, and the server does
-not start.
+The server keeps its worlds in memory: a restart starts them again. It
+installs the `media` extension and no other, and a config that names an
+extension under `[extensions]` is refused. A problem with the config is
+named by its line and key, and the server does not start.
 
 ### Changing a world while it runs
 
@@ -51,9 +56,9 @@ again from the beginning: everyone connected comes back in where visitors
 arrive, carrying nothing. If it does not compile, the server logs why and
 the running world carries on as it was.
 
-Without `--watch`, a world changes only when the server restarts. A
-restart on the same files carries on where the world left off; a restart
-on changed files starts it from the beginning.
+Without `--watch`, a world changes only when the server restarts, and a
+restart starts every world from the beginning, since this build keeps
+them in memory.
 
 ## Connecting
 
