@@ -11,6 +11,7 @@
  */
 #include <stdlib.h>
 
+#include "shipping.h"
 #include "support.h"
 #include "ui/app.h"
 #include "ui/arrival.h"
