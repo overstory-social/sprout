@@ -454,6 +454,28 @@ export const turnCases: EngineCase[] = [
     },
   },
   {
+    name: 'a known verb whose noun names nothing in the world is answered as not here',
+    proves:
+      'a line a verb’s phrase reads whose noun holds a word nothing in the world is named by is answered with `not_here`, and a line no phrase reads with `unknown`',
+    async run(make) {
+      const store = await seeded(BELFRY, [[MARTA, TOWER, 'Marta']]);
+      const host = played(make, BELFRY);
+      const stored = await storedIn(store);
+      const named = host.engine!.command(stored, command('ring jewels'));
+      equal(
+        named.account,
+        { ran: [], answered: 'not_here', refused: false },
+        'a noun nothing is called',
+      );
+      const unread = host.engine!.command(stored, command('xyzzy jewels'));
+      equal(
+        unread.account,
+        { ran: [], answered: 'unknown', refused: false },
+        'a line no phrase reads',
+      );
+    },
+  },
+  {
     name: 'a displaced command accounts for coming in',
     proves:
       'a command whose visitor’s place is gone reads nothing they typed, and accounts for what their coming in at the arrival place ran',

@@ -160,13 +160,13 @@ static void an_item_naming_things_that_tie_is_drawn_and_the_engine_says_which_wa
   bench_close(&b);
 }
 
-static void an_item_naming_nothing_is_not_here_and_one_whose_word_names_nothing_in_the_world_is_unknown(void) {
+static void an_item_naming_nothing_in_reach_is_not_here_whatever_its_words(void) {
   bench b;
   within w;
   bench_open(&b, "runs", "Marta");
   plan(&b, &w, "sprout", "take", NULL, NULL);
   CHECK_STR(item(&b, &w, "target", "the salt in the box", NULL, NULL, NULL).answer, "not_here");
-  CHECK_STR(item(&b, &w, "target", "unicorn", NULL, NULL, NULL).answer, "unknown");
+  CHECK_STR(item(&b, &w, "target", "unicorn", NULL, NULL, NULL).answer, "not_here");
   CHECK_STR(item(&b, &w, "whatever", "salt", NULL, NULL, NULL).answer, "unknown");
   CHECK_STR(item(&b, &w, "target", "  ", NULL, NULL, NULL).answer, "unknown");
   bench_close(&b);
@@ -210,7 +210,7 @@ int main(void) {
   RUN(an_item_binds_a_value_role_from_its_words_against_the_thing_it_names);
   RUN(an_items_pronoun_names_what_it_named_as_the_line_began_and_what_the_line_bound_must_be_in_reach);
   RUN(an_item_naming_things_that_tie_is_drawn_and_the_engine_says_which_was_meant);
-  RUN(an_item_naming_nothing_is_not_here_and_one_whose_word_names_nothing_in_the_world_is_unknown);
+  RUN(an_item_naming_nothing_in_reach_is_not_here_whatever_its_words);
   RUN(an_item_a_carried_role_names_out_of_hand_is_not_carrying);
   RUN(an_item_naming_what_cannot_fill_its_role_is_cannot_written_with_what_the_line_bound);
   return REPORT();
