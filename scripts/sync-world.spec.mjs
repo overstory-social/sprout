@@ -56,12 +56,16 @@ function studio(files = {}) {
   return { dir, head: git(dir, 'rev-parse', 'HEAD') };
 }
 
-/** A snapshot folder and a shipping list naming `<into>/cave` with `plays`. */
-function target(plays = ['tests/walkthrough.json'], into = join(scratch(), 'worlds')) {
+/** A snapshot folder and a list of worlds naming `<into>/cave` with `plays` under `key`. */
+function target(
+  plays = ['tests/walkthrough.json'],
+  into = join(scratch(), 'worlds'),
+  key = 'graduated',
+) {
   const list = join(scratch(), 'worlds.json');
   writeFileSync(
     list,
-    JSON.stringify({ graduated: [{ world: join(into, 'cave'), title: 'Cave', plays }] }),
+    JSON.stringify({ [key]: [{ world: join(into, 'cave'), title: 'Cave', plays }] }),
   );
   return { into, list };
 }
@@ -81,6 +85,14 @@ test('the snapshot is the committed world and its listed plays, and the pin name
     world: 'worlds/cave/world',
     commit: head,
   });
+});
+
+test('a world the gate tests and the build does not ship is synced from its testOnly entry', () => {
+  const { dir } = studio();
+  const { into, list } = target(['tests/other.json'], undefined, 'testOnly');
+  syncWorld({ world: 'cave', studio: dir, into, list });
+  assert.ok(existsSync(join(into, 'cave/tests/other.json')), 'the play its entry lists is copied');
+  assert.ok(!existsSync(join(into, 'cave/tests/walkthrough.json')));
 });
 
 test('a newer sync replaces the snapshot, so a file the studio removed goes too', () => {

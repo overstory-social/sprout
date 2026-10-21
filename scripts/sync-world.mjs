@@ -1,8 +1,8 @@
-// `node scripts/sync-world.mjs <world> <path to the studio checkout>` releases a newer version of a
-// studio world into the Playdate build: it copies the world, as committed at the checkout's HEAD,
-// into sprout-player/worlds/<world>/ and rewrites its pin there. It is run by hand when the
-// studio has something worth shipping, and its diff is read before it is committed; the gate never
-// runs it, and the build reads only the snapshot.
+// `node scripts/sync-world.mjs <world> <path to the studio checkout>` refreshes the snapshot of a
+// studio world that sprout-player/worlds.json lists, to ship or to test only: it copies the world, as
+// committed at the checkout's HEAD, into sprout-player/worlds/<world>/ and rewrites its pin there. It
+// is run by hand, and its diff is read before it is committed; the gate never runs it, and the build
+// reads only the snapshot.
 //
 // The snapshot is every file the studio commits under worlds/<world>/world except its tests/, of
 // which only the plays sprout-player/worlds.json lists for the world are copied. The pin,
@@ -20,7 +20,7 @@ const root = join(fileURLToPath(import.meta.url), '../..');
 /** Where the snapshots live, one folder per world. */
 export const SNAPSHOTS = join(root, 'sprout-player/worlds');
 
-/** The shipping list whose entry for the world names the plays to copy. */
+/** The list of worlds whose entry for the world names the plays to copy. */
 const WORLDS_FILE = join(root, 'sprout-player/worlds.json');
 
 /** Runs git in `cwd`; its output, or null where it failed. */
@@ -107,20 +107,26 @@ export function syncWorld({ world, studio, into = SNAPSHOTS, list = WORLDS_FILE 
   return { dir, commit, files: files.length };
 }
 
-/** The plays `list` names for the world whose snapshot is `dir`; throws where it has no entry for it. */
+/**
+ * The plays `list` names for the world whose snapshot is `dir`, under "graduated" or "testOnly";
+ * throws where neither has an entry for it.
+ */
 function playsFor(list, dir, world) {
-  let graduated;
+  let lists;
   try {
-    graduated = JSON.parse(readFileSync(list, 'utf8')).graduated;
+    lists = JSON.parse(readFileSync(list, 'utf8'));
   } catch (err) {
     throw new Error(`${list} cannot be read as JSON: ${err.message}`);
   }
-  const entry = (Array.isArray(graduated) ? graduated : []).find(
+  const entries = ['graduated', 'testOnly'].flatMap((key) =>
+    Array.isArray(lists?.[key]) ? lists[key] : [],
+  );
+  const entry = entries.find(
     (one) => typeof one?.world === 'string' && resolve(root, one.world) === dir,
   );
   if (entry === undefined) {
     throw new Error(
-      `${list} lists no world at ${dir}: add { "world": "sprout-player/worlds/${world}", "title": "<title>", "plays": [ … ] } to "graduated" first.`,
+      `${list} lists no world at ${dir}: add { "world": "sprout-player/worlds/${world}", "title": "<title>", "plays": [ … ] } to "graduated", to ship it, or to "testOnly", to test it only.`,
     );
   }
   return Array.isArray(entry.plays) ? entry.plays : [];

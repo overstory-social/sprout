@@ -1,8 +1,9 @@
 /*
  * The graduated worlds (PLAYER_SHIPPED_DIR, the folder apart from the pdx that the build packed
- * sprout-player/worlds.json into): the shelf must be able to shelve every one, so a graduated world
+ * sprout-player/worlds.json's "graduated" into) and the test-only ones (PLAYER_TEST_WORLDS_DIR, its
+ * "testOnly", which a player downloads): the shelf must be able to shelve every one, so a listed world
  * over this app's caps or too large for its memory fails the build rather than shelving greyed, and each opens whole, its
- * file read a piece at a time as the console reads it. Without the variable there is nothing to
+ * file read a piece at a time as the console reads it. Without a variable there is nothing in it to
  * check and the test says so.
  */
 #include <dirent.h>
@@ -12,11 +13,12 @@
 
 #define SUFFIX ".sproutworld"
 
-static void every_shipped_world_shelves_and_opens(const char *folder) {
+/* Shelves and opens every cartridge in `folder`, the scenario `scenario`; at least one must be there. */
+static void every_world_shelves_and_opens(const char *scenario, const char *folder) {
   DIR *dir = opendir(folder);
   struct dirent *entry;
   int worlds = 0;
-  begin("shelve");
+  begin(scenario);
   snprintf(fake->app, sizeof fake->app, "%s", folder);
   CHECK(dir != NULL, "the folder %s", folder);
   if (dir != NULL) {
@@ -40,17 +42,20 @@ static void every_shipped_world_shelves_and_opens(const char *folder) {
     closedir(dir);
   }
   CHECK(worlds > 0, "no %s in %s", SUFFIX, folder);
-  printf("shipped: %d worlds shelve and open\n", worlds);
+  printf("shipped: %s: %d worlds shelve and open\n", scenario, worlds);
   end();
 }
 
 int main(void) {
-  const char *folder = getenv("PLAYER_SHIPPED_DIR");
+  static const char *const FOLDERS[][2] = {{"PLAYER_SHIPPED_DIR", "graduated"}, {"PLAYER_TEST_WORLDS_DIR", "test-only"}};
+  size_t i;
   test_program("shipped");
-  if (folder == NULL || folder[0] == '\0') {
-    printf("shipped: PLAYER_SHIPPED_DIR is not set, nothing to check\n");
-    return 0;
+  for (i = 0; i < sizeof FOLDERS / sizeof FOLDERS[0]; i++) {
+    const char *folder = getenv(FOLDERS[i][0]);
+    if (folder == NULL || folder[0] == '\0')
+      printf("shipped: %s is not set, no %s worlds to check\n", FOLDERS[i][0], FOLDERS[i][1]);
+    else
+      every_world_shelves_and_opens(FOLDERS[i][1], folder);
   }
-  every_shipped_world_shelves_and_opens(folder);
   return finish();
 }

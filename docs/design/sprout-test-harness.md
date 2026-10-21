@@ -400,8 +400,10 @@ variable is not set).
   `shelf.test.c` and `nickname.test.c` their screens (the filters folding as
   the host folds, a name the engine refuses told in its words), and
   `pictures.test.c` the pictures.
-- **The listed plays of the graduated worlds.** Each graduated world may list
-  plays in `sprout-player/worlds.json` (the studio's `underground_caverns`,
+- **The listed plays of the graduated and test-only worlds.** Each world
+  `sprout-player/worlds.json` names may list plays, whether it ships
+  (`graduated`, today `printers_shop` alone) or is the gate's only
+  (`testOnly`: the studio's `underground_caverns`, which players download,
   pinned in `sprout-player/worlds/`, lists the whole of Zork,
   `tests/walkthrough.json`); the player step plays
   each through `sproutc play --offered --poll-steps` under the app's own poll
@@ -422,9 +424,11 @@ variable is not set).
   made over the committed index fixture (`sprout-player/test/fixtures/index.json`,
   signed with the test key in `sprout-player/test/`, whose private half is
   public on purpose and trusted by nothing real); `shipped.test.c` shelves
-  every world in the folder the build packed the graduated worlds into, apart
-  from the pdx, so a graduated world the app would grey fails the build, and
-  `ui.test.c` pins the empty shelf of a fresh install. `canonical.test.c` holds the canonical text to
+  every world in the folders the gate packed the graduated and the test-only
+  worlds into, apart from the pdx, so a listed world the app would grey fails
+  the build, and `ui.test.c` pins the empty shelf of a fresh install and
+  downloads the caverns onto it over the fake network, as a player gets them,
+  before it watches their save written. `canonical.test.c` holds the canonical text to
   the fixture's and its rules over generated objects; `signed_index.test.c`
   accepts the signed index and refuses one changed after signing or signed by
   another key, one unsigned, oversized or not JSON, and each signed entry the
@@ -445,8 +449,9 @@ variable is not set).
   against `index.schema.json`, the refusals, key generation) and `scripts/playdate-player.spec.mjs` packs a fake
   `worlds.json` (names or paths, a list that cannot be used, assets copied, a
   world that does not pack, a cartridge in `Source/` or the pdx refused, the
-  public key read); `scripts/playdate-player.mjs`
-  runs both and the build's check of the graduated list.
+  public key read) and holds the repository's to Printer's Shop shipped alone
+  and the caverns test-only; `scripts/playdate-player.mjs`
+  runs both and the build's check of the lists.
 - **The sanitizers** run the player's C tests too (7c).
 - **The build itself is a test.** The Simulator target must compile and `pdc`
   must package the pdx with no compiled script and no cartridge in it, and the device target is built too where
