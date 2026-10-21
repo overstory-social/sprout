@@ -50,6 +50,7 @@ static bool commanded(wasm_engine *e, const sprout_outcome *outcome, bool displa
   sprout_json_adopt(root, "step", outcome->step == NULL ? engine_null(e) : sprout_reading_tree(&e->scratch, "verb", outcome->step));
   sprout_json_adopt(root, "next", next);
   sprout_json_adopt(root, "goesOn", engine_bool(e, outcome->goes_on));
+  sprout_json_adopt(root, "passes", engine_number(e, (double)outcome->passes));
   return next->count == outcome->next_count;
 }
 
@@ -83,11 +84,12 @@ static sprout_json *account(wasm_engine *e, const sprout_outcome *outcome) {
  * `entry` is what the log keeps of it at this instance's depth, and `account` what it ran. A command also gives `answered`, that no reading
  * ran; `displaced`, that its visitor's place was gone, so what they typed was not read; `drawn`, how many readings
  * tied where its reading was drawn, or null; `step`, the reading it ran as a step of a line of several, or null;
- * `next`, the turns its line runs after it; and `goesOn`, that the line goes on.
+ * `next`, the turns its line runs after it; `goesOn`, that the line goes on; and `passes`, the seconds the host is to
+ * let pass once it is over (the spec's Time > Passing time).
  */
 static int told(wasm_engine *e, const sprout_outcome *outcome, bool displaced) {
   bool command = outcome->has_log && outcome->log.kind == SPROUT_TURN_COMMAND;
-  sprout_json *root = sprout_json_make(&e->scratch, SPROUT_JSON_OBJECT, 16);
+  sprout_json *root = sprout_json_make(&e->scratch, SPROUT_JSON_OBJECT, 17);
   sprout_json *lines = sprout_json_make(&e->scratch, SPROUT_JSON_ARRAY, outcome->line_count);
   sprout_json *cuts = sprout_json_make(&e->scratch, SPROUT_JSON_ARRAY, outcome->cut_count);
   sprout_json *stale = sprout_json_make(&e->scratch, outcome->committed ? SPROUT_JSON_ARRAY : SPROUT_JSON_NULL,
@@ -131,7 +133,7 @@ static int told(wasm_engine *e, const sprout_outcome *outcome, bool displaced) {
   sprout_json_adopt(root, "entry", entry != NULL ? entry : engine_null(e));
   sprout_json_adopt(root, "account", account(e, outcome));
   if (command && !commanded(e, outcome, displaced, root)) return SPROUT_NO_MEMORY;
-  if (root->count != (command ? 16 : 10) || lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
+  if (root->count != (command ? 17 : 10) || lines->count != outcome->line_count || cuts->count != outcome->cut_count ||
       (outcome->committed && stale->count != outcome->stale_count))
     return SPROUT_NO_MEMORY;
   status = sprout_json_write(&e->scratch, root, &head, &head_length);

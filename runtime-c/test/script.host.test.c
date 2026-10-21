@@ -1,7 +1,7 @@
 /*
  * Tests for host/script.c: a script's steps driven through the turn call. A tick tells each place that holds a visitor, time moved on delivers nothing while nobody
  * stands in the world, and a departure empties it; a typed line is read by the runtime, a turn to each command;
- * each step prints what it told.
+ * each step prints what it told, and time a command asks to pass passes before the line's next turn.
  */
 #include "play.h"
 #include "check.h"
@@ -18,12 +18,13 @@ static void put(const char *path, const void *bytes, size_t length) {
   fclose(file);
 }
 
-static void put_world(void) {
+/* The corpus world `name`, packed, written where the play reads it. */
+static void put_world_named(const char *name) {
   size_t length;
   char path[1024];
   FILE *file;
   unsigned char *bytes;
-  snprintf(path, sizeof path, "%s/turn-faults.sproutworld", SPROUT_CARTRIDGES);
+  snprintf(path, sizeof path, "%s/%s.sproutworld", SPROUT_CARTRIDGES, name);
   file = fopen(path, "rb");
   if (file == NULL) exit(2);
   fseek(file, 0, SEEK_END);
@@ -35,6 +36,8 @@ static void put_world(void) {
   put(WORLD, bytes, length);
   free(bytes);
 }
+
+static void put_world(void) { put_world_named("turn-faults"); }
 
 static char *slurp(const char *path) {
   static char text[1 << 17];
@@ -114,10 +117,37 @@ static void offered_holds_each_reading_to_the_view_polled_before_it(void) {
   remove(SCRIPT);
 }
 
+/*
+ * A command that asks for time to pass is followed by that much of it before the line's next turn, and every later
+ * step's time moves on by it: the ninety seconds the first `wait` passes bring the bucket down in the last.
+ */
+static void time_a_command_asks_to_pass_passes_before_the_next_turn_and_moves_every_later_step(void) {
+  char *argv[] = {"play", (char *)WORLD, "--script", (char *)SCRIPT};
+  const char *script =
+      "{\"steps\":[{\"arrive\":\"Marta\"},{\"as\":\"Marta\",\"type\":\"hoist bucket. wait for bucket. look\"},"
+      "{\"as\":\"Marta\",\"type\":\"hoist bucket\"},{\"as\":\"Marta\",\"type\":\"wait\"},{\"advance\":\"18 minutes\"},"
+      "{\"as\":\"Marta\",\"type\":\"wait\"}]}";
+  static char output[1 << 17];
+  put_world_named("passing-time");
+  put(SCRIPT, script, strlen(script));
+  CHECK_INT(run(4, argv), 0);
+  strcpy(output, slurp(OUT));
+  CHECK(strstr(output, "Marta (said): You settle down to wait for the bucket.\n"
+                       "Marta (told): The bucket comes back down the well, swinging.\n"
+                       "Marta (described): The bottom of a dry well. A rope runs up out of sight.\n") != NULL);
+  CHECK(strstr(output, "## step 3: Marta> wait\nMarta (said): Time passes.\n## step") != NULL);
+  CHECK(strstr(output, "## step 5: Marta> wait\nMarta (said): Time passes.\n"
+                       "Marta (told): The bucket comes back down the well, swinging.\n") != NULL);
+  CHECK_STR(slurp(ERR), "");
+  remove(WORLD);
+  remove(SCRIPT);
+}
+
 int main(void) {
   RUN(a_tick_tells_the_places_that_hold_a_visitor_and_a_departure_empties_the_world);
   RUN(a_typed_line_is_read_by_the_runtime_as_the_turns_it_runs);
   RUN(offered_holds_each_reading_to_the_view_polled_before_it);
+  RUN(time_a_command_asks_to_pass_passes_before_the_next_turn_and_moves_every_later_step);
   remove(OUT);
   remove(ERR);
   return REPORT();

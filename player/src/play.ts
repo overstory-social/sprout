@@ -50,7 +50,8 @@ import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 // state as a store would, and runs every turn, poll and question through
 // one engine (core's `Engine`), the C runtime built for WebAssembly. The world runs under the
 // host's default limits and no clock. Time starts at 0 and moves only when
-// the script says. While anyone stands in the world, every due wake is
+// the script says, or when a command asks for time to pass, which this
+// host grants whole up to its longest pass. While anyone stands in the world, every due wake is
 // delivered live at the instant it falls due; while nobody does, the world
 // waits, and the next arrival's catch-up delivers what fell due (the
 // spec's Time › Absence leaves the choice to the host). A step's seed is
@@ -311,6 +312,9 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
 /**
  * `Marta> take brass key`: every command turn the line runs, the first
  * seeded as the stage seeds a turn and each after it with the next seed.
+ * A turn that asks for time to pass is followed by that much of it, as
+ * `@advance` passes it, before the line's next turn (the spec's Time ›
+ * Passing time); this host grants all the engine gives.
  */
 function command(stage: Stage, nickname: string, text: string, where: string): Made[] {
   const visit = present(stage, nickname, where);
@@ -319,6 +323,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
   const line = stage.engine.line(
     { ...inputs(stage), visit, text },
     () => (seed = (seed + 1) % (SEED_MAX + 1)),
+    () => stage.now,
   );
   let previous: GivenCommand | null = null;
   for (let typed = line.next(null); typed !== null; typed = line.next(previous)) {
@@ -355,6 +360,10 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
     if (read !== null && read.drawn !== null) {
       const text = `drawn: the line read ${read.drawn.among} ways that tied, and one was drawn`;
       out.push({ level: 'warning', text, words: null, kind: null, shown: text, reader: null });
+    }
+    // Time a command asks to pass passes before anything else runs, its line's next turn included.
+    if (read !== null && read.passes > 0) {
+      out.push(hostLineOf(`passes: ${read.passes} seconds`), ...advance(stage, read.passes));
     }
   }
   return out;

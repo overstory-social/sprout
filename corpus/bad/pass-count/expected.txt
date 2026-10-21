@@ -1,0 +1,10 @@
+well.sprout:11:13  `pass (-5) minutes` passes less than no time at all.
+                   Pass 0 minutes or more.
+
+well.sprout:12:12  `pass 600000 hours` asks for more time than a pass can.
+                   Pass at most 596523 hours; the host lets no more than its longest pass go by.
+
+well.sprout:13:13  How much time passes is a whole number, and this is true or false.
+                   Work it out as a whole number, as in `pass (self.get(:wait)) minutes`, where `:wait` is an integer.
+
+refused: 3 problems

@@ -1,7 +1,8 @@
 /*
  * The write turns this host runs (the spec's The runtime > Turns; The host contract > Admission
  * and identity, Time): arrival, preceded by the catch-up that tells nothing, a command from a
- * reading the sentence builder made, the ticks and due wakes the reader asks for, and departure.
+ * reading the sentence builder made, followed by the wakes due in any time it asked to pass (Time >
+ * Passing time), the ticks and due wakes the reader asks for, and departure.
  * Every turn but a later step of one input's line waits for what is owed to be written, runs at
  * the host's seconds under a seed drawn from the clock when it begins, is written to the log tail
  * with that seed, and marks the state to be saved, and the view kept stale, when it committed or
@@ -131,6 +132,8 @@ player_told player_admit(player_session *session, const char *nickname) {
 
 /* ---- a command ---- */
 
+static bool wake_due(player_session *session, sprout_arena *arena, told_list *lines, uint64_t now);
+
 player_told player_turn(player_session *session, const sprout_reading *reading, const char *text, bool continues) {
   player_told answer;
   sprout_arena *arena = session_answer(session);
@@ -163,6 +166,11 @@ player_told player_turn(player_session *session, const sprout_reading *reading, 
     answer.goes_on = outcome.goes_on;
     answer.result = outcome.result;
     told_collect(arena, &answer.lines, &outcome, PLAYER_VISIT);
+    /* Time the command asks to pass passes now, the wakes due in it told after what it said. */
+    if (outcome.committed && outcome.passes > 0) {
+      player_host_pass(&session->host, outcome.passes);
+      (void)wake_due(session, arena, &answer.lines, player_host_seconds(&session->host));
+    }
   }
   sprout_outcome_free(&outcome);
   owe(session, &answer, session_save_soon);

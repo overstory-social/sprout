@@ -63,6 +63,7 @@ static void release_world(player_session *session) {
   session->state = NULL;
   session->world = NULL;
   session->host.last_seconds = 0;
+  session->host.ahead_seconds = 0;
   savelog_clear(session);
 }
 
@@ -572,6 +573,7 @@ player_loaded player_load(player_session *session) {
   }
   savelog_clear(session);
   session->host.last_seconds = 0;
+  session->host.ahead_seconds = 0;
   words[0] = '\0';
   if (!open_state(session, &fresh, words, sizeof words)) {
     answer.words = session_keep(session, words);
@@ -621,6 +623,7 @@ player_restart player_start_over(player_session *session) {
   sprout_state_free(session->state);
   session->state = NULL;
   session->host.last_seconds = 0;
+  session->host.ahead_seconds = 0;
   savelog_clear(session);
   remove_save_file(session, session->state_path);
   remove_save_file(session, session->log_path);

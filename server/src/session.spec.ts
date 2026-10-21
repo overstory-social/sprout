@@ -14,9 +14,9 @@ const HELLO = JSON.stringify({
   renders: [],
 });
 
-async function context() {
+async function context(world = 'sequences') {
   const clock = manualClock();
-  const made = contextFor(clock, corpusWorld('sequences'));
+  const made = contextFor(clock, corpusWorld(world));
   const run = [...made.worlds.values()][0]!;
   await publish(made.store, run.served, made.config, clock.now(), new Date(0));
   return made;
@@ -98,6 +98,32 @@ describe('a frame', () => {
       expect.objectContaining({ level: 'info', text: 'step: sprout.take' }),
       expect.objectContaining({ level: 'info', text: 'step: sprout.take' }),
     ]);
+  });
+
+  it('grants none of the time a command asks to pass, and records the ask at info to one who asked for it', async () => {
+    const made = await context('passing-time');
+    const connection = keptConnection();
+    await frame(made, connection, HELLO);
+    await frame(
+      made,
+      connection,
+      JSON.stringify({ t: 'admit', world: 'passing_time', nickname: 'Marta' }),
+    );
+    await frame(made, connection, JSON.stringify({ t: 'levels', show: ['prose', 'info'] }));
+    await frame(
+      made,
+      connection,
+      JSON.stringify({ t: 'command', seq: 1, line: 'hoist bucket. wait for bucket' }),
+    );
+    const sent = JSON.stringify(connection.sent);
+    expect(connection.sent.filter((one) => (one as { t: string }).t === 'record')).toEqual([
+      expect.objectContaining({
+        level: 'info',
+        text: "passes: none of 3600 seconds, the command's ask up to the longest pass, since this host's clock is the wall's",
+      }),
+    ]);
+    expect(sent).toContain('You settle down to wait for the bucket.');
+    expect(sent).not.toContain('The bucket comes back down the well');
   });
 
   it('leaves the world on `leave`, saying so, and departs nothing where it is in none', async () => {

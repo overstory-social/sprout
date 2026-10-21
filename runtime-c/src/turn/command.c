@@ -524,6 +524,7 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   seed = host->seed(host->ctx);
   status = turn_open(&run, world, state, host, SPROUT_TURN_COMMAND, seed, input->instant, NULL, NULL);
   if (status != SPROUT_OK) return turn_abort(outcome, status);
+  run.x.passes_time = true;
   frame = sprout_exec_frame(&run.x, actor, NULL, NULL);
   gone = !turn_stands_in_place(&frame, actor);
   memset(&refusal, 0, sizeof refusal);
@@ -594,6 +595,7 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
     }
     outcome->committed = outcome->state_changed = true;
     outcome->result = SPROUT_RESULT_DONE;
+    outcome->passes = sprout_pass_granted(&host->budgets, run.x.passed);
     /* A line goes on past a reading that refused its actor nothing, and past an answer that does not stop it. */
     outcome->answered = c.answered;
     if (c.answered) outcome->goes_on = !c.stops;

@@ -943,9 +943,11 @@ kind of body it is:
 | `connect l to x`           | sets one of its links                                                |   —   |    —     | yes  |     —      |      yes      |
 | `wake in n minutes`        | asks to be woken later                                               |   —   |    —     | yes  |     —      |      yes      |
 | `cancel wakes`             | takes back every wake this object has asked for                      |   —   |    —     | yes  |     —      |      yes      |
+| `pass n minutes`           | asks for time to pass once the visitor's command is over             |   —   |    —     | yes  |     —      |       —       |
 
 `say` also needs someone acting, so it is not allowed in a handler or
-hook. (See [Prose](#14-prose).)
+hook. (See [Prose](#14-prose).) `pass` also stands in an `after command`.
+(See [Passing time](#passing-time).)
 
 A guard or `permit` ends at its first `allow` or `refuse`; reaching the
 end allows. There is no limit on the number of statements in a body.
@@ -1408,7 +1410,9 @@ you can add words or translate them.
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
 
 A kind may play `as actor for go`; its `permit` can refuse the move and
-its `do` runs after it.
+its `do` runs after it. `wait` passes no more time than any command
+does; a kind that plays `as actor for wait` with a `pass` makes waiting
+take longer (see [Passing time](#passing-time)).
 
 After a thing's description, `examine` says the thing's own `contents`
 passage where its kinds write one. `sprout.Container`'s lists what is
@@ -2136,6 +2140,48 @@ as target for stun {
 - Only places are ticked, so a character that acts on its own clock, such
   as a troll swinging once a minute, asks for a wake each time.
 
+### Passing time
+
+A visitor who waits for something a wake will bring can be let wait for
+it. `pass` asks for time to pass once the visitor's command is over:
+
+```sprout
+kind Patient is sprout.Actor {
+  as actor for wait {
+    do { pass 90 seconds }
+  }
+}
+
+kind Bucket {
+  as target for await {
+    do {
+      pass 1 hours
+      say "You settle down to wait for the bucket."
+    }
+  }
+}
+```
+
+The count is written as a `wake`'s is: a whole number and a plural unit,
+or a whole number worked out in brackets. Once the command is done, the
+host moves its clock on by that much and delivers every wake that falls
+due in it, so the visitor reads the bucket come down while they wait,
+before the next command of their line runs.
+
+- `pass` stands in a `do` or an `after command`. It is refused in a
+  handler or a hook, and wherever a body only reads.
+- Every `pass` a command runs adds to what it asks. In a turn that is no
+  visitor's command, such as an NPC's `act` on a wake, it asks for
+  nothing.
+- The host lets at most its longest pass go by, an hour by default; a
+  longer ask is quietly shortened. A host whose clock is the wall's, as
+  a server's is, may let none pass, since one visitor's wait would be
+  everyone's.
+- The time passes whole: a wake that comes early in it does not cut it
+  short.
+- Nothing reads a clock: the host's clock moves, and a wake still learns
+  how long it waited only from `elapsed`.
+
 ### While nobody is there
 
 Whether wakes happen while a world is empty is the host's choice. If they
@@ -2583,6 +2629,7 @@ reads the world's `fault` passage.
 | spawns per turn                             | 8               |
 | shortest wake                               | 60 seconds      |
 | wakes pending per object                    | 1               |
+| longest pass (time one command may ask to pass) | 1 hour      |
 | characters in a nickname                    | 24              |
 | people in one place                         | unlimited unless the host sets it |
 

@@ -6,7 +6,7 @@
 // read in `speech.ts`, `move` in `move.ts`, `act` in `act.ts`, `connect` in `connect.ts`,
 // `send` and `broadcast` in `sends.ts`, `destroy self` and `finally
 // destroy self` in `destroy.ts`, `wake` and `cancel wakes` in
-// `wake.ts`, `each` in `each.ts`, and an extension's
+// `wake.ts`, `pass` in `pass.ts`, `each` in `each.ts`, and an extension's
 // statement, `media.show(…)`, in `extensions.ts`, and each is
 // registered here with the rest. A `let` is here rather than with
 // expressions because its value may be a statement: `spawn` is the one
@@ -42,6 +42,7 @@ import { moveStatement } from './move.js';
 import { broadcastStatement, sendStatement } from './sends.js';
 import { destroyStatement, finallyStatement } from './destroy.js';
 import { atCancel, cancelStatement, wakeStatement } from './wake.js';
+import { passStatement } from './pass.js';
 import { eachStatement } from './each.js';
 import { refusal, sayStatement, tellStatement, textStatement } from './speech.js';
 import { skipBracketed } from './recovery.js';
@@ -101,6 +102,7 @@ const STATEMENTS: ReadonlyMap<string, Reader> = new Map<string, Reader>([
   ['broadcast', broadcastStatement],
   ['wake', wakeStatement],
   ['cancel', cancelStatement],
+  ['pass', passStatement],
   ['each', eachStatement],
 ]);
 

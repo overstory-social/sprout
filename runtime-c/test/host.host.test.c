@@ -51,6 +51,7 @@ static void the_budgets_are_the_specs_defaults_and_the_rows_it_gives_no_figure_f
   CHECK(b->poll_steps.set && b->poll_steps.value == 10000);
   CHECK(b->output.set && b->output.value == 8000);
   CHECK(b->shortest_wake_seconds.set && b->shortest_wake_seconds.value == 60);
+  CHECK(b->longest_pass_seconds.set && b->longest_pass_seconds.value == 3600);
   CHECK(!b->people_per_place.set);
   CHECK(!b->extension_effects.set);
   CHECK(!b->wall_clock_ms.set);

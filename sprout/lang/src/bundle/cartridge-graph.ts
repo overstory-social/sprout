@@ -84,6 +84,7 @@ const STATEMENT_KINDS: Record<Statement['kind'] | 'block', true> = {
   broadcast: true,
   wake: true,
   'cancel-wakes': true,
+  'pass-time': true,
   each: true,
   if: true,
   refuse: true,

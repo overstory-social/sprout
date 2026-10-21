@@ -5,7 +5,8 @@
  * (see budgets.h). The runtime holds no figure of its own, so a row left unset here would be
  * unbounded on a device with 16 MB.
  *
- * Time is host seconds: the device's seconds, clamped so they never go below the greatest the
+ * Time is host seconds: the device's seconds, moved on by all the time commands have asked to
+ * pass (the spec's Time > Passing time), and clamped so they never go below the greatest the
  * host has seen or the save recorded, which keeps a turn's `elapsed` from being negative when
  * the clock is set back.
  */
@@ -19,6 +20,7 @@ typedef struct player_host {
   PlaydateAPI *pd;
   sprout_host record; /* what the runtime is handed; record.ctx points back here */
   uint64_t last_seconds;     /* the greatest host seconds seen, the save's included */
+  uint64_t ahead_seconds;    /* the time commands have asked to pass, which host seconds run ahead of the device's by */
   uint64_t step_seed;        /* the seed drawn for the step now running */
   uint64_t drawn;            /* how many step seeds have been drawn, so two in one millisecond differ */
   unsigned turn_started_ms;  /* the device's millisecond counter when the turn began */
@@ -31,8 +33,11 @@ void player_host_init(player_host *host, PlaydateAPI *pd);
 /* `seconds`, or `last` where that is greater: time never runs back. */
 uint64_t player_clamp(uint64_t seconds, uint64_t last);
 
-/* The device's seconds since 2000-01-01, clamped against the greatest seen, which it then becomes. */
+/* The device's seconds since 2000-01-01 moved on by the time passed, clamped against the greatest seen, which it then becomes. */
 uint64_t player_host_seconds(player_host *host);
+
+/* A command asked for `seconds` to pass: host seconds run that much further ahead of the device's from now on. */
+void player_host_pass(player_host *host, uint64_t seconds);
 
 /* A step begins: draws its seed from the clock and starts the turn's elapsed-time counter. */
 void player_host_begin_step(player_host *host);

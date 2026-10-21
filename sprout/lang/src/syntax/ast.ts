@@ -386,8 +386,8 @@ export interface BroadcastStatement extends Node {
   readonly value: Expr | null;
 }
 
-/** The unit a `wake` counts in, as written. */
-export type WakeUnit = 'seconds' | 'minutes' | 'hours';
+/** The unit a `wake` or a `pass` counts in, as written. */
+export type TimeUnit = 'seconds' | 'minutes' | 'hours';
 
 /**
  * `wake in 3 hours`, `wake in (self.get(:delay)) minutes` — `self` asks to
@@ -399,7 +399,7 @@ export type WakeUnit = 'seconds' | 'minutes' | 'hours';
 export interface WakeStatement extends Node {
   readonly kind: 'wake';
   readonly count: Expr;
-  readonly unit: WakeUnit;
+  readonly unit: TimeUnit;
 }
 
 /**
@@ -409,6 +409,18 @@ export interface WakeStatement extends Node {
  */
 export interface CancelWakesStatement extends Node {
   readonly kind: 'cancel-wakes';
+}
+
+/**
+ * `pass 90 seconds`, `pass (self.get(:wait)) minutes` — the visitor's
+ * command asks the host to let that much time pass once its turn is over,
+ * the count as a `wake`'s is written (the spec's Time › Passing time).
+ * How much the host grants is its own, at most its longest pass.
+ */
+export interface PassTimeStatement extends Node {
+  readonly kind: 'pass-time';
+  readonly count: Expr;
+  readonly unit: TimeUnit;
 }
 
 /**
@@ -486,6 +498,7 @@ export type Statement =
   | BroadcastStatement
   | WakeStatement
   | CancelWakesStatement
+  | PassTimeStatement
   | EachStatement
   | IfStatement
   | RefuseStatement

@@ -78,9 +78,12 @@ void player_host_init(player_host *host, PlaydateAPI *pd) {
 uint64_t player_clamp(uint64_t seconds, uint64_t last) { return seconds < last ? last : seconds; }
 
 uint64_t player_host_seconds(player_host *host) {
-  host->last_seconds = player_clamp((uint64_t)host->pd->system->getSecondsSinceEpoch(NULL), host->last_seconds);
+  uint64_t device = (uint64_t)host->pd->system->getSecondsSinceEpoch(NULL);
+  host->last_seconds = player_clamp(device + host->ahead_seconds, host->last_seconds);
   return host->last_seconds;
 }
+
+void player_host_pass(player_host *host, uint64_t seconds) { host->ahead_seconds += seconds; }
 
 void player_host_begin_step(player_host *host) {
   unsigned milliseconds = 0;

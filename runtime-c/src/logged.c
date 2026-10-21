@@ -191,6 +191,7 @@ static bool budgets_of(sprout_arena *arena, const sprout_budgets *b, sprout_json
       {"spawnsPerTurn", &b->spawns, false},
       {"shortestWakeSeconds", &b->shortest_wake_seconds, false},
       {"pendingWakesPerObject", &b->pending_wakes, false},
+      {"longestPassSeconds", &b->longest_pass_seconds, false},
       {"peoplePerPlace", &b->people_per_place, true},
       {"extensionEffects", &b->extension_effects, true},
       {"nicknameCharacters", &b->nickname_characters, false},

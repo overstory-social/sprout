@@ -1,0 +1,34 @@
+// A bucket on a rope: hoisted, it rises out of sight and comes down again
+// twenty minutes later. Waiting for it lets an hour pass, the whole hour
+// whenever the bucket comes, and the bucket comes down while the visitor
+// waits.
+import {hoist, await} from 'passing_time'
+
+kind Bucket {
+  :up false
+
+  as target for hoist {
+    permit { if (self.get(:up)) { refuse "The bucket is already out of reach." } }
+    do {
+      self.set(:up, true)
+      wake in 20 minutes
+      say "You haul on the rope, and the bucket rises out of sight."
+    }
+  }
+
+  as target for await {
+    do {
+      if (self.get(:up)) {
+        pass 1 hours
+        say "You settle down to wait for the bucket."
+      } else {
+        say "The bucket is right here."
+      }
+    }
+  }
+
+  on :woke (elapsed) {
+    self.set(:up, false)
+    tell "The bucket comes back down the well, swinging."
+  }
+}
