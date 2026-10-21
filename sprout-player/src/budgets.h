@@ -18,9 +18,9 @@
  * The poll's step budget, the one figure the app raises above the spec's default of 10,000: a poll
  * lists every reading a visitor could make, so it grows with the verbs a world declares and the
  * things in range, and the studio's `underground_caverns` spends 344,254 steps in its fullest room
- * (the living room with every treasure in the case). The build plays each graduated world's listed
- * plays under this figure (scripts/playdate-player.mjs), so a world that outgrows it fails the build
- * rather than greying its rooms.
+ * (the living room with every treasure in the case). The gate plays the listed plays of every world
+ * sprout-player/worlds.json names, shipped or test-only, under this figure (scripts/playdate-player.mjs),
+ * so a world that outgrows it fails the build rather than greying its rooms.
  */
 #define PLAYER_POLL_STEPS 500000
 

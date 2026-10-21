@@ -144,7 +144,7 @@ committed here), CMake, a C compiler, and the repository built (`npm ci && npm r
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once (Linux)
-npm run playdate                                             # builds the pdx, packs the graduated worlds into sprout-player/build/worlds/
+npm run playdate                                             # builds the pdx, packs the graduated worlds (Printer's Shop) into sprout-player/build/worlds/
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 ```
 
@@ -183,14 +183,16 @@ The pdx carries no worlds. A cartridge made by `sprout pack` and copied into the
 (`Data/social.overstory.sprout-player/worlds/` on the console's data disk; in the Simulator,
 `$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The build
 packs the graduated worlds listed in `sprout-player/worlds.json` into `sprout-player/build/worlds/`
-for installing that way, today the worked microworld
-`printers_shop` and the studio's finished `underground_caverns`, a snapshot pinned in
-`sprout-player/worlds/underground_caverns/` whose `source.json` names the studio commit it was
-copied at (new content lands in sprout-studio; to release it into the Playdate build, run
+for installing that way, today the worked microworld `printers_shop` alone. The studio's
+`underground_caverns` is released through sprout-studio's index, not this build: `worlds.json` lists
+it under `testOnly`, worlds the gate packs and checks but the build never ships, and keeps a
+snapshot of it pinned in `sprout-player/worlds/underground_caverns/` whose `source.json` names the
+studio commit it was copied at (to refresh it, run
 `node scripts/sync-world.mjs underground_caverns <path to a sprout-studio checkout>` by hand and
-read the diff; the build never reads outside this repository); a world may list `plays`, scripts under its folder the
-build plays through `sproutc` with the view polled first under the app's poll budget, so the build
-never packs a world its sentence builder cannot play to the end (Zork's walkthrough is one); the
+read the diff; the build never reads outside this repository). A world on either list may list
+`plays`, scripts under its folder the gate plays through `sproutc` with the view polled first under
+the app's poll budget, so the gate fails on a world its sentence builder cannot play to the end
+(Zork's walkthrough is one); the
 shelf's last row fetches more from a signed index
 (`sprout keygen <prefix>` makes the publisher's key pair, whose private half never
 enters this repository; `sprout index <folder> --base-url <url> --key <prefix>.key` writes the

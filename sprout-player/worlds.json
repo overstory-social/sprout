@@ -1,6 +1,6 @@
 {
-  "graduated": [
-    { "world": "printers_shop", "title": "Printer's Shop" },
+  "graduated": [{ "world": "printers_shop", "title": "Printer's Shop" }],
+  "testOnly": [
     {
       "world": "sprout-player/worlds/underground_caverns",
       "title": "Underground Caverns",
