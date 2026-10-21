@@ -169,6 +169,8 @@ player_opening player_inspect(player_session *session, const char *path) {
     answer.name = session_keep(session, world->header.name);
     answer.title = world->header.title == NULL ? NULL : session_keep(session, world->header.title);
     answer.hash = session_keep(session, world->header.hash);
+    answer.author = session_keep(session, world->header.author);
+    answer.version = session_keep(session, world->header.version);
   }
   if (world != NULL) sprout_world_free(world);
   return answer;
