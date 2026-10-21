@@ -9,7 +9,7 @@
 // writes it.
 
 import type { ResolvedProperty } from '../declare/properties.js';
-import type { KindContent, KindContents } from '../declare/contents.js';
+import { givenBy, type KindContent, type KindContents } from '../declare/contents.js';
 import { kindName, type KindRef } from '../declare/kinds.js';
 import { describeType, type ValueType } from '../declare/types.js';
 import type { Literal } from '../syntax/ast.js';
@@ -167,15 +167,20 @@ function compareProperties(earlier: KindRef, later: KindRef, breaks: Breaks): vo
   }
 }
 
-/** Every object `contents` gives, by its giver and its path in the giver's body. */
-function everyGiven(contents: KindContents): Map<string, KindContent> {
+/** Every object among `given` and what each holds, by its giver and its path in the giver's body. */
+function everyGivenOf(given: readonly KindContent[]): Map<string, KindContent> {
   const all = new Map<string, KindContent>();
   const walk = (content: KindContent): void => {
     all.set(`${content.giver}|${content.path.join('.')}`, content);
     content.holds.forEach(walk);
   };
-  for (const given of contents.values()) given.forEach(walk);
+  given.forEach(walk);
   return all;
+}
+
+/** Every object `contents` gives, by its giver and its path in the giver's body. */
+function everyGiven(contents: KindContents): Map<string, KindContent> {
+  return everyGivenOf([...contents.values()].flat());
 }
 
 /** Where a kind is written, as near as the catalogue says: one of its own properties. */
@@ -261,18 +266,32 @@ export function saveBreaks(earlier: Catalogue, later: Catalogue): SaveBreak[] {
     if (before.kind !== null && after.kind !== null)
       compareProperties(before.kind, after.kind, breaks);
   }
-  const made = (giver: string): boolean =>
-    earlier.kinds.has(giver) || (earlier.visitorKind?.composes.has(giver) ?? false);
-  for (const [key, after] of givenAfter) {
-    if (givenBefore.has(key) || !made(after.giver)) continue;
-    const giver = breaks.shown(after.giver);
-    breaks.add(
-      `added|${key}`,
-      after.declaration.at,
-      'later',
-      `\`${after.path.join('.')}\` is new in the body of \`${giver}\`: every \`${giver}\` a save already holds was made without it.`,
-      `Leave the body of \`${giver}\` as it was, ${AGAIN}`,
-    );
+  // What a thing already made of a kind lacks: anything its whole closure gives now that it did not, whether
+  // written into a body or gained by composing another kind.
+  const made: [KindRef, KindRef][] = [...earlier.kinds]
+    .filter(([name]) => later.kinds.has(name))
+    .map(([name, kind]) => [kind, later.kinds.get(name)!]);
+  if (earlier.visitorKind !== null && later.visitorKind !== null)
+    made.push([earlier.visitorKind, later.visitorKind]);
+  for (const [before, after] of made) {
+    const had = everyGivenOf(givenBy(earlier.contents, before));
+    for (const [key, content] of everyGivenOf(givenBy(later.contents, after))) {
+      if (had.has(key)) continue;
+      const kind = breaks.shown(kindName(after));
+      const giver = breaks.shown(content.giver);
+      const path = content.path.join('.');
+      breaks.add(
+        `added|${key}`,
+        content.declaration.at,
+        'later',
+        giver === kind
+          ? `\`${path}\` is new in the body of \`${giver}\`: every \`${giver}\` a save already holds was made without it.`
+          : `Every \`${kind}\` is now given \`${path}\` by \`${giver}\`: every \`${kind}\` a save already holds was made without it.`,
+        giver === kind
+          ? `Leave the body of \`${giver}\` as it was, ${AGAIN}`
+          : `Leave what \`${kind}\` is made of as it was, ${AGAIN}`,
+      );
+    }
   }
 
   return breaks.list

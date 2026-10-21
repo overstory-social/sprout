@@ -141,6 +141,24 @@ describe('what a save of one build of a world does not survive in the next', () 
     ]);
   });
 
+  it('breaks on what a kind gains by composing another that gives it, for a kind spawned and for a visitor', () => {
+    const shade = { 'shade.sprout': 'kind Shade { contains object bulb is Shelf }\n' };
+    const crate = breaksTo({
+      ...shade,
+      'crate.sprout': 'kind Crate is Shade { contains :lid false }\n',
+    });
+    expect(crate.map((one) => one.message)).toContain(
+      'Every `Crate` is now given `bulb` by `Shade`: every `Crate` a save already holds was made without it.',
+    );
+    const person = breaksTo({
+      ...shade,
+      'person.sprout': 'kind Person is Creature, Shade, sprout.Visitor { }\n',
+    });
+    expect(person.map((one) => one.message)).toContain(
+      'Every `Person` is now given `bulb` by `Shade`: every `Person` a save already holds was made without it.',
+    );
+  });
+
   it('breaks once, and only, on a world renamed, since every id is under its name', () => {
     const renamed = catalogue(
       {

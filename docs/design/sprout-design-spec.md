@@ -323,7 +323,7 @@ The first makes `Key`, declared at the top level of `blacksmith/key.sprout`, a n
 - A name in a kind's body that resolves when the body runs, from where the instance sits, under Identifiers and scope, is not imported, since no one declaration is its own. Every other name a file writes — a kind, an enum, a verb, a message, an object resolved when the file compiles — is declared in the file or imported.
 - Imports govern what source may name, not what a visitor may type. Every verb declared in the bundle or in a library it uses is in the world's grammar whether any file imports it or not, and the engine's six verbs always are.
 
-A kind is identified by where it is declared and its name: its file in the world, or its library. Moving a kind to another file makes it another kind, which a save does not survive, so it takes a breaking version, under State › Across versions.
+A kind is identified by where it is declared and its name: its file in the world, or its library. Moving a kind to another file makes it another kind. A save names a kind a spawn made by its qualified name, so it survives the move where that name stays the same, and one whose qualified name changes is a kind gone, which takes a breaking version, under State › Across versions.
 
 ### The manifest
 
@@ -2123,7 +2123,7 @@ A compatible version keeps its word through a check the tooling runs before it i
 
 - the world's `name`, since every id is under it;
 - a declared object no longer declared at its path, renamed or moved included, since its id is its path;
-- a kind that is gone, or can no longer be spawned, since a save may hold a thing spawned as one; an object a kind's body gives that is gone; and an object added to the body of a kind that can be spawned or that visitors are made of, since what a save already holds was made without it;
+- a kind that is gone by its qualified name, or can no longer be spawned, since a save may hold a thing spawned as one; an object a kind's body gives that is gone; and an object a kind that can be spawned, or that visitors are made of, is newly given, by its own body or by a kind it now composes, since what a save already holds was made without it;
 - for the world, what visitors are made of, and each declared object, kind and given object both versions have: a property, or a remembered one, that is gone or has moved between the two; one whose type no longer holds every value it held, an enum option removed or an integer range narrowed among them, where an option added or a range widened does not break; and one whose default changed, since a record holds only what differs from its default and would read the new one.
 
 Every other change keeps a save: places, objects, kinds, verbs, messages, enums and options added, a property added, which an instance already stored reads at its default, and prose, passages, handlers, guards, exits and links rewritten. What the later version no longer declares is read under What absent means where a row applies: a visitor whose last place is gone is displaced on their next turn, a link to a place that is gone does not apply, and a last reading of a verb that is gone, or that the verb no longer takes, is let go, so `again` has nothing to run. What the check calls breaking — a record of an object or a spawned kind the later version does not declare, a property its kind does not hold, a value not of its type — is refused when the state is opened, naming the record, as a damaged save is: the check is what keeps a compatible version from meeting it.
