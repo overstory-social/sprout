@@ -2,7 +2,9 @@
  * The shelf: the cartridges the player can open (the design
  * doc's The shelf). It lists the `.sproutworld` files at the root of the app and its Data folder
  * and in each one's `worlds/` folder, and asks the session whether each can be shelved; one it
- * refuses is listed with the engine's reason and cannot be opened. A cartridge is inspected once
+ * refuses is listed with the engine's reason and cannot be opened. Of the builds of one world, one
+ * title and author, only the newest is listed (newest.h), as the download screen offers only the
+ * newest; the others stay where they are, unlisted. A cartridge is inspected once
  * for as long as the app runs, and a world refused at its open keeps that reason on the shelf
  * afterwards. Each world is a word on a wheel (wheel.h), its title, greyed where it cannot be opened
  * as it stands, with the reason in the panel; the last word, "more worlds...", opens the download
@@ -24,19 +26,23 @@
 
 #define PLAYER_PATH_BYTES 256
 #define PLAYER_REASON_BYTES 512
+#define PLAYER_VERSION_BYTES 64
 
 typedef struct shelf_entry {
   char path[PLAYER_PATH_BYTES];
   char title[PLAYER_TITLE_BYTES];
   char hash[65]; /* the bundle hash, when it can be opened */
+  char author[PLAYER_TITLE_BYTES], version[PLAYER_VERSION_BYTES]; /* the manifest's, when `ranked` */
+  bool ranked;  /* its author and version were read whole, so it is ranked against the other builds of its world */
   bool ok;      /* it can be opened */
   bool blocked; /* greyed because its save could not be written; opening it tries the save again */
   char reason[PLAYER_REASON_BYTES]; /* why it cannot be opened, when it cannot */
 } shelf_entry;
 
 struct player_shelf {
-  shelf_entry *entries; /* in path order */
-  size_t count;
+  shelf_entry *entries; /* the newest build of each world, then the builds they outrank */
+  size_t count;          /* the worlds listed: the first `count` entries, in path order of each world's first build */
+  size_t held;           /* every cartridge found, each inspected once */
   size_t selected; /* an entry, or `count` for "more worlds..." */
   wheel wheel;     /* the worlds' titles and "more worlds..." */
   unsigned long words_made; /* counts the changes to what the wheel's words say */
@@ -57,7 +63,7 @@ void player_shelf_show(player_app *app);
 /* Lists the shelf afresh where it stands, as a download that arrived needs. */
 void player_shelf_list(player_app *app);
 
-/* Whether a world with the bundle hash `hash` is on the shelf and can be opened. */
+/* Whether a world with the bundle hash `hash` is on the shelf and can be opened, listed or outranked by a newer build. */
 bool player_shelf_holds(const player_shelf *shelf, const char *hash);
 
 /* What the download screen last could not do, said under "more worlds..."; NULL when it could. */

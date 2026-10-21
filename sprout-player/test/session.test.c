@@ -33,8 +33,12 @@ static void the_shelf_asks_whether_each_cartridge_can_be_shelved(void) {
   answer = player_inspect(s, "chip-tree.sproutworld");
   CHECK(answer.ok && strcmp(answer.name, "chip_tree") == 0 && strcmp(answer.hash, CHIP_TREE_HASH) == 0 && answer.reason == NULL,
         "%s", answer.reason);
+  CHECK(answer.ok && strcmp(answer.author, "corpus") == 0 && strcmp(answer.version, "0.1.0") == 0,
+        "the manifest's author and version, which tell its builds apart");
   answer = player_inspect(s, "garbage.sproutworld");
-  CHECK(!answer.ok && HAS(answer.reason, "Sprout cartridge") && answer.name == NULL && answer.hash == NULL, "%s", answer.reason);
+  CHECK(!answer.ok && HAS(answer.reason, "Sprout cartridge") && answer.name == NULL && answer.hash == NULL &&
+            answer.author == NULL && answer.version == NULL,
+        "%s", answer.reason);
   answer = player_inspect(s, "absent.sproutworld");
   CHECK(!answer.ok && HAS(answer.reason, "cannot be read"), "%s", answer.reason);
   end();

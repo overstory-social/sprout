@@ -7,6 +7,7 @@
 #include "downloads.h"
 #include "host/files.h"
 #include "message.h"
+#include "newest.h"
 #include "sound.h"
 #include "text.h"
 
@@ -89,10 +90,10 @@ static void consider(const char *name, void *ctx) {
 
 static int by_path(const shelf_entry *a, const shelf_entry *b) { return strcmp(a->path, b->path); }
 
-/* The entry already shelved at `path`, or NULL. */
+/* The entry already found at `path`, listed or not, or NULL. */
 static shelf_entry *entry_at(const player_shelf *shelf, const char *path) {
   size_t i;
-  for (i = 0; i < shelf->count; i++)
+  for (i = 0; i < shelf->held; i++)
     if (strcmp(shelf->entries[i].path, path) == 0) return &shelf->entries[i];
   return NULL;
 }
@@ -115,7 +116,40 @@ static void inspect(player_app *app, const char *path, shelf_entry *entry) {
   player_world_title(name, title, entry->title, sizeof entry->title);
   entry->ok = verdict.ok;
   if (verdict.ok && verdict.hash != NULL) copy_text(entry->hash, sizeof entry->hash, verdict.hash);
+  entry->ranked = verdict.ok && verdict.author != NULL && verdict.version != NULL &&
+                  strlen(verdict.author) < sizeof entry->author && strlen(verdict.version) < sizeof entry->version;
+  if (entry->ranked) {
+    copy_text(entry->author, sizeof entry->author, verdict.author);
+    copy_text(entry->version, sizeof entry->version, verdict.version);
+  }
   if (!verdict.ok) copy_text(entry->reason, sizeof entry->reason, verdict.reason != NULL ? verdict.reason : "");
+}
+
+/* ---- the newest build of each world ---- */
+
+static player_build build_at(void *ctx, size_t i) {
+  const shelf_entry *entry = &((const shelf_entry *)ctx)[i];
+  player_build build;
+  build.title = player_text_of(entry->title);
+  build.author = player_text_of(entry->ranked ? entry->author : NULL);
+  build.version = player_text_of(entry->ranked ? entry->version : NULL);
+  return build;
+}
+
+static void swap_builds(void *ctx, size_t i, size_t j) {
+  shelf_entry *entries = (shelf_entry *)ctx, moving = entries[i];
+  entries[i] = entries[j];
+  entries[j] = moving;
+}
+
+/* Puts the newest build of each world first among the `count` entries, and returns how many worlds there are. */
+static size_t keep_newest(shelf_entry *entries, size_t count) {
+  player_builds list;
+  list.ctx = entries;
+  list.count = count;
+  list.at = build_at;
+  list.swap = swap_builds;
+  return player_newest_builds(&list);
 }
 
 static void forget_panel(player_app *app, player_shelf *shelf) { wrap_free(app->pd, &shelf->panel); }
@@ -153,7 +187,8 @@ static void list(player_app *app, player_shelf *shelf) {
   if (entries == NULL && found.short_of_memory) return; /* the shelf stays as it was */
   player_free(app->pd, shelf->entries);
   shelf->entries = entries;
-  shelf->count = entries != NULL ? found.count : 0;
+  shelf->held = entries != NULL ? found.count : 0;
+  shelf->count = keep_newest(entries, shelf->held);
   if (shelf->selected > shelf->count) shelf->selected = shelf->count;
 }
 
@@ -182,7 +217,7 @@ void player_shelf_list(player_app *app) { list(app, app->shelf); }
 
 bool player_shelf_holds(const player_shelf *shelf, const char *hash) {
   size_t i;
-  for (i = 0; i < shelf->count; i++)
+  for (i = 0; i < shelf->held; i++)
     if (shelf->entries[i].ok && strcmp(shelf->entries[i].hash, hash) == 0) return true;
   return false;
 }
