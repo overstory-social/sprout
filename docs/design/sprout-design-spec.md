@@ -1268,7 +1268,7 @@ Six verbs are the engine's, because they read the world rather than change it: `
 - `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads what the exit says as it is taken, where it says anything, and then the new place's description. Where the exit that applies refuses, its words are the answer, and where none applies in that direction, the `no_way` line is, under Exits. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
 - `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none, and then the thing's own `contents` passage where its kinds write one, so a container says what it holds once you can see in. `sprout.Container`'s `contents` lists what is inside while it is open and says nothing while it is shut; an actor writes none, so what a person carries is never listed.
 - `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
-- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise.
+- `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise. It passes no more time than any command does; a world whose waiting takes longer writes the actor's part of `wait` with a `pass`, under Time › Passing time.
 - `help` renders what the actor can currently do, as text: the readings the chips come from, less those no participant plays any part in, since a verb whose roles anything may fill would otherwise offer every thing in the room against every other. It renders them through the `help` line, whose default `sprout.World` supplies; the line is given `readings`, and each reading renders as the line a visitor would type for it.
 
 Each of these lines is found as every engine line is, under Prose › Engine lines: the actor's own, then its place's, then the world's, then the library's default.
@@ -1730,6 +1730,22 @@ kind Kiln {
 
 `elapsed` is how long has actually passed since the wake was asked for, in seconds, and may exceed what was requested. That is what makes a missed wake recoverable: a kiln reads "long since cooled" and a plant computes its growth stage from elapsed rather than being stepped through five times. It is the only way time enters an expression, and it arrives as a parameter rather than as a clock, so nothing else in the language can read the hour.
 
+### Passing time
+
+A visitor's command may ask for time to pass, so that someone who waits for what a wake will bring sees it come:
+
+```sprout
+kind Patient is sprout.Actor {
+  as actor for wait {
+    do { pass 90 seconds }
+  }
+}
+```
+
+`pass <n> seconds | minutes | hours` counts as `wake in` does, a whole number written out or worked out in brackets and the unit always plural, and asks the host to let that much time pass once the command's turn is over. It stands in a `do` or an `after command`, and nowhere else: a handler or a hook runs for no one's waiting, and a body that only reads asks for nothing. Every `pass` that runs in a visitor's command turn adds to what that turn asks, whoever's body it is in; in any other turn, an `act` an NPC performs on a wake or a tick among them, it asks for nothing. A count below nothing, or of more seconds than the largest integer, faults where it is worked out and is refused where it is written, and a turn that faults asks for nothing.
+
+The host grants what a turn asks, up to its longest pass: a longer ask is lowered to it, and nothing is said. Once the turn is over, and before the next turn of its line or anything else runs, the host moves its clock on by what it granted and delivers every wake that falls due in that time, live and oldest first, as it would had the time passed on its own; so the visitor reads what those wakes tell, and a wake still pending at the end waits for the time that follows. The host still owns time: a pass moves the host's clock and nothing else, no expression reads it, and the wakes it brings due are turns of their own, logged with their instants, so a replay of the log reproduces them. A host whose clock is the wall's, shared by everyone in a world, may grant none, since one visitor's wait would be everyone's.
+
 ### Absence
 
 Whether wakes fire while a world is empty is the host's policy, not the language's. The language guarantees only that every due wake is delivered once, oldest first — by when it fell due, then in the order it was asked for — and that `elapsed` reports the true interval, which is what lets a host choose to run them live, to fast-forward on the next arrival, or to stop an empty world entirely. Catch-up delivers one wake per object; if that wake asks for another, it waits for live time. A catch-up wake that faults is consumed and what it did is abandoned, and the other objects' due wakes are still delivered. A wake on something out of the tree — carried by an away visitor, or inside something whose kind is absent — is not due until it is back, and its `elapsed` then spans the whole time, so a candle carried away still goes out. What an away visitor carries is back only once they are admitted, after catch-up, so its wake is delivered live and narrates.
@@ -1898,6 +1914,7 @@ Nesting has no cap. The compiler bounds its own recursion so that pathologically
 | spawns per turn | 8 |
 | shortest wake | 60 seconds |
 | pending wakes per object | 1 |
+| longest pass | 1 hour — the most time one command may ask to pass; a longer ask is lowered to it |
 | people in one place | unbounded |
 | effects extensions record per turn | unbounded |
 | a nickname's length | 24 characters |
@@ -1972,6 +1989,7 @@ A world's state belongs to the files it started with. Restoring a file is a chan
 - A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article`, `capacity` — arriving from two sources.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
+- `pass` anywhere but a `do` or an `after command`; a `pass` whose count is written below nothing, or past the largest integer in seconds.
 - A composition written with the colon rather than `is`.
 - A world that does not compose the standard library's `World`; anything but a world composing it.
 - A bundle with no `world` declaration or with more than one; a `world` declaration whose name is not the manifest's `name`.
@@ -2146,7 +2164,9 @@ The host ticks places that hold visitors, chooses the interval, and tunes it und
 
 It decides whether wakes fire while a world is empty. Catch-up runs as a **maintenance turn** with its own budget, completed before the arriving visitor is admitted, so nobody walks into a place that is about to rearrange itself and nobody is charged for an absence they did not cause.
 
-In both cases the host supplies `elapsed` truthfully. It is the only time the language can read.
+Where a command asks for time to pass, the host grants it as Time › Passing time says, or grants none where its clock is the wall's, and moves only its own clock.
+
+In every case the host supplies `elapsed` truthfully. It is the only time the language can read.
 
 ### Conversation
 

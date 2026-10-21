@@ -131,6 +131,28 @@ export const COUNTER = declaredId('tally', ['hall', 'counter']);
 export const GAUGE = declaredId('tally', ['hall', 'gauge']);
 
 /**
+ * The porch: a bench to doze on, which asks for two hours to pass, and a
+ * gate that passes nothing.
+ */
+export const PORCH = compiled('porch', {
+  'porch.sprout': `world porch is sprout.World {
+  visitors are Person
+  visitors arrive at steps
+  object steps is sprout.Place {
+    object bench is Bench
+  }
+}
+verb doze { role target  "doze on [target]" }
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'bench.sprout': `kind Bench {
+  as target for doze { do { pass 2 hours  say "You doze." } }
+}
+`,
+});
+export const STEPS = declaredId('porch', ['steps']);
+
+/**
  * The lamplight: a hall that says whether its lamp is lit, and lighting
  * the lamp lights it. The world writes its own `acted`.
  */

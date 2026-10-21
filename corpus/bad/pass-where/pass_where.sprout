@@ -1,0 +1,14 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Well} from 'well'
+
+world pass_where is sprout.World {
+  visitors are Person
+  visitors arrive at bottom
+
+  object bottom is sprout.Place {
+    object well is Well
+  }
+}
+
+verb await { role target  "wait for [target]" }

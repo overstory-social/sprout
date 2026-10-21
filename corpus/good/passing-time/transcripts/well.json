@@ -1,0 +1,49 @@
+{
+  "about": "Waiting at the bottom of the well: `wait` passes a minute and a half, waiting for the bucket an hour, in which the bucket comes down, and sleeping three hours, lowered to the host's hour, so the hourglass runs out only in the second sleep. Each command of a line has its time pass before the next runs.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "The bottom of a dry well. A rope runs up out of sight." }
+    ] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." },
+      { "level": "info", "text": "passes: 90 seconds" }
+    ] },
+    { "as": "Marta", "type": "hoist bucket", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You haul on the rope, and the bucket rises out of sight." }
+    ] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." },
+      { "level": "info", "text": "passes: 90 seconds" }
+    ] },
+    { "as": "Marta", "type": "wait for bucket", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You settle down to wait for the bucket." },
+      { "level": "info", "text": "passes: 3600 seconds" },
+      { "level": "info", "text": "well_bottom.bucket woke, 1200 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The bucket comes back down the well, swinging." }
+    ] },
+    { "as": "Marta", "type": "wait for bucket", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The bucket is right here." }
+    ] },
+    { "as": "Marta", "type": "tip hourglass", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You tip the hourglass, and the sand begins to run." }
+    ] },
+    { "as": "Marta", "type": "sleep", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You curl up against the wall and sleep." },
+      { "level": "info", "text": "passes: 3600 seconds" }
+    ] },
+    { "as": "Marta", "type": "sleep", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You curl up against the wall and sleep." },
+      { "level": "info", "text": "passes: 3600 seconds" },
+      { "level": "info", "text": "well_bottom.hourglass woke, 5400 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The last of the sand runs out of the hourglass." }
+    ] },
+    { "as": "Marta", "type": "hoist bucket. wait for bucket. look", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You haul on the rope, and the bucket rises out of sight." },
+      { "reader": "Marta", "kind": "said", "words": "You settle down to wait for the bucket." },
+      { "level": "info", "text": "passes: 3600 seconds" },
+      { "level": "info", "text": "well_bottom.bucket woke, 1200 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The bucket comes back down the well, swinging." },
+      { "reader": "Marta", "kind": "described", "words": "The bottom of a dry well. A rope runs up out of sight." }
+    ] }
+  ]
+}

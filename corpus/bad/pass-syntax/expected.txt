@@ -1,0 +1,16 @@
+pass_syntax.sprout:10:20  Nothing here is a `Well`.
+                          Declare it with `kind Well { … }`, or check the spelling of a kind this world or a library it uses declares.
+
+well.sprout:9:11          `pass` does not say how much time passes.
+                          Write how much time passes, as in `pass 90 seconds`, `pass 10 minutes` or `pass 1 hours`.
+
+well.sprout:10:13         `pass 3` does not say seconds, minutes or hours.
+                          Write `pass 3 hours`, `pass 3 minutes` or `pass 3 seconds`.
+
+well.sprout:11:14         A pass counts in `minutes`, always written that way.
+                          Write `pass 1 minutes`.
+
+well.sprout:12:12         How much time passes is a whole number written out, or worked out in brackets.
+                          Write a whole number, as in `pass 10 minutes`, or put what it is worked out from in brackets, as in `pass (self.get(:wait)) minutes`.
+
+refused: 5 problems

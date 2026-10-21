@@ -12,11 +12,11 @@
 // `describe` only reads too, and gives its words with `text`; it decides
 // nothing, so `refuse` and `allow` are refused there. A `do` acts: it
 // writes, spawns, destroys, moves, connects, acts, asks to be woken or
-// takes that back, and speaks, and `refuse` and `allow` are refused
-// there, since the deciding was done. An `after command` acts and speaks
-// as a `do` does, and never refuses either. A handler or a hook acts as a
-// `do` does, but nobody is acting, so it tells rather than says, and never
-// refuses. Who each of `say`, `tell` and `text` speaks to is
+// takes that back, asks for time to pass, and speaks, and `refuse` and
+// `allow` are refused there, since the deciding was done. An `after
+// command` acts and speaks as a `do` does, and never refuses either. A
+// handler or a hook acts as a `do` does, but nobody is acting, so it tells
+// rather than says, never refuses, and never asks for time to pass. Who each of `say`, `tell` and `text` speaks to is
 // `audiences.ts`'s. `if (x.is(K))` narrows `x`, and `if (bound tool)`
 // binds `tool`, for the branch each guards, and an `each` binds its
 // variable for its body (`each.ts`). A statement after an `allow` or a
@@ -41,6 +41,7 @@ import { checkConnect } from './exits.js';
 import { checkBroadcast, checkSend } from './sends.js';
 import type { Undrawn } from './chance.js';
 import { checkWake } from './wake.js';
+import { checkPass } from './pass.js';
 import { checkPassage, checkSpoken } from './audiences.js';
 import { checkExtensionStatement } from './extensions.js';
 import { eachScope } from './each.js';
@@ -184,6 +185,11 @@ function checkStatement(statement: Statement, context: CheckContext, kind: BodyK
     case 'cancel-wakes':
       if (reads !== null) readOnly('cancel', statement.at, context, reads);
       return;
+    case 'pass-time':
+      if (reads !== null) readOnly('pass', statement.at, context, reads);
+      else if (kind.body === 'handler') unwaited(statement.at, kind.written, context);
+      else checkPass(statement, context);
+      return;
     case 'expression-statement':
       if (unnamedExtension(statement.expression, context)) return;
       if (reads !== null && isEffect(statement.expression)) {
@@ -263,14 +269,28 @@ const CHANGES = {
   broadcast: '`broadcast` sends a message',
   wake: '`wake` asks for a wake',
   cancel: '`cancel wakes` takes back the wakes asked for',
+  pass: '`pass` asks for time to pass',
 } as const;
 
-/** `spawn`, `destroy self`, `move`, `connect`, `act`, `send`, `broadcast`, `wake` or `cancel wakes` where a body only reads. */
+/** Where a `pass` is moved to: what runs for a visitor's command. */
+const PASS_REMEDY =
+  'Move it to the `do` of the verb the visitor waits with, or to an `after command`.';
+
+/** `spawn`, `destroy self`, `move`, `connect`, `act`, `send`, `broadcast`, `wake`, `cancel wakes` or `pass` where a body only reads. */
 function readOnly(what: keyof typeof CHANGES, at: Span, context: CheckContext, kind: Reads): void {
   context.diagnostics.refuse(
     at,
     `${CHANGES[what]}, and ${decider(kind)} only reads${kind.body === 'describe' ? '' : ' and decides'}.`,
-    readOnlyRemedy(kind),
+    what === 'pass' ? PASS_REMEDY : readOnlyRemedy(kind),
+  );
+}
+
+/** `pass` in a handler or a hook, which no visitor's command asks for (the spec's Time › Passing time). */
+function unwaited(at: Span, written: string, context: CheckContext): void {
+  context.diagnostics.refuse(
+    at,
+    `\`pass\` asks for time to pass once a visitor's command is over, and nobody waits on \`${written}\`.`,
+    PASS_REMEDY,
   );
 }
 

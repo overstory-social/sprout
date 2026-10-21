@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { WorldMember } from '../ast.js';
 import { unspanned } from '../../source/nodes.js';
 import { locationOf } from '../../source/source.js';
-import { parserOver, readBody, rest } from '../../fixtures/readers.js';
-import { apart, body, kindMembers } from './bodies.js';
+import { inKindBody, parserOver, readBody, rest } from '../../fixtures/readers.js';
+import { apart, body, kindMembers, startsMemberOf } from './bodies.js';
 
 /**
  * Each thing that holds a body, opened as it is written: the three share
@@ -42,6 +42,23 @@ describe('the members of a body, apart from the objects written in it', () => {
     const { members, objects } = apart(read!.members, (m): m is WorldMember => m.kind !== 'object');
     expect(members.map((m) => m.kind)).toEqual(['property', 'contains']);
     expect(objects.map((o) => o.name.text)).toEqual(['a', 'b']);
+  });
+});
+
+describe('whether a token starts a member', () => {
+  it('takes `pass` with a message or `any` on its line for a pass rule, and any other `pass` for the statement', () => {
+    for (const [written, starts] of [
+      ['pass any (true)', true],
+      ['pass :stir (true)', true],
+      ['pass', false],
+      ['pass\n  :lit false', false],
+      ['pass 90 seconds', false],
+      ['pass three minutes', false],
+      ['pass (self.get(:n)) minutes', false],
+    ] as const) {
+      const { p, readers } = inKindBody(written);
+      expect(startsMemberOf(p, readers)(p.peek()), written).toBe(starts);
+    }
   });
 });
 

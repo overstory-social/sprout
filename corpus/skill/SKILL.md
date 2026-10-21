@@ -307,6 +307,7 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `broadcast :stir` | sends a message outward and inward through what holds what | — | — | yes | — | yes |
 | `wake in 10 minutes` | asks to be sent `:woke` later, in seconds, minutes or hours; how long may be worked out in brackets, as in `wake in (self.get(:delay)) minutes` | — | — | yes | — | yes |
 | `cancel wakes` | takes back every wake this object has asked for, so none arrives; `cancel wakes` then `wake in …` puts one off | — | — | yes | — | yes |
+| `pass 10 minutes` | asks the host to let time pass once the visitor’s command is over, so the wakes that fall due in it arrive while they wait; the host grants at most its longest pass | — | — | yes | — | — |
 | `each crumb: Crumb in self { }` | walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may | yes | yes | yes | yes | yes |
 | `self.set(:lit, true)` | a call that writes, one of those under Writing below | — | — | yes | — | yes |
 
@@ -866,6 +867,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 | `spawnsPerTurn` | spawns in one turn | 8 | the turn faults, and nothing it did happens |
 | `shortestWakeSeconds` | the shortest wake, the host’s floor, which a sooner one is raised to | 60 | a sooner one waits this long |
 | `pendingWakesPerObject` | wakes one object may have pending, held across turns | 1 | the turn faults, and nothing it did happens |
+| `longestPassSeconds` | the time one command may ask to pass, which a longer ask is lowered to | 3,600 | a longer one passes this long |
 | `peoplePerPlace` | people standing in one place at once, a move that would bring one more in refused | the host’s to set; none by default | the move is refused |
 | `extensionEffects` | effects the statements of extensions record in one turn | the host’s to set; none by default | the turn faults, and nothing it did happens |
 | `nicknameCharacters` | characters in a nickname, counted as it is kept, checked once at admission | 24 | the nickname is refused |

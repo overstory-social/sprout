@@ -1,0 +1,17 @@
+// How much time passes is a whole number: written below nothing, or past
+// the largest integer in seconds, it is refused where it is written, and
+// a count that is not a number is refused at the count.
+import {await} from 'pass_count'
+
+kind Well {
+  :deep true
+
+  as target for await {
+    do {
+      pass (-5) minutes
+      pass 600000 hours
+      pass (self.get(:deep)) minutes
+      say "You wait."
+    }
+  }
+}

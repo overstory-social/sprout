@@ -36,6 +36,7 @@ export const LoggedBudgets = z.object({
   spawnsPerTurn: whole,
   shortestWakeSeconds: whole,
   pendingWakesPerObject: whole,
+  longestPassSeconds: whole,
   peoplePerPlace: whole.nullable(),
   extensionEffects: whole.nullable(),
   nicknameCharacters: whole,

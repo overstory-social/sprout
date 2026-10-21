@@ -1,0 +1,13 @@
+well.sprout:11:7  `pass` asks for time to pass, and a `permit` only reads and decides.
+                  Move it to the `do` of the verb the visitor waits with, or to an `after command`.
+
+well.sprout:21:5  `pass` asks for time to pass, and a `describe` only reads.
+                  Move it to the `do` of the verb the visitor waits with, or to an `after command`.
+
+well.sprout:26:5  `pass` asks for time to pass once a visitor's command is over, and nobody waits on `on :woke`.
+                  Move it to the `do` of the verb the visitor waits with, or to an `after command`.
+
+well.sprout:30:5  `pass` asks for time to pass once a visitor's command is over, and nobody waits on `changed :deep`.
+                  Move it to the `do` of the verb the visitor waits with, or to an `after command`.
+
+refused: 4 problems

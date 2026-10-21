@@ -18,6 +18,7 @@ void player_budgets(sprout_budgets *b) {
   b->spawns = (sprout_limit){true, 8};
   b->shortest_wake_seconds = (sprout_limit){true, 60};
   b->pending_wakes = (sprout_limit){true, 1};
+  b->longest_pass_seconds = (sprout_limit){true, 3600};
   b->nickname_characters = (sprout_limit){true, 24};
   b->list_elements = (sprout_limit){true, 16};
   /* The spec's table gives people in one place no figure (it is unbounded), and a device has one

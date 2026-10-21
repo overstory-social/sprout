@@ -22,6 +22,7 @@ typedef struct play {
   sprout_arena arena; /* what one step holds, reset when it ends */
   texts says;
   uint64_t now;       /* seconds on the script's clock */
+  uint64_t passed;    /* seconds the commands so far asked to pass, which every later step's time is moved on by */
   int failure;        /* an exit code, once a call the host should not have made was refused */
   bool offered;       /* each command's reading is looked for in the view first */
   size_t checked;     /* readings the view was asked for */
@@ -230,8 +231,12 @@ typedef struct woke {
   uint64_t count;
 } woke;
 
-static bool advance(play *p, const sproutc_step *step) {
-  uint64_t until = p->now + step->for_seconds;
+/*
+ * Time moves on by `seconds`: each wake that falls due is delivered live at the instant it falls due while anyone
+ * stands in the world, seeded from `seed`, the woken object's path and how many times it has woken in this advance.
+ */
+static bool advance_by(play *p, uint64_t seconds, uint64_t seed) {
+  uint64_t until = p->now + seconds;
   woke *woken = NULL;
   size_t woken_count = 0, woken_capacity = 0;
   for (;;) {
@@ -273,13 +278,15 @@ static bool advance(play *p, const sproutc_step *step) {
       entry->object = (char *)input.object;
       entry->count = 0;
     }
-    ok = run(p, &input, seed_for(p, step->seed, input.object, entry->count++), &outcome);
+    ok = run(p, &input, seed_for(p, seed, input.object, entry->count++), &outcome);
     sprout_outcome_free(&outcome);
     if (!ok) return false;
   }
   p->now = until;
   return true;
 }
+
+static bool advance(play *p, const sproutc_step *step) { return advance_by(p, step->for_seconds, step->seed); }
 
 /* ---- what the view offers ---- */
 
@@ -412,7 +419,11 @@ static bool offered_turn(play *p, const sprout_turn_input *input, uint64_t seed,
   return true;
 }
 
-/* The line typed, as the command turns it runs: the first under the step's seed, and each after it the next. */
+/*
+ * The line typed, as the command turns it runs: the first under the step's seed, and each after it the next. A turn
+ * that asks for time to pass is followed by that much of it before the line's next turn (the spec's Time > Passing
+ * time), which this host grants whole as the runtime lowers it, and every later step's time moves on by it.
+ */
 static bool command(play *p, const sproutc_step *step) {
   char *visit = visit_of(p, step->nickname);
   sprout_commands line;
@@ -431,6 +442,14 @@ static bool command(play *p, const sproutc_step *step) {
     if (!run(p, &input, seed, &outcome)) {
       sprout_outcome_free(&outcome);
       return false;
+    }
+    if (outcome.committed && outcome.passes > 0) {
+      p->passed += outcome.passes;
+      if (!advance_by(p, outcome.passes, step->seed)) {
+        sprout_outcome_free(&outcome);
+        return false;
+      }
+      sproutc_host_set_time(p->host, p->now);
     }
     status = sprout_line_next(&line, &outcome, &input, &more);
     sprout_outcome_free(&outcome);
@@ -467,8 +486,8 @@ int sproutc_play_script(sproutc_host *host, sprout_world *world, sprout_state *s
     bool ok = true;
     if (step.kind == SPROUTC_STEP_COMMENT || step.kind == SPROUTC_STEP_SEED) continue;
     fprintf(out, "## step %zu: %s\n", step.index, step.line);
-    p.now = step.at_seconds;
-    sproutc_host_set_time(host, step.at_seconds);
+    p.now = step.at_seconds + p.passed;
+    sproutc_host_set_time(host, p.now);
     host->bytes_peak = host->bytes_held;
     if (sprout_arena_init(&p.arena, &host->record) != SPROUT_OK) return 1;
     memset(&p.says, 0, sizeof p.says);

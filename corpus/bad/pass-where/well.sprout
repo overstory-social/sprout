@@ -1,0 +1,32 @@
+// `pass` asks for time to pass once a visitor's command is over, so it
+// stands in a `do` or an `after command`, and nowhere that only reads or
+// that no visitor's command asks for.
+import {await} from 'pass_where'
+
+kind Well {
+  :deep true
+
+  as target for await {
+    permit {
+      pass 1 minutes
+      allow
+    }
+    do {
+      wake in 1 minutes
+      say "You wait."
+    }
+  }
+
+  describe {
+    pass 1 minutes
+    text "A dry well."
+  }
+
+  on :woke (elapsed) {
+    pass 10 minutes
+  }
+
+  changed :deep (was) {
+    pass 10 minutes
+  }
+}

@@ -38,6 +38,7 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
       spawnsPerTurn: 8,
       shortestWakeSeconds: 60,
       pendingWakesPerObject: 1,
+      longestPassSeconds: 3600,
       nicknameCharacters: 24,
     });
   });
@@ -131,12 +132,14 @@ describe('every limit says what it is and what exceeding it means', () => {
     }
   });
 
-  it('describes every runtime budget, as a fault, but the wake floor, the crowd and the nickname', () => {
-    // The wake floor raises what is asked to it, a full place refuses the
-    // move that would bring one more person in, and a nickname past its
-    // length is refused at admission.
+  it('describes every runtime budget, as a fault, but the wake floor, the longest pass, the crowd and the nickname', () => {
+    // The wake floor raises what is asked to it, the longest pass lowers
+    // what is asked to it, a full place refuses the move that would bring
+    // one more person in, and a nickname past its length is refused at
+    // admission.
     const otherwise: Partial<Record<RuntimeBudgetName, string>> = {
       shortestWakeSeconds: 'raised',
+      longestPassSeconds: 'lowered',
       peoplePerPlace: 'move-refused',
       nicknameCharacters: 'nickname-refused',
     };

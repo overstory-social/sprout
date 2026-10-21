@@ -155,6 +155,8 @@ typedef struct sprout_exec {
   sprout_draws *draws;
   sprout_eval_fault *fault;
   uint64_t instant; /* the instant the turn runs, in host seconds, which a `wake` is asked at */
+  bool passes_time; /* a visitor's command turn, whose `pass`es ask the host to let time pass */
+  uint64_t passed;  /* the seconds its `pass`es have asked for so far */
 
   /* Who reads what an acting body says, and from whom it is heard (set by whoever runs the body). */
   const sprout_str *heard_by;
@@ -364,6 +366,17 @@ sprout_eval_status sprout_wake_in(sprout_exec *x, const sprout_frame *frame, dou
 
 /* `cancel wakes` run by `frame->self`: every wake it has pending is taken back. */
 sprout_eval_status sprout_wake_cancel(sprout_exec *x, const sprout_frame *frame);
+
+/* ---- passing.c ---- */
+
+/*
+ * `pass <count> <unit>`, its count worked out: in a command turn, the seconds it comes to are added to what the
+ * turn asks to pass; in any other turn nothing. A PassFault where that is below nothing or past the largest integer.
+ */
+sprout_eval_status sprout_pass_in(sprout_exec *x, const sprout_frame *frame, double count, const char *unit);
+
+/* What the host grants of `asked` seconds: all of it, or its longest pass where that is shorter. */
+uint64_t sprout_pass_granted(const sprout_budgets *budgets, uint64_t asked);
 
 /* ---- effects.c ---- */
 

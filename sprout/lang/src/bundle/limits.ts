@@ -127,6 +127,8 @@ export interface RuntimeBudgets {
   readonly shortestWakeSeconds: number;
   /** Wakes one object may have pending, held across turns; a `wake` past it faults. */
   readonly pendingWakesPerObject: number;
+  /** The longest pass, in seconds — the most time one command may ask to pass; a longer ask is lowered to it. */
+  readonly longestPassSeconds: number;
   /**
    * People who may stand in one place at once, held across turns: a move
    * that would bring one more in is refused. The spec gives no figure (The
@@ -191,6 +193,7 @@ export const DEFAULT_LIMITS: Limits = {
     spawnsPerTurn: 8,
     shortestWakeSeconds: 60,
     pendingWakesPerObject: 1,
+    longestPassSeconds: 3600,
     peoplePerPlace: null,
     extensionEffects: null,
     nicknameCharacters: 24,
@@ -203,7 +206,8 @@ export const DEFAULT_LIMITS: Limits = {
  * turn at run time, for a floor raise what was asked to it, refuse the
  * move that would pass it, or refuse the nickname at admission.
  */
-export type WhenExceeded = 'refusal' | 'fault' | 'raised' | 'move-refused' | 'nickname-refused';
+export type WhenExceeded =
+  'refusal' | 'fault' | 'raised' | 'lowered' | 'move-refused' | 'nickname-refused';
 
 /** What a limit is counted against. */
 export type LimitScope =
@@ -404,6 +408,13 @@ export const LIMIT_TABLE: readonly LimitDescription[] = [
     scope: 'object',
     exceeded: 'fault',
     bounds: 'wakes one object may have pending, held across turns',
+  },
+  {
+    name: 'longestPassSeconds',
+    kind: 'budget',
+    scope: 'turn',
+    exceeded: 'lowered',
+    bounds: 'the time one command may ask to pass, which a longer ask is lowered to',
   },
   {
     name: 'peoplePerPlace',

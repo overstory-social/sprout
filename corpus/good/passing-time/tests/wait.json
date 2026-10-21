@@ -1,0 +1,18 @@
+{
+  "about": "`wait` passes a minute and a half once the turn is over: a wake due sooner arrives while the visitor waits, and one due later waits for the time that follows.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "hoist bucket" },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." },
+      { "level": "info", "text": "passes: 90 seconds" }
+    ] },
+    { "advance": "18 minutes", "expect": [] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." },
+      { "level": "info", "text": "passes: 90 seconds" },
+      { "level": "info", "text": "well_bottom.bucket woke, 1200 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The bucket comes back down the well, swinging." }
+    ] }
+  ]
+}

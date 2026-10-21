@@ -1,9 +1,11 @@
 /*
  * The log tail the save keeps beside the stored world (the spec's The runtime > The log): the
- * last turns the player ran, one JSON text each, and the greatest host seconds seen, which the
- * clamp starts from when the world is opened again. The file is `saves/<hash>.log`; its first
- * line names the bundle it belongs to, and a log of another bundle is not read. Each entry is a
- * turn that ran: its kind, seed, seconds, who, how it ended, and the line typed.
+ * last turns the player ran, one JSON text each, the greatest host seconds seen, which the
+ * clamp starts from when the world is opened again, and how far host seconds run ahead of the
+ * device's for the time commands asked to pass, absent until a command did. The file is
+ * `saves/<hash>.log`; its first line names the bundle it belongs to, and a log of another bundle
+ * is not read. Each entry is a turn that ran: its kind, seed, seconds, who, how it ended, and the
+ * line typed.
  */
 #include <string.h>
 
@@ -34,12 +36,13 @@ void savelog_add(player_session *session, const char *entry, size_t length) {
   session->log[session->log_count++] = copy;
 }
 
-/* The seconds the header line records, or false where it is not this bundle's header. */
-static bool header_seconds(player_session *session, const char *line, size_t length, uint64_t *seconds) {
+/* The seconds the header line records, and how far ahead, or false where it is not this bundle's header. */
+static bool header_seconds(player_session *session, const char *line, size_t length, uint64_t *seconds,
+                           uint64_t *ahead) {
   sprout_arena arena;
   sprout_json *root = NULL;
   sprout_json_error error;
-  const sprout_json *bundle, *last;
+  const sprout_json *bundle, *last, *passed;
   bool mine = false;
   if (sprout_arena_init(&arena, &session->host.record) != SPROUT_OK) return false;
   if (sprout_json_read(&arena, line, length, &root, &error) == SPROUT_OK && root != NULL &&
@@ -49,6 +52,9 @@ static bool header_seconds(player_session *session, const char *line, size_t len
     mine = bundle != NULL && bundle->kind == SPROUT_JSON_STRING && strcmp(bundle->bytes, session->hash) == 0 &&
            last != NULL && last->kind == SPROUT_JSON_NUMBER && last->number >= 0;
     if (mine) *seconds = (uint64_t)last->number;
+    passed = sprout_json_get(root, "aheadSeconds");
+    if (mine && passed != NULL && passed->kind == SPROUT_JSON_NUMBER && passed->number >= 0)
+      *ahead = (uint64_t)passed->number;
   }
   sprout_arena_reset(&arena);
   return mine;
@@ -57,7 +63,7 @@ static bool header_seconds(player_session *session, const char *line, size_t len
 void savelog_read(player_session *session) {
   size_t length = 0, at = 0, end;
   char *bytes = player_read_file(session->pd, session->log_path, &length);
-  uint64_t seconds = 0;
+  uint64_t seconds = 0, ahead = 0;
   bool first = true;
   if (bytes == NULL) return;
   while (at < length) {
@@ -65,8 +71,9 @@ void savelog_read(player_session *session) {
     while (end < length && bytes[end] != '\n') end++;
     if (end > at) {
       if (first) {
-        if (!header_seconds(session, bytes + at, end - at, &seconds)) break;
+        if (!header_seconds(session, bytes + at, end - at, &seconds, &ahead)) break;
         session->host.last_seconds = player_clamp(seconds, session->host.last_seconds);
+        session->host.ahead_seconds = player_clamp(ahead, session->host.ahead_seconds);
         first = false;
       } else {
         savelog_add(session, bytes + at, end - at);
@@ -88,6 +95,10 @@ bool savelog_write(player_session *session) {
   text_add(&out, session->hash);
   text_add(&out, "\",\"lastSeconds\":");
   text_add_number(&out, session->host.last_seconds);
+  if (session->host.ahead_seconds > 0) {
+    text_add(&out, ",\"aheadSeconds\":");
+    text_add_number(&out, session->host.ahead_seconds);
+  }
   text_add(&out, "}\n");
   total = out.length;
   for (i = 0; i < session->log_count; i++) total += strlen(session->log[i]) + 1;

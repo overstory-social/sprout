@@ -267,6 +267,47 @@ static void a_command_is_one_of_a_reading_typed_words_or_a_planned_step(void) {
   tw_close(&w);
 }
 
+/* A typed command of `visit`'s, run at `instant`; the outcome is the caller's to free. */
+static void typed(turn_world *w, const char *visit, const char *text, uint64_t instant, sprout_outcome *out) {
+  sprout_turn_input input = tw_input(SPROUT_TURN_COMMAND, instant);
+  input.visit = visit;
+  input.text = text;
+  input.text_length = strlen(text);
+  CHECK_INT(tw_run(w, input, 0, out), SPROUT_OK);
+}
+
+/*
+ * A command says how long its `pass`es ask the host to let pass, lowered to the host's longest pass and all of it
+ * where the host leaves that unset; a command that runs no `pass` asks for none (the spec's Time > Passing time).
+ */
+static void a_command_asks_for_the_time_its_passes_count_lowered_to_the_longest_pass(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "passing-time");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  typed(&w, "v-marta", "wait", 1, &out);
+  CHECK(out.committed);
+  CHECK_INT(out.passes, 90);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "hoist", "well_bottom.bucket", 2, &out);
+  CHECK(out.committed);
+  CHECK_INT(out.passes, 0);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "await", "well_bottom.bucket", 3, &out);
+  CHECK_INT(out.passes, 3600);
+  sprout_outcome_free(&out);
+  typed(&w, "v-marta", "sleep", 4, &out);
+  CHECK(tw_told(&out, "v-marta", "You curl up against the wall and sleep."));
+  CHECK_INT(out.passes, 3600);
+  sprout_outcome_free(&out);
+  w.host.budgets.longest_pass_seconds = (sprout_limit){false, 0};
+  typed(&w, "v-marta", "sleep", 5, &out);
+  CHECK_INT(out.passes, 3 * 3600);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_command_that_acts_writes_what_it_changed_and_leaves_a_log_entry);
   RUN(a_command_that_faults_tells_the_actor_and_leaves_the_world_byte_for_byte);
@@ -277,5 +318,6 @@ int main(void) {
   RUN(a_command_is_one_of_a_reading_typed_words_or_a_planned_step);
   RUN(a_command_accounts_for_the_handlers_it_ran_where_the_host_asks);
   RUN(a_command_tells_a_consent_refusal_apart_and_names_the_line_it_was_answered_with);
+  RUN(a_command_asks_for_the_time_its_passes_count_lowered_to_the_longest_pass);
   return REPORT();
 }

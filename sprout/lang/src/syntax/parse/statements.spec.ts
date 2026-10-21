@@ -397,6 +397,7 @@ describe('a statement', () => {
       'self.set(:wear, 1)',
       'wake in 3 hours',
       'cancel wakes',
+      'pass 90 seconds',
       'each thing in self { }',
     ].map((text) => readWith(statement, text).read?.kind);
     expect(kinds).toEqual([
@@ -410,6 +411,7 @@ describe('a statement', () => {
       'expression-statement',
       'wake',
       'cancel-wakes',
+      'pass-time',
       'each',
     ]);
   });
@@ -423,7 +425,7 @@ describe('a statement', () => {
         'does not start a statement this compiler reads',
       );
       expect(refusals[0]!.remedy).toBe(
-        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast`, `wake`, `cancel` and `each`, or is a call that writes, as in `self.set(:open, true)`.',
+        'A statement starts with `if`, `refuse`, `allow`, `say`, `tell`, `text`, `let`, `spawn`, `destroy`, `finally`, `move`, `connect`, `act`, `send`, `broadcast`, `wake`, `cancel`, `pass` and `each`, or is a call that writes, as in `self.set(:open, true)`.',
       );
       expect(locationOf(refusals[0]!.at), text).toBe('body.sprout:1:1');
     }
@@ -448,6 +450,7 @@ describe('a statement', () => {
       'broadcast',
       'wake',
       'cancel',
+      'pass',
       'each',
     ]);
     for (const word of STATEMENT_WORDS) {
@@ -511,7 +514,18 @@ function wellFormed(c: Chooser): { text: string; kind: Statement['kind'] } {
   const conditions = ['a', 'self.count >= 8', 'open == false', 'mover != self', 'n + 1 > 3'];
   const inner = (): string => c.one(['allow', 'refuse "No room."', 'refuse full', 'let n = 1', '']);
   const branch = (): string => `(${c.one(conditions)})${gap()}{${gap()}${inner()}${gap()}}`;
-  switch (c.below(11)) {
+  switch (c.below(12)) {
+    case 11:
+      return {
+        text: [
+          'pass',
+          c.one(['1', '3', '90', '0', '(n)', '(self.count + 1)', '( n )']),
+          c.one(['seconds', 'minutes', 'hours']),
+        ]
+          .map((word, i) => (i === 0 ? word : gap() + word))
+          .join(''),
+        kind: 'pass-time',
+      };
     case 10:
       return { text: `cancel${c.one([' ', '  '])}wakes`, kind: 'cancel-wakes' };
     case 9:
@@ -639,6 +653,7 @@ describe('a statement never vanishes silently', () => {
       'let',
       'move',
       'move-through',
+      'pass-time',
       'refuse',
       'spawn',
       'wake',

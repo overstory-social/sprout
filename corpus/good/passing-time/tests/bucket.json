@@ -1,0 +1,16 @@
+{
+  "about": "Waiting for the bucket lets an hour pass, and the bucket comes down while Marta waits; Wren, in the same well, reads it come too, and the line's next command runs once the time has passed.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "arrive": "Wren" },
+    { "as": "Marta", "type": "hoist bucket. wait for bucket. look", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You haul on the rope, and the bucket rises out of sight." },
+      { "reader": "Marta", "kind": "said", "words": "You settle down to wait for the bucket." },
+      { "level": "info", "text": "passes: 3600 seconds" },
+      { "level": "info", "text": "well_bottom.bucket woke, 1200 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The bucket comes back down the well, swinging." },
+      { "reader": "Wren", "kind": "told", "words": "The bucket comes back down the well, swinging." },
+      { "reader": "Marta", "kind": "described", "words": "The bottom of a dry well. A rope runs up out of sight." }
+    ] }
+  ]
+}

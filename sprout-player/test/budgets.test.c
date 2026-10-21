@@ -7,7 +7,7 @@ static void every_row_the_spec_gives_a_figure_for_is_set(void) {
   sprout_budgets budgets;
   memset(&budgets, 0, sizeof budgets);
   player_budgets(&budgets);
-  CHECK(sizeof budgets == 16 * sizeof(sprout_limit), "the budgets table has %zu rows", sizeof budgets / sizeof(sprout_limit));
+  CHECK(sizeof budgets == 17 * sizeof(sprout_limit), "the budgets table has %zu rows", sizeof budgets / sizeof(sprout_limit));
   /* The spec's Runtime budgets table. */
   CHECK(budgets.steps.set && budgets.steps.value == 50000, "steps");
   CHECK(budgets.poll_steps.set && budgets.poll_steps.value == PLAYER_POLL_STEPS, "poll steps");
@@ -19,6 +19,7 @@ static void every_row_the_spec_gives_a_figure_for_is_set(void) {
   CHECK(budgets.spawns.set && budgets.spawns.value == 8, "spawns");
   CHECK(budgets.shortest_wake_seconds.set && budgets.shortest_wake_seconds.value == 60, "shortest wake");
   CHECK(budgets.pending_wakes.set && budgets.pending_wakes.value == 1, "pending wakes");
+  CHECK(budgets.longest_pass_seconds.set && budgets.longest_pass_seconds.value == 3600, "longest pass");
   CHECK(budgets.nickname_characters.set && budgets.nickname_characters.value == 24, "nickname");
   CHECK(budgets.list_elements.set && budgets.list_elements.value == 16, "lists");
 }

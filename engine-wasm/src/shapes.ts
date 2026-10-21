@@ -139,6 +139,7 @@ export const ToldSchema = z.object({
   drawn: z.number().int().positive().nullable().optional(),
   step: ReadingTree.nullable().optional(),
   goesOn: z.boolean().optional(),
+  passes: z.number().int().nonnegative().optional(),
 });
 export type Told = z.infer<typeof ToldSchema>;
 
