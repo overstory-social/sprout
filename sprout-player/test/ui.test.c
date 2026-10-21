@@ -630,25 +630,104 @@ static void start_over_in_the_system_menu_asks_and_begins_the_world_again(void) 
   end();
 }
 
+#define CAVERNS_INDEX "https://w.example/sprout/index.json"
+
+static bool trusts_anything(void *ctx, const char *canonical, const char *signature) {
+  (void)ctx;
+  (void)canonical;
+  (void)signature;
+  return true;
+}
+
+/* Runs frames until the shelf's panel, or the download screen's, says `words`, or `most` have run; whether it did. */
+static bool panel_until(const char *words, int most) {
+  char said[2048];
+  int n;
+  for (n = 0; n < most; n++) {
+    fake_frame(fake, 0, 0);
+    panel_said(SHELF_PANEL + 2, said, sizeof said);
+    if (HAS(said, words)) return true;
+  }
+  return false;
+}
+
+/*
+ * The caverns are not shipped (sprout-player/worlds.json lists them as test-only): the app starts
+ * on an empty shelf and they arrive by download, from an index listing the cartridge the gate packed
+ * into `folder`, served whole. `cartridge` holds its bytes, from malloc, while the fake serves them.
+ */
+static bool caverns_downloaded(const char *folder, char **cartridge) {
+  char command[2600], sha[65], hash[65], index[1024], served[1200];
+  size_t bytes = 0;
+  long size;
+  FILE *file;
+  player_opening seen;
+  player_downloads *d;
+  *cartridge = NULL;
+  write_text(PLAYER_DOWNLOADS_SETTINGS, "{ \"indexUrl\": \"" CAVERNS_INDEX "\" }");
+  snprintf(command, sizeof command, "mkdir -p '%s'/served && cp '%s'/underground_caverns.sproutworld '%s'/served/", fake->data, folder,
+           fake->data);
+  CHECK(system(command) == 0, "the caverns' cartridge is on the fake server");
+  eventHandler(&fake->api, kEventInit, 0);
+  fake_frame(fake, 0, 0);
+  CHECK(strcmp(shelf_front(), "more worlds...") == 0 && running()->shelf->count == 0, "nothing is shipped: %s", shelf_front());
+  seen = player_inspect(running()->session, "served/underground_caverns.sproutworld");
+  CHECK(seen.ok && seen.hash != NULL, "%s", seen.reason != NULL ? seen.reason : "");
+  snprintf(hash, sizeof hash, "%s", seen.ok && seen.hash != NULL ? seen.hash : "");
+  CHECK(player_digest(&fake->api, "served/underground_caverns.sproutworld", sha, &bytes) == NULL, "the digest");
+  snprintf(served, sizeof served, "%s/served/underground_caverns.sproutworld", fake->data);
+  file = fopen(served, "rb");
+  CHECK(file != NULL, "%s", served);
+  if (file == NULL) return false;
+  fseek(file, 0, SEEK_END);
+  size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  *cartridge = (char *)malloc((size_t)size);
+  CHECK(size > 0 && (size_t)size == bytes && fread(*cartridge, 1, bytes, file) == bytes, "reading %s", served);
+  fclose(file);
+  snprintf(index, sizeof index,
+           "{\"worlds\":[{\"title\":\"Underground Caverns\",\"author\":\"studio\",\"version\":\"0.1.0\",\"bytes\":%zu,"
+           "\"hash\":\"%s\",\"sha256\":\"%s\",\"url\":\"underground_caverns.sproutworld\"}],\"signed\":\"00\"}",
+           bytes, hash, sha);
+  fake_serve(fake, CAVERNS_INDEX, 200, index, strlen(index));
+  fake_serve(fake, "https://w.example/sprout/underground_caverns.sproutworld", 200, *cartridge, bytes);
+  fake->piece = 65536;
+  fake_frame(fake, kButtonA, 0);
+  d = running()->screen == &player_downloads_screen ? (player_downloads *)running()->ctx : NULL;
+  CHECK(d != NULL, "A on more worlds opens the download screen");
+  if (d == NULL) return false;
+  d->trusts = trusts_anything; /* the index's signature is downloads.test.c's to check */
+  CHECK(panel_until("A downloads it.", 20), "the caverns are listed");
+  fake_frame(fake, kButtonA, 0);
+  CHECK(panel_until("Underground Caverns is on your shelf.", 1000), "the caverns arrive whole");
+  fake_frame(fake, kButtonB, 0);
+  fake_frame(fake, 0, 0);
+  CHECK(running()->screen == &player_shelf_screen && strcmp(shelf_front(), "Underground Caverns") == 0,
+        "the shelf lists the caverns downloaded: %s", shelf_front());
+  return strcmp(shelf_front(), "Underground Caverns") == 0;
+}
+
 /*
  * The arrival's log line is on disk when the reader comes up, and its state follows a slice a frame
- * behind it; opening the system menu (kEventPause) writes the rest at once.
+ * behind it; opening the system menu (kEventPause) writes the rest at once. The world is the caverns,
+ * the biggest state the gate has, downloaded as a player gets them.
  */
 static void the_save_follows_the_reply_and_the_system_menu_finishes_it(void) {
-  const char *folder = getenv("PLAYER_SHIPPED_DIR");
-  char command[2600];
+  const char *folder = getenv("PLAYER_TEST_WORLDS_DIR");
+  char command[2600], *cartridge = NULL;
   int slices = 0, drawn = 0;
-  if (folder == NULL) {
-    printf("ui: PLAYER_SHIPPED_DIR is not set, the caverns' save is not watched\n");
+  if (folder == NULL || folder[0] == '\0') {
+    printf("ui: PLAYER_TEST_WORLDS_DIR is not set, the caverns' save is not watched\n");
     return;
   }
   begin("save-frames");
   app_folder("app");
-  snprintf(command, sizeof command, "mkdir -p '%s'/worlds && cp '%s'/underground_caverns.sproutworld '%s'/worlds/", fake->data,
-           folder, fake->data);
-  CHECK(system(command) == 0, "the caverns are on the shelf");
-  eventHandler(&fake->api, kEventInit, 0);
-  fake_frame(fake, 0, 0);
+  if (!caverns_downloaded(folder, &cartridge)) {
+    if (fake->update != NULL) eventHandler(&fake->api, kEventTerminate, 0);
+    free(cartridge);
+    end();
+    return;
+  }
   fake_frame(fake, kButtonA, 0);
   frames_until_nickname(10000);
   fake_frame(fake, kButtonA, 0);
@@ -666,6 +745,7 @@ static void the_save_follows_the_reply_and_the_system_menu_finishes_it(void) {
   fake_frame(fake, 0, 0);
   CHECK(saved_file(".json") && !saved_file(".part"), "leaving writes the departure's save whole before the shelf");
   eventHandler(&fake->api, kEventTerminate, 0);
+  free(cartridge);
   end();
 }
 

@@ -23,7 +23,7 @@
 //
 // The last step, in both modes, is sprout-player/ (the Playdate app, scripts/playdate-player.mjs):
 // the Simulator target built with the SDK, the player's C tests over a fake PlaydateAPI, the saves they
-// wrote played through `sproutc`, and the graduated worlds' plays through `sproutc --offered`; with
+// wrote played through `sproutc`, and the listed worlds' plays through `sproutc --offered`; with
 // `--sanitize` the player's tests are built and run under the sanitizers too. The plain mode also builds
 // the runtime optimised (-O2) under -Wall -Wextra -Werror, as the device and the shipped Simulator build
 // do, and once more without the parser (-DSPROUT_PARSER=OFF), as the Playdate takes the runtime, running

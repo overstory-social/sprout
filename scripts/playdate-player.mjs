@@ -8,9 +8,10 @@
 // cross-compiles it from Linux or macOS), and pdex.bin for a console where arm-none-eabi-gcc is.
 // pdc packages Source/ (pdxinfo, the fonts) with whatever pdex.* lies there, so the one pdx runs
 // wherever a binary was built for; the system runs the update callback main.c sets. The pdx carries
-// no worlds: the build packs the graduated worlds (sprout-player/worlds.json) into <folder>/worlds,
-// beside the pdx, one cartridge a world, its pictures inside it, for a world is installed on its own
-// (the design doc's Shipped worlds and downloads). The download screen trusts the publisher's public
+// no worlds: the build packs the graduated worlds (sprout-player/worlds.json's "graduated") into
+// <folder>/worlds, beside the pdx, one cartridge a world, its pictures inside it, for a world is
+// installed on its own (the design doc's Shipped worlds and downloads); the list's "testOnly" worlds
+// are the gate's and never ship. The download screen trusts the publisher's public
 // key, sprout-player/publisher.pub, whose private half signs the studio's index; SPROUT_INDEX_PUBLIC_KEY
 // names another file instead. The build bakes the key in as generated/publickey.h
 // (-DPLAYER_INDEX_PUBLIC_KEY_FILE). `npm run playdate` is this.
@@ -18,8 +19,8 @@
 // scripts/check-runtime-c.mjs imports `checkPlayer`, the gate's part: it runs the specs of the
 // shipping scripts, builds the Simulator target, runs the player's C tests (among them that the app
 // accepts an index `sprout index` signed with a key `sprout keygen` made), checks that the app
-// shelves and opens every graduated world, plays the save the session's end-to-end test wrote through
-// `sproutc`, and plays each graduated world's listed plays (`"plays"` in worlds.json, scripts under
+// shelves and opens every graduated and test-only world, plays the save the session's end-to-end test
+// wrote through `sproutc`, and plays each listed world's plays (`"plays"` in worlds.json, scripts under
 // the world's folder) through `sproutc` with the view polled first under the app's poll budget, so
 // every reading a play makes is one the sentence builder could build, each step saying what the
 // play expects of it; it also builds the device binary. It needs the Playdate SDK (scripts/playdate-sdk.sh fetches it) and prints which parts ran.
@@ -48,7 +49,7 @@ const root = join(fileURLToPath(import.meta.url), '../..');
 const player = join(root, 'sprout-player');
 const pdxSource = join(player, 'Source');
 
-/** The graduated worlds the build packs and tests, installed apart from the pdx: `{ "graduated": [ { "world", "title" } ] }`. */
+/** The worlds the build ships apart from the pdx and those the gate only tests: `{ "graduated": [ { "world", "title" } ], "testOnly": [ … ] }`. */
 export const WORLDS_FILE = join(player, 'worlds.json');
 
 /** The publisher's public key, whose signatures the download screen accepts unless SPROUT_INDEX_PUBLIC_KEY names another. */
@@ -78,59 +79,75 @@ export function sdkPath() {
 }
 
 /**
- * Reads the list of graduated worlds: each entry names a world folder (a name under corpus/good, or
- * a path from the repository root or absolute; a studio world is its snapshot under
- * sprout-player/worlds), the title it is listed under, and `plays`, scripts under the world's
- * folder the app must be able to play (none where left out). The cartridge is named for the world's
- * own name, the manifest's, since a folder may be called anything. Throws, saying what to write,
- * for a list that is not that shape, or that names a world twice, one that is not there, one with
- * no manifest, or a play that is not there.
+ * Reads `worlds.json`: `graduated`, the worlds the build packs beside the pdx, and `testOnly`
+ * (which may be left out), worlds the gate packs and checks as it does those but that never ship,
+ * since a player gets them from the studio's index. Each entry names a world folder (a name under
+ * corpus/good, or a path from the repository root or absolute; a studio world is its snapshot under
+ * sprout-player/worlds), the title it is listed under, and `plays`, scripts under the world's folder
+ * the app must be able to play (none where left out). The cartridge is named for the world's own
+ * name, the manifest's, since a folder may be called anything. Throws, saying what to write, for a
+ * file that is not that shape, or that names a world twice in either list, one that is not there,
+ * one with no manifest, or a play that is not there.
  */
-export function readGraduated(file = WORLDS_FILE) {
-  let list;
+export function readWorldLists(file = WORLDS_FILE) {
+  let lists;
   try {
-    list = JSON.parse(readFileSync(file, 'utf8'));
+    lists = JSON.parse(readFileSync(file, 'utf8'));
   } catch (err) {
     throw new Error(`${file} cannot be read as JSON: ${err.message}`);
   }
-  if (list === null || typeof list !== 'object' || !Array.isArray(list.graduated)) {
+  if (
+    lists === null ||
+    typeof lists !== 'object' ||
+    !Array.isArray(lists.graduated) ||
+    !(lists.testOnly === undefined || Array.isArray(lists.testOnly))
+  ) {
     throw new Error(
-      `${file} should be { "graduated": [ { "world": "<name or path>", "title": "<title>" } ] }.`,
+      `${file} should be { "graduated": [ { "world": "<name or path>", "title": "<title>" } ], "testOnly": [ … ] }, "testOnly" for worlds the gate tests and the build does not ship.`,
     );
   }
   const seen = new Set();
-  return list.graduated.map((entry, i) => {
-    if (
-      typeof entry?.world !== 'string' ||
-      entry.world === '' ||
-      typeof entry.title !== 'string' ||
-      entry.title === ''
-    ) {
+  const read = (key) => (lists[key] ?? []).map((entry, i) => readEntry(file, key, entry, i, seen));
+  return { graduated: read('graduated'), testOnly: read('testOnly') };
+}
+
+/** The worlds the build ships beside the pdx: `worlds.json`'s `graduated`, read as `readWorldLists` reads it. */
+export function readGraduated(file = WORLDS_FILE) {
+  return readWorldLists(file).graduated;
+}
+
+/** One entry of the list `key`, its world's name added to `seen`; throws as `readWorldLists` says. */
+function readEntry(file, key, entry, i, seen) {
+  if (
+    typeof entry?.world !== 'string' ||
+    entry.world === '' ||
+    typeof entry.title !== 'string' ||
+    entry.title === ''
+  ) {
+    throw new Error(
+      `${file}: entry ${i + 1} of "${key}" needs a "world" and a "title", both text.`,
+    );
+  }
+  const dir = entry.world.includes('/')
+    ? resolve(root, entry.world)
+    : join(root, 'corpus/good', entry.world);
+  if (!existsSync(dir)) throw new Error(`${file}: the world "${entry.world}" is not at ${dir}.`);
+  const name = manifestName(join(dir, 'sprout.json'), file, entry.world);
+  if (seen.has(name)) throw new Error(`${file}: the world "${name}" is listed twice.`);
+  seen.add(name);
+  const plays = entry.plays ?? [];
+  if (!Array.isArray(plays) || plays.some((play) => typeof play !== 'string' || play === '')) {
+    throw new Error(
+      `${file}: "plays" of the world "${entry.world}" should be a list of script paths under its folder.`,
+    );
+  }
+  for (const play of plays) {
+    if (!existsSync(join(dir, play)))
       throw new Error(
-        `${file}: entry ${i + 1} of "graduated" needs a "world" and a "title", both text.`,
+        `${file}: the play "${play}" of the world "${entry.world}" is not at ${join(dir, play)}.`,
       );
-    }
-    const dir = entry.world.includes('/')
-      ? resolve(root, entry.world)
-      : join(root, 'corpus/good', entry.world);
-    if (!existsSync(dir)) throw new Error(`${file}: the world "${entry.world}" is not at ${dir}.`);
-    const name = manifestName(join(dir, 'sprout.json'), file, entry.world);
-    if (seen.has(name)) throw new Error(`${file}: the world "${name}" is listed twice.`);
-    seen.add(name);
-    const plays = entry.plays ?? [];
-    if (!Array.isArray(plays) || plays.some((play) => typeof play !== 'string' || play === '')) {
-      throw new Error(
-        `${file}: "plays" of the world "${entry.world}" should be a list of script paths under its folder.`,
-      );
-    }
-    for (const play of plays) {
-      if (!existsSync(join(dir, play)))
-        throw new Error(
-          `${file}: the play "${play}" of the world "${entry.world}" is not at ${join(dir, play)}.`,
-        );
-    }
-    return { world: entry.world, title: entry.title, dir, file: `${name}.sproutworld`, plays };
-  });
+  }
+  return { world: entry.world, title: entry.title, dir, file: `${name}.sproutworld`, plays };
 }
 
 /** The poll budget the app ships, read from src/budgets.h, the one place it is written. */
@@ -187,22 +204,22 @@ export function unmetExpectation(script, traced) {
 }
 
 /**
- * Plays each graduated world's listed plays through `sproutc` over the cartridge the build packed, the
- * view polled before each command under the app's poll budget: every reading the runtime reads must be
- * offered, no turn may fault, and each step must say what the play expects of it (`unmetExpectation`).
- * Returns one line of what ran; throws naming the first play that did not.
+ * Plays each staged world's listed plays through `sproutc` over the cartridge `stageWorlds` packed,
+ * the view polled before each command under the app's poll budget: every reading the runtime reads
+ * must be offered, no turn may fault, and each step must say what the play expects of it
+ * (`unmetExpectation`). Returns one line of what ran; throws naming the first play that did not.
  */
-export function checkPlays(staged, cartridges, sproutcDir, scratch, prefix = []) {
+export function checkPlays(staged, sproutcDir, scratch, prefix = []) {
   const steps = appPollSteps();
   let count = 0;
   let widest = 0;
-  for (const { dir, file, plays, title } of staged) {
+  for (const { dir, cartridge, plays, title } of staged) {
     for (const play of plays) {
       const script = join(dir, play);
       const trace = join(scratch, `${basename(dir)}-${basename(play)}.trace`);
       const args = [
         'play',
-        join(cartridges, file),
+        cartridge,
         '--script',
         script,
         '--trace',
@@ -235,7 +252,7 @@ export function checkPlays(staged, cartridges, sproutcDir, scratch, prefix = [])
     }
   }
   return count === 0
-    ? 'no plays listed for the graduated worlds'
+    ? 'no plays listed for the listed worlds'
     : `${count} listed play${count === 1 ? '' : 's'} built from the view under the app's ${steps}-step poll budget (the widest poll ${widest} steps)`;
 }
 
@@ -285,8 +302,9 @@ async function signedIndex(scratch, cartridges, given) {
 }
 
 /**
- * Packs the graduated worlds into the folder `out` with the built CLI, each as one
- * `<name>.sproutworld` that carries its pictures, replacing what was there. Returns the list it packed.
+ * Packs the worlds of `list` (the graduated ones unless given) into the folder `out` with the built
+ * CLI, each as one `<name>.sproutworld` that carries its pictures, replacing what was there. Returns
+ * the list it packed, each entry with `cartridge`, the path of its packed file.
  */
 export async function stageWorlds({ list = readGraduated(), out }) {
   const { main } = await import(pathToFileURL(join(root, 'cli/dist/cli.js')).href);
@@ -303,7 +321,7 @@ export async function stageWorlds({ list = readGraduated(), out }) {
     });
     if (code !== 0) throw new Error(`${title} (${dir}) did not pack:\n${said}`);
   }
-  return list;
+  return list.map((entry) => ({ ...entry, cartridge: join(out, entry.file) }));
 }
 
 /** The file holding the public key the download screen trusts: SPROUT_INDEX_PUBLIC_KEY's, else the publisher's. */
@@ -526,8 +544,9 @@ function pureC(pdx) {
 
 /**
  * The gate's part. Returns one line saying which parts ran; throws with the failing command's words.
- * The graduated worlds are packed into a scratch folder apart from the pdx, and the C tests that
- * read PLAYER_SHIPPED_DIR and the listed plays read them there.
+ * The graduated worlds are packed into a scratch folder apart from the pdx, which the C tests read
+ * as PLAYER_SHIPPED_DIR, and the test-only worlds into another, PLAYER_TEST_WORLDS_DIR; the listed
+ * plays of both are played there.
  * With `sanitize` the Simulator target and its tests are built under AddressSanitizer and
  * UndefinedBehaviorSanitizer, from the cartridges the sanitized runtime build packed, and any report
  * fails; the device target is not built then. The sanitized tests and `sproutc` run behind the
@@ -541,8 +560,11 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'sprout-player-'));
   try {
     ran.push(shippingSpecs());
+    const lists = readWorldLists();
     const worlds = join(scratch, 'worlds');
-    const staged = await stageWorlds({ out: worlds });
+    const staged = await stageWorlds({ list: lists.graduated, out: worlds });
+    const testWorlds = join(scratch, 'test-worlds');
+    const stagedTests = await stageWorlds({ list: lists.testOnly, out: testWorlds });
     clearBinaries();
     const cartridges = join(sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild, 'cartridges');
     if (!existsSync(cartridges))
@@ -570,6 +592,7 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
       {
         PLAYER_KEEP_DIR: keep,
         PLAYER_SHIPPED_DIR: worlds,
+        PLAYER_TEST_WORLDS_DIR: stagedTests.length > 0 ? testWorlds : '',
         PLAYER_SIGNED_INDEX: published.index,
         PLAYER_SIGNED_INDEX_KEY: published.key,
         ...(sanitize
@@ -628,12 +651,14 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
         ? 'the app accepts an index the built CLI signed'
         : `the app accepts the index at ${signed.index}`,
     );
-    ran.push(`the app shelves and opens all ${staged.length} graduated worlds`);
+    ran.push(
+      `the app shelves and opens the ${counted(staged.length, 'graduated world')} and the ${counted(stagedTests.length, 'test-only world')}`,
+    );
 
     const sproutcDir = sanitize ? `${runtimeCBuild}-sanitize` : runtimeCBuild;
     ran.push(roundTrip(keep, cartridges, sproutcDir, prefix));
     ran.push(builtMatchesTyped(keep, cartridges, sproutcDir, prefix));
-    ran.push(checkPlays(staged, worlds, sproutcDir, scratch, prefix));
+    ran.push(checkPlays([...staged, ...stagedTests], sproutcDir, scratch, prefix));
 
     if (sanitize) {
       ran.push('device target not built under the sanitizers');
@@ -651,6 +676,9 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
   }
   return `sprout-player: ${ran.join('; ')}`;
 }
+
+/** `n` and `thing`, plural where `n` is not one. */
+const counted = (n, thing) => `${n} ${thing}${n === 1 ? '' : 's'}`;
 
 /** Runs the specs of the shipping scripts (the graduated list, the world sync); one line of what ran. */
 export function shippingSpecs() {
