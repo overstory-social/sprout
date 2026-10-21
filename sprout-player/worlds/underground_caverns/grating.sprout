@@ -115,7 +115,7 @@ kind GratingAbove is Grating {
   }
   describe {
     text view
-    if (seen == :look) { media.show("pictures/grating.png", "the grating") }
+    if (seen == :examine) { media.show("pictures/grating.png", "the grating") }
   }
 
   as target for open {
