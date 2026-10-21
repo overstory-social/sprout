@@ -181,7 +181,7 @@ sprout_eval_status sprout_engine_answers(sprout_exec *x, const sprout_frame *fra
     for (i = 0; i < reading->verb->role_count; i++) {
       const sprout_filled *held = &reading->roles[i];
       if (!held->filled || held->bound.kind != SPROUT_BOUND_OBJECT) continue;
-      EXPR_NEED(described(frame, held->bound.object, reading->actor, "look", &answers[n++]));
+      EXPR_NEED(described(frame, held->bound.object, reading->actor, "examine", &answers[n++]));
       EXPR_NEED(contents_of(frame, held->bound.object, reading->actor, here, &answers[n], &has));
       if (has) n++;
       break;

@@ -1,0 +1,10 @@
+// The bucket's own description where it is examined, and what is seen
+// from inside it where its occupant looks, arrives or polls.
+import * as sprout from 'sprout'
+
+kind Bucket is sprout.Place {
+  describe {
+    if (seen == :examine) { text "A wooden bucket, banded with iron, big enough to stand in." }
+    else { text "From the bucket you see the round stone walls of the well, and daylight far above." }
+  }
+}
