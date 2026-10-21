@@ -175,7 +175,7 @@ static void a_run_with_all_or_whose_first_item_names_nothing_is_answered(void) {
   CHECK_STR(turns(&p, "take all and lamp", 7), "answered unknown");
   CHECK_STR(turns(&p, "take everything and lamp", 7), "answered unknown");
   CHECK_STR(turns(&p, "take the lamp in the box and lamp", 7), "answered not_here");
-  CHECK_STR(turns(&p, "take unicorn and lamp", 7), "answered unknown");
+  CHECK_STR(turns(&p, "take unicorn and lamp", 7), "answered not_here");
   /* A set role binds every item at once, with nothing after it. */
   CHECK_INT(bench_parse(&p.b, &p.keep, "juggle salt and lamp", 7, NULL, &p.out), SPROUT_OK);
   CHECK_INT(p.out.rest_count, 0);
@@ -192,7 +192,7 @@ static void and_before_a_verb_joins_two_commands_the_second_read_on_its_own_turn
   CHECK_STR(turns(&p, "take salt and lamp and take box", 7), "salt lamp [take box]");
   /* A first command that names nothing answers the line. */
   CHECK_STR(turns(&p, "take the lamp in the box and take lamp", 7), "answered not_here");
-  CHECK_STR(turns(&p, "take unicorn and take lamp", 7), "answered unknown");
+  CHECK_STR(turns(&p, "take unicorn and take lamp", 7), "answered not_here");
   CHECK_STR(turns(&p, "dance and take lamp", 7), "answered unknown");
   close_pantry(&p);
 }

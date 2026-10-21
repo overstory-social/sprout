@@ -471,20 +471,6 @@ static void an_objects_synonym_reads_only_where_the_object_takes_part(void) {
   close_hall(&p);
 }
 
-static void a_noun_naming_nothing_in_reach_costs_the_worlds_words_though_another_phrase_reads(void) {
-  parsing p;
-  uint64_t steps;
-  open_world(&p, "grammar");
-  /* `unlock [target]` finds no "door with brass key", whose words are asked of the world's. */
-  read_as(&p, "unlock door with brass key");
-  CHECK_STR(p.out.reading.verb, "study.unlock");
-  steps = p.out.steps;
-  read_as(&p, "unlock door with brass key");
-  CHECK_INT(p.out.steps, steps);
-  close_hall(&p);
-}
-
-
 /* Whether the line was answered with the engine's line `name`, its words, or a place's passage of that name. */
 static void answered(const parsing *p, const char *name) {
   CHECK_INT(p->out.end, SPROUT_PARSED_ANSWERED);
@@ -492,19 +478,23 @@ static void answered(const parsing *p, const char *name) {
   CHECK_STR(p->out.answer, name);
 }
 
-static void a_noun_naming_nothing_in_reach_is_not_here_only_where_the_world_holds_its_words(void) {
+static void a_noun_naming_nothing_in_reach_is_not_here_whatever_its_words_and_a_line_no_verb_reads_is_unknown(void) {
   parsing p;
   open_world(&p, "unknown-word");
-  read_as(&p, "take ball again");
-  answered(&p, "unknown");
-  read_as(&p, "examine through the ball");
-  answered(&p, "unknown");
-  /* The gong is in the cellar; `the` and `in` are the parser's own. */
-  read_as(&p, "take gong");
+  /* Nothing in the world is called jewels, nor ball again; the gong is in the cellar. */
+  read_as(&p, "take jewels");
   answered(&p, "not_here");
   CHECK_INT(p.out.binding_count, 2);
+  read_as(&p, "take ball again");
+  answered(&p, "not_here");
+  read_as(&p, "examine through the ball");
+  answered(&p, "not_here");
+  read_as(&p, "take gong");
+  answered(&p, "not_here");
   read_as(&p, "take the ball in the box");
   answered(&p, "not_here");
+  read_as(&p, "xyzzy jewels");
+  answered(&p, "unknown");
   close_hall(&p);
 }
 
@@ -549,7 +539,7 @@ static void an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the
 }
 
 int main(void) {
-  RUN(a_noun_naming_nothing_in_reach_is_not_here_only_where_the_world_holds_its_words);
+  RUN(a_noun_naming_nothing_in_reach_is_not_here_whatever_its_words_and_a_line_no_verb_reads_is_unknown);
   RUN(a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way);
   RUN(an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the_object);
   RUN(a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional);
@@ -563,7 +553,6 @@ int main(void) {
   RUN(a_line_an_intents_phrase_reads_is_the_intent_its_slots_bound_by_name);
   RUN(a_pronoun_a_thing_declares_another_for_is_corrected_before_the_reading);
   RUN(an_objects_synonym_reads_only_where_the_object_takes_part);
-  RUN(a_noun_naming_nothing_in_reach_costs_the_worlds_words_though_another_phrase_reads);
   RUN(a_line_of_no_words_is_unknown_and_spends_only_the_ways_out);
   RUN(again_before_any_reading_is_unknown_and_after_one_runs_it);
   RUN(a_line_splits_before_a_verb_and_a_turn_a_line_handed_reads_as_handed);

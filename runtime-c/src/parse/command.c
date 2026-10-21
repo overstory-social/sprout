@@ -7,11 +7,10 @@
  * is: the ways out of the actor's place, then the words, then what the actor can reach, then each placement of each
  * phrase, a step, with what its slots' words fill their roles with and the readings they make. The best reading is
  * the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with `cannot` or
- * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; naming nothing in reach in the
- * world's words, with `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split,
- * the command after it handed on as words; `again` runs the last reading again; and a later turn of a line is read
- * as it was handed, a planned reading or an item of a run to read afresh (the spec's Parsing > Sequences, again and
- * all).
+ * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; naming nothing in reach, with
+ * `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
+ * handed on as words; `again` runs the last reading again; and a later turn of a line is read as it was handed, a
+ * planned reading or an item of a run to read afresh (the spec's Parsing > Sequences, again and all).
  */
 #include <string.h>
 
@@ -185,9 +184,7 @@ typedef struct trying {
   parse_partials partials;   /* the partial readings tied for best, which the line is answered by where nothing reads */
   bool has_going;            /* a way out named does not go */
   parse_filled going;        /* the first: an exit that refuses, or a direction none answers */
-  bool not_here;             /* a placement's noun names nothing in reach in the world's words, or `all` leaves nothing */
-  bool read_words;           /* the world's words are read, once for the line */
-  parse_vocabulary vocabulary;
+  bool not_here;             /* a placement's noun names nothing in reach, or `all` leaves nothing */
 } trying;
 
 static parse_words words_between(parse_words words, size_t start, size_t end) {
@@ -253,26 +250,6 @@ static bool any_fills(const parse_filled *const *fills, size_t count, parse_fill
   return false;
 }
 
-/*
- * Whether every noun of a placement that names nothing in reach is made of the world's words, read once for the line;
- * a way out's label names nothing only by being one the world writes, so it is not asked.
- */
-static sprout_eval_status named_in_world(trying *t, const parse_placement *placement, bool *named) {
-  size_t i;
-  *named = true;
-  for (i = 0; i < placement->count && *named; i++) {
-    const parse_filled *one = placement->fills[i];
-    const parse_span *span = &placement->spans[i];
-    if (one->fills != PARSE_FILLS_NOTHING) continue;
-    if (t->phrase != NULL && t->phrase->verb->roles[span->role].filler == SPROUT_FILLER_EXIT) continue;
-    if (!t->read_words) EXPR_NEED(parse_world_words(t->all.fill.nouns.frame, t->keep, &t->vocabulary));
-    t->read_words = true;
-    *named = parse_in_vocabulary(words_between(t->words, span->start + one->start, span->start + one->end),
-                                 &t->vocabulary);
-  }
-  return SPROUT_EVAL_OK;
-}
-
 /* One placement of the phrase's slots: a step, its fills, what they come to, and the readings they make. */
 static sprout_eval_status placed(void *context, const parse_span *spans, size_t count) {
   trying *t = (trying *)context;
@@ -307,11 +284,12 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   }
   if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
     /* An object's synonym typed where the object is out of reach. */
-    if (t->phrase != NULL && t->phrase->only != NULL)
+    if (t->phrase != NULL && t->phrase->only != NULL) {
       EXPR_NEED(parse_offered_out_of_reach(&t->all.fill, &placement, &named));
-    else
-      EXPR_NEED(named_in_world(t, &placement, &named));
-    t->not_here = t->not_here || named;
+      t->not_here = t->not_here || named;
+    } else {
+      t->not_here = true;
+    }
     return SPROUT_EVAL_OK;
   }
   /* One role runs once for each of several things, never two. */
@@ -325,7 +303,7 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
 
 /*
  * Tries every phrase of the world's and its intents' against `words`, each with its fills in an arena rewound for the
- * next, the readings they make, the partial readings and the world's words kept in the turn's.
+ * next, the readings they make, and the partial readings kept in the turn's.
  */
 static sprout_eval_status phrases_read(reader *r, parse_words words, const parse_candidate *candidates,
                                        size_t candidate_count, const sprout_way *ways, size_t way_count, trying *t) {
@@ -544,7 +522,7 @@ static sprout_status understood(reader *r, const parse_readings *readings, parse
 /*
  * The world's answer to a line no reading reads: the partial reading chosen, a tie drawn, as `cannot` or
  * `not_carrying`; else the first way out named that does not go, `no_way` or the exit's own words; else `not_here`
- * where a noun names nothing in reach in the world's words, and `unknown` otherwise.
+ * where a noun names nothing in reach, and `unknown` otherwise.
  */
 static sprout_status unread(reader *r, const trying *t) {
   sprout_said_binding given;
