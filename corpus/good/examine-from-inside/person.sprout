@@ -1,0 +1,11 @@
+// A person climbs into the bucket by moving themselves, as only they may.
+// The part is written on a kind a person composes, since a visitor's own
+// kind has no behaviour.
+import * as sprout from 'sprout'
+import {board} from 'examine_from_inside'
+
+kind Climber is sprout.Actor {
+  as actor for board { do { move actor to target  say "You climb into the bucket." } }
+}
+
+kind Person is Climber, sprout.Visitor { }
