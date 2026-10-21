@@ -508,6 +508,35 @@ static void a_noun_naming_nothing_in_reach_is_not_here_only_where_the_world_hold
   close_hall(&p);
 }
 
+static void a_narrowed_all_that_leaves_nothing_is_not_here_before_another_phrase_read_in_part(void) {
+  parsing p;
+  open_world(&p, "all-narrowed");
+  /* `take [target] from [source]` reads it in part, the lamp no container; the lamp holds nothing. */
+  read_as(&p, "take all from the lamp");
+  answered(&p, "not_here");
+  read_as(&p, "take all cakes in the sack");
+  answered(&p, "not_here");
+  /* Where something is left, it reads. */
+  read_as(&p, "take all from the table");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(bound_to(&p, "target"), "all_narrowed.tea_room.table.orange_cake");
+  close_hall(&p);
+}
+
+static void a_plural_after_all_naming_nothing_in_reach_is_not_here_where_its_singular_is_the_worlds(void) {
+  parsing p;
+  open_world(&p, "unknown-word");
+  /* The gong is in the cellar. */
+  read_as(&p, "take all gongs");
+  answered(&p, "not_here");
+  read_as(&p, "take all zebras");
+  answered(&p, "unknown");
+  /* Not after `all`, a plural is no word of the world's. */
+  read_as(&p, "take gongs");
+  answered(&p, "unknown");
+  close_hall(&p);
+}
+
 static void a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way(void) {
   parsing p;
   open_world(&p, "no-way");
@@ -551,6 +580,8 @@ static void an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the
 int main(void) {
   RUN(a_noun_naming_nothing_in_reach_is_not_here_only_where_the_world_holds_its_words);
   RUN(a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way);
+  RUN(a_narrowed_all_that_leaves_nothing_is_not_here_before_another_phrase_read_in_part);
+  RUN(a_plural_after_all_naming_nothing_in_reach_is_not_here_where_its_singular_is_the_worlds);
   RUN(an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the_object);
   RUN(a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional);
   RUN(the_engine_verbs_read_by_the_phrases_the_library_gives_them);
