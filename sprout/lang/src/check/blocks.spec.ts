@@ -549,3 +549,39 @@ describe('what a body says is prose, checked where it stands or where it is said
     ]);
   });
 });
+
+describe('where a `pass` stands', () => {
+  const REMEDY =
+    'Move it to the `do` of the verb the visitor waits with, or to an `after command`.';
+
+  it('takes it in a `do` and an `after command`, which run for a visitor’s command', () => {
+    expect(check('pass 90 seconds\n    pass (self.count) minutes', DO)).toEqual([]);
+    expect(check('pass 90 seconds', { body: 'after' })).toEqual([]);
+  });
+
+  it('refuses it in a handler or a hook, which nobody waits on, at the statement', () => {
+    const context = bodyOf(VESSEL);
+    checkBlock(blockOf('pass 90 seconds'), context, { body: 'handler', written: 'on :woke' });
+    expect(
+      context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message, d.remedy]),
+    ).toEqual([
+      [
+        'b.sprout:3:5',
+        "`pass` asks for time to pass once a visitor's command is over, and nobody waits on `on :woke`.",
+        REMEDY,
+      ],
+    ]);
+  });
+
+  it('refuses it where a body only reads', () => {
+    expect(check('pass 90 seconds', GUARD)).toEqual([
+      ['b.sprout:3:5', '`pass` asks for time to pass, and a guard only reads and decides.'],
+    ]);
+    expect(check('pass 90 seconds', PERMIT)[0]![1]).toBe(
+      '`pass` asks for time to pass, and a `permit` only reads and decides.',
+    );
+    expect(check('pass 90 seconds', { body: 'describe' })[0]![1]).toBe(
+      '`pass` asks for time to pass, and a `describe` only reads.',
+    );
+  });
+});

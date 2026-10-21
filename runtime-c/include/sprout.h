@@ -45,6 +45,7 @@ typedef struct sprout_budgets {
   sprout_limit spawns;                /* per turn */
   sprout_limit shortest_wake_seconds;
   sprout_limit pending_wakes;         /* per object */
+  sprout_limit longest_pass_seconds;  /* the most time one command may ask to pass; a longer ask is lowered to it */
   sprout_limit people_per_place;
   sprout_limit extension_effects;     /* per turn */
   sprout_limit nickname_characters;
@@ -789,6 +790,10 @@ typedef struct sprout_ran {
  * the one run was drawn from them; the reading it ran as a step of a line of several, an intent's, `all`'s or a
  * run's, which a host logs at info; the turns the line runs after it, in order; and whether the line goes on.
  *
+ * A command that committed says in `passes` how many seconds the host is to let pass once it is over, before the
+ * next turn of its line or anything else runs: what its `pass`es asked, lowered to the host's longest pass (the
+ * spec's Time > Passing time). The host moves its own clock by it and delivers the wakes that fall due.
+ *
  * Its account, for an author's tools that ask what a playthrough reached, is given where the host `accounts`:
  * `ran`, every handler and hook the turn's commits ran, in the order run, and, for a command the parser answered,
  * `answer`, its line's passage name or its words. `refused` is that the consent pass refused a command's reading,
@@ -812,6 +817,7 @@ typedef struct sprout_outcome {
   bool has_log;
   sprout_log_entry log;
   uint64_t elapsed; /* a tick or a wake: the seconds its object was handed as `elapsed` */
+  uint64_t passes;  /* a command that committed: the seconds the host is to let pass before anything else runs */
   bool has_changes;
   sprout_stored_changes changes;
   size_t stale_count;

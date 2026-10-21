@@ -1,0 +1,16 @@
+// What `pass` is refused for as it is read: no count, a count with no
+// unit, a singular unit, and a count that is neither written out nor in
+// brackets. Each costs only itself, and the block reads on.
+import {await} from 'pass_syntax'
+
+kind Well {
+  as target for await {
+    do {
+      pass
+      pass 3
+      pass 1 minute
+      pass three minutes
+      say "You wait."
+    }
+  }
+}

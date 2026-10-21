@@ -1,0 +1,17 @@
+{
+  "about": "Sleep asks for three hours, and the host's longest pass is an hour, so an hour passes: the hourglass tipped for ninety minutes is still running after one sleep, and runs out in the second.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "tip hourglass" },
+    { "as": "Marta", "type": "sleep", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You curl up against the wall and sleep." },
+      { "level": "info", "text": "passes: 3600 seconds" }
+    ] },
+    { "as": "Marta", "type": "sleep", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You curl up against the wall and sleep." },
+      { "level": "info", "text": "passes: 3600 seconds" },
+      { "level": "info", "text": "well_bottom.hourglass woke, 5400 seconds after it asked" },
+      { "reader": "Marta", "kind": "told", "words": "The last of the sand runs out of the hourglass." }
+    ] }
+  ]
+}

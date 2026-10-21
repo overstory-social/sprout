@@ -102,6 +102,10 @@ The real clock drives the host's side of time, and nothing a turn reads:
   `wakes_while_empty` says otherwise.
 - The host draws each write turn's seed at random and logs it beside the
   turn, so replay reproduces it.
+- A command that asks for time to pass is granted none: the clock is the
+  wall's, and one visitor's wait would be everyone's in the world. The
+  server logs the ask at info and tells it to the one who typed at the
+  levels they asked for (the spec's Time › Passing time).
 
 ## Who a visitor is
 

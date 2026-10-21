@@ -256,6 +256,7 @@ const EXCEEDED: Readonly<Record<WhenExceeded, string>> = {
   refusal: 'the world is refused',
   fault: 'the turn faults, and nothing it did happens',
   raised: 'a sooner one waits this long',
+  lowered: 'a longer one passes this long',
   'move-refused': 'the move is refused',
   'nickname-refused': 'the nickname is refused',
 };

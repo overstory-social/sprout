@@ -17,6 +17,7 @@ const BUDGETS = {
   spawnsPerTurn: 1,
   shortestWakeSeconds: 1,
   pendingWakesPerObject: 1,
+  longestPassSeconds: 1,
   peoplePerPlace: null,
   extensionEffects: null,
   nicknameCharacters: 1,

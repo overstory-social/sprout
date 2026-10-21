@@ -77,6 +77,7 @@ function notesOf(told: Told): CommandNotes {
         ? null
         : { verb: { library: step.verb.slice(0, at), name: step.verb.slice(at + 1) } },
     drawn: told.drawn === null || told.drawn === undefined ? null : { among: told.drawn },
+    passes: told.passes ?? 0,
   };
 }
 

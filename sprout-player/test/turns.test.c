@@ -281,6 +281,35 @@ static void a_tick_tells_what_the_place_says(void) {
   end();
 }
 
+/*
+ * The passing-time world: waiting for the bucket asks for an hour to pass, and the bucket comes down in it, told
+ * after what the command said, with the device's clock where it was; the time passed is kept with the save.
+ */
+static void a_command_that_asks_for_time_to_pass_brings_the_wakes_due_in_it(void) {
+  player_session *s;
+  char state_path[200], log_path[200], *log;
+  sprout_filling filling;
+  player_told told;
+  begin("passing");
+  s = session_new();
+  save_paths(player_open_whole(s, "passing-time.sproutworld").hash, state_path, log_path, sizeof state_path);
+  player_load(s);
+  player_admit(s, "Marta");
+  filling = fill_object("target", "passing_time.well_bottom.bucket");
+  told = turn_of(s, "passing_time.hoist", "hoist bucket", 1, &filling);
+  CHECK(told_has(&told, "You haul on the rope, and the bucket rises out of sight."), "%s", told_text(&told, 0));
+  told = turn_of(s, "passing_time.await", "wait for bucket", 1, &filling);
+  CHECK(told.ok && told.committed && told.lines.count == 2 &&
+            strcmp(told_text(&told, 0), "You settle down to wait for the bucket.") == 0 &&
+            strcmp(told_text(&told, 1), "The bucket comes back down the well, swinging.") == 0,
+        "%zu lines: %s", told.lines.count, told_text(&told, told.lines.count > 1 ? 1 : 0));
+  CHECK(player_save_settle(s).ok, "the save is written");
+  log = file_text(log_path);
+  CHECK(log != NULL && HAS(log, "\"aheadSeconds\":3600"), "the time passed is kept: %s", log);
+  free(log);
+  end();
+}
+
 int main(void) {
   test_program("turns");
   a_word_of_the_world_is_not_a_name_and_nobody_arrives();
@@ -291,5 +320,6 @@ int main(void) {
   a_line_of_turns_owes_the_state_once();
   catching_up_after_an_absence_narrates_nothing();
   a_tick_tells_what_the_place_says();
+  a_command_that_asks_for_time_to_pass_brings_the_wakes_due_in_it();
   return finish();
 }

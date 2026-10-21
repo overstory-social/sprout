@@ -8,20 +8,30 @@
 // pending are the host's, so neither is checked here; where one may stand
 // is `blocks.ts`'s.
 
-import type { WakeStatement, WakeUnit } from '../syntax/ast.js';
+import type { Expr, TimeUnit, WakeStatement } from '../syntax/ast.js';
 import { INTEGER_MAX } from '../declare/types.js';
 import { typeOf, type CheckContext } from './check.js';
 import { describeGiven, writtenNumber } from './check/values.js';
 
-const SECONDS: Readonly<Record<WakeUnit, number>> = { seconds: 1, minutes: 60, hours: 3600 };
+const SECONDS: Readonly<Record<TimeUnit, number>> = { seconds: 1, minutes: 60, hours: 3600 };
 
 const WORKED_OUT =
   'Work it out as a whole number, as in `wake in (self.get(:delay)) minutes`, where `:delay` is an integer.';
 
 /** The seconds `wake in <n> <unit>` asks to wait, where its count is written down; null where it is worked out. */
 export function wakeSeconds(statement: WakeStatement): number | null {
-  const written = writtenNumber(statement.count);
-  return written === null ? null : written * SECONDS[statement.unit];
+  return countedSeconds(statement.count, statement.unit);
+}
+
+/** The seconds a count of `unit` comes to, where the count is written down; null where it is worked out. */
+export function countedSeconds(count: Expr, unit: TimeUnit): number | null {
+  const written = writtenNumber(count);
+  return written === null ? null : written * SECONDS[unit];
+}
+
+/** The most of `unit` a count may be, so its seconds stay an integer. */
+export function mostOf(unit: TimeUnit): number {
+  return Math.floor(INTEGER_MAX / SECONDS[unit]);
 }
 
 /** `wake in 3 hours`, `wake in (self.get(:delay)) minutes` — true where the count is an integer and a written one fits. */
@@ -48,7 +58,7 @@ export function checkWake(statement: WakeStatement, context: CheckContext): bool
     return false;
   }
   if (seconds <= INTEGER_MAX) return true;
-  const most = Math.floor(INTEGER_MAX / SECONDS[unit]);
+  const most = mostOf(unit);
   context.diagnostics.refuse(
     count.at,
     `\`wake in ${writtenNumber(count)} ${unit}\` waits longer than a wake can.`,

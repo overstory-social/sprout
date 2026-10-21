@@ -170,7 +170,7 @@ export function hallEngine(words = (text: string) => `You ${text}.`): {
       }
       const effects = [said(command.visit, words(command.text))];
       return {
-        turn: committed(stored, effects, { value: { step: null, drawn: null } }),
+        turn: committed(stored, effects, { value: { step: null, drawn: null, passes: 0 } }),
         changes: nothing(stored.serial + 1),
         entry: commandEntry(command, effects, null),
         account: { ran: [], answered: null, refused: false },

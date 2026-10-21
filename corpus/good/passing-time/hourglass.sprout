@@ -1,0 +1,17 @@
+// An hourglass that runs out ninety minutes after it is tipped: one sleep,
+// lowered to the host's hour, is not long enough, and a second is.
+import {tip} from 'passing_time'
+
+kind Hourglass {
+  as target for tip {
+    do {
+      cancel wakes
+      wake in 90 minutes
+      say "You tip the hourglass, and the sand begins to run."
+    }
+  }
+
+  on :woke (elapsed) {
+    tell "The last of the sand runs out of the hourglass."
+  }
+}

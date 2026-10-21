@@ -116,6 +116,11 @@ export const STATEMENT_TABLE: readonly StatementEntry[] = [
     does: 'takes back every wake this object has asked for, so none arrives; `cancel wakes` then `wake in …` puts one off',
   },
   {
+    word: 'pass',
+    example: 'pass 10 minutes',
+    does: 'asks the host to let time pass once the visitor’s command is over, so the wakes that fall due in it arrive while they wait; the host grants at most its longest pass',
+  },
+  {
     word: 'each',
     example: 'each crumb: Crumb in self { }',
     does: 'walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may',

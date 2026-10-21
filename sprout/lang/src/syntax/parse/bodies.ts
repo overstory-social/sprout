@@ -34,6 +34,7 @@ import { readable } from '../../source/words.js';
 import { guard, isGuardName } from './guards.js';
 import { afterCommand, handler, hook } from './handlers.js';
 import { passRule } from './passes.js';
+import { firstOnItsLine } from './statements.js';
 import { isPassage, passage } from './passages.js';
 import { proseFile } from './prose-file.js';
 import { property } from './properties.js';
@@ -90,9 +91,22 @@ export function kindMembers(
   return readers;
 }
 
-/** Whether a token starts one of the members `readers` reads, a property among them. */
+/**
+ * Whether a token starts one of the members `readers` reads, a property
+ * among them. `pass` starts a pass rule only with the message or `any` a
+ * rule names after it on its line; any other `pass` is the statement that
+ * passes time, so a block it stands in reads on.
+ */
 export function startsMemberOf<M>(p: Parser, readers: MemberReaders<M>): (token: Token) => boolean {
-  return (token) => memberReader(p, token, readers) !== null;
+  return (token) => memberReader(p, token, readers) !== null && !passesTime(p, token);
+}
+
+/** Whether `token` is a `pass` the parser stands at that names no message or `any` after it on its line. */
+function passesTime(p: Parser, token: Token): boolean {
+  if (token !== p.peek() || token.kind !== 'name' || token.text !== 'pass') return false;
+  const named = p.peek(1);
+  if (firstOnItsLine(p, named)) return true;
+  return named.kind !== 'symbol' && !(named.kind === 'name' && named.text === 'any');
 }
 
 /** A body's members apart from the objects written in it, which the AST holds on their own. */

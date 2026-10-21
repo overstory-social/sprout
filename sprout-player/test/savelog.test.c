@@ -58,6 +58,30 @@ static void the_tail_and_the_clamps_seconds_are_written_and_read_back(void) {
   end();
 }
 
+/* How far host seconds run ahead of the device's, for time commands asked to pass, is kept, and read back. */
+static void the_time_passed_ahead_of_the_device_is_written_and_read_back(void) {
+  player_session *session;
+  char *text;
+  begin("ahead");
+  session = logged("abc");
+  session->host.last_seconds = 123456;
+  session->host.ahead_seconds = 3690;
+  CHECK(savelog_write(session), "writing");
+  text = file_text("saves/abc.log");
+  CHECK(text != NULL && strcmp(text, "{\"format\":1,\"bundle\":\"abc\",\"lastSeconds\":123456,\"aheadSeconds\":3690}\n") == 0,
+        "%s", text);
+  free(text);
+  session->host.ahead_seconds = 0;
+  savelog_read(session);
+  CHECK(session->host.ahead_seconds == 3690, "read back: %llu", (unsigned long long)session->host.ahead_seconds);
+  /* A save made before any time passed has none, and reads as none. */
+  session->host.ahead_seconds = 0;
+  write_text("saves/abc.log", "{\"format\":1,\"bundle\":\"abc\",\"lastSeconds\":5}\n");
+  savelog_read(session);
+  CHECK(session->host.ahead_seconds == 0, "none recorded");
+  end();
+}
+
 static void a_log_of_another_bundle_or_a_damaged_one_is_not_read(void) {
   player_session *session;
   begin("other");
@@ -119,6 +143,7 @@ int main(void) {
   test_program("savelog");
   the_tail_keeps_the_last_entries_and_drops_the_oldest();
   the_tail_and_the_clamps_seconds_are_written_and_read_back();
+  the_time_passed_ahead_of_the_device_is_written_and_read_back();
   a_log_of_another_bundle_or_a_damaged_one_is_not_read();
   a_turn_that_ran_is_kept_as_its_entry_and_one_that_kept_nothing_is_not();
   return finish();

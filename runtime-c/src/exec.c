@@ -87,6 +87,19 @@ static sprout_eval_status wake_statement(sprout_run *run, const sprout_frame *fr
   return sprout_wake_in(run->x, frame, value, unit);
 }
 
+/* `pass <count> <unit>`: the count worked out, and added to what a command turn asks to pass. */
+static sprout_eval_status pass_statement(sprout_run *run, const sprout_frame *frame, const sprout_node *node) {
+  const sprout_node *count = sprout_node_get(frame->graph, node, "count");
+  const char *unit = sprout_node_text(frame->graph, node, "unit");
+  sprout_evaluated evaluated;
+  double value;
+  EXPR_NEED(stmt_acting(run, frame, "`pass`"));
+  if (count == NULL || unit == NULL) return expr_unchecked(frame, "a `pass` with no count");
+  EXPR_NEED(sprout_eval(frame, count, &evaluated));
+  EXPR_NEED(expr_as_integer(frame, &evaluated, &value));
+  return sprout_pass_in(run->x, frame, value, unit);
+}
+
 /* A `let`: the value, or the new instance of a `spawn`, bound for the rest of the block. */
 static sprout_eval_status let_statement(sprout_run *run, sprout_frame *scope, const sprout_node *node) {
   const sprout_node *value = sprout_node_get(scope->graph, node, "value");
@@ -166,6 +179,7 @@ static sprout_eval_status statement(sprout_run *run, sprout_frame *scope, const 
     EXPR_NEED(stmt_acting(run, scope, "`cancel wakes`"));
     return sprout_wake_cancel(run->x, scope);
   }
+  if (strcmp(kind, "pass-time") == 0) return pass_statement(run, scope, node);
   if (strcmp(kind, "say") == 0) return stmt_say(run, scope, node);
   if (strcmp(kind, "tell") == 0) return stmt_tell(run, scope, node);
   if (strcmp(kind, "text") == 0)

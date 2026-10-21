@@ -1,0 +1,20 @@
+// Every visitor waits a minute and a half at a time, and sleeps for as
+// long as the host will let them.
+import * as sprout from 'sprout'
+import {wait} from 'sprout'
+import {sleep} from 'passing_time'
+
+kind Patient is sprout.Actor {
+  as actor for wait {
+    do { pass 90 seconds }
+  }
+
+  as actor for sleep {
+    do {
+      pass 3 hours
+      say "You curl up against the wall and sleep."
+    }
+  }
+}
+
+kind Person is Patient, sprout.Visitor { }

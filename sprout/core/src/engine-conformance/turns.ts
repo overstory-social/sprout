@@ -26,8 +26,10 @@ import {
   NAVE,
   PEBBLE,
   played,
+  PORCH,
   propertyOf,
   seeded,
+  STEPS,
   STONE,
   storedIn,
   TALLY,
@@ -68,6 +70,21 @@ async function rested(make: MakeEngine, store: SproutStore, asked: number, now: 
 }
 
 export const turnCases: EngineCase[] = [
+  {
+    name: 'a command asks for time to pass',
+    proves:
+      'a command whose `do` passes time says how long the host is to let pass, lowered to the host’s longest pass, and a command that passes none asks for none',
+    async run(make) {
+      const store = await seeded(PORCH, [[MARTA, STEPS, 'Marta']]);
+      const dozed = await runCommand(store, 'w', played(make, PORCH), command('doze on bench'));
+      match(dozed, { committed: true, value: { passes: 3600 } }, 'two hours, lowered to one');
+      const longer = played(make, PORCH, { budgets: { longestPassSeconds: 3 * 3600 } });
+      const whole = await runCommand(store, 'w', longer, command('doze on bench'));
+      match(whole, { committed: true, value: { passes: 2 * 3600 } }, 'two hours, whole');
+      const looked = await runCommand(store, 'w', longer, command('look'));
+      match(looked, { committed: true, value: { passes: 0 } }, 'a look');
+    },
+  },
   {
     name: 'a command writes what it committed',
     proves:

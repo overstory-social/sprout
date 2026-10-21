@@ -141,3 +141,45 @@ describe('filledIn', () => {
     );
   });
 });
+
+describe('a command that asks for time to pass', () => {
+  const WELL = {
+    'well.sprout': `world well is sprout.World {
+  visitors are Person
+  visitors arrive at bottom
+  object bottom is sprout.Place {
+    describe { text "A dry well." }
+    object bucket is Bucket
+  }
+}
+verb hoist { role target  "hoist [target]" }
+verb await { role target  "wait for [target]" }
+`,
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+    'bucket.sprout': `kind Bucket {
+  as target for hoist { do { wake in 20 minutes  say "Up it goes." } }
+  as target for await { do { pass 2 hours  say "You wait." } }
+  on :woke (elapsed) { tell "Down it comes." }
+}
+`,
+  };
+
+  it('is followed by that much time, lowered to the longest pass, its wakes told before the line’s next turn', () => {
+    const stage = freshStage(bundleOf('well', WELL), { longestPassSeconds: 1800 });
+    arrive(stage, 'Marta');
+    const made = playStep(
+      stage,
+      { as: 'Marta', type: 'hoist bucket. wait for bucket. look' },
+      's',
+    )!;
+    expect(made.map((one) => [one.level, one.text])).toEqual([
+      ['prose', 'Marta (said): Up it goes.'],
+      ['prose', 'Marta (said): You wait.'],
+      ['info', 'passes: 1800 seconds'],
+      ['info', 'bottom.bucket woke, 1200 seconds after it asked'],
+      ['prose', 'Marta (told): Down it comes.'],
+      ['prose', 'Marta (described): A dry well.'],
+    ]);
+    expect(stage.now).toBe(1800);
+  });
+});

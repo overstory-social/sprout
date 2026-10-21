@@ -71,9 +71,11 @@ export interface GivenFaulted {
 /**
  * What a host records of a command that committed, beside its effects: for
  * a reading, the step of a line of several it ran as, which is logged at
- * info, and how many readings tied where the parser drew one, a warning;
- * nothing for a line the parser answered or a visitor displaced. `answered`
- * and `displaced` only mark which: nothing reads what they hold.
+ * info, how many readings tied where the parser drew one, a warning, and
+ * the seconds the host is to let pass once it is over, lowered to the
+ * host's longest pass (the spec's Time › Passing time); nothing for a line
+ * the parser answered or a visitor displaced. `answered` and `displaced`
+ * only mark which: nothing reads what they hold.
  */
 export type CommandNotes =
   | { readonly answered: object }
@@ -81,6 +83,7 @@ export type CommandNotes =
   | {
       readonly step: { readonly verb: { readonly library: string; readonly name: string } } | null;
       readonly drawn: { readonly among: number } | null;
+      readonly passes: number;
     };
 
 /** A command turn: committed, or faulted with the world's `fault` told to the one who typed. */
