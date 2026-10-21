@@ -86,7 +86,7 @@ static size_t typed(const char *line, sprout_str *out) {
 }
 
 static void a_holder_word_is_one_word_or_out_of_and_is_counted_where_it_stands(void) {
-  sprout_str words[8];
+  sprout_str words[12];
   size_t count = typed("all out of the sack from off in on", words);
   CHECK_INT(parse_holder_word_at(words, count, 0), 0);
   CHECK_INT(parse_holder_word_at(words, count, 1), 2);
