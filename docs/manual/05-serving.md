@@ -44,9 +44,9 @@ Everything else in the config is optional:
 | `blessed_libraries` | the hashes of the libraries whose source does not count against a world's caps | the standard library's |
 
 The server keeps its worlds in memory: a restart starts them again. It
-installs the `media` extension and no other, and a config with an
-`[extensions]` table is refused. A problem with the config is named by
-its line and key, and the server does not start.
+installs the `media` extension and no other, and a config that names an
+extension under `[extensions]` is refused. A problem with the config is
+named by its line and key, and the server does not start.
 
 ### Changing a world while it runs
 
