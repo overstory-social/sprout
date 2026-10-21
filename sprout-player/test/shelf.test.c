@@ -5,10 +5,16 @@
  * last; the wheel turns with the d-pad and the crank, a step as the crank passes halfway, ticking
  * and settling with a clack, and wraps through "more worlds..."; a world refused at its open keeps
  * the reason on the shelf, greyed, the reason on the panel; a world whose save could not be written
- * is greyed until a save of it succeeds; the wheel's labels go when the shelf's screen does.
+ * is greyed until a save of it succeeds; the wheel's labels go when the shelf's screen does. Of
+ * the builds of one world, one title and author, only the newest is a word, by the ranking the
+ * download screen uses (newest.h), and the first in path order among equals; the others stay on
+ * disk, still on the shelf to the download screen, and a newest refused at its open stays the
+ * word, greyed; a world by another author is a word of its own.
  */
 #include <stdlib.h>
 
+#include "host/pd_host.h"
+#include "inflate.h"
 #include "support.h"
 #include "ui/app.h"
 #include "ui/message.h"
@@ -252,6 +258,184 @@ static void a_titled_world_is_shown_by_its_title_from_the_shelf_to_the_reader(vo
   end();
 }
 
+/* ---- builds of one world ---- */
+
+/* `bytes` as one gzip member of stored blocks, into `out`, which has room for `length` and 5 bytes a block and 18 more. */
+static size_t gzip_stored(const unsigned char *bytes, size_t length, unsigned char *out) {
+  static const unsigned char HEADER[10] = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff};
+  uint32_t crc = sprout_crc32(0, bytes, length);
+  size_t at = sizeof HEADER, done = 0, i;
+  memcpy(out, HEADER, sizeof HEADER);
+  do {
+    size_t block = length - done < 65535 ? length - done : 65535;
+    out[at++] = done + block == length ? 1 : 0;
+    out[at++] = (unsigned char)(block & 0xff);
+    out[at++] = (unsigned char)(block >> 8);
+    out[at++] = (unsigned char)(~block & 0xff);
+    out[at++] = (unsigned char)((~block >> 8) & 0xff);
+    memcpy(out + at, bytes + done, block);
+    at += block;
+    done += block;
+  } while (done < length);
+  for (i = 0; i < 4; i++) out[at++] = (unsigned char)((crc >> (8 * i)) & 0xff);
+  for (i = 0; i < 4; i++) out[at++] = (unsigned char)(((uint32_t)length >> (8 * i)) & 0xff);
+  return at;
+}
+
+/* Overwrites the first `from` in `text` with `to`, of the same length; whether there was one. */
+static bool overwrite(char *text, const char *from, const char *to) {
+  char *at = strstr(text, from);
+  CHECK(at != NULL && strlen(from) == strlen(to), "the teashop's header has %s", from);
+  if (at == NULL || strlen(from) != strlen(to)) return false;
+  memcpy(at, to, strlen(to));
+  return true;
+}
+
+static uint32_t word_at(const unsigned char *bytes) {
+  return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
+}
+
+static void put_word(unsigned char *bytes, size_t value) {
+  size_t i;
+  for (i = 0; i < 4; i++) bytes[i] = (unsigned char)((value >> (8 * i)) & 0xff);
+}
+
+/*
+ * Writes to `path` under the Data folder a build of the packed teashop (version 0.1.0 by Ada) whose
+ * manifest says `version` and `author`, the same lengths as those, and whose bundle hash begins
+ * with `digit`, so that each build is a world of its own to the session.
+ */
+static void build_of(const char *path, const char *version, const char *author, char digit) {
+  char from[1200], to[1200], field[64];
+  FILE *file;
+  long size;
+  unsigned char *cartridge = NULL, *gzipped = NULL;
+  char *body = NULL;
+  size_t body_bytes = 0, assets_at, gzipped_bytes;
+  const char *why = NULL;
+  player_host host;
+  sprout_arena arena;
+  player_host_init(&host, &fake->api);
+  sprout_arena_init(&arena, &host.record);
+  snprintf(from, sizeof from, "%s/teashop.sproutworld", PLAYER_CARTRIDGES);
+  snprintf(to, sizeof to, "mkdir -p '%s/worlds'", fake->data);
+  CHECK(system(to) == 0, "%s", to);
+  snprintf(to, sizeof to, "%s/%s", fake->data, path);
+  file = fopen(from, "rb");
+  CHECK(file != NULL, "%s", from);
+  if (file == NULL) return;
+  fseek(file, 0, SEEK_END);
+  size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  cartridge = (unsigned char *)malloc((size_t)size);
+  CHECK(fread(cartridge, 1, (size_t)size, file) == (size_t)size, "reading %s", from);
+  fclose(file);
+  assets_at = word_at(cartridge + 16);
+  CHECK(sprout_gunzip(&arena, cartridge + 24, assets_at - 24, &body, &body_bytes, &why) == SPROUT_OK, "%s", why);
+  snprintf(field, sizeof field, "\"version\":\"%s\"", version);
+  if (body != NULL && overwrite(body, "\"version\":\"0.1.0\"", field)) {
+    snprintf(field, sizeof field, "\"author\":\"%s\"", author);
+    overwrite(body, "\"author\":\"Ada\"", field);
+    snprintf(field, sizeof field, "\"hash\":\"%c", digit);
+    overwrite(body, "\"hash\":\"2", field);
+    gzipped = (unsigned char *)malloc(body_bytes + 5 * (body_bytes / 65535 + 1) + 18);
+    gzipped_bytes = gzip_stored((const unsigned char *)body, body_bytes, gzipped);
+    put_word(cartridge + 16, 24 + gzipped_bytes);
+    file = fopen(to, "wb");
+    CHECK(file != NULL, "%s", to);
+    if (file != NULL) {
+      fwrite(cartridge, 1, 24, file);
+      fwrite(gzipped, 1, gzipped_bytes, file);
+      fwrite(cartridge + assets_at, 1, (size_t)size - assets_at, file);
+      fclose(file);
+    }
+  }
+  free(gzipped);
+  free(cartridge);
+  sprout_arena_reset(&arena);
+}
+
+/* The path of the world entry `n` of the shelf is, or "". */
+static const char *path_of(size_t n) { return n < app->shelf->count ? app->shelf->entries[n].path : ""; }
+
+static void of_two_builds_of_one_world_the_wheel_shows_the_newer(void) {
+  static const char *const shipped[] = {"printers_shop.sproutworld"};
+  int arrangement;
+  /* The newer build last in path order, then first, so neither the path nor the order found decides. */
+  for (arrangement = 0; arrangement < 2; arrangement++) {
+    const char *newer = arrangement == 0 ? "worlds/teashop-b.sproutworld" : "worlds/teashop-a.sproutworld";
+    const char *older = arrangement == 0 ? "worlds/teashop-a.sproutworld" : "worlds/teashop-b.sproutworld";
+    begin(arrangement == 0 ? "newer-last" : "newer-first");
+    app_folder("app");
+    ship(shipped, 1);
+    build_of(older, "0.9.0", "Ada", '3');
+    build_of(newer, "1.0.0", "Ada", '4');
+    start();
+    fake_frame(fake, 0, 0);
+    CHECK(app->shelf->count == 2 && app->shelf->held == 3, "three cartridges, two worlds: %zu of %zu", app->shelf->count,
+          app->shelf->held);
+    CHECK(strcmp(word(0), "Printers Shop") == 0 && strcmp(word(1), "Teashop") == 0 &&
+              strcmp(word(2), "more worlds...") == 0 && fake->placed_count == 3,
+          "the teashop is one word: %s, %s, %s", word(0), word(1), word(2));
+    CHECK(strcmp(path_of(1), newer) == 0, "the word is the newer build: %s", path_of(1));
+    CHECK(exists(older), "the older build stays on disk");
+    fake_frame(fake, kButtonDown, 0);
+    fake_frame(fake, kButtonA, 0);
+    CHECK(strcmp(app->shelf->opened, newer) == 0, "A opens the newer build: %s", app->shelf->opened);
+    player_app_free(app);
+    end();
+  }
+}
+
+static void an_outranked_build_is_held_and_a_refused_newest_is_not_shown_through(void) {
+  const shelf_entry *outranked;
+  begin("outranked");
+  app_folder("app");
+  build_of("worlds/teashop-a.sproutworld", "0.9.0", "Ada", '3');
+  build_of("worlds/teashop-b.sproutworld", "1.0.0", "Ada", '4');
+  start();
+  fake_frame(fake, 0, 0);
+  outranked = app->shelf->held == 2 ? &app->shelf->entries[1] : NULL;
+  CHECK(outranked != NULL && strcmp(outranked->path, "worlds/teashop-a.sproutworld") == 0, "the older build is held, unlisted");
+  CHECK(outranked != NULL && player_shelf_holds(app->shelf, outranked->hash),
+        "an outranked build counts as on the shelf, so the download screen does not offer it again");
+  player_shelf_refuse(app->shelf, "worlds/teashop-b.sproutworld", "Refused.");
+  player_shelf_list(app);
+  fake_frame(fake, 0, 0);
+  CHECK(app->shelf->count == 1 && strcmp(path_of(0), "worlds/teashop-b.sproutworld") == 0 && greyed(0),
+        "the newest, refused at its open, stays the word, greyed: %s", path_of(0));
+  CHECK(strcmp(panel(), "Refused.") == 0, "with its reason: %s", panel());
+  player_app_free(app);
+  end();
+}
+
+static void of_builds_of_one_version_the_first_in_path_order_is_shown(void) {
+  begin("equal");
+  app_folder("app");
+  build_of("worlds/teashop-b.sproutworld", "0.1.0", "Ada", '3');
+  build_of("worlds/teashop-a.sproutworld", "0.1.0", "Ada", '4');
+  start();
+  fake_frame(fake, 0, 0);
+  CHECK(app->shelf->count == 1 && app->shelf->held == 2, "two cartridges, one world: %zu of %zu", app->shelf->count,
+        app->shelf->held);
+  CHECK(strcmp(path_of(0), "worlds/teashop-a.sproutworld") == 0, "the first found: %s", path_of(0));
+  player_app_free(app);
+  end();
+}
+
+static void a_world_of_one_title_by_another_author_is_a_word_of_its_own(void) {
+  begin("authors");
+  app_folder("app");
+  build_of("worlds/teashop-a.sproutworld", "0.1.0", "Ada", '3');
+  build_of("worlds/teashop-b.sproutworld", "0.2.0", "Bob", '4');
+  start();
+  fake_frame(fake, 0, 0);
+  CHECK(app->shelf->count == 2 && strcmp(word(0), "Teashop") == 0 && strcmp(word(1), "Teashop") == 0,
+        "two words: %zu, %s, %s", app->shelf->count, word(0), word(1));
+  player_app_free(app);
+  end();
+}
+
 int main(void) {
   test_program("shelf");
   the_shelf_lists_the_shipped_worlds_once_in_path_order();
@@ -261,5 +445,9 @@ int main(void) {
   a_world_whose_save_failed_is_greyed_until_a_save_is_written();
   a_world_is_titled_by_its_title_or_its_name_as_words();
   a_titled_world_is_shown_by_its_title_from_the_shelf_to_the_reader();
+  of_two_builds_of_one_world_the_wheel_shows_the_newer();
+  of_builds_of_one_version_the_first_in_path_order_is_shown();
+  an_outranked_build_is_held_and_a_refused_newest_is_not_shown_through();
+  a_world_of_one_title_by_another_author_is_a_word_of_its_own();
   return finish();
 }

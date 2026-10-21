@@ -3,9 +3,8 @@
  * accepted under the test key and lists its worlds; a byte changed after signing, another key,
  * no signature, text that is not an index, or one too large is refused in words with nothing
  * used; and an entry the signer vouched for that the app cannot use names its field. Of the builds
- * of one world (one title and author) only the newest is offered: the highest version by
- * semver.org's precedence, a number compared by value (0.10.0 is above 0.9.0), and the first
- * listed among equals (test/fixtures/builds.json, signed under the test key). An index
+ * of one world (one title and author) only the newest is offered, by the ranking of newest.h, and
+ * the first listed among equals (test/fixtures/builds.json, signed under the test key). An index
  * `sprout index` wrote (PLAYER_SIGNED_INDEX, under the key PLAYER_SIGNED_INDEX_KEY names) is
  * accepted, and each cartridge beside it is named as the app names a download and is the size and
  * SHA-256 it lists.
@@ -172,56 +171,6 @@ static void only_the_newest_build_of_each_world_is_offered(void) {
   free(builds);
 }
 
-/* An index, under no signature, of two builds of one world at versions `first` and `second`; which was offered. */
-static const char *newer_of(const char *first, const char *second) {
-  static char text[1024];
-  static const char ENTRY[] = "{\"title\":\"Moss\",\"author\":\"Bo\",\"version\":\"%s\",\"bytes\":1,\"hash\":\"%064d\","
-                              "\"sha256\":\"%064d\",\"url\":\"%s\"}";
-  char one[400], two[400];
-  player_index read;
-  snprintf(one, sizeof one, ENTRY, first, 0, 0, "first");
-  snprintf(two, sizeof two, ENTRY, second, 0, 0, "second");
-  snprintf(text, sizeof text, "{\"worlds\":[%s,%s],\"signed\":\"00\"}", one, two);
-  read = player_index_read(&arena, text, strlen(text), trusts_anything, NULL);
-  CHECK(read.ok && read.worlds->count == 1, "%s and %s are one world: %s", first, second, read.reason);
-  return url_of(&read, 0);
-}
-
-static void versions_are_ordered_part_by_part_as_semver_orders_them(void) {
-  static const char *const CASES[][3] = {
-      {"0.9.0", "0.10.0", "second"},
-      {"0.10.0", "0.9.0", "first"},
-      {"1.0.0", "0.99.99", "first"},
-      {"1.2.9", "1.10.0", "second"},
-      {"1.2.3", "1.2.10", "second"},
-      {"9.0.0", "12345678901234567890.0.0", "second"},
-      {"1.0.0-alpha", "1.0.0", "second"},
-      {"1.0.0", "1.0.0-rc.1", "first"},
-      {"1.0.0-alpha", "1.0.0-alpha.1", "second"},
-      {"1.0.0-alpha.1", "1.0.0-alpha.beta", "second"},
-      {"1.0.0-beta.2", "1.0.0-beta.11", "second"},
-      {"1.0.0-beta", "1.0.0-alpha.9", "first"},
-      {"1.0.0-rc.1", "1.0.0-RC.1", "first"},
-      {"0.1.0", "0.1.0", "first"},
-      {"1.0.0+build.1", "1.0.0+build.2", "first"},
-      {"1.0.0+b", "1.0.0", "first"},
-      {"not a version", "0.0.1", "second"},
-      {"01.0.0", "0.1.0", "second"},
-      {"1.0", "0.0.1", "second"},
-      {"1.0.0-", "0.0.1", "second"},
-      {"1.0.0-01", "0.0.1", "second"},
-      {"1..0", "1.0", "first"},
-  };
-  size_t i;
-  open_arena("versions");
-  for (i = 0; i < sizeof CASES / sizeof CASES[0]; i++) {
-    const char *offered = newer_of(CASES[i][0], CASES[i][1]);
-    CHECK(strcmp(offered, CASES[i][2]) == 0, "of %s then %s, the %s is offered, not the %s", CASES[i][0], CASES[i][1],
-          CASES[i][2], offered);
-  }
-  close_arena();
-}
-
 static void sizes_are_told_for_a_person(void) {
   char said[32];
   begin("sizes");
@@ -302,7 +251,6 @@ int main(void) {
   an_index_unsigned_unreadable_or_too_large_is_refused_in_words();
   a_signed_entry_the_app_cannot_use_names_its_field();
   only_the_newest_build_of_each_world_is_offered();
-  versions_are_ordered_part_by_part_as_semver_orders_them();
   sizes_are_told_for_a_person();
   if (published != NULL && published[0] != '\0')
     the_index_sprout_index_wrote_is_accepted_with_its_cartridges_beside_it(published, published_key == NULL ? "" : published_key);

@@ -110,3 +110,5 @@ than one build of a world, only the newest is offered; a world already on
 your shelf is shown in grey. If there is no Wi-Fi set up, you say no, or the
 server cannot be reached, the screen says so, **B** goes back, and your shelf
 is as it was. Worlds you download stay on the shelf, and so do their saves.
+When you download a newer version of a world you have, the shelf shows only
+the newer one; the older stays on your Playdate.

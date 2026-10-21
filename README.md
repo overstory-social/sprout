@@ -199,7 +199,7 @@ the device gives it. The app trusts the publisher's public half, `sprout-player/
 unless `SPROUT_INDEX_PUBLIC_KEY` names another at build, and fetches the index from sprout-studio's
 GitHub Pages, `PLAYER_INDEX_URL` in `sprout-player/src/ui/downloads.h`, unless the Data folder's
 `downloads.json` names another address. Of the builds an index lists under one title and author
-the app offers only the newest, by semver; a build already on the shelf is greyed. The first fetch
+the app offers only the newest, by semver, and the shelf lists its own cartridges the same way, the older builds of a world staying on disk unlisted; a build already on the shelf is greyed in the list. The first fetch
 asks the person's permission with the purpose the app states, through the console's own dialog.
 The design doc, [`docs/design/sprout-playdate.md`](docs/design/sprout-playdate.md), has the whole
 of it. For players, see the manual's [Playing on the Playdate](docs/manual/06-playdate.md).

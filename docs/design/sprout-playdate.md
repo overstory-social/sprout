@@ -760,7 +760,12 @@ whose save could not be written is greyed too, and A on it tries again. A
 long title is cut at the screen's edge. A world is shown by the title its
 manifest gives, which its cartridge's header carries, and otherwise by its
 name as words: `printers_shop` is shelved as `Printers Shop`. The loading
-line, the picker and the reader's first line call it the same. The last word, "more worlds…", opens the download screen.
+line, the picker and the reader's first line call it the same. Of several
+builds of one world, one title and author, only the newest is a word, ranked
+as the download screen ranks the index's builds (`src/newest.h`: the highest
+version by semver's precedence, the first in path order among equals); the
+others stay on disk, unlisted. A cartridge the engine refuses has no version
+the shelf can read, so it is a word of its own. The last word, "more worlds…", opens the download screen.
 
 ### Shipped worlds and downloads
 
@@ -843,7 +848,7 @@ them one hyphen, cut to its first 24 characters with a hyphen the cut leaves
 at the end dropped (`world` where nothing is left), and `<hash8>` is the
 first eight digits of the bundle hash, so two builds of one world sit side
 by side; a newer build does not replace or remove an older one, whose save
-would be orphaned. The index is read to at most 256 KB.
+would be orphaned, and the shelf lists only the newer. The index is read to at most 256 KB.
 
 The index address is `PLAYER_INDEX_URL` in `src/ui/downloads.h`,
 `https://overstory-social.github.io/sprout-studio/worlds/index.json`, where
