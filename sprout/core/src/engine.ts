@@ -143,8 +143,13 @@ export interface CommandLine {
 /** One world's engine, bound to its bundle and its host's budgets. */
 export interface Engine {
   command(stored: StoredState, command: Command): Step<GivenCommand>;
-  /** The commands `command`'s line runs, the first with its own seed and each after it with one from `seed`. */
-  line(command: Command, seed: () => number): CommandLine;
+  /**
+   * The commands `command`'s line runs, the first with its own seed and each
+   * after it with one from `seed`, each at the instant `now` gives when it is
+   * handed out, so time a turn asked to pass is passed before the next
+   * (the spec's Time › Passing time); every one at `command.now` where none is given.
+   */
+  line(command: Command, seed: () => number, now?: () => number): CommandLine;
   tick(stored: StoredState, tick: Tick): Step<GivenTick>;
   wake(stored: StoredState, wake: Wake): Step<GivenWake>;
   maintenance(stored: StoredState, inputs: WriteInputs): Step<GivenCommitted>;

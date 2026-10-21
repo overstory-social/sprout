@@ -182,4 +182,16 @@ verb await { role target  "wait for [target]" }
     ]);
     expect(stage.now).toBe(1800);
   });
+
+  it('runs the line’s next turn at the instant the time passed to', () => {
+    const stage = freshStage(bundleOf('well', WELL), { longestPassSeconds: 1800 });
+    arrive(stage, 'Marta');
+    playStep(stage, { as: 'Marta', type: 'wait for bucket. hoist bucket' }, 's');
+    expect(stage.now).toBe(1800);
+    const made = playStep(stage, { advance: '20 minutes' }, 's')!;
+    expect(made.map((one) => one.text)).toEqual([
+      'bottom.bucket woke, 1200 seconds after it asked',
+      'Marta (told): Down it comes.',
+    ]);
+  });
 });

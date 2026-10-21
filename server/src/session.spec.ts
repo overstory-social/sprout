@@ -119,7 +119,7 @@ describe('a frame', () => {
     expect(connection.sent.filter((one) => (one as { t: string }).t === 'record')).toEqual([
       expect.objectContaining({
         level: 'info',
-        text: "passes: none of the 3600 seconds asked, since this host's clock is the wall's",
+        text: "passes: none of 3600 seconds, the command's ask up to the longest pass, since this host's clock is the wall's",
       }),
     ]);
     expect(sent).toContain('You settle down to wait for the bucket.');

@@ -184,7 +184,7 @@ export function wasmEngine(host: WasmEngineHost): Engine {
       throw unexpected(told, 'command');
     },
 
-    line: (command, seed): CommandLine => {
+    line: (command, seed, now = () => command.now): CommandLine => {
       let number: number | null = null;
       let first = true;
       const made = (handed: LineCommand | null, nextSeed: number): Command | null => {
@@ -195,7 +195,7 @@ export function wasmEngine(host: WasmEngineHost): Engine {
           text: handed.text,
           seed: nextSeed,
           mayHold: command.mayHold,
-          now: command.now,
+          now: now(),
         };
         handedOut.set(one, handed);
         return one;

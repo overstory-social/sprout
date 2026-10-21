@@ -323,6 +323,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
   const line = stage.engine.line(
     { ...inputs(stage), visit, text },
     () => (seed = (seed + 1) % (SEED_MAX + 1)),
+    () => stage.now,
   );
   let previous: GivenCommand | null = null;
   for (let typed = line.next(null); typed !== null; typed = line.next(previous)) {
