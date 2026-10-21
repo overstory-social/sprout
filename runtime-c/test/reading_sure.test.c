@@ -3,12 +3,13 @@
  * poll runs no `do`, so it reads them. The first `move` written directly in a play's `do`, between names that
  * play's frame binds, is the move it is sure to propose: read across a reading's plays in the effect pass's
  * order it greys an offer that would put a thing inside itself with the engine's `inside_itself`, and read in the
- * actor's own plays it says which roles move their filler. Each play read is a step, and each container climbed
- * another.
+ * actor's own plays it says which roles move their filler, and which move it away from the actor (asked of the
+ * corpus world `drop-all-on`). Each play read is a step, and each container climbed another.
  */
 #include "expr/expr.h"
 #include "offers.h"
 #include "reading/reading.h"
+#include "parse_fixture.h"
 #include "view_fixture.h"
 
 typedef struct sure_case {
@@ -123,6 +124,31 @@ static void a_role_the_actors_play_leaves_alone_is_not_moved(void) {
   sure_close(&k);
 }
 
+/* Whether the actor's own play in `verb` of `library`, in the bench's world, moves `role`'s filler away from the actor. */
+static bool moved_away(bench *b, const char *library, const char *verb, const char *role) {
+  bool away = false;
+  CHECK_INT(sprout_moves_its_filler_away(&b->frame, bench_verb(b, library, verb), bench_role(b, library, verb, role),
+                                         b->actor, &away),
+            SPROUT_EVAL_OK);
+  return away;
+}
+
+static void a_move_to_a_name_other_than_the_actor_takes_the_filler_away_and_one_to_self_or_actor_does_not(void) {
+  bench b;
+  bench_open(&b, "drop-all-on", "Marta");
+  /* `move target to here`, `move item to container`, `move item to surface`. */
+  CHECK(moved_away(&b, "sprout", "drop", "target"));
+  CHECK(moved_away(&b, "sprout", "put", "item"));
+  CHECK(moved_away(&b, "sprout", "put_on", "item"));
+  /* `move target to self`, and the world's `move thing to actor`. */
+  CHECK(!moved_away(&b, "sprout", "take", "target"));
+  CHECK(!moved_away(&b, "drop_all_on", "hold", "thing"));
+  /* A role no move takes, and a role the move does not name. */
+  CHECK(!moved_away(&b, "sprout", "examine", "target"));
+  CHECK(!moved_away(&b, "sprout", "put_on", "surface"));
+  bench_close(&b);
+}
+
 static void a_budget_spent_reading_plays_faults_as_any_work_does(void) {
   sure_case k;
   sprout_permit_refusal refusal;
@@ -141,6 +167,7 @@ int main(void) {
   RUN(each_play_read_and_each_container_climbed_is_a_step);
   RUN(the_actors_own_play_says_which_role_it_moves_its_filler_into);
   RUN(a_role_the_actors_play_leaves_alone_is_not_moved);
+  RUN(a_move_to_a_name_other_than_the_actor_takes_the_filler_away_and_one_to_self_or_actor_does_not);
   RUN(a_budget_spent_reading_plays_faults_as_any_work_does);
   return REPORT();
 }

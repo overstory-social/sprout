@@ -4,7 +4,8 @@
  * written directly in a `do`, between names that play's frame binds, is the move it is sure to
  * propose. Read across a reading's plays in the effect pass's order, it greys an offer that would put
  * a thing inside itself with the engine's `inside_itself`; read in the actor's own plays, it says
- * which roles move their filler, which the view never fills with the actor's own place. Each play
+ * which roles move their filler, which the view never fills with the actor's own place, and which move
+ * it away from the actor, where `in` and `on` after `all` say where it goes. Each play
  * read is a step, and each container climbed another.
  */
 #include <string.h>
@@ -112,18 +113,40 @@ sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *fram
   return SPROUT_EVAL_OK;
 }
 
-sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
-                                           sprout_str actor, bool *moves) {
+/* The first sure move of one of `actor`'s own plays in `verb` that moves what fills `role`; NULL where none does. */
+static sprout_eval_status filler_move(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                      sprout_str actor, const sprout_node **out) {
+  const sprout_graph *graph = &frame->world->graph;
   const sprout_stored_instance *self = expr_instance(frame, actor);
   const sprout_play_group *own = self == NULL ? NULL : sprout_own_plays(verb, "actor", self->kind);
   size_t i;
-  *moves = false;
-  for (i = 0; own != NULL && i < own->count && !*moves; i++) {
+  *out = NULL;
+  for (i = 0; own != NULL && i < own->count && *out == NULL; i++) {
     const sprout_node *move;
+    const char *thing;
     EXPR_NEED(expr_spend(frame));
-    move = sure_move(&frame->world->graph, &own->plays[i]);
-    *moves = move != NULL && lone_name(&frame->world->graph, sprout_node_get(&frame->world->graph, move, "thing")) != NULL &&
-             strcmp(lone_name(&frame->world->graph, sprout_node_get(&frame->world->graph, move, "thing")), role->name) == 0;
+    move = sure_move(graph, &own->plays[i]);
+    thing = move == NULL ? NULL : lone_name(graph, sprout_node_get(graph, move, "thing"));
+    if (thing != NULL && strcmp(thing, role->name) == 0) *out = move;
   }
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                           sprout_str actor, bool *moves) {
+  const sprout_node *move;
+  EXPR_NEED(filler_move(frame, verb, role, actor, &move));
+  *moves = move != NULL;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_moves_its_filler_away(const sprout_frame *frame, const sprout_verb *verb,
+                                                const sprout_role *role, sprout_str actor, bool *away) {
+  const sprout_graph *graph = &frame->world->graph;
+  const sprout_node *move;
+  const char *to;
+  EXPR_NEED(filler_move(frame, verb, role, actor, &move));
+  to = move == NULL ? NULL : lone_name(graph, sprout_node_get(graph, move, "destination"));
+  *away = to != NULL && strcmp(to, "self") != 0 && strcmp(to, "actor") != 0;
   return SPROUT_EVAL_OK;
 }

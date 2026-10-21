@@ -2,7 +2,7 @@
  * Tests for src/parse/all.c: `all` and `except` in a slot (the spec's Parsing > Sequences, again and all), read in
  * the corpus worlds `grammar` (the study), `all-in-order` (a hall where one
  * kind plays `examine`'s target and a world verb's, and one plays nothing) and `all-narrowed` (a table and a sack
- * holding things, for `all` before a noun or a holder).
+ * holding things, for `all` before a noun or a holder, and `drop` and `put`, which take their things from the actor).
  */
 #include "parse_fixture.h"
 
@@ -345,6 +345,39 @@ static void a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_ho
   bench_close(&t.b);
 }
 
+static void in_and_on_say_where_the_things_go_in_a_role_the_visitor_carries_and_are_not_all(void) {
+  taking t;
+  bool is_all;
+  parse_filled filled;
+  sprout_role carried;
+  open_tea_room(&t);
+  /* The actor's `move target to here` takes drop's target from them, so neither word is a holder there. */
+  filled = all_in(&t, "all on the table", "sprout", "drop", "target", 20, &is_all);
+  CHECK(is_all && filled.fills == PARSE_FILLS_UNFIT && !filled.narrowed);
+  filled = all_in(&t, "all in the sack", "sprout", "drop", "target", 20, &is_all);
+  CHECK_INT(filled.fills, PARSE_FILLS_UNFIT);
+  /* And `move item to container` put's item. */
+  filled = all_in(&t, "all cakes on the table", "sprout", "put", "item", 20, &is_all);
+  CHECK_INT(filled.fills, PARSE_FILLS_UNFIT);
+  /* `from`, `off` and `out of` still say what holds them. */
+  filled = all_in(&t, "all from the table", "sprout", "drop", "target", 20, &is_all);
+  CHECK(filled.narrowed);
+  CHECK_STR(taken(&filled), "orange_cake red_cake cup napkin");
+  filled = all_in(&t, "all off the table except the cup", "sprout", "drop", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "orange_cake red_cake napkin");
+  /* `move target to self` brings take's target to the actor, so `on` there still says what holds them. */
+  filled = all_in(&t, "all on the table", "sprout", "take", "target", 20, &is_all);
+  CHECK_STR(taken(&filled), "orange_cake red_cake cup napkin");
+  /* A carried role, whatever its verb moves, reads neither word as a holder. */
+  carried = *bench_role(&t.b, "sprout", "take", "target");
+  carried.carried = true;
+  CHECK_INT(parse_all_in(&t.all, bench_words(&t.b, "all on the table"), &carried, bench_verb(&t.b, "sprout", "take"),
+                         &is_all, &filled),
+            SPROUT_EVAL_OK);
+  CHECK_INT(filled.fills, PARSE_FILLS_UNFIT);
+  bench_close(&t.b);
+}
+
 int main(void) {
   RUN(everything_is_all_with_except_after_it_and_each_is_neither);
   RUN(words_that_do_not_begin_with_all_or_a_value_role_are_read_as_any_slot);
@@ -360,5 +393,6 @@ int main(void) {
   RUN(a_noun_after_all_keeps_what_it_names_as_a_plural_or_as_typed_or_by_its_kind);
   RUN(a_noun_after_all_that_names_nothing_is_the_noun);
   RUN(a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_holds_nothing);
+  RUN(in_and_on_say_where_the_things_go_in_a_role_the_visitor_carries_and_are_not_all);
   return REPORT();
 }

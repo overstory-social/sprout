@@ -174,6 +174,7 @@ describe('every file in the bundle is read', () => {
       'take',
       'drop',
       'put',
+      'put_on',
       'give',
       'Actor',
       'Visitor',

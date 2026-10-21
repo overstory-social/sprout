@@ -4,7 +4,9 @@
  * role of a kind what composes it; an engine verb's open role, and an open role only the actor plays, every thing
  * that is not a person and not the actor's own place; any other open role what plays a part in the verb. A noun
  * after `all` keeps only what it names, by a noun or a kind's name, its last word read as a plural too; `from`,
- * `off`, `out of`, `in` or `on` and a noun keep only what a thing it names directly holds. `except` leaves out each
+ * `off`, `out of`, `in` or `on` and a noun keep only what a thing it names directly holds, though `in` and `on` are not
+ * read so in a role whose things the visitor carries, a carried role or one the actor's own sure move takes from
+ * them, where they say where the things go. `except` leaves out each
  * thing a noun after it names (only those whose whole name it is, where any is), and every thing of a kind it names.
  * A set role takes them all at once, capped at a set role's figure; a role that takes one thing takes each in turn,
  * in the order reached, which the readings cap once the refused are left out.
@@ -191,6 +193,15 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
   for (holder = 1; holder < except; holder++) {
     holder_words = parse_holder_word_at(words.words, except, holder);
     if (holder_words > 0) break;
+  }
+  /* In a role whose things the visitor carries, `in` or `on` says where they go, which this slot does not read. */
+  if (holder < except && (parse_is(words.words[holder], "in") || parse_is(words.words[holder], "on"))) {
+    bool away = role->carried;
+    if (!away) EXPR_NEED(sprout_moves_its_filler_away(frame, verb, role, context->actor, &away));
+    if (away) {
+      out->fills = PARSE_FILLS_UNFIT;
+      return SPROUT_EVAL_OK;
+    }
   }
   if (holder > 1) {
     parse_words noun = slice(words, 1, holder);

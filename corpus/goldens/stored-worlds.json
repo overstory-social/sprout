@@ -32,6 +32,7 @@
 "descriptions":{"world":"descriptions","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "destroy-declared":{"world":"destroy_declared","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "dotted-paths":{"world":"dotted_paths","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"drop-all-on":{"world":"drop_all_on","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "drop-here":{"world":"drop_here","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "embedded-passage":{"world":"embedded_passage","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "engine_lines":{"world":"engine_lines","serial":0,"instances":[],"visitors":[],"tombstones":[]},

@@ -1,0 +1,13 @@
+import * as sprout from 'sprout'
+
+// A verb whose actor brings the thing to itself by writing `actor`, so `on`
+// after `all` there still says what holds the things.
+verb hold { role thing  "hold [thing]" }
+
+kind Holder is sprout.Actor {
+  as actor for hold {
+    do { move thing to actor  say "You hold {thing}." }
+  }
+}
+
+kind Person is Holder, sprout.Visitor { }

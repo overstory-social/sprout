@@ -160,7 +160,8 @@ A few more things worth knowing:
   salt and pepper shaker", still names the one thing.
 - **`all` and `except`.** `take all`, `drop all except the lamp`. `all`
   takes a noun, `take all cakes`, and what holds the things, `take all
-  from the table`, `off` it, `out of` it, `in` it or `on` it.
+  from the table`, `off` it, `out of` it, `in` it or `on` it. What you
+  put down goes where you say: `drop all on the table`.
 - **Where a line could mean two things,** the world picks the likelier.
   If it is still a toss-up, it picks one and tells you which, "(A brass
   key)", before it acts.

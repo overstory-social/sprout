@@ -35,6 +35,7 @@ describe('the standard library as the skill describes it', () => {
       'take',
       'drop',
       'put',
+      'put_on',
       'give',
       'open',
       'close',

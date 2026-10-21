@@ -201,7 +201,10 @@ function editsOf(catalogue) {
   if (holding !== undefined) {
     edits.push(['a destroyed declared object', fresh(0, [], [], [holding.id])]);
   }
-  edits.push(['a declared object the world does not declare', fresh(0, [{ id: `${world}.no_such_object` }])]);
+  edits.push([
+    'a declared object the world does not declare',
+    fresh(0, [{ id: `${world}.no_such_object` }]),
+  ]);
   if (first !== undefined) {
     edits.push([
       'a property the kind does not hold',
@@ -234,7 +237,9 @@ function editsOf(catalogue) {
   if (typed !== undefined) {
     edits.push([
       'a value not of its type',
-      fresh(0, [{ id: typed.id, properties: { [typed.property.name]: wrongTyped(typed.property.type) } }]),
+      fresh(0, [
+        { id: typed.id, properties: { [typed.property.name]: wrongTyped(typed.property.type) } },
+      ]),
     ]);
     edits.push([
       'a property at its default',
@@ -247,12 +252,15 @@ function editsOf(catalogue) {
     ]);
   }
   const ranged = plain.find(
-    ({ property }) => property.type.type === 'integer' && property.type.max < Number.MAX_SAFE_INTEGER,
+    ({ property }) =>
+      property.type.type === 'integer' && property.type.max < Number.MAX_SAFE_INTEGER,
   );
   if (ranged !== undefined) {
     edits.push([
       'an integer past its range',
-      fresh(0, [{ id: ranged.id, properties: { [ranged.property.name]: ranged.property.type.max + 1 } }]),
+      fresh(0, [
+        { id: ranged.id, properties: { [ranged.property.name]: ranged.property.type.max + 1 } },
+      ]),
     ]);
   }
   const listed = plain.find(({ property }) => property.type.type === 'list');
@@ -346,13 +354,15 @@ async function views(scratch) {
   await packCorpus(scratch);
   // An arrival is polled under the host's own figures, which `sproutc` and the engine both start from.
   const limits = held.corpus[0].limits;
-  const corpus = corpusWorlds().map((name) => {
+  // A world that refuses the arrival, as `capacity-arrival` does on purpose, has no visitor to poll.
+  const corpus = corpusWorlds().flatMap((name) => {
     const cartridge = join(scratch, `${name}.sproutworld`);
     const engine = new WasmInstance(shippedModule());
     engine.load(readFileSync(cartridge));
     engine.budgets(DEFAULT_LIMITS.budgets, DEFAULT_LIMITS.caps.listElements);
     engine.openEmpty(readCartridge(readFileSync(cartridge)).header.namespace);
-    engine.arrive('inspector', 'Inspector', { seed: 0, now: 0 });
+    if (engine.arrive('inspector', 'Inspector', { seed: 0, now: 0 }).result === 'refused')
+      return [];
     const state = engine.save();
     return {
       world: name,

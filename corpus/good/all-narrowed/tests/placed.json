@@ -1,0 +1,30 @@
+{
+  "about": "`on` after `all` in a role the actor gives up says where the things go, not what holds them: the table here is no container, so `drop all on the table`, the cakes in hand, is answered as `drop [item] on [surface]` read in part, never `not_here`; `drop all from the table` still narrows.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the tea room." }
+    ] },
+    { "as": "Marta", "type": "take all cakes", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a blue cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." }
+    ] },
+    { "as": "Marta", "type": "drop all on the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You can't drop the berry on the table." }
+    ] },
+    { "as": "Marta", "type": "drop all from the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "drop all", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a blue cake down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put an orange cake down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a red cake down." }
+    ] }
+  ]
+}
