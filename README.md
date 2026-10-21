@@ -78,7 +78,7 @@ cli/src           the `sprout` command: scaffold and check, pack, the inspectors
 editors/language-server  the language server: the whole world checked as it is edited, and hover, go-to-definition and completion
 editors/vscode    the VS Code extension: TextMate grammars for `.sprout` and `.prose`, generated from the compiler's reserved words, and the language server's client
 runtime-c/        the C11 runtime that runs a cartridge (`sprout pack`): loading, the stored world, evaluation, readings, prose, the view and the six turn kinds, each module with its `.test.c`; `host/`, the desktop host `sproutc` (`play`, `view`, `eval`); built by CMake and ctest; and `wasm/`, the runtime built for WebAssembly (`build.sh`): `engine.wasm` from the modules of `engine/`, one world per instance driven from JavaScript (`@overstory/sprout-engine-wasm`, checked by `engine.test.mjs`), and `sproutc` under Node's WASI (`sproutc-wasi.mjs`)
-sprout-player/    the Playdate app, pure C over the C runtime: the session and its saves, the signed index and its Ed25519 check, the host adapter (`src/host`: files, the network, the frame's stack) and the screens (`src/ui`: shelf, arrival, nickname picker, reader, the disc of words and the crank sentence builder, pictures, downloads, text size, messages); built by CMake against the Playdate SDK, with C tests over a fake `PlaydateAPI`; `worlds/` holds the pinned snapshot of a studio world and `worlds.json` lists what the build packs
+sprout-player/    the Playdate app, pure C over the C runtime: the session and its saves, the signed index and its Ed25519 check, the host adapter (`src/host`: files, the network, the frame's stack) and the screens (`src/ui`: shelf, arrival, nickname picker, reader, the disc of words and the crank sentence builder, pictures, downloads, text size, messages); built by CMake against the Playdate SDK, with C tests over a fake `PlaydateAPI`; `worlds/` holds the pinned snapshot of a studio world and `worlds.json` lists what the build ships and what the gate only checks
 scripts/          the gate's and the e2e's steps: `check-conflicts.mjs`, `check-corpus.mjs`, `check-transcripts.mjs`, `check-tests.mjs`, `check-runtime-c.mjs` (build, ctest, the WebAssembly engine against the goldens, the player), `e2e.sh`; and the tools: `write-goldens.mjs`, `profile-runtime-c.mjs`, `profile-wasm.mjs`, `pin-standard-library.mjs`, `generate-prose-unicode.mjs`, `sync-world.mjs`, `playdate-sdk.sh`, `playdate-pdc-wsl.sh`, `playdate-player.mjs`
 corpus/           worlds the gate checks: good ones pass, bad ones print exactly their page; `goldens/` are the fixtures the C tests replay; `skill/SKILL.md` is what `sprout skill` prints
 docs/manual/      the manual, for people playing and writing worlds
@@ -143,7 +143,7 @@ committed here), CMake, a C compiler, and the repository built (`npm ci && npm r
 
 ```sh
 export PLAYDATE_SDK_PATH="$(bash scripts/playdate-sdk.sh)"   # downloads, checks and unpacks the SDK once (Linux)
-npm run playdate                                             # builds the pdx, packs the graduated worlds into sprout-player/build/worlds/
+npm run playdate                                             # builds the pdx, packs the graduated worlds (Printer's Shop) into sprout-player/build/worlds/
 "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" sprout-player/build/sprout-player.pdx
 ```
 
@@ -181,14 +181,16 @@ The pdx carries no worlds. A cartridge made by `sprout pack` and copied into the
 (`Data/social.overstory.sprout-player/worlds/` on the console's data disk; in the Simulator,
 `$PLAYDATE_SDK_PATH/Disk/Data/social.overstory.sprout-player/worlds/`) shows on the shelf. The build
 packs the graduated worlds listed in `sprout-player/worlds.json` into `sprout-player/build/worlds/`
-for installing that way, today the worked microworld
-`printers_shop` and the studio's finished `underground_caverns`, a snapshot pinned in
-`sprout-player/worlds/underground_caverns/` whose `source.json` names the studio commit it was
-copied at (new content lands in sprout-studio; to release it into the Playdate build, run
+for installing that way, today the worked microworld `printers_shop` alone. The studio's
+`underground_caverns` is released through sprout-studio's index, not this build: `worlds.json` lists
+it under `testOnly`, worlds the gate packs and checks but the build never ships, and keeps a
+snapshot of it pinned in `sprout-player/worlds/underground_caverns/` whose `source.json` names the
+studio commit it was copied at (to refresh it, run
 `node scripts/sync-world.mjs underground_caverns <path to a sprout-studio checkout>` by hand and
-read the diff; the build never reads outside this repository); a world may list `plays`, scripts under its folder the
-build plays through `sproutc` with the view polled first under the app's poll budget, so the build
-never packs a world its sentence builder cannot play to the end (the caverns' walkthrough is one).
+read the diff; the build never reads outside this repository). A world on either list may list
+`plays`, scripts under its folder the gate plays through `sproutc` with the view polled first under
+the app's poll budget, so the gate fails on a world its sentence builder cannot play to the end
+(the caverns' walkthrough is one).
 
 The shelf's last row fetches more worlds from a **signed index**. `sprout keygen <prefix>` makes
 the publisher's key pair, whose private half never enters this repository; `sprout index <folder>
