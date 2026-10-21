@@ -607,6 +607,7 @@ export async function checkPlayer({ sanitize = false, signed } = {}) {
       'pictures',
       'sound',
       'canonical',
+      'newest',
       'signed_index',
       'shelf',
       'nickname',

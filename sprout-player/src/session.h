@@ -35,6 +35,7 @@ typedef struct player_opening {
   size_t read, counted;    /* step: bytes of the body inflated so far, of all there are */
   const char *name, *hash; /* the world's name and bundle hash: inspect and open when ok, step once done */
   const char *title;       /* with the name: the title its manifest gives, or NULL where it gives none */
+  const char *author, *version; /* inspect when ok: the manifest's, which tell its builds apart (newest.h) */
   size_t word_count;
   const char *const *words; /* step once done: the words the world reads, which no nickname may be */
   const char *reason;

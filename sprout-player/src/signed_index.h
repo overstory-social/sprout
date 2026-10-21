@@ -5,9 +5,7 @@
  * is used before that signature verifies against the key baked into the app, and a world's bytes
  * are checked against the index's size and SHA-256 after they arrive. Which worlds an index lists
  * is the host's act (the spec's The host contract › Moderation and takedown). An index read offers
- * only the newest build of each world: of the builds with one title and author, the highest
- * version by semver.org's precedence (the spec's The manifest gives `version` as semver), and the
- * first listed among equals, since an index carries no publish order.
+ * only the newest build of each world, as newest.h ranks them, the first listed among equals.
  */
 #ifndef PLAYER_SIGNED_INDEX_H
 #define PLAYER_SIGNED_INDEX_H

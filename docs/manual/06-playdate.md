@@ -93,4 +93,6 @@ crank and press **A** to download it. The list is signed, so the app refuses
 one that has been changed on the way, and each world is checked before it
 joins your shelf. If there is no Wi-Fi set up, or the server cannot be
 reached, the screen says so, **B** goes back, and your shelf is as it was.
-Worlds you download stay on the shelf, and so do their saves.
+Worlds you download stay on the shelf, and so do their saves. When you
+download a newer version of a world you have, the shelf shows only the
+newer one; the older stays on your Playdate.
