@@ -18,6 +18,6 @@ the reference once you are writing worlds of your own.
 6. [Playing on the Playdate](06-playdate.md) — choose a name, build a
    sentence with the crank, and keep worlds on the console.
 
-Sprout is young. It is at version 0.1 and has not yet been published to
-npm, so for now you run it from a copy of this repository; the next
-chapter but one shows how.
+Sprout is young. It is at version 0.1, and the Sprout described here is
+not the one under that name on npm: for now you run it from a copy of
+this repository, which the next chapter but one shows how to set up.

@@ -19,7 +19,7 @@ This makes a folder called `teashop` with everything a world needs:
 
 ```text
 teashop/
-  sprout.json         the manifest: the world's name, author, and list of files
+  sprout.json         the manifest: the world's name, its title, author, and list of files
   teashop.sprout      the world itself
   person.sprout       what a visitor is
   tests/arrival.json  a first test
@@ -507,14 +507,14 @@ you the file, the line and the column, what is wrong, and what to write
 instead. Misspell the property in the teapot's `describe`:
 
 ```text
-teapot.sprout:11:18  `Teapot` has no `:brewd`. Did you mean `:brewed`?
+teapot.sprout:10:18  `Teapot` has no `:brewd`. Did you mean `:brewed`?
                      It has `:brewed`: name one of those, or declare `:brewd` in `Teapot` with its default.
 ```
 
 Or give it the wrong sort of value, `self.set(:brewed, "yes")`:
 
 ```text
-teapot.sprout:18:25  `:brewed` holds true or false, and "yes" is text in quotes.
+teapot.sprout:17:25  `:brewed` holds true or false, and "yes" is text in quotes.
                      Write `true` or `false`, or a condition, as in `self.get(:open)`.
 ```
 
@@ -533,8 +533,14 @@ Some tips:
   and hovering a name shows where it is declared.
 - **Import what a file uses.** A name another file declares, or the
   standard library's, needs an `import` at the top of the file that uses
-  it; the compiler says which one is missing and the line to write. And
-  every file is listed in `sprout.json`.
+  it; the compiler says which one is missing and the line to write:
+
+  ```text
+  teapot.sprout:13:17  `brew` is declared in `teashop.sprout`, and this file does not import it.
+                       Import it at the top of this file: `import {brew} from 'teashop'`.
+  ```
+
+  And every file is listed in `sprout.json`.
 
 ## What you have learned
 
