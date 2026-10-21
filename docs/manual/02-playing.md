@@ -6,10 +6,14 @@ that comes with it, a Victorian printer's shop.
 
 ## Setting up
 
-You need [Node.js](https://nodejs.org) version 22 or newer, and `git`.
+You need [Node.js](https://nodejs.org) version 22 or newer, `git`, and
+`clang` with its wasm32 target and `wasm-ld`, which build the engine every
+world runs on: install [wasi-sdk](https://github.com/WebAssembly/wasi-sdk/releases)
+25 or later and put its `bin/` folder first on your `PATH` (LLVM 18 or
+later with lld does as well). Without them the build stops and says so.
 
-Sprout has not been published to npm yet, so for now you get it by
-copying this repository and building it:
+The Sprout described here is not the one under that name on npm, so for
+now you get it by copying this repository and building it:
 
 ```sh
 git clone https://github.com/overstory-social/sprout.git
@@ -163,7 +167,7 @@ A few more things worth knowing:
   from the table`, `off` it, `out of` it, `in` it or `on` it. What you
   put down goes where you say: `drop all on the table`.
 - **Where a line could mean two things,** the world picks the likelier.
-  If it is still a toss-up, it picks one and tells you which, "(A brass
+  If it is still a toss-up, it picks one and tells you which, "(a brass
   key)", before it acts.
 - **You can only name what you can reach.** A key inside a shut cabinet
   cannot be named until the cabinet is open. If you ask for something
@@ -200,7 +204,7 @@ Marta> go out
 Flagstones, a water butt, and the press under its lean-to, which is the only thing out here anyone has ever been careful with.
 A wooden rib, a bone rib, the press,
 Marta> take rib
-(A wooden rib)
+(a wooden rib)
 You take a wooden rib.
 ```
 
@@ -342,8 +346,15 @@ writing one:
 
 Both take `--at` and `--as` like `play` does. A crowded room can offer
 so many commands that listing them all runs past the steps a poll may
-take, 10,000, and `view` then says the poll faulted; `--poll-steps 50000`
-lets it take more.
+take (10,000 unless the host says otherwise), and `view` then says the
+poll faulted and how to give it more: `--poll-steps 50000`. `view --scene`
+shows the room with the verbs on offer in place of every command, and
+`view --verb sprout.take` the commands of one verb, by its full name.
+
+`sprout play`, `test` and `view` take a world's folder; `play` and `test`
+also take a packed world, a `.sproutworld` file made by `sprout pack`,
+and `test` then needs its scripts named after it, since a cartridge
+carries no tests.
 
 ## Which engine runs the world
 

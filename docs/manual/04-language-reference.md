@@ -73,6 +73,7 @@ printers_shop/
 | field        | holds                                                                                          |
 | ------------ | ---------------------------------------------------------------------------------------------- |
 | `name`       | the world's name: lower case, letters, digits and `_`. The `world` declaration must repeat it. |
+| `title`      | optional; what a person is shown the world as, on a shelf or in a list: one line of at most 60 characters. Without it the name is shown as words, `printers_shop` as "Printers Shop". |
 | `namespace`  | optional; the namespace the world's own declarations live in. Defaults to `name`.              |
 | `version`    | this world's version, as [semver](https://semver.org).                                         |
 | `author`     | who made it, as free text.                                                                     |
@@ -164,12 +165,13 @@ other binding:
 
 ```text
 boolean integer string object symbol true false
-accept act actors after allow any are arrive article as at bound broadcast
-carried changed connect contains default depart describe destroy do each else
-enum exit finally for from grammar hours if in kind let link many max
-message min minutes move name nouns of on optional pass passage permit
-prose refuse release remembers roams role say seconds send spawn tell text to
-verb visitors wake when with without world
+accept act actors adjectives after allow along any are arrive article as at
+bound broadcast carried changed connect contains default depart describe
+destroy do each else enum exit finally for from grammar hours if import in
+intent kind let link lit many max message min minutes move name nouns of on
+optional pass passage permit pronouns prose refuse release remembers roams
+role say seconds send spawn tell text then to verb visitors wake when with
+without world
 ```
 
 In addition, no message or verb may be called `describe`, `depart`,
@@ -1490,7 +1492,7 @@ they run. The readings are ranked whole:
 Readings still tied are drawn with the dice, and the host logs the draw
 as a warning. Where the drawn reading names a thing its rivals did not,
 the visitor is first told which, through the world's `meant` passage:
-"(A wooden rib)". Things written exactly alike (same name, same article)
+"(a wooden rib)". Things written exactly alike (same name, same article)
 are drawn without it, since no word could tell them apart. The parser
 never asks which you meant.
 
@@ -2017,10 +2019,11 @@ kind Visitor is Creature, sprout.Visitor { }
 
 The visitor kind must be one of the world's own kinds and must compose
 `sprout.Visitor`. Its own body may declare properties, `remembers`
-blocks, passages, a grammar block and a `describe`, and may use `without`,
-but it may not have handlers, hooks, guards, pass rules or verb roles —
-a person acts by typing. Behaviour a person needs goes on a kind the
-visitor kind composes, like `Creature` above.
+blocks, a `capacity`, passages, a grammar block and a `describe`, and may
+use `without`, but it may not have handlers, hooks, an `after command`,
+guards, pass rules or verb roles — a person acts by typing. Behaviour a
+person needs goes on a kind the visitor kind composes, like `Creature`
+above.
 
 Objects written in the visitor kind's body are given to each visitor on
 their first arrival: that is how a world hands out a satchel.
@@ -2609,7 +2612,7 @@ checked when the world compiles, and exceeding one refuses it.
 | exits on one place                          | 8       |
 | elements in one list                        | 16      |
 | characters in a quoted `say`, `tell`, `text` or `refuse` | 600 |
-| places, objects, kinds, files, source bytes | unlimited unless the host sets them |
+| places, objects, kinds, files, source bytes, bytes of the pictures a world names | unlimited unless the host sets them |
 
 Passages have no length cap. The standard library costs nothing against
 these caps.
@@ -2747,8 +2750,20 @@ If a host does not have an extension a world uses, the world still runs:
 the extension's statements record nothing, and each arriving visitor is
 told the world will be missing some of itself.
 
-The `sprout` command line installs no extensions, so `sprout check`
-refuses a world that pins one.
+### `media`
+
+One extension comes with Sprout, and every host in this repository — the
+`sprout` command, the server, the language server and the Playdate app —
+installs it, at major 1: `media`, which shows a picture. A world pins it
+with `{ "name": "media", "major": 1 }` and `extension media 1`. Its type,
+`media.Image`, is the path of a 1-bit PNG inside the world's folder, and
+its statement is `media.show(image, caption)`: the caption is the line a
+client that cannot draw reads, or `[cellar.png]` where none is given.
+The compiler checks that every picture named is there and is a 1-bit
+PNG, and `sprout pack` carries the pictures inside the cartridge, so a
+world is one file. In `sprout play` a picture is its caption; on the
+Playdate it fills the screen. A world that pins any other extension is
+refused by `sprout check`, since no host here provides it.
 
 ---
 
@@ -2760,29 +2775,41 @@ sprout scaffold kind Name [dir] [--is Kind,…] [--path file]
 sprout scaffold object name [dir] --in place --is Kind,… [--path file]
 sprout scaffold test name [dir]
 sprout check [dir] [--json]
+sprout pack dir [-o world.sproutworld]
 sprout parse [dir]
 sprout parse dir "line" [--at place] [--as name]
 sprout view [dir] [--at place] [--as name] [--scene | --verb name] [--poll-steps n]
 sprout play dir script.json [--write] [--report file.json]
 sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.json]
 sprout test [dir] [script ...] [--report file.json]
-sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
+sprout keygen prefix
+sprout index dir --base-url url --key prefix.key [-o index.json]
 sprout skill
+sprout client connect host:port [--world w] [--as name] [--plain]
+sprout server start --config server.toml [--watch] [--log-format text|json]
+sprout mcp dir [--http host:port] [--seed n] [--record file.json] [--turn-cap n] [--advance-per-turn 30s]
 ```
 
-Every command runs the world as it loads, under the default limits (`view --poll-steps` raises one), with
-no clock and no extensions.
+`sprout help` prints this list. Every command runs the world as it
+loads, under the default limits (`view --poll-steps` raises one), with
+no clock and with the `media` extension installed. A command that runs a
+world refuses a flag it does not take, naming the ones it does.
 
 | command        | does                                                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `scaffold`     | `world`: a folder with a manifest, a world, a visitor kind and a first test; the folder must be empty or new. `kind`, `object`: the declaration in a file of its own named for it, or added to the file `--path` names, with the imports it needs, the file added to the manifest; the world is checked and nothing is written where it would no longer compile. `test`: a first test in `tests/`. |
+| `scaffold`     | `world`: a folder with a manifest, a world, a visitor kind, a first test and a README line; the folder must be empty or new. `kind`, `object`: the declaration in a file of its own named for it, or added to the file `--path` names, with the imports it needs, the file added to the manifest; the world is checked and nothing is written where it would no longer compile. `test`: a first test in `tests/`. |
 | `check`        | compiles strictly and prints every problem and warning. `--json` for editors. Exits 1 on any problem.                     |
+| `pack`         | compiles strictly, then writes the world as a _cartridge_, one `.sproutworld` file a runtime loads in place of the source, the pictures it names inside it; `<name>.sproutworld` without `-o`. `play` and `test` take a cartridge where they take a folder; `test` is then given its scripts, since a cartridge carries none. |
 | `parse`        | with no line: every phrase the world accepts. With a line: how a visitor would read it, and whether it would be refused, without running it. |
-| `view`         | what a visitor is shown and could type. `--poll-steps n` lets the poll take n steps in place of the default 10,000, for a room whose readings cost more. |
-| `play`         | plays a script and prints it back filled in (`--write` saves it), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`), every turn seeded from a stream begun at `--seed` or the clock. |
+| `view`         | what a visitor is shown and could type. `--scene` lists the verbs on offer in place of the readings, and `--verb name` one verb's readings, by its qualified name (`sprout.take`). `--poll-steps n` lets the poll take n steps in place of the default 10,000, for a room whose readings cost more. |
+| `play`         | plays a script and prints it back filled in (`--write` saves it; `--report` writes what it reached), or with no script (or `-`) plays interactively (`--debug`, `--record file.json`), every turn seeded from a stream begun at `--seed` or the clock. |
 | `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |
-| `mcp`          | serves the world to an AI agent as a visitor and only a visitor, over MCP: tools to `arrive`, `say` a line and `leave`, each answered with the prose that visitor reads. Stdio for one visitor, `--http host:port` for several in one world. `--seed`, `--record`, `--turn-cap` and `--advance-per-turn` are the host's, never shown to the agent. Needs `@overstory/sprout-mcp` installed. |
+| `keygen`       | writes a publisher's Ed25519 key pair: `prefix.key`, the private key, readable by its owner only, and `prefix.pub`, the public key a Playdate app is built to trust. Refuses to replace either. |
+| `index`        | signs an index of the `.sproutworld` cartridges in a folder for the Playdate app's downloads: writes `dir/index.json` (or `-o`) and, beside it, each cartridge under the name the device gives it, `<title>-<first 8 of its hash>.sproutworld`, served at the base URL followed by that name. A cartridge already there is kept where its bytes match and refused where they differ. |
 | `skill`        | prints the builder's reference, generated from the compiler, as a skill for an AI assistant: `sprout skill > .claude/skills/sprout/SKILL.md`. |
+| `client`       | plays on a server as one visitor, in the terminal client; see [Serving a world](05-serving.md). Needs `@overstory/sprout-tui` installed. |
+| `server`       | serves the worlds a config names until stopped; see [Serving a world](05-serving.md). Needs `@overstory/sprout-server` installed. |
+| `mcp`          | serves the world to an AI agent as a visitor and only a visitor, over MCP: tools to `arrive`, `say` a line and `leave`, each answered with the prose that visitor reads. Stdio for one visitor, `--http host:port` for several in one world. `--seed`, `--record`, `--turn-cap` and `--advance-per-turn` are the host's, never shown to the agent. Needs `@overstory/sprout-mcp` installed. |
 
 `--as name` sets the visitor's nickname (default `Inspector`). `--at
 place` brings them in at that place, written as the world's body names it

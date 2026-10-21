@@ -114,9 +114,10 @@ real-time controls. A Sprout world is words.
 
 And it is not a whole website. Accounts, chat between visitors, saving
 worlds and deciding how much each world may cost to run all belong to the
-_host_ — the server a world runs on. The command-line tool in this
-repository is a small host of its own, for trying worlds out on your own
-computer.
+_host_ — the program a world runs on. This repository has three: the
+command-line tool, a small host for trying worlds out on your own
+computer; a server that shares a world between people; and an app for
+the Playdate console.
 
 ## Written with or without an AI
 
