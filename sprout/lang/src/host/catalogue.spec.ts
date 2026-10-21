@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS, limitsFrom } from '../bundle/limits.js';
 import { kindName } from '../declare/kinds.js';
 import { compiledWorld, SHOP, shop, shopWithheld } from '../fixtures/bundle.js';
+import { locationOf } from '../source/source.js';
 import { declaredId, type InstanceId } from './ids.js';
 import { catalogueOf } from './catalogue.js';
 
@@ -34,6 +35,12 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(jar.container).toBe(id('hall', 'shelf'));
     expect(jar.kind!.composes.has('printers_shop.Jar')).toBe(true);
     expect(catalogue.declared.get(id('hall'))!.container).toBe(catalogue.world);
+  });
+
+  it('keeps where each placement is declared', () => {
+    expect(locationOf(catalogue.declared.get(id('hall', 'shelf', 'jar'))!.at)).toBe(
+      'printers_shop.sprout:4:7',
+    );
   });
 
   it('holds every phrase a visitor may type, the standard library’s among them', () => {

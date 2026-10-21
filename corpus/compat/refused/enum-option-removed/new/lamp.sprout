@@ -1,0 +1,20 @@
+import * as sprout from 'sprout'
+import {light} from 'lamplight'
+
+enum Flame { low, steady }
+
+kind Lamp {
+  :lit false
+  :flame Flame default low
+  :oil 5 min 0 max 9
+  grammar { name "lamp" }
+  describe { text "A brass lamp." }
+
+  as target for light {
+    do {
+      self.set(:lit, true)
+      self.set(:flame, :steady)
+      say "The lamp roars into light."
+    }
+  }
+}

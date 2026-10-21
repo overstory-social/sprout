@@ -1,0 +1,26 @@
+// An attic added above the hall: a save never named it, so it is made
+// fresh when the save opens.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world lamplight is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { name "hall" exit down "to the cellar" -> cellar exit up "to the attic" -> attic }
+    describe { text "A narrow hall." }
+    object lamp is Lamp
+  }
+  object attic is sprout.Place {
+    grammar { name "attic" exit down "to the hall" -> hall }
+    describe { text "A low attic." }
+  }
+  object cellar is sprout.Place {
+    grammar { name "cellar" exit up "to the hall" -> hall }
+    describe { text "A damp cellar." }
+  }
+}
+
+verb light { role target  "light [target]" }

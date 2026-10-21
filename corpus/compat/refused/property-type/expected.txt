@@ -1,0 +1,6 @@
+lamplight 0.1.0 → 0.1.1: 0.1.1 keeps saves of 0.1.0, and 1 change would break one:
+
+lamp.sprout:9:3: `:oil` of `Lamp` held a whole number from 0 to 9, and now holds text: a save that holds a value it no longer can cannot be read.
+  Let it hold every value it held again, or make this a breaking version.
+
+refused: put it right, or make this a breaking version, 0.2.0.

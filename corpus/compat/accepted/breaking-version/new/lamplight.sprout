@@ -1,0 +1,22 @@
+// The cellar renamed the vault under 0.2.0, a breaking version: saves of
+// 0.1.0 start again, so the rename is allowed, and still listed.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world lamplight is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { name "hall" exit down "to the vault" -> vault }
+    describe { text "A narrow hall." }
+    object lamp is Lamp
+  }
+  object vault is sprout.Place {
+    grammar { name "vault" exit up "to the hall" -> hall }
+    describe { text "A damp cellar." }
+  }
+}
+
+verb light { role target  "light [target]" }

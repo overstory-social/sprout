@@ -155,6 +155,10 @@ sprout — a Sprout microworld on the command line
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
+  sprout compat old new               (each a world folder or a .sproutworld cartridge)
+                                      whether a save of the old build opens in the new: every change that
+                                      would break one, by file:line:column, and what to write instead; exit 1
+                                      where the new version is earlier, or keeps saves and something breaks one
   sprout keygen prefix                write a new publisher's key pair: prefix.key, the private key, readable
                                       by its owner only, and prefix.pub, the public key the Playdate app is
                                       built with; refuses to replace either
@@ -162,7 +166,9 @@ sprout — a Sprout microworld on the command line
                                       sign an index of the .sproutworld cartridges in dir for the Playdate app's
                                       downloads: writes the index (dir/index.json without -o) and, beside it,
                                       each cartridge as <title>-<first 8 of its hash>.sproutworld, served at
-                                      url followed by that name
+                                      url followed by that name; two builds of one world are checked as
+                                      compat checks them, each against the next by version, and nothing is
+                                      written where one fails
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]

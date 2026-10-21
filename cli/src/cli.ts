@@ -31,6 +31,7 @@ import {
 import { playInteractively, type Io } from '@overstory/sprout-repl';
 
 import { checkWorld, formatCheck, formatCheckJson } from './check.js';
+import { compareBuilds, readBuild } from './compat.js';
 import { scaffold, SCAFFOLD_USAGE } from './scaffold/command.js';
 import { formatGrammar, parseLine } from './parse.js';
 import { clientConnect, mcpServe, serverStart } from './peers.js';
@@ -41,12 +42,12 @@ import { inspectReadings, inspectScene, inspectView } from './view.js';
 // The `sprout` command: six verbs on a microworld folder; `skill`, the
 // builder's reference this compiler generates from its own tables; and
 // `client`, `server` and `mcp`, handed to the terminal client, the server
-// and the MCP host where they are installed; and `keygen` and `index`, the
-// publisher's key pair and the signed index the Playdate app downloads
-// worlds from. `mcp` says a refused world's
-// page on stderr, since its stdout may be the protocol's. `parse` with a
-// line, `view`, `play`, `test` and `mcp` run the world on the C engine
-// built for WebAssembly, and refuse in words where it is not built; each
+// and the MCP host where they are installed; `compat`, whether a save of
+// one build opens in the next; and `keygen` and `index`, the publisher's
+// key pair and the signed index the Playdate app downloads worlds from.
+// `mcp` says a refused world's page on stderr, since its stdout may be the
+// protocol's. `parse` with a line, `view`, `play`, `test` and `mcp` run
+// the world on the C engine built for WebAssembly, and refuse in words where it is not built; each
 // of them refuses a flag it does not take, naming the ones it does.
 // Flags are `--name value` or `--name=value`; `--flag` alone is true, and
 // `--json`, `--debug`, `--write`, `--plain`, `--watch` and `--scene` are always alone. The first bare word
@@ -87,6 +88,10 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       whose steps expect what the world should say, a reader's line whole or its
                                       words alone, in order; what failed and what the world said; exit 1 on a failure;
                                       --report writes what they reached between them, as play --report does
+  sprout compat old new               (each a world folder or a .sproutworld cartridge)
+                                      whether a save of the old build opens in the new: every change that
+                                      would break one, by file:line:column, and what to write instead; exit 1
+                                      where the new version is earlier, or keeps saves and something breaks one
   sprout keygen prefix                write a new publisher's key pair: prefix.key, the private key, readable
                                       by its owner only, and prefix.pub, the public key the Playdate app is
                                       built with; refuses to replace either
@@ -94,7 +99,9 @@ ${SCAFFOLD_USAGE}  sprout check [dir] [--json]         compile strictly; problem
                                       sign an index of the .sproutworld cartridges in dir for the Playdate app's
                                       downloads: writes the index (dir/index.json without -o) and, beside it,
                                       each cartridge as <title>-<first 8 of its hash>.sproutworld, served at
-                                      url followed by that name
+                                      url followed by that name; two builds of one world are checked as
+                                      compat checks them, each against the next by version, and nothing is
+                                      written where one fails
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]
@@ -220,6 +227,7 @@ const TAKES: Readonly<Record<string, readonly string[]>> = {
   test: ['report'],
   mcp: ['http', 'seed', 'record', 'turn-cap', 'advance-per-turn'],
   index: ['base-url', 'key', 'out'],
+  compat: [],
   keygen: [],
 };
 
@@ -400,6 +408,22 @@ export function main(argv: readonly string[], io: Io = defaultIo()): number | Pr
           say(`wrote ${report}\n`);
         }
         return tested.ok ? 0 : 1;
+      }
+      case 'compat': {
+        onlyFlagsOf('compat', flags);
+        const [old, next] = positional;
+        if (old === undefined || next === undefined) {
+          throw new Error(
+            'compat wants the old build and the new, each a world folder or a cartridge, as in `sprout compat shop-0.1.0.sproutworld shop`.',
+          );
+        }
+        const before = readBuild(old, say);
+        if (before === null) return 1;
+        const after = readBuild(next, say);
+        if (after === null) return 1;
+        const compared = compareBuilds(before, after);
+        say(compared.page);
+        return compared.ok ? 0 : 1;
       }
       case 'keygen': {
         onlyFlagsOf('keygen', flags);

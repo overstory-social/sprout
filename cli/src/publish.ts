@@ -8,7 +8,10 @@
 // `<stem>-<first eight digits of the bundle hash>.sproutworld`
 // (`player_downloads_stem` in sprout-player/src/ui/downloads.c), so two
 // builds of one world sit side by side on the server as on the shelf, and an
-// index made again over published files names them as they are.
+// index made again over published files names them as they are. Two
+// builds of one world in the folder are held to each other by version as
+// `sprout compat` holds them (compat.ts), so an index never offers a build
+// that claims to keep saves it would break.
 
 import { createHash, type KeyObject } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -17,10 +20,13 @@ import { dirname, join, resolve } from 'node:path';
 import {
   CARTRIDGE_EXTENSION,
   CartridgeUnreadable,
+  compareVersions,
   readCartridge,
+  readVersion,
   worldTitle,
 } from '@overstory/sprout/lang';
 
+import { cartridgeBuild, compareBuilds, type Build } from './compat.js';
 import { signWorlds } from './signing.js';
 
 /** One world the index lists, its members as the schema names them. */
@@ -134,6 +140,34 @@ function cartridgesIn(folder: string, baseUrl: string): Published[] {
   return [...byName.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
+/**
+ * Each build of a world among `published` held to the one before it by
+ * version, as `sprout compat` holds it; thrown, in its words, at the first
+ * that fails.
+ */
+function checkBuilds(published: readonly Published[]): void {
+  const byWorld = new Map<string, { from: string; build: Build }[]>();
+  for (const one of published) {
+    const build = cartridgeBuild(one.bytes);
+    byWorld.set(build.name, [...(byWorld.get(build.name) ?? []), { from: one.from, build }]);
+  }
+  for (const builds of byWorld.values()) {
+    builds.sort((a, b) => {
+      const p = readVersion(a.build.version);
+      const q = readVersion(b.build.version);
+      return p === null || q === null ? 0 : compareVersions(p, q);
+    });
+    for (let i = 1; i < builds.length; i++) {
+      const compared = compareBuilds(builds[i - 1]!.build, builds[i]!.build);
+      if (!compared.ok) {
+        throw new Error(
+          `${builds[i - 1]!.from} and then ${builds[i]!.from} cannot both be published:\n${compared.page}`,
+        );
+      }
+    }
+  }
+}
+
 /** What `sprout index` was asked to do. */
 export interface IndexRequest {
   /** The folder of cartridges. */
@@ -154,7 +188,8 @@ export interface IndexWritten {
 
 /**
  * Writes the signed index to `out` and each cartridge beside it under its
- * published name. A file already there under that name is kept where its
+ * published name, once every build of a world keeps the saves it says it
+ * keeps. A file already there under that name is kept where its
  * bytes are the cartridge's, and refused where they are not.
  */
 export function writeIndex({ folder, baseUrl, privateKey, out }: IndexRequest): IndexWritten {
@@ -165,6 +200,7 @@ export function writeIndex({ folder, baseUrl, privateKey, out }: IndexRequest): 
   if (existsSync(out) && statSync(out).isDirectory())
     throw new Error(`-o names the index file to write, as in \`-o site/worlds/index.json\`.`);
   const published = cartridgesIn(resolve(folder), baseUrl);
+  checkBuilds(published);
   const worlds = published.map((one) => one.world);
   const index: WorldIndex = { worlds, signed: signWorlds(worlds, privateKey) };
   const beside = dirname(resolve(out));

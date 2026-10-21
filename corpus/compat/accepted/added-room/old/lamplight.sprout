@@ -1,0 +1,22 @@
+// A hall with a lamp in it and a cellar below: the earlier build of every
+// pair under corpus/compat, which `sprout compat` holds the later build to.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lamp} from 'lamp'
+
+world lamplight is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { name "hall" exit down "to the cellar" -> cellar }
+    describe { text "A narrow hall." }
+    object lamp is Lamp
+  }
+  object cellar is sprout.Place {
+    grammar { name "cellar" exit up "to the hall" -> hall }
+    describe { text "A damp cellar." }
+  }
+}
+
+verb light { role target  "light [target]" }

@@ -642,6 +642,49 @@ describe('sprout pack of a world that names files', () => {
   });
 });
 
+describe('compat', () => {
+  const pair = (name: string, which: string) =>
+    join(fileURLToPath(import.meta.url), '../../../corpus/compat', name, which);
+
+  it('prints the page and exits 0 where the new version may stand, and 1 where it may not', () => {
+    const kept = captured();
+    expect(
+      main(
+        ['compat', pair('accepted/new-property', 'old'), pair('accepted/new-property', 'new')],
+        kept,
+      ),
+    ).toBe(0);
+    expect(kept.out()).toBe(
+      'lamplight 0.1.0 → 0.1.1: nothing breaks a save of 0.1.0, so it opens in 0.1.1.\n',
+    );
+    const broken = captured();
+    expect(
+      main(
+        ['compat', pair('refused/property-type', 'old'), pair('refused/property-type', 'new')],
+        broken,
+      ),
+    ).toBe(1);
+    expect(broken.out()).toContain('refused: put it right');
+  });
+
+  it('reads a cartridge on either side', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'sprout-compat-')), 'old.sproutworld');
+    expect(main(['pack', pair('refused/renamed-room', 'old'), '-o', file], captured())).toBe(0);
+    const io = captured();
+    expect(main(['compat', file, pair('refused/renamed-room', 'new')], io)).toBe(1);
+    expect(io.out()).toContain('lamplight.sprout:16:3 in 0.1.0: `cellar` is not declared there');
+  });
+
+  it('says in words what it wants', () => {
+    const bare = captured();
+    expect(main(['compat', 'x'], bare)).toBe(1);
+    expect(bare.err()).toMatch(/compat wants the old build and the new/);
+    const flagged = captured();
+    expect(main(['compat', 'x', 'y', '--json'], flagged)).toBe(1);
+    expect(flagged.err()).toBe('sprout: compat takes no flags; --json is not one.\n');
+  });
+});
+
 describe('keygen and index', () => {
   const key = join(fileURLToPath(import.meta.url), '../../../sprout-player/test/index-test.key');
 

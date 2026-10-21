@@ -47,12 +47,16 @@ export interface EngineCase {
   run(make: MakeEngine): Promise<void>;
 }
 
-/** `files` compiled as the world `name`, under the spec's limits, with the imports each file needs. */
-function compiled(name: string, files: Readonly<Record<string, string>>): EngineWorld {
+/** `files` compiled as the world `name` at `version`, under the spec's limits, with the imports each file needs. */
+function compiled(
+  name: string,
+  files: Readonly<Record<string, string>>,
+  version = '0.1.0',
+): EngineWorld {
   const manifest: Manifest = {
     name,
     namespace: name,
-    version: '0.1.0',
+    version,
     author: 'Eric Eslinger',
     license: 'MIT',
     level: 1,
@@ -178,6 +182,44 @@ verb light { role target  "light [target]" }
 `,
 });
 export const LAMPLIT_HALL = declaredId('lamplight', ['hall']);
+
+/**
+ * The lamplight's next build, 0.1.1, which keeps its saves: the lamp can
+ * be polished too, which it is not until someone does, and an attic is
+ * built above the hall.
+ */
+export const LAMPLIGHT_LATER = compiled(
+  'lamplight',
+  {
+    'lamplight.sprout': `world lamplight is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  passage acted { {actor} has a go at "{reading}". }
+  object hall is sprout.Place {
+    grammar { exit up "to the attic" -> attic }
+    describe {
+      if (lamp.get(:lit)) { text "The hall is bright." } else { text "The hall is dim." }
+    }
+    object lamp is Lamp
+  }
+  object attic is sprout.Place { }
+}
+verb light { role target  "light [target]" }
+verb polish { role target  "polish [target]" }
+`,
+    'person.sprout': 'kind Person is sprout.Visitor { }\n',
+    'lamp.sprout': `kind Lamp {
+  :lit false
+  :polished false
+  as target for light { do { self.set(:lit, true)  say "It catches." } }
+  as target for polish { do { self.set(:polished, true)  say "It shines." } }
+}
+`,
+  },
+  '0.1.1',
+);
+export const LAMPLIT_LAMP = declaredId('lamplight', ['hall', 'lamp']);
+export const LAMPLIT_ATTIC = declaredId('lamplight', ['attic']);
 
 /** The heath: two moors that keep the gap each tick hands them, which holds at most 1,000 seconds, and a cellar. */
 export const HEATH = compiled('heath', {

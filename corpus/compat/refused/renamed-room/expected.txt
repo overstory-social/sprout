@@ -1,0 +1,6 @@
+lamplight 0.1.0 → 0.1.1: 0.1.1 keeps saves of 0.1.0, and 1 change would break one:
+
+lamplight.sprout:16:3 in 0.1.0: `cellar` is not declared there any more: a save keeps a thing by the path it was declared at, so a save that holds anything about it, or anything in it, cannot be read.
+  Declare it again under the same name in the same place, or make this a breaking version.
+
+refused: put it right, or make this a breaking version, 0.2.0.
