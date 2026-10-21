@@ -159,6 +159,25 @@ describe('what a save of one build of a world does not survive in the next', () 
     );
   });
 
+  it('names the giver whose own body gained an object, not a kind that composes it', () => {
+    const before = catalogue({
+      ...SHOP_WITH_LANTERN,
+      'shade.sprout': 'kind Shade { contains }\n',
+      'crate.sprout': 'kind Crate is Shade { contains :lid false }\n',
+    });
+    const after = catalogue({
+      ...SHOP_WITH_LANTERN,
+      'shade.sprout': 'kind Shade { contains object bulb is Shelf }\n',
+      'crate.sprout': 'kind Crate is Shade { contains :lid false }\n',
+    });
+    expect(saveBreaks(before, after).map((one) => [one.message, one.remedy])).toEqual([
+      [
+        '`bulb` is new in the body of `Shade`: every `Shade` a save already holds was made without it.',
+        'Leave the body of `Shade` as it was, or make this a breaking version.',
+      ],
+    ]);
+  });
+
   it('breaks once, and only, on a world renamed, since every id is under its name', () => {
     const renamed = catalogue(
       {

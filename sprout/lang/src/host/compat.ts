@@ -183,6 +183,12 @@ function everyGiven(contents: KindContents): Map<string, KindContent> {
   return everyGivenOf([...contents.values()].flat());
 }
 
+/** Whether `catalogue` declares the kind of qualified name `qualified`. */
+function declaredIn(catalogue: Catalogue, qualified: string): boolean {
+  const [library, ...rest] = qualified.split('.');
+  return catalogue.lookup.qualified(library!, rest.join('.')) !== null;
+}
+
 /** Where a kind is written, as near as the catalogue says: one of its own properties. */
 function whereKind(kind: KindRef): Span | null {
   const name = kindName(kind);
@@ -230,8 +236,7 @@ export function saveBreaks(earlier: Catalogue, later: Catalogue): SaveBreak[] {
   for (const [name, before] of earlier.kinds) {
     const after = later.kinds.get(name);
     if (after === undefined) {
-      const [library, ...rest] = name.split('.');
-      const stays = later.lookup.qualified(library!, rest.join('.')) !== null;
+      const stays = declaredIn(later, name);
       const kind = breaks.shown(name);
       breaks.add(
         `kind|${name}`,
@@ -240,7 +245,7 @@ export function saveBreaks(earlier: Catalogue, later: Catalogue): SaveBreak[] {
         stays
           ? `The kind \`${kind}\` now makes the world or its visitors, so a thing a save holds that was spawned as one cannot be read.`
           : `The kind \`${kind}\` is gone: a save may hold a thing spawned as one, which cannot be read without it.`,
-        `Keep \`${kind}\` a kind of thing, under its name and in its file, ${AGAIN}`,
+        `Keep \`${kind}\` a kind of thing, under its name, ${AGAIN}`,
       );
       continue;
     }
@@ -280,16 +285,23 @@ export function saveBreaks(earlier: Catalogue, later: Catalogue): SaveBreak[] {
       const kind = breaks.shown(kindName(after));
       const giver = breaks.shown(content.giver);
       const path = content.path.join('.');
+      // New to the body of a giver the earlier build had: the body changed, whichever kind it reaches first.
+      if (!givenBefore.has(key) && declaredIn(earlier, content.giver)) {
+        breaks.add(
+          `added|${key}`,
+          content.declaration.at,
+          'later',
+          `\`${path}\` is new in the body of \`${giver}\`: every \`${giver}\` a save already holds was made without it.`,
+          `Leave the body of \`${giver}\` as it was, ${AGAIN}`,
+        );
+        continue;
+      }
       breaks.add(
-        `added|${key}`,
+        `composed|${kind}|${key}`,
         content.declaration.at,
         'later',
-        giver === kind
-          ? `\`${path}\` is new in the body of \`${giver}\`: every \`${giver}\` a save already holds was made without it.`
-          : `Every \`${kind}\` is now given \`${path}\` by \`${giver}\`: every \`${kind}\` a save already holds was made without it.`,
-        giver === kind
-          ? `Leave the body of \`${giver}\` as it was, ${AGAIN}`
-          : `Leave what \`${kind}\` is made of as it was, ${AGAIN}`,
+        `Every \`${kind}\` is now given \`${path}\` by \`${giver}\`: every \`${kind}\` a save already holds was made without it.`,
+        `Leave what \`${kind}\` is made of as it was, ${AGAIN}`,
       );
     }
   }
