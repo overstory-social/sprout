@@ -111,4 +111,7 @@ your shelf is shown in grey. If there is no Wi-Fi set up, you say no, or the
 server cannot be reached, the screen says so, **B** goes back, and your shelf
 is as it was. Worlds you download stay on the shelf, and so do their saves.
 When you download a newer version of a world you have, the shelf shows only
-the newer one; the older stays on your Playdate.
+the newer one; the older stays on your Playdate. The newer one opens where
+you left the older, and says so. If the world has changed too much for your
+old save, it starts again from the beginning and tells you once; the old save
+is kept.

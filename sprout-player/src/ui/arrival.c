@@ -19,12 +19,17 @@ static void copy_text(char *out, size_t size, const char *text) {
   text_add(&buffer, text);
 }
 
-player_arrival *player_arrival_new(player_app *app, const char *path, const char *title) {
+player_arrival *player_arrival_new(player_app *app, const char *path, const char *title, const shelf_entry *earlier) {
   player_arrival *arrival = (player_arrival *)player_alloc(app->pd, sizeof *arrival);
   if (arrival == NULL) return NULL;
   memset(arrival, 0, sizeof *arrival);
   copy_text(arrival->path, sizeof arrival->path, path);
   copy_text(arrival->title, sizeof arrival->title, title);
+  if (earlier != NULL) {
+    arrival->has_earlier = true;
+    copy_text(arrival->earlier_hash, sizeof arrival->earlier_hash, earlier->hash);
+    copy_text(arrival->earlier_version, sizeof arrival->earlier_version, earlier->version);
+  }
   return arrival;
 }
 
@@ -83,7 +88,7 @@ bool player_arrival_tell(player_app *app, const char *title, const char *nicknam
 }
 
 void player_arrival_pick(player_app *app, const char *path, const char *title, const char *const *words,
-                         size_t word_count, const char *remembered) {
+                         size_t word_count, const char *remembered, const player_earlier *earlier, bool started_over) {
   player_loaded loaded;
   sprout_str last;
   player_nickname *picker = player_nickname_new(app, title);
@@ -93,7 +98,7 @@ void player_arrival_pick(player_app *app, const char *path, const char *title, c
   }
   /* The words are the session's until its next call, so the pool is filtered by them before the load. */
   picker->count = nickname_without_words(picker->names, picker->count, words, word_count);
-  loaded = player_load(app->session);
+  loaded = player_load(app->session, earlier);
   if (!loaded.ok) {
     player_nickname_screen.leave(app, picker);
     stop(app, loaded.words);
@@ -118,7 +123,7 @@ void player_arrival_pick(player_app *app, const char *path, const char *title, c
     }
     memcpy(picker->notice, loaded.words, length + 1);
   }
-  if (player_shelf_blocked(app->shelf, path) && !player_save(app->session).ok) {
+  if ((started_over || player_shelf_blocked(app->shelf, path)) && !player_save(app->session).ok) {
     /* A world greyed for its save is played again only once a save of it is written. */
     player_nickname_screen.leave(app, picker);
     player_shelf_unsaved(app);
@@ -152,7 +157,13 @@ static void update(player_app *app, void *ctx, const player_input *input) {
   }
   arrival->read = step.read;
   arrival->counted = step.counted;
-  if (step.done) player_arrival_pick(app, arrival->path, arrival->title, step.words, step.word_count, NULL);
+  if (step.done) {
+    player_earlier earlier;
+    earlier.hash = arrival->earlier_hash;
+    earlier.version = arrival->earlier_version;
+    player_arrival_pick(app, arrival->path, arrival->title, step.words, step.word_count, NULL,
+                        arrival->has_earlier ? &earlier : NULL, false);
+  }
 }
 
 static void draw(player_app *app, void *ctx) {

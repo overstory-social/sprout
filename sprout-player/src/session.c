@@ -4,6 +4,7 @@
 #include "budgets.h"
 #include "host/files.h"
 #include "host/stack.h"
+#include "newest.h"
 #include "session_internal.h"
 #include "text.h"
 #include "world.h"
@@ -94,6 +95,15 @@ static player_opening not_opened(player_session *session, const char *reason) {
 
 /* ---- shelving ---- */
 
+/* `saves/<hash><suffix>` into `out`, of `size` bytes. */
+static void save_path(char *out, size_t size, const char *hash, const char *suffix) {
+  text_buffer buffer;
+  text_begin(&buffer, out, size);
+  text_add(&buffer, SAVES "/");
+  text_add(&buffer, hash);
+  text_add(&buffer, suffix);
+}
+
 /* The name, the title, the hash and the save's paths of the world being opened, from its header. */
 static void name_files(player_session *session, const sprout_cartridge_header *header) {
   text_buffer out;
@@ -103,14 +113,8 @@ static void name_files(player_session *session, const sprout_cartridge_header *h
   if (header->title != NULL) text_add(&out, header->title);
   text_begin(&out, session->hash, sizeof session->hash);
   text_add(&out, header->hash);
-  text_begin(&out, session->state_path, sizeof session->state_path);
-  text_add(&out, SAVES "/");
-  text_add(&out, session->hash);
-  text_add(&out, ".json");
-  text_begin(&out, session->log_path, sizeof session->log_path);
-  text_add(&out, SAVES "/");
-  text_add(&out, session->hash);
-  text_add(&out, ".log");
+  save_path(session->state_path, sizeof session->state_path, session->hash, ".json");
+  save_path(session->log_path, sizeof session->log_path, session->hash, ".log");
 }
 
 /* The words of a load that failed, for the person holding the device. */
@@ -261,6 +265,14 @@ player_opening player_step(player_session *session) {
 }
 
 /* ---- the save ---- */
+
+bool player_has_save(player_session *session, const char *hash) {
+  char path[PATH_BYTES];
+  save_path(path, sizeof path, hash, ".json");
+  if (player_file_exists(session->pd, path)) return true;
+  save_path(path, sizeof path, hash, ".json.tmp");
+  return player_file_exists(session->pd, path);
+}
 
 const sprout_stored_visitor *session_visitor(const player_session *session) {
   sprout_str key = {PLAYER_VISIT, sizeof PLAYER_VISIT - 1};
@@ -484,44 +496,103 @@ static bool empty_state(player_session *session) {
   return false;
 }
 
+/* A new world's state, or false with the words for why there is no room for one. */
+static bool new_world(player_session *session, text_buffer *out) {
+  if (empty_state(session)) return true;
+  if (out->length > 0) text_add(out, " ");
+  text_add(out, "There is no room on this device for a new world.");
+  return false;
+}
+
+/* The save `bytes` (released here) read and opened against the world; its state is let go where it will not open. */
+static sprout_status read_state(player_session *session, char *bytes, size_t length, sprout_refusal *refusal) {
+  sprout_status status = sprout_state_read(&session->host.record, bytes, length, &session->state, refusal);
+  player_free(session->pd, bytes);
+  if (status == SPROUT_OK) status = sprout_state_open(session->state, session->world, refusal);
+  if (status != SPROUT_OK && session->state != NULL) sprout_state_free(session->state);
+  if (status != SPROUT_OK) session->state = NULL;
+  return status;
+}
+
+static const char TOO_LARGE[] = "This world's save is too large for this device's memory.";
+
 /*
- * The stored state for this world, or a new one when there is none or the save cannot be read.
- * False, with `words`, when no state can be made: the save is too big for the device, which
- * leaves it where it is, or there is no room for even a new one.
+ * The world has no save of its own, and `earlier` names a build that has one: that save is read where
+ * its version keeps it (the spec's State › Across versions), and otherwise the world starts anew. The
+ * player is told either way, and the earlier save is never set aside or changed, so it can be read again.
  */
-static bool open_state(player_session *session, bool *fresh, char *words, size_t size) {
+static bool open_earlier(player_session *session, const player_earlier *earlier, player_loaded *answer, text_buffer *out) {
+  const char *version = session->world->header.version;
+  char path[PATH_BYTES];
+  char *bytes;
+  size_t length = 0;
+  sprout_refusal refusal;
+  sprout_status status;
+  if (!player_version_keeps_saves(player_text_of(earlier->version), player_text_of(version))) {
+    text_add(out, "This world has changed too much since version ");
+    text_add(out, earlier->version);
+    text_add(out, " for your old save, so it starts again from the beginning. Your old save is kept.");
+    answer->outgrown = true;
+    return new_world(session, out);
+  }
+  save_path(path, sizeof path, earlier->hash, ".json");
+  bytes = player_read_file(session->pd, path, &length);
+  if (bytes == NULL) return new_world(session, out);
+  status = read_state(session, bytes, length, &refusal);
+  if (status == SPROUT_OK) {
+    text_add(out, "This world is now version ");
+    text_add(out, version);
+    text_add(out, ", and your place in it carries over from version ");
+    text_add(out, earlier->version);
+    text_add(out, ".");
+    answer->carried = true;
+    answer->fresh = false;
+    return true;
+  }
+  if (status == SPROUT_NO_MEMORY) {
+    text_add(out, TOO_LARGE);
+    return false;
+  }
+  text_add(out, "Your save from version ");
+  text_add(out, earlier->version);
+  text_add(out, " could not be opened in version ");
+  text_add(out, version);
+  text_add(out, ": ");
+  text_add(out, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
+  text_add(out, " The world starts again from the beginning, and your old save is kept.");
+  answer->outgrown = true;
+  return new_world(session, out);
+}
+
+/*
+ * The stored state for this world, or the earlier build's, or a new one when there is none or the
+ * save cannot be read. False, with `words`, when no state can be made: the save is too big for the
+ * device, which leaves it where it is, or there is no room for even a new one.
+ */
+static bool open_state(player_session *session, const player_earlier *earlier, player_loaded *answer, char *words, size_t size) {
   size_t length = 0;
   char *bytes = player_read_file(session->pd, session->state_path, &length);
   sprout_refusal refusal;
   sprout_status status;
   text_buffer out;
   text_begin(&out, words, size);
-  *fresh = true;
-  if (bytes == NULL) {
-    if (empty_state(session)) return true;
-    text_add(&out, "There is no room on this device for a new world.");
-    return false;
-  }
-  status = sprout_state_read(&session->host.record, bytes, length, &session->state, &refusal);
-  player_free(session->pd, bytes);
-  if (status == SPROUT_OK) status = sprout_state_open(session->state, session->world, &refusal);
+  answer->fresh = true;
+  if (bytes == NULL && earlier != NULL) return open_earlier(session, earlier, answer, &out);
+  if (bytes == NULL) return new_world(session, &out);
+  status = read_state(session, bytes, length, &refusal);
   if (status == SPROUT_OK) {
-    *fresh = false;
+    answer->fresh = false;
     return true;
   }
-  if (session->state != NULL) sprout_state_free(session->state);
-  session->state = NULL;
   if (status == SPROUT_NO_MEMORY) {
-    text_add(&out, "This world's save is too large for this device's memory.");
+    text_add(&out, TOO_LARGE);
     return false;
   }
   text_add(&out, "The save for this world could not be read: ");
   text_add(&out, status == SPROUT_BAD_INPUT ? refusal.text : sprout_status_text(status));
   text_add(&out, " It has been set aside, and the world starts again.");
   set_aside(session);
-  if (empty_state(session)) return true;
-  text_add(&out, " There is no room on this device for a new world.");
-  return false;
+  return new_world(session, &out);
 }
 
 /* A copy of `text` in the answer's arena, or NULL where there is no room. */
@@ -554,10 +625,9 @@ static void others_present(player_session *session, player_loaded *answer) {
   }
 }
 
-player_loaded player_load(player_session *session) {
+player_loaded player_load(player_session *session, const player_earlier *earlier) {
   player_loaded answer;
   const sprout_stored_visitor *visitor;
-  bool fresh = true;
   char words[640];
   memset(&answer, 0, sizeof answer);
   answer.words = "";
@@ -577,11 +647,20 @@ player_loaded player_load(player_session *session) {
   session->host.last_seconds = 0;
   session->host.ahead_seconds = 0;
   words[0] = '\0';
-  if (!open_state(session, &fresh, words, sizeof words)) {
+  if (!open_state(session, earlier, &answer, words, sizeof words)) {
+    answer.fresh = answer.carried = answer.outgrown = false;
     answer.words = session_keep(session, words);
     return answer;
   }
-  savelog_read(session);
+  if (answer.carried) {
+    char log_path[PATH_BYTES];
+    save_path(log_path, sizeof log_path, earlier->hash, ".log");
+    savelog_read(session, log_path, earlier->hash);
+  } else {
+    savelog_read(session, session->log_path, session->hash);
+  }
+  /* The save becomes this build's at its next write, the redeploy logged. */
+  if (answer.carried || answer.outgrown) savelog_redeploy(session, answer.carried);
   visitor = session_visitor(session);
   if (visitor != NULL && session_visitor_present(session, visitor)) {
     /* The last session ended without leaving: the visitor leaves now, and nothing is narrated. */
@@ -592,7 +671,6 @@ player_loaded player_load(player_session *session) {
     visitor = session_visitor(session);
   }
   answer.ok = true;
-  answer.fresh = fresh;
   answer.last = session->host.last_seconds;
   answer.words = session_keep(session, words);
   if (visitor != NULL) answer.nickname = kept_str(session, visitor->nickname);

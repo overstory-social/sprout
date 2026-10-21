@@ -99,7 +99,10 @@ void session_save_abandon(player_session *session);
 /* savelog.c */
 void savelog_clear(player_session *session);
 void savelog_add(player_session *session, const char *entry, size_t length);
-void savelog_read(player_session *session);
+/* Reads the log tail at `path` where its first line names the bundle `hash`: its clock, and its entries. */
+void savelog_read(player_session *session, const char *path, const char *hash);
+/* Adds the entry of a redeploy to this bundle, and whether it kept what the world stored (the spec's State › Redeploying). */
+void savelog_redeploy(player_session *session, bool kept);
 bool savelog_write(player_session *session);
 /* Adds the entry of a turn that ran: kind, seed, seconds, who, how it ended, and the line typed. */
 void savelog_turn(player_session *session, const sprout_turn_input *input, const sprout_outcome *outcome);

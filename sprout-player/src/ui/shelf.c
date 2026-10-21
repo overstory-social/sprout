@@ -222,6 +222,27 @@ bool player_shelf_holds(const player_shelf *shelf, const char *hash) {
   return false;
 }
 
+/* Whether `other` is a build of the world `entry` is a build of, and `entry` outranks it. */
+static bool outranked_by(const shelf_entry *other, const shelf_entry *entry) {
+  return other != entry && other->ranked && strcmp(other->hash, entry->hash) != 0 && strcmp(other->title, entry->title) == 0 &&
+         strcmp(other->author, entry->author) == 0 &&
+         player_version_order(player_text_of(other->version), player_text_of(entry->version)) <= 0;
+}
+
+const shelf_entry *player_shelf_earlier(player_app *app, const player_shelf *shelf, const shelf_entry *entry) {
+  const shelf_entry *best = NULL;
+  size_t i;
+  if (!entry->ranked) return NULL;
+  for (i = 0; i < shelf->held; i++) {
+    const shelf_entry *other = &shelf->entries[i];
+    int order;
+    if (!outranked_by(other, entry) || !player_has_save(app->session, other->hash)) continue;
+    order = best == NULL ? 1 : player_version_order(player_text_of(other->version), player_text_of(best->version));
+    if (order > 0 || (order == 0 && by_path(other, best) < 0)) best = other;
+  }
+  return best;
+}
+
 void player_shelf_note_more(player_shelf *shelf, const char *failure) {
   copy_text(shelf->more_note, sizeof shelf->more_note, failure != NULL ? failure : "");
 }
@@ -283,7 +304,7 @@ static void choose(player_app *app, player_shelf *shelf) {
     player_message_show(app, entry->reason);
     return;
   }
-  arrival = player_arrival_new(app, entry->path, entry->title);
+  arrival = player_arrival_new(app, entry->path, entry->title, player_shelf_earlier(app, shelf, entry));
   if (arrival == NULL) {
     player_cue(app, PLAYER_CUE_REFUSED);
     player_message_show(app, "The player ran out of memory opening the world.");

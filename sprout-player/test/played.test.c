@@ -38,7 +38,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
   begin("transcript");
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && loaded.fresh, "a new world: %s", loaded.words);
   told = player_admit(s, "Marta");
   CHECK(strcmp(told_text(&told, 0), "There is nothing special about a hall.") == 0 && strcmp(told_kind(&told, 0), "described") == 0,
@@ -102,7 +102,7 @@ static void a_built_turn_leaves_the_stored_world_a_typed_line_does(void) {
   begin("value-first");
   s = session_new();
   save_paths(player_open_whole(s, "value-first.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   CHECK(player_admit(s, "player").admitted, "arriving");
   CHECK(player_view(s, &words) != NULL, "the view: %s", words);
   CHECK(offers(s, "value_first.tune"), "the verb is offered a level at a time");
@@ -129,7 +129,7 @@ static void built_turns_leave_the_stored_world_the_typed_lines_do(void) {
   begin("chip-tree-built");
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "player");
   ask[0] = fill_object("target", "chip_tree.hall.guard");
   ask[1] = fill_word("topic", "weather");

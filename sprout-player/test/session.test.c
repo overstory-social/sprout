@@ -1,4 +1,8 @@
-/* session.c: shelving a cartridge, opening it, reading and writing its save a slice at a time, starting it over, closing it. */
+/*
+ * session.c: shelving a cartridge, opening it, reading and writing its save a slice at a time, starting it over, closing it;
+ * and a world with no save of its own opening an earlier build's where its version keeps it, starting anew in words where it
+ * does not, the earlier build's files never changed.
+ */
 #include <stdlib.h>
 
 #include "host/pd_host.h"
@@ -74,7 +78,7 @@ static void nothing_open_says_so_in_words(void) {
   player_told closed;
   begin("nothing");
   s = session_new();
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(!loaded.ok && strcmp(loaded.words, "No world is open.") == 0, "load");
   saved = player_save(s);
   CHECK(!saved.ok && strcmp(saved.words, "No world is open.") == 0, "save");
@@ -92,7 +96,7 @@ static void a_returning_visitor_finds_their_place_and_name(void) {
   begin("return");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && loaded.fresh && loaded.nickname == NULL && loaded.last == 0, "a new world");
   player_admit(s, "Marta");
   go_north(s);
@@ -100,7 +104,7 @@ static void a_returning_visitor_finds_their_place_and_name(void) {
   CHECK(told_has(&told, "You leave, and take what you carry with you.") && told.saved, "leaving");
 
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && !loaded.fresh && loaded.nickname != NULL && sprout_str_is(*loaded.nickname, "Marta") &&
             loaded.present_count == 0 && !loaded.recovered && strcmp(loaded.words, "") == 0 && loaded.last == 1000000,
         "%s", loaded.words);
@@ -120,7 +124,7 @@ static void a_world_left_open_is_put_away_without_a_word(void) {
   begin("killed");
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   player_save(s);
   /* What the Data folder held at that moment is all a killed app leaves behind. */
@@ -132,7 +136,7 @@ static void a_world_left_open_is_put_away_without_a_word(void) {
   free(state);
   free(log);
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && loaded.recovered && loaded.nickname != NULL && sprout_str_is(*loaded.nickname, "Marta"), "%s", loaded.words);
   CHECK(player_admit(s, "Marta").admitted, "and they can come in");
   end();
@@ -148,7 +152,7 @@ static void the_clock_going_back_is_clamped_to_the_save(void) {
   s = session_new();
   fake->seconds = 5000000;
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   fake->seconds = 100;
   look(s);
@@ -158,7 +162,7 @@ static void the_clock_going_back_is_clamped_to_the_save(void) {
   player_close(s);
 
   player_open_whole(s, "chip-tree.sproutworld");
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.last == 5000000, "the save's last seconds: %llu", (unsigned long long)loaded.last);
   player_admit(s, "Marta");
   log = file_text(log_path);
@@ -177,7 +181,7 @@ static void a_damaged_save_is_set_aside_in_words(void) {
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   fake->file.mkdir("saves");
   write_text(state_path, "{\"this\":\"is not a stored world\"}");
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && loaded.fresh && HAS(loaded.words, "could not be read") && HAS(loaded.words, "set aside"), "%s", loaded.words);
   snprintf(aside, sizeof aside, "%s.damaged", state_path);
   CHECK(exists(aside), "the damaged save was not kept");
@@ -193,7 +197,7 @@ static void a_save_that_cannot_be_written_is_told(void) {
   begin("full");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   fake->fail_writes = 1;
   saved = player_save(s);
@@ -203,7 +207,7 @@ static void a_save_that_cannot_be_written_is_told(void) {
   CHECK(!closed.saved, "close");
   fake->fail_writes = 0;
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   saved = player_save(s);
   CHECK(saved.ok && strcmp(saved.words, "") == 0, "and once there is room it saves");
   end();
@@ -226,7 +230,7 @@ static void starting_over_forgets_the_world_and_keeps_the_name(void) {
   restart = player_start_over(s);
   CHECK(!restart.ok && strcmp(restart.reason, "No world is open.") == 0, "nothing open: %s", restart.reason);
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   CHECK(go_north(s).saved && player_save_settle(s).ok && exists(state_path) && exists(log_path),
         "the visitor moved and the world is saved");
@@ -248,7 +252,7 @@ static void starting_over_forgets_the_world_and_keeps_the_name(void) {
         admitted.words);
   CHECK(!player_start_over(s).ok, "starting over again before the load has no state to forget");
 
-  loaded = player_load(s);
+  loaded = player_load(s, NULL);
   CHECK(loaded.ok && loaded.fresh && !loaded.recovered && loaded.nickname == NULL && loaded.present_count == 0 &&
             loaded.last == 0,
         "the next load arrives fresh: %s", loaded.words);
@@ -258,6 +262,167 @@ static void starting_over_forgets_the_world_and_keeps_the_name(void) {
   view = player_view(s, &words);
   CHECK(view != NULL && sprout_str_is(view->place.id, "chip_tree.hall"),
         "the visitor begins where the world begins, not where they left: %s", words);
+  end();
+}
+
+/* ---- a save across versions ---- */
+
+#define OLDER "worlds/teashop-a.sproutworld"
+
+/* The Data folder holds the teashop at 0.1.0 and at `newer`; Marta played the older into the kitchen, and left. */
+static void played_the_older(player_session *s, const char *newer, char *older_hash, char *newer_hash) {
+  sprout_filling way = fill_exit("way", "north", "through the bead curtain", "teashop.kitchen");
+  player_opening opened;
+  build_of(OLDER, "0.1.0", "Ada", '3');
+  build_of("worlds/teashop-b.sproutworld", newer, "Ada", '4');
+  opened = player_open_whole(s, OLDER);
+  snprintf(older_hash, 72, "%s", opened.ok ? opened.hash : "");
+  CHECK(!player_has_save(s, older_hash), "no save before the first turn");
+  player_load(s, NULL);
+  player_admit(s, "Marta");
+  CHECK(turn_of(s, "sprout.go", NULL, 1, &way).committed, "Marta goes north in the older build");
+  player_close(s);
+  CHECK(player_has_save(s, older_hash), "the older build has a save");
+  opened = player_open_whole(s, "worlds/teashop-b.sproutworld");
+  snprintf(newer_hash, 72, "%s", opened.ok ? opened.hash : "");
+  CHECK(opened.ok && strcmp(older_hash, newer_hash) != 0, "two builds, two hashes: %s", opened.reason);
+}
+
+/* Where the visitor stands, by place id, or "". */
+static const char *standing(player_session *s) {
+  static char place[100];
+  const char *words;
+  const sprout_seen_view *view = player_view(s, &words);
+  snprintf(place, sizeof place, "%.*s", view != NULL ? (int)view->place.id.length : 0, view != NULL ? view->place.id.bytes : "");
+  return place;
+}
+
+/* A later version that is not breaking opens with the earlier build's save, which becomes its own, and the earlier's files are as they were. */
+static void a_compatible_version_carries_the_save_forward(void) {
+  player_session *s;
+  char older[72], newer[72], older_state[200], older_log[200], state_path[200], log_path[200];
+  char *before, *log_before, *after, *log;
+  player_earlier earlier;
+  player_loaded loaded;
+  uint64_t last;
+  begin("carried");
+  s = session_new();
+  played_the_older(s, "0.1.1", older, newer);
+  save_paths(older, older_state, older_log, sizeof older_state);
+  save_paths(newer, state_path, log_path, sizeof state_path);
+  before = file_text(older_state);
+  log_before = file_text(older_log);
+  earlier.hash = older;
+  earlier.version = "0.1.0";
+  loaded = player_load(s, &earlier);
+  CHECK(loaded.ok && loaded.carried && !loaded.outgrown && !loaded.fresh, "%s", loaded.words);
+  CHECK(strcmp(loaded.words, "This world is now version 0.1.1, and your place in it carries over from version 0.1.0.") == 0,
+        "the player is told: %s", loaded.words);
+  CHECK(loaded.nickname != NULL && sprout_str_is(*loaded.nickname, "Marta") && loaded.last == 1000000,
+        "the save's visitor and its clock come with it: %llu", (unsigned long long)loaded.last);
+  last = loaded.last;
+  CHECK(!exists(state_path), "nothing is written before a turn");
+  CHECK(player_admit(s, "Marta").admitted, "Marta arrives again");
+  CHECK(strcmp(standing(s), "teashop.kitchen") == 0, "where she left the older build: %s", standing(s));
+  player_close(s);
+  CHECK(exists(state_path), "the save is now the newer build's own");
+  log = file_text(log_path);
+  CHECK(log != NULL && HAS(log, "{\"kind\":\"redeploy\",\"bundle\":\"") && HAS(log, "\",\"kept\":true}") &&
+            HAS(log, "\"text\":null") && strstr(log, "redeploy") > strstr(log, "\"kind\":\"command\""),
+        "its log carries the older's tail, then the redeploy: %s", log);
+  free(log);
+  after = file_text(older_state);
+  CHECK(before != NULL && after != NULL && strcmp(before, after) == 0, "the older build's save is as it was");
+  free(after);
+  after = file_text(older_log);
+  CHECK(log_before != NULL && after != NULL && strcmp(log_before, after) == 0, "and its log");
+  free(after);
+  free(before);
+  free(log_before);
+
+  player_open_whole(s, "worlds/teashop-b.sproutworld");
+  loaded = player_load(s, &earlier);
+  CHECK(loaded.ok && !loaded.carried && !loaded.outgrown && strcmp(loaded.words, "") == 0 && loaded.last >= last,
+        "the next opening reads the newer's own save, and says nothing: %s", loaded.words);
+  end();
+}
+
+/* A breaking version starts anew, says so once, and keeps the earlier build's save where it is. */
+static void a_breaking_version_starts_anew_and_says_so_once(void) {
+  player_session *s;
+  char older[72], newer[72], older_state[200], older_log[200], state_path[200], log_path[200];
+  char *before, *after, *log;
+  player_earlier earlier;
+  player_loaded loaded;
+  begin("outgrown");
+  s = session_new();
+  played_the_older(s, "0.2.0", older, newer);
+  save_paths(older, older_state, older_log, sizeof older_state);
+  save_paths(newer, state_path, log_path, sizeof state_path);
+  before = file_text(older_state);
+  earlier.hash = older;
+  earlier.version = "0.1.0";
+  loaded = player_load(s, &earlier);
+  CHECK(loaded.ok && loaded.outgrown && !loaded.carried && loaded.fresh && loaded.nickname == NULL && loaded.last == 0,
+        "%s", loaded.words);
+  CHECK(strcmp(loaded.words, "This world has changed too much since version 0.1.0 for your old save, so it starts again "
+                             "from the beginning. Your old save is kept.") == 0,
+        "the player is told: %s", loaded.words);
+  CHECK(player_admit(s, "Marta").admitted && strcmp(standing(s), "teashop.front_room") == 0,
+        "Marta arrives where the world begins: %s", standing(s));
+  player_close(s);
+  log = file_text(log_path);
+  CHECK(log != NULL && HAS(log, "\",\"kept\":false}") && !HAS(log, "\"kind\":\"command\""),
+        "the newer's log starts with the redeploy, and carries nothing of the older's: %s", log);
+  free(log);
+  after = file_text(older_state);
+  CHECK(before != NULL && after != NULL && strcmp(before, after) == 0 && exists(older_log),
+        "the older build's save is kept on disk, as it was");
+  free(before);
+  free(after);
+  player_open_whole(s, "worlds/teashop-b.sproutworld");
+  loaded = player_load(s, &earlier);
+  CHECK(loaded.ok && !loaded.outgrown && strcmp(loaded.words, "") == 0, "told once: %s", loaded.words);
+  end();
+}
+
+/* An earlier save the newer build will not open starts the world anew, in words, and stays where it is. */
+static void an_earlier_save_that_will_not_open_is_told_and_kept(void) {
+  player_session *s;
+  char older[72], newer[72], older_state[200], older_log[200], aside[260];
+  player_earlier earlier;
+  player_loaded loaded;
+  char *after;
+  begin("unopened");
+  s = session_new();
+  played_the_older(s, "0.1.1", older, newer);
+  save_paths(older, older_state, older_log, sizeof older_state);
+  write_text(older_state, "{\"this\":\"is not a stored world\"}");
+  earlier.hash = older;
+  earlier.version = "0.1.0";
+  loaded = player_load(s, &earlier);
+  CHECK(loaded.ok && loaded.outgrown && loaded.fresh && HAS(loaded.words, "Your save from version 0.1.0 could not be opened in version 0.1.1: ") &&
+            HAS(loaded.words, "The world starts again from the beginning, and your old save is kept."),
+        "%s", loaded.words);
+  snprintf(aside, sizeof aside, "%s.damaged", older_state);
+  after = file_text(older_state);
+  CHECK(!exists(aside) && after != NULL && HAS(after, "is not a stored world"), "the older's save is not set aside");
+  free(after);
+  CHECK(player_admit(s, "Marta").admitted, "the world starts again");
+  end();
+}
+
+/* With no save of its own and no earlier build named, a world starts anew and says nothing. */
+static void a_newer_build_with_no_earlier_save_starts_anew_quietly(void) {
+  player_session *s;
+  player_loaded loaded;
+  begin("no-earlier");
+  s = session_new();
+  build_of(OLDER, "0.1.0", "Ada", '3');
+  build_of("worlds/teashop-b.sproutworld", "0.1.1", "Ada", '4');
+  player_open_whole(s, "worlds/teashop-b.sproutworld");
+  loaded = player_load(s, NULL);
+  CHECK(loaded.ok && loaded.fresh && !loaded.carried && !loaded.outgrown && strcmp(loaded.words, "") == 0, "%s", loaded.words);
   end();
 }
 
@@ -299,7 +464,7 @@ static void the_state_is_written_a_slice_a_step_after_the_turn(void) {
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   snprintf(part, sizeof part, "%s.part", state_path);
-  player_load(s);
+  player_load(s, NULL);
   CHECK(!player_saving(s), "a fresh world owes nothing");
   CHECK(player_admit(s, "Marta").saved, "the arrival");
   log = file_text(log_path);
@@ -335,7 +500,7 @@ static void a_ticks_save_waits_and_a_turns_does_not(void) {
   fake->seconds = 1000;
   save_paths(player_open_whole(s, "ticks.sproutworld").hash, state_path, log_path, sizeof state_path);
   snprintf(part, sizeof part, "%s.part", state_path);
-  player_load(s);
+  player_load(s, NULL);
   CHECK(player_admit(s, "Marta").saved && player_save_settle(s).ok && exists(state_path), "the arrival's save is at once");
   fake->seconds = 1010;
   CHECK(player_tick(s).saved && player_saving(s), "a tick changed the state: a save is owed");
@@ -369,7 +534,7 @@ static void a_turn_during_the_save_waits_for_it(void) {
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
   snprintf(part, sizeof part, "%s.part", state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   CHECK(player_save_settle(s).ok && saved_in(state_path, "chip_tree.hall"), "settled, the arrival is on disk");
   CHECK(go_north(s).committed, "the visitor goes north");
@@ -392,7 +557,7 @@ static void a_step_that_cannot_write_is_told(void) {
   begin("stepfails");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   fake->fail_writes = 1;
   step = player_save_step(s, SLICE);
@@ -465,6 +630,10 @@ int main(void) {
   a_damaged_save_is_set_aside_in_words();
   a_save_that_cannot_be_written_is_told();
   starting_over_forgets_the_world_and_keeps_the_name();
+  a_compatible_version_carries_the_save_forward();
+  a_breaking_version_starts_anew_and_says_so_once();
+  an_earlier_save_that_will_not_open_is_told_and_kept();
+  a_newer_build_with_no_earlier_save_starts_anew_quietly();
   the_state_is_written_a_slice_a_step_after_the_turn();
   a_ticks_save_waits_and_a_turns_does_not();
   a_turn_during_the_save_waits_for_it();

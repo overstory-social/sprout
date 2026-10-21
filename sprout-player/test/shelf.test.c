@@ -9,18 +9,22 @@
  * the builds of one world, one title and author, only the newest is a word, by the ranking the
  * download screen uses (newest.h), and the first in path order among equals; the others stay on
  * disk, still on the shelf to the download screen, and a newest refused at its open stays the
- * word, greyed; a world by another author is a word of its own.
+ * word, greyed; a world by another author is a word of its own. The newest opens with the save of
+ * the newest build it outranks that has one, where it has none of its own: carried, told, and the
+ * newer's from then on, under a version that keeps it; anew and told once under one that breaks it,
+ * the old save kept; anew and quietly where no build has a save; and a carried world started over
+ * stays so.
  */
 #include <stdlib.h>
 
 #include "host/pd_host.h"
-#include "inflate.h"
 #include "support.h"
 #include "ui/app.h"
 #include "ui/message.h"
 #include "ui/nickname.h"
 #include "ui/reader.h"
 #include "ui/shelf.h"
+#include "ui/transcript.h"
 #include "wheel_support.h"
 
 #define LINE FAKE_SERIF_LINE
@@ -260,101 +264,6 @@ static void a_titled_world_is_shown_by_its_title_from_the_shelf_to_the_reader(vo
 
 /* ---- builds of one world ---- */
 
-/* `bytes` as one gzip member of stored blocks, into `out`, which has room for `length` and 5 bytes a block and 18 more. */
-static size_t gzip_stored(const unsigned char *bytes, size_t length, unsigned char *out) {
-  static const unsigned char HEADER[10] = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff};
-  uint32_t crc = sprout_crc32(0, bytes, length);
-  size_t at = sizeof HEADER, done = 0, i;
-  memcpy(out, HEADER, sizeof HEADER);
-  do {
-    size_t block = length - done < 65535 ? length - done : 65535;
-    out[at++] = done + block == length ? 1 : 0;
-    out[at++] = (unsigned char)(block & 0xff);
-    out[at++] = (unsigned char)(block >> 8);
-    out[at++] = (unsigned char)(~block & 0xff);
-    out[at++] = (unsigned char)((~block >> 8) & 0xff);
-    memcpy(out + at, bytes + done, block);
-    at += block;
-    done += block;
-  } while (done < length);
-  for (i = 0; i < 4; i++) out[at++] = (unsigned char)((crc >> (8 * i)) & 0xff);
-  for (i = 0; i < 4; i++) out[at++] = (unsigned char)(((uint32_t)length >> (8 * i)) & 0xff);
-  return at;
-}
-
-/* Overwrites the first `from` in `text` with `to`, of the same length; whether there was one. */
-static bool overwrite(char *text, const char *from, const char *to) {
-  char *at = strstr(text, from);
-  CHECK(at != NULL && strlen(from) == strlen(to), "the teashop's header has %s", from);
-  if (at == NULL || strlen(from) != strlen(to)) return false;
-  memcpy(at, to, strlen(to));
-  return true;
-}
-
-static uint32_t word_at(const unsigned char *bytes) {
-  return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
-}
-
-static void put_word(unsigned char *bytes, size_t value) {
-  size_t i;
-  for (i = 0; i < 4; i++) bytes[i] = (unsigned char)((value >> (8 * i)) & 0xff);
-}
-
-/*
- * Writes to `path` under the Data folder a build of the packed teashop (version 0.1.0 by Ada) whose
- * manifest says `version` and `author`, the same lengths as those, and whose bundle hash begins
- * with `digit`, so that each build is a world of its own to the session.
- */
-static void build_of(const char *path, const char *version, const char *author, char digit) {
-  char from[1200], to[1200], field[64];
-  FILE *file;
-  long size;
-  unsigned char *cartridge = NULL, *gzipped = NULL;
-  char *body = NULL;
-  size_t body_bytes = 0, assets_at, gzipped_bytes;
-  const char *why = NULL;
-  player_host host;
-  sprout_arena arena;
-  player_host_init(&host, &fake->api);
-  sprout_arena_init(&arena, &host.record);
-  snprintf(from, sizeof from, "%s/teashop.sproutworld", PLAYER_CARTRIDGES);
-  snprintf(to, sizeof to, "mkdir -p '%s/worlds'", fake->data);
-  CHECK(system(to) == 0, "%s", to);
-  snprintf(to, sizeof to, "%s/%s", fake->data, path);
-  file = fopen(from, "rb");
-  CHECK(file != NULL, "%s", from);
-  if (file == NULL) return;
-  fseek(file, 0, SEEK_END);
-  size = ftell(file);
-  fseek(file, 0, SEEK_SET);
-  cartridge = (unsigned char *)malloc((size_t)size);
-  CHECK(fread(cartridge, 1, (size_t)size, file) == (size_t)size, "reading %s", from);
-  fclose(file);
-  assets_at = word_at(cartridge + 16);
-  CHECK(sprout_gunzip(&arena, cartridge + 24, assets_at - 24, &body, &body_bytes, &why) == SPROUT_OK, "%s", why);
-  snprintf(field, sizeof field, "\"version\":\"%s\"", version);
-  if (body != NULL && overwrite(body, "\"version\":\"0.1.0\"", field)) {
-    snprintf(field, sizeof field, "\"author\":\"%s\"", author);
-    overwrite(body, "\"author\":\"Ada\"", field);
-    snprintf(field, sizeof field, "\"hash\":\"%c", digit);
-    overwrite(body, "\"hash\":\"2", field);
-    gzipped = (unsigned char *)malloc(body_bytes + 5 * (body_bytes / 65535 + 1) + 18);
-    gzipped_bytes = gzip_stored((const unsigned char *)body, body_bytes, gzipped);
-    put_word(cartridge + 16, 24 + gzipped_bytes);
-    file = fopen(to, "wb");
-    CHECK(file != NULL, "%s", to);
-    if (file != NULL) {
-      fwrite(cartridge, 1, 24, file);
-      fwrite(gzipped, 1, gzipped_bytes, file);
-      fwrite(cartridge + assets_at, 1, (size_t)size - assets_at, file);
-      fclose(file);
-    }
-  }
-  free(gzipped);
-  free(cartridge);
-  sprout_arena_reset(&arena);
-}
-
 /* The path of the world entry `n` of the shelf is, or "". */
 static const char *path_of(size_t n) { return n < app->shelf->count ? app->shelf->entries[n].path : ""; }
 
@@ -436,6 +345,149 @@ static void a_world_of_one_title_by_another_author_is_a_word_of_its_own(void) {
   end();
 }
 
+/* ---- a save across versions ---- */
+
+#define OLDER_BUILD "worlds/teashop-a.sproutworld"
+#define NEWER_BUILD "worlds/teashop-b.sproutworld"
+
+/* The teashop at 0.1.0 played, apart from the app, by Alder into the kitchen, who left; and a build at `newer` beside it. Its hash into `older`. */
+static void played_the_older(const char *newer, char *older) {
+  sprout_filling way = fill_exit("way", "north", "through the bead curtain", "teashop.kitchen");
+  player_session *s = session_new();
+  player_opening opened;
+  build_of(OLDER_BUILD, "0.1.0", "Ada", '3');
+  opened = player_open_whole(s, OLDER_BUILD);
+  snprintf(older, 72, "%s", opened.ok ? opened.hash : "");
+  player_load(s, NULL);
+  player_admit(s, "Alder");
+  CHECK(turn_of(s, "sprout.go", NULL, 1, &way).committed, "Alder goes north in the older build");
+  player_close(s);
+  build_of(NEWER_BUILD, newer, "Ada", '4');
+}
+
+/* The reader's transcript, every line of every paragraph oldest first, joined by spaces. */
+static const char *told_so_far(void) {
+  static char all[32768];
+  const transcript *t = &((player_reader *)app->ctx)->lines;
+  size_t at = 0, i, k;
+  all[0] = '\0';
+  for (i = 0; i < t->count; i++) {
+    const wrapped *paragraph = &t->paragraphs[(t->first + i) % TRANSCRIPT_KEEP];
+    const char *line = paragraph->bytes;
+    for (k = 0; k < paragraph->line_count; k++, line = wrap_next(line))
+      at += (size_t)snprintf(all + at, sizeof all - at, "%s ", line);
+  }
+  return all;
+}
+
+/* Where the app's visitor stands, by place id, or "". */
+static const char *standing(void) {
+  static char place[100];
+  const char *words;
+  const sprout_seen_view *view = player_view(app->session, &words);
+  snprintf(place, sizeof place, "%.*s", view != NULL ? (int)view->place.id.length : 0, view != NULL ? view->place.id.bytes : "");
+  return place;
+}
+
+/* Opens the world at the shelf's front and runs frames until the reader is up; whether it came up. */
+static bool opened_to_the_reader(void) {
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  return reader_within(10000);
+}
+
+static void a_newer_compatible_build_opens_with_the_older_save(void) {
+  char older[72], state[200], log[200], newer_state[200], newer_log[200];
+  const shelf_entry *earlier;
+  begin("carried");
+  app_folder("app");
+  played_the_older("0.1.1", older);
+  start();
+  fake_frame(fake, 0, 0);
+  CHECK(app->shelf->count == 1 && strcmp(path_of(0), NEWER_BUILD) == 0, "the wheel shows the newer build: %s", path_of(0));
+  earlier = player_shelf_earlier(app, app->shelf, &app->shelf->entries[0]);
+  CHECK(earlier != NULL && strcmp(earlier->path, OLDER_BUILD) == 0, "the older build's save is the one to carry");
+  CHECK(opened_to_the_reader(), "the reader came up");
+  CHECK(HAS(told_so_far(), "You are in Teashop as Alder.") &&
+            HAS(told_so_far(), "This world is now version 0.1.1, and your place in it carries over from version 0.1.0."),
+        "the save's name was offered first, and the player is told: %s", told_so_far());
+  CHECK(strcmp(standing(), "teashop.kitchen") == 0, "back where they left the older build: %s", standing());
+  save_paths(older, state, log, sizeof state);
+  save_paths(app->shelf->entries[0].hash, newer_state, newer_log, sizeof newer_state);
+  player_app_free(app);
+  CHECK(exists(newer_state) && exists(state) && exists(OLDER_BUILD),
+        "the save is now the newer build's, and the older build and its save stay on disk, hidden");
+
+  start();
+  CHECK(opened_to_the_reader() && !HAS(told_so_far(), "carries over"), "the next opening says nothing of it: %s", told_so_far());
+  player_app_free(app);
+  end();
+}
+
+static void a_newer_breaking_build_starts_anew_and_says_so_once(void) {
+  char older[72], state[200], log[200];
+  char *before, *after;
+  begin("outgrown");
+  app_folder("app");
+  played_the_older("0.2.0", older);
+  save_paths(older, state, log, sizeof state);
+  before = file_text(state);
+  start();
+  CHECK(opened_to_the_reader(), "the reader came up");
+  CHECK(HAS(told_so_far(), "This world has changed too much since version 0.1.0 for your old save, so it starts again from "
+                           "the beginning. Your old save is kept."),
+        "the player is told before any move of theirs: %s", told_so_far());
+  CHECK(strcmp(standing(), "teashop.front_room") == 0, "where the world begins: %s", standing());
+  player_app_free(app);
+  after = file_text(state);
+  CHECK(before != NULL && after != NULL && strcmp(before, after) == 0 && exists(log), "the old save is kept as it was");
+  free(before);
+  free(after);
+
+  start();
+  CHECK(opened_to_the_reader() && !HAS(told_so_far(), "changed too much"), "told once: %s", told_so_far());
+  player_app_free(app);
+  end();
+}
+
+static void of_two_builds_with_no_save_the_newer_starts_anew_quietly(void) {
+  begin("two-unsaved");
+  app_folder("app");
+  build_of(OLDER_BUILD, "0.1.0", "Ada", '3');
+  build_of(NEWER_BUILD, "0.1.1", "Ada", '4');
+  start();
+  fake_frame(fake, 0, 0);
+  CHECK(player_shelf_earlier(app, app->shelf, &app->shelf->entries[0]) == NULL, "no build has a save to carry");
+  CHECK(opened_to_the_reader(), "the reader came up");
+  CHECK(!HAS(told_so_far(), "version"), "nothing is said of versions: %s", told_so_far());
+  CHECK(strcmp(standing(), "teashop.front_room") == 0, "where the world begins: %s", standing());
+  player_app_free(app);
+  end();
+}
+
+/* A carried world started over is written at once, so leaving before arriving does not carry the older save into it again. */
+static void a_carried_world_started_over_stays_started_over(void) {
+  char older[72];
+  int n;
+  begin("carried-restart");
+  app_folder("app");
+  played_the_older("0.1.1", older);
+  start();
+  CHECK(opened_to_the_reader() && strcmp(standing(), "teashop.kitchen") == 0, "carried: %s", standing());
+  CHECK(fake_menu(fake, "start over"), "start over, chosen in the reader");
+  fake_frame(fake, 0, 0);
+  fake_frame(fake, kButtonA, 0);
+  CHECK(app->screen == &player_nickname_screen, "the nickname screen is up again");
+  fake_frame(fake, kButtonB, 0);
+  for (n = 0; n < 10 && app->screen != &player_shelf_screen; n++) fake_frame(fake, 0, 0);
+  CHECK(app->screen == &player_shelf_screen, "B goes back to the shelf without arriving");
+  CHECK(opened_to_the_reader(), "opened again");
+  CHECK(!HAS(told_so_far(), "carries over") && strcmp(standing(), "teashop.front_room") == 0,
+        "the world stays started over: %s", standing());
+  player_app_free(app);
+  end();
+}
+
 int main(void) {
   test_program("shelf");
   the_shelf_lists_the_shipped_worlds_once_in_path_order();
@@ -449,5 +501,9 @@ int main(void) {
   of_builds_of_one_version_the_first_in_path_order_is_shown();
   an_outranked_build_is_held_and_a_refused_newest_is_not_shown_through();
   a_world_of_one_title_by_another_author_is_a_word_of_its_own();
+  a_newer_compatible_build_opens_with_the_older_save();
+  a_newer_breaking_build_starts_anew_and_says_so_once();
+  of_two_builds_with_no_save_the_newer_starts_anew_quietly();
+  a_carried_world_started_over_stays_started_over();
   return finish();
 }

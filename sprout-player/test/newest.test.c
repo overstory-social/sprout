@@ -5,7 +5,8 @@
  * reads only the length it is given. Over lists of builds, generated and by hand, the first places
  * hold one build of each world (one title and author), the highest version and the first listed
  * among equals, each where its world was first listed; a build whose author or version is not known
- * is a world of its own; and every build stays in the list.
+ * is a world of its own; and every build stays in the list. A later version keeps an earlier one's save
+ * by semver's caret read strictly, a pre-release only under itself, build metadata unread.
  */
 #include "newest.h"
 #include "support.h"
@@ -53,6 +54,45 @@ static void versions_rank_as_semver_ranks_them(void) {
   CHECK(player_version_order(player_text_of(NULL), player_text_of("oops")) == 0 &&
             player_version_order(player_text_of(NULL), player_text_of("0.0.1")) < 0,
         "an unknown version ranks as one that is not semver");
+  end();
+}
+
+/* The spec's State › Across versions: semver's caret read strictly, a pre-release compatible only with itself. */
+static void a_later_version_keeps_a_save_by_the_caret(void) {
+  static const struct {
+    const char *earlier, *later;
+    bool keeps;
+  } CASES[] = {
+      {"0.1.0", "0.1.1", true},
+      {"0.1.0", "0.1.0", true},
+      {"0.1.0", "0.2.0", false},
+      {"0.1.9", "0.1.10", true},
+      {"0.0.3", "0.0.3", true},
+      {"0.0.3", "0.0.4", false},
+      {"1.0.0", "1.1.0", true},
+      {"1.4.2", "1.10.0", true},
+      {"1.0.0", "2.0.0", false},
+      {"1.1.0", "1.0.0", false},
+      {"0.1.1", "0.1.0", false},
+      {"1.0.0-beta.1", "1.0.0-beta.1", true},
+      {"1.0.0-beta.1", "1.0.0-beta.2", false},
+      {"1.0.0-beta.1", "1.0.0", false},
+      {"1.0.0", "1.0.1-rc.1", false},
+      {"1.0.0+a", "1.0.1+b", true},
+      {"1.0.0-rc.1+a", "1.0.0-rc.1+b", true},
+      {"not a version", "1.0.0", false},
+      {"1.0.0", "1.0", false},
+      {"01.0.0", "1.0.0", false},
+  };
+  size_t i;
+  begin("keeps");
+  for (i = 0; i < sizeof CASES / sizeof CASES[0]; i++) {
+    bool keeps = player_version_keeps_saves(player_text_of(CASES[i].earlier), player_text_of(CASES[i].later));
+    CHECK(keeps == CASES[i].keeps, "a save of %s under %s: %d, not %d", CASES[i].earlier, CASES[i].later, keeps, CASES[i].keeps);
+  }
+  CHECK(!player_version_keeps_saves(player_text_of(NULL), player_text_of("1.0.0")) &&
+            !player_version_keeps_saves(player_text_of("1.0.0"), player_text_of(NULL)),
+        "an unknown version keeps nothing");
   end();
 }
 
@@ -179,6 +219,7 @@ static void over_generated_lists_each_world_keeps_its_newest_and_nothing_is_lost
 int main(void) {
   test_program("newest");
   versions_rank_as_semver_ranks_them();
+  a_later_version_keeps_a_save_by_the_caret();
   the_newest_build_of_each_world_comes_first();
   over_generated_lists_each_world_keeps_its_newest_and_nothing_is_lost();
   return finish();

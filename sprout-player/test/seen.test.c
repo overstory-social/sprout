@@ -22,7 +22,7 @@ static bool names(const player_chip *chip, const char *name) {
 static player_session *arrived(const char *world) {
   player_session *s = session_new();
   player_open_whole(s, world);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   return s;
 }
@@ -190,7 +190,7 @@ static void a_leaf_carries_its_line_refusal_and_options_and_a_bad_path_is_refuse
   level = player_chips(s, NULL, 0);
   CHECK(!level.ok && strcmp(level.reason, "No view has been polled.") == 0, "before any view");
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   player_view(s, &words);
   turn = pick_of(s, "chip_tree.turn");
@@ -291,12 +291,12 @@ static void a_visitor_who_is_not_in_the_world_sees_words_and_nothing_to_do(void)
   CHECK(player_view(s, &words) == NULL && strcmp(words, "You are not in a world.") == 0, "before opening");
   CHECK(!player_chips(s, NULL, 0).ok, "and no level to ask for");
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   CHECK(player_view(s, &words) == NULL && strcmp(words, "You are not in a world.") == 0, "before arriving");
   player_admit(s, "Marta");
   player_close(s);
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   CHECK(player_view(s, &words) == NULL && strcmp(words, "You are not in a world.") == 0, "after leaving");
   end();
 }

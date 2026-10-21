@@ -22,7 +22,7 @@ static void a_word_of_the_world_is_not_a_name_and_nobody_arrives(void) {
   CHECK(!refused.ok && !refused.admitted && strcmp(refused.words, "No world is open.") == 0 && refused.lines.count == 0,
         "before a world is open: %s", refused.words);
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   refused = player_admit(s, "guard");
   CHECK(refused.ok && !refused.admitted && HAS(refused.words, "\"guard\" is a word this world already reads") &&
             refused.lines.count == 0 && refused.saved,
@@ -41,7 +41,7 @@ static void chip_tree_plays_as_its_transcript_does(void) {
   begin("transcript");
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   told = player_admit(s, "Marta");
   CHECK(told.ok && told.admitted && told.saved && strcmp(told.words, "") == 0, "%s", told.words);
   CHECK(told.lines.count == 1 && strcmp(told_kind(&told, 0), "described") == 0 &&
@@ -108,7 +108,7 @@ static void a_reading_the_world_cannot_take_is_told_in_words_and_writes_nothing(
   begin("refused");
   s = session_new();
   save_paths(player_open_whole(s, "chip-tree.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   player_save_settle(s);
   before = file_text(state_path);
@@ -140,7 +140,7 @@ static void a_command_or_tick_outside_the_world_runs_nothing(void) {
   told = player_misread(s, "anything");
   CHECK(!told.ok && strcmp(told.words, "You are not in a world.") == 0, "a misread outside the world says where they are first");
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   told = player_tick(s);
   CHECK(!told.ok && !told.ran && strcmp(told.words, "You are not in a world.") == 0, "not yet arrived");
   end();
@@ -153,7 +153,7 @@ static void a_turn_whose_save_cannot_be_written_says_so(void) {
   begin("full");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   CHECK(player_admit(s, "Marta").saved, "arriving saves");
   fake->fail_writes = 1;
   told = ask_guard(s, NULL);
@@ -200,7 +200,7 @@ static void a_line_of_turns_owes_the_state_once(void) {
   begin("line");
   s = session_new();
   player_open_whole(s, "chip-tree.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   CHECK(player_admit(s, "Marta").saved && player_save_settle(s).ok, "arrived, and nothing is owed");
   fake->file_log[0] = '\0';
   for (k = 0; k < 4; k++) {
@@ -229,7 +229,7 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
   begin("catch-up");
   s = session_new();
   save_paths(player_open_whole(s, "wakes.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   CHECK(player_view(s, &words) != NULL, "the view: %s", words);
   CHECK(reading_from(s, "fire", "a kiln", &reading), "a reading from the chips");
@@ -241,7 +241,7 @@ static void catching_up_after_an_absence_narrates_nothing(void) {
 
   fake->seconds += 4 * 3600;
   player_open_whole(s, "wakes.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   told = player_admit(s, "Marta");
   CHECK(told.admitted && told.lines.count == 1 && strcmp(told_kind(&told, 0), "described") == 0,
         "the arrival is all that is told: %s", told_text(&told, 0));
@@ -265,7 +265,7 @@ static void a_tick_tells_what_the_place_says(void) {
   begin("tick");
   s = session_new();
   player_open_whole(s, "ticks.sproutworld");
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   ticked = player_tick(s);
   CHECK(ticked.ok && ticked.saved, "a tick");
@@ -293,7 +293,7 @@ static void a_command_that_asks_for_time_to_pass_brings_the_wakes_due_in_it(void
   begin("passing");
   s = session_new();
   save_paths(player_open_whole(s, "passing-time.sproutworld").hash, state_path, log_path, sizeof state_path);
-  player_load(s);
+  player_load(s, NULL);
   player_admit(s, "Marta");
   filling = fill_object("target", "passing_time.well_bottom.bucket");
   told = turn_of(s, "passing_time.hoist", "hoist bucket", 1, &filling);

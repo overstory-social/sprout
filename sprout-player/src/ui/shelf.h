@@ -4,7 +4,8 @@
  * and in each one's `worlds/` folder, and asks the session whether each can be shelved; one it
  * refuses is listed with the engine's reason and cannot be opened. Of the builds of one world, one
  * title and author, only the newest is listed (newest.h), as the download screen offers only the
- * newest; the others stay where they are, unlisted. A cartridge is inspected once
+ * newest; the others stay where they are, unlisted, and the newest opens with the save of the newest
+ * of them that has one where it has none of its own (arrival.h). A cartridge is inspected once
  * for as long as the app runs, and a world refused at its open keeps that reason on the shelf
  * afterwards. Each world is a word on a wheel (wheel.h), its title, greyed where it cannot be opened
  * as it stands, with the reason in the panel; the last word, "more worlds...", opens the download
@@ -65,6 +66,12 @@ void player_shelf_list(player_app *app);
 
 /* Whether a world with the bundle hash `hash` is on the shelf and can be opened, listed or outranked by a newer build. */
 bool player_shelf_holds(const player_shelf *shelf, const char *hash);
+
+/*
+ * Of the builds `entry` outranks, the newest whose save is on the device, the first in path order among
+ * equals: the build whose save opening `entry` may carry forward (session.h). NULL where there is none.
+ */
+const shelf_entry *player_shelf_earlier(player_app *app, const player_shelf *shelf, const shelf_entry *entry);
 
 /* What the download screen last could not do, said under "more worlds..."; NULL when it could. */
 void player_shelf_note_more(player_shelf *shelf, const char *failure);

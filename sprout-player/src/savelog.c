@@ -4,8 +4,9 @@
  * clamp starts from when the world is opened again, and how far host seconds run ahead of the
  * device's for the time commands asked to pass, absent until a command did. The file is
  * `saves/<hash>.log`; its first line names the bundle it belongs to, and a log of another bundle
- * is not read. Each entry is a turn that ran: its kind, seed, seconds, who, how it ended, and the
- * line typed.
+ * is not read as this one's. Each entry is a turn that ran: its kind, seed, seconds, who, how it
+ * ended, and the line typed; or a redeploy, where a save is carried to a later build or a later
+ * build starts anew beside an earlier one's save, with the bundle and whether it kept the state.
  */
 #include <string.h>
 
@@ -36,8 +37,8 @@ void savelog_add(player_session *session, const char *entry, size_t length) {
   session->log[session->log_count++] = copy;
 }
 
-/* The seconds the header line records, and how far ahead, or false where it is not this bundle's header. */
-static bool header_seconds(player_session *session, const char *line, size_t length, uint64_t *seconds,
+/* The seconds the header line records, and how far ahead, or false where it is not the header of bundle `hash`. */
+static bool header_seconds(player_session *session, const char *hash, const char *line, size_t length, uint64_t *seconds,
                            uint64_t *ahead) {
   sprout_arena arena;
   sprout_json *root = NULL;
@@ -49,7 +50,7 @@ static bool header_seconds(player_session *session, const char *line, size_t len
       root->kind == SPROUT_JSON_OBJECT) {
     bundle = sprout_json_get(root, "bundle");
     last = sprout_json_get(root, "lastSeconds");
-    mine = bundle != NULL && bundle->kind == SPROUT_JSON_STRING && strcmp(bundle->bytes, session->hash) == 0 &&
+    mine = bundle != NULL && bundle->kind == SPROUT_JSON_STRING && strcmp(bundle->bytes, hash) == 0 &&
            last != NULL && last->kind == SPROUT_JSON_NUMBER && last->number >= 0;
     if (mine) *seconds = (uint64_t)last->number;
     passed = sprout_json_get(root, "aheadSeconds");
@@ -60,9 +61,9 @@ static bool header_seconds(player_session *session, const char *line, size_t len
   return mine;
 }
 
-void savelog_read(player_session *session) {
+void savelog_read(player_session *session, const char *path, const char *hash) {
   size_t length = 0, at = 0, end;
-  char *bytes = player_read_file(session->pd, session->log_path, &length);
+  char *bytes = player_read_file(session->pd, path, &length);
   uint64_t seconds = 0, ahead = 0;
   bool first = true;
   if (bytes == NULL) return;
@@ -71,7 +72,7 @@ void savelog_read(player_session *session) {
     while (end < length && bytes[end] != '\n') end++;
     if (end > at) {
       if (first) {
-        if (!header_seconds(session, bytes + at, end - at, &seconds, &ahead)) break;
+        if (!header_seconds(session, hash, bytes + at, end - at, &seconds, &ahead)) break;
         session->host.last_seconds = player_clamp(seconds, session->host.last_seconds);
         session->host.ahead_seconds = player_clamp(ahead, session->host.ahead_seconds);
         first = false;
@@ -115,6 +116,18 @@ bool savelog_write(player_session *session) {
   written = player_write_file(session->pd, session->log_path, bytes, total);
   player_free(session->pd, bytes);
   return written;
+}
+
+/* ---- a redeploy's entry ---- */
+
+void savelog_redeploy(player_session *session, bool kept) {
+  char entry[160];
+  text_buffer out;
+  text_begin(&out, entry, sizeof entry);
+  text_add(&out, "{\"kind\":\"redeploy\",\"bundle\":\"");
+  text_add(&out, session->hash);
+  text_add(&out, kept ? "\",\"kept\":true}" : "\",\"kept\":false}");
+  savelog_add(session, entry, out.length);
 }
 
 /* ---- a turn's entry ---- */

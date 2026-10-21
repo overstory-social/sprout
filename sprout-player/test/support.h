@@ -58,6 +58,13 @@ char *fixture_text(const char *name);
 void write_text(const char *path, const char *text);
 bool exists(const char *path);
 
+/*
+ * Writes to `path` under the Data folder a build of the packed teashop (version 0.1.0 by Ada) whose
+ * manifest says `version` and `author`, the same lengths as those, and whose bundle hash begins
+ * with `digit`, so that each build is a world of its own to the session.
+ */
+void build_of(const char *path, const char *version, const char *author, char digit);
+
 /* The save's paths for a world's bundle hash. */
 void save_paths(const char *hash, char *state, char *log, size_t size);
 

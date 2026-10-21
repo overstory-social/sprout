@@ -360,8 +360,9 @@ question over the screen on show, which waits under it: "Start this world
 over?" and "All you did here will be forgotten.", with A to start over and B
 to go back to the screen as it was. A removes the world's save and log under
 `saves/` (and any `.tmp` a write cut short left beside them), lets the state
-go while the world stays read, and shows the nickname screen for a fresh
-arrival, with no loading line between; no departure runs, since nothing of
+go while the world stays read, writes the fresh world's save at once, so no
+earlier build's save is carried into it afterwards (Saves, below), and shows
+the nickname screen for a fresh arrival, with no loading line between; no departure runs, since nothing of
 the world is kept to depart from. Chosen elsewhere it does nothing. The signed index is read by `src/signed_index.h`, over the
 canonical text of `src/canonical.h`, which orders an object's names as the
 signer's JavaScript sort does, by UTF-16 code unit, and writes an empty
@@ -615,14 +616,32 @@ each thing in one frame, the log written at each, and the state is written
 once, after the last, as a single turn's is. A crash part way through such a
 line loses the line.
 
-A bundle with another hash is a redeploy and starts afresh, with the old
-save unused. A save that will not read, one written in a form before the
+A bundle with another hash is a redeploy. A world opened with no save of
+its own looks, through the shelf, for the save of an older build of it (one
+title and author) that the newest outranks, and takes the newest such save
+(`player_shelf_earlier`, then `player_load`). Where the older build's version
+keeps it, by the spec's State › Across versions (semver's caret read
+strictly, `player_version_keeps_saves` in `src/newest.h`), the save is read
+and opened against the newer build, its log tail and clock come with it, a
+redeploy entry is added (`"kept":true`), and the player is told, before the
+arrival is told, that their place carries over; the next save is the newer
+build's own. Where the version breaks it, or the save will not open in the
+newer build, the world starts afresh, the player is told why in plain words,
+and the log starts with a redeploy entry (`"kept":false`). Either way nothing
+of the older build's is changed, set aside or removed: its cartridge stays,
+hidden by the shelf, and its save and log stay as they were, for a later
+repair to read. Nothing is written until the arrival commits, so a person who
+backs out at the nickname screen is told again next time; once the newer
+build has a save of its own the older is never looked at again. Only a build
+whose cartridge is still on the device is looked for, since the save's log
+names the bundle but not its version. A save that will not read, one written in a form before the
 diff among them, is set aside as `.damaged` and the world starts again, in
 words. A save that cannot be written, at the turn or
 at any slice, stops play with the words on the screen, the world is let go,
 and the shelf greys it with the reason until a save of it succeeds: a move
 that is not kept is not played. "start over" in the system menu removes a
-world's save and log, so its next arrival is a fresh one.
+world's save and log and writes the fresh world's at once, so its next
+arrival is a fresh one and no older build's save is carried into it.
 
 When the state is on disk: the log is written at the end of the turn, before
 its reply shows; the state is written over the frames that follow, while the
@@ -765,7 +784,8 @@ builds of one world, one title and author, only the newest is a word, ranked
 as the download screen ranks the index's builds (`src/newest.h`: the highest
 version by semver's precedence, the first in path order among equals); the
 others stay on disk, unlisted. A cartridge the engine refuses has no version
-the shelf can read, so it is a word of its own. The last word, "more worlds…", opens the download screen.
+the shelf can read, so it is a word of its own. The newest opens with the
+save of an older build where it has none of its own (Saves, below). The last word, "more worlds…", opens the download screen.
 
 ### Shipped worlds and downloads
 
@@ -847,8 +867,9 @@ ASCII letters, in lower case, and digits, each run of anything else between
 them one hyphen, cut to its first 24 characters with a hyphen the cut leaves
 at the end dropped (`world` where nothing is left), and `<hash8>` is the
 first eight digits of the bundle hash, so two builds of one world sit side
-by side; a newer build does not replace or remove an older one, whose save
-would be orphaned, and the shelf lists only the newer. The index is read to at most 256 KB.
+by side; a newer build does not replace or remove an older one, and the
+shelf lists only the newer, which opens with the older's save where its
+version keeps it (Saves). The index is read to at most 256 KB.
 
 The index address is `PLAYER_INDEX_URL` in `src/ui/downloads.h`,
 `https://overstory-social.github.io/sprout-studio/worlds/index.json`, where
