@@ -8,7 +8,8 @@
  * is greyed until a save of it succeeds; the wheel's labels go when the shelf's screen does. Of
  * the builds of one world, one title and author, only the newest is a word, by the ranking the
  * download screen uses (newest.h), and the first in path order among equals; the others stay on
- * disk, and a world by another author is a word of its own.
+ * disk, still on the shelf to the download screen, and a newest refused at its open stays the
+ * word, greyed; a world by another author is a word of its own.
  */
 #include <stdlib.h>
 
@@ -386,6 +387,28 @@ static void of_two_builds_of_one_world_the_wheel_shows_the_newer(void) {
   }
 }
 
+static void an_outranked_build_is_held_and_a_refused_newest_is_not_shown_through(void) {
+  const shelf_entry *outranked;
+  begin("outranked");
+  app_folder("app");
+  build_of("worlds/teashop-a.sproutworld", "0.9.0", "Ada", '3');
+  build_of("worlds/teashop-b.sproutworld", "1.0.0", "Ada", '4');
+  start();
+  fake_frame(fake, 0, 0);
+  outranked = app->shelf->held == 2 ? &app->shelf->entries[1] : NULL;
+  CHECK(outranked != NULL && strcmp(outranked->path, "worlds/teashop-a.sproutworld") == 0, "the older build is held, unlisted");
+  CHECK(outranked != NULL && player_shelf_holds(app->shelf, outranked->hash),
+        "an outranked build counts as on the shelf, so the download screen does not offer it again");
+  player_shelf_refuse(app->shelf, "worlds/teashop-b.sproutworld", "Refused.");
+  player_shelf_list(app);
+  fake_frame(fake, 0, 0);
+  CHECK(app->shelf->count == 1 && strcmp(path_of(0), "worlds/teashop-b.sproutworld") == 0 && greyed(0),
+        "the newest, refused at its open, stays the word, greyed: %s", path_of(0));
+  CHECK(strcmp(panel(), "Refused.") == 0, "with its reason: %s", panel());
+  player_app_free(app);
+  end();
+}
+
 static void of_builds_of_one_version_the_first_in_path_order_is_shown(void) {
   begin("equal");
   app_folder("app");
@@ -424,6 +447,7 @@ int main(void) {
   a_titled_world_is_shown_by_its_title_from_the_shelf_to_the_reader();
   of_two_builds_of_one_world_the_wheel_shows_the_newer();
   of_builds_of_one_version_the_first_in_path_order_is_shown();
+  an_outranked_build_is_held_and_a_refused_newest_is_not_shown_through();
   a_world_of_one_title_by_another_author_is_a_word_of_its_own();
   return finish();
 }
