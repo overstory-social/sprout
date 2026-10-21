@@ -147,6 +147,6 @@ sprout_eval_status sprout_moves_its_filler_away(const sprout_frame *frame, const
   const char *to;
   EXPR_NEED(filler_move(frame, verb, role, actor, &move));
   to = move == NULL ? NULL : lone_name(graph, sprout_node_get(graph, move, "destination"));
-  *away = move != NULL && (to == NULL || (strcmp(to, "self") != 0 && strcmp(to, "actor") != 0));
+  *away = to != NULL && strcmp(to, "self") != 0 && strcmp(to, "actor") != 0;
   return SPROUT_EVAL_OK;
 }
