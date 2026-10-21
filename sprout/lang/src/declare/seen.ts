@@ -11,9 +11,9 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { SPROUT, type DeclaredEnum } from './enums.js';
 
 /** The options of `seen`, in the order the spec's Prose gives them. */
-export const SEEN_OPTIONS = ['look', 'arrival', 'poll'] as const;
+export const SEEN_OPTIONS = ['look', 'examine', 'arrival', 'poll'] as const;
 
-/** `seen`'s type: a look, an arrival or a poll. */
+/** `seen`'s type: a look, an examination, an arrival or a poll. */
 export const SEEN: DeclaredEnum = (() => {
   const source = new SourceFile('sprout/seen', `enum Seen { ${SEEN_OPTIONS.join(', ')} }\n`);
   const diagnostics = new Diagnostics();

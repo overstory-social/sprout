@@ -1,0 +1,20 @@
+// A bucket someone can stand in, as Zork's vehicles are: it is a place of
+// its own, so `look` from inside it reads its description, and so does
+// `examine bucket`, from inside or out. `seen` tells the two apart, so
+// the bucket describes itself where it was examined and the well seen
+// from it where the reader looked or arrived (the spec's Prose, `seen`).
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Bucket} from 'bucket'
+
+world examine_from_inside is sprout.World {
+  visitors are Person
+  visitors arrive at well
+
+  object well is sprout.Place {
+    describe { text "The bottom of a dry well. A bucket hangs on its rope." }
+    object bucket is Bucket
+  }
+}
+
+verb board { role target: Bucket  "board [target]"  "climb into [target]" }

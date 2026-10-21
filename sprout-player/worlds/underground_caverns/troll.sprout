@@ -75,7 +75,7 @@ kind Troll is Thing, sprout.Actor, Squeezable, Creature {
   }
   describe {
     text examined
-    if (seen == :look) { media.show("pictures/troll.png", "the troll") }
+    if (seen == :examine) { media.show("pictures/troll.png", "the troll") }
   }
 
   // His hands are his own (`sprout.Actor`'s guards): nobody takes what he

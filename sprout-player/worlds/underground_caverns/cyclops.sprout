@@ -150,7 +150,7 @@ kind Cyclops is Thing, sprout.Actor, Tieable, Creature {
   describe {
     if (self.get(:asleep)) { text "The cyclops is sleeping like a baby, albeit a very ugly one." }
     else { text "A hungry cyclops is standing at the foot of the stairs." }
-    if (seen == :look) { media.show("pictures/cyclops.png", "the cyclops") }
+    if (seen == :examine) { media.show("pictures/cyclops.png", "the cyclops") }
   }
 
   // The state the room describes him in.

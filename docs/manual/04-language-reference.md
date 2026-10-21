@@ -1959,15 +1959,28 @@ A thing has one voice, so two composed kinds that both `describe` is an
 error; write the combined description yourself.
 
 Inside a `describe`, and in any passage it says, `seen` says what the
-description is being read for: `:look` when someone typed `look` or
-`examine`, `:arrival` when they have just arrived, and `:poll` when their
-view is being drawn. A place can show its name alone on a return visit
-and everything on `look`:
+description is being read for: `:look` when someone typed `look`,
+`:examine` when they typed `examine` (of anything, the place they stand
+in included), `:arrival` when they have just arrived, and `:poll` when
+their view is being drawn. A place can show its name alone on a return
+visit and everything on `look`:
 
 ```sprout
 describe {
   if (seen == :arrival && actor.recall(:visits) > 1) { text "{self}." }
   else { text full }
+}
+```
+
+A bucket someone can stand in is their place while they are in it, so
+both `look` and `examine bucket` read its description; `seen` tells them
+apart, and the bucket can describe itself when examined and the well
+around it when looked from:
+
+```sprout
+describe {
+  if (seen == :examine) { text "A wooden bucket, banded with iron." }
+  else { text "From the bucket you see the stone walls of the well." }
 }
 ```
 

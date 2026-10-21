@@ -42,7 +42,7 @@ kind Lamp is Light {
     if (self.get(:burned_out)) { text spent_view }
     else if (self.get(:lit)) { text lit_view }
     else { text dark_view }
-    if (seen == :look) { media.show("pictures/lantern.png", "the brass lantern") }
+    if (seen == :examine) { media.show("pictures/lantern.png", "the brass lantern") }
   }
   passage spent_view {
     {self.view}
