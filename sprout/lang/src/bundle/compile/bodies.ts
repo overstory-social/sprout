@@ -21,7 +21,7 @@ import { checkExit } from '../../check/exits.js';
 import { checkLit } from '../../check/lit.js';
 import { checkDescribe } from '../../check/describe.js';
 import type { DescribeDeclaration } from '../../syntax/ast-speech.js';
-import type { MessageSetting } from '../../check/check.js';
+import type { ActSetting, MessageSetting } from '../../check/check.js';
 import type { Named, NameSource, Vantage } from '../../declare/names.js';
 import type { Node } from '../../source/nodes.js';
 import type { Span } from '../../source/source.js';
@@ -36,6 +36,8 @@ export interface BodySetting {
   /** What `here` is typed as, over every composed kind in the world. */
   readonly here: HereKind;
   readonly verbs: VerbTable;
+  /** The enums whose options a role-player's `from` hears, which an `act` may give a value role. */
+  readonly heard: ActSetting['heard'];
   readonly diagnostics: Diagnostics;
   readonly messages: MessageSetting;
   /** The tree and what each kind gives, which a body's names resolve against. */
@@ -90,6 +92,7 @@ export function checkBodies(composed: readonly Written[], base: BodySetting): Bo
       kinds: base.kinds,
       here: base.here,
       verbs: base.verbs,
+      heard: base.heard,
       diagnostics: base.diagnostics,
       messages: base.messages,
       names: namesOf(vantage),

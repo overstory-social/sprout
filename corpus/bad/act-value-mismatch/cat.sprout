@@ -1,0 +1,16 @@
+// A value fills only a value role, and one of its type: an option a
+// `symbol` role, a whole number an `integer` one.
+import {Creature} from 'creature'
+import {pet, quiz, dial} from 'act_value_mismatch'
+
+kind Cat is Creature {
+  :naps 0 min 0 max 9
+
+  as target for pet {
+    do {
+      act pet (target: :toll)
+      act quiz (target: actor, topic: self.get(:naps) + 1)
+      act dial (target: actor, number: :toll)
+    }
+  }
+}

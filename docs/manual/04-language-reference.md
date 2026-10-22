@@ -1384,6 +1384,18 @@ is shown. Otherwise every rule that governs a visitor governs a character.
 Its own part speaks to whoever its act is aimed at with `tell target`, as
 under The actor's own part.
 
+A value role is given a value of its type: an option written bare, a
+whole number worked out where the `act` stands, or a binding that holds
+one. Whoever plays the verb still narrows it with `from`, so a value
+outside its options arrives unbound, just as a typed one would:
+
+```sprout
+verb enchant { role target  role spell: symbol }
+
+act enchant (target: actor, spell: :feeble)
+act chime (target: actor, count: self.get(:rings) + 1)
+```
+
 Where a verb's role is filled by a kind, the binding given to `act` must
 be that kind first, so a character acting on whoever arrives reads them
 with `is()`:

@@ -41,6 +41,11 @@ const BINARY_PRECEDENCE: ReadonlyMap<string, number> = new Map([
   ['-', 5],
 ]);
 
+/** Whether `text` is a binary operator, which joins what stands before it into a value. */
+export function isBinaryOperator(text: string): boolean {
+  return BINARY_PRECEDENCE.has(text);
+}
+
 const LOOSEST = 1;
 const TIGHTEST = 5;
 

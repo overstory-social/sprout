@@ -1,0 +1,16 @@
+{
+  "about": "The wizard fills a value role himself: provoked, he casts with `act enchant (target: actor, spell: …)` and `act chime (target: actor, count: …)`, naming each value as an option written bare, a binding that holds one, or a count worked out where he stands. Wren's own part of each reads what arrived, narrowed by her `from` as a typed value would be: `:float` is not among the spells she hears, and 7 is past her three chimes, so both arrive unbound.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A round room at the top of a tower." }
+    ] },
+    { "as": "Wren", "type": "provoke wizard", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "The wizard scowls, and raises his staff." },
+      { "reader": "Wren", "kind": "told", "words": "Your limbs go weak." },
+      { "reader": "Wren", "kind": "told", "words": "The spell washes over you." },
+      { "reader": "Wren", "kind": "told", "words": "You are seized by dread." },
+      { "reader": "Wren", "kind": "told", "words": "A bell rings 2 times." },
+      { "reader": "Wren", "kind": "told", "words": "The bell is silent." }
+    ] }
+  ]
+}

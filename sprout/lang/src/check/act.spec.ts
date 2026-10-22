@@ -7,7 +7,7 @@ import { parseDeclarations, parseStatement } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from '../declare/enums.js';
 import { KindTable, type KindRef } from '../declare/kinds.js';
-import { VerbNames } from '../declare/roles.js';
+import { heardEnums, VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { integer } from '../declare/types.js';
 import {
@@ -26,6 +26,7 @@ import { checkAct } from './act.js';
 
 /** The verbs and kinds every case acts among; `Cat` is an NPC's kind, `Visitor` a person's, and `Kettle` no actor's. */
 const WORLD = `enum Topic { bridge, toll }
+enum Mood { calm, cross }
 verb nuzzle { role target  "nuzzle [target]" }
 verb unlock { role target: Lockable  role tool  "unlock [target] with [tool]"  "unlock [target]" }
 verb shove  { role target  role pole  "shove [target] with [pole]" }
@@ -33,6 +34,8 @@ verb nudge  { role target  role tool optional }
 verb poke   { role target  role tool }
 verb ask    { role target  role topic: symbol  "ask [target] about [topic]" }
 verb dial   { role target  role number: integer  "dial [number] on [target]" }
+verb quiz   { role target  role topic: symbol  "quiz [target] about [topic]" }
+verb mull   { role target  role topic: symbol  "mull [target] over [topic]" }
 verb throw  { role target  role tools many  "throw [target] using [tools]" }
 verb purr   { "purr" }
 kind Lockable { }
@@ -41,6 +44,15 @@ kind Creature is sprout.Actor { }
 kind Visitor is Creature, sprout.Visitor { }
 kind Cat is Creature { }
 kind Kettle { }
+kind Guard {
+  :knows [Topic] default [toll]
+  as target for ask { topic from :knows  do { } }
+  as target for quiz { topic from :knows  do { } }
+}
+kind Owl {
+  :moods [Mood] default [calm]
+  as target for quiz { topic from :moods  do { } }
+}
 `;
 
 const TABLES = (() => {
@@ -112,7 +124,15 @@ function bodyOf(self: KindRef): CheckContext {
     from: 'shop',
     self,
     diagnostics: new Diagnostics(),
-    acting: { verbs: TABLES.verbs },
+    acting: {
+      verbs: TABLES.verbs,
+      heard: (verb, role) =>
+        heardEnums(
+          TABLES.kinds.all().map((one) => one.plays),
+          verb,
+          role,
+        ),
+    },
   };
 }
 
@@ -143,6 +163,13 @@ describe('`act` in a body whose kind composes `sprout.Actor`', () => {
       'act ask (target: stone, topic: t)',
       'act ask (target: stone)',
       'act dial (number: n, target: stone)',
+      'act ask (target: stone, topic: :toll)',
+      'act quiz (target: stone, topic: :toll)',
+      'act quiz (target: stone, topic: :cross)',
+      'act mull (target: stone, topic: :anything)',
+      'act dial (target: stone, number: 3)',
+      'act dial (target: stone, number: n + 1)',
+      'act dial (target: stone, number: -2)',
       'act throw (target: stone, tools: ribs)',
       'act throw (target: stone, tools: door)',
       'act throw (target: stone)',
@@ -277,19 +304,80 @@ describe('`act` in a body whose kind composes `sprout.Actor`', () => {
       [
         'act ask (target: stone, topic: stone)',
         'b.sprout:1:32',
-        '`topic` of `ask` is filled by an option the visitor names, and `stone` is an object of no known kind.',
-        'Name a binding that holds an option, as a value role bound inside `if (bound …)` does.',
+        '`topic` of `ask` is filled by an option, and `stone` is an object of no known kind.',
+        'Give it an option, as in `act ask (topic: :toll)`, or a binding that holds one.',
       ],
       [
         'act dial (target: stone, number: t)',
         'b.sprout:1:34',
-        '`number` of `dial` is filled by a number the visitor names, and `t` is Topic.',
-        'Name a binding that holds a number, as a `let` or a value role bound inside `if (bound …)` does.',
+        '`number` of `dial` is filled by a whole number, and `t` is Topic.',
+        'Give it a whole number, as in `act dial (number: 3)`, or a binding that holds one.',
       ],
     ];
     for (const [text, where, message, remedy] of table) {
       expect(checked(text), text).toEqual({ passed: false, said: [[where, message, remedy]] });
     }
+  });
+
+  it('refuses a value its role does not take, saying what to write', () => {
+    const table: [string, string, string, string][] = [
+      [
+        'act nuzzle (target: :toll)',
+        'b.sprout:1:21',
+        '`target` of `nuzzle` is filled by a thing in the world, and `:toll` is an option.',
+        'Name a thing in the world, as in `act nuzzle (target: self)`.',
+      ],
+      [
+        'act unlock (target: 3)',
+        'b.sprout:1:21',
+        '`target` of `unlock` is filled by a `Lockable`, and 3 is a number.',
+        'Name a `Lockable`, by a binding or a role that holds one.',
+      ],
+      [
+        'act ask (target: stone, topic: 3)',
+        'b.sprout:1:32',
+        '`topic` of `ask` is filled by an option, and 3 is a number.',
+        'Give it an option, as in `act ask (topic: :toll)`, or a binding that holds one.',
+      ],
+      [
+        'act dial (target: stone, number: :toll)',
+        'b.sprout:1:34',
+        '`number` of `dial` is filled by a whole number, and `:toll` is an option.',
+        'Give it a whole number, as in `act dial (number: 3)`, or a binding that holds one.',
+      ],
+      [
+        'act dial (target: stone, number: "three")',
+        'b.sprout:1:34',
+        '`number` of `dial` is filled by a whole number, and "three" is text in quotes.',
+        'Give it a whole number, as in `act dial (number: 3)`, or a binding that holds one.',
+      ],
+      [
+        'act dial (target: stone, number: n == 1)',
+        'b.sprout:1:34',
+        '`number` of `dial` is filled by a whole number, and `n == 1` is true or false.',
+        'Give it a whole number, as in `act dial (number: 3)`, or a binding that holds one.',
+      ],
+    ];
+    for (const [text, where, message, remedy] of table) {
+      expect(checked(text), text).toEqual({ passed: false, said: [[where, message, remedy]] });
+    }
+  });
+
+  it('refuses an option no role-player’s `from` hears for the role, with the one most likely meant', () => {
+    expect(checked('act ask (target: stone, topic: :tol)').said).toEqual([
+      [
+        'b.sprout:1:32',
+        '`Topic` has no option `tol`. Did you mean `toll`?',
+        'Options: bridge, toll.',
+      ],
+    ]);
+    expect(checked('act quiz (target: stone, topic: :crass)').said).toEqual([
+      [
+        'b.sprout:1:33',
+        '`topic` of `quiz` is heard as an option of `Topic` and `Mood`, and `:crass` is not one of theirs. Did you mean `:cross`?',
+        'Options: bridge, toll, calm, cross.',
+      ],
+    ]);
   });
 
   it('is an engine error to check without the verbs, which every `do` is checked with', () => {

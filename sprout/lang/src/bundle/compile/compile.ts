@@ -49,6 +49,7 @@ import { WORLD } from '../../declare/sprout-world.js';
 import { everyContent } from '../../declare/contents.js';
 import { hereKindOf } from '../../declare/places.js';
 import { SPROUT } from '../../declare/enums.js';
+import { heardEnums } from '../../declare/roles.js';
 import { checkIntentSteps } from '../../check/intents.js';
 import { countWorld } from '../counts.js';
 import { DEFAULT_LIMITS, type Limits } from '../limits.js';
@@ -251,10 +252,12 @@ export function compileBundle(
     });
   }
   const intents = tables.intents.typed(manifest.namespace);
+  const plays = everyKind.map((kind) => kind.plays);
   const { optionSlots, unheard } = checkBodies(written, {
     kinds: tables.kinds,
     here,
     verbs: tables.verbs,
+    heard: (verb, role) => heardEnums(plays, verb, role),
     diagnostics: report.diagnostics,
     messages: { lookup: tables.messages, onUnknown: unknownMessageGap(report) },
     source: {
@@ -331,7 +334,6 @@ export function compileBundle(
           ...spawnedKinds(everyKind, tables.kinds).map(({ kind }) => kind),
         ]),
       ],
-      kinds: everyKind,
       verbs: tables.verbs.all(),
       namespace: manifest.namespace,
       diagnostics: report.diagnostics,
