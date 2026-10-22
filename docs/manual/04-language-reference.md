@@ -493,7 +493,8 @@ grammar {
   `go`: `crawl south`, `walk through the crawlway`.
 - The destination is a place, by identifier or dotted path. An exit may
   only be written on a place, and may only lead to one.
-- A place has at most 8 exits by default.
+- A place has at most 32 exits and links by default; an exit that
+  refuses is not counted.
 
 An exit may lead nowhere and say why. Write `refuse` and its words in
 place of `->` and a destination:
@@ -2611,7 +2612,7 @@ checked when the world compiles, and exceeding one refuses it.
 | characters in one phrase                    | 80      |
 | nouns on one object                         | 8       |
 | characters in one noun word                 | 40      |
-| exits on one place                          | 8       |
+| exits on one place                          | 32      |
 | elements in one list                        | 16      |
 | characters in a quoted `say`, `tell`, `text` or `refuse` | 600 |
 | places, objects, kinds, files, source bytes, bytes of the pictures a world names | unlimited unless the host sets them |
