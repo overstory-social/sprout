@@ -1,11 +1,11 @@
 /*
  * A command turn (the spec's The runtime > Turns, Faults). Its order is fixed: the consent pass; the effect
  * pass, actor first and then roles in declared order; the queue, breadth-first in insertion order; what the
- * engine answers; then the views of everyone present are stale, as every write turn that commits makes them.
- * The one who typed the command is always told something: the consent pass's refusal, what the effect pass
- * said, what the engine answered or its `nothing_happens`, or, when the turn faults and is abandoned, the
- * engine's `fault`. What it says is one sequence of effects in that order: the effect pass's lines, then the
- * queue's, then the engine's answers; the place a move carried someone to is read among them where the body
+ * engine answers; every `after command` that follows the command, and the queue it fills; then the views of
+ * everyone present are stale, as every write turn that commits makes them. The one who typed the command is
+ * always told something: the consent pass's refusal, what the effect pass said, what the engine answered or
+ * its `nothing_happens`, or, when the turn faults and is abandoned, the engine's `fault`. What it says is one
+ * sequence of effects in that order; the place a move carried someone to is read among them where the body
  * that moved them ended.
  *
  * A command is a reading built from the view's chips, run as it is; or words typed, read first in the turn,
@@ -498,9 +498,8 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   sprout_permit_refusal refusal;
   sprout_reading_end end = SPROUT_READING_ACTED;
   sprout_effect before[2], *asides = NULL;
-  size_t before_count = 0, arrival_count = 0, answer_count = 0, aside_count = 0, said_from = 0;
+  size_t before_count = 0, arrival_count = 0, aside_count = 0, said_from = 0;
   const sprout_arrived *arrivals = NULL;
-  const sprout_effect *engine = NULL;
   const char *wrong = misshapen(input);
   commanded c;
   bool gone, refused_here = false;
@@ -562,8 +561,11 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
     } else if (eval == SPROUT_EVAL_OK) {
       outcome->goes_on = !refused_actor(&run.x, said_from, actor);
       eval = sprout_exec_drain(&run.x);
+      /* What follows the command runs once the move is over and read, and its own queue drains after it. */
+      if (eval == SPROUT_EVAL_OK) eval = sprout_answers_folded(&run.x, &frame, &c.reading);
+      if (eval == SPROUT_EVAL_OK) eval = sprout_after_command(&run.x, &frame, actor);
+      if (eval == SPROUT_EVAL_OK) eval = sprout_exec_drain(&run.x);
       if (eval == SPROUT_EVAL_OK) eval = sprout_arrivals_read(&run.x, &frame, &arrivals, &arrival_count);
-      if (eval == SPROUT_EVAL_OK) eval = sprout_engine_answers(&run.x, &frame, &c.reading, &engine, &answer_count);
     }
   }
   if (eval == SPROUT_EVAL_OK) {
@@ -582,7 +584,7 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
         eval = sprout_lines_assembled(&run.x, both, aside_count + 1, NULL, 0, NULL, 0);
       }
     } else {
-      eval = sprout_lines_assembled(&run.x, asides, aside_count, arrivals, arrival_count, engine, answer_count);
+      eval = sprout_lines_assembled(&run.x, asides, aside_count, arrivals, arrival_count, NULL, 0);
     }
   }
   (void)refused_here;

@@ -154,10 +154,11 @@ sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame,
 /* ---- after.c ---- */
 
 /*
- * What follows a person's command: every `after command` of what `actor`
- * carries, of `actor`, and of each container out to the world, nearest
- * first, each thing's in composition order (the spec's Verbs > After a
- * command).
+ * What follows a person's command, where the effect pass marked it as owed
+ * (`x->follows`): every `after command` of what `actor` carries, of `actor`,
+ * and of each container out to the world, nearest first, each thing's in
+ * composition order (the spec's Verbs > After a command). The caller runs it
+ * once the queue has drained and the engine has answered, and drains again.
  */
 sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *frame, sprout_str actor);
 

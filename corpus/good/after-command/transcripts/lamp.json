@@ -1,5 +1,5 @@
 {
-  "about": "What follows a command runs after every command a visitor makes, nearest first: the lamp she carries, the room she stands in, then the world. Walking into the falls reads the falls before its roar; a refused command is followed by nothing; a lamp set down, or shut in the tin she carries, follows nobody. Each command of a line is followed on its own, and `look` reads the roar before the room.",
+  "about": "What follows a command runs after every command a visitor makes, nearest first: the lamp she carries, the room she stands in, then the world. Walking into the falls reads the falls before its roar; a refused command is followed by nothing; a lamp set down, or shut in the tin she carries, follows nobody. Each command of a line is followed on its own. What follows runs once the queue has drained and the engine has answered: `wait` and `look` read their answer before the roar, and sliding down the chute, which the chute's handler carries on into the pool, is followed by the pool and not the chute, whose own message is then handled.",
   "steps": [
     { "arrive": "Wren", "expect": [
       { "reader": "Wren", "kind": "described", "words": "A low cellar, dry and still." }
@@ -61,9 +61,9 @@
       { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
     ] },
     { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." },
       { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
-      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
-      { "reader": "Marta", "kind": "said", "words": "Time passes." }
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
     ] },
     { "as": "Marta", "type": "south", "expect": [
       { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the cellar." },
@@ -74,9 +74,18 @@
       { "reader": "Marta", "kind": "described", "words": "Water thunders down a cleft in the rock." },
       { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
       { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
+      { "reader": "Marta", "kind": "described", "words": "Water thunders down a cleft in the rock." },
       { "reader": "Marta", "kind": "told", "words": "The roar of the water is deafening." },
-      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." },
-      { "reader": "Marta", "kind": "described", "words": "Water thunders down a cleft in the rock." }
+      { "reader": "Wren", "kind": "told", "words": "Marta winces at the noise." }
+    ] },
+    { "as": "Marta", "type": "south", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the cellar." },
+      { "reader": "Marta", "kind": "described", "words": "A low cellar, dry and still." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A still pool under a dripping roof." },
+      { "reader": "Marta", "kind": "told", "words": "Water drips from the roof." },
+      { "reader": "Marta", "kind": "told", "words": "A drop falls into the pool." }
     ] }
   ]
 }

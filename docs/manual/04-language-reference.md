@@ -1225,11 +1225,13 @@ Inside, `self` is the thing, `actor` the visitor and `here` their place.
 everyone else who can hear `self`. It cannot `refuse` or `allow`: the
 command is already done.
 
-It runs after the command's own `do`s, and after the description of a
-room the command walked into, but before what `look`, `examine`,
-`inventory` and `wait` answer; nearest first: what the visitor carries
-(not through a shut box), then the visitor, then the room, any room
-around that, and the world. It does not run after a refused command, a
+It runs once the command is over: after the command's own `do`s, after
+every message they sent has been handled, and after what `look`,
+`examine`, `inventory` and `wait` answer, so the visitor reads the room
+they walked into first, and `here` is where they ended up. Messages it
+sends are handled after it. It runs nearest first: what the visitor
+carries (not through a shut box), then the visitor, then the room, any
+room around that, and the world. It does not run after a refused command, a
 command the parser could not read, a character's `act`, a tick or a
 wake. Each command of a line — `take all`, or `open door then go north`
 — is its own command, followed on its own.
