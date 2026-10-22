@@ -786,6 +786,8 @@ export interface FromDeclaration extends Node {
 export interface PlayDeclaration extends Node {
   readonly kind: 'play';
   readonly head: RoleRef;
+  /** `for any except examine, wait`: the verbs a wildcard does not run for, where any are written. */
+  readonly except?: readonly Ident[];
   readonly narrows: readonly FromDeclaration[];
   readonly permit: Block | null;
   readonly do: Block | null;

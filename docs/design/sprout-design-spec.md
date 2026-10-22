@@ -936,7 +936,7 @@ An understood command produces one **reading**: a verb, an actor, and its roles 
 
 The **consent pass** runs every `permit`. These are read-only — no writing, sending, moving or narrating — and the first refusal halts the whole reading, its text becoming the reading's whole answer, which only what follows the command, under After a command, comes after. Same shape as `depart`, `release` and `accept`, for the same reason: a poll that can change the world is a poll you cannot trust.
 
-Within one participant, its plays of the role's category, `as tool for any` and `as target for any` under Roles compose, run before its plays for the verb, each in composition order; so `unlock chest with key` still reads the chest's refusal before the key's.
+Within one participant, its wildcard plays for its part, `as target for any`, `as tool for any` or `as actor for any` under Roles compose, run before its plays for the verb, each in composition order, and none runs for a verb its `except` names; so `unlock chest with key` still reads the chest's refusal before the key's.
 
 The **effect pass** runs every `do`, in the same order. The first role's usually carries the sentence; the others act and mostly stay quiet, so a wheel can learn it is dirty without saying so. When the pass ends, the queue drains.
 
@@ -977,7 +977,26 @@ A verb is offered when its roles can be filled; `permit` decides what happens wh
 
 `as <role> for <verb>` is a composable member. Every composed kind's `permit` runs and any refusal decides; every composed kind's `do` runs in composition order. `sprout.Lockable` carries the ordinary refusal and a world's own `Cursed` adds another, neither knowing about the other.
 
-A kind may also guard every verb at once, by which role it fills. `as target for any` runs whenever the object is a reading's target, its first role, whatever the verb calls it: `put`'s `item`, `unlock`'s `target`. `as tool for any` runs whenever it fills any other role: `unlock`'s `tool`, `put`'s `container`, `give`'s `recipient`. `any` is a reserved word already, and after `for any` the words `target` and `tool` name these two categories, not roles.
+A kind may also guard every verb at once, by which role it fills. `as target for any` runs whenever the object is a reading's target, its first role, whatever the verb calls it: `put`'s `item`, `unlock`'s `target`. `as tool for any` runs whenever it fills any other role: `unlock`'s `tool`, `put`'s `container`, `give`'s `recipient`. `as actor for any` runs whenever it is the reading's actor, as its own part of every verb it performs, the engine's included, and only a kind that composes `sprout.Actor` writes it. `any` is a reserved word already, and after `for any` the words `target`, `tool` and `actor` name these three parts, not roles.
+
+A wildcard may leave verbs out: after `for any`, `except` and the verbs it does not run for, separated by commas, each named as a play names its verb, the engine's among them. So a thing can answer every verb in one voice and one verb in another, the verb's own play or the engine's answer reaching the actor where the wildcard steps aside:
+
+```sprout
+kind Illusion {
+  as target for any except examine { permit { refuse gone } }
+  as target for examine { permit { refuse gone_look } }
+  passage gone default { Your hand closes on nothing. }
+  passage gone_look default { You look closer, and {self} wavers like heat over a road. }
+}
+
+kind Frozen is sprout.Actor {
+  :frozen false
+  as actor for any except wait { permit { if (self.get(:frozen)) { refuse frozen } } }
+  passage frozen default { You are frozen solid. You might as well wait it out. }
+}
+```
+
+A verb nothing declares is refused after `except`, and so is a verb named twice; `except` after a verb named, `as target for take except drop`, is refused, since that play runs for one verb already.
 
 ```sprout
 kind RequiresHeld {

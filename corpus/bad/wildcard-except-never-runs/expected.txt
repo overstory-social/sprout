@@ -1,0 +1,4 @@
+kinds.sprout:5:28  `look` has no roles, so `as target for any` never runs for it and has nothing to leave out.
+                   Take `look` out of the `except` list.
+
+refused: 1 problem

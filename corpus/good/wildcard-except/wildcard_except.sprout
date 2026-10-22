@@ -1,0 +1,40 @@
+// Wildcards that leave verbs out, and the actor's own part of every verb
+// (the spec's Verbs › Roles compose). The illusion refuses every verb but
+// `examine`, whose own play then answers; the stand-in refuses every verb
+// but `examine`, which the engine answers with its `describe`; a frozen
+// visitor refuses every verb they try but `wait` and `thaw`, the engine's
+// `go` and `examine` among them.
+import * as sprout from 'sprout'
+import {examine} from 'sprout'
+import {Person} from 'person'
+
+world wildcard_except is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar {
+      article the
+      exit north "to the yard" -> yard
+    }
+    object chest is Illusion
+    object robot is StandIn
+    object lamp is Lamp
+  }
+  object yard is sprout.Place
+}
+
+kind Illusion {
+  as target for any except examine { permit { refuse gone } }
+  as target for examine { permit { refuse gone_look } }
+  passage gone { Your hand closes on nothing. }
+  passage gone_look { You look closer, and {self} wavers like heat over a road. }
+}
+
+kind StandIn {
+  as target for any except examine { permit { refuse not_here } }
+  describe { text "A dented robot stands here, quite still." }
+  passage not_here { {self} is not really here to hear you. }
+}
+
+kind Lamp { }

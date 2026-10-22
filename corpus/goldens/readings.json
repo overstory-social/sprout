@@ -406,7 +406,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 33,
+        "steps": 37,
         "spawns": 0,
         "events": 0,
         "effects": [

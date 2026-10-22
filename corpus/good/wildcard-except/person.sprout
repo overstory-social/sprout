@@ -1,0 +1,20 @@
+// A visitor who can be frozen: while frozen, the actor's own part of every
+// verb refuses, but for `wait` and `thaw`.
+import * as sprout from 'sprout'
+import {wait} from 'sprout'
+
+kind Person is sprout.Visitor, Freezable { }
+
+kind Freezable is sprout.Actor {
+  :frozen false
+  as actor for any except wait, thaw { permit { if (self.get(:frozen)) { refuse frozen } } }
+  as actor for freeze { do { self.set(:frozen, true)  say "Ice climbs your legs and holds you fast." } }
+  as actor for thaw {
+    permit { if (!self.get(:frozen)) { refuse "You are not frozen." } }
+    do { self.set(:frozen, false)  say "The ice lets go of you." }
+  }
+  passage frozen { You are frozen solid. You might as well wait it out. }
+}
+
+verb freeze { "freeze" }
+verb thaw { "thaw" }

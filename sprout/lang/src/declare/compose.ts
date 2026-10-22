@@ -78,6 +78,7 @@ import { composeExits, ownExits } from './exits.js';
 import { composeDescribe, ownDescribe } from './describe.js';
 import { composeCapacity } from './capacity.js';
 import {
+  ACTOR_ROLE,
   ANY_VERB,
   anyPlaysOf,
   composePlays,
@@ -660,9 +661,9 @@ function declaresMember(
   if (member.kind === 'after-command-ref')
     return writesAfterCommand(found.kind.afterCommand, identity);
   if (member.verb.text === ANY_VERB) {
-    const category = member.role.text;
-    if (category !== 'target' && category !== 'tool') return false;
-    return anyPlaysOf(found.kind.plays, category).some((play) => play.origin === identity);
+    const part = member.role.text;
+    if (part !== 'target' && part !== 'tool' && part !== ACTOR_ROLE) return false;
+    return anyPlaysOf(found.kind.plays, part).some((play) => play.origin === identity);
   }
   const verb = reach(member.verb.text);
   if (verb === null) return false;

@@ -1,0 +1,6 @@
+import {look} from 'sprout'
+
+// `look` has no target, so a wildcard for the target never runs for it.
+kind Mirage {
+  as target for any except look { permit { refuse "Your hand closes on nothing." } }
+}
