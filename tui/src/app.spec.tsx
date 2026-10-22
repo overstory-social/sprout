@@ -128,7 +128,7 @@ describe('the client on a terminal', () => {
     // Chat before coming into a world is a frame out of order.
     await session.type('/say hello');
     await until(session, () => session.state.troubledAt !== null);
-    const troubled = await drawn(app, (rows) => !rows[0]!.startsWith('● connected'));
+    const troubled = await drawn(app, (rows) => !rows[0]!.startsWith('● connecting'));
     expect(troubled[0]).toMatch(/^● errors lately/);
     await server.close();
     server = null;
