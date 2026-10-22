@@ -390,6 +390,33 @@ export const STONE = declaredId('yard', ['court', 'stone']);
 export const PEBBLE = declaredId('yard', ['court', 'pebble']);
 
 /**
+ * The barn: a visitor whose `gather` takes a set of things to itself and
+ * whose `juggle` takes none, beside a bale and a fork, for `all` in a set
+ * role leaving out what is already carried.
+ */
+export const BARN = compiled('barn', {
+  'barn.sprout': `world barn is sprout.World {
+  visitors are Farmer
+  visitors arrive at loft
+  object loft is sprout.Place {
+    object bale is Tool
+    object fork is Tool
+  }
+}
+verb gather { role things many  "gather [things]" }
+verb juggle { role things many  "juggle [things]" }
+`,
+  'farmer.sprout': `kind Hand is sprout.Actor {
+  as actor for gather { do { each t of things { move t to self  say "{t}: gathered." } } }
+  as actor for juggle { do { say "You juggle {things.count}." } }
+}
+kind Farmer is Hand, sprout.Visitor { }
+`,
+  'tool.sprout': 'kind Tool { }\n',
+});
+export const LOFT = declaredId('barn', ['loft']);
+
+/**
  * The glade: touching the pedestal sends the visitor a message whose
  * handler moves the gem, which the pedestal refuses with nobody to tell;
  * blowing the horn calls a bell in a shed out of range, which reaches

@@ -290,7 +290,7 @@ static void a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_ea
 static bool all_takes(offers_case *k, const sprout_verb *verb, const sprout_role *role, const char *id, bool carried) {
   sprout_all_rule rule;
   sprout_str named = id == NULL ? k->p.actor : (sprout_str){id, strlen(id)};
-  CHECK_INT(sprout_all_rule_of(&k->p.frame, verb, role, &rule), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_all_rule_of(&k->p.frame, verb, role, k->p.actor, &rule), SPROUT_EVAL_OK);
   return sprout_all_takes(&rule, expr_instance(&k->p.frame, named), k->p.actor, k->p.place, carried);
 }
 
@@ -325,9 +325,29 @@ static void all_takes_by_the_roles_kind_or_by_what_plays_the_verb_and_never_the_
   offers_close(&k);
 }
 
+static void all_in_a_set_role_the_actors_own_part_takes_leaves_out_what_is_carried(void) {
+  offers_case k;
+  const sprout_verb *take, *juggle;
+  sprout_role many;
+  CHECK_INT(offers_open(&k, "visitor in the yard"), SPROUT_EVAL_OK);
+  take = verb_named(k.p.frame.world, "sprout", "take");
+  juggle = verb_named(k.p.frame.world, "viewbench", "juggle");
+  /* take's target as a set role: the actor's `move target to self` takes its things, so the carried are left out. */
+  many = take->roles[0];
+  many.many = true;
+  CHECK(all_takes(&k, take, &many, "viewbench.yard.pebble", false));
+  CHECK(!all_takes(&k, take, &many, "viewbench.yard.pebble", true));
+  /* As one thing, the consent pass leaves out what is held, and `all` takes it. */
+  CHECK(all_takes(&k, take, &take->roles[0], "viewbench.yard.pebble", true));
+  /* A set role whose actor takes nothing keeps what is carried. */
+  CHECK(all_takes(&k, juggle, &juggle->roles[0], "viewbench.yard.pebble", true));
+  offers_close(&k);
+}
+
 int main(void) {
   RUN(a_role_only_the_actor_plays_is_one_no_kind_a_spawn_may_name_plays_each_asked_a_step);
   RUN(all_takes_by_the_roles_kind_or_by_what_plays_the_verb_and_never_the_actor_or_their_place);
+  RUN(all_in_a_set_role_the_actors_own_part_takes_leaves_out_what_is_carried);
   RUN(the_offers_are_the_goldens_in_its_order_with_its_typed_lines_and_its_refusals);
   RUN(the_verbs_a_scene_lists_hold_the_whole_offers_verbs_each_once_in_their_order);
   RUN(go_is_offered_by_each_exit_by_its_direction_and_by_each_link_by_its_labels_typed_words);

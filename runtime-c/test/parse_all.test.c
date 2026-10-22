@@ -2,7 +2,8 @@
  * Tests for src/parse/all.c: `all` and `except` in a slot (the spec's Parsing > Sequences, again and all), read in
  * the corpus worlds `grammar` (the study), `all-in-order` (a hall where one
  * kind plays `examine`'s target and a world verb's, and one plays nothing) and `all-narrowed` (a table and a sack
- * holding things, for `all` before a noun or a holder, and `drop` and `put`, which take their things from the actor).
+ * holding things, for `all` before a noun or a holder, and `drop` and `put`, which take their things from the actor),
+ * and `all-set-role-skips-held` (a sack of nine pebbles and a club, for set roles the actor's own part takes or not).
  */
 #include "parse_fixture.h"
 
@@ -399,6 +400,57 @@ static void all_in_a_place_takes_a_thing_that_stands_in_several(void) {
   bench_close(&b);
 }
 
+/* The yard of `all-set-role-skips-held`, reached in its order, the visitor first: the sack, its nine pebbles, the club. */
+static void open_yard(taking *t, bool sack_held, bool club_held) {
+  static const char *const things[] = {
+      "all_set_role_skips_held.yard.sack",          "all_set_role_skips_held.yard.sack.pebble_1",
+      "all_set_role_skips_held.yard.sack.pebble_2", "all_set_role_skips_held.yard.sack.pebble_3",
+      "all_set_role_skips_held.yard.sack.pebble_4", "all_set_role_skips_held.yard.sack.pebble_5",
+      "all_set_role_skips_held.yard.sack.pebble_6", "all_set_role_skips_held.yard.sack.pebble_7",
+      "all_set_role_skips_held.yard.sack.pebble_8", "all_set_role_skips_held.yard.sack.pebble_9",
+      "all_set_role_skips_held.yard.club"};
+  size_t i;
+  bench_open(&t->b, "all-set-role-skips-held", "Marta");
+  t->candidates[0] = bench_candidate(&t->b, t->b.actor.bytes, 0);
+  for (i = 0; i < 11; i++) {
+    t->candidates[i + 1] = bench_candidate(&t->b, things[i], i + 1);
+    t->candidates[i + 1].carried = i < 10 ? sack_held : club_held;
+  }
+  memset(&t->all, 0, sizeof t->all);
+  t->all.fill.nouns = bench_nouns(&t->b, NULL, 0);
+  t->all.fill.candidates = t->candidates;
+  t->all.fill.candidate_count = 12;
+  t->all.actor = t->b.actor;
+  t->all.here = bench_str("all_set_role_skips_held.yard");
+}
+
+static void a_set_role_the_actors_own_part_takes_leaves_out_what_is_carried_before_it_counts_to_the_bound(void) {
+  taking t;
+  bool is_all;
+  parse_filled filled;
+  open_yard(&t, true, false);
+  /* Ten things in hand, the club on the floor: `gather` moves each of its things to `self`. */
+  filled = all_in(&t, "all", "all_set_role_skips_held", "gather", "things", 8, &is_all);
+  CHECK_INT(filled.fills, PARSE_FILLS_OPTIONS);
+  CHECK_STR(taken(&filled), "club");
+  /* A set role whose actor moves nothing, or moves its things away, keeps the walk's order, the hands first. */
+  filled = all_in(&t, "all", "all_set_role_skips_held", "juggle", "things", 8, &is_all);
+  CHECK_STR(taken(&filled), "sack pebble_1 pebble_2 pebble_3 pebble_4 pebble_5 pebble_6 pebble_7");
+  filled = all_in(&t, "all", "all_set_role_skips_held", "shed", "things", 8, &is_all);
+  CHECK_STR(taken(&filled), "sack pebble_1 pebble_2 pebble_3 pebble_4 pebble_5 pebble_6 pebble_7");
+  bench_close(&t.b);
+  /* Nothing held: the bound is still the host's. */
+  open_yard(&t, false, false);
+  filled = all_in(&t, "all", "all_set_role_skips_held", "gather", "things", 3, &is_all);
+  CHECK_STR(taken(&filled), "sack pebble_1 pebble_2");
+  bench_close(&t.b);
+  /* Everything held: `all` itself names nothing. */
+  open_yard(&t, true, true);
+  filled = all_in(&t, "all", "all_set_role_skips_held", "gather", "things", 8, &is_all);
+  CHECK(filled.fills == PARSE_FILLS_NOTHING && filled.start == 0 && filled.end == 1 && !filled.narrowed);
+  bench_close(&t.b);
+}
+
 int main(void) {
   RUN(all_in_a_place_takes_a_thing_that_stands_in_several);
   RUN(everything_is_all_with_except_after_it_and_each_is_neither);
@@ -416,5 +468,6 @@ int main(void) {
   RUN(a_noun_after_all_that_names_nothing_is_the_noun);
   RUN(a_holder_keeps_what_it_directly_holds_and_leaves_nothing_where_it_holds_nothing);
   RUN(in_and_on_say_where_the_things_go_in_a_role_the_visitor_carries_and_are_not_all);
+  RUN(a_set_role_the_actors_own_part_takes_leaves_out_what_is_carried_before_it_counts_to_the_bound);
   return REPORT();
 }

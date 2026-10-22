@@ -59,16 +59,21 @@ typedef struct sprout_all_rule {
   const sprout_verb *verb;
   const sprout_role *role;
   bool every_thing; /* an open role takes every thing not a person: an engine verb's, or one only the actor plays */
+  bool leaves_carried; /* a set role only the actor plays whose things the actor's own part takes: what is carried is left out */
 } sprout_all_rule;
 
-/* The rule of `all` for `role` of `verb`, worked out once for every thing weighed by it; for a world verb, each kind asked is a step. */
+/*
+ * The rule of `all` for `role` of `verb` when `actor` types it, worked out once for every thing weighed by it; for
+ * a world verb, each kind asked is a step, and for a set role each statement of the actor's own part read.
+ */
 sprout_eval_status sprout_all_rule_of(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
-                                      sprout_all_rule *out);
+                                      sprout_str actor, sprout_all_rule *out);
 
 /*
  * Whether `all` takes `thing` by `rule`, `carried` saying whether `actor` carries it: never the actor nor `here`,
- * their place; for a carried role only what is carried; for a role that takes a value or a way out, nothing. The
- * parser's `all` weighs each thing in reach by it, and the view each thing it offers.
+ * their place; for a carried role only what is carried, and for a set role the actor takes things by, nothing
+ * carried; for a role that takes a value or a way out, nothing. The parser's `all` weighs each thing in reach by
+ * it, and the view each thing it offers.
  */
 bool sprout_all_takes(const sprout_all_rule *rule, const sprout_stored_instance *thing, sprout_str actor, sprout_str here,
                       bool carried);

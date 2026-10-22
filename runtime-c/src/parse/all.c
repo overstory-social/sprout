@@ -8,7 +8,8 @@
  * read so in a role whose things the visitor carries, a carried role or one the actor's own sure move takes from
  * them, where they say where the things go. `except` leaves out each
  * thing a noun after it names (only those whose whole name it is, where any is), and every thing of a kind it names.
- * A set role takes them all at once, capped at a set role's figure; a role that takes one thing takes each in turn,
+ * A set role takes them all at once, capped at a set role's figure, leaving out first what the visitor carries where
+ * only the actor plays it and the actor's own part takes its things; a role that takes one thing takes each in turn,
  * in the order reached, which the readings cap once the refused are left out.
  */
 #include <string.h>
@@ -265,7 +266,7 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
   }
   for (at = 0; at < fill->candidate_count; at++)
     left[at] = left[at] || (named != NULL && !named[at]) || (held != NULL && !held[at]);
-  EXPR_NEED(sprout_all_rule_of(frame, verb, role, &rule));
+  EXPR_NEED(sprout_all_rule_of(frame, verb, role, context->actor, &rule));
   things = (parse_named *)sprout_arena_take(frame->turn, (fill->candidate_count + 1) * sizeof *things);
   if (things == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < fill->candidate_count; i++) {

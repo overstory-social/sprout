@@ -145,6 +145,14 @@ sprout_eval_status sprout_moves_its_filler(const sprout_frame *frame, const spro
 sprout_eval_status sprout_moves_its_filler_away(const sprout_frame *frame, const sprout_verb *verb,
                                                 const sprout_role *role, sprout_str actor, bool *away);
 
+/*
+ * Whether a `move` anywhere in `actor`'s own `do`s for `verb`, inside an `if` or an `each` among them, takes one of
+ * the set role `role`'s things, the role by name or what an `each ... of` it binds, to `self` or `actor`: a set role
+ * whose things the actor takes, as a world's `take`. Each statement read is a step.
+ */
+sprout_eval_status sprout_takes_its_things(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                           sprout_str actor, bool *takes);
+
 /* ---- effect.c ---- */
 
 /*
