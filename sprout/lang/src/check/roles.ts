@@ -176,9 +176,6 @@ function bindRole(
   const name = role.name;
   const narrowing = play.narrows.get(name) ?? null;
   const filler = role.filler ?? { fills: 'open' as const };
-  // An exit is the engine's to take, and binds nothing in a play.
-  if (filler.fills === 'exit') return;
-
   const thing = filler.fills === 'kind' || filler.fills === 'open';
   if (thing && narrowing !== null) {
     // `from` on a role a thing fills: `roleBinding` says why it narrows nothing.
@@ -211,7 +208,7 @@ function bindRole(
     );
     return;
   }
-  if (!thing && narrowing === null) {
+  if ((filler.fills === 'symbol' || filler.fills === 'integer') && narrowing === null) {
     const never = neverBound(name, filler.fills, self);
     scope.withhold(
       { name, at, unread: never, bound: { bindable: false, words: never } },
