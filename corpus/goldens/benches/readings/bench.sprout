@@ -46,7 +46,11 @@ kind Key is sprout.RequiresHeld { grammar { nouns "key" } }
 kind Torch is sprout.RequiresHeld { }
 kind Book { }
 kind Pouch is sprout.Container { }
-kind Cat is sprout.Actor { }
+// Refuses to do anything but nod while it sleeps, which it never does here.
+kind Cat is sprout.Actor {
+  :asleep false
+  as actor for any except nod { permit { if (self.get(:asleep)) { refuse "The cat sleeps on." } } }
+}
 
 // Guards every verb it is a tool in, and `prop` besides, each refusing
 // when its flag is set.
@@ -57,10 +61,10 @@ kind Gauge {
   as tool for prop { permit { if (self.get(:bent)) { refuse "The gauge is bent." } } }
 }
 
-// Refuses to be the target of anything while it is wobbly.
+// Refuses to be the target of anything but `nod` while it is wobbly.
 kind Shelf {
   :wobbly false
-  as target for any { permit { if (self.get(:wobbly)) { refuse "The shelf wobbles." } } }
+  as target for any except nod { permit { if (self.get(:wobbly)) { refuse "The shelf wobbles." } } }
   as target for prop { do { say "The shelf stays put." } }
 }
 enum Topic { bridge, toll, weather }

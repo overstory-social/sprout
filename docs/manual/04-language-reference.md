@@ -1145,6 +1145,29 @@ so its `permit` reads `self`, `actor` and `here`, and naming a role such
 as `target` in it is refused. For one participant, its `for any` permits
 run before its permits for the verb.
 
+`as actor for any` guards the actor's own part of every verb it
+performs, the engine's `go`, `examine` and `wait` included, and only a
+kind that composes `sprout.Actor` may write it. Any of the three may
+leave verbs out with `except`, so one verb can answer in a voice of its
+own:
+
+```sprout
+kind Illusion {
+  as target for any except examine { permit { refuse gone } }
+  as target for examine { permit { refuse gone_look } }
+  passage gone default { Your hand closes on nothing. }
+  passage gone_look default { You look closer, and {self} wavers like heat over a road. }
+}
+
+kind Frozen is sprout.Actor {
+  :frozen false
+  as actor for any except wait { permit { if (self.get(:frozen)) { refuse frozen } } }
+  passage frozen default { You are frozen solid. You might as well wait it out. }
+}
+```
+
+A verb named after `except` is imported as any verb a play names is.
+
 - **`permit`** decides whether it may happen. It is read-only. It may
   `refuse`, and the first refusal from anyone ends the whole command with
   those words as its only answer. A participant without a `permit`

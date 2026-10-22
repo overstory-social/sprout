@@ -1,0 +1,4 @@
+// Only an actor plays the actor's own part of every verb.
+kind Lever {
+  as actor for any { permit { refuse "The lever will not budge." } }
+}

@@ -1,0 +1,44 @@
+{
+  "about": "A wildcard leaves out the verbs its `except` names: the illusion's `examine` reads its own play, the stand-in's reads its `describe`, and a frozen visitor may still `wait` and `thaw` while every other verb, `go` and `examine` among them, is refused.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
+    ] },
+    { "as": "Marta", "type": "take chest", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "Your hand closes on nothing." }
+    ] },
+    { "as": "Marta", "type": "examine chest", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You look closer, and a chest wavers like heat over a road." }
+    ] },
+    { "as": "Marta", "type": "take robot", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "A robot is not really here to hear you." }
+    ] },
+    { "as": "Marta", "type": "examine robot", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A dented robot stands here, quite still." }
+    ] },
+    { "as": "Marta", "type": "freeze", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Ice climbs your legs and holds you fast." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are frozen solid. You might as well wait it out." }
+    ] },
+    { "as": "Marta", "type": "examine lamp", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are frozen solid. You might as well wait it out." }
+    ] },
+    { "as": "Marta", "type": "go north", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are frozen solid. You might as well wait it out." }
+    ] },
+    { "as": "Marta", "type": "wait", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Time passes." }
+    ] },
+    { "as": "Marta", "type": "thaw", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The ice lets go of you." }
+    ] },
+    { "as": "Marta", "type": "take lamp", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a lamp." }
+    ] },
+    { "as": "Marta", "type": "thaw", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "You are not frozen." }
+    ] }
+  ]
+}
