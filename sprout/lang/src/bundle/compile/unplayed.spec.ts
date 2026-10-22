@@ -43,7 +43,6 @@ function warned(own: string, lib = ''): { said: string[]; unplayed: string[] } {
         ...spawnedKinds(kinds, tables.kinds).map(({ kind }) => kind),
       ]),
     ],
-    kinds,
     verbs: tables.verbs.all(),
     namespace: 'shop',
     diagnostics,
@@ -121,7 +120,7 @@ describe('a role in a verb nothing fills', () => {
     ).toEqual([]);
   });
 
-  it('warns at a value role no part narrows and no `act` names, and at nothing else', () => {
+  it('warns at a value role no part narrows, even one an `act` gives, and at nothing else', () => {
     const ask = 'verb quiz { role target  role topic: symbol  "quiz [target] about [topic]" }';
     const deaf = 'kind Guard { as target for quiz { do { say "Hm." } } }';
     expect(warned(`${ask}\n${deaf}\n${WORLD} object guard is Guard } }`).said).toEqual([
@@ -130,22 +129,25 @@ describe('a role in a verb nothing fills', () => {
     const hearing =
       'enum Topic { toll }\nkind Guard { :knows [Topic] default [toll]  as target for quiz { topic from :knows  do { say "Hm." } } }';
     expect(warned(`${ask}\n${hearing}\n${WORLD} object guard is Guard } }`).said).toEqual([]);
-    // `mew` has no phrases and no part narrows `mood`: the `act` gives it.
+    // `mew` has no phrases and no part narrows `mood`: what the `act` gives
+    // it is narrowed by the same `from` a typed value would be, so it is
+    // never bound, until a part hears it.
     const acting = `enum Topic { toll }
 verb mew { role target  role mood: symbol }
 kind Guard is sprout.Actor {
   :knows [Topic] default [toll]
-  as target for quiz { topic from :knows  do { if (bound topic) { act mew (target: actor, mood: topic) } } }
+  as target for quiz { topic from :knows  do { if (bound topic) { act mew (target: actor, mood: :toll) } } }
   as actor for mew { do { say "Mew." } }
 }`;
-    expect(warned(`${ask}\n${acting}\n${WORLD} object guard is Guard } }`).said).toEqual([]);
-    // An `act` inside an `each` names it as surely.
-    const eachActing = acting.replace(
-      'if (bound topic) { act mew (target: actor, mood: topic) }',
-      'if (bound topic) { each thing in actor { act mew (target: actor, mood: topic) } }',
+    expect(warned(`${ask}\n${acting}\n${WORLD} object guard is Guard } }`).said).toEqual([
+      'shop.sprout:3:30 Nothing that plays a part in `mew` says which options `mood` takes, so it is never bound. Say it with `from` in the body of a part that hears it, as in `as target for mew { mood from :<a list property> … }`.',
+    ]);
+    const heard = acting.replace(
+      'as actor for mew { do',
+      'as actor for mew { mood from :knows  do',
     );
-    expect(eachActing).not.toEqual(acting);
-    expect(warned(`${ask}\n${eachActing}\n${WORLD} object guard is Guard } }`).said).toEqual([]);
+    expect(heard).not.toEqual(acting);
+    expect(warned(`${ask}\n${heard}\n${WORLD} object guard is Guard } }`).said).toEqual([]);
   });
 
   it('never warns at an open role, which any thing fills', () => {

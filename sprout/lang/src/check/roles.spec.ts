@@ -73,7 +73,7 @@ function checked(text: string): string[][] {
     for (const plays of kind.plays.values()) {
       for (const play of plays) {
         if (play.origin === `${kind.library}.${kind.name}`) {
-          checkPlay(play, kind, { kinds, here, verbs, diagnostics });
+          checkPlay(play, kind, { kinds, here, verbs, heard: () => [], diagnostics });
         }
       }
     }

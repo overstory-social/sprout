@@ -1,5 +1,5 @@
 {
-  "name": "act_filler_not_a_name",
+  "name": "act_filler_neither",
   "version": "0.1.0",
   "author": "corpus",
   "license": "MIT",
@@ -12,5 +12,5 @@
       "sha": "288fb32a046731445e67b4f5794e445fc3bb1de81d98420b9ab26e2f5cb22e41"
     }
   ],
-  "files": ["act_filler_not_a_name.sprout", "creature.sprout", "person.sprout", "cat.sprout"]
+  "files": ["act_filler_neither.sprout", "creature.sprout", "person.sprout", "cat.sprout"]
 }

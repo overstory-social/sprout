@@ -1,0 +1,11 @@
+// An option written bare is checked against the enums the role's
+// role-players hear it as, so a misspelled one is refused rather than
+// never bound.
+import {Creature} from 'creature'
+import {pet, quiz} from 'act_option_unheard'
+
+kind Cat is Creature {
+  as target for pet {
+    do { act quiz (target: actor, topic: :tol) }
+  }
+}
