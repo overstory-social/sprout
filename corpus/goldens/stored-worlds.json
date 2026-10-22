@@ -9,6 +9,7 @@
 "all-leaves-out-refused":{"world":"all_leaves_out_refused","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "all-narrowed":{"world":"all_narrowed","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "all-plays-a-part":{"world":"all_plays_a_part","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"all-set-role-skips-held":{"world":"all_set_role_skips_held","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "allowed-first":{"world":"allowed_first","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "arrival-order":{"world":"arrival_order","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "arrival-through-world":{"world":"arrival_through_world","serial":0,"instances":[],"visitors":[],"tombstones":[]},

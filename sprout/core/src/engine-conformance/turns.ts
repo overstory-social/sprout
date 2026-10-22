@@ -5,6 +5,7 @@ import type { SproutStore } from '../store.js';
 import { runCommand, runCommandLine, runMaintenance, runTick, runWake } from '../turns.js';
 import { equal, match, ok, rejects } from './check.js';
 import {
+  BARN,
   BELFRY,
   BELFRY_FOLLOWS,
   BELFRY_GONE,
@@ -23,6 +24,7 @@ import {
   HIDEOUT_HALL,
   HIDEOUT_VAULT,
   INES,
+  LOFT,
   MARTA,
   NAVE,
   OWN_FOLLOWED,
@@ -152,6 +154,28 @@ export const turnCases: EngineCase[] = [
         'what taking the pebble says',
       );
       ok((await held(PEBBLE)) !== undefined, 'the pebble, moved');
+    },
+  },
+  {
+    name: '`all` in a set role the actor takes things by leaves out what is carried',
+    proves:
+      '`all` in a set role only the actor plays, whose own part moves its things to itself, leaves out what the visitor carries before it counts to the host’s bound, and a set role whose actor takes nothing keeps it',
+    async run(make) {
+      const store = await seeded(BARN, [[MARTA, LOFT, 'Marta']]);
+      const host = played(make, BARN, { budgets: { setRoleObjects: 1 } });
+      await runCommand(store, 'w', host, command('gather bale'));
+      const gathered = await runCommand(store, 'w', host, command('gather all'));
+      match(
+        gathered.effects,
+        [{ kind: 'said', visit: MARTA, paragraphs: ['A fork: gathered.'] }],
+        'gathering all with the bale in hand',
+      );
+      const juggled = await runCommand(store, 'w', host, command('juggle all'));
+      match(
+        juggled.effects,
+        [{ kind: 'said', visit: MARTA, paragraphs: ['You juggle 1.'] }],
+        'juggling all, one thing bound',
+      );
     },
   },
   {

@@ -4,7 +4,8 @@
  * play's frame binds, is the move it is sure to propose: read across a reading's plays in the effect pass's
  * order it greys an offer that would put a thing inside itself with the engine's `inside_itself`, and read in the
  * actor's own plays it says which roles move their filler, and which move it away from the actor (asked of the
- * corpus world `drop-all-on`). Each play read is a step, and each container climbed another.
+ * corpus world `drop-all-on`); a `move` anywhere in them says which set roles' things the actor takes (asked of
+ * `all-set-role-skips-held`). Each play read is a step, and each container climbed another.
  */
 #include "expr/expr.h"
 #include "offers.h"
@@ -160,6 +161,34 @@ static void a_budget_spent_reading_plays_faults_as_any_work_does(void) {
   sure_close(&k);
 }
 
+/* Whether the actor's own play in `verb` of `library`, in the bench's world, takes `role`'s things to the actor. */
+static bool takes_things(bench *b, const char *library, const char *verb, const char *role) {
+  bool takes = false;
+  CHECK_INT(sprout_takes_its_things(&b->frame, bench_verb(b, library, verb), bench_role(b, library, verb, role), b->actor,
+                                    &takes),
+            SPROUT_EVAL_OK);
+  return takes;
+}
+
+static void a_move_of_a_set_roles_things_to_the_actor_anywhere_in_its_do_takes_them(void) {
+  bench b;
+  uint64_t before;
+  bench_open(&b, "all-set-role-skips-held", "Marta");
+  /* `each t of things { if … { say } else { move t to self … } }`. */
+  CHECK(takes_things(&b, "all_set_role_skips_held", "gather", "things"));
+  /* No move, and `move t to here`. */
+  CHECK(!takes_things(&b, "all_set_role_skips_held", "juggle", "things"));
+  CHECK(!takes_things(&b, "all_set_role_skips_held", "shed", "things"));
+  /* The library's `move target to self` names the role itself. */
+  CHECK(takes_things(&b, "sprout", "take", "target"));
+  CHECK(!takes_things(&b, "sprout", "drop", "target"));
+  /* Each statement read is a step: the `each`, the `if`, the `say` and the `move`. */
+  before = b.run.meter->steps;
+  takes_things(&b, "all_set_role_skips_held", "gather", "things");
+  CHECK(b.run.meter->steps - before >= 4);
+  bench_close(&b);
+}
+
 int main(void) {
   RUN(a_sure_move_that_puts_a_thing_inside_itself_is_refused_in_the_engines_words);
   RUN(a_sure_move_that_does_not_is_not_refused);
@@ -169,5 +198,6 @@ int main(void) {
   RUN(a_role_the_actors_play_leaves_alone_is_not_moved);
   RUN(a_move_to_a_name_other_than_the_actor_takes_the_filler_away_and_one_to_self_or_actor_does_not);
   RUN(a_budget_spent_reading_plays_faults_as_any_work_does);
+  RUN(a_move_of_a_set_roles_things_to_the_actor_anywhere_in_its_do_takes_them);
   return REPORT();
 }
