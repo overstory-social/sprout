@@ -20,7 +20,7 @@ describe('the defaults are the spec’s two tables and nothing else', () => {
       phraseCharacters: 80,
       nounsPerObject: 8,
       nounCharacters: 40,
-      exitsPerPlace: 8,
+      exitsPerPlace: 32,
       listElements: 16,
       literalCharacters: 600,
     });
@@ -269,10 +269,10 @@ describe('a bundle records the caps it was checked against, and a load compares 
 
   it('names each larger one, in the table’s order, with both figures', () => {
     const recorded = limitsFrom({
-      caps: { places: 500, sourceBytes: 1_000, exitsPerPlace: 16 },
+      caps: { places: 500, sourceBytes: 1_000, exitsPerPlace: 40 },
     }).caps;
     expect(capsExceeding(recorded, ours)).toEqual([
-      { name: 'exitsPerPlace', recorded: 16, allowed: 8 },
+      { name: 'exitsPerPlace', recorded: 40, allowed: 32 },
       { name: 'places', recorded: 500, allowed: 100 },
     ]);
   });
@@ -295,16 +295,16 @@ describe('a bundle records the caps it was checked against, and a load compares 
       'places',
       'sourceBytes',
     ]);
-    for (const over of capsExceeding(limitsFrom({ caps: { exitsPerPlace: 16 } }).caps, ours)) {
+    for (const over of capsExceeding(limitsFrom({ caps: { exitsPerPlace: 40 } }).caps, ours)) {
       expect(Object.keys(DEFAULT_LIMITS.caps)).toContain(over.name);
     }
   });
 
   it('grants the larger of each under an exception, unset being the largest', () => {
-    const recorded = limitsFrom({ caps: { exitsPerPlace: 16, places: 50, kinds: 12 } }).caps;
+    const recorded = limitsFrom({ caps: { exitsPerPlace: 40, places: 50, kinds: 12 } }).caps;
     const granted = capsGranted(recorded, ours);
     expect(granted).toMatchObject({
-      exitsPerPlace: 16,
+      exitsPerPlace: 40,
       places: 100,
       kinds: null,
       sourceBytes: null,
