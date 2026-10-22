@@ -8,9 +8,9 @@
  * Two invariants. The asker always reaches itself, its own contents and the
  * surface of every container out to the first that refuses, whatever that
  * one's rule says, because a lid stops others looking in, not the chest
- * looking down; and it reaches what shares the first container out that
- * refuses, where no place stands below it, since a lid divides the inside
- * from the outside, not the inside from itself. And
+ * looking down; and it reaches what is shut in with it in the first
+ * container out that refuses, since a lid divides the inside from the
+ * outside, not the inside from itself, though never across a place. And
  * the walk is a loop over a queue, never recursion, since nesting has no cap.
  */
 #include "expr/expr.h"
@@ -19,7 +19,8 @@
 typedef struct walk {
   const sprout_frame *frame;
   const char *asking;
-  bool sight; /* what is unseen, and what it holds, is passed over */
+  bool sight;   /* what is unseen, and what it holds, is passed over */
+  bool walled;  /* a place's contents are passed over, as they are past a container that refuses */
   sprout_reached *reached;
   size_t count, capacity;
 } walk;
@@ -76,7 +77,7 @@ static sprout_eval_status sweep(walk *w, ids *frontier) {
     size_t n;
     bool open;
     EXPR_NEED(contents(w->frame, node, &held, &n));
-    if (n == 0) continue;
+    if (n == 0 || (w->walled && expr_holds_actors(w->frame, node))) continue;
     EXPR_NEED(expr_passes(w->frame, node, w->asking, &open));
     if (!open) continue;
     for (i = 0; i < n; i++) {
@@ -90,7 +91,7 @@ static sprout_eval_status sweep(walk *w, ids *frontier) {
 
 static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker, const char *asking, bool sight,
                                     const sprout_reached **reached, size_t *count) {
-  walk w = {frame, asking, sight, NULL, 0, 0};
+  walk w = {frame, asking, sight, false, NULL, 0, 0};
   ids own = {NULL, 0, 0}, ring = {NULL, 0, 0};
   const sprout_str *held;
   size_t n, i;
@@ -118,6 +119,7 @@ static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker,
       if (!sprout_str_same(held[i], inner) && (!sight || !expr_unseen(frame, held[i])))
         EXPR_NEED(push(frame, &ring, held[i]));
     for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], open ? SPROUT_VIA_PASSED : SPROUT_VIA_BESIDE));
+    w.walled = !open;
     EXPR_NEED(sweep(&w, &ring));
     if (!open) break;
     inside = inside && !expr_holds_actors(frame, outer);

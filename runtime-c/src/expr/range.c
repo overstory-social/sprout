@@ -2,8 +2,8 @@
  * What is in range of what (the spec's Range; Range > Sight): the live
  * containment tree, whether a target is reached by the path between it and
  * an asker with every container strictly between letting it through, save
- * the first that refuses, which never stands between two things inside it
- * where no place does; and the walk outward from an asker that a place's `lit` makes. Sight
+ * the first that refuses, which never stands between two things shut in it
+ * where no place does on either side; and the walk outward from an asker that a place's `lit` makes. Sight
  * passes over what is unseen and what it holds (Range > Unseen), and what an
  * object can reach does not. Every node touched costs a step, as the rules count them.
  */
@@ -148,6 +148,12 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
   for (at = 1; at <= meet; at++) {
     EXPR_NEED(passes_with_hands(frame, chain.items[at], asking, hands, &open));
     if (!open && (at < meet || !inside_of(frame, &chain, meet))) return SPROUT_EVAL_OK;
+    /* Reached only past a lid, the target is not behind a place of its own either. */
+    if (!open) {
+      size_t past;
+      for (past = 1; past < below.count; past++)
+        if (expr_holds_actors(frame, below.items[past])) return SPROUT_EVAL_OK;
+    }
   }
   for (at = below.count - 1; at >= 1; at--) {
     EXPR_NEED(passes_with_hands(frame, below.items[at], asking, hands, &open));
@@ -202,7 +208,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
   const sprout_str *held;
   size_t n, i, head;
   sprout_str inner = from, outer;
-  bool has_outer, open, inside;
+  bool has_outer, open, inside, walled = false;
 #define REACH(id)                                       \
   do {                                                  \
     EXPR_NEED(expr_spend(frame));                       \
@@ -213,7 +219,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
     for (head = 0; head < (frontier).count; head++) {                                \
       sprout_str node_ = (frontier).items[head];                                     \
       EXPR_NEED(contents_of(frame, node_, &held, &n));                               \
-      if (n == 0) continue;                                                          \
+      if (n == 0 || (walled && expr_holds_actors(frame, node_))) continue;          \
       EXPR_NEED(sight_passes(frame, node_, &open));                                  \
       if (!open) continue;                                                           \
       for (i = 0; i < n; i++) {                                                      \
@@ -246,6 +252,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
       if (!push(frame, &ring, held[i])) return SPROUT_EVAL_NO_MEMORY;
     }
     for (i = 0; i < ring.count; i++) REACH(ring.items[i]);
+    walled = !outer_open;
     SWEEP(ring);
     if (!outer_open) break;
     inside = inside && !expr_holds_actors(frame, outer);

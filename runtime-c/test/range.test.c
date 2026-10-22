@@ -196,6 +196,39 @@ static void what_is_shut_in_together_reaches_both_ways_through_what_passes_betwe
   exec_bench_close(&b);
 }
 
+static void a_place_shut_in_beside_a_thing_is_a_wall_both_ways(void) {
+  exec_bench b;
+  exec_case c;
+  const sprout_reached *walked;
+  size_t count;
+  bool reached;
+  const sprout_str chest = exec_str("exec_bench.hall.chest"), tent = exec_str("exec_bench.hall.tent");
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, case_in(&b, "fresh"));
+  /* The tent, a place that passes, is shut in the chest with the coin, and the runner stands in the tent. */
+  CHECK_INT(sprout_draft_place(&c.draft, tent, &chest), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.runner"), &tent), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.runner"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.chest"), "surface");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.chest.coin"), "");
+  /* The coin reaches the tent as a thing shut in with it, and not who stands in it. */
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.chest.coin"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.tent"), "beside");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.runner"), "");
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.chest.coin"), tent, NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.chest.coin"), exec_str("exec_bench.hall.runner"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(!reached);
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.runner"), exec_str("exec_bench.hall.chest.coin"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(!reached);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void places_inside_a_container_that_refuses_stay_out_of_range_of_one_another(void) {
   exec_bench b;
   exec_case c;
@@ -252,5 +285,6 @@ int main(void) {
   RUN(what_shares_a_shut_container_is_reached_and_a_shut_container_inside_it_is_a_wall);
   RUN(what_is_shut_in_together_reaches_both_ways_through_what_passes_between);
   RUN(places_inside_a_container_that_refuses_stay_out_of_range_of_one_another);
+  RUN(a_place_shut_in_beside_a_thing_is_a_wall_both_ways);
   return REPORT();
 }
