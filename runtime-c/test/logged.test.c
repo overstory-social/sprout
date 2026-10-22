@@ -223,7 +223,7 @@ static void what_nobody_was_told_of_is_kept_as_a_warning(void) {
   snprintf(want, sizeof want,
            "\"warnings\":[{\"level\":\"warning\",\"what\":\"unread-refusal\",\"by\":\"%s\","
            "\"item\":\"lost_work.glade.pedestal.gem\",\"to\":\"%s\",\"refuser\":\"lost_work.glade.pedestal\","
-           "\"guard\":\"release\",\"words\":\"\\\"The pedestal keeps its gem.\\\"\"}]",
+           "\"guard\":\"release\",\"words\":\"passage keeps\"}]",
            tw_person(&w, "v-marta"), tw_person(&w, "v-marta"));
   /* Kept at either depth, since a replay does not give it back. */
   CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY), want) != NULL);

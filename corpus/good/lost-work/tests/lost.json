@@ -4,9 +4,9 @@
     { "arrive": "Marta" },
     { "as": "Marta", "type": "touch pedestal", "expect": [
       { "words": "You touch the pedestal, and the gem glows." },
-      { "level": "warning", "text": "a refusal nobody read: Marta could not move glade.pedestal.gem to Marta, glade.pedestal's `release` refused with \"The pedestal keeps its gem.\"" }
+      { "level": "warning", "text": "a refusal nobody read: Marta could not move glade.pedestal.gem to Marta, glade.pedestal's `release` refused with passage keeps" }
     ] },
-    { "as": "Marta", "type": "blow horn", "expect": [{ "words": "The stag bows its antlers." }] },
+    { "as": "Marta", "type": "blow horn", "forbid": ["warning"], "expect": [{ "words": "The stag bows its antlers." }] },
     { "as": "Marta", "type": "shoo stag", "expect": [{ "words": "A stag leaves for a thicket." }] },
     { "as": "Marta", "type": "blow horn", "expect": [
       { "words": "You blow the horn." },

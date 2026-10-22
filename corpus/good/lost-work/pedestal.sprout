@@ -3,7 +3,8 @@ import {touch, blow, :granted, :called} from 'lost_work'
 
 kind Pedestal {
   contains
-  release (item, to) { if (mover != self) { refuse "The pedestal keeps its gem." } }
+  passage keeps { The pedestal keeps its gem. }
+  release (item, to) { if (mover != self) { refuse keeps } }
 
   as target for touch {
     do {
