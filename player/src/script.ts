@@ -15,7 +15,7 @@
 // key` and `@arrive Marta`, is read into the same steps, so what a session
 // records is a script.
 
-import { isLevel, type Level } from '@overstory/sprout/lang';
+import { isLevel, SEED_MAX, type Level } from '@overstory/sprout/lang';
 
 /** What a step should make: one line a reader read, its words alone, or any other line at its level. */
 export type Expectation =
@@ -65,6 +65,8 @@ export const TYPED_LINE = /^([^\s>@#][^>]*)> ?(.*)$/;
 const SHAPES =
   'a step is `{ "as": "Marta", "type": "look" }`, `{ "arrive": "Marta" }`, `{ "leave": "Marta" }`, ' +
   '`{ "tick": true }`, `{ "advance": "40 minutes" }`, `{ "seed": 7 }` or `{ "comment": "…" }`';
+
+const TOO_BIG = `a seed is a whole number from 0 to ${SEED_MAX}.`;
 
 /** How long `advance` says passes, in seconds; null where it does not say it as `40 minutes`. */
 export function secondsOf(advance: string): number | null {
@@ -120,6 +122,7 @@ function stepOf(value: unknown, where: string): Step {
     }
     step = { advance: rest['advance'] };
   } else if (keys === 'seed' && Number.isSafeInteger(rest['seed']) && Number(rest['seed']) >= 0) {
+    if (Number(rest['seed']) > SEED_MAX) throw new Error(`${where}: ${TOO_BIG}`);
     step = { seed: Number(rest['seed']) };
   } else if (keys === 'comment' && typeof rest['comment'] === 'string') {
     step = { comment: rest['comment'] };
@@ -233,6 +236,7 @@ export function stepOfLine(line: string, where: string): Step | null {
       case 'seed':
         if (!/^\d+$/.test(arg))
           throw new Error(`${where}: write a whole number, as in \`@seed 7\`.`);
+        if (Number(arg) > SEED_MAX) throw new Error(`${where}: ${TOO_BIG}`);
         return { seed: Number(arg) };
       default:
         throw new Error(

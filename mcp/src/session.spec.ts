@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { plays, playScript, readScript } from '@overstory/sprout-player';
+import { plays, playScript, readScript, runTests } from '@overstory/sprout-player';
 import { bundleOf, KILN_YARD } from '@overstory/sprout-player/fixtures';
 
 import { arrive, isPresent, leave, openSession, resumeSession, say } from './session.js';
@@ -153,6 +153,21 @@ describe('the seed of each turn', () => {
     const read = Array.from({ length: 12 }, () => say(session, 'Marta', 'look').text).join('\n');
     expect(read).toContain('Smoke drifts.');
     expect(read).toContain('The air is still.');
+  });
+
+  it('replays as a test: a recording whose draws differ turn to turn passes `sprout test` as recorded', () => {
+    const record = join(mkdtempSync(join(tmpdir(), 'sprout-mcp-')), 'run.json');
+    const session = openSession(kilnYard, { seed: 2026, record, advancePerTurn: 60 });
+    arrive(session, 'Marta');
+    const read = Array.from({ length: 12 }, () => say(session, 'Marta', 'look').text).join('\n');
+    expect(read).toContain('Smoke drifts.');
+    expect(read).toContain('The air is still.');
+    const text = readFileSync(record, 'utf8');
+    expect(runTests(kilnYard, [{ name: 'run.json', text }])).toMatchObject({ ok: true });
+    // Without the seeds it kept, the same steps draw from another stream and the test fails.
+    const unseeded = readScript(text, 'run.json').steps.filter((step) => !('seed' in step));
+    const bare = JSON.stringify({ steps: unseeded });
+    expect(runTests(kilnYard, [{ name: 'bare.json', text: bare }])).toMatchObject({ ok: false });
   });
 
   it('begins a resumed session’s stream from the recording’s seed, whatever seed the host passes now', () => {

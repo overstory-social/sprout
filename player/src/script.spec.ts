@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { SEED_MAX } from '@overstory/sprout/lang';
+
 import {
   lineOf,
   plays,
@@ -72,6 +74,13 @@ describe('readScript', () => {
       'walk.json, step 1: `@seed 3` makes nothing, so it expects nothing.',
     );
     expect(() => read([{ comment: 'x', expect: [] }])).toThrow('makes nothing');
+  });
+
+  it('refuses a seed past the largest before anything plays, naming the step', () => {
+    expect(() => read([{ arrive: 'Marta' }, { seed: SEED_MAX + 1 }])).toThrow(
+      `walk.json, step 2: a seed is a whole number from 0 to ${SEED_MAX}.`,
+    );
+    expect(read([{ seed: SEED_MAX }]).steps).toEqual([{ seed: SEED_MAX }]);
   });
 
   it('refuses an expected line of no known shape, naming the step and the line', () => {
@@ -200,6 +209,9 @@ describe('the typed line grammar', () => {
     expect(() => stepOfLine('@tick now', 'stdin:2')).toThrow('stdin:2: `@tick` stands alone.');
     expect(() => stepOfLine('@seed x', 'stdin:2')).toThrow(
       'stdin:2: write a whole number, as in `@seed 7`.',
+    );
+    expect(() => stepOfLine(`@seed ${SEED_MAX + 1}`, 'stdin:2')).toThrow(
+      `stdin:2: a seed is a whole number from 0 to ${SEED_MAX}.`,
     );
   });
 });

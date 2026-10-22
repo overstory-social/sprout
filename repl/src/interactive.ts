@@ -157,12 +157,7 @@ export async function playInteractively(
       const where = `stdin:${at}`;
       const before = defaultVisitor(stage);
       const { line, step } = typedStep(stage, raw, where);
-      if (step !== null && 'seed' in step) {
-        if (step.seed > SEED_MAX) {
-          throw new Error(`${where}: a seed is a whole number from 0 to ${SEED_MAX}.`);
-        }
-        seeds = new Draws(step.seed);
-      }
+      if (step !== null && 'seed' in step) seeds = new Draws(step.seed);
       if (step !== null && plays(step)) draw(where);
       const made = step === null ? null : playStep(stage, step, where);
       keep(step, made);

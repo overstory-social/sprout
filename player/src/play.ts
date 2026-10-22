@@ -1,4 +1,5 @@
 import {
+  Draws,
   SEED_MAX,
   storedId,
   visitKey,
@@ -56,9 +57,10 @@ import { pathOf, seatReturning, seatingMismatch } from './stand.js';
 // delivered live at the instant it falls due; while nobody does, the world
 // waits, and the next arrival's catch-up delivers what fell due (the
 // spec's Time › Absence leaves the choice to the host). A step's seed is
-// the script's, 0 until it sets one; a line's commands after the first
-// take the next seed each, and a tick's or a wake's turn is seeded from it
-// by `turnSeed`.
+// the one a seed step just set, and otherwise the next of the mulberry32
+// stream begun from the last seed set, 0 at the start (the spec's The
+// command line); a line's commands after the first take the next seed
+// each, and a tick's or a wake's turn is seeded from it by `turnSeed`.
 //
 // Playing a script gives it back with every step's `expect` filled in
 // with all it made, so a script played is its own golden, and a changed
@@ -510,9 +512,12 @@ export function defaultVisitor(stage: Stage): string | null {
 export function playStep(stage: Stage, step: Step, where: string): Made[] | null {
   if ('comment' in step) return null;
   if ('seed' in step) {
-    stage.seed = step.seed;
+    stage.set = step.seed;
+    stage.seeds = new Draws(step.seed);
     return null;
   }
+  stage.seed = stage.set ?? stage.seeds.below(SEED_MAX + 1);
+  stage.set = null;
   if ('as' in step) return command(stage, step.as, step.type, where);
   if ('arrive' in step) return arrive(stage, step.arrive);
   if ('leave' in step) return leave(stage, step.leave, where);
@@ -536,6 +541,8 @@ export function freshStage(world: PlayableWorld, budgets: Partial<RuntimeBudgets
     stored: emptyState(),
     now: 0,
     seed: 0,
+    set: 0,
+    seeds: new Draws(0),
     visits: new Map(),
     turns: [],
   };
