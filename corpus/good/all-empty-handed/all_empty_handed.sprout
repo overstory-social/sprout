@@ -1,0 +1,30 @@
+// `all` with empty hands (the spec's Parsing › Sequences, again and all):
+// in a role whose things the visitor carries, `drop`'s target, `put`'s
+// item and a carried role, `all` that leaves nothing while the hands are
+// empty is answered with the world's `empty_handed`, narrowed or not, and
+// stops the line; `take all` with nothing left to take is still
+// `not_here`, and a noun after `all` that names nothing is answered as any
+// noun is.
+import * as sprout from 'sprout'
+
+verb juggle { role target carried  "juggle [target]" }
+
+kind Juggler is sprout.Actor {
+  as actor for juggle { do { say "You juggle {target}." } }
+}
+
+kind Person is Juggler, sprout.Visitor { }
+
+world all_empty_handed is sprout.World {
+  visitors are Person
+  visitors arrive at tea_room
+
+  object tea_room is sprout.Place {
+    grammar { name "tea room"  article the }
+    object table is sprout.Container, sprout.Fixture { grammar { article the } }
+    object orange_cake is Cake { }
+    object red_cake is Cake { }
+  }
+}
+
+kind Cake { }

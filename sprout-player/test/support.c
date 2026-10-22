@@ -303,6 +303,15 @@ static uint32_t word_at(const unsigned char *bytes) {
   return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
 }
 
+/* Moves the first hex digit of the first hash in `text` on by `step`, 1 to 15, so each step gives a hash of its own. */
+static void redigit_hash(char *text, char step) {
+  static const char HEX[] = "0123456789abcdef";
+  char *at = strstr(text, "\"hash\":\"");
+  const char *was = at == NULL ? NULL : strchr(HEX, at[8]);
+  CHECK(was != NULL && *was != '\0' && step > '0' && step <= '9', "the teashop's header has a hash");
+  if (was != NULL && *was != '\0') at[8] = HEX[((size_t)(was - HEX) + (size_t)(step - '0')) % 16];
+}
+
 static void put_word(unsigned char *bytes, size_t value) {
   size_t i;
   for (i = 0; i < 4; i++) bytes[i] = (unsigned char)((value >> (8 * i)) & 0xff);
@@ -339,12 +348,7 @@ void build_of(const char *path, const char *version, const char *author, char di
   if (body != NULL && overwrite(body, "\"version\":\"0.1.0\"", field)) {
     snprintf(field, sizeof field, "\"author\":\"%s\"", author);
     overwrite(body, "\"author\":\"Ada\"", field);
-    {
-      /* The hash's first digit, whatever the packed teashop's is. */
-      char *hash = strstr(body, "\"hash\":\"");
-      CHECK(hash != NULL, "the teashop's header has a hash");
-      if (hash != NULL) hash[8] = digit;
-    }
+    redigit_hash(body, digit);
     gzipped = (unsigned char *)malloc(body_bytes + 5 * (body_bytes / 65535 + 1) + 18);
     gzipped_bytes = gzip_stored((const unsigned char *)body, body_bytes, gzipped);
     put_word(cartridge + 16, 24 + gzipped_bytes);

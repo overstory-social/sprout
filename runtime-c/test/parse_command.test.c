@@ -3,7 +3,7 @@
  * and seed and writing nothing (the spec's Parsing > Matching a line, Choosing a reading, Pronouns, Synonyms, When
  * nothing matches; Verbs > Exits; The runtime > Turns), in the corpus worlds: the
  * study (`grammar`), `unknown-word`, `intents`, `pronouns`, `synonyms`, `all-leaves-out-refused`, `no-way`,
- * `out-of-reach-synonym`, `all-narrowed` and `drop-all-on`. A line reads to
+ * `out-of-reach-synonym`, `all-narrowed`, `drop-all-on` and `all-empty-handed`. A line reads to
  * the best of its readings, a tie drawn from the turn's stream; a line no reading reads is answered as answers.c
  * says; a line `and` splits, `again` and a turn a line handed are read as sequences are (their own cases are
  * parse_chain, parse_again, parse_planned, parse_item and parse_later's).
@@ -543,6 +543,42 @@ static void drop_all_on_a_thing_puts_what_is_held_there_and_is_never_narrowed_to
   close_hall(&p);
 }
 
+static void all_with_empty_hands_in_a_role_whose_things_are_carried_is_empty_handed(void) {
+  parsing p;
+  open_world(&p, "all-empty-handed");
+  /* `drop`'s target and `put`'s and `put_on`'s item are moved away by the actor's own `do`; `juggle`'s is carried. */
+  read_as(&p, "drop all");
+  answered(&p, "empty_handed");
+  CHECK_INT(p.out.binding_count, 2);
+  read_as(&p, "drop all cakes");
+  answered(&p, "empty_handed");
+  read_as(&p, "put all in the table");
+  answered(&p, "empty_handed");
+  read_as(&p, "drop all on the table");
+  answered(&p, "empty_handed");
+  read_as(&p, "juggle all");
+  answered(&p, "empty_handed");
+  /* A noun after `all` that names nothing is answered as any noun is. */
+  read_as(&p, "drop all wombats");
+  answered(&p, "not_here");
+  /* `take` brings things to the actor: nothing left to take is not here, whatever the hands hold. */
+  command(&p, "sprout.take", "all_empty_handed.tea_room.orange_cake");
+  command(&p, "sprout.take", "all_empty_handed.tea_room.red_cake");
+  read_as(&p, "take all except the table");
+  answered(&p, "not_here");
+  read_as(&p, "drop all");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(bound_to(&p, "target"), "all_empty_handed.tea_room.orange_cake");
+  close_hall(&p);
+  /* The table only `contains`, so `drop [item] on [surface]` does not read the line whole: its part answers. */
+  open_world(&p, "all-narrowed");
+  read_as(&p, "drop all on the table");
+  answered(&p, "cannot");
+  read_as(&p, "drop all");
+  answered(&p, "empty_handed");
+  close_hall(&p);
+}
+
 static void a_noun_after_all_naming_nothing_in_reach_is_not_here_as_any_noun_is(void) {
   parsing p;
   open_world(&p, "unknown-word");
@@ -599,6 +635,7 @@ int main(void) {
   RUN(a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way);
   RUN(a_narrowed_all_that_leaves_nothing_is_not_here_before_another_phrase_read_in_part);
   RUN(a_noun_after_all_naming_nothing_in_reach_is_not_here_as_any_noun_is);
+  RUN(all_with_empty_hands_in_a_role_whose_things_are_carried_is_empty_handed);
   RUN(drop_all_on_a_thing_puts_what_is_held_there_and_is_never_narrowed_to_what_it_holds);
   RUN(an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the_object);
   RUN(a_line_reads_as_a_standard_library_verb_the_article_and_a_determiner_optional);

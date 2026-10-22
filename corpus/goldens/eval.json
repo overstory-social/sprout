@@ -7,7 +7,7 @@
     {
       "name": "a boolean literal",
       "text": "true",
-      "node": 320,
+      "node": 322,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -22,7 +22,7 @@
     {
       "name": "an integer literal",
       "text": "7",
-      "node": 532,
+      "node": 534,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -37,7 +37,7 @@
     {
       "name": "a string literal",
       "text": "\"salt\"",
-      "node": 302,
+      "node": 304,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -52,7 +52,7 @@
     {
       "name": "adds and subtracts",
       "text": "self.get(:fill) + 4 - 2",
-      "node": 536,
+      "node": 538,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -67,7 +67,7 @@
     {
       "name": "negates a property",
       "text": "-self.get(:fill)",
-      "node": 544,
+      "node": 546,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -82,7 +82,7 @@
     {
       "name": "subtracts left to right",
       "text": "1 - 2 - 3",
-      "node": 549,
+      "node": 551,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -97,7 +97,7 @@
     {
       "name": "negating zero reads as zero",
       "text": "-(1 - 1)",
-      "node": 555,
+      "node": 557,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -112,7 +112,7 @@
     {
       "name": "compares below",
       "text": "2 < 3",
-      "node": 560,
+      "node": 562,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -127,7 +127,7 @@
     {
       "name": "compares at most",
       "text": "3 <= 3",
-      "node": 564,
+      "node": 566,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -142,7 +142,7 @@
     {
       "name": "compares above",
       "text": "3 > 3",
-      "node": 568,
+      "node": 570,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -157,7 +157,7 @@
     {
       "name": "compares at least",
       "text": "2 >= 3",
-      "node": 572,
+      "node": 574,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -172,7 +172,7 @@
     {
       "name": "binds ! over < over && over ||",
       "text": "1 + 2 < 4 && !false || 1 < 0",
-      "node": 576,
+      "node": 578,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -187,7 +187,7 @@
     {
       "name": "compares an option with a property",
       "text": "self.get(:glaze) == :shino",
-      "node": 589,
+      "node": 591,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -202,7 +202,7 @@
     {
       "name": "compares an option on the left",
       "text": ":shino != self.get(:glaze)",
-      "node": 595,
+      "node": 597,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -217,7 +217,7 @@
     {
       "name": "compares an option property with another option",
       "text": "self.get(:glaze) == :tenmoku",
-      "node": 601,
+      "node": 603,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "worn",
@@ -232,7 +232,7 @@
     {
       "name": "compares strings",
       "text": "self.get(:label) == \"salt\"",
-      "node": 607,
+      "node": 609,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -247,7 +247,7 @@
     {
       "name": "compares unequal strings",
       "text": "self.get(:label) != \"sugar\"",
-      "node": 613,
+      "node": 615,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -262,7 +262,7 @@
     {
       "name": "compares booleans",
       "text": "self.get(:lid) == true",
-      "node": 619,
+      "node": 621,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -277,7 +277,7 @@
     {
       "name": "compares two objects by identity",
       "text": "eval_bench.hall.shelf.jar == eval_bench.hall.shelf.jar",
-      "node": 625,
+      "node": 627,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -292,7 +292,7 @@
     {
       "name": "compares two different objects",
       "text": "eval_bench.hall.shelf.jar != eval_bench.hall.shelf.cup",
-      "node": 627,
+      "node": 629,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -307,7 +307,7 @@
     {
       "name": "|| leaves its right unevaluated",
       "text": "true || self.get(:fill) > 5",
-      "node": 629,
+      "node": 631,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -322,7 +322,7 @@
     {
       "name": "&& leaves its right unevaluated",
       "text": "false && self.get(:fill) > 5",
-      "node": 637,
+      "node": 639,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -337,7 +337,7 @@
     {
       "name": "the largest integer",
       "text": "2147483647 - 1 + 1",
-      "node": 645,
+      "node": 647,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -352,7 +352,7 @@
     {
       "name": "+ past the largest integer",
       "text": "2147483647 + 1",
-      "node": 651,
+      "node": 653,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -368,7 +368,7 @@
     {
       "name": "- past the smallest integer",
       "text": "-2147483647 - 2",
-      "node": 655,
+      "node": 657,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -384,7 +384,7 @@
     {
       "name": "binds * over +",
       "text": "2 + 3 * 4",
-      "node": 854,
+      "node": 856,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -399,7 +399,7 @@
     {
       "name": "* / and % read left to right",
       "text": "17 / 5 * 5 + 17 % 5",
-      "node": 860,
+      "node": 862,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -414,7 +414,7 @@
     {
       "name": "/ truncates toward zero",
       "text": "-7 / 2",
-      "node": 870,
+      "node": 872,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -429,7 +429,7 @@
     {
       "name": "% takes the sign of what is divided",
       "text": "-7 % 2",
-      "node": 875,
+      "node": 877,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -444,7 +444,7 @@
     {
       "name": "/ by zero",
       "text": "self.get(:fill) / 0",
-      "node": 880,
+      "node": 882,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -460,7 +460,7 @@
     {
       "name": "% by zero",
       "text": "self.get(:fill) % 0",
-      "node": 886,
+      "node": 888,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -476,7 +476,7 @@
     {
       "name": "* past the largest integer",
       "text": "65536 * 65536",
-      "node": 892,
+      "node": 894,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -492,7 +492,7 @@
     {
       "name": "/ past the largest integer",
       "text": "(-2147483647 - 1) / -1",
-      "node": 896,
+      "node": 898,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -508,7 +508,7 @@
     {
       "name": "get reads the property",
       "text": "self.get(:fill)",
-      "node": 660,
+      "node": 662,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -523,7 +523,7 @@
     {
       "name": "get reads the state as the turn stands",
       "text": "self.get(:fill) + 1",
-      "node": 664,
+      "node": 666,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "worn",
@@ -538,7 +538,7 @@
     {
       "name": "get reads an option property",
       "text": "self.get(:glaze) != :none",
-      "node": 670,
+      "node": 672,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "worn",
@@ -553,7 +553,7 @@
     {
       "name": "get reads a list",
       "text": "self.get(:wards)",
-      "node": 676,
+      "node": 678,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -568,7 +568,7 @@
     {
       "name": "get reads a string",
       "text": "self.get(:label)",
-      "node": 680,
+      "node": 682,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -583,7 +583,7 @@
     {
       "name": "a list counts its elements",
       "text": "self.get(:wards).count",
-      "node": 684,
+      "node": 686,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -598,7 +598,7 @@
     {
       "name": "a list includes an element",
       "text": "self.get(:wards).includes(:tenmoku)",
-      "node": 689,
+      "node": 691,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -613,7 +613,7 @@
     {
       "name": "a list does not include another",
       "text": "self.get(:wards).includes(:none)",
-      "node": 695,
+      "node": 697,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -628,7 +628,7 @@
     {
       "name": "count is what a container holds in range",
       "text": "eval_bench.hall.shelf.count",
-      "node": 701,
+      "node": 703,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -643,7 +643,7 @@
     {
       "name": "count(K) is those of a kind",
       "text": "eval_bench.hall.shelf.count(Lidded)",
-      "node": 703,
+      "node": 705,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -658,7 +658,7 @@
     {
       "name": "count(K) takes those composing the kind",
       "text": "eval_bench.hall.shelf.count(Jar)",
-      "node": 706,
+      "node": 708,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -673,7 +673,7 @@
     {
       "name": "count of a place counts what is in range",
       "text": "eval_bench.hall.count",
-      "node": 709,
+      "node": 711,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -688,7 +688,7 @@
     {
       "name": "is asks whether an instance composes a kind",
       "text": "eval_bench.hall.shelf.cup.is(Jar)",
-      "node": 711,
+      "node": 713,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -703,7 +703,7 @@
     {
       "name": "is asks a kind it does not compose",
       "text": "eval_bench.hall.shelf.jar.is(Lidded)",
-      "node": 714,
+      "node": 716,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -718,7 +718,7 @@
     {
       "name": "holds asks whether a container holds a thing",
       "text": "eval_bench.hall.shelf.holds(eval_bench.hall.shelf.jar)",
-      "node": 717,
+      "node": 719,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -733,7 +733,7 @@
     {
       "name": "holds asks of a thing held elsewhere",
       "text": "eval_bench.hall.holds(eval_bench.hall.shelf.jar)",
-      "node": 719,
+      "node": 721,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -748,7 +748,7 @@
     {
       "name": "self names the object",
       "text": "self == self",
-      "node": 721,
+      "node": 723,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -763,7 +763,7 @@
     {
       "name": "a name reached from the world",
       "text": "eval_bench.hall == eval_bench.hall",
-      "node": 725,
+      "node": 727,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -778,7 +778,7 @@
     {
       "name": "the world by its name",
       "text": "eval_bench == eval_bench",
-      "node": 727,
+      "node": 729,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -793,7 +793,7 @@
     {
       "name": "recall reads the default",
       "text": "actor.recall(:visits)",
-      "node": 497,
+      "node": 499,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -810,7 +810,7 @@
     {
       "name": "recall reads what was written",
       "text": "actor.recall(:visits) + 1",
-      "node": 501,
+      "node": 503,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "worn",
@@ -827,7 +827,7 @@
     {
       "name": "recall reads a boolean default",
       "text": "actor.recall(:seen)",
-      "node": 507,
+      "node": 509,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -844,7 +844,7 @@
     {
       "name": "is reads a visitor",
       "text": "actor.is(Person)",
-      "node": 511,
+      "node": 513,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -861,7 +861,7 @@
     {
       "name": "a bound name is the object",
       "text": "actor == actor",
-      "node": 515,
+      "node": 517,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -878,7 +878,7 @@
     {
       "name": "bound asks of a name given",
       "text": "bound tool",
-      "node": 519,
+      "node": 521,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -896,7 +896,7 @@
     {
       "name": "bound asks of a name not given",
       "text": "bound tool",
-      "node": 519,
+      "node": 521,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -913,7 +913,7 @@
     {
       "name": "bound lets the body read the tool",
       "text": "bound tool && tool.get(:fill) > 1",
-      "node": 521,
+      "node": 523,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -931,7 +931,7 @@
     {
       "name": "a name placed nearest",
       "text": "shelf.is(Shelf) && shelf.count > 1",
-      "node": 731,
+      "node": 733,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -946,7 +946,7 @@
     {
       "name": "&& narrows the name on its right",
       "text": "shelf.is(Shelf) && shelf.count(Jar) == 2",
-      "node": 740,
+      "node": 742,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -961,7 +961,7 @@
     {
       "name": "&& narrows a dotted path",
       "text": "shelf.cup.is(Lidded) && shelf.cup.get(:lid)",
-      "node": 750,
+      "node": 752,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -976,7 +976,7 @@
     {
       "name": "a name behind a closed container",
       "text": "vault.coin.is(Jar)",
-      "node": 756,
+      "node": 758,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -992,7 +992,7 @@
     {
       "name": "a name reached through a container that passes",
       "text": "vault.coin.is(Jar)",
-      "node": 756,
+      "node": 758,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "worn",
@@ -1007,7 +1007,7 @@
     {
       "name": "sees finds no lit light",
       "text": "self.sees(sprout.LightSource, :lit)",
-      "node": 910,
+      "node": 912,
       "self": "eval_bench.dim",
       "library": "eval_bench",
       "state": "fresh",
@@ -1022,7 +1022,7 @@
     {
       "name": "sees finds a lit light",
       "text": "self.sees(sprout.LightSource, :lit)",
-      "node": 910,
+      "node": 912,
       "self": "eval_bench.dim",
       "library": "eval_bench",
       "state": "worn",
@@ -1037,7 +1037,7 @@
     {
       "name": "chance draws true from the seed",
       "text": "chance(3)",
-      "node": 759,
+      "node": 761,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1052,7 +1052,7 @@
     {
       "name": "chance draws false from another seed",
       "text": "chance(3)",
-      "node": 759,
+      "node": 761,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1067,7 +1067,7 @@
     {
       "name": "random draws from the seed",
       "text": "random(6)",
-      "node": 762,
+      "node": 764,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1082,7 +1082,7 @@
     {
       "name": "random draws below one",
       "text": "random(1)",
-      "node": 765,
+      "node": 767,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1097,7 +1097,7 @@
     {
       "name": "two draws in order",
       "text": "random(9) + random(9)",
-      "node": 768,
+      "node": 770,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1112,7 +1112,7 @@
     {
       "name": "a deep expression within the step budget",
       "text": "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
-      "node": 774,
+      "node": 776,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1127,7 +1127,7 @@
     {
       "name": "a deep expression past the step budget",
       "text": "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
-      "node": 774,
+      "node": 776,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
@@ -1144,7 +1144,7 @@
     {
       "name": "a name behind a rule is charged to the turn",
       "text": "vault.coin.is(Jar)",
-      "node": 756,
+      "node": 758,
       "self": "eval_bench.hall.probe",
       "library": "eval_bench",
       "state": "fresh",
