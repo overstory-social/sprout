@@ -1,0 +1,8 @@
+// A slot inside a `{verbatim}` block, which holds only its words.
+kind Sign {
+  passage notice {
+    {verbatim}
+    CLOSED BY ORDER OF {self}
+    {/verbatim}
+  }
+}

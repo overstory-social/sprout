@@ -15,7 +15,7 @@ bool on_reader(void) {
   return keys != NULL && strcmp(keys->text, READER_KEYS) == 0;
 }
 
-bool keys_shown(void) { return panel() != NULL && strcmp(panel()->text, "A picks B steps back the crank turns the wheel") == 0; }
+bool keys_shown(void) { return panel() != NULL && strcmp(panel()->text, BUILDER_KEYS) == 0; }
 
 player_builder *builder(void) { return app != NULL && app->screen == &player_builder_screen ? (player_builder *)app->ctx : NULL; }
 

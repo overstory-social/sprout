@@ -89,6 +89,14 @@ bool wrap_lines(PlaydateAPI *pd, const char *text, size_t length, int width, wra
   w.measure = measure;
   w.ctx = ctx;
   for (;;) {
+    size_t end = i;
+    while (end < length && text[end] != '\n') end++;
+    /* A line that fits is drawn as it is, its spaces and indentation kept: a verbatim block's shape. */
+    if (measure(ctx, text + i, end - i) <= width) {
+      memcpy(w.out + w.used, text + i, end - i);
+      w.used += end - i;
+      i = end;
+    }
     while (i < length && text[i] != '\n') {
       size_t start;
       if (is_space(text[i])) {

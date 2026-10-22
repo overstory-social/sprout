@@ -1,13 +1,16 @@
 /*
- * Rendered words, laid out (the spec's Prose > Passages, Slots). Lines in source are reflowed:
- * every run of spaces and line breaks is one space, and a paragraph has none at its ends. A
- * blank line is a paragraph break, and a paragraph left with nothing in it is no paragraph. The
- * first letter of every rendered line is capitalised, past an opening quotation mark but not
- * past a bracket. A passage put into a slot loses the padding inside its braces and keeps a
- * paragraph break it opens or closes with only where it renders words.
+ * Rendered words, laid out (the spec's Prose > Passages, Slots, Verbatim). Lines in source are
+ * reflowed: every run of spaces and line breaks is one space, and a paragraph has none at its
+ * ends. A blank line is a paragraph break, and a paragraph left with nothing in it is no
+ * paragraph. Words keep the case they were written in; only a name or an option word a slot
+ * renders, where it opens a line, has its first letter capitalised, past an opening quotation mark
+ * but not past a bracket. A verbatim block, and a string a slot puts in, keeps every space and
+ * line break it holds. A passage put into a
+ * slot loses the padding inside its braces and keeps a paragraph break it opens or closes with
+ * only where it renders words.
  *
  * Three rules are JavaScript's, which the language reads them from: white space is `\s`, a
- * letter or a number is `\p{L}` or `\p{N}`, and the letter that opens a line becomes what
+ * letter or a number is `\p{L}` or `\p{N}`, and the letter a name opens a line with becomes what
  * `toUpperCase` makes of its one UTF-16 code unit, so a letter past the Basic Multilingual Plane
  * is left as it is. The last two are tables (unicode.c).
  */
@@ -131,23 +134,6 @@ static sprout_str trimmed(const char *bytes, size_t length) {
   return out;
 }
 
-/* Every run of white space as one space, and none at either end. */
-static void collapsed(buffer *out, const char *bytes, size_t length) {
-  size_t at = 0, width;
-  bool pending = false;
-  while (at < length) {
-    unsigned long cp = prose_decode(bytes, length, at, &width);
-    if (prose_is_space(cp)) {
-      pending = true;
-    } else {
-      if (pending && out->length > 0) put(out, " ", 1);
-      pending = false;
-      put(out, bytes + at, width);
-    }
-    at += width;
-  }
-}
-
 /* ---- capitalising ---- */
 
 bool prose_capitalise(sprout_arena *arena, sprout_str line, sprout_str *out) {
@@ -180,74 +166,122 @@ bool prose_capitalise(sprout_arena *arena, sprout_str line, sprout_str *out) {
 
 /* ---- reflow ---- */
 
-typedef struct lines {
-  sprout_arena *arena;
-  buffer *items;
-  size_t count, capacity;
-} lines;
+/* The paragraph being laid out, and where its line has got to. */
+typedef struct laying {
+  buffer text;
+  bool pending;           /* white space written since the line's last words, still to be one space */
+  bool line_has_words;    /* the line holds something that is not white space */
+  bool line_opened;       /* a letter, a number or a bracket has opened the line, so a name there is not capitalised */
+  bool verbatim;          /* the paragraph holds a verbatim block, from `kept_from` to `kept_to` */
+  size_t kept_from, kept_to;
+} laying;
 
-static bool lines_start(lines *l) {
-  buffer *slot = (buffer *)sprout_exec_grow(l->arena, (void **)&l->items, &l->count, &l->capacity, sizeof *slot);
-  if (slot == NULL) return false;
-  memset(slot, 0, sizeof *slot);
-  slot->arena = l->arena;
+static void laying_start(laying *p, sprout_arena *arena) {
+  memset(p, 0, sizeof *p);
+  p->text.arena = arena;
+}
+
+static void line_start(laying *p) {
+  p->pending = false;
+  p->line_has_words = false;
+  p->line_opened = false;
+}
+
+/* Words into the line: every run of white space one space, and none where the line has nothing yet. */
+static void lay_words(laying *p, const char *bytes, size_t length) {
+  size_t at = 0, width;
+  while (at < length) {
+    unsigned long cp = prose_decode(bytes, length, at, &width);
+    if (prose_is_space(cp)) {
+      if (p->line_has_words) p->pending = true;
+    } else {
+      if (p->pending) put(&p->text, " ", 1);
+      p->pending = false;
+      put(&p->text, bytes + at, width);
+      p->line_has_words = true;
+      if (prose_unicode_letter_or_number(cp) || cp == '(' || cp == '[' || cp == '{') p->line_opened = true;
+    }
+    at += width;
+  }
+}
+
+/* A verbatim block into the line, byte for byte; a paragraph's trimming stops at its ends. */
+static void lay_verbatim(laying *p, const char *bytes, size_t length) {
+  if (length == 0) return;
+  if (p->pending) put(&p->text, " ", 1);
+  p->pending = false;
+  if (!p->verbatim) p->kept_from = p->text.length;
+  p->verbatim = true;
+  put(&p->text, bytes, length);
+  p->kept_to = p->text.length;
+  p->line_has_words = true;
+  p->line_opened = true;
+}
+
+/* The paragraph laid so far, if it has anything in it, and a fresh start. */
+static bool close_paragraph(laying *p, prose_paragraphs *out, size_t *capacity) {
+  const char *bytes;
+  size_t start, end;
+  sprout_str whole;
+  if (p->text.failed) return false;
+  bytes = p->text.bytes == NULL ? "" : p->text.bytes;
+  whole = trimmed(bytes, p->text.length);
+  start = (size_t)(whole.bytes - bytes);
+  end = start + whole.length;
+  /* A paragraph of nothing but white space is none, verbatim or not; else trimming stops at a block's ends. */
+  if (p->verbatim && whole.length > 0) {
+    if (p->kept_from < start) start = p->kept_from;
+    if (p->kept_to > end) end = p->kept_to;
+  }
+  if (end > start) {
+    sprout_str *slot = (sprout_str *)sprout_exec_grow(p->text.arena, (void **)&out->items, &out->count, capacity, sizeof *slot);
+    if (slot == NULL) return false;
+    /* Copied out so the paragraph ends in a NUL, as a host prints it. */
+    slot->bytes = sprout_arena_copy(p->text.arena, bytes + start, end - start);
+    if (slot->bytes == NULL) return false;
+    slot->length = end - start;
+  }
+  laying_start(p, p->text.arena);
   return true;
 }
 
-/* The paragraph the lines so far make, if they make one, and a fresh start. */
-static bool close_paragraph(lines *l, prose_paragraphs *out, size_t *capacity) {
-  buffer text;
-  sprout_str whole;
-  size_t i;
-  memset(&text, 0, sizeof text);
-  text.arena = l->arena;
-  for (i = 0; i < l->count; i++) {
-    buffer one;
-    sprout_str capital;
-    memset(&one, 0, sizeof one);
-    one.arena = l->arena;
-    if (l->items[i].failed) return false;
-    collapsed(&one, l->items[i].bytes, l->items[i].length);
-    if (one.failed) return false;
-    if (!prose_capitalise(l->arena, (sprout_str){one.bytes == NULL ? "" : one.bytes, one.length}, &capital)) return false;
-    if (i > 0) put(&text, "\n", 1);
-    put(&text, capital.bytes, capital.length);
-  }
-  if (text.failed) return false;
-  whole = trimmed(text.bytes == NULL ? "" : text.bytes, text.length);
-  if (whole.length > 0) {
-    sprout_str *slot = (sprout_str *)sprout_exec_grow(l->arena, (void **)&out->items, &out->count, capacity, sizeof *slot);
-    if (slot == NULL) return false;
-    /* Copied out so the paragraph ends in a NUL, as a host prints it. */
-    slot->bytes = sprout_arena_copy(l->arena, whole.bytes, whole.length);
-    if (slot->bytes == NULL) return false;
-    slot->length = whole.length;
-  }
-  l->count = 0;
-  return lines_start(l);
-}
-
 bool prose_reflow(sprout_arena *arena, const prose_pieces *rendered, prose_paragraphs *out) {
-  lines l;
+  laying p;
   size_t capacity = 0, i;
-  memset(&l, 0, sizeof l);
   memset(out, 0, sizeof *out);
-  l.arena = arena;
-  if (!lines_start(&l)) return false;
+  laying_start(&p, arena);
   for (i = 0; i < rendered->count; i++) {
     const prose_piece *piece = &rendered->items[i];
-    if (piece->kind == PROSE_WORDS) put(&l.items[l.count - 1], piece->bytes, piece->length);
-    else if (piece->kind == PROSE_PARAGRAPH) {
-      if (!close_paragraph(&l, out, &capacity)) return false;
-    } else if (!lines_start(&l)) return false;
+    switch (piece->kind) {
+      case PROSE_WORDS:
+        lay_words(&p, piece->bytes, piece->length);
+        break;
+      case PROSE_NAME: {
+        sprout_str name = {piece->bytes, piece->length};
+        if (!p.line_opened && !prose_capitalise(arena, name, &name)) return false;
+        lay_words(&p, name.bytes, name.length);
+        break;
+      }
+      case PROSE_VERBATIM:
+        lay_verbatim(&p, piece->bytes, piece->length);
+        break;
+      case PROSE_LINE:
+        put(&p.text, "\n", 1);
+        line_start(&p);
+        break;
+      case PROSE_PARAGRAPH:
+        if (!close_paragraph(&p, out, &capacity)) return false;
+        break;
+    }
   }
-  return close_paragraph(&l, out, &capacity);
+  return close_paragraph(&p, out, &capacity);
 }
 
 /* ---- slotting a passage into a line ---- */
 
 static bool said(const prose_piece *piece) {
-  return piece->kind == PROSE_WORDS && trimmed(piece->bytes, piece->length).length > 0;
+  if (piece->kind == PROSE_VERBATIM) return piece->length > 0;
+  return (piece->kind == PROSE_WORDS || piece->kind == PROSE_NAME) && trimmed(piece->bytes, piece->length).length > 0;
 }
 
 /* The break the space at a slotted passage's end leaves: a paragraph, a line, or none. */
@@ -255,7 +289,7 @@ static bool edge(sprout_arena *arena, const prose_piece *space, size_t count, pr
   size_t breaks = 0, i;
   bool paragraph = false;
   for (i = 0; i < count; i++) {
-    if (space[i].kind == PROSE_WORDS) continue;
+    if (space[i].kind != PROSE_PARAGRAPH && space[i].kind != PROSE_LINE) continue;
     breaks++;
     if (space[i].kind == PROSE_PARAGRAPH) paragraph = true;
   }
@@ -276,8 +310,12 @@ bool prose_slotted(sprout_arena *arena, const prose_pieces *rendered, prose_piec
     const prose_piece *piece = &rendered->items[i];
     const char *bytes = piece->bytes;
     size_t length = piece->length;
-    if (piece->kind != PROSE_WORDS) {
+    if (piece->kind == PROSE_PARAGRAPH || piece->kind == PROSE_LINE) {
       if (!prose_put(arena, out, piece->kind, NULL, 0)) return false;
+      continue;
+    }
+    if (piece->kind == PROSE_VERBATIM) {
+      if (!prose_put(arena, out, piece->kind, bytes, length)) return false;
       continue;
     }
     if (i == first) {
@@ -289,7 +327,7 @@ bool prose_slotted(sprout_arena *arena, const prose_pieces *rendered, prose_piec
       sprout_str whole = trimmed(bytes, length);
       length = (size_t)(whole.bytes - bytes) + whole.length;
     }
-    if (!prose_put(arena, out, PROSE_WORDS, bytes, length)) return false;
+    if (!prose_put(arena, out, piece->kind, bytes, length)) return false;
   }
   return edge(arena, rendered->items + last + 1, rendered->count - last - 1, out);
 }

@@ -1,0 +1,7 @@
+// A `{verbatim}` block never closed.
+kind Sign {
+  passage notice {
+    {verbatim}
+    CLOSED BY ORDER
+  }
+}

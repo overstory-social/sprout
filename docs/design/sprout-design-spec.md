@@ -1591,7 +1591,7 @@ passage greeting {
 }
 ```
 
-A passage belongs to its kind, so every slot in it type-checks against a known `self`. It may also use the bindings of the body that invokes it — `actor`, `here`, a role by name, an `each` variable — and it may then only be invoked from a body where those bindings exist; the compiler checks this exactly, so `say taken` in the actor's `do` for `take` may render `{target}` and a handler may not. Lines in source are reflowed; a blank line is a paragraph break; a block that renders nothing leaves no paragraph behind. A `describe` all of whose lines render nothing reads the world's `unremarkable` in their place, so looking never reads as silence.
+A passage belongs to its kind, so every slot in it type-checks against a known `self`. It may also use the bindings of the body that invokes it — `actor`, `here`, a role by name, an `each` variable — and it may then only be invoked from a body where those bindings exist; the compiler checks this exactly, so `say taken` in the actor's `do` for `take` may render `{target}` and a handler may not. Lines in source are reflowed; a blank line is a paragraph break; a block that renders nothing leaves no paragraph behind. Words keep the case they are written in, and text with a shape of its own keeps that too, under Verbatim below. A `describe` all of whose lines render nothing reads the world's `unremarkable` in their place, so looking never reads as silence.
 
 A string given to `say`, `tell`, `text` or `refuse` is a one-line passage and carries slots. Nothing else does: a `name`, a noun, an exit label and a string property are plain text, and `{` in them is a brace.
 
@@ -1615,7 +1615,7 @@ A slot is `{…}`; `\{` is a literal brace, and a backslash escapes in a passage
 | `{actor.recall(:note)}` | the string as written |
 | `{pot.greeting}` | another object's passage, run with that object as its own `self`; `pot` must be typed by a kind that declares `greeting`; it is given `actor`, `here` and `seen` where the slot has them, and no other binding; the spaces at either end of what it renders are trimmed before it is put in the slot; where it renders words, a blank line or two `\n` it opens or closes with is a paragraph break and one `\n` a line break, and where it renders nothing it leaves nothing behind, so a passage that is a paragraph only when it has something to say needs no `{if}` around its break |
 
-An object in a slot renders as its name, with the article its grammar block declared, except to itself. A line told to Marta that names Marta says "you", so one `tell "{actor} tags {self}."` reads correctly to the bystanders, and the target is told in the second person by a `tell self` the author writes for them. That is all `{actor}` ever was: a visitor is an object, and a visitor's name is their nickname, so nothing about it is special. The first letter of a rendered line is capitalised, which is where an object slot most often sits; it is capitalised past an opening quotation mark but not past a bracket, so `meant`'s "(the wooden rib)" keeps its lower case.
+An object in a slot renders as its name, with the article its grammar block declared, except to itself. A line told to Marta that names Marta says "you", so one `tell "{actor} tags {self}."` reads correctly to the bystanders, and the target is told in the second person by a `tell self` the author writes for them. That is all `{actor}` ever was: a visitor is an object, and a visitor's name is their nickname, so nothing about it is special. The engine changes the case of nothing an author wrote: a line after `\n` that is written in lower case reads in lower case, and so does a string or another object's passage in a slot; a string is put in as written, its spaces and line breaks kept. What an object slot renders is the engine's own words, an article and a name or "you", and so is an option word, which the engine makes from the option's name; where either opens a line its first letter is capitalised, past an opening quotation mark but not past a bracket, so `{actor} arrives.` reads "Marta arrives.", `{thing} is here.` reads "A brass key is here.", and `meant`'s "(the wooden rib)" keeps its lower case.
 
 Listing what a place holds is a loop over its contents:
 
@@ -1624,6 +1624,26 @@ Listing what a place holds is a loop over its contents:
 ```
 
 Booleans are refused — write an `if`. A bare list is refused: the separator and the empty case are voice decisions, and a loop hands both back to the author. Plurals are the author's too: `{if self.count == 1}one pot{else}{self.count} pots{/if}`.
+
+### Verbatim
+
+Text with a shape — verse, a notice, letters cut round a well — is written between `{verbatim}` and `{/verbatim}`, and is laid out exactly as written: every space, line break and blank line in it is kept, and nothing in it is reflowed or capitalised.
+
+```
+passage riddle {
+  {verbatim}
+  What is tall as a house,
+    round as a cup,
+  and all the king's horses can't draw it up?
+
+    W   E   L   L
+  {/verbatim}
+}
+```
+
+A line break straight after `{verbatim}` and one straight before `{/verbatim}` frame the block and are not part of it, and the indentation of the line `{verbatim}` stands on is taken off every line after it, so the block sits indented with the passage around it. A verbatim block holds only words: escapes read as they do anywhere in a passage, `\{` for a brace and `\n` for a line break, and a slot or a block inside one is refused. `{verbatim}` is always the tag, as `{or}` is. The prose around the block reflows as ever, and a host whose type is proportional may set the block in a monospace face.
+
+A line an NPC says is heard as one quotation, and a verbatim block in it keeps its shape there. How wide a line a person can read depends on their device: a host draws a line that fits its screen as it is, and wraps a line too long for it wherever it must, which breaks the shape a verbatim block was written to keep. As an authoring guideline, not a rule, keep every line of a verbatim block to 40 characters or fewer: about what the narrowest host, the Playdate, shows across its 400-pixel screen in its larger type, so a line that fits there fits everywhere. The compiler does not check it.
 
 ### Conditionals and loops
 
@@ -2044,6 +2064,7 @@ A world's state belongs to the files it started with, or to an earlier version o
 - `capacity` in a body whose kind holds nothing, or twice in one body; a `capacity` past the largest integer, or by a property no kind declares or one declares as other than an integer.
 - An `extension` line after a declaration, naming an extension the manifest does not pin or at another major, or naming one twice; an extension's type or statement in a file that does not name it; a list of an extension's type.
 - A `spawn` of `sprout.World`, or of a kind that composes it; `destroy self` in the world's own body.
+- A slot or a block inside a `{verbatim}` block; a `{verbatim}` never closed, and a `{/verbatim}` with none open.
 - Any static cap exceeded.
 
 ### What it warns about
