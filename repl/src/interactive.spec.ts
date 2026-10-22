@@ -6,7 +6,7 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 import { Draws, SEED_MAX } from '@overstory/sprout/lang';
-import { playScript, plays, readScript, stepOfLine } from '@overstory/sprout-player';
+import { playScript, plays, readScript, runTests, stepOfLine } from '@overstory/sprout-player';
 import {
   bundleOf,
   KILN_YARD,
@@ -260,6 +260,22 @@ describe('playInteractively with record', () => {
       expect: [{ reader: 'Marta', kind: 'said', words: 'The chamber takes the flame.' }],
     });
     expect(playScript(kilnYard, recorded, 'session.json')).toEqual(recorded);
+  });
+
+  it('replays as a test: a session whose draws differ turn to turn passes `sprout test` as recorded', async () => {
+    const file = recording();
+    const io = captured('@tick\n'.repeat(12));
+    expect(
+      await playInteractively(kilnYard, { nickname: 'Marta', seed: 2026, record: file }, io),
+    ).toBe(0);
+    expect(io.out()).toContain('Smoke drifts.');
+    expect(io.out()).toContain('The air is still.');
+    const text = readFileSync(file, 'utf8');
+    expect(runTests(kilnYard, [{ name: 'session.json', text }])).toMatchObject({ ok: true });
+    // Without the seeds it kept, the same steps draw from another stream and the test fails.
+    const unseeded = readScript(text, 'session.json').steps.filter((step) => !('seed' in step));
+    const bare = JSON.stringify({ steps: unseeded });
+    expect(runTests(kilnYard, [{ name: 'bare.json', text: bare }])).toMatchObject({ ok: false });
   });
 
   it('prints with --debug exactly the transcript of what it records', async () => {

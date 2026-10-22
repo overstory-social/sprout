@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "draws.h"
+
 #define SHAPES                                                                                                  \
   "a step is `{ \"as\": \"Marta\", \"type\": \"look\" }`, `{ \"arrive\": \"Marta\" }`, `{ \"leave\": \"Marta\" }`, " \
   "`{ \"tick\": true }`, `{ \"advance\": \"40 minutes\" }`, `{ \"seed\": 7 }` or `{ \"comment\": \"…\" }`"
@@ -78,14 +80,23 @@ static size_t keys_beside_expect(const sprout_json *object) {
   return n;
 }
 
-/* Reads step `index`, `one`, beginning under `*now` and `*seed`, which it moves on; NULL, or words. */
-static const char *step_of(sprout_arena *arena, size_t index, const sprout_json *one, uint64_t *now, uint64_t *seed,
+/*
+ * Where each step's seed comes from: the one a seed step just set, and otherwise the next of the stream begun from
+ * the last seed set (the spec's The command line).
+ */
+typedef struct seeding {
+  uint64_t set;  /* the seed a seed step set, then each later step's in turn */
+  bool fresh;    /* whether no step has played since it was set */
+  sprout_draws stream;
+} seeding;
+
+/* Reads step `index`, `one`, beginning under `*now` and `*seeds`, which it moves on; NULL, or words. */
+static const char *step_of(sprout_arena *arena, size_t index, const sprout_json *one, uint64_t *now, seeding *seeds,
                            sproutc_step *step) {
   const sprout_json *member;
   memset(step, 0, sizeof *step);
   step->index = index;
   step->at_seconds = *now;
-  step->seed = *seed;
   if (one->kind != SPROUT_JSON_OBJECT) goto shapeless;
   if (keys_beside_expect(one) == 2 && named(one, "as") != NULL && text_of(one, "type") != NULL) {
     step->kind = SPROUTC_STEP_COMMAND;
@@ -121,7 +132,12 @@ static const char *step_of(sprout_arena *arena, size_t index, const sprout_json 
     snprintf(digits, sizeof digits, "%llu", (unsigned long long)member->number);
     step->kind = SPROUTC_STEP_SEED;
     step->line = joined(arena, "@seed ", digits);
-    *seed = (uint64_t)member->number;
+    if (sprout_draws_begin(&seeds->stream, (uint64_t)member->number) != SPROUT_OK) {
+      snprintf(problem, sizeof problem, "step %zu: a seed is a whole number from 0 to 4294967295.", index + 1);
+      return problem;
+    }
+    seeds->set = (uint64_t)member->number;
+    seeds->fresh = true;
   } else if (text_of(one, "comment") != NULL) {
     step->kind = SPROUTC_STEP_COMMENT;
     step->line = joined(arena, "# ", text_of(one, "comment"));
@@ -129,6 +145,16 @@ static const char *step_of(sprout_arena *arena, size_t index, const sprout_json 
     goto shapeless;
   }
   if (step->line == NULL) return "the host cannot give the script memory.";
+  step->seed = seeds->set;
+  if (step->kind != SPROUTC_STEP_SEED && step->kind != SPROUTC_STEP_COMMENT) {
+    uint32_t next;
+    if (!seeds->fresh) {
+      sprout_draws_below(&seeds->stream, (uint64_t)1 << 32, &next);
+      seeds->set = next;
+      step->seed = next;
+    }
+    seeds->fresh = false;
+  }
   return NULL;
 shapeless:
   snprintf(problem, sizeof problem, "step %zu: %s.", index + 1, SHAPES);
@@ -141,7 +167,8 @@ const char *sproutc_steps_open(sproutc_steps *steps, const sprout_host *host, co
   sprout_json *root = NULL;
   const sprout_json *list;
   sprout_json_error error;
-  uint64_t now = 0, seed = 0;
+  uint64_t now = 0;
+  seeding seeds = {0, true, {0, 0}};
   size_t i;
   const char *why;
 
@@ -180,7 +207,7 @@ const char *sproutc_steps_open(sproutc_steps *steps, const sprout_host *host, co
     return "the host cannot give the script memory.";
   }
   for (i = 0; i < list->count; i++) {
-    why = step_of(&steps->arena, i, list->items[i], &now, &seed, &steps->steps[i]);
+    why = step_of(&steps->arena, i, list->items[i], &now, &seeds, &steps->steps[i]);
     if (why != NULL) {
       sproutc_steps_close(steps);
       return why;

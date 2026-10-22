@@ -119,5 +119,14 @@ function renamed(node: Record<string, unknown>, scope: FileScope): Record<string
       return { ...node, [field]: { ...written, text: target.name } };
     }
   }
+  // A wildcard's `except` names verbs, each read as a play's head reads its own.
+  if (kind === 'play' && Array.isArray(node['except'])) {
+    const except = node['except'] as readonly Ident[];
+    const read = except.map((one) => {
+      const target = scope.names.get(one.text);
+      return target === undefined || target.name === one.text ? one : { ...one, text: target.name };
+    });
+    if (read.some((one, i) => one !== except[i])) return { ...node, except: read };
+  }
   return node;
 }

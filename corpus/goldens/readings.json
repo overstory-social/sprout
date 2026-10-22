@@ -121,7 +121,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 23,
+        "steps": 27,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -406,7 +406,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 24,
+        "steps": 37,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -499,7 +499,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 39,
+        "steps": 47,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -897,7 +897,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 26,
+        "steps": 30,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -989,7 +989,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 26,
+        "steps": 30,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1081,7 +1081,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 26,
+        "steps": 30,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1268,7 +1268,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 26,
+        "steps": 30,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1488,7 +1488,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 40,
+        "steps": 45,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1613,7 +1613,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 23,
+        "steps": 27,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -1813,7 +1813,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 16,
+        "steps": 20,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -3452,7 +3452,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 37,
+        "steps": 45,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -3534,7 +3534,7 @@
       },
       "expect": {
         "how": "acted",
-        "steps": 26,
+        "steps": 30,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -3593,7 +3593,7 @@
       },
       "expect": {
         "how": "gone",
-        "steps": 3,
+        "steps": 7,
         "spawns": 0,
         "events": 0,
         "effects": [

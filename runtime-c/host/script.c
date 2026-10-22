@@ -323,7 +323,9 @@ static bool filler_fits(const sprout_seen_reading *reading, const sprout_seen_fi
       return filler->binds == SPROUT_SEEN_SET && filler->member_count == 1 && member != NULL &&
              sprout_str_is(filler->members[0].id, member);
     case SPROUT_FILL_EXIT:
-      return filler->binds == SPROUT_SEEN_EXIT && sprout_str_is(filler->exit.to, filling->id) &&
+      /* A drawn way leads nowhere until it is taken, so it is named by no place. */
+      return filler->binds == SPROUT_SEEN_EXIT &&
+             (filling->id == NULL ? filler->exit.to.length == 0 : sprout_str_is(filler->exit.to, filling->id)) &&
              (filler->exit.direction == NULL) == (filling->direction == NULL) &&
              (filling->direction == NULL || strcmp(filler->exit.direction, filling->direction) == 0);
     case SPROUT_FILL_TEXT:

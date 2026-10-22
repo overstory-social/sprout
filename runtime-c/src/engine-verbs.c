@@ -1,9 +1,10 @@
 /*
  * The engine's verbs in a reading (the spec's Verbs > Engine verbs, Exits).
  * `go` has no `do`: the engine takes the actor through the exit named, which
- * joins one place to another however far apart they sit. A person who went
- * reads what the exit says as it is taken, and the place they arrived in
- * once the queue is empty. `look`, `examine`, `inventory`, `wait` and `help`
+ * joins one place to another however far apart they sit, or the way drawn
+ * as it is taken, its choice drawn then. A person who went reads what the
+ * exit says as it is taken, and the place they arrived in once the queue
+ * is empty. `look`, `examine`, `inventory`, `wait` and `help`
  * are answered by the engine once the queue is empty, so a person's reading
  * of one is never answered with `nothing_happens`.
  */
@@ -53,9 +54,16 @@ sprout_eval_status sprout_go(sprout_exec *x, const sprout_frame *frame, const sp
   taken.direction = way->has_direction ? way->direction.bytes : NULL;
   taken.label = way->label.bytes;
   taken.to = way->to;
-  if (person) EXPR_NEED(sprout_place_of(frame, reading->actor, &here));
+  if (person || way->to.length == 0) EXPR_NEED(sprout_place_of(frame, reading->actor, &here));
+  if (way->to.length == 0) {
+    /* A way bound with nowhere to lead is a drawn way, taken as the place now has it. */
+    const sprout_way *drawn;
+    EXPR_NEED(sprout_drawn_way(frame, here, way->has_direction ? &way->direction : NULL, way->label.bytes, &drawn));
+    if (drawn == NULL) return expr_engine(frame, "a reading of `go` named a drawn way its place does not have.");
+    taken = *drawn;
+  }
   EXPR_NEED(sprout_take_way(x, frame, reading->actor, here, &taken, person, &moved, &refusal));
-  if (!moved) EXPR_NEED(sprout_record_refusal(x, frame, &refusal));
+  if (!moved) EXPR_NEED(sprout_record_refusal(x, frame, &refusal, NULL));
   *went = moved ? SPROUT_WENT_DONE : SPROUT_WENT_REFUSED;
   return SPROUT_EVAL_OK;
 }

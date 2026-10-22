@@ -6,7 +6,7 @@
 // instead. A free call is a draw, typed by `draws.ts`.
 
 import type { BoundExpr, Expr, Ident } from '../../syntax/ast.js';
-import { describeOrigin, valueOf, type BindingType } from '../bindings.js';
+import { describeOrigin, isActing, valueOf, type BindingType } from '../bindings.js';
 import { writtenKind } from '../../declare/compose.js';
 import { nearestOption } from '../../declare/enums.js';
 import { BOOLEAN, integer, STRING } from '../../declare/types.js';
@@ -89,9 +89,9 @@ export function bindingType(name: Ident, context: CheckContext): BindingType | n
 }
 
 /**
- * `bound tool` — whether a tool some reading leaves out was given. It asks
- * only about such a tool: of anything always there, or never bound, it is
- * refused with why (the spec's What it refuses).
+ * `bound tool` — whether a tool some reading leaves out was given, or in a
+ * passage whether someone is acting. Of anything always there, or never
+ * bound, it is refused with why (the spec's What it refuses).
  */
 function checkBound(expr: BoundExpr, context: CheckContext): boolean {
   const name = expr.name.text;
@@ -109,6 +109,8 @@ function checkBound(expr: BoundExpr, context: CheckContext): boolean {
   }
   const binding = context.scope.lookup(name);
   if (binding === null) return bindingType(expr.name, context) !== null;
+  // A passage said where someone is acting may also be said where nobody is.
+  if (context.passage === true && isActing(name) && binding.origin === name) return true;
   const verb = context.verb;
   if (binding.origin === 'role' && binding.type.binds === 'set') {
     context.diagnostics.refuse(

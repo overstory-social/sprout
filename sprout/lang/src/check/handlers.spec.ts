@@ -62,7 +62,13 @@ function checked(text: string) {
   ).toEqual([]);
 
   const diagnostics = new Diagnostics();
-  const setting = { kinds, here: hereKindOf(kinds.all(), kinds), verbs, diagnostics };
+  const setting = {
+    kinds,
+    here: hereKindOf(kinds.all(), kinds),
+    verbs,
+    heard: () => [],
+    diagnostics,
+  };
   const clean: boolean[] = [];
   for (const kind of kinds.all().filter((one) => one.library === 'shop')) {
     for (const runs of kind.handlers.values()) {
@@ -268,6 +274,49 @@ describe('an `after command`', () => {
       '`text` gives a `describe` its words, and this is `after command`.',
     ]);
     expect(checked('kind Lamp { after command { tell target "Hm." } }').messages).toHaveLength(1);
+  });
+
+  it('binds `refused` as true or false, and `way` as a direction inside `if (bound way)`', () => {
+    const { clean, said } = checked(
+      'kind Lamp { :n 0 min 0 max 9  after command { if (!refused) { self.adjust(:n, 1) }  if (bound way) { if (way == :north || way == :in) { say "Ow." } } } }',
+    );
+    expect(said).toEqual([]);
+    expect(clean).toEqual([true]);
+  });
+
+  it('refuses `way` read outside `if (bound way)`, saying how to ask', () => {
+    expect(
+      checked('kind Lamp { after command { if (way == :north) { say "Ow." } } }').said,
+    ).toEqual([
+      [
+        'shop.sprout:5:33',
+        '`way` is bound only after a `go` that was refused, so it is read inside `if (bound way)`.',
+        'Ask first, as in `if (bound way) { if (way == :north) { … } }`.',
+      ],
+    ]);
+  });
+
+  it('refuses a way that is not a direction, and `refused` compared with what is not true or false', () => {
+    expect(
+      checked('kind Lamp { after command { if (bound way) { if (way == :nrth) { say "Ow." } } } }')
+        .messages,
+    ).toHaveLength(1);
+    expect(
+      checked('kind Lamp { after command { if (refused == 1) { say "Ow." } } }').messages,
+    ).toHaveLength(1);
+  });
+
+  it('refuses a `let` that would take `refused` or `way`, naming what each already is', () => {
+    expect(checked('kind Lamp { after command { let refused = 1 } }').messages).toEqual([
+      '`refused` already names whether the command was refused here.',
+    ]);
+    expect(checked('kind Lamp { after command { let way = 1 } }').messages).toEqual([
+      '`way` already names the way a refused `go` tried here.',
+    ]);
+  });
+
+  it('binds neither in a handler', () => {
+    expect(checked('kind Lamp { on :gust { if (refused) { } } }').messages).toHaveLength(1);
   });
 });
 

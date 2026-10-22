@@ -179,7 +179,7 @@ const FillerSchema = z.discriminatedUnion('binds', [
     binds: z.literal('exit'),
     direction: z.enum(DIRECTIONS).nullable(),
     label: z.string(),
-    to: Id,
+    to: Id.nullable(),
   }),
   z.object({ role: z.string(), words: z.string(), binds: z.literal('unbound') }),
 ]);
@@ -215,7 +215,9 @@ const Place = {
       transcript: z.string(),
     }),
   ),
-  exits: z.array(z.object({ direction: z.enum(DIRECTIONS).nullable(), label: z.string(), to: Id })),
+  exits: z.array(
+    z.object({ direction: z.enum(DIRECTIONS).nullable(), label: z.string(), to: Id.nullable() }),
+  ),
   occupants: z.array(Thing),
   carried: z.array(Thing),
 };
@@ -282,7 +284,9 @@ export const StandingSchema = z.object({ place: Thing, here: z.array(Thing) }).n
 const ParsedFillerSchema: z.ZodType<ParsedFiller, unknown> = z.union([
   z.object({ object: Thing }),
   z.object({ set: z.array(Thing) }),
-  z.object({ exit: z.object({ direction: z.string().nullable(), label: z.string(), to: Id }) }),
+  z.object({
+    exit: z.object({ direction: z.string().nullable(), label: z.string(), to: Id.nullable() }),
+  }),
   z.object({ value: z.union([z.string(), z.number()]), symbol: z.boolean() }),
 ]);
 

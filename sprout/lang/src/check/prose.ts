@@ -6,7 +6,10 @@
 // object's passage named through a binding typed by a kind that declares
 // it; a boolean is refused, since an `{if}` says what it means, and so is
 // a bare list or set, since the separator and the empty case are the
-// author's, and an extension's value its extension gives no words. A
+// author's, and an extension's value its extension gives no words.
+// `{exit east}` shows the place a way out of `self` leads to, as that
+// place's `describe` shows it, so it is written where someone is looking
+// and `self` writes an exit that way leading to a place. A
 // condition is a boolean that compares, narrows with `is()`
 // or tests identity, and neither a slot nor a condition does arithmetic.
 // `{for x in c}` walks a container, `{for x: K in c}` the contents
@@ -20,6 +23,7 @@ import {
   isLoopVariable,
   LOOP_VARIABLES,
   type Prose,
+  type ProseExit,
   type ProseFor,
   type ProseIf,
   type ProseOneOf,
@@ -42,8 +46,11 @@ import { branchScope, checkCondition, resolveKind, typeOf, type CheckContext } f
 import { kindName } from '../declare/kinds.js';
 import { isMemberPath, placedWords } from './names.js';
 import { EFFECTS } from './check/writes.js';
+import { ARITHMETIC } from './check/operators.js';
 import type { ProseRecord } from './speech.js';
 import { refuseDraw } from './chance.js';
+import { ABBREVIATIONS } from '../syntax/directions.js';
+import { isDirection } from '../declare/exits.js';
 
 /** Check `prose` in `context`'s scope, recording each passage a slot renders and each option it renders. */
 export function checkProse(prose: Prose, context: CheckContext, rendered: ProseRecord): void {
@@ -77,6 +84,9 @@ function pieces(prose: Prose, context: CheckContext, rendered: ProseRecord): voi
     switch (piece.kind) {
       case 'prose-slot':
         checkSlot(piece, context, rendered);
+        break;
+      case 'prose-exit':
+        checkExitView(piece, context);
         break;
       case 'prose-if':
         checkIf(piece, context, rendered);
@@ -130,6 +140,57 @@ function checkSlot(slot: ProseSlot, context: CheckContext, rendered: ProseRecord
       expr.at,
       `A slot does not render \`${showType(type.type)}\`: the extension \`${type.type.extension}\` says it has no words.`,
       'Say what it means in words of your own, or with a statement of the extension that shows it.',
+    );
+  }
+}
+
+/**
+ * `{exit east}`: a direction written out, in which `self`, a place, writes
+ * an exit leading to a place, read where `seen` is bound, since what it
+ * shows is that place's `describe`, given the one looking.
+ */
+function checkExitView(piece: ProseExit, context: CheckContext): void {
+  const { diagnostics, self } = context;
+  const word = piece.direction.text;
+  if (!isDirection(word)) {
+    const meant = ABBREVIATIONS.get(word);
+    diagnostics.refuse(
+      piece.direction.at,
+      meant === undefined
+        ? `\`${word}\` is not a direction, so \`{exit ${word}}\` names no way out.`
+        : `\`${word}\` is how a visitor types \`${meant}\`, and source writes the direction out.`,
+      meant === undefined
+        ? 'Name the direction of one of its exits, as in `{exit east}`.'
+        : `Write \`{exit ${meant}}\`.`,
+    );
+    return;
+  }
+  if (self === null || !self.containsActors) {
+    diagnostics.refuse(
+      piece.at,
+      `\`{exit ${word}}\` shows the place one of this place's ways out leads to, and ${self === null ? 'this' : `\`${self.name}\``} is not a place, so it has no ways out.`,
+      'Write it in the `describe` of the place whose exit it looks through.',
+    );
+    return;
+  }
+  const leading = self.exits.flatMap((way) =>
+    way.kind === 'exit' && way.line.leads.kind === 'path' ? [way.direction] : [],
+  );
+  if (!leading.includes(word)) {
+    diagnostics.refuse(
+      piece.direction.at,
+      `\`${self.name}\` has no exit ${word} that leads to a place, so \`{exit ${word}}\` has nothing to show.`,
+      leading.length === 0
+        ? `Write one in its grammar block, as in \`exit ${word} "${word}" -> <place>\`, or take the slot out.`
+        : `Name a way it has that leads to a place: ${readable([...new Set(leading)].map((one) => `{exit ${one}}`))}.`,
+    );
+    return;
+  }
+  if (context.scope.lookup('seen') === null) {
+    diagnostics.refuse(
+      piece.at,
+      `\`{exit ${word}}\` shows the place that way leads to as its \`describe\` shows it to someone looking, and nobody is looking here.`,
+      'Write it in a `describe`, or in a passage only a `describe` renders.',
     );
   }
 }
@@ -304,8 +365,8 @@ function walkable(type: BindingType, over: Expr, context: CheckContext): boolean
 }
 
 /**
- * Whether an expression only reads, having refused the first `+` or `-`
- * it holds, or the first write: a passage does neither. A minus written
+ * Whether an expression only reads, having refused the first `+`, `-`,
+ * `*`, `/` or `%` it holds, or the first write: a passage does neither. A minus written
  * on a number is the number, not a sum. Walked with a stack, as a long
  * chain has no bracket to bound it.
  */
@@ -315,7 +376,7 @@ function noArithmetic(expr: Expr, context: CheckContext): boolean {
     const node = stack.pop()!;
     switch (node.kind) {
       case 'binary':
-        if (node.operator === '+' || node.operator === '-') return refuseArithmetic(node, context);
+        if (ARITHMETIC.has(node.operator)) return refuseArithmetic(node, context);
         stack.push(node.right, node.left);
         break;
       case 'unary':

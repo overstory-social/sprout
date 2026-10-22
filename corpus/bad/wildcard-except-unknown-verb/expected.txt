@@ -1,0 +1,4 @@
+kinds.sprout:3:28  `Mirage` leaves `exmaine` out of `as target for any`, and nothing declares that verb. Did you mean `examine`?
+                   Write `as target for any except examine`, or declare `verb exmaine { … }`.
+
+refused: 1 problem

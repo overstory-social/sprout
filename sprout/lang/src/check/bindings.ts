@@ -41,7 +41,7 @@ import type { RoleFiller } from '../declare/verbs.js';
 import type { RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
-import { integer, showType, type ValueType } from '../declare/types.js';
+import { BOOLEAN, integer, showType, STRING, type ValueType } from '../declare/types.js';
 import { readable } from '../source/words.js';
 
 // --- what a binding can be ------------------------------------------------
@@ -110,6 +110,9 @@ export type BindingOrigin =
   | 'actor'
   | 'here'
   | 'seen'
+  /** In an `after command`: whether the command was refused, and the way a refused `go` tried. */
+  | 'refused'
+  | 'way'
   | 'mover'
   | 'role'
   | 'each'
@@ -131,6 +134,10 @@ export function describeOrigin(origin: BindingOrigin): string {
       return "the actor's place";
     case 'seen':
       return 'what the description is being read for';
+    case 'refused':
+      return 'whether the command was refused';
+    case 'way':
+      return 'the way a refused `go` tried';
     case 'mover':
       return 'whatever proposed the move';
     case 'role':
@@ -191,6 +198,17 @@ export function selfBinding(kind: KindRef, at: Span): Binding {
 }
 
 /**
+ * The names bound only where someone is acting, which a passage said both
+ * there and where nobody is reads inside `{if bound …}` (the spec's Prose).
+ */
+export const ACTING = ['actor', 'here'] as const;
+
+/** Whether `name` is one of `ACTING`. */
+export function isActing(name: string): name is (typeof ACTING)[number] {
+  return (ACTING as readonly string[]).includes(name);
+}
+
+/**
  * `actor` — `sprout.Actor`, since a person or an NPC may be the one
  * acting, so anything more is read through `is()`; an object where the
  * standard library's kind is absent, which has been said.
@@ -214,6 +232,16 @@ export function hereBinding(here: HereKind, at: Span): Binding {
 /** `seen`, in a describe — the engine's `Seen`: what it is being read for, a look, an examination, an arrival or a poll. */
 export function seenBinding(seen: DeclaredEnum, at: Span): Binding {
   return bind('seen', valueOf({ type: 'symbol', of: seen }), 'seen', at);
+}
+
+/** `refused`, in an `after command` — boolean; whether the command it follows was refused. */
+export function refusedBinding(at: Span): Binding {
+  return bind('refused', valueOf(BOOLEAN), 'refused', at);
+}
+
+/** `way`, in an `after command` inside `if (bound way)` — the engine's `Direction`: the way a refused `go` tried. */
+export function wayBinding(direction: DeclaredEnum, at: Span): Binding {
+  return bind('way', valueOf({ type: 'symbol', of: direction }), 'way', at);
 }
 
 /** `mover`, in a guard — object; whatever proposed the move. */
@@ -275,16 +303,26 @@ export function letBinding(name: string, type: BindingType, at: Span): Binding {
  * A kind role binds at that kind; an open role binds as an object; a
  * value role is typed by the `from` the role-player wrote, because a
  * value role's options are the role-player's to say and not the verb's.
- * An exit role is not here: only the engine's `go` has one, and nothing
- * plays it.
+ * An exit role is the way taken, a string, as the spec's Where types come
+ * from has it, and binds even where a `from` on it is refused.
  */
 export function roleBinding(
   name: string,
-  declared: Exclude<RoleFiller, { readonly fills: 'exit' }>,
+  declared: RoleFiller,
   narrowing: RoleNarrowing | null,
   at: Span,
   diagnostics: Diagnostics,
 ): Binding | null {
+  if (declared.fills === 'exit') {
+    if (narrowing !== null) {
+      diagnostics.refuse(
+        narrowing.at,
+        `\`${name}\` is the way taken, so there is nothing for \`from\` to narrow.`,
+        `Read \`${name}\` in the body instead, as in \`if (${name} == "north") { … }\`.`,
+      );
+    }
+    return bind(name, valueOf(STRING), 'role', at);
+  }
   if (declared.fills === 'kind' || declared.fills === 'open') {
     if (narrowing !== null) {
       diagnostics.refuse(
@@ -476,6 +514,8 @@ export interface Words {
 export interface Withheld {
   readonly name: string;
   readonly at: Span;
+  /** What the name is, where it is not a role. */
+  readonly origin?: BindingOrigin;
   /** What a read of it here is told. */
   readonly unread: Words;
   /**
@@ -538,7 +578,8 @@ export class Scope {
   /** Whether something here already answers to `name`, said at `at` where it does. */
   private taken(name: string, at: Span, diagnostics: Diagnostics): boolean {
     const before = this.lookup(name);
-    const origin = before?.origin ?? (this.withheld(name) === null ? null : 'role');
+    const withheld = this.withheld(name);
+    const origin = before?.origin ?? (withheld === null ? null : (withheld.origin ?? 'role'));
     if (origin === null) return false;
     diagnostics.refuse(
       at,

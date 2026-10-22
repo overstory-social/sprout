@@ -39,10 +39,18 @@ const BINARY_PRECEDENCE: ReadonlyMap<string, number> = new Map([
   ['>=', 4],
   ['+', 5],
   ['-', 5],
+  ['*', 6],
+  ['/', 6],
+  ['%', 6],
 ]);
 
+/** Whether `text` is a binary operator, which joins what stands before it into a value. */
+export function isBinaryOperator(text: string): boolean {
+  return BINARY_PRECEDENCE.has(text);
+}
+
 const LOOSEST = 1;
-const TIGHTEST = 5;
+const TIGHTEST = 6;
 
 /** The two prefix operators. `-x` is an expression; `!` has no truthiness behind it. */
 const PREFIX = new Set<string>(['!', '-']);

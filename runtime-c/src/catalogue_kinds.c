@@ -225,6 +225,28 @@ static int by_group_pointer(const void *a, const void *b) {
   return by_group_parts((const sprout_play_group *)a, (const sprout_play_group *)b);
 }
 
+/* A wildcard's `except`, the verbs it does not run for; none where the play names none. */
+static sprout_status read_except(loader *l, const sprout_node *play, sprout_play *out) {
+  const sprout_node *list = sprout_node_get(l->graph, play, "except");
+  sprout_verb_name *names;
+  size_t i;
+  out->except_count = 0;
+  out->except = NULL;
+  if (list == NULL) return SPROUT_OK;
+  if (!cat_is_array(list)) return cat_shaped(l, "a wildcard's except");
+  names = (sprout_verb_name *)cat_array(l, list->count + 1, sizeof *names);
+  MEMORY(names);
+  for (i = 0; i < list->count; i++) {
+    const sprout_node *one = sprout_item(l->graph, list, i);
+    names[i].library = cat_text(l->graph, one, "library");
+    names[i].name = cat_text(l->graph, one, "name");
+    if (names[i].library == NULL || names[i].name == NULL) return cat_shaped(l, "a wildcard's except");
+  }
+  out->except_count = list->count;
+  out->except = names;
+  return SPROUT_OK;
+}
+
 /* One key's plays, in the order they run: one record for each group entry and key, however many kinds hold it. */
 static sprout_status read_group(loader *l, const sprout_node *key, const sprout_node *group,
                                 const sprout_play_group **out) {
@@ -260,6 +282,7 @@ static sprout_status read_group(loader *l, const sprout_node *key, const sprout_
     play->node = one;
     if (play->origin == NULL || play->library == NULL || play->verb == NULL || play->role == NULL)
       return cat_shaped(l, "a play");
+    NEED(read_except(l, one, play));
   }
   return keep(l, group, made);
 }
@@ -290,7 +313,7 @@ static sprout_status read_play_groups(loader *l, const sprout_node *map, const s
 
 sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def **out) {
   sprout_kind_def *kind;
-  const sprout_node *properties, *passages, *plays, *capacity;
+  const sprout_node *properties, *passages, *plays, *capacity, *after;
   size_t i;
   *out = NULL;
   if (node == NULL || node->kind == SPROUT_NODE_NULL) return SPROUT_OK;
@@ -307,6 +330,8 @@ sprout_status cat_read_kind(loader *l, const sprout_node *node, sprout_kind_def 
   kind->qualified = cat_join3(l, kind->library, ".", kind->name);
   MEMORY(kind->qualified);
   kind->node = node;
+  after = sprout_node_get(l->graph, node, "afterCommand");
+  if (cat_is_array(after) && after->count > 0) l->world->follows_commands = true;
   NEED(cat_strings(l, sprout_node_get(l->graph, node, "order"), "a kind's order", &kind->order_count,
                &kind->order));
   for (i = 0; i < kind->order_count; i++) {

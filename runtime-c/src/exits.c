@@ -2,11 +2,15 @@
  * The exits and links that apply on a place (the spec's Verbs > Exits, An
  * exit may be conditional, Links). What does not apply, rather than
  * faulting: an unset link; a guard that reads through a name out of the
- * place's range, or to a declared object destroyed; and a destination that
- * is absent, destroyed, gone or no longer a place. A guard only reads, and is
- * charged to the turn's steps as any reading is, so a guard too dear to ask
- * faults as any work does. Taking a way, as `go` and `move self north` do,
- * is the move through it and what it says as it is taken.
+ * place's range, save the one place its exit leads to, or to a declared
+ * object destroyed; and a destination that
+ * is absent, destroyed, gone or no longer a place; and a drawn way none of
+ * whose places is one now. A guard only reads, and is charged to the turn's
+ * steps as any reading is, so a guard too dear to ask faults as any work
+ * does. Taking a way, as `go` and `move self north` do,
+ * is the move through it and what it says as it is taken; a drawn way's
+ * choice is drawn from the turn's seed as it is taken, among its places
+ * that are places then and its refusal, and never as it is asked.
  */
 #include <string.h>
 
@@ -35,9 +39,12 @@ bool sprout_reads_nothing(const sprout_frame *frame, sprout_eval_status status) 
          (strcmp(frame->fault->name, "NameOutOfRange") == 0 || strcmp(frame->fault->name, "DestroyedReference") == 0);
 }
 
-/* Whether an exit's `when` holds, asked of `place`; a read out of its range, or of a destroyed name, does not. */
+/*
+ * Whether an exit's `when` holds, asked of `place`, with `to` the one place it leads to, which the guard
+ * may read by name, or none; a read out of its range otherwise, or of a destroyed name, does not hold.
+ */
 static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, const sprout_node *exit,
-                                const sprout_node *line, bool *out) {
+                                const sprout_node *line, sprout_str to, bool *out) {
   const sprout_node *when = sprout_node_get(&frame->world->graph, line, "when");
   sprout_frame at = *frame;
   sprout_eval_status status;
@@ -46,6 +53,7 @@ static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, con
   EXPR_NEED(sprout_origin_library(frame, sprout_node_text(&frame->world->graph, exit, "origin"), &at.library));
   at.self = place;
   at.bindings = NULL;
+  at.beyond = to;
   status = sprout_eval_condition(&at, when, out);
   if (sprout_reads_nothing(frame, status)) {
     *out = false;
@@ -87,12 +95,67 @@ static sprout_eval_status path_end(const sprout_frame *frame, sprout_str place, 
   return status;
 }
 
+/* Whether `to` is something an actor may stand in now: live, and holding actors. */
+static bool standable(const sprout_frame *frame, sprout_str to) {
+  const sprout_stored_instance *there;
+  if (!expr_live(frame, to)) return false;
+  there = expr_instance(frame, to);
+  return there != NULL && there->kind->contains_actors;
+}
+
+/* Whether an exit's `leads` is a node of `kind`. */
+static bool leads_is(const sprout_frame *frame, const sprout_node *leads, const char *kind) {
+  return sprout_node_is(&frame->world->graph, sprout_node_get(&frame->world->graph, leads, "kind"), kind);
+}
+
+/* One choice of a drawn way as it stands now: a place it leads to, or its refusal's words. */
+typedef struct choice {
+  bool refuses;
+  sprout_str to;
+  const sprout_node *said;
+} choice;
+
+/*
+ * The choices of `exit`, a drawn way out of `place`, open now, in the order
+ * written: each place it names that is a place now, and its refusal.
+ * *places counts the places among them.
+ */
+static sprout_eval_status choices_now(const sprout_frame *frame, const sprout_stored_instance *place,
+                                      const sprout_node *exit, choice **out, size_t *count, size_t *places) {
+  const sprout_graph *graph = &frame->world->graph;
+  const sprout_node *choices = sprout_node_get(graph, sprout_node_get(graph, sprout_node_get(graph, exit, "line"), "leads"), "choices");
+  choice *list;
+  size_t i, n = 0;
+  *out = NULL;
+  *count = *places = 0;
+  if (choices == NULL) return expr_engine(frame, "a drawn way reached the runtime with no choices; the checker refuses one.");
+  list = (choice *)sprout_arena_take(frame->turn, (choices->count + 1) * sizeof *list);
+  if (list == NULL) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < choices->count; i++) {
+    const sprout_node *leads = sprout_node_get(graph, sprout_item(graph, choices, i), "leads");
+    sprout_str to;
+    bool found;
+    memset(&list[n], 0, sizeof list[n]);
+    if (leads_is(frame, leads, "grammar-refusal")) {
+      list[n].refuses = true;
+      list[n++].said = sprout_node_get(graph, leads, "said");
+      continue;
+    }
+    EXPR_NEED(path_end(frame, place->id, leads, &to, &found));
+    if (!found || !standable(frame, to)) continue;
+    list[n++].to = to;
+    (*places)++;
+  }
+  *out = list;
+  *count = n;
+  return SPROUT_EVAL_OK;
+}
+
 /* Where an exit leads from `place` now; *found is false where it does not apply. */
 static sprout_eval_status destination_of(const sprout_frame *frame, const sprout_stored_instance *place,
                                          const sprout_node *exit, sprout_str *to, bool *found) {
   const sprout_node *line = sprout_node_get(&frame->world->graph, exit, "line");
   const char *kind = sprout_node_text(&frame->world->graph, exit, "kind");
-  const sprout_stored_instance *there;
   bool applies = true;
   size_t i;
   *found = false;
@@ -107,17 +170,12 @@ static sprout_eval_status destination_of(const sprout_frame *frame, const sprout
     const sprout_node *leads = sprout_node_get(&frame->world->graph, line, "leads");
     if (sprout_name(&frame->world->graph, leads) != NULL) EXPR_NEED(path_end(frame, place->id, leads, to, found));
   }
-  if (!*found || !expr_live(frame, *to)) {
-    *found = false;
-    return SPROUT_EVAL_OK;
-  }
-  there = expr_instance(frame, *to);
-  if (there == NULL || !there->kind->contains_actors) {
+  if (!*found || !standable(frame, *to)) {
     *found = false;
     return SPROUT_EVAL_OK;
   }
   if (strcmp(kind, "exit") == 0) {
-    EXPR_NEED(holds(frame, place->id, exit, line, &applies));
+    EXPR_NEED(holds(frame, place->id, exit, line, *to, &applies));
     *found = applies;
   }
   return SPROUT_EVAL_OK;
@@ -161,8 +219,22 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
       if (decided(seen, seen_count, direction)) continue;
     }
     EXPR_NEED(expr_spend(frame));
-    if (direction != NULL && sprout_node_is(&frame->world->graph, sprout_node_get(&frame->world->graph, leads, "kind"), "grammar-refusal")) {
-      EXPR_NEED(holds(frame, place->id, exit, line, &applies));
+    if (direction != NULL && leads_is(frame, leads, "grammar-drawn")) {
+      /* A drawn way applies while its guard holds and one of its places is one, and its choice waits until it is taken. */
+      choice *choices;
+      size_t choice_count, places;
+      EXPR_NEED(holds(frame, place->id, exit, line, (sprout_str){NULL, 0}, &applies));
+      if (!applies) continue;
+      EXPR_NEED(choices_now(frame, place, exit, &choices, &choice_count, &places));
+      if (places == 0) continue;
+      seen[seen_count++] = direction;
+      way.direction = direction;
+      way.drawn = true;
+      EXPR_NEED(add(frame, out, &way));
+      continue;
+    }
+    if (direction != NULL && leads_is(frame, leads, "grammar-refusal")) {
+      EXPR_NEED(holds(frame, place->id, exit, line, (sprout_str){NULL, 0}, &applies));
       if (!applies) continue;
       seen[seen_count++] = direction;
       way.direction = direction;
@@ -214,6 +286,18 @@ sprout_eval_status sprout_exits_from(const sprout_frame *frame, sprout_str place
   return SPROUT_EVAL_OK;
 }
 
+/* What `exit`, a way out of `place`, says as it is taken: its own `say`, or nothing. */
+static sprout_eval_status own_saying(const sprout_frame *frame, const sprout_stored_instance *place,
+                                     const sprout_node *exit, sprout_saying *out) {
+  const sprout_node *says = sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, exit, "line"), "says");
+  memset(out, 0, sizeof *out);
+  if (says == NULL || says->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
+  out->says = true;
+  out->by = place->id;
+  return spoken_by(frame, sprout_node_get(&frame->world->graph, says, "said"), sprout_node_text(&frame->world->graph, exit, "origin"), place,
+                   &out->said);
+}
+
 sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str place, const sprout_way *taken,
                                       sprout_saying *out) {
   const sprout_stored_instance *instance = expr_instance(frame, place);
@@ -222,7 +306,6 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
   size_t run_count = 0, i;
   bool any_says = false;
   ways applied = {NULL, 0, 0};
-  const sprout_node *says;
   memset(out, 0, sizeof *out);
   if (instance == NULL || exits == NULL || taken->direction == NULL) return SPROUT_EVAL_OK;
   run = (const sprout_node **)sprout_arena_take(frame->turn, (exits->count + 1) * sizeof *run);
@@ -240,12 +323,7 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
   if (applied.count == 0 || applied.items[0].refuses) return SPROUT_EVAL_OK;
   if (!sprout_str_same(applied.items[0].to, taken->to) || strcmp(applied.items[0].label, taken->label) != 0)
     return SPROUT_EVAL_OK;
-  says = sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, applied.items[0].exit, "line"), "says");
-  if (says == NULL || says->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  out->says = true;
-  out->by = place;
-  return spoken_by(frame, sprout_node_get(&frame->world->graph, says, "said"), sprout_node_text(&frame->world->graph, applied.items[0].exit, "origin"), instance,
-                   &out->said);
+  return own_saying(frame, instance, applied.items[0].exit, out);
 }
 
 /* `actor` and `here`, the names a line said to the one who went renders with. */
@@ -262,17 +340,68 @@ static sprout_eval_status acting_names(const sprout_frame *frame, sprout_str act
   return SPROUT_EVAL_OK;
 }
 
+sprout_eval_status sprout_drawn_way(const sprout_frame *frame, sprout_str place, const sprout_str *direction,
+                                    const char *label, const sprout_way **out) {
+  const sprout_way *ways;
+  size_t count, i;
+  *out = NULL;
+  EXPR_NEED(sprout_ways_from(frame, place, &ways, &count));
+  for (i = 0; i < count; i++)
+    if (ways[i].drawn && strcmp(ways[i].label, label) == 0 &&
+        (ways[i].direction == NULL ? direction == NULL
+                                   : direction != NULL && sprout_str_is(*direction, ways[i].direction)))
+      *out = &ways[i];
+  return SPROUT_EVAL_OK;
+}
+
+/*
+ * The choice drawn for `taken`, a drawn way out of `place` that `actor`
+ * takes: where it leads, or *refused with its refusal's words in `refusal`,
+ * said by the place with `actor` and `here` bound.
+ */
+static sprout_eval_status draw_choice(const sprout_frame *frame, sprout_str actor, sprout_str place,
+                                      const sprout_way *taken, sprout_str *to, bool *refused,
+                                      sprout_move_refusal *refusal) {
+  const sprout_stored_instance *instance = expr_instance(frame, place);
+  choice *choices;
+  size_t count, places;
+  uint32_t drawn;
+  *refused = false;
+  if (instance == NULL) return expr_unchecked(frame, "a drawn way taken from no place");
+  EXPR_NEED(choices_now(frame, instance, taken->exit, &choices, &count, &places));
+  if (places == 0) return expr_engine(frame, "a drawn way was taken with none of its places a place; it applies only while one is.");
+  if (frame->draws == NULL) return expr_unchecked(frame, "a way drawn where nothing draws");
+  if (!sprout_draws_below(frame->draws, count, &drawn)) return expr_unchecked(frame, "a draw among more choices than 2^32");
+  if (!choices[drawn].refuses) {
+    *to = choices[drawn].to;
+    return SPROUT_EVAL_OK;
+  }
+  *refused = true;
+  memset(refusal, 0, sizeof *refusal);
+  refusal->by = place;
+  EXPR_NEED(spoken_by(frame, choices[drawn].said, sprout_node_text(&frame->world->graph, taken->exit, "origin"), instance,
+                      &refusal->said));
+  return acting_names(frame, actor, place, &refusal->bindings, &refusal->binding_count);
+}
+
 sprout_eval_status sprout_take_way(sprout_exec *x, const sprout_frame *frame, sprout_str actor, sprout_str place,
                                    const sprout_way *taken, bool person, bool *went, sprout_move_refusal *refusal) {
   sprout_saying saying;
   sprout_effect said;
   sprout_move_end end;
-  sprout_str *to;
+  sprout_str *to, toward = taken->to;
   memset(&saying, 0, sizeof saying);
+  memset(refusal, 0, sizeof *refusal);
   *went = false;
+  if (taken->drawn) {
+    bool refused;
+    EXPR_NEED(draw_choice(frame, actor, place, taken, &toward, &refused, refusal));
+    if (refused) return SPROUT_EVAL_OK;
+  }
   /* What the exit says is asked of the place before the move, and said to the one who went as the move is made. */
-  if (person) EXPR_NEED(sprout_exit_saying(frame, place, taken, &saying));
-  EXPR_NEED(sprout_move_instance(x, frame, actor, actor, taken->to, SPROUT_REACH_EXIT, taken->label, &end, refusal));
+  if (person && taken->drawn) EXPR_NEED(own_saying(frame, expr_instance(frame, place), taken->exit, &saying));
+  else if (person) EXPR_NEED(sprout_exit_saying(frame, place, taken, &saying));
+  EXPR_NEED(sprout_move_instance(x, frame, actor, actor, toward, SPROUT_REACH_EXIT, taken->label, &end, refusal));
   if (end != SPROUT_MOVE_DONE) return SPROUT_EVAL_OK;
   *went = true;
   if (!saying.says) return SPROUT_EVAL_OK;

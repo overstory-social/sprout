@@ -182,10 +182,10 @@ describe('an entry of a `remembers` block that could not be read', () => {
     // The span ends at whichever bound was written last; a span that
     // stopped short would suppress a real missing comma one level up.
     // The two readings have to agree.
-    const read1 = remember('remembers { :a 0 max 1 min % 2 :b 3 }').refusals;
-    const read2 = remember('remembers { :a 0 min 1 max % 2 :b 3 }').refusals;
+    const read1 = remember('remembers { :a 0 max 1 min @ 2 :b 3 }').refusals;
+    const read2 = remember('remembers { :a 0 min 1 max @ 2 :b 3 }').refusals;
     expect(read1.map((d) => d.message)).toEqual(read2.map((d) => d.message));
-    expect(read1.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+    expect(read1.map((d) => d.message)).toEqual(['Sprout does not use the character "@".']);
   });
 
   it('steps over the rest of a malformed entry rather than re-reading it as a new one', () => {

@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, PlayDeclaration } from '../syntax/ast.js';
+import type { Ident, KindDeclaration } from '../syntax/ast.js';
 import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
-import { anyKey, anyPlaysOf, playKey, playsOf, VerbNames, type ResolvedPlay } from './roles.js';
+import {
+  anyKey,
+  anyPlaysOf,
+  heardEnums,
+  playKey,
+  playsOf,
+  VerbNames,
+  type ResolvedPlay,
+  type Wildcard,
+} from './roles.js';
 
 /** The standard library's part: a verb of its own, and one the world may declare over. */
 const SPROUT_TEXT = `verb take { role target  "take [target]" }
@@ -50,10 +59,16 @@ function world(text: string, options: { onUnknownVerb?: boolean } = {}) {
     shop.filter((d): d is KindDeclaration => d.kind === 'kind'),
     diagnostics,
   );
-  const unknown: PlayDeclaration[] = [];
-  kinds.resolve('shop', new EnumTable(), diagnostics, undefined, {
+  const enums = new EnumTable();
+  enums.add(
+    'shop',
+    shop.filter((d) => d.kind === 'enum'),
+    diagnostics,
+  );
+  const unknown: Ident[] = [];
+  kinds.resolve('shop', enums, diagnostics, undefined, {
     verbs,
-    ...(options.onUnknownVerb === true ? { onUnknownVerb: (play) => unknown.push(play) } : {}),
+    ...(options.onUnknownVerb === true ? { onUnknownVerb: (verb) => unknown.push(verb) } : {}),
   });
   return {
     kinds,
@@ -142,7 +157,7 @@ kind Hand { as target for take { do { } } }`);
       onUnknownVerb: true,
     });
     expect(said).toEqual([]);
-    expect(unknown.map((play) => play.head.verb.text)).toEqual(['wibble']);
+    expect(unknown.map((verb) => verb.text)).toEqual(['wibble']);
     expect(kinds.qualified('shop', 'Warded')!.plays.size).toBe(0);
   });
 
@@ -237,6 +252,27 @@ kind Clerk {
   });
 });
 
+describe('the enums a value role is heard as, which an `act` may give it', () => {
+  const ask = { library: 'shop', name: 'ask', roles: [{ name: 'target' }, { name: 'topic' }] };
+
+  it('gathers each enum a `from` names through any part, once, and leaves out a range', () => {
+    const { said, kinds } = world(`${UNLOCK}enum Topic { toll, bridge }
+enum Mood { calm }
+kind Guard { :knows [Topic] default []  as target for ask { topic from :knows  do { } } }
+kind Clerk { :knows [Topic] default []  as target for ask { topic from :knows  do { } } }
+kind Owl is sprout.Actor { :moods [Mood] default []  as actor for ask { topic from :moods  do { } } }
+kind Dial { as target for ask { topic from 1 to 12  do { } } }
+kind Deaf { as target for ask { do { } } }`);
+    expect(said).toEqual([]);
+    const plays = (...names: string[]) => names.map((name) => kinds.qualified('shop', name)!.plays);
+    const heard = (...names: string[]) =>
+      heardEnums(plays(...names), ask, 'topic').map((one) => one.name);
+    expect(heard('Guard', 'Clerk', 'Owl', 'Dial', 'Deaf')).toEqual(['Topic', 'Mood']);
+    expect(heard('Dial', 'Deaf')).toEqual([]);
+    expect(heardEnums(plays('Guard'), ask, 'target')).toEqual([]);
+  });
+});
+
 describe('roles compose: every play of one role runs, in closure order, the composer’s own last', () => {
   const LOCKS = `${UNLOCK}kind Lock { as target for unlock { permit { } } }
 kind Cursed { as target for unlock { permit { } } }
@@ -290,8 +326,85 @@ kind Box is Lock { without as tool for unlock from Lock }`);
 });
 
 describe('a wildcard plays every verb at once, by the category of role it fills', () => {
-  const any = (kinds: KindTable, name: string, category: 'target' | 'tool') =>
-    anyPlaysOf(kinds.qualified('shop', name)!.plays, category).map((play) => play.origin);
+  const any = (kinds: KindTable, name: string, part: Wildcard) =>
+    anyPlaysOf(kinds.qualified('shop', name)!.plays, part).map((play) => play.origin);
+  const except = (kinds: KindTable, name: string, part: Wildcard) =>
+    anyPlaysOf(kinds.qualified('shop', name)!.plays, part).map((play) => play.except);
+
+  it('holds `as actor for any` under the actor’s own part, and `without` leaves it out', () => {
+    const { said, kinds } = world(`kind Frozen { as actor for any { permit { } } }
+kind Statue is Frozen { as actor for any { permit { } } }
+kind Thawed is Frozen { without as actor for any from Frozen }`);
+    expect(said).toEqual([]);
+    expect(any(kinds, 'Statue', 'actor')).toEqual(['shop.Frozen', 'shop.Statue']);
+    expect(any(kinds, 'Statue', 'target')).toEqual([]);
+    expect(any(kinds, 'Thawed', 'actor')).toEqual([]);
+  });
+
+  it('resolves `except` as a head resolves its verb: the composer’s own library first, then the standard library’s', () => {
+    const { said, kinds } = world(`verb take { role item  "grab [item]" }
+${UNLOCK}kind Ghost {
+  as target for any except take, look_at, unlock { permit { } }
+  as tool for any except unlock { permit { } }
+  as actor for any except look { permit { } }
+}
+kind Plain { as target for any { permit { } } }
+verb look_at { role target  "look at [target]" }`);
+    expect(said).toEqual([]);
+    expect(except(kinds, 'Ghost', 'target')).toEqual([
+      [
+        { library: 'shop', name: 'take' },
+        { library: 'shop', name: 'look_at' },
+        { library: 'shop', name: 'unlock' },
+      ],
+    ]);
+    expect(except(kinds, 'Ghost', 'tool')).toEqual([[{ library: 'shop', name: 'unlock' }]]);
+    expect(except(kinds, 'Ghost', 'actor')).toEqual([[{ library: 'sprout', name: 'look' }]]);
+    // A wildcard that leaves nothing out carries no list, so it reads as before.
+    expect(except(kinds, 'Plain', 'target')).toEqual([undefined]);
+  });
+
+  it('refuses an `except` naming a verb nothing declares, twice, or one the wildcard never plays', () => {
+    const { said, kinds } =
+      world(`${UNLOCK}kind Ghost { as target for any except unlokc { permit { } } }
+kind Twice { as tool for any except unlock, unlock { permit { } } }
+kind Idle { as target for any except look { permit { } } }
+kind Lone { as tool for any except take { permit { } } }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:3:39',
+        '`Ghost` leaves `unlokc` out of `as target for any`, and nothing declares that verb. Did you mean `unlock`?',
+        'Write `as target for any except unlock`, or declare `verb unlokc { … }`.',
+      ],
+      [
+        'shop.sprout:4:45',
+        '`as tool for any` leaves out `unlock` twice.',
+        'Name `unlock` once after `except`.',
+      ],
+      [
+        'shop.sprout:5:38',
+        '`look` has no roles, so `as target for any` never runs for it and has nothing to leave out.',
+        'Take `look` out of the `except` list.',
+      ],
+      [
+        'shop.sprout:6:36',
+        '`take` has no role but its target, so `as tool for any` never runs for it and has nothing to leave out.',
+        'Take `take` out of the `except` list.',
+      ],
+    ]);
+    // A refused `except` drops the wildcard, as any refused play is dropped.
+    expect(any(kinds, 'Ghost', 'target')).toEqual([]);
+  });
+
+  it('tells a load of an `except` verb nothing declares, and keeps the wildcard without it', () => {
+    const { said, unknown, kinds } = world(
+      `${UNLOCK}kind Ghost { as target for any except wibble, unlock { permit { } } }`,
+      { onUnknownVerb: true },
+    );
+    expect(said).toEqual([]);
+    expect(unknown.map((verb) => verb.text)).toEqual(['wibble']);
+    expect(except(kinds, 'Ghost', 'target')).toEqual([[{ library: 'shop', name: 'unlock' }]]);
+  });
 
   it('holds `as target for any` and `as tool for any` under their category, apart from any verb’s', () => {
     const { said, kinds, plays } = world(`${UNLOCK}kind Grip {
@@ -339,8 +452,8 @@ kind Idle is Busy { without as target for any from Busy }`);
       ],
       [
         'shop.sprout:5:17',
-        '`as item for any` names a role, and `for any` plays every verb at once, so it names what kind of role instead: `target` or `tool`.',
-        'Write `as target for any` for the thing a verb is done to, `as tool for any` for any other role, or name the verb: `as item for <verb>`.',
+        '`as item for any` names a role, and `for any` plays every verb at once, so it names what kind of role instead: `target`, `tool` or `actor`.',
+        'Write `as target for any` for the thing a verb is done to, `as tool for any` for any other role, `as actor for any` for whoever is acting, or name the verb: `as item for <verb>`.',
       ],
       [
         'shop.sprout:6:46',
@@ -351,6 +464,114 @@ kind Idle is Busy { without as target for any from Busy }`);
         'shop.sprout:7:29',
         '`Busy` has no `as target for any` to leave out.',
         '`without` names a member the kind after `from` declares itself. Take this line out, or name the kind that declares `as target for any`.',
+      ],
+    ]);
+  });
+});
+
+describe('a `default` play steps aside for any other source’s play of its role in its verb', () => {
+  const STOCK = `verb read { role target  "read [target]" }
+verb shift { role target  "pull [target]" }
+kind Thing {
+  as target for read default { permit { } do { say "How does one read {self}?" } }
+  as target for shift default { do { say "Moving {self} reveals nothing." } }
+}
+kind Food is Thing { }
+kind Readable is Thing { as target for read { do { say "It reads." } } }
+kind Box is Thing { }
+kind Portable is Thing { as target for shift { do { say "You pull {self}." } } }
+`;
+
+  it('runs where nothing else plays the role, and steps aside, permit and all, where something does', () => {
+    const { said, plays, kinds } = world(`${STOCK}kind Cake is Food, Readable { }
+kind Bag is Box, Portable { }`);
+    expect(said).toEqual([]);
+    expect(plays('Food', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Readable', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+    // The cake reaches Thing's `read` through Food too, and it steps aside there as well.
+    expect(plays('Cake', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+    expect(plays('Cake', 'shop', 'shift', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Box', 'shop', 'shift', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Bag', 'shop', 'shift', 'target')).toEqual(['shop.Portable']);
+    const bag = kinds.qualified('shop', 'Bag')!.plays;
+    expect(playsOf(bag, 'shop', 'read', 'target').map((play) => play.declaration.yields)).toEqual([
+      true,
+    ]);
+  });
+
+  it('steps aside for its own role in its own verb only, never for the actor’s part or a wildcard', () => {
+    const { said, plays } = world(`${STOCK}kind Reader is Food {
+  as actor for read { do { } }
+  as target for any { permit { } }
+  as target for shift { do { } }
+}`);
+    expect(said).toEqual([]);
+    expect(plays('Reader', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Reader', 'shop', 'read', 'actor')).toEqual(['shop.Reader']);
+    expect(plays('Reader', 'shop', 'shift', 'target')).toEqual(['shop.Reader']);
+  });
+
+  it('stays aside in a kind composing one where it stepped aside, as a `without` would leave it out', () => {
+    const { said, plays } =
+      world(`${STOCK}kind Mute is Readable { without as target for read from Readable }
+kind Muffin is Food, Mute { }`);
+    expect(said).toEqual([]);
+    expect(plays('Mute', 'shop', 'read', 'target')).toEqual([]);
+    // Through Food, Thing's `read` arrives and nothing else plays it.
+    expect(plays('Muffin', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+  });
+
+  it('is left out by `without` as any play is', () => {
+    const { said, plays } = world(
+      `${STOCK}kind Stone is Thing { without as target for read from Thing }`,
+    );
+    expect(said).toEqual([]);
+    expect(plays('Stone', 'shop', 'read', 'target')).toEqual([]);
+  });
+
+  it('gives way to a composer’s own default, which still steps aside further up', () => {
+    const { said, plays } =
+      world(`${STOCK}kind Book is Thing { as target for read default { do { } } }
+kind Novel is Book, Readable { }`);
+    expect(said).toEqual([]);
+    expect(plays('Book', 'shop', 'read', 'target')).toEqual(['shop.Book']);
+    expect(plays('Novel', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+  });
+
+  it('refuses a composer’s own default that a composed play displaces, since it never runs', () => {
+    const { said, plays } = world(
+      `${STOCK}kind Scroll is Readable { as target for read default { do { } } }`,
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:11:27',
+        "`Scroll`'s own `as target for read default` never runs: `Readable` plays `target` for `read` in it, and a default steps aside for any other play.",
+        'Take out `default` to run it beside that one, or leave that one out with `without as target for read from Readable` to answer in its place.',
+      ],
+    ]);
+    expect(plays('Scroll', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+  });
+
+  it('refuses two defaults from two sources with nothing else beside them, at the kind that brought the second', () => {
+    const { said, plays } = world(`${STOCK}kind Glyphs { as target for read default { do { } } }
+kind Tablet is Food, Glyphs { }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:12:22',
+        '`Tablet` gets a default `as target for read` from both `Thing` and `Glyphs`, and a default steps aside only for a play that is not one, so both would answer.',
+        'Write its own `as target for read { … }` in `Tablet`, which the defaults step aside for, or its own `as target for read default { … }`, which replaces them, or leave one out with `without as target for read from Glyphs`.',
+      ],
+    ]);
+    expect(plays('Tablet', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+  });
+
+  it('refuses `default` on a wildcard, which plays no one verb to step aside in', () => {
+    const { said } = world(`kind Ghost { as target for any default { permit { } } }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:1:14',
+        "`as target for any` is written `default`, and only a play for one verb steps aside for another source's play of it.",
+        'Take out `default`, or write `as <role> for <verb> default { … }` for the verb whose answer should step aside.',
       ],
     ]);
   });

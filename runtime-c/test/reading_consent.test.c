@@ -4,11 +4,14 @@
  * role-player narrows its own options): the participants are the actor and
  * then each role's players in the verb's order, a set role's in the order
  * typed and none for a tool left out; the first `permit` to refuse is the
- * reading's whole outcome, a play of the target before one of its tool; and
+ * reading's whole outcome, a play of the target before one of its tool, and a
+ * wildcard's for none of the verbs its `except` names; and
  * the frame a play runs in binds `actor`, `here` and each other role as that
  * play sees it, a set role always, a value only among the options the play
- * hears.
+ * hears, and the way `go` takes as a string, with a visitor actor's hands
+ * open to it and an NPC's not (Range).
  */
+#include "expr/expr.h"
 #include "reading_fixture.h"
 
 typedef struct consent_case {
@@ -115,6 +118,32 @@ static void a_reading_every_participant_consents_to_is_not_refused(void) {
   consent_close(&k);
 }
 
+static void a_wildcard_asks_nothing_of_a_verb_its_except_names(void) {
+  consent_case k;
+  bool refused = true;
+  sprout_permit_refusal refusal;
+  sprout_resolved nod;
+  sprout_filled shelf;
+  /* The wobbly shelf refuses `prop` through its wildcard, and its wildcard leaves `nod` out. */
+  consent_open(&k, "the order across participants is unchanged: the target refuses before its tool");
+  CHECK_INT(sprout_consent_pass(&k.c.x, &k.c.frame, &k.reading, &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK(refused);
+  CHECK(sprout_str_same(refusal.refusal.by, exec_str("bench.shop.shelf")));
+  CHECK_STR(refusal.refusal.origin, "bench.Shelf");
+  memset(&nod, 0, sizeof nod);
+  memset(&shelf, 0, sizeof shelf);
+  nod.verb = reading_verb(k.c.world, "bench.nod");
+  nod.actor = exec_str("bench#1");
+  shelf.filled = true;
+  shelf.bound.kind = SPROUT_BOUND_OBJECT;
+  shelf.bound.object = exec_str("bench.shop.shelf");
+  nod.roles = &shelf;
+  refused = true;
+  CHECK_INT(sprout_consent_pass(&k.c.x, &k.c.frame, &nod, &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK(!refused);
+  consent_close(&k);
+}
+
 /* The names a play of participant `index` runs under, oldest first, comma separated. */
 static const char *frame_names(consent_case *k, size_t index, bool *has_topic) {
   static char names[256];
@@ -176,6 +205,35 @@ static void a_value_is_bound_only_among_the_options_the_play_hears(void) {
   consent_close(&k);
 }
 
+/* The `way` the actor's own part of `go` is given, in a frame a play of the bench's `Person` would run in. */
+static void way_of(const char *name, const char *said) {
+  consent_case k;
+  const sprout_participant *participants;
+  const sprout_binding *way;
+  sprout_play play;
+  sprout_frame inside;
+  size_t count;
+  memset(&play, 0, sizeof play);
+  play.origin = "bench.Person";
+  consent_open(&k, name);
+  CHECK_INT(sprout_participants(&k.c.x, &k.reading, &participants, &count), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_play_frame(&k.c.x, &k.reading, &participants[0], &play, false, &inside), SPROUT_EVAL_OK);
+  way = expr_binding(&inside, "way");
+  CHECK(way != NULL);
+  if (way != NULL) {
+    CHECK_INT(way->bound.binds, SPROUT_BINDS_VALUE);
+    CHECK_INT(way->bound.value.kind, SPROUT_STRING);
+    CHECK(way->bound.value.as.string.length == strlen(said) &&
+          memcmp(way->bound.value.as.string.bytes, said, strlen(said)) == 0);
+  }
+  consent_close(&k);
+}
+
+static void the_actors_part_of_go_is_given_the_way_taken_as_a_string(void) {
+  way_of("go through an exit", "north");
+  way_of("go through a link", "onward");
+}
+
 static void a_permit_is_given_no_draws_and_a_do_is(void) {
   consent_case k;
   const sprout_participant *participants;
@@ -196,6 +254,37 @@ static void a_permit_is_given_no_draws_and_a_do_is(void) {
   consent_close(&k);
 }
 
+/* The frame participant `index`'s first play runs in. */
+static sprout_frame play_frame_of(consent_case *k, size_t index) {
+  const sprout_participant *participants;
+  const sprout_stored_instance *self;
+  sprout_plays plays;
+  sprout_frame inside;
+  size_t count;
+  memset(&inside, 0, sizeof inside);
+  CHECK_INT(sprout_participants(&k->c.x, &k->reading, &participants, &count), SPROUT_EVAL_OK);
+  self = sprout_draft_instance(&k->c.draft, participants[index].id);
+  sprout_plays_for(&k->reading, &participants[index], self->kind, &plays);
+  CHECK(plays.count > 0);
+  CHECK_INT(sprout_play_frame(&k->c.x, &k->reading, &participants[index], &plays.groups[0]->plays[0], true, &inside), SPROUT_EVAL_OK);
+  return inside;
+}
+
+static void a_visitors_reading_opens_their_hands_to_every_part_and_an_npcs_opens_none(void) {
+  consent_case k;
+  sprout_frame inside;
+  consent_open(&k, "every part plays: the target’s composed kinds, its tool, then the weights of a set role");
+  inside = play_frame_of(&k, 1);
+  CHECK(inside.hands.bytes != NULL && sprout_str_same(inside.hands, exec_str("bench#1")));
+  inside = play_frame_of(&k, 2);
+  CHECK(inside.hands.bytes != NULL && sprout_str_same(inside.hands, exec_str("bench#1")));
+  consent_close(&k);
+  consent_open(&k, "an NPC that carries the tool goes through to the permits");
+  inside = play_frame_of(&k, 1);
+  CHECK(inside.hands.bytes == NULL);
+  consent_close(&k);
+}
+
 static void the_golden_composition_and_value_readings_end_as_the_typescript_runtime_did(void) {
   exec_bench b;
   reading_bench_open(&b);
@@ -209,13 +298,16 @@ int main(void) {
   RUN(the_participants_are_the_actor_then_each_roles_players_in_the_verbs_order);
   RUN(a_tool_left_out_and_a_set_left_empty_are_not_participants);
   RUN(a_value_and_an_exit_are_named_by_the_visitor_and_play_no_part);
+  RUN(the_actors_part_of_go_is_given_the_way_taken_as_a_string);
   RUN(the_actors_place_is_its_container_which_holds_actors);
   RUN(an_actor_that_is_away_or_stands_where_none_stand_is_the_engines_defect);
   RUN(the_first_permit_to_refuse_is_the_readings_whole_outcome);
   RUN(a_reading_every_participant_consents_to_is_not_refused);
+  RUN(a_wildcard_asks_nothing_of_a_verb_its_except_names);
   RUN(a_plays_frame_binds_actor_here_and_each_other_role);
   RUN(a_value_is_bound_only_among_the_options_the_play_hears);
   RUN(a_permit_is_given_no_draws_and_a_do_is);
+  RUN(a_visitors_reading_opens_their_hands_to_every_part_and_an_npcs_opens_none);
   RUN(the_golden_composition_and_value_readings_end_as_the_typescript_runtime_did);
   return REPORT();
 }

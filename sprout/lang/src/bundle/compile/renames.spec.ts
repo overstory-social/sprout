@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration } from '../../syntax/ast.js';
+import type { KindDeclaration, PlayDeclaration } from '../../syntax/ast.js';
 import { Diagnostics } from '../../source/diagnostics.js';
 import { nodesOf } from '../../source/nodes.js';
 import { SourceFile } from '../../source/source.js';
@@ -61,6 +61,12 @@ describe('a verb and a message under another name', () => {
 
   it('reads a play’s and an `act`’s verb as the one imported', () => {
     expect(named('verb')).toEqual(['role-ref take', 'act take']);
+  });
+
+  it('reads the verbs a wildcard’s `except` names as the ones imported', () => {
+    const [ghost] = read('kind Ghost { as target for any except grab, wait { permit { } } }\n');
+    const play = rewrite(ghost as KindDeclaration, scope).members[0] as PlayDeclaration;
+    expect(play.except?.map((verb) => verb.text)).toEqual(['take', 'wait']);
   });
 
   it('reads a send’s, a broadcast’s and a handler’s message as the one imported', () => {

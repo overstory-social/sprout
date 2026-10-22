@@ -226,6 +226,7 @@ const LOG: readonly LogEntry[] = [
     fault: null,
     effects: [{ ...toMarta('described', ['A hall.', 'Tëst “lamp” \u{1F56F}']), from: 'shop.hall' }],
     cutShort: [],
+    warnings: [],
   },
   {
     kind: 'command',
@@ -255,6 +256,25 @@ const LOG: readonly LogEntry[] = [
       },
     ],
     cutShort: [{ level: 'warning', to: 'shop#4' }],
+    warnings: [
+      {
+        level: 'warning',
+        what: 'unread-refusal',
+        by: 'shop#1',
+        item: 'shop.hall.lamp',
+        to: 'shop#1',
+        refuser: 'shop#4',
+        guard: 'release',
+        words: '"Only I — “Ines” — may."',
+      },
+      {
+        level: 'warning',
+        what: 'lost-send',
+        by: 'shop#1',
+        target: 'gone.lamp',
+        message: 'shop.lit',
+      },
+    ],
     drawn: { level: 'warning', among: 2 },
   },
   {
@@ -277,6 +297,7 @@ const LOG: readonly LogEntry[] = [
     fault: { ...tangled, object: null, engine: true },
     effects: [{ ...toMarta('notice', ['Something has gone wrong.']), from: 'shop' }],
     cutShort: [],
+    warnings: [],
     drawn: null,
   },
   {
@@ -287,6 +308,7 @@ const LOG: readonly LogEntry[] = [
     fault: null,
     effects: [{ ...toMarta('told', ['The wind rises.']), actor: null }],
     cutShort: [],
+    warnings: [],
   },
   {
     kind: 'wake',
@@ -297,6 +319,7 @@ const LOG: readonly LogEntry[] = [
     fault: tangled,
     effects: [],
     cutShort: [],
+    warnings: [],
   },
   {
     kind: 'maintenance',
@@ -305,6 +328,7 @@ const LOG: readonly LogEntry[] = [
     delivered: [{ object: 'shop.hall.lamp', serial: 6 }],
     faulted: [{ object: 'shop#2', serial: 7, fault: tangled }],
     abandoned: [{ object: 'shop#3', serial: 8 }],
+    warnings: [],
   },
   {
     kind: 'departure',
@@ -314,6 +338,7 @@ const LOG: readonly LogEntry[] = [
     fault: null,
     effects: [toMarta('notice', ['You leave.'])],
     cutShort: [],
+    warnings: [],
   },
   {
     kind: 'withholding',

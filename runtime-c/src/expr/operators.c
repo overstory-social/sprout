@@ -1,11 +1,14 @@
 /*
  * The operators (the spec's The type system > What the compiler checks;
- * Precedence): `!` and `-`, the comparisons, `==` and `!=`, `+` and `-`, and
- * `||`, which decides from its left where it can and leaves its right
- * unevaluated. There is no truthiness and no coercion; the checker has typed
- * every operand, so reading one as what it is not is an engine error. A `+`
- * or `-` that leaves the integer range faults (the spec's The types).
+ * Precedence): `!` and `-`, the comparisons, `==` and `!=`, `+`, `-`, `*`,
+ * `/` and `%`, and `||`, which decides from its left where it can and leaves
+ * its right unevaluated. There is no truthiness and no coercion; the checker
+ * has typed every operand, so reading one as what it is not is an engine
+ * error. Arithmetic that leaves the integer range faults (the spec's The
+ * types); `/` and `%` truncate toward zero, and by zero they fault.
  */
+#include <stdint.h>
+
 #include "expr.h"
 
 sprout_eval_status expr_as_value(const sprout_frame *frame, const sprout_evaluated *evaluated, sprout_value *out) {
@@ -53,7 +56,7 @@ sprout_eval_status expr_as_list(const sprout_frame *frame, const sprout_evaluate
   return SPROUT_EVAL_OK;
 }
 
-/* A result of `+` or `-`: in the integer range, or a fault. */
+/* A result of arithmetic: in the integer range, or a fault. */
 static sprout_eval_status in_range(const sprout_frame *frame, double result, sprout_evaluated *out) {
   expr_text text;
   if (result < INTEGER_MIN || result > INTEGER_MAX) {
@@ -63,6 +66,36 @@ static sprout_eval_status in_range(const sprout_frame *frame, double result, spr
     return expr_fail(frame, "IntegerOverflow");
   }
   *out = sprout_evaluated_value(sprout_number(result));
+  return SPROUT_EVAL_OK;
+}
+
+/* `a / b` or `a % b` over two integers: truncated toward zero, and a fault where `b` is zero. */
+static sprout_eval_status divide(const sprout_frame *frame, bool remainder, double a, double b,
+                                 sprout_evaluated *out) {
+  expr_text text;
+  int64_t dividend = (int64_t)a, divisor = (int64_t)b;
+  if (divisor == 0) {
+    text = expr_text_begin(frame);
+    expr_put_number(&text, a);
+    expr_put(&text, remainder ? " % 0: there is no remainder by zero." : " / 0: nothing divides by zero.");
+    return expr_fail(frame, "DivisionByZero");
+  }
+  return in_range(frame, (double)(remainder ? dividend % divisor : dividend / divisor), out);
+}
+
+/* `a * b` over two integers, worked exactly, in the integer range or a fault naming both. */
+static sprout_eval_status multiply(const sprout_frame *frame, double a, double b, sprout_evaluated *out) {
+  expr_text text;
+  int64_t product = (int64_t)a * (int64_t)b;
+  if (product < (int64_t)INTEGER_MIN || product > (int64_t)INTEGER_MAX) {
+    text = expr_text_begin(frame);
+    expr_put_number(&text, a);
+    expr_put(&text, " * ");
+    expr_put_number(&text, b);
+    expr_put(&text, " is outside the integer range, -2147483648 to 2147483647.");
+    return expr_fail(frame, "IntegerOverflow");
+  }
+  *out = sprout_evaluated_value(sprout_number((double)product));
   return SPROUT_EVAL_OK;
 }
 
@@ -125,6 +158,9 @@ sprout_eval_status expr_binary(const sprout_frame *frame, const sprout_node *exp
   else if (strcmp(op, ">=") == 0) *out = sprout_evaluated_value(sprout_bool(a >= b));
   else if (strcmp(op, "+") == 0) return in_range(frame, a + b, out);
   else if (strcmp(op, "-") == 0) return in_range(frame, a - b, out);
+  else if (strcmp(op, "*") == 0) return multiply(frame, a, b, out);
+  else if (strcmp(op, "/") == 0) return divide(frame, false, a, b, out);
+  else if (strcmp(op, "%") == 0) return divide(frame, true, a, b, out);
   else return expr_unchecked(frame, "an operator this runtime does not know");
   return SPROUT_EVAL_OK;
 }

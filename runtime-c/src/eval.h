@@ -53,7 +53,7 @@ typedef enum sprout_eval_status {
  * where it names one (the spec's The runtime > Faults). `Error` is the engine's own, and names no object.
  */
 typedef struct sprout_eval_fault {
-  const char *name; /* BudgetExhausted, IntegerOverflow, NameOutOfRange, DestroyedReference, LifecycleFault, Error */
+  const char *name; /* BudgetExhausted, IntegerOverflow, DivisionByZero, NameOutOfRange, DestroyedReference, LifecycleFault, Error */
   char text[480];
   bool has_object;
   sprout_str object; /* valid while the turn's draft is */
@@ -71,7 +71,8 @@ typedef struct sprout_frame {
   const char *library;  /* the library or world whose kind wrote the body, for a kind written without one */
   const sprout_binding *bindings;
   sprout_eval_fault *fault; /* filled when an evaluation returns SPROUT_EVAL_FAULT or SPROUT_EVAL_ENGINE */
-  sprout_str hands;     /* a refusal's words: the acting visitor whose hands a range question sees into (the spec's Range), or none */
+  sprout_str hands;     /* a visitor's reading or a refusal's words: the acting visitor whose hands a range question sees into (the spec's Range), or none */
+  sprout_str beyond;    /* an exit's `when`: the place it leads to, which a name reaches though it is out of range (the spec's An exit may be conditional), or none */
 } sprout_frame;
 
 sprout_evaluated sprout_evaluated_value(sprout_value value);

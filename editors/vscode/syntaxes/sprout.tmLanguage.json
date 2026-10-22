@@ -246,7 +246,7 @@
         { "name": "entity.name.function.sprout", "match": "\\b[a-z_][a-z0-9_]*(?=\\s*\\()" },
         { "name": "variable.other.sprout", "match": "\\b[a-z_][a-z0-9_]*" },
         { "name": "keyword.operator.arrow.sprout", "match": "->" },
-        { "name": "keyword.operator.sprout", "match": "==|!=|<=|>=|&&|\\|\\||[<>!=+\\-*/]" },
+        { "name": "keyword.operator.sprout", "match": "==|!=|<=|>=|&&|\\|\\||[<>!=+\\-*/%]" },
         { "name": "punctuation.section.block.begin.sprout", "match": "\\{" },
         { "name": "punctuation.section.block.end.sprout", "match": "\\}" },
         { "name": "punctuation.section.brackets.sprout", "match": "[\\[\\]]" },

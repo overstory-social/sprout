@@ -9,6 +9,7 @@ const caughtUp = {
   delivered: [{ object: 'tally.hall.gauge', serial: 4 }],
   faulted: [{ object: 'tally.hall.counter', serial: 3, fault: FAULTED }],
   abandoned: [{ object: 'tally.hall.counter', serial: 5 }],
+  warnings: [],
 } as const;
 
 describe('a maintenance turn in the log', () => {

@@ -8,8 +8,9 @@
  * `nothing_happens` when no participant said, told or refused anything to
  * them; an NPC's reading is not answered, nor is a reading performed by
  * `act`. A person's own command then reads the descriptions its moves owe,
- * and what follows a command runs (after.c), unless `go` was refused, which
- * ends the pass.
+ * and is marked as owing what follows a command (after.c), which runs once
+ * the queue drains; a refused `go`, which ends the pass, is marked as
+ * refused, with its direction where it tried an exit.
  */
 #include <string.h>
 
@@ -74,7 +75,7 @@ static sprout_eval_status run_does(sprout_exec *x, const sprout_resolved *readin
       const sprout_node *body = sprout_node_get(&x->world->graph, sprout_node_get(&x->world->graph, play->node, "declaration"), "do");
       sprout_frame inside;
       sprout_ended ended;
-      if (body == NULL || body->kind == SPROUT_NODE_NULL) continue;
+      if (body == NULL || body->kind == SPROUT_NODE_NULL || !sprout_play_runs(play, reading->verb)) continue;
       /* `destroy self` takes effect as the `do` that ran it ends, so a composed play after it has no `self` to run for. */
       if (sprout_draft_instance(x->draft, who->id) == NULL) return SPROUT_EVAL_OK;
       EXPR_NEED(sprout_play_frame(x, reading, who, play, true, &inside));
@@ -106,8 +107,13 @@ sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame,
     status = nothing_happens(x, frame, reading->actor);
   sprout_hearing_restore(x, &saved);
   if (status != SPROUT_EVAL_OK || x->acting > 0) return status;
-  /* A typed command's descriptions are read once everything its participants said is said, before what follows it. */
+  /* A typed command's descriptions are read once everything its participants said is said. */
   for (i = owed_from; i < x->owed_count; i++) x->owed[i].after = x->effect_count;
-  if (person && !(way != NULL && went == SPROUT_WENT_REFUSED)) status = sprout_after_command(x, frame, reading->actor);
+  if (person) {
+    bool refused = way != NULL && went == SPROUT_WENT_REFUSED;
+    sprout_str tried = {NULL, 0};
+    if (refused && way->has_direction) tried = way->direction;
+    sprout_after_owed(x, refused, tried);
+  }
   return status;
 }

@@ -1,0 +1,13 @@
+// Every creature hears the topics it knows, so a topic given to `quiz`
+// is an option of `Topic`.
+import * as sprout from 'sprout'
+import {Topic, quiz} from 'act_option_unheard'
+
+kind Creature is sprout.Actor {
+  :knows [Topic] default [toll]
+
+  as target for quiz {
+    topic from :knows
+    do { say "Hm." }
+  }
+}

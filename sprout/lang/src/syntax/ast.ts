@@ -207,7 +207,8 @@ export interface UnaryExpr extends Node {
   readonly operand: Expr;
 }
 
-export type BinaryOperator = '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' | '&&' | '||';
+export type BinaryOperator =
+  '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' | '*' | '/' | '%' | '&&' | '||';
 
 export interface BinaryExpr extends Node {
   readonly kind: 'binary';
@@ -340,12 +341,23 @@ export interface ConnectStatement extends Node {
   readonly destination: ObjectPath;
 }
 
-/** `target: p` inside an `act`'s brackets: a role of the verb, and what fills it. */
+/** `target: p` inside an `act`'s brackets: a role of the verb, filled by a name. */
 export interface ActRole extends Node {
   readonly kind: 'act-role';
   readonly role: Ident;
   /** A binding or an identifier, or a dotted path to one. */
   readonly filler: ObjectPath;
+}
+
+/**
+ * `spell: :feeble`, `count: n + 1` inside an `act`'s brackets: a value
+ * role filled by a value worked out where the `act` stands (the spec's
+ * Verbs › Acting). A lone name is an `ActRole`, whatever it holds.
+ */
+export interface ActValue extends Node {
+  readonly kind: 'act-value';
+  readonly role: Ident;
+  readonly value: Expr;
 }
 
 /**
@@ -357,7 +369,7 @@ export interface ActStatement extends Node {
   readonly kind: 'act';
   readonly verb: Ident;
   /** In the order written. */
-  readonly roles: readonly ActRole[];
+  readonly roles: readonly (ActRole | ActValue)[];
 }
 
 /**
@@ -774,6 +786,10 @@ export interface FromDeclaration extends Node {
 export interface PlayDeclaration extends Node {
   readonly kind: 'play';
   readonly head: RoleRef;
+  /** `for any except examine, wait`: the verbs a wildcard does not run for, where any are written. */
+  readonly except?: readonly Ident[];
+  /** `as target for read default`: steps aside wherever another source plays the role for the verb; present only where written. */
+  readonly yields?: true;
   readonly narrows: readonly FromDeclaration[];
   readonly permit: Block | null;
   readonly do: Block | null;

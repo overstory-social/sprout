@@ -150,6 +150,9 @@ A few more things worth knowing:
 
 - **Articles are optional.** `take the brass key` and `take brass key` are
   the same. So are `my`, `this` and `that`.
+- **Quotation marks are optional too.** `say "well"` is `say well`, and
+  `answer "a well"` is `answer well`. An apostrophe inside a word, as in
+  `king's`, stays.
 - **You can use a short name.** "brass key" also answers to `key`, and to
   `brass` where nothing else is called brass. `the key in the box` names
   the one in the box.
@@ -277,10 +280,11 @@ With `--debug`, `@advance` also shows the server's own note that
 something in the world woke up: `printers_shop#4 woke, 2400 seconds after
 it asked`.
 
-Dice in Sprout are not truly random: each moment rolls from a number
-called the _seed_, which starts at 0. That is what makes worlds
-repeatable. If the cat never does anything interesting, try `@seed 23`
-and then `@tick`.
+Dice in Sprout are not truly random: each turn rolls from a number
+called the _seed_, and each turn's seed is the next of a stream that
+begins from the clock, or from `--seed 7` where you give it. That is what
+makes a session repeatable. If the cat never does anything interesting,
+try `@seed 23` and then `@tick`.
 
 ## Starting somewhere else
 

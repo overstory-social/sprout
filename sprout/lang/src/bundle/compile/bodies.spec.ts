@@ -55,6 +55,7 @@ function checking(text: string) {
       kinds,
       here: hereKindOf(kinds.all(), kinds),
       verbs,
+      heard: () => [],
       diagnostics,
       messages: { lookup: new MessageTable() },
       source: { tree: placeObjects([], { world: 'shop', diagnostics }), contents: new Map() },

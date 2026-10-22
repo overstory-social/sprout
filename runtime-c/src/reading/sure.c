@@ -96,7 +96,7 @@ sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *fram
         sprout_str item, to;
         bool in;
         EXPR_NEED(expr_spend(frame));
-        move = sure_move(&frame->world->graph, play);
+        move = sprout_play_runs(play, reading->verb) ? sure_move(&frame->world->graph, play) : NULL;
         if (move == NULL) continue;
         EXPR_NEED(sprout_play_frame(x, reading, &participants[i], play, false, &inside));
         if (!named(&inside, sprout_node_get(&frame->world->graph, move, "thing"), &item) ||

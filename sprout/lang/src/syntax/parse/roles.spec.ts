@@ -77,6 +77,40 @@ describe('a play', () => {
     ).toEqual(['topic :knows', 'dial -3 to 12']);
   });
 
+  it('after `for any`, takes the verbs its `except` names, separated by commas', () => {
+    const { plays, said, rest } = readPlays(
+      'as actor for any except wait, diagnose { permit { refuse "You are frozen solid." } }\n  as tool for any { permit { } }',
+    );
+    expect(said).toEqual([]);
+    expect(rest).toBe('}\n');
+    expect(unspanned(plays)).toEqual([]);
+    expect(plays.map((one) => one.except?.map((verb) => verb.text))).toEqual([
+      ['wait', 'diagnose'],
+      undefined,
+    ]);
+    expect(plays[0]!.head.verb.text).toBe('any');
+  });
+
+  it('takes `default` after its head, and is written so only where it is', () => {
+    const { plays, said, rest } = readPlays(
+      'as target for read default { do { say cannot_read } }\n  as actor for read { do { } }',
+    );
+    expect(said).toEqual([]);
+    expect(rest).toBe('}\n');
+    expect(unspanned(plays)).toEqual([]);
+    expect(plays.map((one) => one.yields)).toEqual([true, undefined]);
+    expect(plays[0]!.head.verb.text).toBe('read');
+  });
+
+  it('says a `default` play is never closed, or has nothing in braces, in its own words', () => {
+    expect(readPlays('as target for read default do { }').messages).toEqual([
+      'What `as target for read default` does goes in braces.',
+    ]);
+    expect(readPlays('as target for read default { }').messages).toEqual([
+      '`as target for read default` says nothing: write a `permit { … }`, a `do { … }`, or both.',
+    ]);
+  });
+
   it('may leave out either block, but not both', () => {
     expect(readPlays('as target for pull { permit { allow } }').plays[0]!.do).toBeNull();
     expect(readPlays('as target for pull { do { } }').plays[0]!.permit).toBeNull();
@@ -171,6 +205,30 @@ describe('what a play’s head and body refuse, where, and what to write', () =>
       'Write `topic from :<property>`, as in `topic from :knows`, or a range, as in `topic from 1 to 12`.',
     ],
     [
+      'as target for pull except take { do { } }',
+      'k.sprout:2:22',
+      '`except` leaves verbs out of a play for every verb, and `as target for pull` plays only `pull`.',
+      'Take out `except …` to play `pull` alone, or write `as target for any except take` to play every verb but that one.',
+    ],
+    [
+      'as target for any except { permit { } }',
+      'k.sprout:2:27',
+      '`except` names the verbs `as target for any` does not run for, separated by commas.',
+      'Write `as target for any except examine, wait { … }`, naming verbs.',
+    ],
+    [
+      'as target for any except take, { permit { } }',
+      'k.sprout:2:33',
+      '`except` names the verbs `as target for any` does not run for, separated by commas.',
+      'Write `as target for any except examine, wait { … }`, naming verbs.',
+    ],
+    [
+      'as target for any except Take { permit { } }',
+      'k.sprout:2:28',
+      'A verb is named in lower case, and `Take` starts with a capital.',
+      'Write `take`, as the verb declares it.',
+    ],
+    [
       'as target for pull { dial from 1 do { } }',
       'k.sprout:2:35',
       '`dial from 1` does not say where the range ends.',
@@ -230,6 +288,14 @@ const WELL_FORMED_PLAYS = [
     name: 'hand',
     text: 'as actor for take { permit { if (self.holds(target)) { refuse "Got it." } } }',
   },
+  {
+    name: 'ghost',
+    text: 'as target for any except examine, wait { permit { refuse "Nothing." } }',
+  },
+  {
+    name: 'stock',
+    text: 'as target for read default { do { say "How does one read {self}?" } }',
+  },
 ];
 
 const PLAY_DEFECTS: readonly string[] = [
@@ -253,6 +319,13 @@ const PLAY_DEFECTS: readonly string[] = [
   'as target for pull { do { if (bound) { } } }',
   'as target for pull { do { %% } }',
   'as for pull { do { } }',
+  'as target for pull except take { do { } }',
+  'as target for any except { permit { } }',
+  'as target for any except take, { permit { } }',
+  'as target for any except Take { permit { } }',
+  'as target for read default',
+  'as target for read default { }',
+  'as target for read default default { do { } }',
 ];
 const PLAY_UNCLOSED = 'as target for pull { do { say "Hi." }';
 
@@ -299,9 +372,11 @@ describe('a well-formed play never vanishes, and never answers for its neighbour
     }
     expect([...reached].sort()).toEqual([
       'contained',
+      'kept ghost',
       'kept guard',
       'kept hand',
       'kept key',
+      'kept stock',
       'unclosed',
     ]);
   });

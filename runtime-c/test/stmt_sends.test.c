@@ -4,7 +4,7 @@
  * live and in the sender's range for that message, and to no one otherwise;
  * a `broadcast` is queued to everything the sender's range walk reaches but
  * the sender itself and a container that refuses, which the walk reaches only
- * as a surface. Nothing is delivered by the statement.
+ * as a surface, so what shares a shut container with the sender hears it. Nothing is delivered by the statement.
  */
 #include "exec_fixture.h"
 
@@ -91,6 +91,25 @@ static void a_broadcast_reaches_what_the_walk_reaches_but_the_sender_and_surface
   exec_bench_close(&b);
 }
 
+static void a_broadcast_from_inside_a_shut_container_reaches_what_shares_it_and_nothing_outside(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_run run;
+  const sprout_str chest = exec_str("exec_bench.hall.chest");
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a broadcast walks the sender’s range, into a container that passes the message"));
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.runner"), &chest), SPROUT_DRAFT_OK);
+  run = exec_run(&c);
+  CHECK_INT(stmt_broadcast(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
+  CHECK(queued_to(&c, "exec_bench.hall.chest.coin"));
+  /* The shut chest is a surface and a wall: it is not sent to, nor is anything past it. */
+  CHECK(!queued_to(&c, "exec_bench.hall.chest"));
+  CHECK(!queued_to(&c, "exec_bench.hall.bell"));
+  CHECK(!queued_to(&c, "exec_bench.hall.glass.moth"));
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void a_send_in_a_body_that_decides_is_the_engines_defect(void) {
   exec_bench b;
   exec_case c;
@@ -118,6 +137,7 @@ int main(void) {
   RUN(a_send_to_what_is_out_of_range_goes_nowhere_and_nothing_else_happens);
   RUN(a_send_carries_the_value_it_is_given);
   RUN(a_broadcast_reaches_what_the_walk_reaches_but_the_sender_and_surfaces);
+  RUN(a_broadcast_from_inside_a_shut_container_reaches_what_shares_it_and_nothing_outside);
   RUN(a_send_in_a_body_that_decides_is_the_engines_defect);
   RUN(the_golden_send_cases_end_as_the_typescript_runtime_did);
   return REPORT();

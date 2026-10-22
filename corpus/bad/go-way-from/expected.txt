@@ -1,0 +1,4 @@
+person.sprout:8:5  `way` is the way taken, so there is nothing for `from` to narrow.
+                   Read `way` in the body instead, as in `if (way == "north") { … }`.
+
+refused: 1 problem

@@ -2,11 +2,14 @@
  * Tests for src/stmt/propose.c (the spec's Verbs > Moving something,
  * Acting): a `move` is a proposal the engine puts to everyone with standing;
  * a refusal is said to whoever the body speaks to and ends the body. An `act`
- * is a reading with `self` as the actor and each named role filled, run on
- * the spot by the reading pass; the body goes on after it unless the reading
- * was refused or the actor is gone.
+ * is a reading with `self` as the actor and each named role filled, by a
+ * name or by a value worked out where it stands, run on the spot by the
+ * reading pass; the body goes on after it unless the reading was refused or
+ * the actor is gone. A value is narrowed by its role-player's `from` as a
+ * typed one is, played over corpus/good/act-values.
  */
 #include "exec_fixture.h"
+#include "turn_fixture.h"
 
 static void a_move_every_party_allows_does_not_stop_the_body(void) {
   exec_bench b;
@@ -118,6 +121,26 @@ static void the_golden_act_cases_end_as_the_typescript_runtime_did(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+static void an_act_gives_a_value_role_its_value_and_the_role_players_from_narrows_it(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "act-values");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-wren", "provoke", "tower.wizard", 1000, &out);
+  CHECK(out.committed);
+  /* `:feeble`, written bare, and `:fear`, held by a binding, are among the spells she hears. */
+  CHECK(tw_told(&out, "v-wren", "Your limbs go weak."));
+  CHECK(tw_told(&out, "v-wren", "You are seized by dread."));
+  /* `:float` is not, so it arrives unbound, as a typed one would. */
+  CHECK(tw_told(&out, "v-wren", "The spell washes over you."));
+  /* A count worked out where the wizard stands binds within her range; 7 is past it. */
+  CHECK(tw_told(&out, "v-wren", "A bell rings 2 times."));
+  CHECK(tw_told(&out, "v-wren", "The bell is silent."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void the_golden_move_cases_end_as_the_typescript_runtime_did(void) {
   exec_bench b;
   exec_bench_open(&b);
@@ -133,6 +156,7 @@ int main(void) {
   RUN(an_act_runs_its_reading_on_the_spot_and_the_body_stops_where_the_reading_says);
   RUN(an_act_begins_with_the_reading_pass_of_the_engine);
   RUN(the_golden_act_cases_end_as_the_typescript_runtime_did);
+  RUN(an_act_gives_a_value_role_its_value_and_the_role_players_from_narrows_it);
   RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
   return REPORT();
 }

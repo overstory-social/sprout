@@ -5,7 +5,8 @@
 //
 // A wildcard, `as tool for any`, plays every verb at once and so knows no
 // verb's roles: its `permit` has `self`, `actor` and `here`, and a name
-// any verb gives a role is refused there, saying why.
+// any verb gives a role is refused there, saying why. `as actor for any`
+// is played only by an actor, as `as actor for <verb>` is.
 //
 // Inside, `self` is the role-player, `actor` whoever is acting, typed as
 // `sprout.Actor` since a person or an NPC may be acting, `here` their
@@ -48,6 +49,7 @@ export interface PlaySetting {
   /** What `here` is typed as in this world. */
   readonly here: HereKind;
   readonly verbs: ActSetting['verbs'];
+  readonly heard: ActSetting['heard'];
   readonly diagnostics: Diagnostics;
   /** Where the body's identifiers resolve from; with none, only bindings are names. */
   readonly names?: NameScope;
@@ -99,6 +101,13 @@ function checkWildcard(play: ResolvedPlay, self: KindRef, setting: PlaySetting):
   const before = diagnostics.refusals.length;
   const at = play.declaration.head.at;
   const written = `as ${play.role} for any`;
+  if (play.role === ACTOR_ROLE && !isActor(self)) {
+    diagnostics.refuse(
+      play.declaration.head.role.at,
+      `Only an actor acts, and \`${self.name}\` does not compose \`${ACTOR}\`.`,
+      `Compose \`${ACTOR}\` into \`${self.name}\`, or write \`as target for any\` or \`as tool for any\` to guard the roles it fills.`,
+    );
+  }
   const scope = participantScope(self, at, setting);
   const names = new Set([play.role]);
   for (const verb of setting.verbs.all()) for (const role of verb.roles) names.add(role.name);
@@ -143,7 +152,7 @@ function contextOf(
     self,
     diagnostics: setting.diagnostics,
     ...(verb === null ? {} : { verb }),
-    acting: { verbs: setting.verbs },
+    acting: { verbs: setting.verbs, heard: setting.heard },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
     ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),
@@ -176,9 +185,6 @@ function bindRole(
   const name = role.name;
   const narrowing = play.narrows.get(name) ?? null;
   const filler = role.filler ?? { fills: 'open' as const };
-  // An exit is the engine's to take, and binds nothing in a play.
-  if (filler.fills === 'exit') return;
-
   const thing = filler.fills === 'kind' || filler.fills === 'open';
   if (thing && narrowing !== null) {
     // `from` on a role a thing fills: `roleBinding` says why it narrows nothing.
@@ -211,7 +217,7 @@ function bindRole(
     );
     return;
   }
-  if (!thing && narrowing === null) {
+  if ((filler.fills === 'symbol' || filler.fills === 'integer') && narrowing === null) {
     const never = neverBound(name, filler.fills, self);
     scope.withhold(
       { name, at, unread: never, bound: { bindable: false, words: never } },

@@ -76,6 +76,7 @@ typedef struct sprout_effect {
   sprout_speech said;
   size_t binding_count;
   const sprout_effect_binding *bindings;
+  sprout_str hands; /* the acting visitor whose hands the words see into, as the frame that said them did; or none */
 } sprout_effect;
 
 /* A description a move owes the one it carried between places, read once `after` effects are said. */
@@ -168,6 +169,9 @@ typedef struct sprout_exec {
   bool records_as_said; /* an extension's effect reaches those who read what is said, rather than the teller's place */
   bool hears_live;      /* what is said is heard by whoever would hear the speaker's `tell` now, rather than by `heard_by` */
   size_t acting;        /* the `act`s the readings now running stand inside, one deeper against the cascade depth each */
+  bool follows;         /* a person's own command was run, so its `after command`s are owed once the queue drains */
+  bool follows_refused; /* the command they follow was refused, which they read as `refused` */
+  sprout_str follows_way; /* the direction a refused `go` tried, bound as `way`; no bytes for any other command */
 
   /* What the turn has done, in order. */
   sprout_effect *effects;
@@ -177,6 +181,8 @@ typedef struct sprout_exec {
   bool accounts; /* each handler and hook a delivery runs is kept in `ran`, for the turn's account */
   sprout_ran *ran;
   size_t ran_count, ran_capacity;
+  sprout_warning *warnings; /* what bodies did that nobody was told of, for the log */
+  size_t warning_count, warning_capacity;
   sprout_reading_fn reading; /* the reading pass an `act` runs on the spot */
   size_t events; /* deliveries that ran a handler or a hook */
 
@@ -232,7 +238,8 @@ typedef enum sprout_via {
   SPROUT_VIA_SELF,    /* the asker */
   SPROUT_VIA_HELD,    /* one of its own contents */
   SPROUT_VIA_SURFACE, /* a container outward that refuses, seen from inside only as a surface */
-  SPROUT_VIA_PASSED   /* reached through a rule that passed */
+  SPROUT_VIA_PASSED,  /* reached through a rule that passed */
+  SPROUT_VIA_BESIDE   /* inside the first container out that refuses, beside the way the walk came */
 } sprout_via;
 
 typedef struct sprout_reached {
@@ -287,9 +294,15 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
                                         sprout_move_refusal *refusal);
 
 /*
+ * Whether `mover` is an NPC moving itself to `to`, a place, that a kind that `roams` would reach (the spec's Actors
+ * and visitors): where `to` is out of its range, the fault says so, the likeliest thing its author meant.
+ */
+bool sprout_move_would_roam(const sprout_frame *frame, sprout_str mover, sprout_str item, sprout_str to);
+
+/*
  * What `place` says and sends of `actor` leaving it for `other` (`leaving`) or entering it from `other`: the
  * engine's `leaves` or `arrives` recorded for the visitors in its range, and `:departed` or `:arrived` queued
- * for everything else there. `other` is left unbound where it is the world, and `way` (which may be NULL)
+ * for everything there but `actor`, the visitors too. `other` is left unbound where it is the world, and `way` (which may be NULL)
  * where the move went through no exit or link. The tree is read as it stands after the move.
  */
 sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
@@ -350,8 +363,20 @@ sprout_eval_status sprout_hear_reading(sprout_exec *x, const sprout_frame *frame
                                        const sprout_str *participants, size_t count, sprout_hearing *saved);
 void sprout_hearing_restore(sprout_exec *x, const sprout_hearing *saved);
 
-/* A refused move recorded as the refusal it is, said to whoever the body speaks to. */
-sprout_eval_status sprout_record_refusal(sprout_exec *x, const sprout_frame *frame, const sprout_move_refusal *refusal);
+/*
+ * A refused move recorded as the refusal it is, said to whoever the body speaks to; `readers`, where not NULL, is
+ * how many that is.
+ */
+sprout_eval_status sprout_record_refusal(sprout_exec *x, const sprout_frame *frame, const sprout_move_refusal *refusal,
+                                         size_t *readers);
+
+/* A `move` of `item` to `to` that `refusal` refused and nobody read, kept as a warning for the log. */
+sprout_eval_status sprout_warn_unread(sprout_exec *x, const sprout_frame *frame, sprout_str item, sprout_str to,
+                                      const sprout_move_refusal *refusal);
+
+/* A `send` of the message `key` to `written` that reached nothing, kept as a warning for the log. */
+sprout_eval_status sprout_warn_send_lost(sprout_exec *x, const sprout_frame *frame, const char *written,
+                                         const char *key);
 
 /* ---- wakes.c ---- */
 

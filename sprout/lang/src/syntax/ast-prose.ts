@@ -4,7 +4,7 @@
 // `kind` and an `at`.
 //
 // Words are kept as written, escapes resolved and line breaks still in
-// them, since reflow is the renderer's; a blank line is its own node,
+// them, since reflow is the renderer's; a verbatim block is never reflowed; a blank line is its own node,
 // taken out of the words at the place it was written, so a block that
 // renders nothing between two blank lines leaves no paragraph behind.
 
@@ -29,12 +29,33 @@ export interface ProseNewline extends Node {
 }
 
 /**
+ * `{verbatim}…{/verbatim}` — words laid out exactly as written: every
+ * space, line break and blank line kept, and nothing capitalised. The
+ * line breaks just inside its tags and the indentation of the line its
+ * opening tag stands on are not part of it; escapes are resolved.
+ */
+export interface ProseVerbatim extends Node {
+  readonly kind: 'prose-verbatim';
+  readonly text: string;
+}
+
+/**
  * `{thing}`, `{self.get(:mood)}`, `{pot.greeting}` — one thing rendered:
  * an object, an option, a number, a string, or another object's passage.
  */
 export interface ProseSlot extends Node {
   readonly kind: 'prose-slot';
   readonly expr: Expr;
+}
+
+/**
+ * `{exit east}` — the place the exit that applies in that direction leads
+ * to, as its own `describe` shows it (the spec's Prose › Slots). The
+ * direction is the word as written.
+ */
+export interface ProseExit extends Node {
+  readonly kind: 'prose-exit';
+  readonly direction: Ident;
 }
 
 /**
@@ -76,7 +97,15 @@ export interface ProseOneOf extends Node {
 }
 
 export type ProsePiece =
-  ProseWords | ProseParagraph | ProseNewline | ProseSlot | ProseIf | ProseFor | ProseOneOf;
+  | ProseWords
+  | ProseParagraph
+  | ProseNewline
+  | ProseVerbatim
+  | ProseSlot
+  | ProseExit
+  | ProseIf
+  | ProseFor
+  | ProseOneOf;
 
 /** A run of prose: a passage's whole body, a line in quotes, or a block's inside. */
 export interface Prose extends Node {

@@ -136,6 +136,72 @@ describe('an exit, against the whole bundle', () => {
     ).toEqual([['refusal', 'ways.sprout:4:68']]);
   });
 
+  it('draws among two or more places and one refusal, each checked as a destination or a refusal is', () => {
+    expect(
+      said(
+        'exit west "west" -> one of (shop, shop.loft, refuse "{actor} finds no way out of {here}.") say "You lurch." when (!lamp.get(:lit))',
+      ),
+    ).toEqual([]);
+    expect(said('exit west "west" -> one of (shop, shelf)').map((one) => one.slice(2))).toEqual([
+      [
+        '`shelf` does not hold actors, so nobody could stand where this exit leads.',
+        'Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.',
+      ],
+    ]);
+    expect(
+      said('exit west "west" -> one of (shop, refuse "{mover} stops.")')[0]!.slice(2, 3),
+    ).toEqual(['Nothing here is called `mover`.']);
+    // A passage a drawn refusal names is checked where the refusal says it, as a refusing exit's is.
+    expect(
+      said(
+        'exit west "west" -> one of (shop, refuse gone)',
+        {},
+        'passage gone { {mover} goes. }',
+      ).map((one) => one.slice(0, 2)),
+    ).toEqual([['refusal', 'ways.sprout:4:84']]);
+  });
+
+  it('refuses a drawn way of one choice, a place named twice, or a second refusal, since the draw is even', () => {
+    expect(said('exit west "west" -> one of (shop)').map((one) => one.slice(2))).toEqual([
+      [
+        '`one of` draws among two or more choices, and this names one.',
+        'Lead the exit there, as in `exit west "west" -> shop`, or name the other places it may lead to.',
+      ],
+    ]);
+    expect(said('exit west "west" -> one of (refuse "No.")').map((one) => one.slice(2))).toEqual([
+      [
+        '`one of` draws among two or more choices, and this names one.',
+        'Write the refusal in place of `->`, as in `exit west "west" refuse "…"`, or name the places it may lead to.',
+      ],
+    ]);
+    expect(
+      said('exit west "west" -> one of (shop, shop.loft, shop)').map((one) => one.slice(1)),
+    ).toEqual([
+      [
+        'ways.sprout:4:88',
+        "`shop` is already among this `one of`'s choices, and naming it twice would make it likelier than the others.",
+        'Name each place once: every choice is drawn as often as any other.',
+      ],
+    ]);
+    expect(
+      said('exit west "west" -> one of (shop, ways.shop)').map((one) => one.slice(2, 3)),
+    ).toEqual([
+      [
+        "`ways.shop` is already among this `one of`'s choices, and naming it twice would make it likelier than the others.",
+      ],
+    ]);
+    expect(
+      said('exit west "west" -> one of (shop, refuse "No.", refuse "Never.")').map((one) =>
+        one.slice(2),
+      ),
+    ).toEqual([
+      [
+        'This `one of` already refuses among its choices, and a second refusal would make refusing likelier than each place.',
+        'Keep one `refuse`: every choice is drawn as often as any other.',
+      ],
+    ]);
+  });
+
   it('refuses a `when` that is not a condition, or reads who is acting', () => {
     expect(said('exit in "in" -> shop when (lamp.get(:fuel))')[0]!.slice(2)).toEqual([
       "An exit's `when` says whether it applies, so it is true or false, and this is integer.",
@@ -144,6 +210,18 @@ describe('an exit, against the whole bundle', () => {
     expect(said('exit in "in" -> shop when (actor.is(Lamp))')[0]!.slice(2)).toEqual([
       "`actor` is not bound in an exit's `when`: it is asked of the place, whoever looks.",
       'Read the place through `self`, as in `when (self.get(:lit))`, or a thing by its name.',
+    ]);
+  });
+
+  it('reads in its `when` the place it leads to, and refuses another place and what that one holds', () => {
+    expect(said('exit in "in" -> shop when (shop.is(sprout.Place) && !shop.get(:unseen))')).toEqual(
+      [],
+    );
+    expect(said('exit up "up" -> shop.loft when (!shop.get(:unseen))')[0]!.slice(2, 3)).toEqual([
+      '`shop` is another place, out of range of `yard`, so `shop.get(…)` can never be read from here: the world lets nothing pass between its places.',
+    ]);
+    expect(said('exit in "in" -> shop when (shop.count(Lamp) == 0)')[0]!.slice(2, 3)).toEqual([
+      '`shop` is where this exit leads, and its `when` reads that place itself, not what is in it, so `shop.count(…)` cannot be asked here.',
     ]);
   });
 

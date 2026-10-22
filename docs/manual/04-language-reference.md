@@ -455,8 +455,8 @@ That is where `tell` reaches, what they leave when they go, and what
 `look` describes.
 
 When someone enters a place, every other visitor in reach of it reads the
-`arrives` line, every other object there is sent `:arrived`, and the one
-arriving reads the place's description. Leaving is the mirror: `leaves`,
+`arrives` line, everyone and everything else there, visitors included,
+is sent `:arrived`, and the one arriving reads the place's description. Leaving is the mirror: `leaves`,
 and `:departed`. `arrives` is given `from`, the place they came from, and
 `leaves` is given `to`, the place they went to; someone coming into the
 world or leaving it has none. Both are given `way`, the label of the exit
@@ -512,7 +512,7 @@ Like any refusal's words, they see into the visitor's hands, so
 `actor.count(Coffin)` counts the coffins the visitor carries, which a
 description of the place cannot. Going that way, by its direction or its label, reads those words, and
 nothing moves. Such an exit is never offered: it has no chip, `help` does
-not list it, and it does not count toward a place's 8.
+not list it, and it does not count toward a place's exits.
 
 An exit that leads somewhere may also say something as a visitor goes
 through it. Write `say` and its words after the destination, before any
@@ -566,6 +566,37 @@ grammar {
 }
 ```
 
+### Ways that turn a visitor
+
+An exit may lead to one of several places, picked at random each time
+someone takes it. Write `one of` and the places in brackets in place of
+the destination; a `refuse` and its words may be one of the choices:
+
+```sprout
+grammar {
+  exit west "west" -> one of (room_8, marble_hall, stream_path) when (self.get(:spinning))
+  exit west "west" -> one of (marble_hall, refuse "There is no way to go in that direction.")
+}
+```
+
+- It is offered as one way, by its direction and label. Nothing shows
+  where it leads, because that is not decided until someone goes.
+- The pick is made when a visitor goes that way, from the turn's seed, so
+  a replayed log picks the same. Looking, or a client asking what can be
+  done, never picks.
+- Every choice is as likely as any other. Name each place once, and write
+  `refuse` at most once; there are no weights. There must be at least two
+  choices.
+- If the refusal is picked, its words are the answer and nothing moves,
+  just as with an exit that refuses, and `after command` runs with the
+  direction as `way`.
+- A `say` after the brackets is read only when the visitor actually went
+  somewhere.
+- `when` still may not use `chance` or `random`: it decides whether the way
+  is offered, and the pick happens only once it is taken.
+- An NPC that moves with `move self west` or `move self along an exit`
+  picks the same way.
+
 ### Places inside places
 
 A place is an object, so it can be inside another place:
@@ -586,7 +617,10 @@ object bedroom is sprout.Place {
 
 Everything follows from the rules already given. Shutting the wardrobe
 cuts its occupants off from the bedroom, because a shut container passes
-nothing. `tell` inside the wardrobe reaches only those in it. And someone
+nothing. `tell` inside the wardrobe reaches only those in it, and `tell`
+in the bedroom reaches them only while the wardrobe is open: a voice goes
+into the places inside the one it is said in, through whatever passes, so
+a visitor riding an open bucket hears the room. And someone
 shut inside can always open it, because a thing can always reach the
 container it is in.
 
@@ -827,10 +861,16 @@ that object.
 | `==`, `!=`                | two values of the same type, not lists | boolean |
 | `<`, `<=`, `>`, `>=`      | integers                             | boolean |
 | `+`, `-`, unary `-`       | integers                             | integer |
+| `*`, `/`, `%`             | integers                             | integer |
 
-Loosest first: `||`; `&&`; `==` `!=`; `<` `<=` `>` `>=`; `+` `-`; prefix `!`
-and `-`; then reads like `x.get(:p)`. Left to right within a level.
-Parentheses group.
+Loosest first: `||`; `&&`; `==` `!=`; `<` `<=` `>` `>=`; `+` `-`; `*` `/`
+`%`; prefix `!` and `-`; then reads like `x.get(:p)`. Left to right within
+a level. Parentheses group.
+
+`/` and `%` stay whole, truncating toward zero: `7 / 2` is 3 and `-7 % 2`
+is -1. A result past the integer range is an `IntegerOverflow` fault, and
+`/` or `%` by zero a `DivisionByZero` fault. A passage's slots do no
+arithmetic at all.
 
 There is no truthiness and no coercion: `if` wants a boolean, and `1 ==
 "1"` is an error. A literal compared against something with a range must
@@ -1136,11 +1176,56 @@ so its `permit` reads `self`, `actor` and `here`, and naming a role such
 as `target` in it is refused. For one participant, its `for any` permits
 run before its permits for the verb.
 
+`as actor for any` guards the actor's own part of every verb it
+performs, the engine's `go`, `examine` and `wait` included, and only a
+kind that composes `sprout.Actor` may write it. Any of the three may
+leave verbs out with `except`, so one verb can answer in a voice of its
+own:
+
+```sprout
+kind Illusion {
+  as target for any except examine { permit { refuse gone } }
+  as target for examine { permit { refuse gone_look } }
+  passage gone default { Your hand closes on nothing. }
+  passage gone_look default { You look closer, and {self} wavers like heat over a road. }
+}
+
+kind Frozen is sprout.Actor {
+  :frozen false
+  as actor for any except wait { permit { if (self.get(:frozen)) { refuse frozen } } }
+  passage frozen default { You are frozen solid. You might as well wait it out. }
+}
+```
+
+A verb named after `except` is imported as any verb a play names is.
+
 - **`permit`** decides whether it may happen. It is read-only. It may
   `refuse`, and the first refusal from anyone ends the whole command with
   those words as its only answer. A participant without a `permit`
   agrees.
 - **`do`** is what happens. A participant without a `do` does nothing.
+
+When a visitor acts, every participant sees into their hands, in its
+`permit`, its `do` and the words it says there: `actor.count(Match)`,
+`actor.holds(x)` and `each m: Match in actor` see what the visitor
+carries, though a person passes nothing. So a fuse can light only for
+someone carrying a burning match:
+
+```sprout
+as target for light {
+  permit {
+    each m: Match in actor { if (m.get(:burning)) { allow } }
+    refuse "You have nothing to light it with."
+  }
+  do { self.set(:lit, true)  say "The fuse hisses." }
+}
+```
+
+Only the visitor who acted opens their hands, and a shut box in them
+stays shut. An NPC's reading opens none, and neither does a handler the
+reading's messages run, nor a description. The fuse can count the match
+and read it, but cannot `send` to it or `move` it, since it is still out
+of range.
 
 ### The actor's own part
 
@@ -1222,16 +1307,34 @@ kind LoudRoom is sprout.Place {
 ```
 
 Inside, `self` is the thing, `actor` the visitor and `here` their place.
+`refused` is `true` when the command was refused, and after a `go` that
+was refused, `way` is the direction it tried, read inside
+`if (bound way)`:
+
+```sprout
+kind DragonLair is sprout.Place {
+  after command {
+    if (bound way) {
+      if (way == :north) { tell actor "The dragon's claw rakes you back." }
+    }
+  }
+}
+```
+
 `say` and `tell actor` speak to the visitor; a plain `tell` speaks to
 everyone else who can hear `self`. It cannot `refuse` or `allow`: the
 command is already done.
 
-It runs after the command's own `do`s, and after the description of a
-room the command walked into, but before what `look`, `examine`,
-`inventory` and `wait` answer; nearest first: what the visitor carries
-(not through a shut box), then the visitor, then the room, any room
-around that, and the world. It does not run after a refused command, a
-command the parser could not read, a character's `act`, a tick or a
+It runs once the command is over: after the command's own `do`s, after
+every message they sent has been handled, and after what `look`,
+`examine`, `inventory` and `wait` answer, so the visitor reads the room
+they walked into first, and `here` is where they ended up. Messages it
+sends are handled after it. It runs nearest first: what the visitor
+carries (not through a shut box), then the visitor, then the room, any
+room around that, and the world. It runs after a refused command too,
+once the refusal is said, so a clock counts every move. It does not run
+after a line the parser answered itself (`unknown`, `not_here`,
+`no_way`, `cannot`, `not_carrying`), a character's `act`, a tick or a
 wake. Each command of a line — `take all`, or `open door then go north`
 — is its own command, followed on its own.
 
@@ -1382,6 +1485,18 @@ is shown. Otherwise every rule that governs a visitor governs a character.
 Its own part speaks to whoever its act is aimed at with `tell target`, as
 under The actor's own part.
 
+A value role is given a value of its type: an option written bare, a
+whole number worked out where the `act` stands, or a binding that holds
+one. Whoever plays the verb still narrows it with `from`, so a value
+outside its options arrives unbound, just as a typed one would:
+
+```sprout
+verb enchant { role target  role spell: symbol }
+
+act enchant (target: actor, spell: :feeble)
+act chime (target: actor, count: self.get(:rings) + 1)
+```
+
 Where a verb's role is filled by a kind, the binding given to `act` must
 be that kind first, so a character acting on whoever arrives reads them
 with `is()`:
@@ -1413,7 +1528,10 @@ you can add words or translate them.
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
 
 A kind may play `as actor for go`; its `permit` can refuse the move and
-its `do` runs after it. `wait` passes no more time than any command
+its `do` runs after it. Both read the way taken as `way`, a string: the
+direction written out (`north`, however it was typed), or the label of
+the link taken, so `if (way == "west") { refuse "The wind turns you
+back." }` refuses by direction before anything moves. `wait` passes no more time than any command
 does; a kind that plays `as actor for wait` with a `pass` makes waiting
 take longer (see [Passing time](#passing-time)).
 
@@ -1604,7 +1722,7 @@ Once the move happens, the engine sends:
 
 When the thing moved is an actor, both containers are places, and the
 engine also has everyone else in reach of the old place read its `leaves`
-passage and sends the other objects there `:departed (actor, to)`; does the
+passage and sends everything else there, visitors too, `:departed (actor, to)`; does the
 same with `arrives` and `:arrived (actor, from)` for the new place; and
 shows the one who moved the new place's description. They read it before
 anything the handlers of those messages say, so a place's `:entered` that
@@ -1699,7 +1817,10 @@ through containment:
 2. The sender's container receives it if it passes that message, and
    delivers it on to its other contents (a container among them passes it
    in only if its own rule says so).
-3. And so on outward, until a container refuses.
+3. And so on outward, until a container refuses. Everything else that
+   container holds still receives it, being shut in with the sender, unless
+   a place stands in between: rooms in a shut house, like the world's
+   places, do not hear each other.
 
 So a lamp broadcasting inside a shut cabinet lights nothing outside it,
 and a room's broadcast stops at the world, which passes nothing unless you
@@ -1780,6 +1901,13 @@ containment tree refuses to pass. In practice:
   can still count what is in it.
 - It always reaches **the container it is in**, as a surface — so a
   visitor shut in a wardrobe can still open the wardrobe.
+- It reaches **what is shut in with it** — the other contents of the
+  first container out that refuses — so two visitors shut in one wardrobe
+  can name each other. A shut box beside them still hides what is in it.
+  A place is a wall of its own: rooms in a house that refuses, like the
+  world's places, are not in each other's range. (A place that passes is
+  no wall to anything around it: a `tell` in the room is heard inside
+  it, see Who hears what.)
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 
@@ -1815,8 +1943,10 @@ Each of these takes either quoted text or the name of a passage: `say
 taken`, `refuse hands_full`, `text arrival`.
 
 `tell` reaches every actor in the teller's place that the teller can
-reach, except the actor and anyone taking part in the reading: those are
-addressed separately, with `say` and `tell self`. So a verb usually has
+reach, and those in the places inside it wherever everything between
+passes — a visitor in an open bucket in the room hears it, one in a shut
+wardrobe does not. It leaves out the actor and anyone taking part in the
+reading: those are addressed separately, with `say` and `tell self`. So a verb usually has
 two lines, one for the actor and one for everyone else, and a target who
 is a person gets their own with `tell self`:
 
@@ -1882,7 +2012,17 @@ passage greeting {
   the bindings it uses.
 - Lines are joined into paragraphs; a blank line starts a new one. A
   block that renders nothing leaves no empty paragraph.
-- The first letter of each rendered line is capitalised.
+- Words keep the case you write them in. Only an object slot, such as
+  `{actor}` or `{thing}`, or an option slot, is capitalised where it
+  opens a line, so
+  `{actor} arrives.` reads "Marta arrives." and `{thing} is here.` reads
+  "A brass key is here.".
+- Text with a shape of its own, verse or a sign, goes between
+  `{verbatim}` and `{/verbatim}`: every space, line break and blank line
+  in it is kept, the indentation of the line `{verbatim}` stands on is
+  taken off, and it holds no slots. Keep its lines to 40 characters, about
+  what the Playdate shows across its screen, so no device has to wrap
+  them.
 - A passage may be declared `default`, which means any other passage of
   the same name, from anywhere, replaces it. All of the standard library's
   lines are defaults.
@@ -2224,10 +2364,11 @@ rather than every time someone happens to look.
 
 Every roll comes from a seed recorded with each turn, so a world replays
 exactly. One line is rolled once, however many people read it, so
-everyone in the room sees the same outcome. (A script starts at seed 0,
-and `@seed` changes it; an interactive session draws each turn's seed
-from a stream begun at `--seed`, or the clock, and `@seed` begins it
-again.)
+everyone in the room sees the same outcome. (A script's first step rolls
+from seed 0 and each later step from the next seed of a stream begun
+there, and `@seed` sets the next step's seed and begins the stream again
+from it; an interactive session draws each turn's seed from a stream
+begun at `--seed`, or the clock, and `@seed` begins it again.)
 
 ---
 
@@ -2299,7 +2440,7 @@ inheritance chain and no `super`.
 | `on :m` handler, `changed :p` hook   | all run                                              |
 | `after command`                      | all run                                              |
 | `depart`, `release`, `accept`        | all run; any refusal decides                         |
-| `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs |
+| `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs; a `default` one steps aside for any other |
 | `nouns`, `adjectives`                | all apply                                            |
 | `name`, `article`, `pronouns`       | error                                                |
 | `contains`, `contains actors`        | the same either way                                  |
@@ -2345,6 +2486,33 @@ library default gives way to another library's. This is what lets you
 replace any stock line by writing a passage of the same name, and lets a
 library supply a whole world's stock lines in another voice.
 
+### `default` plays
+
+A play marked `default`, after its head, is a stock answer: it runs only
+where nothing else plays the same role for the same verb, and steps aside,
+`permit` and `do` alike, wherever something does, however it arrived:
+
+```sprout
+kind Thing {
+  as target for read default { do { say "How does one read {self}?" } }
+  as target for eat default { permit { refuse "I don't think that {self} would agree with you." } }
+}
+
+kind Food is Thing { as target for eat { do { say "That really hit the spot." } } }
+kind Readable is Thing { as target for read { do { say "The icing reads: “Eat me.”" } } }
+```
+
+A rock made of `Thing` answers `read rock` with Thing's line. A cake made
+of `Food, Readable` reaches Thing's `read` through `Food` too, and still
+reads only as `Readable` says; `eat cake` is allowed, since Thing's
+refusal stepped aside with the rest of its play. A default steps aside
+only for a play of its own role in its own verb, never for the actor's
+part or a `for any` wildcard, and a wildcard cannot be `default`. Where
+only defaults meet, a kind's own replaces the ones it composes. Two
+defaults from two other sources with nothing else beside them are an
+error, and so is a kind's own default that something it composes always
+displaces, since it would never run.
+
 ### `without`
 
 A kind may drop one member it would compose, naming the member and where
@@ -2357,7 +2525,8 @@ kind SafetyLamp is sprout.LightSource {
 ```
 
 What a kind leaves out stays out for everything that composes it — unless
-the same member also arrives by another route.
+the same member also arrives by another route. To have a base kind's
+answer give way by every route at once, write it as a `default` play.
 
 ### Splitting work between a library and a world
 
@@ -2531,6 +2700,9 @@ cat.sprout:4:14  `say` has nobody to speak to inside `on :stir`.
   non-boolean condition, `get` on the object type, setting a literal out of
   range.
 - Two sources for a property or an exclusive member.
+- Two `default` plays of one role in one verb with nothing else beside
+  them; a kind's own `default` play that what it composes always
+  displaces; `default` on a `for any` wildcard.
 - Reserved names, a `name` beginning with an article, composing with `:`.
 - A world that does not compose `sprout.World`; anything else that does;
   no world, two worlds, or a world not named as in the manifest.
@@ -2844,7 +3016,7 @@ so the place's `accept` is still asked.
 | `{ "leave": "Marta" }`                    | Marta leaves                                                    |
 | `{ "tick": true }`                        | every occupied place gets a tick                                |
 | `{ "advance": "40 minutes" }`             | time moves on; due wakes happen (`seconds`, `minutes`, `hours`) |
-| `{ "seed": 7 }`                           | the dice use seed 7 from now on                                 |
+| `{ "seed": 7 }`                           | the next step rolls from seed 7, the steps after it from 7's stream |
 | `{ "comment": "…" }`                      | a note, kept as written                                         |
 
 Any step but `seed` and `comment` may carry `expect`, the lines it should
@@ -2863,8 +3035,12 @@ make:
 
 `play` prints the script back with every step expecting everything it
 made, and `--write` saves that over the file, so a played script is its
-own golden. Time starts at 0 and the seed at 0. Wakes are delivered as
-time advances while someone is in the world; while nobody is, they wait
+own golden. Time starts at 0. The first step rolls from seed 0, and each
+step after it from the next seed of a stream begun there, as a live
+session's turns do, so a coin is fair from one step to the next. A `seed`
+step gives the step after it that seed and begins the stream again from
+it, so a step that wants one fixed seed sets it just before. Wakes are
+delivered as time advances while someone is in the world; while nobody is, they wait
 for the next arrival.
 
 Each place a tick reaches, and each wake an advance delivers, rolls from

@@ -1,0 +1,16 @@
+{
+  "name": "wildcard_actor_not_actor",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "cec6a1293551cb3bda582c9aca4d2a9c9e2b270c23efc0b1c240fdedd54faeb3"
+    }
+  ],
+  "files": ["wildcard_actor_not_actor.sprout", "kinds.sprout", "person.sprout"]
+}

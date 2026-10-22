@@ -3,7 +3,10 @@
 // Playing a role, The actor's own part, A role-player narrows its own
 // options).
 //
-// A play is its head, `as <role> for <verb>`, and a body in braces that
+// A play is its head, `as <role> for <verb>`, after `for any` the verbs
+// it leaves out, `except examine, wait`, `default` where it steps aside
+// for any other source's play (Kinds › How members combine), and a body
+// in braces that
 // holds, in any order, the `from` lines that narrow a value role, one
 // `permit` and one `do`, each read by the statement reader. Which verb and
 // which role the head names, and what the blocks may do, are the second
@@ -13,6 +16,7 @@
 import type {
   Block,
   FromDeclaration,
+  Ident,
   IntegerLiteral,
   IntegerRange,
   PlayDeclaration,
@@ -44,7 +48,13 @@ export function play(
     stepOverHead(p, startsMember);
     return null;
   }
-  const written = `as ${head.role.text} for ${head.verb.text}`;
+  const except = exceptList(p, head, startsMember);
+  if (except === null) {
+    stepOverHead(p, startsMember);
+    return null;
+  }
+  const yields = p.take('name', 'default') !== null;
+  const written = `as ${head.role.text} for ${head.verb.text}${yields ? ' default' : ''}`;
   const open = p.take('punct', '{');
   if (open === null) {
     p.diagnostics.refuse(
@@ -75,6 +85,8 @@ export function play(
         kind: 'play',
         at: spanning(keyword.at, close.at),
         head,
+        ...(except.length === 0 ? {} : { except }),
+        ...(yields ? { yields: true as const } : {}),
         narrows,
         permit,
         do: effect,
@@ -180,6 +192,62 @@ function playHead(
     role: p.ident(role),
     verb: p.ident(verb),
   };
+}
+
+/**
+ * `except examine, wait` after `for any`: the verbs, lower-case words
+ * separated by commas. Empty where no `except` is written; null having
+ * said why.
+ */
+function exceptList(
+  p: Parser,
+  head: RoleRef,
+  startsMember: (token: Token) => boolean,
+): Ident[] | null {
+  const word = p.take('name', 'except');
+  if (word === null) return [];
+  const written = `as ${head.role.text} for ${head.verb.text}`;
+  if (head.verb.text !== 'any') {
+    const next = p.peek();
+    const left = next.kind === 'name' && !startsMember(next) ? next.text : '<verb>';
+    p.diagnostics.refuse(
+      word.at,
+      `\`except\` leaves verbs out of a play for every verb, and \`${written}\` plays only \`${head.verb.text}\`.`,
+      `Take out \`except …\` to play \`${head.verb.text}\` alone, or write \`as ${head.role.text} for any except ${left}\` to play every verb but that one.`,
+    );
+    return null;
+  }
+  const verbs: Ident[] = [];
+  let before = word.at;
+  for (;;) {
+    const token = p.peek();
+    if (token.kind === 'kind') {
+      p.next();
+      const lower = token.text.charAt(0).toLowerCase() + token.text.slice(1);
+      p.diagnostics.refuse(
+        token.at,
+        `A verb is named in lower case, and \`${token.text}\` starts with a capital.`,
+        `Write \`${lower}\`, as the verb declares it.`,
+      );
+      return null;
+    }
+    if (token.kind !== 'name' || startsMember(token)) {
+      p.diagnostics.refuse(
+        token.kind === 'name' || punct(token, '{') || token.kind === 'end'
+          ? p.source.span(before.end)
+          : token.at,
+        `\`except\` names the verbs \`${written}\` does not run for, separated by commas.`,
+        `Write \`${written} except examine, wait { … }\`, naming verbs.`,
+      );
+      return null;
+    }
+    const verb = p.next();
+    verbs.push(p.ident(verb));
+    before = verb.at;
+    const comma = p.take('punct', ',');
+    if (comma === null) return verbs;
+    before = comma.at;
+  }
 }
 
 /**

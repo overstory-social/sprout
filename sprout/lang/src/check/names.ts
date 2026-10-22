@@ -235,9 +235,10 @@ function typed(named: Named, scope: NameScope): BindingType {
  * world's body declares, names another such place, the words refusing
  * it; null otherwise. Those places are out of one another's range while
  * the world writes no `pass any` that may let something through (the
- * spec's Range), so such a read could never be made. A place inside
- * another may be moved, as a cart or a boat is, into range, so neither
- * end of the read may be one.
+ * spec's Range), so such a read could never be made, save an exit's
+ * `when` reading the one place it leads to (the spec's An exit may be
+ * conditional). A place inside another may be moved, as a cart or a boat
+ * is, into range, so neither end of the read may be one.
  */
 export function otherPlaceWords(
   receiver: Expr,
@@ -263,13 +264,25 @@ export function otherPlaceWords(
   if (self?.kind?.containsActors !== true || other?.kind?.containsActors !== true) return null;
   const world = scope.source.tree.world;
   const here = asking[0]!;
+  const way = context.way;
+  const end = way?.places.some((place) => pathKey(place) === pathKey(named.path)) === true;
+  if (end && way?.leads === 'one') return null;
+  if (end) {
+    return {
+      message: `\`${name}\` is one of the places this way is drawn to, and a drawn way leads to none of them until it is taken, so its \`when\` cannot read \`${name}\`: the world lets nothing pass between its places.`,
+      remedy: `Write the way to \`${name}\` as an exit of its own, whose \`when\` may read where it leads, or keep the fact on \`${here}\` or on the world, as \`${world}.get(:…)\`, which every place can read.`,
+    };
+  }
   const opening = `or let the world open range between its places with a \`pass any\` rule.`;
+  const guard =
+    way === undefined ? '' : "An exit's `when` reads only the place that exit leads to. ";
   return {
     message: `\`${name}\` is another place, out of range of \`${here}\`, so \`${name}.${reading}(…)\` can never be read from here: the world lets nothing pass between its places.`,
     remedy:
-      reading === 'is'
+      guard +
+      (reading === 'is'
         ? `Ask what \`${name}\` is from a body where it is in range, or keep a flag on \`${here}\` or on the world that says it, ${opening}`
-        : `Keep the fact on \`${here}\` itself, or on the world, as \`${world}.get(:…)\`, which every place can read, and have \`${name}\` send the world a message when it changes; ${opening}`,
+        : `Keep the fact on \`${here}\` itself, or on the world, as \`${world}.get(:…)\`, which every place can read, and have \`${name}\` send the world a message when it changes; ${opening}`),
   };
 }
 
@@ -328,5 +341,35 @@ export function placedBinding(
     origin: 'name',
     at: written.at,
     writable: false,
+  };
+}
+
+/**
+ * Where `receiver`, read with `reading` in an exit's `when`, names the
+ * place the exit leads to, the words refusing a reading of what that place
+ * holds: the guard reads the place itself, its properties and what it is,
+ * and what is in it stays out of range (the spec's An exit may be
+ * conditional). Null otherwise.
+ */
+export function wayEndHoldingWords(
+  receiver: Expr,
+  reading: string,
+  context: CheckContext,
+): { message: string; remedy: string } | null {
+  const way = context.way;
+  if (way?.leads !== 'one') return null;
+  const [name, key] =
+    receiver.kind === 'binding'
+      ? [receiver.name.text, receiver.name]
+      : receiver.kind === 'member'
+        ? [writtenMembers(receiver), receiver]
+        : [null, null];
+  if (name === null || key === null || context.scope.lookup(name) !== null) return null;
+  const named = context.names?.table.get(key);
+  if (named?.names !== 'declared') return null;
+  if (!way.places.some((place) => pathKey(place) === pathKey(named.path))) return null;
+  return {
+    message: `\`${name}\` is where this exit leads, and its \`when\` reads that place itself, not what is in it, so \`${name}.${reading}\` cannot be asked here.`,
+    remedy: `Read a property \`${name}\` keeps, as in \`${name}.get(:…)\`, and have \`${name}\` set it when what it holds changes.`,
   };
 }

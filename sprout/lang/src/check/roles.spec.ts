@@ -12,8 +12,9 @@ import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkPlay } from './roles.js';
 
-/** The standard library's part: what an actor is, and a person. */
-const SPROUT_TEXT = 'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\n';
+/** The standard library's part: what an actor is, a person, and `go`. */
+const SPROUT_TEXT =
+  'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\nverb go { role way: exit  "go [way]" }\n';
 
 /** The verbs every case here may play. */
 const VERBS = `enum Topic { bridge, toll, weather }
@@ -42,7 +43,9 @@ function checked(text: string): string[][] {
     setup,
   );
   const verbDeclarations = shop.filter((d): d is VerbDeclaration => d.kind === 'verb');
+  const engineVerbs = sprout.filter((d): d is VerbDeclaration => d.kind === 'verb');
   const names = new VerbNames();
+  names.add('sprout', engineVerbs);
   names.add('shop', verbDeclarations);
   const kinds = new KindTable();
   kinds.add(
@@ -57,6 +60,7 @@ function checked(text: string): string[][] {
   );
   kinds.resolve('shop', enums, setup, undefined, { verbs: names });
   const verbs = new VerbTable();
+  verbs.add('sprout', engineVerbs, { kinds, enums, diagnostics: setup });
   verbs.add('shop', verbDeclarations, { kinds, enums, diagnostics: setup });
   expect(
     setup.all.map((d) => d.message),
@@ -69,7 +73,7 @@ function checked(text: string): string[][] {
     for (const plays of kind.plays.values()) {
       for (const play of plays) {
         if (play.origin === `${kind.library}.${kind.name}`) {
-          checkPlay(play, kind, { kinds, here, verbs, diagnostics });
+          checkPlay(play, kind, { kinds, here, verbs, heard: () => [], diagnostics });
         }
       }
     }
@@ -297,6 +301,38 @@ kind Safe { as target for dial { do { if (number > 1) { } } } }`),
   });
 });
 
+describe('the way `go` takes is bound as a string', () => {
+  it('reads `way` in the actor’s `permit` and `do`, typed as text', () => {
+    expect(
+      checked(`kind Walker is sprout.Actor {
+  as actor for go {
+    permit { if (way == "west") { refuse "The wind turns you back." } }
+    do { say "You went {way}." }
+  }
+}`),
+    ).toEqual([]);
+    expect(
+      messages(
+        checked('kind Walker is sprout.Actor { as actor for go { do { if (way == 1) { } } } }'),
+      ),
+    ).toEqual(['This holds text, and 1 is a number.']);
+  });
+
+  it('refuses a `from` on it, and binds it all the same', () => {
+    expect(
+      checked(
+        'kind Walker is sprout.Actor { as actor for go { way from 1 to 4  do { say "{way}" } } }',
+      ),
+    ).toEqual([
+      [
+        'shop.sprout:10:49',
+        '`way` is the way taken, so there is nothing for `from` to narrow.',
+        'Read `way` in the body instead, as in `if (way == "north") { … }`.',
+      ],
+    ]);
+  });
+});
+
 describe('`as actor` is played by an actor', () => {
   it('refuses a kind that does not compose `sprout.Actor`, naming the verb’s roles', () => {
     expect(checked('kind Bench { as actor for sit { do { } } }')).toEqual([
@@ -442,6 +478,36 @@ kind Plank { as target for any { permit { if (target == self) { refuse "No." } }
         "Read only `self` and `actor` here, or write `as target for <verb>`, where that verb's roles are bound by name.",
       ],
       ['shop.sprout:12:47', '`target` is `self` in `as target for any`.', 'Write `self`.'],
+    ]);
+  });
+
+  it('reads `self`, `actor` and `here` in `as actor for any`, and no verb’s roles', () => {
+    expect(
+      checked(`kind Frozen is sprout.Actor {
+  :frozen false
+  as actor for any except unlock {
+    permit {
+      if (self.get(:frozen) && actor == self && here != self) { refuse "You are frozen solid." }
+      else if (target == self) { refuse "No." }
+    }
+  }
+}`),
+    ).toEqual([
+      [
+        'shop.sprout:15:16',
+        "`target` names a verb's role, and `as actor for any` plays every verb at once, so it cannot know any verb's other roles.",
+        "Read only `self` and `actor` here, or write `as actor for <verb>`, where that verb's roles are bound by name.",
+      ],
+    ]);
+  });
+
+  it('refuses `as actor for any` on a kind that is no actor', () => {
+    expect(checked('kind Lever { as actor for any { permit { } } }')).toEqual([
+      [
+        'shop.sprout:10:17',
+        'Only an actor acts, and `Lever` does not compose `sprout.Actor`.',
+        'Compose `sprout.Actor` into `Lever`, or write `as target for any` or `as tool for any` to guard the roles it fills.',
+      ],
     ]);
   });
 });

@@ -6,7 +6,9 @@
  * link is one of its name; an exit that does not apply is not offered, not
  * traversable and not mentioned. An exit that refuses applies as any exit
  * does, deciding its direction, and is never offered: going that way is
- * answered with its words, and nothing moves. Asking is a function over a
+ * answered with its words, and nothing moves. A drawn way, `-> one of (…)`,
+ * applies as one way whose destination is drawn from the turn's seed only
+ * as it is taken, so asking never draws. Asking is a function over a
  * frame, charged one step for each exit asked; taking one is a move.
  */
 #ifndef SPROUT_EXITS_H
@@ -25,7 +27,8 @@ typedef struct sprout_way {
   const char *direction; /* NULL for a link */
   const char *label;
   bool refuses;          /* the way does not go: it answers with `said`, from `by` */
-  sprout_str to;         /* where it leads, unless it refuses */
+  bool drawn;            /* where it leads is drawn as it is taken, so `to` holds nothing */
+  sprout_str to;         /* where it leads, unless it refuses or is drawn */
   sprout_str by;
   sprout_speech said;
   const sprout_node *exit; /* the exit or link as the place's kind declares it */
@@ -36,6 +39,10 @@ sprout_eval_status sprout_ways_from(const sprout_frame *frame, sprout_str place,
 
 /* Those that lead somewhere, which are what a visitor is offered. */
 sprout_eval_status sprout_exits_from(const sprout_frame *frame, sprout_str place, const sprout_way **ways, size_t *count);
+
+/* The drawn way out of `place` under `label`, in `direction` (NULL for none), that applies now; NULL where none does. */
+sprout_eval_status sprout_drawn_way(const sprout_frame *frame, sprout_str place, const sprout_str *direction,
+                                    const char *label, const sprout_way **out);
 
 /* What a way says to whoever takes it, and the place that says it. */
 typedef struct sprout_saying {
@@ -54,9 +61,10 @@ sprout_eval_status sprout_exit_saying(const sprout_frame *frame, sprout_str plac
 
 /*
  * `actor` taken through `taken`, a way out of `place` that leads, as `go`
- * takes a visitor: the move made through it, and what the exit says as it
- * is taken said to `actor` where `person`. *went says whether it moved; where
- * it did not, `refusal` says why, and nothing of it is recorded here.
+ * takes a visitor: for a drawn way, its choice drawn first; the move made
+ * through it, and what the exit says as it is taken said to `actor` where
+ * `person`. *went says whether it moved; where it did not, `refusal` says
+ * why, a drawn refusal's words among them, and nothing of it is recorded here.
  */
 sprout_eval_status sprout_take_way(sprout_exec *x, const sprout_frame *frame, sprout_str actor, sprout_str place,
                                    const sprout_way *taken, bool person, bool *went, sprout_move_refusal *refusal);

@@ -390,6 +390,45 @@ export const STONE = declaredId('yard', ['court', 'stone']);
 export const PEBBLE = declaredId('yard', ['court', 'pebble']);
 
 /**
+ * The glade: touching the pedestal sends the visitor a message whose
+ * handler moves the gem, which the pedestal refuses with nobody to tell;
+ * blowing the horn calls a bell in a shed out of range, which reaches
+ * nothing.
+ */
+export const GLADE = compiled('glade', {
+  'glade.sprout': `world glade is sprout.World {
+  visitors are Person
+  visitors arrive at lawn
+  object lawn is sprout.Place {
+    object pedestal is Pedestal { object gem is Gem }
+    object horn is Horn
+  }
+  object shed is sprout.Place {
+    object bell is Gem
+  }
+}
+verb touch { role target  "touch [target]" }
+verb blow  { role target  "blow [target]" }
+message :granted
+message :called
+`,
+  'person.sprout': `kind Taker is sprout.Actor {
+  on :granted { move lawn.pedestal.gem to self  tell "Yours." }
+}
+kind Person is Taker, sprout.Visitor { }
+`,
+  'pedestal.sprout': `kind Pedestal {
+  contains
+  release (item, to) { if (mover != self) { refuse "The pedestal keeps its gem." } }
+  as target for touch { do { say "You touch it."  send actor :granted } }
+}
+kind Gem { on :called { } }
+kind Horn { as target for blow { do { say "You blow it."  send shed.bell :called } } }
+`,
+});
+export const LAWN = declaredId('glade', ['lawn']);
+
+/**
  * The hideout: a thief in the hall who is unseen, and a bell whose ringing
  * sends him into the vault, where he stays unseen.
  */
@@ -435,12 +474,18 @@ export const BELFRY_FOLLOWS = compiled('followed', {
   :commands 0
   after command { self.adjust(:commands, 1) }
   object hall is Hall {
+    grammar { exit north "north" refuse "The door is barred." }
     object bell is Bell
   }
 }
 `,
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
-  'hall.sprout': 'kind Hall is sprout.Place { after command { tell actor "The hall echoes." } }\n',
+  'hall.sprout': `kind Hall is sprout.Place {
+  after command {
+    if (bound way) { tell actor "The bar rattles." } else { tell actor "The hall echoes." }
+  }
+}
+`,
   'bell.sprout': `kind Bell {
   grammar { name "bell" }
   after command { say "The bell hums." }
@@ -450,6 +495,35 @@ export const BELFRY_FOLLOWS = compiled('followed', {
 export const FOLLOWED = declaredId('followed', []);
 export const FOLLOWED_HALL = declaredId('followed', ['hall']);
 export const FOLLOWED_BELL = declaredId('followed', ['hall', 'bell']);
+
+/**
+ * The belfry again, where no declared kind writes `after command`: the
+ * bell's own body, the hall's and the world's write it, and they follow a
+ * command as a kind's would (the spec's Verbs › After a command).
+ */
+export const BELFRY_OWN_FOLLOWS = compiled('own_followed', {
+  'own_followed.sprout': `world own_followed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  :commands 0
+  after command { self.adjust(:commands, 1) }
+  object hall is sprout.Place {
+    after command { tell actor "The hall echoes." }
+    object bell is Bell {
+      after command { say "The bell hums." }
+    }
+  }
+}
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'bell.sprout': `kind Bell {
+  grammar { name "bell" }
+}
+`,
+});
+export const OWN_FOLLOWED = declaredId('own_followed', []);
+export const OWN_FOLLOWED_HALL = declaredId('own_followed', ['hall']);
+export const OWN_FOLLOWED_BELL = declaredId('own_followed', ['hall', 'bell']);
 
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');

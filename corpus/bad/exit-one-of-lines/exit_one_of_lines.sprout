@@ -1,0 +1,23 @@
+// A drawn way's choices are written after `one of`, in brackets, between
+// commas, each a place or `refuse` and its words. Each line written wrong
+// is refused once, and the lines around it are read.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_one_of_lines is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit west  "west"  -> one of shed, barn
+      exit east  "east"  -> one of ()
+      exit north "north" -> one of (shed, "the barn")
+      exit south "south" -> one of (shed barn)
+      exit up    "up"    -> one of (shed, barn)
+    }
+  }
+
+  object shed is sprout.Place { }
+  object barn is sprout.Place { }
+}

@@ -32,6 +32,7 @@ void parse_answer_of(const sprout_frame *frame, const char *answer, sprout_str a
 void parse_refused(const sprout_way *way, sprout_str actor, sprout_str here, parse_answer *out) {
   memset(out, 0, sizeof *out);
   out->answer = "refused";
+  out->tried = way->direction;
   out->by = way->by;
   out->said = way->said;
   standing(out, actor, here);

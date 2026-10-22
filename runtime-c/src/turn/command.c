@@ -1,11 +1,12 @@
 /*
  * A command turn (the spec's The runtime > Turns, Faults). Its order is fixed: the consent pass; the effect
  * pass, actor first and then roles in declared order; the queue, breadth-first in insertion order; what the
- * engine answers; then the views of everyone present are stale, as every write turn that commits makes them.
- * The one who typed the command is always told something: the consent pass's refusal, what the effect pass
- * said, what the engine answered or its `nothing_happens`, or, when the turn faults and is abandoned, the
- * engine's `fault`. What it says is one sequence of effects in that order: the effect pass's lines, then the
- * queue's, then the engine's answers; the place a move carried someone to is read among them where the body
+ * engine answers; every `after command` that follows the command, and the queue it fills; then the views of
+ * everyone present are stale, as every write turn that commits makes them. A command refused, by its consent
+ * pass, its exit or the move's guards, is followed too, once its refusal is said. The one who typed the command is
+ * always told something: the consent pass's refusal, what the effect pass said, what the engine answered or
+ * its `nothing_happens`, or, when the turn faults and is abandoned, the engine's `fault`. What it says is one
+ * sequence of effects in that order; the place a move carried someone to is read among them where the body
  * that moved them ended.
  *
  * A command is a reading built from the view's chips, run as it is; or words typed, read first in the turn,
@@ -17,6 +18,7 @@
  */
 #include <string.h>
 
+#include "../engine-verbs.h"
 #include "../expr/expr.h"
 #include "../intents.h"
 #include "../line.h"
@@ -85,6 +87,26 @@ static sprout_eval_status refusal_told(const sprout_frame *frame, sprout_str act
   out->bindings = refusal->refusal.bindings;
   out->binding_count = refusal->refusal.binding_count;
   return SPROUT_EVAL_OK;
+}
+
+/* The direction a refused reading of `go` tried, where it named an exit; one with no bytes for any other reading. */
+static sprout_str way_tried(const sprout_resolved *reading) {
+  const sprout_stored_bound *way = sprout_exit_of(reading);
+  sprout_str none = {NULL, 0};
+  return way != NULL && way->has_direction ? way->direction : none;
+}
+
+/*
+ * A refused command's end: its refusal said, then what follows the command, with `refused` bound (the spec's
+ * Verbs > After a command), then the arrivals any move of theirs owes.
+ */
+static sprout_eval_status refusal_followed(turn_run *run, const sprout_frame *frame, sprout_str actor,
+                                           const sprout_effect *refusal, sprout_str tried,
+                                           const sprout_arrived **arrivals, size_t *arrival_count) {
+  EXPR_NEED(sprout_exec_record(&run->x, refusal));
+  sprout_after_owed(&run->x, true, tried);
+  EXPR_NEED(sprout_command_over(&run->x, frame, actor, NULL));
+  return sprout_arrivals_read(&run->x, frame, arrivals, arrival_count);
 }
 
 /* What a displaced visitor is told and where they come in: the world's `displaced`, then the arrival place. */
@@ -250,6 +272,8 @@ typedef struct commanded {
   sprout_resolved reading;
   bool answered, stops;     /* no reading runs: a line is said in its place, which ends the line or does not */
   sprout_effect said;
+  bool exit_refused;        /* what was said is an exit's refusal, which what follows a command follows */
+  sprout_str tried;         /* the refusing exit's direction */
   size_t aside_count;
   const sprout_aside *asides;
   uint64_t drawn_among;
@@ -413,6 +437,11 @@ static sprout_status read_command(turn_run *run, const sprout_frame *frame, cons
       return SPROUT_OK;
     case SPROUT_PARSED_ANSWERED:
       out->answered = out->stops = true;
+      if (turned.said.tried != NULL) {
+        out->exit_refused = true;
+        out->tried.bytes = turned.said.tried;
+        out->tried.length = strlen(turned.said.tried);
+      }
       *eval = answer_told(frame, actor, &turned.said, &out->said);
       return SPROUT_OK;
     case SPROUT_PARSED_INTENT:
@@ -498,9 +527,8 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
   sprout_permit_refusal refusal;
   sprout_reading_end end = SPROUT_READING_ACTED;
   sprout_effect before[2], *asides = NULL;
-  size_t before_count = 0, arrival_count = 0, answer_count = 0, aside_count = 0, said_from = 0;
+  size_t before_count = 0, arrival_count = 0, aside_count = 0, said_from = 0;
   const sprout_arrived *arrivals = NULL;
-  const sprout_effect *engine = NULL;
   const char *wrong = misshapen(input);
   commanded c;
   bool gone, refused_here = false;
@@ -556,33 +584,27 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
     if (eval == SPROUT_EVAL_OK) eval = sprout_perform(&run.x, &frame, &c.reading, &end, &refusal);
     if (eval == SPROUT_EVAL_OK) eval = remember(&run, visit, &c.reading);
     if (eval == SPROUT_EVAL_OK && end == SPROUT_READING_REFUSED) {
-      /* The refusal ends the turn: nothing was queued, and nothing is read in. */
+      /* The refusal is the answer and ends the line: nothing was queued, and what follows the command follows it. */
       eval = refusal_told(&frame, actor, &refusal, &before[0]);
-      before_count = 1;
+      if (eval == SPROUT_EVAL_OK)
+        eval = refusal_followed(&run, &frame, actor, &before[0], way_tried(&c.reading), &arrivals, &arrival_count);
     } else if (eval == SPROUT_EVAL_OK) {
       outcome->goes_on = !refused_actor(&run.x, said_from, actor);
-      eval = sprout_exec_drain(&run.x);
+      eval = sprout_command_over(&run.x, &frame, actor, &c.reading);
       if (eval == SPROUT_EVAL_OK) eval = sprout_arrivals_read(&run.x, &frame, &arrivals, &arrival_count);
-      if (eval == SPROUT_EVAL_OK) eval = sprout_engine_answers(&run.x, &frame, &c.reading, &engine, &answer_count);
     }
+  } else if (eval == SPROUT_EVAL_OK && c.exit_refused) {
+    /* An exit's refusal is a refused `go`: what follows the command follows it. */
+    eval = refusal_followed(&run, &frame, actor, &c.said, c.tried, &arrivals, &arrival_count);
   }
   if (eval == SPROUT_EVAL_OK) {
     if (gone) {
       eval = sprout_lines_assembled(&run.x, before, before_count, arrivals, arrival_count, NULL, 0);
-    } else if (c.answered) {
+    } else if (c.answered && !c.exit_refused) {
       /* The parser's answer, or an intent's `nothing_happens`, is all the turn says. */
       eval = sprout_lines_assembled(&run.x, &c.said, 1, NULL, 0, NULL, 0);
-    } else if (end == SPROUT_READING_REFUSED) {
-      /* What the parser said, then the refusal. */
-      sprout_effect *both = (sprout_effect *)sprout_arena_take(run.x.turn, (aside_count + 2) * sizeof *both);
-      if (both == NULL) eval = SPROUT_EVAL_NO_MEMORY;
-      else {
-        memcpy(both, asides, aside_count * sizeof *both);
-        both[aside_count] = before[0];
-        eval = sprout_lines_assembled(&run.x, both, aside_count + 1, NULL, 0, NULL, 0);
-      }
     } else {
-      eval = sprout_lines_assembled(&run.x, asides, aside_count, arrivals, arrival_count, engine, answer_count);
+      eval = sprout_lines_assembled(&run.x, asides, aside_count, arrivals, arrival_count, NULL, 0);
     }
   }
   (void)refused_here;

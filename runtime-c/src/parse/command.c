@@ -87,8 +87,11 @@ bool parse_reading_out(sprout_arena *keep, const parse_reading *reading, sprout_
         one->binds = SPROUT_FILL_EXIT;
         one->direction = bound->has_direction ? kept_id(keep, bound->direction) : NULL;
         one->label = kept_id(keep, bound->label);
-        one->id = kept_id(keep, bound->to);
-        if (one->label == NULL || one->id == NULL || (bound->has_direction && one->direction == NULL)) return false;
+        /* A drawn way leads nowhere until it is taken, so it names no place. */
+        one->id = bound->to.length == 0 ? NULL : kept_id(keep, bound->to);
+        if (one->label == NULL || (bound->to.length > 0 && one->id == NULL) ||
+            (bound->has_direction && one->direction == NULL))
+          return false;
         break;
       case SPROUT_BOUND_VALUE:
         if (bound->value_is_string) {
@@ -690,6 +693,7 @@ static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, 
   parse_words typed;
   sprout_eval_status status;
   if (typed_words(&r->run->scratch, parse_without_question(line), &words, &count) != SPROUT_OK) return SPROUT_NO_MEMORY;
+  count = parse_without_quotes(words, count);
   if (count == 0) return answer(r, "unknown", NULL);
   status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
   if (status != SPROUT_EVAL_OK) return stopped(r, status);

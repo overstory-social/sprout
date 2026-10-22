@@ -123,6 +123,9 @@ const sprout_play_group *sprout_own_plays(const sprout_verb *verb, const char *r
 void sprout_plays_for(const sprout_resolved *reading, const sprout_participant *who, const sprout_kind_def *kind,
                       sprout_plays *out);
 
+/* Whether `play` runs for `verb`: false only for a wildcard whose `except` names it. */
+bool sprout_play_runs(const sprout_play *play, const sprout_verb *verb);
+
 /* ---- sure.c ---- */
 
 /*
@@ -154,10 +157,20 @@ sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame,
 /* ---- after.c ---- */
 
 /*
- * What follows a person's command: every `after command` of what `actor`
- * carries, of `actor`, and of each container out to the world, nearest
- * first, each thing's in composition order (the spec's Verbs > After a
- * command).
+ * Marks a person's command as owing what follows it: `refused` where it was
+ * refused, by its consent pass, its exit or the move's guards, and `way` the
+ * direction a refused `go` tried through an exit, else one with no bytes.
+ */
+void sprout_after_owed(sprout_exec *x, bool refused, sprout_str way);
+
+/*
+ * What follows a person's command, where it was marked as owed
+ * (sprout_after_owed): every `after command` of what `actor` carries, of
+ * `actor`, and of each container out to the world, nearest first, each
+ * thing's in composition order (the spec's Verbs > After a command), with
+ * `refused` bound, and `way` where a refused `go` tried one. It runs only
+ * through sprout_command_over (answers.h), once the command's own lines,
+ * a refusal among them, are recorded.
  */
 sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *frame, sprout_str actor);
 

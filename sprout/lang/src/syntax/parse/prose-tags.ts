@@ -1,7 +1,8 @@
 // What one tag in prose says (the spec's Prose › Slots, Conditionals and
 // loops; Chance › The forms): a slot, `{if c}`, `{else}`, `{else if c}`,
 // `{for x in c}`, `{for x: Kind in c}`, `{for x of l}`, `{one of}`, `{or}`,
-// or a close. What a slot or a
+// or a close. A `{verbatim}` block is cut out whole by the scan, so only
+// a `{/verbatim}` with no block open reaches here. What a slot or a
 // condition says is an expression, read by the expression reader over
 // that stretch of the file alone, so its spans are the file's and
 // `$first` and the rest are names there. A condition takes no
@@ -21,6 +22,8 @@ import { Parser, punct } from './parser.js';
 /** A tag, read. */
 export type Tag =
   | { readonly tag: 'slot'; readonly at: Span; readonly expr: Expr }
+  /** `{exit east}`: the place a way out leads to, as it describes itself. */
+  | { readonly tag: 'exit'; readonly at: Span; readonly direction: Ident }
   | { readonly tag: 'if'; readonly at: Span; readonly condition: Expr }
   | { readonly tag: 'else-if'; readonly at: Span; readonly condition: Expr }
   | { readonly tag: 'else'; readonly at: Span }
@@ -77,10 +80,18 @@ export function readTag(p: Parser, span: TagSpan): Tag | null {
     if (closes === 'if' || closes === 'for' || closes === 'one of') {
       return { tag: 'close', at, closes };
     }
+    if (closes === 'verbatim') {
+      p.diagnostics.refuse(
+        at,
+        '`{/verbatim}` closes no `{verbatim}`.',
+        'Take it out, or write `{verbatim}` where the words to keep as written begin.',
+      );
+      return null;
+    }
     p.diagnostics.refuse(
       at,
       `\`{${trimmed}}\` closes nothing a passage opens.`,
-      "A passage's blocks close with `{/if}`, `{/for}` and `{/one of}`.",
+      "A passage's blocks close with `{/if}`, `{/for}`, `{/one of}` and `{/verbatim}`.",
     );
     return null;
   }
@@ -95,11 +106,32 @@ export function readTag(p: Parser, span: TagSpan): Tag | null {
   }
   if (wordAlone && word === 'else') return elseTag(p, span, after);
   if (wordAlone && word === 'for') return forTag(p, span, after);
+  if (wordAlone && word === 'exit') return exitTag(p, span, after);
   if (word === 'or' && rest.length === 0) return { tag: 'or', at };
   if (word === 'one' && rest.replace(/\s+/g, ' ') === 'of') return { tag: 'one-of', at };
 
   const expr = expressionIn(p, from, span.end);
   return expr === null ? null : { tag: 'slot', at, expr };
+}
+
+/** `{exit east}`: one word after `exit`, the direction of a way out. */
+function exitTag(p: Parser, span: TagSpan, after: number): Tag | null {
+  const rest = p.source.text.slice(after, span.end);
+  const word = rest.trim();
+  if (!/^[a-z]+$/.test(word)) {
+    p.diagnostics.refuse(
+      span.at,
+      '`{exit …}` names one direction, the way out whose place it shows.',
+      'Write the direction after `exit`, as in `{exit east}`.',
+    );
+    return null;
+  }
+  const start = after + (rest.length - rest.trimStart().length);
+  return {
+    tag: 'exit',
+    at: span.at,
+    direction: { kind: 'ident', at: p.source.span(start, start + word.length), text: word },
+  };
 }
 
 /** `{else}`, or `{else if c}`. */

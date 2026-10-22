@@ -68,4 +68,10 @@ describe('the statements the skill lists', { timeout: COMPILES_EVERY_EXAMPLE }, 
       '| `say "Hello."` | speaks to the one acting, in text or a passage | — | — | yes | — | — |',
     );
   });
+
+  it('tells an author that words keep their case and a verbatim block keeps its shape', () => {
+    const section = statementsSection();
+    expect(section).toContain('Words are printed in the case they are written in');
+    expect(section).toContain('`{verbatim}`');
+  });
 });

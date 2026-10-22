@@ -10,16 +10,25 @@
 // must be a place, and the run leads nowhere through one that is not. Its
 // `when` is a condition over `self`, the place, read-only and pure as a
 // pass rule's is: nobody is acting while it is polled, so `actor` and
-// `here` are not bound. An exit that refuses says its words to whoever
-// goes that way, and one that leads may say words to whoever takes it,
-// so they are checked as a `refuse`'s and a `say`'s are, with `actor` and
-// `here` bound beside `self`. `connect` assigns one of the writing kind's
-// links, by its name, to a binding: a link leads only where the world
-// made a place, and a place written in source has an exit.
+// `here` are not bound; it may read the place the exit leads to, though
+// that place is out of range, and not a place a drawn way names. A way drawn as it is taken names two or more
+// choices, each place once and at most one refusal, since the draw is
+// even and a choice written twice would weigh it. An exit that refuses
+// says its words to whoever goes that way, and one that leads may say
+// words to whoever takes it, so they are checked as a `refuse`'s and a
+// `say`'s are, with `actor` and `here` bound beside `self`. `connect`
+// assigns one of the writing kind's links, by its name, to a binding: a
+// link leads only where the world made a place, and a place written in
+// source has an exit.
 
 import type { ConnectStatement, Expr, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
-import type { GrammarRefusal, GrammarSaying } from '../syntax/ast-grammar.js';
+import type {
+  GrammarDrawn,
+  GrammarExit,
+  GrammarRefusal,
+  GrammarSaying,
+} from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { isLinkName, type ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
@@ -29,7 +38,7 @@ import type { HereKind } from '../declare/places.js';
 import { actorBinding, hereBinding, Scope, selfBinding, showBindingType } from './bindings.js';
 import { checkPassage } from './audiences.js';
 import type { SpeechBook } from './speech.js';
-import { typeOf, type CheckContext } from './check.js';
+import { typeOf, type CheckContext, type WayEnds } from './check.js';
 import { dottedType, type NameScope } from './names.js';
 import { pathType } from './statements.js';
 
@@ -67,10 +76,80 @@ export function checkExit(exit: ResolvedExit, self: KindRef, setting: ExitSettin
   const leads =
     line.leads.kind === 'path'
       ? checkDestination(line.leads, self, setting)
-      : checkWords(line.leads, self, setting);
+      : line.leads.kind === 'grammar-drawn'
+        ? checkDrawn(line.leads, `exit ${line.direction.text} "${line.label.text}"`, self, setting)
+        : checkWords(line.leads, self, setting);
   const says = line.says === null || checkWords(line.says, self, setting);
-  const holds = line.when === null || checkWhen(line.when, self, setting);
+  const holds =
+    line.when === null || checkWhen(line.when, self, wayEnds(line.leads, setting), setting);
   return leads && says && holds;
+}
+
+/**
+ * A drawn way's choices: two or more, each a place an exit could lead to
+ * or the words of a refusal, no place named twice and one refusal at most.
+ */
+function checkDrawn(
+  drawn: GrammarDrawn,
+  exit: string,
+  self: KindRef,
+  setting: ExitSetting,
+): boolean {
+  const { diagnostics } = setting;
+  let accepted = true;
+  if (drawn.choices.length < 2) {
+    const [only] = drawn.choices;
+    diagnostics.refuse(
+      drawn.at,
+      '`one of` draws among two or more choices, and this names one.',
+      only?.leads.kind === 'path'
+        ? `Lead the exit there, as in \`${exit} -> ${writtenPath(only.leads)}\`, or name the other places it may lead to.`
+        : `Write the refusal in place of \`->\`, as in \`${exit} refuse "…"\`, or name the places it may lead to.`,
+    );
+    accepted = false;
+  }
+  const named = new Set<string>();
+  let refusals = 0;
+  for (const choice of drawn.choices) {
+    if (choice.leads.kind === 'grammar-refusal') {
+      refusals += 1;
+      if (refusals === 2) {
+        diagnostics.refuse(
+          choice.at,
+          'This `one of` already refuses among its choices, and a second refusal would make refusing likelier than each place.',
+          'Keep one `refuse`: every choice is drawn as often as any other.',
+        );
+        accepted = false;
+      }
+      accepted = checkWords(choice.leads, self, setting) && accepted;
+      continue;
+    }
+    const written = writtenPath(choice.leads);
+    accepted = checkDestination(choice.leads, self, setting) && accepted;
+    const place = placeOf(choice.leads, setting);
+    if (named.has(place)) {
+      diagnostics.refuse(
+        choice.at,
+        `\`${written}\` is already among this \`one of\`'s choices, and naming it twice would make it likelier than the others.`,
+        `Name each place once: every choice is drawn as often as any other.`,
+      );
+      accepted = false;
+    }
+    named.add(place);
+  }
+  return accepted;
+}
+
+/**
+ * The place a choice names, as the name table resolved it, so two paths
+ * to one declared object are one place; a name resolved only as each
+ * instance runs is known by how it is written.
+ */
+function placeOf(path: ObjectPath, setting: ExitSetting): string {
+  const named = setting.names.table.get(path);
+  if (named?.names === 'declared') return `declared ${named.path.join('.')}`;
+  if (named?.names === 'own') return `own ${named.parts.join('.')}`;
+  return `written ${writtenPath(path)}`;
 }
 
 /** Where an exit leads: a place written in the world, named from where the exit is. */
@@ -147,11 +226,34 @@ function checkWords(
 }
 
 /**
- * An exit's `when`: a boolean over `self`, with `actor` and `here`
- * withheld, that draws nothing; the literal `false`, which never holds,
- * is warned about.
+ * Where an exit leads, as its `when` may read it: each place it names that
+ * the world's tree declares, the one a plain exit leads to or those a drawn
+ * way names; none for an exit that refuses, which leads nowhere.
  */
-function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
+function wayEnds(leads: GrammarExit['leads'], setting: ExitSetting): WayEnds | undefined {
+  const declared = (path: ObjectPath): (readonly string[])[] => {
+    const named = setting.names.table.get(path);
+    return named?.names === 'declared' ? [named.path] : [];
+  };
+  if (leads.kind === 'path') return { leads: 'one', places: declared(leads) };
+  if (leads.kind !== 'grammar-drawn') return undefined;
+  const places = leads.choices.flatMap((choice) =>
+    choice.leads.kind === 'path' ? declared(choice.leads) : [],
+  );
+  return { leads: 'drawn', places };
+}
+
+/**
+ * An exit's `when`: a boolean over `self`, with `actor` and `here`
+ * withheld, that draws nothing, and may read the place it leads to; the
+ * literal `false`, which never holds, is warned about.
+ */
+function checkWhen(
+  when: Expr,
+  self: KindRef,
+  way: WayEnds | undefined,
+  setting: ExitSetting,
+): boolean {
   const { diagnostics } = setting;
   const scope = Scope.root();
   scope.introduce(selfBinding(self, when.at), diagnostics);
@@ -174,6 +276,7 @@ function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
     diagnostics,
     names: setting.names,
     undrawn: { by: 'when' },
+    ...(way === undefined ? {} : { way }),
   };
   const type = typeOf(when, context);
   if (type === null) return false;

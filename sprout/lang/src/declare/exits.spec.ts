@@ -175,6 +175,19 @@ describe('one body’s exits and links, in the first tier', () => {
     ).toHaveLength(1);
   });
 
+  it('count a drawn way as one, a refusal among its choices included, since it is offered as one way', () => {
+    const caps = { ...DEFAULT_LIMITS.caps, exitsPerPlace: 1 };
+    expect(
+      checked('kind Hall { grammar { exit west "w" -> one of (a, b, refuse "No.") } }', caps),
+    ).toEqual([]);
+    expect(
+      checked(
+        'kind Hall { grammar { exit west "w" -> one of (a, refuse "No.")  exit in "a" -> a } }',
+        caps,
+      ),
+    ).toHaveLength(1);
+  });
+
   it('hold an exit that refuses to the closed set of directions as any exit', () => {
     expect(checked('kind Hall { grammar { exit n "north" refuse "No." } }')).toEqual([
       [

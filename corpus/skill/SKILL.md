@@ -238,7 +238,7 @@ A body is what is between a declaration’s braces. Besides these, every body ho
 | `as target for poke { do { say "Poked." } }` | its part in a verb: a `permit` that may refuse, and a `do` that acts | yes | yes |
 | `on :stir { tell "Stirred." }` | a handler for a message | yes | yes |
 | `changed :lit (was) { tell "It flickers." }` | a hook, run when one of its own properties changes | yes | yes |
-| `after command { tell actor "The probe hums." }` | run at the end of every command a visitor makes while they carry it or it holds them, with `actor` and `here` bound | yes | yes |
+| `after command { tell actor "The probe hums." }` | run at the end of every command a visitor makes while they carry it or it holds them, a refused one included, with `actor`, `here` and `refused` bound, and `way` inside `if (bound way)` after a refused `go` | yes | yes |
 | `pass any (true)` | whether a message sent inside it passes out, or from outside in | yes | yes |
 | `object pin is Pin` | a thing inside it | yes | yes |
 | `visitors are Person` | the world’s kind for visitors, and `visitors arrive at yard`, where they start | — | yes |
@@ -316,6 +316,8 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `pass 10 minutes` | asks the host to let time pass once the visitor’s command is over, so the wakes that fall due in it arrive while they wait; the host grants at most its longest pass | — | — | yes | — | — |
 | `each crumb: Crumb in self { }` | walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may | yes | yes | yes | yes | yes |
 | `self.set(:lit, true)` | a call that writes, one of those under Writing below | — | — | yes | — | yes |
+
+Words are printed in the case they are written in: only a slot that names a thing, such as `{actor}`, or an option, is capitalised where it opens a line. Reflow makes every run of spaces one; text with a shape of its own, verse or a sign, goes between `{verbatim}` and `{/verbatim}`, which keeps every space and line break, holds no slots, and should keep its lines to 40 characters so the narrowest screen need not wrap them.
 
 ## What a visitor can type
 

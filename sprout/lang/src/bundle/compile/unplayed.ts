@@ -4,7 +4,8 @@
 // each thing a kind's body gives its instances, the world, the kind its
 // visitors are made of, and each kind a body spawns. A kind role is filled
 // where one of those composes its kind; a value role, where a part's
-// `from` narrows it or an `act` names it. Only the world's own verbs are
+// `from` narrows it, since a value an `act` gives is narrowed by the same
+// `from` (the spec's A role-player narrows its own options). Only the world's own verbs are
 // warned about, as for the unsaid warning: a library's are its author's.
 //
 // A verb nothing plays is said once, at its name, and nothing more is
@@ -16,14 +17,11 @@ import { fileNamedFor } from '../../declare/file-names.js';
 import { kindName, type KindRef } from '../../declare/kinds.js';
 import { ACTOR_ROLE, playKey } from '../../declare/roles.js';
 import type { ResolvedRole, ResolvedVerb } from '../../declare/verbs.js';
-import { bodiesOf, statementsIn } from './written.js';
 
 /** What the warnings read: the kinds of everything that can take part, every verb, and whose verbs are the world's. */
 export interface UnplayedSetting {
   /** The kind of every thing the world can hold, each once. */
   readonly takingPart: readonly KindRef[];
-  /** Every composed kind, whose bodies' `act`s are read. */
-  readonly kinds: readonly KindRef[];
   readonly verbs: readonly ResolvedVerb[];
   /** The world's own namespace. */
   readonly namespace: string;
@@ -37,7 +35,7 @@ export interface UnplayedSetting {
  */
 export function warnUnplayed(setting: UnplayedSetting): ReadonlySet<ResolvedVerb> {
   const { takingPart, verbs, namespace, diagnostics } = setting;
-  const roles: RoleSetting = { takingPart, acted: actedRoles(setting.kinds), diagnostics };
+  const roles: RoleSetting = { takingPart, diagnostics };
   const unplayed = new Set<ResolvedVerb>();
   for (const verb of verbs) {
     if (verb.library !== namespace) continue;
@@ -54,23 +52,7 @@ export function warnUnplayed(setting: UnplayedSetting): ReadonlySet<ResolvedVerb
 /** What a role's warning reads. */
 interface RoleSetting {
   readonly takingPart: readonly KindRef[];
-  /** Each role an `act` names, as `verb role`. */
-  readonly acted: ReadonlySet<string>;
   readonly diagnostics: Diagnostics;
-}
-
-/** Each role some `act` in `kinds` fills, as `verb role`: an `act` gives a value role its value itself. */
-function actedRoles(kinds: readonly KindRef[]): Set<string> {
-  const acted = new Set<string>();
-  for (const kind of kinds) {
-    for (const { block } of bodiesOf(kind)) {
-      for (const statement of statementsIn(block)) {
-        if (statement.kind !== 'act') continue;
-        for (const role of statement.roles) acted.add(`${statement.verb.text} ${role.role.text}`);
-      }
-    }
-  }
-  return acted;
 }
 
 /** Whether any of `kinds` plays any part in `verb`, the actor's included. */
@@ -100,7 +82,7 @@ function warnVerb(verb: ResolvedVerb, diagnostics: Diagnostics): void {
 function warnRole(
   verb: ResolvedVerb,
   role: ResolvedRole,
-  { takingPart, acted, diagnostics }: RoleSetting,
+  { takingPart, diagnostics }: RoleSetting,
 ): void {
   const filler = role.filler;
   // A kind that is absent or could not be one has been said already; an
@@ -127,7 +109,7 @@ function warnRole(
       (kind.plays.get(key(part)) ?? []).some((play) => play.narrows.has(role.name)),
     ),
   );
-  if (narrowed || acted.has(`${verb.name} ${role.name}`)) return;
+  if (narrowed) return;
   const from =
     filler.fills === 'symbol'
       ? `${role.name} from :<a list property>`

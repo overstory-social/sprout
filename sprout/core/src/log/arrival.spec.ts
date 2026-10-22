@@ -12,6 +12,7 @@ const admitted = {
   fault: null,
   effects: [SAID],
   cutShort: [],
+  warnings: [],
 } as const;
 
 describe('a visitor’s entry in the log', () => {

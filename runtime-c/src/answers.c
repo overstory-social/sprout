@@ -213,6 +213,26 @@ sprout_eval_status sprout_engine_answers(sprout_exec *x, const sprout_frame *fra
   return SPROUT_EVAL_OK;
 }
 
+sprout_eval_status sprout_answers_folded(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading) {
+  const sprout_arrived *arrivals;
+  const sprout_effect *engine;
+  size_t arrival_count, answer_count;
+  EXPR_NEED(sprout_arrivals_read(x, frame, &arrivals, &arrival_count));
+  EXPR_NEED(sprout_engine_answers(x, frame, reading, &engine, &answer_count));
+  EXPR_NEED(sprout_lines_assembled(x, NULL, 0, arrivals, arrival_count, engine, answer_count));
+  /* Every description owed so far is read; a later move owes its own. */
+  x->owed_count = 0;
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_command_over(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                       const sprout_resolved *answered) {
+  EXPR_NEED(sprout_exec_drain(x));
+  if (answered != NULL) EXPR_NEED(sprout_answers_folded(x, frame, answered));
+  EXPR_NEED(sprout_after_command(x, frame, actor));
+  return sprout_exec_drain(x);
+}
+
 sprout_eval_status sprout_lines_assembled(sprout_exec *x, const sprout_effect *before, size_t before_count,
                                           const sprout_arrived *arrived, size_t arrived_count,
                                           const sprout_effect *later, size_t later_count) {

@@ -1,15 +1,20 @@
 /*
- * Prose, rendered for one reader (the spec's Prose > Passages, Slots, Conditionals and loops,
- * Bounds). A slot renders an object as the reader reads it, an option humanised, a number in
- * digits and a string as written; another object's passage runs with that object as its own
+ * Prose, rendered for one reader (the spec's Prose > Passages, Slots, Verbatim, Conditionals and
+ * loops, Bounds). A slot renders an object as the reader reads it and an option humanised, each
+ * as words reflow may capitalise, a number in digits and a string as written, its spaces and line
+ * breaks kept; another object's passage runs with that object as its own
  * `self` and only `actor`, `here` and `seen` beside it, one passage deeper against the host's
  * bound. `{if}` renders the first branch whose condition holds, and `{for}` its body once for
  * each thing or element it walks, in order, with `$first`, `$last`, `$index` (counting from 1)
- * and `$count` bound. `{one of}` renders one of its choices, drawn from the line's draws. Every
+ * and `$count` bound. `{exit east}` renders the place the exit that applies that way leads to, as its
+ * describe gives it, and nothing inside a place so shown. `{one of}` renders one of its choices, drawn from the line's draws. Every
  * expression is evaluated as a body's is and charged the same steps, and every iteration and every
  * choice is a step. Rendering writes nothing.
  */
 #include "prose/prose.h"
+
+#include "describe.h"
+#include "exits.h"
 
 sprout_frame prose_frame(const prose_reading *reading, sprout_draws *draws, sprout_str self, const char *library,
                          const sprout_binding *bindings) {
@@ -100,6 +105,79 @@ static sprout_eval_status passage_of(const prose_reading *reading, const sprout_
   return SPROUT_EVAL_OK;
 }
 
+/* ---- a way out, shown ---- */
+
+/*
+ * `{exit east}`: the place the exit that applies on `self` in that direction leads to, as its describe
+ * gives it, one line a paragraph, with `actor`, `here` and `seen` beside it where they are bound, laid in
+ * the line as `prose_slotted` says, one passage deeper. Nothing where no exit that way applies, where the
+ * one that does refuses or is drawn, or inside a place itself shown through a way, so two places that
+ * show each other end.
+ */
+static sprout_eval_status way_shown(const prose_reading *reading, const sprout_node *piece, const sprout_frame *frame,
+                                    prose_pieces *out) {
+  static const char *const CARRIED[] = {"actor", "here", "seen"};
+  const char *direction = sprout_node_name(frame->graph, piece, "direction");
+  const sprout_way *ways, *way = NULL;
+  const sprout_binding *bindings = NULL;
+  sprout_description shown;
+  prose_reading through;
+  prose_pieces rendered, slotted;
+  sprout_eval_status status = SPROUT_EVAL_OK;
+  size_t count, i;
+  if (direction == NULL) return expr_unchecked(frame, "`{exit}` with no direction");
+  if (reading->beyond) return SPROUT_EVAL_OK;
+  EXPR_NEED(sprout_ways_from(frame, frame->self, &ways, &count));
+  for (i = 0; i < count && way == NULL; i++)
+    if (ways[i].direction != NULL && strcmp(ways[i].direction, direction) == 0) way = &ways[i];
+  if (way == NULL || way->refuses || way->drawn) return SPROUT_EVAL_OK;
+  for (i = 0; i < sizeof CARRIED / sizeof CARRIED[0]; i++) {
+    const sprout_binding *carried = expr_binding(frame, CARRIED[i]);
+    sprout_frame scope = *frame;
+    scope.bindings = bindings;
+    if (carried == NULL) continue;
+    bindings = sprout_bind(&scope, CARRIED[i], carried->bound);
+    if (bindings == NULL) return SPROUT_EVAL_NO_MEMORY;
+  }
+  EXPR_NEED(sprout_describe_beyond(frame, way->to, bindings, &shown));
+  through = *reading;
+  through.graph = &frame->world->graph;
+  through.beyond = true;
+  memset(&rendered, 0, sizeof rendered);
+  EXPR_NEED(prose_enter_passage(reading));
+  for (i = 0; i < shown.line_count && status == SPROUT_EVAL_OK; i++) {
+    const sprout_spoken *line = &shown.lines[i];
+    const sprout_node *prose;
+    const char *library;
+    sprout_frame inner;
+    size_t before;
+    if (line->said.kind == SPROUT_SPEECH_TEXT) {
+      prose = sprout_node_get(through.graph, line->said.node, "prose");
+      library = line->said.library;
+    } else if (line->said.kind == SPROUT_SPEECH_PASSAGE) {
+      prose = sprout_node_get(through.graph, sprout_node_get(through.graph, line->said.node, "body"), "prose");
+      library = line->said.origin == NULL ? NULL : prose_library_of(frame->turn, line->said.origin);
+    } else {
+      continue;
+    }
+    if (rendered.count > 0) status = put_words(&through, &rendered, PROSE_PARAGRAPH, NULL, 0);
+    if (status != SPROUT_EVAL_OK) break;
+    before = rendered.count;
+    inner = prose_frame(&through, frame->draws, line->by, library, line->bindings);
+    status = pieces(&through, prose, &inner, &rendered);
+    if (status == SPROUT_EVAL_OK && rendered.count > before) {
+      if (line->said.kind == SPROUT_SPEECH_PASSAGE) prose_note_passage(&through, line->said.node);
+      else prose_note_line(&through, prose);
+    }
+  }
+  sprout_meter_leave_passage(reading->meter);
+  EXPR_NEED(status);
+  if (!prose_slotted(frame->turn, &rendered, &slotted)) return SPROUT_EVAL_NO_MEMORY;
+  for (i = 0; i < slotted.count; i++)
+    EXPR_NEED(put_words(reading, out, slotted.items[i].kind, slotted.items[i].bytes, slotted.items[i].length));
+  return SPROUT_EVAL_OK;
+}
+
 /* ---- a slot ---- */
 
 static sprout_eval_status slot(const prose_reading *reading, const sprout_node *piece, const sprout_frame *frame,
@@ -117,7 +195,7 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
   switch (value.binds) {
     case SPROUT_BINDS_OBJECT:
       EXPR_NEED(prose_object_words(frame, value.id, reading->reader, &words));
-      return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
+      return put_words(reading, out, PROSE_NAME, words.bytes, words.length);
     case SPROUT_BINDS_SET:
     case SPROUT_BINDS_READINGS:
       return expr_engine(frame, "a slot rendered a set or `readings` whole, which the checker refuses.");
@@ -136,10 +214,12 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
       return put_words(reading, out, PROSE_WORDS, words.bytes, length);
     case SPROUT_STRING:
       words = (sprout_str){value.value.as.string.bytes, value.value.as.string.length};
-      if (sprout_world_option_slot(frame->world, piece) &&
-          !sprout_humanised(frame->turn, words, &words))
-        return SPROUT_EVAL_NO_MEMORY;
-      return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
+      /* An option's words are the engine's, made from its name; a string is put in as written. */
+      if (sprout_world_option_slot(frame->world, piece)) {
+        if (!sprout_humanised(frame->turn, words, &words)) return SPROUT_EVAL_NO_MEMORY;
+        return put_words(reading, out, PROSE_NAME, words.bytes, words.length);
+      }
+      return put_words(reading, out, PROSE_VERBATIM, words.bytes, words.length);
   }
   return SPROUT_EVAL_OK;
 }
@@ -269,12 +349,18 @@ static sprout_eval_status pieces(const prose_reading *reading, const sprout_node
       text = sprout_node_get(frame->graph, piece, "text");
       if (text == NULL || text->kind != SPROUT_NODE_STRING) return expr_unchecked(frame, "words with no text");
       EXPR_NEED(put_words(reading, out, PROSE_WORDS, sprout_text(frame->graph, text), sprout_text_length(frame->graph, text)));
+    } else if (strcmp(kind, "prose-verbatim") == 0) {
+      text = sprout_node_get(frame->graph, piece, "text");
+      if (text == NULL || text->kind != SPROUT_NODE_STRING) return expr_unchecked(frame, "a verbatim block with no text");
+      EXPR_NEED(put_words(reading, out, PROSE_VERBATIM, sprout_text(frame->graph, text), sprout_text_length(frame->graph, text)));
     } else if (strcmp(kind, "prose-paragraph") == 0) {
       EXPR_NEED(put_words(reading, out, PROSE_PARAGRAPH, NULL, 0));
     } else if (strcmp(kind, "prose-newline") == 0) {
       EXPR_NEED(put_words(reading, out, PROSE_LINE, NULL, 0));
     } else if (strcmp(kind, "prose-slot") == 0) {
       EXPR_NEED(slot(reading, piece, frame, out));
+    } else if (strcmp(kind, "prose-exit") == 0) {
+      EXPR_NEED(way_shown(reading, piece, frame, out));
     } else if (strcmp(kind, "prose-if") == 0) {
       EXPR_NEED(branch(reading, piece, frame, out));
     } else if (strcmp(kind, "prose-for") == 0) {

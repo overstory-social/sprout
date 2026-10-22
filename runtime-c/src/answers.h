@@ -3,7 +3,7 @@
  * and consent > After the move; The runtime > Effects). A person who moved between places reads the
  * place they arrived in, derived once the queue is empty and read where the body that moved them
  * ended; one who typed `look`, `examine`, `inventory`, `wait` or `help` reads the engine's answer after
- * everything the queue said. Both are carried unrendered among the turn's lines, in the order the
+ * everything the queue said and before what follows the command. Both are carried unrendered among the turn's lines, in the order the
  * reader reads them.
  */
 #ifndef SPROUT_ANSWERS_H
@@ -32,6 +32,21 @@ sprout_eval_status sprout_arrivals_read(sprout_exec *x, const sprout_frame *fram
  */
 sprout_eval_status sprout_engine_answers(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
                                          const sprout_effect **out, size_t *count);
+
+/*
+ * A person's command read as its move ended, before what follows it runs: the arrivals and the engine's
+ * answer, folded into the exec's lines in their places, and the descriptions owed so far cleared.
+ */
+sprout_eval_status sprout_answers_folded(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading);
+
+/*
+ * Ends `actor`'s command (the spec's The runtime > Turns): its queue drains; where `answered` is the reading
+ * a command turn ran, the arrivals and the engine's answer to it are folded into the lines; every
+ * `after command` the command was marked as owing runs (reading/after.c); and the queue those fill drains.
+ * `answered` is NULL where nothing is answered as the engine does, as for a refused command.
+ */
+sprout_eval_status sprout_command_over(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                       const sprout_resolved *answered);
 
 /*
  * The turn's lines as the person reads them: `before`, then what the exec recorded with each arrival read

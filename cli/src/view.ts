@@ -35,7 +35,8 @@ function section(title: string, lines: readonly string[], none: string): string 
 
 function exitWritten(exit: CommandExit, world: InstanceId): string {
   const way = exit.direction === null ? 'link' : `exit ${exit.direction}`;
-  return `${way} "${exit.label}" -> ${pathOf(world, exit.to)}`;
+  // A drawn way leads nowhere until it is taken.
+  return `${way} "${exit.label}" -> ${exit.to === null ? 'one of (…)' : pathOf(world, exit.to)}`;
 }
 
 function thingWritten(thing: SeenThing, world: InstanceId): string {

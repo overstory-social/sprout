@@ -19,6 +19,7 @@ import type { OnUnknownMessage } from '../../declare/handlers.js';
 import type { SpeechSetting } from '../speech.js';
 import type { Undrawn } from '../chance.js';
 import type { PinnedExtensions } from '../../declare/extensions.js';
+import type { DeclaredEnum } from '../../declare/enums.js';
 
 /** What a body is being read inside. */
 export interface CheckContext {
@@ -49,8 +50,27 @@ export interface CheckContext {
   readonly undrawn?: Undrawn;
   /** The extensions the bundle pins, whose statements the body may write. */
   readonly extensions?: PinnedExtensions;
+  /** Set where the body is an exit's `when`: where the exit leads, which it may read (the spec's An exit may be conditional). */
+  readonly way?: WayEnds;
   /** Set where the body is a place's `lit`, the one place `sees` may be read (the spec's Range › Sight). */
   readonly sight?: true;
+  /**
+   * Set where the body is a passage, which may be said both where someone
+   * is acting and where nobody is, so `bound actor` and `bound here` ask
+   * which (the spec's Prose).
+   */
+  readonly passage?: true;
+}
+
+/**
+ * Where an exit leads, as its `when` sees it: the one place a plain exit
+ * leads to, which the guard may read, or the places a drawn way may be
+ * drawn to, which it may not, since it leads to none until it is taken.
+ * Each place is its path in the world's tree, as the name table has it.
+ */
+export interface WayEnds {
+  readonly leads: 'one' | 'drawn';
+  readonly places: readonly (readonly string[])[];
 }
 
 /** The messages a body's sends reach, and what is told of one nothing declares. */
@@ -59,9 +79,11 @@ export interface MessageSetting {
   readonly onUnknown?: OnUnknownMessage;
 }
 
-/** The verbs an `act` may name (the spec's Verbs › Acting). */
+/** The verbs an `act` may name, and the options it may give a value role (the spec's Verbs › Acting). */
 export interface ActSetting {
   readonly verbs: VerbLookup & { all(): readonly ResolvedVerb[] };
+  /** The enums whose options a role-player's `from` hears for a role of a verb. */
+  readonly heard: (verb: ResolvedVerb, role: string) => readonly DeclaredEnum[];
 }
 
 /** A context that can type an expression it meets on the way, by the walk it was made with. */
@@ -91,6 +113,8 @@ export function checkerOf(
     ...(context.names === undefined ? {} : { names: context.names }),
     ...(context.undrawn === undefined ? {} : { undrawn: context.undrawn }),
     ...(context.sight === undefined ? {} : { sight: context.sight }),
+    ...(context.way === undefined ? {} : { way: context.way }),
+    ...(context.passage === undefined ? {} : { passage: context.passage }),
     typeOf: (expr) => walk(expr, checker),
     within: (scope) => checkerOf({ ...context, scope }, walk),
     held: new WeakMap(),

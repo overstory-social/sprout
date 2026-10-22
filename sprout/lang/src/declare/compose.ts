@@ -78,6 +78,7 @@ import { composeExits, ownExits } from './exits.js';
 import { composeDescribe, ownDescribe } from './describe.js';
 import { composeCapacity } from './capacity.js';
 import {
+  ACTOR_ROLE,
   ANY_VERB,
   anyPlaysOf,
   composePlays,
@@ -404,6 +405,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
 
   // --- plays, every one of each role, in closure order ------------------
   const plays = composePlays(
+    { name: composer.name, written: composed.map(({ written }) => written), shown },
     composed.map(({ kind }) => kind.plays),
     order,
     suppressed,
@@ -413,6 +415,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
       ...(context.onUnknownVerb === undefined ? {} : { onUnknownVerb: context.onUnknownVerb }),
     }),
     reach,
+    diagnostics,
   );
   // --- handlers and hooks, all of them, in closure order ----------------
   const messages = messageSetting(composer.library, context);
@@ -660,9 +663,9 @@ function declaresMember(
   if (member.kind === 'after-command-ref')
     return writesAfterCommand(found.kind.afterCommand, identity);
   if (member.verb.text === ANY_VERB) {
-    const category = member.role.text;
-    if (category !== 'target' && category !== 'tool') return false;
-    return anyPlaysOf(found.kind.plays, category).some((play) => play.origin === identity);
+    const part = member.role.text;
+    if (part !== 'target' && part !== 'tool' && part !== ACTOR_ROLE) return false;
+    return anyPlaysOf(found.kind.plays, part).some((play) => play.origin === identity);
   }
   const verb = reach(member.verb.text);
   if (verb === null) return false;

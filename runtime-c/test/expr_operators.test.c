@@ -2,7 +2,8 @@
  * Tests for src/expr/operators.c: the operators over operands already
  * evaluated, with no truthiness and no coercion (reading an operand as what
  * it is not is the engine's defect), `||` leaving its right unevaluated when
- * its left decides, and `+` or `-` that leave the integer range faulting.
+ * its left decides, arithmetic that leaves the integer range faulting, `/` and
+ * `%` truncating toward zero, and either by zero faulting.
  */
 #include "eval_fixture.h"
 #include "expr/expr.h"
@@ -102,6 +103,83 @@ static void a_sum_or_difference_past_the_integer_range_faults(void) {
   bench_close(&b);
 }
 
+/* `left op right` over the golden case's node, whose right is written, with `left` given. */
+static sprout_eval_status worked(bench *b, bench_turn *t, const char *name, double left, sprout_evaluated *out) {
+  sprout_evaluated given = number(left);
+  return expr_binary(&t->frame, bench_expr(b, name), &given, out);
+}
+
+static void a_product_is_worked_exactly_and_faults_past_the_range(void) {
+  bench b;
+  bench_turn t;
+  sprout_evaluated out;
+  bench_open(&b);
+  bench_turn_for(&b, &t, "* past the largest integer");
+  /* `left * 65536`. */
+  CHECK_INT(worked(&b, &t, "* past the largest integer", 2, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == 131072);
+  CHECK_INT(worked(&b, &t, "* past the largest integer", -32768, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == -2147483648.0);
+  CHECK_INT(worked(&b, &t, "* past the largest integer", 0, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == 0);
+  CHECK_INT(worked(&b, &t, "* past the largest integer", 32768, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.name, "IntegerOverflow");
+  CHECK_STR(t.fault.text, "32768 * 65536 is outside the integer range, -2147483648 to 2147483647.");
+  /* Past what a double holds exactly, the words still name both sides. */
+  CHECK_INT(worked(&b, &t, "* past the largest integer", 2147483647, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.text, "2147483647 * 65536 is outside the integer range, -2147483648 to 2147483647.");
+  bench_turn_close(&t);
+  bench_close(&b);
+}
+
+static void division_and_remainder_truncate_toward_zero(void) {
+  bench b;
+  bench_turn t;
+  sprout_evaluated out;
+  bench_open(&b);
+  bench_turn_for(&b, &t, "/ truncates toward zero");
+  /* `left / 2` and `left % 2`. */
+  CHECK_INT(worked(&b, &t, "/ truncates toward zero", 7, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == 3);
+  CHECK_INT(worked(&b, &t, "/ truncates toward zero", -7, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == -3);
+  CHECK_INT(worked(&b, &t, "/ truncates toward zero", -8, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == -4);
+  CHECK_INT(worked(&b, &t, "% takes the sign of what is divided", 7, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == 1);
+  CHECK_INT(worked(&b, &t, "% takes the sign of what is divided", -7, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == -1);
+  CHECK_INT(worked(&b, &t, "% takes the sign of what is divided", -8, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == 0);
+  /* `left / -1`: only the smallest integer leaves the range. */
+  CHECK_INT(worked(&b, &t, "/ past the largest integer", 2147483647, &out), SPROUT_EVAL_OK);
+  CHECK(out.value.as.number == -2147483647);
+  CHECK_INT(worked(&b, &t, "/ past the largest integer", -2147483648.0, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.name, "IntegerOverflow");
+  CHECK_STR(t.fault.text, "2147483648 is outside the integer range, -2147483648 to 2147483647.");
+  bench_turn_close(&t);
+  bench_close(&b);
+}
+
+static void division_or_remainder_by_zero_faults(void) {
+  bench b;
+  bench_turn t;
+  sprout_evaluated out;
+  bench_open(&b);
+  bench_turn_for(&b, &t, "/ by zero");
+  /* `left / 0` and `left % 0`, whatever the left, nought included. */
+  CHECK_INT(worked(&b, &t, "/ by zero", -5, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.name, "DivisionByZero");
+  CHECK_STR(t.fault.text, "-5 / 0: nothing divides by zero.");
+  CHECK_INT(worked(&b, &t, "/ by zero", 0, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.text, "0 / 0: nothing divides by zero.");
+  CHECK_INT(worked(&b, &t, "% by zero", 9, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.name, "DivisionByZero");
+  CHECK_STR(t.fault.text, "9 % 0: there is no remainder by zero.");
+  bench_turn_close(&t);
+  bench_close(&b);
+}
+
 static void an_or_decided_by_its_left_leaves_its_right_unevaluated(void) {
   bench b;
   bench_turn t;
@@ -180,6 +258,9 @@ int main(void) {
   RUN(not_and_minus_act_on_what_they_are_written_on);
   RUN(numbers_are_compared_at_each_edge);
   RUN(a_sum_or_difference_past_the_integer_range_faults);
+  RUN(a_product_is_worked_exactly_and_faults_past_the_range);
+  RUN(division_and_remainder_truncate_toward_zero);
+  RUN(division_or_remainder_by_zero_faults);
   RUN(an_or_decided_by_its_left_leaves_its_right_unevaluated);
   RUN(an_and_above_another_expression_is_the_engines_defect);
   RUN(objects_are_equal_by_identity_and_values_by_content);

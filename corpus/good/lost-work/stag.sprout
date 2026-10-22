@@ -1,0 +1,16 @@
+import * as sprout from 'sprout'
+import {shoo, :called} from 'lost_work'
+
+// The stag roams, so shooed it bounds off to a place no exit reaches.
+kind Stag is sprout.Actor {
+  roams
+
+  as target for shoo {
+    do {
+      say "The stag bounds away."
+      move self to thicket
+    }
+  }
+
+  on :called { tell "The stag bows its antlers." }
+}

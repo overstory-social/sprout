@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { SEED_MAX } from '@overstory/sprout/lang';
+
 import {
   lineOf,
   plays,
@@ -74,6 +76,13 @@ describe('readScript', () => {
     expect(() => read([{ comment: 'x', expect: [] }])).toThrow('makes nothing');
   });
 
+  it('refuses a seed past the largest before anything plays, naming the step', () => {
+    expect(() => read([{ arrive: 'Marta' }, { seed: SEED_MAX + 1 }])).toThrow(
+      `walk.json, step 2: a seed is a whole number from 0 to ${SEED_MAX}.`,
+    );
+    expect(read([{ seed: SEED_MAX }]).steps).toEqual([{ seed: SEED_MAX }]);
+  });
+
   it('refuses an expected line of no known shape, naming the step and the line', () => {
     for (const bad of [
       'A yard.',
@@ -95,6 +104,28 @@ describe('readScript', () => {
     const lines = levels.map((level) => ({ level, text: 'x' }));
     const [step] = read([{ arrive: 'Marta', expect: lines }]).steps;
     expect(step).toEqual({ arrive: 'Marta', expect: lines });
+  });
+
+  it('reads the levels a step forbids, with or without what it expects, and writes them back', () => {
+    const script = read([
+      { arrive: 'Marta', forbid: ['warning'] },
+      { as: 'Marta', type: 'look', forbid: ['warning', 'error'], expect: [{ words: 'A yard.' }] },
+    ]);
+    expect(script.steps).toEqual([
+      { arrive: 'Marta', forbid: ['warning'] },
+      { as: 'Marta', type: 'look', forbid: ['warning', 'error'], expect: [{ words: 'A yard.' }] },
+    ]);
+    expect(readScript(writeScript(script), 'walk.json')).toEqual(script);
+  });
+
+  it('refuses a `forbid` that names no level, or one that is not a level, or on a step that makes nothing', () => {
+    expect(() => read([{ arrive: 'Marta', forbid: [] }])).toThrow(
+      /`forbid` is a list of the levels/,
+    );
+    expect(() => read([{ arrive: 'Marta', forbid: ['loud'] }])).toThrow(
+      /`"forbid": \["warning"\]`/,
+    );
+    expect(() => read([{ seed: 7, forbid: ['warning'] }])).toThrow(/makes nothing/);
   });
 });
 
@@ -178,6 +209,9 @@ describe('the typed line grammar', () => {
     expect(() => stepOfLine('@tick now', 'stdin:2')).toThrow('stdin:2: `@tick` stands alone.');
     expect(() => stepOfLine('@seed x', 'stdin:2')).toThrow(
       'stdin:2: write a whole number, as in `@seed 7`.',
+    );
+    expect(() => stepOfLine(`@seed ${SEED_MAX + 1}`, 'stdin:2')).toThrow(
+      `stdin:2: a seed is a whole number from 0 to ${SEED_MAX}.`,
     );
   });
 });

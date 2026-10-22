@@ -1,8 +1,9 @@
 /*
  * Tests for src/prose/reflow.c: rendered words laid out as the golden lays them out. White space
  * is JavaScript's, a blank line is a paragraph and a paragraph with nothing in it is none, `\n`
- * is kept, the first letter of every line is capitalised past quotation marks and not past a
- * bracket, and a passage put into a slot loses the padding in its braces.
+ * is kept, words keep their case and a name that opens a line is capitalised past quotation marks
+ * and not past a bracket, a verbatim block keeps its shape, and a passage put into a slot loses
+ * the padding in its braces.
  */
 #include "prose_fixture.h"
 
@@ -30,6 +31,10 @@ static void laid_open(laid *l) {
 static void words(laid *l, const char *text) { CHECK(prose_put(&l->arena, &l->pieces, PROSE_WORDS, text, strlen(text))); }
 static void paragraph(laid *l) { CHECK(prose_put(&l->arena, &l->pieces, PROSE_PARAGRAPH, NULL, 0)); }
 static void line(laid *l) { CHECK(prose_put(&l->arena, &l->pieces, PROSE_LINE, NULL, 0)); }
+static void name(laid *l, const char *text) { CHECK(prose_put(&l->arena, &l->pieces, PROSE_NAME, text, strlen(text))); }
+static void verbatim(laid *l, const char *text) {
+  CHECK(prose_put(&l->arena, &l->pieces, PROSE_VERBATIM, text, strlen(text)));
+}
 
 /* The paragraphs of `pieces` joined by a bar, for a short expectation. */
 static const char *flowed(laid *l, const prose_pieces *pieces) {
@@ -52,7 +57,7 @@ static void every_run_of_space_is_one_space_and_a_paragraph_has_none_at_its_ends
   laid_open(&l);
   words(&l, "  hello \n\t  there  ");
   words(&l, "  you ");
-  CHECK_STR(flowed(&l, &l.pieces), "Hello there you");
+  CHECK_STR(flowed(&l, &l.pieces), "hello there you");
   sprout_arena_reset(&l.arena);
   CHECK_INT(l.heap.pages, 0);
 }
@@ -68,11 +73,11 @@ static void a_blank_line_is_a_paragraph_and_a_paragraph_with_nothing_in_it_is_no
   paragraph(&l);
   words(&l, "two");
   paragraph(&l);
-  CHECK_STR(flowed(&l, &l.pieces), "One|Two");
+  CHECK_STR(flowed(&l, &l.pieces), "one|two");
   sprout_arena_reset(&l.arena);
 }
 
-static void a_line_break_is_kept_and_every_line_is_capitalised(void) {
+static void a_line_break_is_kept_and_no_line_is_capitalised(void) {
   laid l;
   laid_open(&l);
   words(&l, "first");
@@ -81,7 +86,7 @@ static void a_line_break_is_kept_and_every_line_is_capitalised(void) {
   line(&l);
   line(&l);
   words(&l, "fourth");
-  CHECK_STR(flowed(&l, &l.pieces), "First\nSecond\n\nFourth");
+  CHECK_STR(flowed(&l, &l.pieces), "first\nsecond\n\nfourth");
   sprout_arena_reset(&l.arena);
 }
 
@@ -93,7 +98,7 @@ static void a_paragraph_ending_in_a_line_break_is_still_nul_terminated(void) {
   line(&l);
   CHECK(prose_reflow(&l.arena, &l.pieces, &out));
   CHECK_INT(out.count, 1);
-  CHECK_BYTES(out.items[0].bytes, out.items[0].length, "Hello");
+  CHECK_BYTES(out.items[0].bytes, out.items[0].length, "hello");
   CHECK_INT(out.items[0].bytes[out.items[0].length], 0);
   sprout_arena_reset(&l.arena);
 }
@@ -104,7 +109,7 @@ static void a_line_break_at_a_paragraphs_ends_is_trimmed(void) {
   line(&l);
   words(&l, "inside");
   line(&l);
-  CHECK_STR(flowed(&l, &l.pieces), "Inside");
+  CHECK_STR(flowed(&l, &l.pieces), "inside");
   sprout_arena_reset(&l.arena);
 }
 
@@ -113,7 +118,7 @@ static void white_space_is_what_javascript_calls_it(void) {
   laid_open(&l);
   words(&l, "a\xC2\xA0\xC2\xA0" "b\xE3\x80\x80" "c\xEF\xBB\xBF" "d\xE2\x80\xA8" "e\xE2\x80\x8B" "f");
   /* U+200B is not white space to JavaScript. */
-  CHECK_STR(flowed(&l, &l.pieces), "A b c d e\xE2\x80\x8B" "f");
+  CHECK_STR(flowed(&l, &l.pieces), "a b c d e\xE2\x80\x8B" "f");
   sprout_arena_reset(&l.arena);
 }
 
@@ -161,6 +166,70 @@ static void one_line_break_at_an_end_is_a_line_break_and_none_is_none(void) {
   sprout_arena_reset(&l.arena);
 }
 
+static void a_name_that_opens_a_line_is_capitalised_past_a_quotation_mark_and_not_past_a_bracket(void) {
+  laid l;
+  laid_open(&l);
+  name(&l, "the crate");
+  words(&l, " sits by ");
+  name(&l, "the door");
+  line(&l);
+  words(&l, "  \xE2\x80\x9C");
+  name(&l, "marta");
+  words(&l, ", again.\xE2\x80\x9D");
+  line(&l);
+  words(&l, "(");
+  name(&l, "the crate");
+  words(&l, ")");
+  line(&l);
+  words(&l, "and ");
+  name(&l, "the crate");
+  CHECK_STR(flowed(&l, &l.pieces),
+            "The crate sits by the door\n\xE2\x80\x9CMarta, again.\xE2\x80\x9D\n(the crate)\nand the crate");
+  sprout_arena_reset(&l.arena);
+  CHECK_INT(l.heap.pages, 0);
+}
+
+static void a_verbatim_block_keeps_every_space_and_break_and_the_words_around_it_reflow(void) {
+  laid l;
+  laid_open(&l);
+  words(&l, "  carved:   ");
+  verbatim(&l, "a  b");
+  words(&l, "   done.  ");
+  paragraph(&l);
+  verbatim(&l, "  W   E   L   L\n\nthe end  ");
+  words(&l, "  ");
+  paragraph(&l);
+  words(&l, " ");
+  verbatim(&l, "   ");
+  /* The last paragraph holds only white space, so it is none. */
+  CHECK_STR(flowed(&l, &l.pieces), "carved: a  b done.|  W   E   L   L\n\nthe end  ");
+  sprout_arena_reset(&l.arena);
+  CHECK_INT(l.heap.pages, 0);
+}
+
+static void a_name_after_a_verbatim_block_on_its_line_is_not_capitalised(void) {
+  laid l;
+  laid_open(&l);
+  verbatim(&l, "--");
+  name(&l, "the crate");
+  CHECK_STR(flowed(&l, &l.pieces), "--the crate");
+  sprout_arena_reset(&l.arena);
+}
+
+static void a_slotted_passage_keeps_the_spaces_of_a_verbatim_block_at_its_ends(void) {
+  laid l;
+  prose_pieces slotted;
+  laid_open(&l);
+  words(&l, "  ");
+  verbatim(&l, "  x  ");
+  words(&l, "  ");
+  CHECK(prose_slotted(&l.arena, &l.pieces, &slotted));
+  CHECK_INT(slotted.count, 1);
+  CHECK(slotted.items[0].kind == PROSE_VERBATIM);
+  CHECK_BYTES(slotted.items[0].bytes, slotted.items[0].length, "  x  ");
+  sprout_arena_reset(&l.arena);
+}
+
 /* `line` capitalised. */
 static const char *capital(laid *l, const char *line_text) {
   sprout_str out;
@@ -189,7 +258,7 @@ int main(void) {
   RUN(layout_cases_render_as_the_golden_holds);
   RUN(every_run_of_space_is_one_space_and_a_paragraph_has_none_at_its_ends);
   RUN(a_blank_line_is_a_paragraph_and_a_paragraph_with_nothing_in_it_is_none);
-  RUN(a_line_break_is_kept_and_every_line_is_capitalised);
+  RUN(a_line_break_is_kept_and_no_line_is_capitalised);
   RUN(a_paragraph_ending_in_a_line_break_is_still_nul_terminated);
   RUN(a_line_break_at_a_paragraphs_ends_is_trimmed);
   RUN(white_space_is_what_javascript_calls_it);
@@ -197,5 +266,9 @@ int main(void) {
   RUN(a_passage_that_renders_no_words_leaves_nothing_in_the_slot);
   RUN(one_line_break_at_an_end_is_a_line_break_and_none_is_none);
   RUN(the_first_letter_is_capitalised_past_a_quotation_mark_and_not_past_a_bracket);
+  RUN(a_name_that_opens_a_line_is_capitalised_past_a_quotation_mark_and_not_past_a_bracket);
+  RUN(a_verbatim_block_keeps_every_space_and_break_and_the_words_around_it_reflow);
+  RUN(a_name_after_a_verbatim_block_on_its_line_is_not_capitalised);
+  RUN(a_slotted_passage_keeps_the_spaces_of_a_verbatim_block_at_its_ends);
   return REPORT();
 }

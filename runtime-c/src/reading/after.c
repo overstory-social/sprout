@@ -1,13 +1,19 @@
 /*
  * After a command (the spec's Verbs > After a command). Once a person's own
- * reading has run its effect pass, every `after command` that follows it
- * runs: what they carry, nearest first and through what passes, then the
- * person, then each container that holds them, out to the world; each runs
- * its kind's bodies in composition order, with `actor` the person and `here`
- * their place as the hooks begin. What a body says reaches the person and
- * what it tells leaves them out, as a `do`'s does. A thing gone before its
- * turn runs nothing. Each thing whose bodies run is one event; nothing is
- * walked in a world whose kinds write none.
+ * reading has run its effect pass, the queue it filled has drained and the
+ * engine has answered it, every `after command` that follows it runs, and
+ * the queue its bodies fill drains after it; a command refused, by its
+ * consent pass, its exit or the move's guards, is followed too, once its
+ * refusal is said. What runs is what they carry,
+ * nearest first and through what passes, then the person, then each
+ * container that holds them, out to the world; each runs its kind's bodies
+ * in composition order, with `actor` the person, `here` their place as
+ * the hooks begin, `refused` whether the command was refused, and `way` the
+ * direction a refused `go` tried, unbound for any other command. What a body says reaches the person and what it tells
+ * leaves them out, as a `do`'s does. A thing gone before its turn runs
+ * nothing. Each thing whose bodies run is one event; nothing is walked in a
+ * world none of whose kinds writes one, an object's own and the world's
+ * among them.
  */
 #include <string.h>
 
@@ -31,13 +37,6 @@ static sprout_eval_status push(sprout_arena *turn, ids *list, sprout_str id) {
 static const sprout_node *bodies_of(const sprout_world *world, const sprout_kind_def *kind) {
   const sprout_node *list = sprout_node_get(&world->graph, kind->node, "afterCommand");
   return list == NULL || list->count == 0 ? NULL : list;
-}
-
-static bool any_follows(const sprout_world *world) {
-  size_t i;
-  for (i = 0; i < world->kind_count; i++)
-    if (bodies_of(world, world->kinds[i]) != NULL) return true;
-  return false;
 }
 
 /* What `actor` carries, nearest first: their hands, then inside each thing that passes, every node a step. */
@@ -74,23 +73,32 @@ static sprout_eval_status holders(const sprout_frame *frame, sprout_str actor, i
   return SPROUT_EVAL_OK;
 }
 
-/* The frame one body runs in: `self` the thing, read from the library that wrote it, `actor` and `here` bound. */
+/* Binds `name` to `value` in `frame`. */
+static sprout_eval_status bound_in(sprout_frame *frame, const char *name, sprout_evaluated value) {
+  const sprout_binding *bound = sprout_bind(frame, name, value);
+  if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
+  frame->bindings = bound;
+  return SPROUT_EVAL_OK;
+}
+
+/* The frame one body runs in: `self` the thing, read from the library that wrote it, `actor`, `here`, `refused` and any `way` bound. */
 static sprout_eval_status frame_for(sprout_exec *x, const sprout_node *after, sprout_str self, sprout_str actor,
                                     sprout_str here, sprout_frame *out) {
   const char *origin = sprout_node_text(&x->world->graph, after, "origin"), *dot = origin == NULL ? NULL : strchr(origin, '.');
-  const sprout_binding *bound;
   char *library;
   sprout_frame bare = sprout_exec_frame(x, self, NULL, NULL);
   if (dot == NULL) return expr_unchecked(&bare, "an `after command` whose origin is not a qualified name");
   library = sprout_arena_copy(x->turn, origin, (size_t)(dot - origin));
   if (library == NULL) return SPROUT_EVAL_NO_MEMORY;
   *out = sprout_exec_frame(x, self, library, NULL);
-  bound = sprout_bind(out, "actor", sprout_evaluated_object(actor));
-  if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
-  out->bindings = bound;
-  bound = sprout_bind(out, "here", sprout_evaluated_object(here));
-  if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
-  out->bindings = bound;
+  EXPR_NEED(bound_in(out, "actor", sprout_evaluated_object(actor)));
+  EXPR_NEED(bound_in(out, "here", sprout_evaluated_object(here)));
+  EXPR_NEED(bound_in(out, "refused", sprout_evaluated_value(sprout_bool(x->follows_refused))));
+  if (x->follows_way.bytes != NULL) {
+    sprout_value way;
+    if (!sprout_string(x->turn, x->follows_way.bytes, x->follows_way.length, &way)) return SPROUT_EVAL_NO_MEMORY;
+    EXPR_NEED(bound_in(out, "way", sprout_evaluated_value(way)));
+  }
   return SPROUT_EVAL_OK;
 }
 
@@ -126,13 +134,22 @@ static sprout_eval_status follow(sprout_exec *x, sprout_str self, sprout_str act
   return SPROUT_EVAL_OK;
 }
 
+void sprout_after_owed(sprout_exec *x, bool refused, sprout_str way) {
+  x->follows = true;
+  x->follows_refused = refused;
+  x->follows_way = way;
+  if (!refused) x->follows_way.bytes = NULL;
+}
+
 sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *frame, sprout_str actor) {
   ids order;
   sprout_str here;
   sprout_hearing saved;
   sprout_eval_status status = SPROUT_EVAL_OK;
   size_t i;
-  if (!any_follows(x->world) || sprout_draft_instance(x->draft, actor) == NULL) return SPROUT_EVAL_OK;
+  if (!x->follows) return SPROUT_EVAL_OK;
+  x->follows = false;
+  if (!x->world->follows_commands || sprout_draft_instance(x->draft, actor) == NULL) return SPROUT_EVAL_OK;
   memset(&order, 0, sizeof order);
   EXPR_NEED(sprout_place_of(frame, actor, &here));
   EXPR_NEED(carried(frame, actor, &order));
