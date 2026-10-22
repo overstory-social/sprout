@@ -16,8 +16,10 @@ import { equal, match, ok } from './check.js';
 import {
   COUNTER,
   countOf,
+  GLADE,
   HALL,
   INES,
+  LAWN,
   MARTA,
   PAT,
   played,
@@ -348,6 +350,53 @@ export const admissionCases: EngineCase[] = [
           digest: { count: 1 },
         },
         'the smash’s entry',
+      );
+    },
+  },
+  {
+    name: 'what nobody was told of is a warning in the log',
+    proves:
+      'a handler’s refused move, by its guard and its words as written, and a send that reached nothing, by the name as written, are logged as warnings, and the visitor reads nothing of either',
+    async run(make) {
+      const store = await seeded(GLADE, [[MARTA, LAWN, 'Marta']]);
+      const host = played(make, GLADE);
+      const touched = await runCommand(store, 'w', host, command('touch pedestal'));
+      ok(touched.committed, 'the touch commits');
+      match(touched.effects, [{ kind: 'said', paragraphs: ['You touch it.'] }], 'what Marta reads');
+      await runCommand(store, 'w', host, command('blow horn'));
+      const [touchedEntry, blown] = (await readLog(store, 'w', { limit: 100 })).slice(-2);
+      match(
+        touchedEntry?.entry,
+        {
+          kind: 'command',
+          warnings: [
+            {
+              level: 'warning',
+              what: 'unread-refusal',
+              item: 'glade.lawn.pedestal.gem',
+              refuser: 'glade.lawn.pedestal',
+              guard: 'release',
+              words: '"The pedestal keeps its gem."',
+            },
+          ],
+        },
+        'the touch’s entry',
+      );
+      match(
+        blown?.entry,
+        {
+          kind: 'command',
+          warnings: [
+            {
+              level: 'warning',
+              what: 'lost-send',
+              by: 'glade.lawn.horn',
+              target: 'shed.bell',
+              message: 'glade.called',
+            },
+          ],
+        },
+        'the blow’s entry',
       );
     },
   },

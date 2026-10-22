@@ -48,6 +48,91 @@ describe('a line read one of several ways that tied', () => {
   });
 });
 
+describe('what a body did that nobody was told of', () => {
+  const glade = bundleOf('glade', {
+    'glade.sprout': `world glade is sprout.World {
+  visitors are Person
+  visitors arrive at lawn
+  object lawn is sprout.Place {
+    object pedestal is Pedestal { object gem is Gem }
+    object horn is Horn
+    object owl is Owl
+    object crate is Crate
+  }
+  object loft is sprout.Place { }
+}
+verb touch { role target  "touch [target]" }
+verb blow  { role target  "blow [target]" }
+verb shoo  { role target  "shoo [target]" }
+message :granted
+message :called
+`,
+    'person.sprout': `kind Taker is sprout.Actor {
+  on :granted { move lawn.pedestal.gem to self  tell "Yours." }
+}
+kind Person is Taker, sprout.Visitor { }
+`,
+    'pedestal.sprout': `kind Pedestal {
+  contains
+  release (item, to) { if (mover != self) { refuse "The pedestal keeps its gem." } }
+  as target for touch { do { say "You touch it." send actor :granted } }
+}
+kind Gem { }
+kind Horn { as target for blow { do { say "You blow it." send lawn.owl :called } } }
+kind Owl is sprout.Actor {
+  roams
+  as target for shoo { do { say "The owl flies." move self to loft } }
+  on :called { tell "The owl hoots." }
+}
+kind Crate {
+  contains
+  accept (item, from) { refuse "The crate is nailed shut." }
+  as target for touch { do { say "You touch the crate." move lawn.horn to self } }
+}
+`,
+  });
+
+  it('is a warning after what the turn said: a handler’s refused move, by its guard and its words as written', () => {
+    const stage = freshStage(glade);
+    arrive(stage, 'Marta');
+    const made = playStep(stage, { as: 'Marta', type: 'touch pedestal' }, 'stdin:2')!;
+    expect(made.map((one) => [one.level, one.words ?? one.text])).toEqual([
+      ['prose', 'You touch it.'],
+      [
+        'warning',
+        'a refusal nobody read: Marta could not move lawn.pedestal.gem to Marta, ' +
+          'lawn.pedestal\'s `release` refused with "The pedestal keeps its gem."',
+      ],
+    ]);
+  });
+
+  it('is a warning where a send reached nothing, by the name as written, and nothing where it reached', () => {
+    const stage = freshStage(glade);
+    arrive(stage, 'Marta');
+    const heard = playStep(stage, { as: 'Marta', type: 'blow horn' }, 'stdin:2')!;
+    expect(heard.map((one) => one.level)).toEqual(['prose', 'prose']);
+    playStep(stage, { as: 'Marta', type: 'shoo owl' }, 'stdin:3');
+    const lost = playStep(stage, { as: 'Marta', type: 'blow horn' }, 'stdin:4')!;
+    expect(lost.map((one) => [one.level, one.words ?? one.text])).toEqual([
+      ['prose', 'You blow it.'],
+      [
+        'warning',
+        'a send reached nothing: lawn.horn sent :called to lawn.owl, which reaches nothing in its range now',
+      ],
+    ]);
+  });
+
+  it('is no warning where the one acting reads the refusal', () => {
+    const stage = freshStage(glade);
+    arrive(stage, 'Marta');
+    const made = playStep(stage, { as: 'Marta', type: 'touch crate' }, 'stdin:2')!;
+    expect(made.map((one) => [one.level, one.words ?? one.text])).toEqual([
+      ['prose', 'You touch the crate.'],
+      ['prose', 'The crate is nailed shut.'],
+    ]);
+  });
+});
+
 describe('a line read as an intent', () => {
   const vault = bundleOf('vault', {
     'vault.sprout': `world vault is sprout.World {

@@ -16,6 +16,7 @@ const typed = {
   effects: [SAID],
   drawn: null,
   cutShort: [],
+  warnings: [],
 } as const;
 const bump = catalogue.verbs.qualified('tally', 'bump')!;
 
@@ -24,7 +25,7 @@ describe('a command in the log', () => {
     expect(CommandEntry.parse(roundTrip(typed))).toEqual(typed);
   });
 
-  it('keeps a fault, a draw from several that tied, and each reader cut short, as warnings', () => {
+  it('keeps a fault, a draw from several that tied, each reader cut short and what nobody was told of, as warnings', () => {
     const entry = {
       ...typed,
       fault: FAULTED,
@@ -32,6 +33,15 @@ describe('a command in the log', () => {
       cutShort: [
         { level: 'warning', to: COUNTER },
         { level: 'warning', to: GAUGE },
+      ],
+      warnings: [
+        {
+          level: 'warning',
+          what: 'lost-send',
+          by: COUNTER,
+          target: 'gauge',
+          message: 'tally.bumped',
+        },
       ],
     } as const;
     expect(CommandEntry.parse(roundTrip(entry))).toEqual(entry);

@@ -1,0 +1,16 @@
+{
+  "about": "Nobody reads what a handler's refused move or a lost send did, and each shows as a warning: touching the pedestal sends Marta a message whose handler moves the gem, and the pedestal refuses with nobody to tell; the horn calls the stag by its path, which names nothing once the stag has bounded off.",
+  "steps": [
+    { "arrive": "Marta" },
+    { "as": "Marta", "type": "touch pedestal", "expect": [
+      { "words": "You touch the pedestal, and the gem glows." },
+      { "level": "warning", "text": "a refusal nobody read: Marta could not move glade.pedestal.gem to Marta, glade.pedestal's `release` refused with passage keeps" }
+    ] },
+    { "as": "Marta", "type": "blow horn", "forbid": ["warning"], "expect": [{ "words": "The stag bows its antlers." }] },
+    { "as": "Marta", "type": "shoo stag", "expect": [{ "words": "A stag leaves for a thicket." }] },
+    { "as": "Marta", "type": "blow horn", "expect": [
+      { "words": "You blow the horn." },
+      { "level": "warning", "text": "a send reached nothing: glade.horn sent :called to glade.stag, which reaches nothing in its range now" }
+    ] }
+  ]
+}

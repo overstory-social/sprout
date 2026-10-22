@@ -224,6 +224,14 @@ sprout_eval_status sprout_move_reaches(const sprout_frame *frame, sprout_str mov
   return SPROUT_EVAL_OK;
 }
 
+bool sprout_move_would_roam(const sprout_frame *frame, sprout_str mover, sprout_str item, sprout_str to) {
+  const sprout_stored_instance *moving = sprout_draft_instance(frame->draft, mover);
+  const sprout_stored_instance *destination = sprout_draft_instance(frame->draft, to);
+  return sprout_str_same(item, mover) && moving != NULL && moving->kind != NULL && moving->made != SPROUT_MADE_VISITOR &&
+         moving->kind->composes_actor && !moving->kind->roams && destination != NULL && destination->kind != NULL &&
+         destination->kind->contains_actors;
+}
+
 sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *frame, sprout_str mover, sprout_str item,
                                         sprout_str to, sprout_reach reach, const char *way, sprout_move_end *end,
                                         sprout_move_refusal *refusal) {
@@ -267,7 +275,8 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
     expr_put_str(&text, to);
     expr_put(&text, "` is out of range of `");
     expr_put_str(&text, mover);
-    expr_put(&text, "`, so nothing could be moved into it.");
+    expr_put(&text, sprout_move_would_roam(frame, mover, item, to) ? "`; a kind that `roams` may go there."
+                                                                     : "`, so nothing could be moved into it.");
     return expr_fail_on(frame, "MoveFault", to);
   }
   destination = sprout_draft_instance(x->draft, to);
