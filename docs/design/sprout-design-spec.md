@@ -1419,7 +1419,7 @@ The standard library declares the intents that make ordinary English work — `o
 A line is matched against every phrase at once, and every way each phrase can match is a **reading**: a verb or an intent, and what fills each role.
 
 - A phrase's literal words split the line wherever they can: every place its prepositions could fall is tried, so a name that holds one, "the man with the hat", is still read.
-- Quotation marks are dropped before the line is read: a mark, straight or curly, single or double, that opens or closes a word goes, paired or not, so `say "well"` reads as `say well` and `answer "a well"` as `answer a well`, whose article is then dropped as any is. A mark inside a word is the word's own, so `king's` and `don't` are read as typed.
+- Quotation marks are dropped before the line is read: a mark, straight or curly, single or double, that opens or closes a word goes, so `say "well"` reads as `say well` and `answer "a well"` as `answer a well`, whose article is then dropped as any is. A mark inside a word is the word's own, so `king's` and `don't` are read as typed.
 - Articles, `my`, `this` and `that` are dropped wherever a noun is expected, under Articles.
 - A thing is named by its nouns and adjectives, under Addressing and display. A name that uses a noun is a stronger match than one of adjectives alone: `red box` and `box` name the red box outright, and `red` names it only where nothing else is named better.
 - A closed set of relative phrases narrows a name by containment: `the key in the cabinet`, `the key on the shelf`, `the key that is in the cabinet`, `the one in the cabinet`. In and on are read through the containment tree the engine owns.
