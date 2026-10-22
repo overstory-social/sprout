@@ -490,6 +490,7 @@ typedef struct parse_answer {
   sprout_speech said;
   size_t binding_count;
   sprout_said_binding bindings[3]; /* `actor`, `here`, then `cannot`'s `reading`, `not_carrying`'s `thing` or `no_way`'s `way` */
+  const char *tried;               /* `refused`'s: the direction of the exit that refused, which what follows the command reads */
 } parse_answer;
 
 /* The engine's line `answer`, said to `actor` standing in `here`, with `given` bound after them where it is not NULL. */

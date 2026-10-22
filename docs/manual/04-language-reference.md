@@ -1228,6 +1228,20 @@ kind LoudRoom is sprout.Place {
 ```
 
 Inside, `self` is the thing, `actor` the visitor and `here` their place.
+`refused` is `true` when the command was refused, and after a `go` that
+was refused, `way` is the direction it tried, read inside
+`if (bound way)`:
+
+```sprout
+kind DragonLair is sprout.Place {
+  after command {
+    if (bound way) {
+      if (way == :north) { tell actor "The dragon's claw rakes you back." }
+    }
+  }
+}
+```
+
 `say` and `tell actor` speak to the visitor; a plain `tell` speaks to
 everyone else who can hear `self`. It cannot `refuse` or `allow`: the
 command is already done.
@@ -1238,8 +1252,10 @@ every message they sent has been handled, and after what `look`,
 they walked into first, and `here` is where they ended up. Messages it
 sends are handled after it. It runs nearest first: what the visitor
 carries (not through a shut box), then the visitor, then the room, any
-room around that, and the world. It does not run after a refused command, a
-command the parser could not read, a character's `act`, a tick or a
+room around that, and the world. It runs after a refused command too,
+once the refusal is said, so a clock counts every move. It does not run
+after a line the parser answered itself (`unknown`, `not_here`,
+`no_way`, `cannot`, `not_carrying`), a character's `act`, a tick or a
 wake. Each command of a line — `take all`, or `open door then go north`
 — is its own command, followed on its own.
 
