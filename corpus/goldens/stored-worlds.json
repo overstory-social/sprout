@@ -111,7 +111,8 @@
 "visitor-kind":{"world":"visitor_kind","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "wake-delay":{"world":"wake_delay","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "wakes":{"world":"wakes","serial":0,"instances":[],"visitors":[],"tombstones":[]},
-"wandering":{"world":"wandering","serial":0,"instances":[],"visitors":[],"tombstones":[]}
+"wandering":{"world":"wandering","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"wildcard-except":{"world":"wildcard_except","serial":0,"instances":[],"visitors":[],"tombstones":[]}
 },
 "played":[
 {"world":"act-values","transcript":"spells.json","step":1,"stored":{"world":"act_values","serial":2,"instances":[{"id":"act_values#1","made":{"from":"visitor"},"container":"act_values.tower","arrival":2}],"visitors":[{"visit":"visit:Wren","nickname":"Wren","instance":"act_values#1","lastPlace":"act_values.tower","referents":[],"lastReading":null}],"tombstones":[]}},

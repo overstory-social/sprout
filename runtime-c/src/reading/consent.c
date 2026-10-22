@@ -221,7 +221,7 @@ sprout_eval_status sprout_consent_pass(sprout_exec *x, const sprout_frame *frame
         const sprout_node *permit = sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, play->node, "declaration"), "permit");
         sprout_frame inside;
         sprout_ended ended;
-        if (permit == NULL || permit->kind == SPROUT_NODE_NULL) continue;
+        if (permit == NULL || permit->kind == SPROUT_NODE_NULL || !sprout_play_runs(play, reading->verb)) continue;
         EXPR_NEED(sprout_play_frame(x, reading, &participants[i], play, false, &inside));
         EXPR_NEED(sprout_exec_body(x, permit, &inside, SPROUT_BODY_DECIDE, &ended));
         if (ended.how != SPROUT_END_REFUSE) continue;

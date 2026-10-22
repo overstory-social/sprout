@@ -15,11 +15,13 @@
 //
 // `as target for any` and `as tool for any` play every verb at once, by
 // the category of the role the object fills: the target, the first role,
-// or a tool, any other (the spec's Roles compose). A wildcard only
-// permits, so it holds a `permit` and nothing else; for a participant, its
-// wildcard plays run before the ones for the verb.
+// or a tool, any other; `as actor for any` plays the actor's own part of
+// every verb (the spec's Roles compose). `except` names verbs one does not
+// run for. A wildcard only permits, so it holds a `permit` and nothing
+// else; for a participant, its wildcard plays run before the ones for the
+// verb.
 
-import type { FromDeclaration, KindMember, PlayDeclaration } from '../syntax/ast.js';
+import type { FromDeclaration, Ident, KindMember, PlayDeclaration } from '../syntax/ast.js';
 import type { RoleDeclaration, VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
@@ -38,6 +40,9 @@ export const ANY_VERB = 'any';
 
 /** What a wildcard plays: the target, a reading's first role, or a tool, any other. */
 export type Category = 'target' | 'tool';
+
+/** What a wildcard plays: a category of role, or the actor's own part. */
+export type Wildcard = Category | typeof ACTOR_ROLE;
 
 /** The category of `role` in a verb whose roles are `roles`, in order. */
 export function categoryOf(roles: readonly { readonly name: string }[], role: string): Category {
@@ -115,8 +120,10 @@ export interface ResolvedPlay {
   readonly verb: string;
   /** A role the verb declares, or `actor`; for a wildcard, its category. */
   readonly role: string;
-  /** Whether it plays every verb at once, `as target for any` or `as tool for any`. */
+  /** Whether it plays every verb at once: `as target for any`, `as tool for any` or `as actor for any`. */
   readonly any: boolean;
+  /** For a wildcard, the verbs its `except` names, which it does not run for; absent where it names none. */
+  readonly except?: readonly VerbIdentity[];
   /** What each value role this body narrows is narrowed by, by the role's name. */
   readonly narrows: ReadonlyMap<string, RoleNarrowing>;
   readonly declaration: PlayDeclaration;
@@ -133,14 +140,14 @@ export function playKey(library: string, verb: string, role: string): string {
   return `as ${role} for ${qualifiedName(library, verb)}`;
 }
 
-/** The key a kind's wildcard plays of one category are held under. */
-export function anyKey(category: Category): string {
-  return `as ${category} for ${ANY_VERB}`;
+/** The key a kind's wildcard plays of one part are held under. */
+export function anyKey(part: Wildcard): string {
+  return `as ${part} for ${ANY_VERB}`;
 }
 
-/** The wildcard plays a kind runs for a role of `category`, in run order. */
-export function anyPlaysOf(plays: Plays, category: Category): readonly ResolvedPlay[] {
-  return plays.get(anyKey(category)) ?? [];
+/** The wildcard plays a kind runs for `part`, in run order, whatever their `except` names. */
+export function anyPlaysOf(plays: Plays, part: Wildcard): readonly ResolvedPlay[] {
+  return plays.get(anyKey(part)) ?? [];
 }
 
 /** The plays a kind runs for one role of one verb, in run order. */
@@ -183,11 +190,12 @@ export function heardEnums(
 }
 
 /**
- * Told of a verb a play names that nothing declares, with the words to
- * say. A compile at load makes it a gap under the absent table's `verb`
- * row, the play dropped; with none it is refused.
+ * Told of a verb a play names that nothing declares, in its head or its
+ * `except`, with the words to say. A compile at load makes it a gap under
+ * the absent table's `verb` row, the play dropped, or the name left out of
+ * the `except`; with none it is refused.
  */
-export type OnUnknownVerb = (written: PlayDeclaration, message: string, remedy: string) => void;
+export type OnUnknownVerb = (written: Ident, message: string, remedy: string) => void;
 
 /** What resolving a composer's plays reads. */
 export interface PlayContext {
@@ -221,13 +229,15 @@ export function ownPlays(
     if (member.kind !== 'play') continue;
     const { role, verb } = member.head;
     if (verb.text === ANY_VERB) {
-      const category = wildcardOf(member, diagnostics);
-      if (category === null) continue;
-      const key = anyKey(category);
+      const part = wildcardOf(member, diagnostics);
+      if (part === null) continue;
+      const except = exceptions(composer, member, part, context);
+      if (except === null) continue;
+      const key = anyKey(part);
       if (own.has(key)) {
         diagnostics.refuse(
           member.head.at,
-          `\`${composer.name}\` plays \`${category}\` for \`any\` twice.`,
+          `\`${composer.name}\` plays \`${part}\` for \`any\` twice.`,
           'Keep one, and write what both decide in its `permit`.',
         );
         continue;
@@ -236,8 +246,9 @@ export function ownPlays(
         origin,
         library: composer.library,
         verb: ANY_VERB,
-        role: category,
+        role: part,
         any: true,
+        ...(except.length === 0 ? {} : { except }),
         narrows: new Map(),
         declaration: member,
       });
@@ -245,7 +256,8 @@ export function ownPlays(
     }
     const named = verbs.unqualified(verb.text, composer.library);
     if (named === null) {
-      unknownVerb(composer, member, context);
+      const said = `\`${composer.name}\` plays \`${role.text}\` for \`${verb.text}\``;
+      unknownVerb(verb, said, `as ${role.text} for`, composer, context);
       continue;
     }
     const declared = named.declaration;
@@ -276,18 +288,18 @@ export function ownPlays(
 }
 
 /**
- * The category a wildcard plays, or null having said why it cannot be
- * played: its head names a category, and its body only permits, since
- * what a thing does belongs to a verb, and narrows nothing, since it
- * knows no verb's value roles.
+ * The part a wildcard plays, or null having said why it cannot be
+ * played: its head names a category or the actor, and its body only
+ * permits, since what a thing does belongs to a verb, and narrows
+ * nothing, since it knows no verb's value roles.
  */
-function wildcardOf(play: PlayDeclaration, diagnostics: Diagnostics): Category | null {
+function wildcardOf(play: PlayDeclaration, diagnostics: Diagnostics): Wildcard | null {
   const { role } = play.head;
-  if (role.text !== 'target' && role.text !== 'tool') {
+  if (role.text !== 'target' && role.text !== 'tool' && role.text !== ACTOR_ROLE) {
     diagnostics.refuse(
       role.at,
-      `\`as ${role.text} for any\` names a role, and \`for any\` plays every verb at once, so it names what kind of role instead: \`target\` or \`tool\`.`,
-      `Write \`as target for any\` for the thing a verb is done to, \`as tool for any\` for any other role, or name the verb: \`as ${role.text} for <verb>\`.`,
+      `\`as ${role.text} for any\` names a role, and \`for any\` plays every verb at once, so it names what kind of role instead: \`target\`, \`tool\` or \`actor\`.`,
+      `Write \`as target for any\` for the thing a verb is done to, \`as tool for any\` for any other role, \`as actor for any\` for whoever is acting, or name the verb: \`as ${role.text} for <verb>\`.`,
     );
     return null;
   }
@@ -309,6 +321,56 @@ function wildcardOf(play: PlayDeclaration, diagnostics: Diagnostics): Category |
     whole = false;
   }
   return whole ? role.text : null;
+}
+
+/**
+ * The verbs a wildcard's `except` names, each resolved as a play's head
+ * resolves its verb, or null having said why one cannot be left out: it
+ * is named twice, or `part` never plays it, since the verb has no such
+ * role. A verb nothing declares is refused, or at load is a gap and left
+ * out of the list, since there are no readings of it to leave out.
+ */
+function exceptions(
+  composer: PlayComposer,
+  play: PlayDeclaration,
+  part: Wildcard,
+  context: PlayContext,
+): VerbIdentity[] | null {
+  const { verbs, diagnostics } = context;
+  const written = `as ${part} for any`;
+  const except: VerbIdentity[] = [];
+  let whole = true;
+  for (const name of play.except ?? []) {
+    const named = verbs.unqualified(name.text, composer.library);
+    if (named === null) {
+      const said = `\`${composer.name}\` leaves \`${name.text}\` out of \`${written}\``;
+      if (!unknownVerb(name, said, `${written} except`, composer, context)) whole = false;
+      continue;
+    }
+    const identity = { library: named.library, name: name.text };
+    if (except.some((one) => one.library === identity.library && one.name === identity.name)) {
+      diagnostics.refuse(
+        name.at,
+        `\`${written}\` leaves out \`${name.text}\` twice.`,
+        `Name \`${name.text}\` once after \`except\`.`,
+      );
+      whole = false;
+      continue;
+    }
+    const roles = named.declaration.roles.length;
+    const never = part === 'target' ? roles === 0 : part === 'tool' ? roles < 2 : false;
+    if (never) {
+      diagnostics.refuse(
+        name.at,
+        `\`${name.text}\` has no ${part === 'target' ? 'roles' : 'role but its target'}, so \`${written}\` never runs for it and has nothing to leave out.`,
+        `Take \`${name.text}\` out of the \`except\` list.`,
+      );
+      whole = false;
+      continue;
+    }
+    except.push(identity);
+  }
+  return whole ? except : null;
 }
 
 /**
@@ -372,19 +434,32 @@ function sameVerb(reached: VerbIdentity | null, play: ResolvedPlay): boolean {
   return reached !== null && reached.library === play.library && reached.name === play.verb;
 }
 
-/** A play naming a verb nothing declares, said with the verb it most likely meant. */
-function unknownVerb(composer: PlayComposer, play: PlayDeclaration, context: PlayContext): void {
-  const { role, verb } = play.head;
+/**
+ * A verb a play names that nothing declares, said as `said` (what the
+ * composer wrote) with the verb it most likely meant, written after
+ * `lead`. Returns whether it is a gap rather than a refusal.
+ */
+function unknownVerb(
+  verb: Ident,
+  said: string,
+  lead: string,
+  composer: PlayComposer,
+  context: PlayContext,
+): boolean {
   const meant = nearestOption(verb.text, context.verbs.named(composer.library));
-  const message = `\`${composer.name}\` plays \`${role.text}\` for \`${verb.text}\`, and nothing declares that verb.${
+  const message = `${said}, and nothing declares that verb.${
     meant === null ? '' : ` Did you mean \`${meant}\`?`
   }`;
   const remedy =
     meant === null
       ? `Declare it with \`verb ${verb.text} { … }\`, or check the spelling of a verb this world or a library it uses declares.`
-      : `Write \`as ${role.text} for ${meant}\`, or declare \`verb ${verb.text} { … }\`.`;
-  if (context.onUnknownVerb !== undefined) context.onUnknownVerb(play, message, remedy);
-  else context.diagnostics.refuse(verb.at, message, remedy);
+      : `Write \`${lead} ${meant}\`, or declare \`verb ${verb.text} { … }\`.`;
+  if (context.onUnknownVerb !== undefined) {
+    context.onUnknownVerb(verb, message, remedy);
+    return true;
+  }
+  context.diagnostics.refuse(verb.at, message, remedy);
+  return false;
 }
 
 /**

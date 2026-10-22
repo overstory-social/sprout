@@ -2,9 +2,10 @@
  * Tests for src/reading/wildcards.c (the spec's Verbs > Roles compose): `as
  * target for any` and `as tool for any` play every verb at once by the
  * category of the role the participant fills, the target being a verb's
- * first role and a tool any other, and run before the participant's plays
- * for the verb; the actor's own part has none. The order across participants
- * is unchanged, so the target still refuses before its tool.
+ * first role and a tool any other, and `as actor for any` the actor's own
+ * part; each runs before the participant's plays for the verb, and not for
+ * a verb its `except` names. The order across participants is unchanged,
+ * so the target still refuses before its tool.
  */
 #include "reading_fixture.h"
 
@@ -71,13 +72,51 @@ static void a_wildcard_for_a_tool_is_not_run_for_a_target(void) {
   plays_close(&p);
 }
 
-static void the_actors_own_part_has_no_wildcard(void) {
+static void an_actor_whose_kind_plays_no_actor_wildcard_runs_only_its_plays_for_the_verb(void) {
   plays_case p;
   sprout_plays plays;
   plays_open(&p, "take a book from the floor");
   plays_of(&p, "bench#1", -1, &plays);
   CHECK_INT(plays.count, 1);
   CHECK_STR(plays.groups[0]->key, "as actor for sprout.take");
+  plays_close(&p);
+}
+
+static void an_actor_runs_its_actor_wildcard_before_its_plays_for_the_verb(void) {
+  plays_case p;
+  sprout_plays plays;
+  plays_open(&p, "take a book from the floor");
+  plays_of(&p, "bench.shop.cat", -1, &plays);
+  CHECK_INT(plays.count, 2);
+  CHECK_STR(plays.groups[0]->key, "as actor for any");
+  CHECK_STR(plays.groups[1]->key, "as actor for sprout.take");
+  plays_close(&p);
+}
+
+/* A verb with this library and name, and nothing else. */
+static sprout_verb verb_named(const char *library, const char *name) {
+  sprout_verb verb;
+  memset(&verb, 0, sizeof verb);
+  verb.library = library;
+  verb.name = name;
+  return verb;
+}
+
+static void a_wildcard_does_not_run_for_a_verb_its_except_names(void) {
+  plays_case p;
+  sprout_plays plays;
+  sprout_verb nod = verb_named("bench", "nod"), prop = verb_named("bench", "prop"), other = verb_named("sprout", "nod");
+  plays_open(&p, "a participant’s wildcard permit runs before its permit for the verb");
+  plays_of(&p, "bench.shop.shelf", 0, &plays);
+  CHECK_STR(plays.groups[0]->key, "as target for any");
+  CHECK_INT(plays.groups[0]->plays[0].except_count, 1);
+  CHECK(!sprout_play_runs(&plays.groups[0]->plays[0], &nod));
+  CHECK(sprout_play_runs(&plays.groups[0]->plays[0], &prop));
+  /* A verb is left out by its full identity, so another library's `nod` is not. */
+  CHECK(sprout_play_runs(&plays.groups[0]->plays[0], &other));
+  /* A play that names no `except`, and a play for the verb, run for every verb. */
+  CHECK_INT(plays.groups[1]->plays[0].except_count, 0);
+  CHECK(sprout_play_runs(&plays.groups[1]->plays[0], &nod));
   plays_close(&p);
 }
 
@@ -128,7 +167,9 @@ int main(void) {
   RUN(a_tool_runs_its_wildcard_before_its_plays_for_the_verb);
   RUN(a_target_runs_the_wildcard_for_the_first_role_whatever_the_verb_calls_it);
   RUN(a_wildcard_for_a_tool_is_not_run_for_a_target);
-  RUN(the_actors_own_part_has_no_wildcard);
+  RUN(an_actor_whose_kind_plays_no_actor_wildcard_runs_only_its_plays_for_the_verb);
+  RUN(an_actor_runs_its_actor_wildcard_before_its_plays_for_the_verb);
+  RUN(a_wildcard_does_not_run_for_a_verb_its_except_names);
   RUN(a_participant_whose_kind_plays_nothing_runs_nothing);
   RUN(every_play_group_is_found_by_its_verb_role_and_library);
   RUN(the_golden_wildcard_readings_end_as_the_typescript_runtime_did);

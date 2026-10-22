@@ -123,6 +123,9 @@ const sprout_play_group *sprout_own_plays(const sprout_verb *verb, const char *r
 void sprout_plays_for(const sprout_resolved *reading, const sprout_participant *who, const sprout_kind_def *kind,
                       sprout_plays *out);
 
+/* Whether `play` runs for `verb`: false only for a wildcard whose `except` names it. */
+bool sprout_play_runs(const sprout_play *play, const sprout_verb *verb);
+
 /* ---- sure.c ---- */
 
 /*

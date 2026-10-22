@@ -480,4 +480,34 @@ kind Plank { as target for any { permit { if (target == self) { refuse "No." } }
       ['shop.sprout:12:47', '`target` is `self` in `as target for any`.', 'Write `self`.'],
     ]);
   });
+
+  it('reads `self`, `actor` and `here` in `as actor for any`, and no verb’s roles', () => {
+    expect(
+      checked(`kind Frozen is sprout.Actor {
+  :frozen false
+  as actor for any except unlock {
+    permit {
+      if (self.get(:frozen) && actor == self && here != self) { refuse "You are frozen solid." }
+      else if (target == self) { refuse "No." }
+    }
+  }
+}`),
+    ).toEqual([
+      [
+        'shop.sprout:15:16',
+        "`target` names a verb's role, and `as actor for any` plays every verb at once, so it cannot know any verb's other roles.",
+        "Read only `self` and `actor` here, or write `as actor for <verb>`, where that verb's roles are bound by name.",
+      ],
+    ]);
+  });
+
+  it('refuses `as actor for any` on a kind that is no actor', () => {
+    expect(checked('kind Lever { as actor for any { permit { } } }')).toEqual([
+      [
+        'shop.sprout:10:17',
+        'Only an actor acts, and `Lever` does not compose `sprout.Actor`.',
+        'Compose `sprout.Actor` into `Lever`, or write `as target for any` or `as tool for any` to guard the roles it fills.',
+      ],
+    ]);
+  });
 });

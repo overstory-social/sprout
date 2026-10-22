@@ -1,0 +1,4 @@
+// A wildcard leaves out only verbs something declares.
+kind Mirage {
+  as target for any except exmaine { permit { refuse "Your hand closes on nothing." } }
+}
