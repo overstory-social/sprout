@@ -3,7 +3,8 @@
  * properties' types and defaults, passages and plays, match the dump the
  * language's cartridge reader gives for every corpus world, and plays two kinds
  * hold alike are one array; a wildcard's `except` is read by each verb's full
- * identity; the contents a kind's body gives are found by path.
+ * identity; a default play that steps aside is not among a kind's plays; the
+ * contents a kind's body gives are found by path.
  */
 #include "corpus.h"
 
@@ -275,10 +276,43 @@ static void the_contents_a_kind_gives_are_found_by_the_path_in_its_body(void) {
   sprout_world_free(world);
 }
 
+/* The origins of the plays `kind` runs under `key`, joined by spaces; empty where it runs none. */
+static const char *origins_under(const sprout_kind_def *kind, const char *key, char *out, size_t size) {
+  size_t g, p, at = 0;
+  out[0] = '\0';
+  for (g = 0; g < kind->play_group_count; g++) {
+    if (strcmp(kind->plays[g]->key, key) != 0) continue;
+    for (p = 0; p < kind->plays[g]->count; p++)
+      at += (size_t)snprintf(out + at, size - at, "%s%s", p == 0 ? "" : " ", kind->plays[g]->plays[p].origin);
+  }
+  return out;
+}
+
+static void a_default_play_that_steps_aside_is_not_among_the_plays(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("default-plays", &host);
+  char text[256];
+  const char *read = "as target for default_plays.read", *pull = "as target for default_plays.pull";
+  /* Where nothing else plays the role, the default runs. */
+  CHECK_STR(origins_under(kind_named(world, "default_plays.Food"), read, text, sizeof text), "default_plays.Thing");
+  CHECK_STR(origins_under(kind_named(world, "default_plays.Box"), pull, text, sizeof text), "default_plays.Thing");
+  /* Where another source plays it, by any path, the default steps aside. */
+  CHECK_STR(origins_under(kind_named(world, "default_plays.Readable"), read, text, sizeof text), "default_plays.Readable");
+  CHECK_STR(origins_under(kind_named(world, "default_plays.Bag"), pull, text, sizeof text), "default_plays.Portable");
+  {
+    const sprout_kind_def *cake = sprout_world_declared(world, "default_plays.kitchen.cake")->kind;
+    CHECK_STR(origins_under(cake, read, text, sizeof text), "default_plays.Readable");
+    CHECK_STR(origins_under(cake, "as target for default_plays.eat", text, sizeof text), "default_plays.Food");
+  }
+  sprout_world_free(world);
+}
+
 int main(void) {
   RUN(every_kind_of_every_corpus_world_matches_the_dump);
   RUN(plays_two_kinds_hold_alike_are_one_record);
   RUN(a_wildcards_except_is_read_by_each_verbs_library_and_name);
+  RUN(a_default_play_that_steps_aside_is_not_among_the_plays);
   RUN(a_property_two_kinds_list_is_one_record);
   RUN(a_property_is_found_by_name_with_its_type_range_and_options);
   RUN(the_world_and_visitor_kinds_are_never_spawnable);
