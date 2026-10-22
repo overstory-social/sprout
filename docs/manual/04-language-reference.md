@@ -1865,10 +1865,11 @@ fault.
 Each of these takes either quoted text or the name of a passage: `say
 taken`, `refuse hands_full`, `text arrival`.
 
-`tell` reaches every actor in the teller's place, and in the places
-inside it wherever everything between passes — a visitor in an open
-bucket in the room hears it, one in a shut wardrobe does not. It leaves out the actor and anyone taking part in the reading: those are
-addressed separately, with `say` and `tell self`. So a verb usually has
+`tell` reaches every actor in the teller's place that the teller can
+reach, and those in the places inside it wherever everything between
+passes — a visitor in an open bucket in the room hears it, one in a shut
+wardrobe does not. It leaves out the actor and anyone taking part in the
+reading: those are addressed separately, with `say` and `tell self`. So a verb usually has
 two lines, one for the actor and one for everyone else, and a target who
 is a person gets their own with `tell self`:
 
