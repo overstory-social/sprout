@@ -88,6 +88,17 @@ describe('a slot renders an object, an option, a number, a string, or a passage'
     ]);
   });
 
+  it('refuses `*`, `/` and `%` as it refuses `+`, in a slot and in a condition', () => {
+    const refusal =
+      'A passage reads what is there and does no arithmetic. Render a number as it is held, as in `{self.count}`, and let an `{if}` choose the words around it.';
+    expect(
+      checked(
+        '{self.count * 2}{if self.count / 2 > 1}x{/if}{if self.count % 2 == 0}y{/if}',
+        vessel(),
+      ).said,
+    ).toEqual([refusal, refusal, refusal]);
+  });
+
   it('refuses a write, which a passage never makes', () => {
     expect(checked('{self.set(:inked, true)}', vessel()).said).toEqual([
       'A passage only reads, and `set` writes. Write it in the body that says the passage, before the passage is said.',

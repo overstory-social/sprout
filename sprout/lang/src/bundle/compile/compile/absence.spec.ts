@@ -179,7 +179,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('runs a world one of whose files does not compile, and names the file', () => {
-    const files = [...worldFiles(WORLD_TEXT), file('b.sprout', '%')];
+    const files = [...worldFiles(WORLD_TEXT), file('b.sprout', '@')];
     const { bundle, diagnostics } = compileBundle(world({ files }), load);
     expect(bundle).not.toBeNull();
     expect(bundle!.absent).toHaveLength(1);
@@ -189,7 +189,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
   });
 
   it('keeps what a broken file had to say, as warnings, so a moderator sees why', () => {
-    const files = [file('b.sprout', '% ; %'), ...worldFiles(WORLD_LINE)];
+    const files = [file('b.sprout', '@ ; @'), ...worldFiles(WORLD_LINE)];
     const { diagnostics } = compileBundle(world({ files }), load);
     expect(warnings(diagnostics)).toHaveLength(3);
     expect(diagnostics.every((d) => d.severity === 'warning')).toBe(true);
@@ -199,7 +199,7 @@ describe('loading is lenient: what is missing reads as absent and the rest runs'
     const files = [
       file('good.sprout', `${WORLD_LINE}\nenum Good { yes }`),
       PERSON,
-      file('bad.sprout', '%'),
+      file('bad.sprout', '@'),
     ];
     const { bundle } = compileBundle(world({ files }), load);
     expect(bundle!.absent.map((a) => a.what)).toEqual(['bad.sprout']);

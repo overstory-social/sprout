@@ -82,6 +82,14 @@ kind Probe is Lidded {
     let c50 = random(1)
     let c51 = random(9) + random(9)
     let c52 = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1
+    let c53 = 2 + 3 * 4
+    let c54 = 17 / 5 * 5 + 17 % 5
+    let c55 = -7 / 2
+    let c56 = -7 % 2
+    let c57 = self.get(:fill) / 0
+    let c58 = self.get(:fill) % 0
+    let c59 = 65536 * 65536
+    let c60 = (-2147483647 - 1) / -1
   }
   as target for tap {
     do {

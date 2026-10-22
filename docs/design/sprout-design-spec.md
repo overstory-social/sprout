@@ -36,7 +36,7 @@ Worlds run on a shared host that did not write them and cannot vet them by hand.
 
 ### What Sprout is not
 
-It is not a general-purpose language. Arithmetic is addition, subtraction and comparison on bounded integers. Strings are set and compared, never built. There are no functions, no collections beyond a bounded list, and no way to express a computation whose cost is not apparent from its source.
+It is not a general-purpose language. Arithmetic is addition, subtraction, multiplication, division and comparison on bounded integers. Strings are set and compared, never built. There are no functions, no collections beyond a bounded list, and no way to express a computation whose cost is not apparent from its source.
 
 It is not a game engine. It has no rendering, no physics, no real-time input, and no notion of a screen.
 
@@ -728,6 +728,7 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `item` in `inside_itself`, `item` and `to` in `crowded` and `too_heavy`, and `item` in `arrives` and `leaves` | object |
 | `from` in `arrives`, `to` in `leaves` | object: the place left or entered, inside `{if bound …}` only, since a visitor coming in from outside the world, or leaving it, has none |
 | `way` in `arrives` and `leaves` | string: the label of the exit or link the move went through, inside `{if bound way}` only |
+| `way` in `as actor for go` | string: the direction of the exit taken, written out, as `north` for `n` however it was typed; or the label of the link taken |
 
 An engine line is given exactly what this table names for it, `dark` its `actor` and `here` as `unknown` is: `unremarkable` only `thing`, and `unseen`, `missing`, `displaced` and `waited` nothing.
 
@@ -743,7 +744,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | --- | --- |
 | `a == b`, `a != b` | same type, and not a list; a symbol literal, on either side, must be one of the other operand's options; an integer literal, on either side, must be within the other operand's range, since outside it the comparison is decided before the world runs |
 | `<` `<=` `>` `>=` | both integer; an integer literal, on either side, must be within the other operand's range, for the same reason |
-| `+` `-`, unary `-` | integer |
+| `+` `-` `*` `/` `%`, unary `-` | integer |
 | `&&` `\|\|` `!` | operands boolean; there is no truthiness and no coercion |
 | `if (e)` | `e` boolean |
 | `self.set(:p, e)` | `e` is `p`'s declared type and, for an integer, within its range where the compiler can tell |
@@ -762,9 +763,11 @@ Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so 
 
 A `set` or `remember` whose value is out of range at run time is a fault; `adjust` clamps. The compiler catches the literal cases.
 
+Arithmetic stays on whole numbers. `/` divides and `%` gives the remainder, each truncating toward zero, so `7 / 2` is 3, `-7 / 2` is −3 and `-7 % 2` is −1. Arithmetic whose result leaves the integer range is a fault, `IntegerOverflow`, whatever the operator; a `/` or `%` by zero is a fault, `DivisionByZero`.
+
 ### Precedence
 
-Operators bind in the conventional order, loosest first: `||`; `&&`; `==` and `!=`; `<`, `<=`, `>` and `>=`; `+` and `-`; the prefix `!` and `-`; then a reading such as `x.get(:p)`. Within a level, left to right. Parentheses group.
+Operators bind in the conventional order, loosest first: `||`; `&&`; `==` and `!=`; `<`, `<=`, `>` and `>=`; `+` and `-`; `*`, `/` and `%`; the prefix `!` and `-`; then a reading such as `x.get(:p)`. Within a level, left to right. Parentheses group.
 
 ### Naming a value
 
@@ -1265,7 +1268,7 @@ Three things come with it. Procedural space counts against live instances like e
 
 Six verbs are the engine's, because they read the world rather than change it: `go`, `look`, `examine`, `inventory`, `wait` and `help`. Their phrases are declared in the standard library like any verb's — `look` answers to `l`, `examine` to `x` and `look at` — so their words can be added to and translated, but they have no `do`:
 
-- `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads what the exit says as it is taken, where it says anything, and then the new place's description. Where the exit that applies refuses, its words are the answer, and where none applies in that direction, the `no_way` line is, under Exits. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move.
+- `go <direction>` proposes moving the actor through the applicable exit, exactly as `move` would; on success the actor reads what the exit says as it is taken, where it says anything, and then the new place's description. Where the exit that applies refuses, its words are the answer, and where none applies in that direction, the `no_way` line is, under Exits. The actor's own part of `go`, `as actor for go`, runs as any reading's does: its `permit` in the consent pass, where a refusal is the whole outcome, and its `do` after the move. Both are given the way taken as `way`, a string, under Where types come from, so a `permit` may refuse by direction before anything moves; a `from` on it is refused, since it is no value role and has no options to narrow.
 - `look` renders the actor's place through its `describe`; `examine <thing>` renders the thing's, or the `unremarkable` line if it has none, and then the thing's own `contents` passage where its kinds write one, so a container says what it holds once you can see in. `sprout.Container`'s `contents` lists what is inside while it is open and says nothing while it is shut; an actor writes none, so what a person carries is never listed.
 - `inventory` renders the `inventory` line, whose default `sprout.Actor` supplies.
 - `wait` is a turn in which nothing is done, so a client can show what has changed; it is answered with the `waited` line, "Time passes." unless someone nearer says otherwise. It passes no more time than any command does; a world whose waiting takes longer writes the actor's part of `wait` with a `pass`, under Time › Passing time.

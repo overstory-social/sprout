@@ -1,0 +1,21 @@
+// Arithmetic on whole numbers: `*` binds tighter than `+`, `/` and `%`
+// truncate, and a division by nought is a fault told to the visitor. An
+// abacus of seven beads weighs seven times three grains and one for the
+// frame, shares its beads out by twos with one left over, and cannot be
+// divided among rows it does not have.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Abacus} from 'abacus'
+
+world integer_arithmetic is sprout.World {
+  visitors are Person
+  visitors arrive at counting_house
+
+  object counting_house is sprout.Place {
+    object abacus is Abacus
+  }
+}
+
+verb weigh  { role target  "weigh [target]" }
+verb share  { role target  "share [target]" }
+verb divide { role target  "divide [target]" }

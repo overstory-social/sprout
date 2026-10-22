@@ -827,10 +827,16 @@ that object.
 | `==`, `!=`                | two values of the same type, not lists | boolean |
 | `<`, `<=`, `>`, `>=`      | integers                             | boolean |
 | `+`, `-`, unary `-`       | integers                             | integer |
+| `*`, `/`, `%`             | integers                             | integer |
 
-Loosest first: `||`; `&&`; `==` `!=`; `<` `<=` `>` `>=`; `+` `-`; prefix `!`
-and `-`; then reads like `x.get(:p)`. Left to right within a level.
-Parentheses group.
+Loosest first: `||`; `&&`; `==` `!=`; `<` `<=` `>` `>=`; `+` `-`; `*` `/`
+`%`; prefix `!` and `-`; then reads like `x.get(:p)`. Left to right within
+a level. Parentheses group.
+
+`/` and `%` stay whole, truncating toward zero: `7 / 2` is 3 and `-7 % 2`
+is -1. A result past the integer range is an `IntegerOverflow` fault, and
+`/` or `%` by zero a `DivisionByZero` fault. A passage's slots do no
+arithmetic at all.
 
 There is no truthiness and no coercion: `if` wants a boolean, and `1 ==
 "1"` is an error. A literal compared against something with a range must
@@ -1415,7 +1421,10 @@ you can add words or translate them.
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
 
 A kind may play `as actor for go`; its `permit` can refuse the move and
-its `do` runs after it. `wait` passes no more time than any command
+its `do` runs after it. Both read the way taken as `way`, a string: the
+direction written out (`north`, however it was typed), or the label of
+the link taken, so `if (way == "west") { refuse "The wind turns you
+back." }` refuses by direction before anything moves. `wait` passes no more time than any command
 does; a kind that plays `as actor for wait` with a `pass` makes waiting
 take longer (see [Passing time](#passing-time)).
 

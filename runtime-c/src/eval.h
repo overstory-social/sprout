@@ -53,7 +53,7 @@ typedef enum sprout_eval_status {
  * where it names one (the spec's The runtime > Faults). `Error` is the engine's own, and names no object.
  */
 typedef struct sprout_eval_fault {
-  const char *name; /* BudgetExhausted, IntegerOverflow, NameOutOfRange, DestroyedReference, LifecycleFault, Error */
+  const char *name; /* BudgetExhausted, IntegerOverflow, DivisionByZero, NameOutOfRange, DestroyedReference, LifecycleFault, Error */
   char text[480];
   bool has_object;
   sprout_str object; /* valid while the turn's draft is */

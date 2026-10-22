@@ -1,0 +1,12 @@
+// A pit dug in the lane: a link leads down into it, and its own link
+// leads back up to where it was dug.
+import * as sprout from 'sprout'
+
+kind Pit is sprout.Place {
+  grammar {
+    name "pit"
+    link back "the rim"
+  }
+
+  on :spawned (from) { connect back to from }
+}

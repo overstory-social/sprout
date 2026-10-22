@@ -54,6 +54,18 @@ describe('the token surface the language is written in', () => {
     expect(shapes('act nuzzle (target: p)').slice(3, 5)).toEqual(['name:target', 'punct::']);
   });
 
+  it('reads `*`, `/` and `%` as punctuation, and `//` still as a comment', () => {
+    expect(shapes('a * b / c % d // e')).toEqual([
+      'name:a',
+      'punct:*',
+      'name:b',
+      'punct:/',
+      'name:c',
+      'punct:%',
+      'name:d',
+    ]);
+  });
+
   it('reads an integer unsigned, leaving the sign to the parser', () => {
     expect(shapes('-40')).toEqual(['punct:-', 'integer:40']);
   });
@@ -198,16 +210,16 @@ describe('every token knows where it was written', () => {
 
 describe('a problem names its own character and reading carries on', () => {
   it('refuses a character the language does not use, at that character', () => {
-    const { tokens, diagnostics } = read(':door % open');
+    const { tokens, diagnostics } = read(':door @ open');
     expect(diagnostics.refusals).toHaveLength(1);
     expect(locationOf(diagnostics.refusals[0]!.at)).toBe('kiln.sprout:1:7');
-    expect(diagnostics.refusals[0]!.message).toContain('"%"');
+    expect(diagnostics.refusals[0]!.message).toContain('"@"');
     expect(diagnostics.refusals[0]!.remedy).toBeTruthy();
     expect(tokens.map((t) => t.text)).toEqual(['door', 'open', '']);
   });
 
   it('reports every bad character, not the first', () => {
-    expect(read('% ; %').diagnostics.refusals).toHaveLength(3);
+    expect(read('@ ; @').diagnostics.refusals).toHaveLength(3);
   });
 
   it('refuses text that is never closed, at the quote that opened it', () => {
@@ -226,7 +238,7 @@ describe('a problem names its own character and reading carries on', () => {
   });
 
   it('never throws, whatever it is given', () => {
-    for (const text of ['"', `\\`, ':', '%', `"\\`, ':::', '// ', '"a\n']) {
+    for (const text of ['"', `\\`, ':', '@', `"\\`, ':::', '// ', '"a\n']) {
       expect(() => read(text)).not.toThrow();
     }
   });
@@ -326,7 +338,7 @@ describe('a token says whether a character was refused just before it', () => {
   const read = (text: string) => tokenise(new SourceFile('kiln.sprout', text), new Diagnostics());
 
   it('marks the token after a character it stepped over', () => {
-    const tokens = read('oak % silver');
+    const tokens = read('oak @ silver');
     expect(tokens.map((t) => `${t.text}:${t.afterRefusal}`)).toEqual([
       'oak:false',
       'silver:true',
@@ -339,17 +351,17 @@ describe('a token says whether a character was refused just before it', () => {
   });
 
   it('marks only the token that follows the character, not the ones after that', () => {
-    expect(read('a % b c').map((t) => t.afterRefusal)).toEqual([false, true, false, false]);
+    expect(read('a @ b c').map((t) => t.afterRefusal)).toEqual([false, true, false, false]);
   });
 
   it('marks the end token when the file ends on a refused character', () => {
-    const tokens = read('a %');
+    const tokens = read('a @');
     expect(tokens.at(-1)!.kind).toBe('end');
     expect(tokens.at(-1)!.afterRefusal).toBe(true);
   });
 
   it('marks once for a run of refused characters, since it is one gap', () => {
-    expect(read('a %%% b').map((t) => t.afterRefusal)).toEqual([false, true, false]);
+    expect(read('a @@@ b').map((t) => t.afterRefusal)).toEqual([false, true, false]);
   });
 });
 
@@ -411,8 +423,8 @@ describe('looking ahead, and the cursor that reading back does not pay for', () 
   it('keeps a token’s own answers whichever way it was reached', () => {
     // A cursor read from the wrong index would be subtle everywhere, so
     // the span and `afterRefusal` are checked against a straight read.
-    const straight = new Lexer(new SourceFile('k.sprout', 'a % b c'), new Diagnostics());
-    const peeked = new Lexer(new SourceFile('k.sprout', 'a % b c'), new Diagnostics());
+    const straight = new Lexer(new SourceFile('k.sprout', 'a @ b c'), new Diagnostics());
+    const peeked = new Lexer(new SourceFile('k.sprout', 'a @ b c'), new Diagnostics());
     peeked.peek(2);
     for (let i = 0; i < 3; i++) {
       const one = straight.next();
@@ -580,7 +592,7 @@ describe("a passage's body is one token, holding its words whole", () => {
       ['passage p { {', true],
       ['/* a', true],
       ['passage p { a } "b', false],
-      ['%', false],
+      ['@', false],
     ] as const) {
       const lexer = new Lexer(new SourceFile('k.sprout', text), new Diagnostics());
       while (!lexer.done) lexer.next();
@@ -679,7 +691,7 @@ describe('a window of a file, as a slot of prose is read', () => {
 });
 
 describe('an import’s own tokens', () => {
-  it('reads a single-quoted specifier after `from`, and `*` after `import`', () => {
+  it('reads a single-quoted specifier after `from`', () => {
     const { tokens, diagnostics } = read(`import * as sprout from ${Q}sprout/actor${Q}\n`);
     expect(diagnostics.all).toEqual([]);
     expect(tokens.map((t) => [t.kind, t.text])).toEqual([
@@ -693,8 +705,8 @@ describe('an import’s own tokens', () => {
     ]);
   });
 
-  it('refuses a single quote or a `*` anywhere else, as a character the language does not use', () => {
-    for (const text of ["greet'ing", 'a * b', "import {Key} 'key'"]) {
+  it('refuses a single quote anywhere else, as a character the language does not use', () => {
+    for (const text of ["greet'ing", "import {Key} 'key'"]) {
       const { diagnostics } = read(`${text}\n`);
       expect(
         diagnostics.all.some((d) => /does not use the character/.test(d.message)),

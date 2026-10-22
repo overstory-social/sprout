@@ -1,0 +1,16 @@
+// The actor's own part of `go` reads the way taken as `way` (the spec's
+// Where types come from): the direction written out, or a link's label.
+// Its `permit` refuses by it before the move, and its `do` says it after.
+import * as sprout from 'sprout'
+import {go} from 'sprout'
+
+kind Walker is sprout.Actor {
+  as actor for go {
+    permit {
+      if (way == "west") { refuse "A wind off the moor turns you back." }
+    }
+    do { say "The way you took: {way}." }
+  }
+}
+
+kind Person is Walker, sprout.Visitor { }
