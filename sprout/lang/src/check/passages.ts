@@ -425,7 +425,7 @@ function askedBinding(
   setting: PassageSetting,
 ): Withheld {
   const unread = {
-    message: `\`${name}\` is not bound everywhere \`${passage.name}\` is said, since it is said where nobody is acting.`,
+    message: `\`${name}\` may not be bound here: this is read through \`${passage.name}\`, which is also said where nobody is acting.`,
     remedy: `Read it inside \`{if bound ${name}}\`, as in \`{if bound ${name}}{${name}}{/if}\`.`,
   };
   const binding = engineBinding(name, name, passage.at, setting);

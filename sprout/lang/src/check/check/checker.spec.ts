@@ -20,6 +20,13 @@ describe('a checker', () => {
     expect(checker.diagnostics).toBe(context.diagnostics);
   });
 
+  it('keeps that it checks a passage, in itself and in a branch it narrows to', () => {
+    const passage = checkerOf({ ...vessel(), passage: true }, () => null);
+    expect(passage.passage).toBe(true);
+    expect(passage.within(passage.scope.inner()).passage).toBe(true);
+    expect(checkerOf(vessel(), () => null).passage).toBeUndefined();
+  });
+
   it('hands the walk itself, so a recursion never leaves the one checker', () => {
     const seen: [Expr, Checker][] = [];
     const checker = checkerOf(vessel(), (expr, by) => {

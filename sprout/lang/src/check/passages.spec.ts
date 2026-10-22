@@ -286,6 +286,22 @@ kind Tower {
     ).toEqual([]);
   });
 
+  it('refuses a bare read in a passage rendered outside the asking, naming the one that asks', () => {
+    const said = diagnosed(`kind Bell { passage ring { Ding for {actor}. } }
+kind Tower {
+  contains
+  on :moved (from, to) { tell peal }
+  passage peal { {if bound actor}{actor} listens. {/if}{for b: Bell in self}{b.ring}{/for} }
+}`);
+    expect(said.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'shop.sprout:4:38',
+        '`actor` may not be bound here: this is read through `peal`, which is also said where nobody is acting.',
+        'Read it inside `{if bound actor}`, as in `{if bound actor}{actor}{/if}`.',
+      ],
+    ]);
+  });
+
   it('still refuses a read outside the asking, at the handler, saying how to ask', () => {
     for (const body of [
       'A lizard.{if bound actor} It sniffs.{/if} {actor} is here.',
