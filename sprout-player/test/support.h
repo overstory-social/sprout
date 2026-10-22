@@ -60,8 +60,8 @@ bool exists(const char *path);
 
 /*
  * Writes to `path` under the Data folder a build of the packed teashop (version 0.1.0 by Ada) whose
- * manifest says `version` and `author`, the same lengths as those, and whose bundle hash begins
- * with `digit`, so that each build is a world of its own to the session.
+ * manifest says `version` and `author`, the same lengths as those, and whose bundle hash's first
+ * digit is moved on by `digit`, 1 to 9, so that each build is a world of its own to the session.
  */
 void build_of(const char *path, const char *version, const char *author, char digit);
 

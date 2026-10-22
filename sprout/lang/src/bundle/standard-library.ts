@@ -32,6 +32,7 @@ kind World {
   passage no_way default          { You can't go that way. }
   passage cannot default          { You can't {reading}. }
   passage not_carrying default    { You aren't carrying {thing}. }
+  passage empty_handed default    { You aren't carrying anything. }
   passage meant default           { ({thing}) }
   passage pronoun_correction default { {thing} is a {pronoun}. }
   passage nothing_happens default { Nothing much comes of that. }

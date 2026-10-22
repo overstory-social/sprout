@@ -186,6 +186,7 @@ sprout_eval_status parse_all_in(const parse_all_context *context, parse_words wo
   *is_all = words.count > 0 && parse_is_all(words.words[0]) &&
             (role->filler == SPROUT_FILLER_OPEN || role->filler == SPROUT_FILLER_KIND);
   if (!*is_all) return SPROUT_EVAL_OK;
+  out->all = true;
   left = (bool *)sprout_arena_take(frame->turn, fill->candidate_count + 1);
   if (left == NULL) return SPROUT_EVAL_NO_MEMORY;
   /* `all`, a noun, what holds them, then `except`: each but `all` may be left out, and what stands between is the noun. */
