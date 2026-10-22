@@ -50,7 +50,7 @@ typedef struct speaking {
   sprout_str by;
   const sprout_speech *said;
   const sprout_binding *bindings;
-  sprout_str hands; /* a refusal's words: the acting visitor whose hands they see into; bytes NULL for none */
+  sprout_str hands; /* the acting visitor whose hands the words see into: a refusal's, or a reading participant's; bytes NULL for none */
 } speaking;
 
 /* The acting visitor whose hands a refusal's words see into: its `actor`, or in a guard its `mover`, where a visitor. */
@@ -397,7 +397,7 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
     line->said.by = line->effect->by;
     line->said.said = &line->effect->said;
     EXPR_NEED(names_in_scope(&reading, line->effect->bindings, line->effect->binding_count, &line->said.bindings));
-    line->said.hands = line->effect->kind == SPROUT_EFFECT_REFUSED ? hands_of(&reading, line->said.bindings) : (sprout_str){NULL, 0};
+    line->said.hands = line->effect->kind == SPROUT_EFFECT_REFUSED ? hands_of(&reading, line->said.bindings) : line->effect->hands;
     if (line->effect->has_speaker) EXPR_NEED(npc_says(&reading, line));
     for (r = 0; r < line->effect->to_count; r++) {
       prose_paragraphs paragraphs;
