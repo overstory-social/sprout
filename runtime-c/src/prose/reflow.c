@@ -228,9 +228,10 @@ static bool close_paragraph(laying *p, prose_paragraphs *out, size_t *capacity) 
   whole = trimmed(bytes, p->text.length);
   start = (size_t)(whole.bytes - bytes);
   end = start + whole.length;
-  if (p->verbatim) {
-    if (p->kept_from < start || whole.length == 0) start = p->kept_from;
-    if (p->kept_to > end || whole.length == 0) end = p->kept_to;
+  /* A paragraph of nothing but white space is none, verbatim or not; else trimming stops at a block's ends. */
+  if (p->verbatim && whole.length > 0) {
+    if (p->kept_from < start) start = p->kept_from;
+    if (p->kept_to > end) end = p->kept_to;
   }
   if (end > start) {
     sprout_str *slot = (sprout_str *)sprout_exec_grow(p->text.arena, (void **)&out->items, &out->count, capacity, sizeof *slot);

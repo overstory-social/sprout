@@ -201,7 +201,8 @@ static void a_verbatim_block_keeps_every_space_and_break_and_the_words_around_it
   paragraph(&l);
   words(&l, " ");
   verbatim(&l, "   ");
-  CHECK_STR(flowed(&l, &l.pieces), "carved: a  b done.|  W   E   L   L\n\nthe end  |   ");
+  /* The last paragraph holds only white space, so it is none. */
+  CHECK_STR(flowed(&l, &l.pieces), "carved: a  b done.|  W   E   L   L\n\nthe end  ");
   sprout_arena_reset(&l.arena);
   CHECK_INT(l.heap.pages, 0);
 }
