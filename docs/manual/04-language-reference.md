@@ -1892,7 +1892,16 @@ passage greeting {
   the bindings it uses.
 - Lines are joined into paragraphs; a blank line starts a new one. A
   block that renders nothing leaves no empty paragraph.
-- The first letter of each rendered line is capitalised.
+- Words keep the case you write them in. Only an object slot, such as
+  `{actor}` or `{thing}`, is capitalised where it opens a line, so
+  `{actor} arrives.` reads "Marta arrives." and `{thing} is here.` reads
+  "A brass key is here.".
+- Text with a shape of its own, verse or a sign, goes between
+  `{verbatim}` and `{/verbatim}`: every space, line break and blank line
+  in it is kept, the indentation of the line `{verbatim}` stands on is
+  taken off, and it holds no slots. Keep its lines to 40 characters, about
+  what the Playdate shows across its screen, so no device has to wrap
+  them.
 - A passage may be declared `default`, which means any other passage of
   the same name, from anywhere, replaces it. All of the standard library's
   lines are defaults.

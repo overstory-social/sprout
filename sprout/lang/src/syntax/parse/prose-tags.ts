@@ -1,7 +1,8 @@
 // What one tag in prose says (the spec's Prose › Slots, Conditionals and
 // loops; Chance › The forms): a slot, `{if c}`, `{else}`, `{else if c}`,
 // `{for x in c}`, `{for x: Kind in c}`, `{for x of l}`, `{one of}`, `{or}`,
-// or a close. What a slot or a
+// or a close. A `{verbatim}` block is cut out whole by the scan, so only
+// a `{/verbatim}` with no block open reaches here. What a slot or a
 // condition says is an expression, read by the expression reader over
 // that stretch of the file alone, so its spans are the file's and
 // `$first` and the rest are names there. A condition takes no
@@ -77,10 +78,18 @@ export function readTag(p: Parser, span: TagSpan): Tag | null {
     if (closes === 'if' || closes === 'for' || closes === 'one of') {
       return { tag: 'close', at, closes };
     }
+    if (closes === 'verbatim') {
+      p.diagnostics.refuse(
+        at,
+        '`{/verbatim}` closes no `{verbatim}`.',
+        'Take it out, or write `{verbatim}` where the words to keep as written begin.',
+      );
+      return null;
+    }
     p.diagnostics.refuse(
       at,
       `\`{${trimmed}}\` closes nothing a passage opens.`,
-      "A passage's blocks close with `{/if}`, `{/for}` and `{/one of}`.",
+      "A passage's blocks close with `{/if}`, `{/for}`, `{/one of}` and `{/verbatim}`.",
     );
     return null;
   }

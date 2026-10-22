@@ -317,6 +317,8 @@ A body is a block of statements. A guard (`depart`, `release`, `accept`) and a `
 | `each crumb: Crumb in self { }` | walks what a container holds directly, in its order; `: K` takes only those of a kind, and `each t of tools` walks a set role; its block holds only what the body around it may | yes | yes | yes | yes | yes |
 | `self.set(:lit, true)` | a call that writes, one of those under Writing below | — | — | yes | — | yes |
 
+Words are printed in the case they are written in: only a slot that names a thing, such as `{actor}`, is capitalised where it opens a line. Reflow makes every run of spaces one; text with a shape of its own, verse or a sign, goes between `{verbatim}` and `{/verbatim}`, which keeps every space and line break, holds no slots, and should keep its lines to 40 characters so the narrowest screen need not wrap them.
+
 ## What a visitor can type
 
 These are the standard library’s verbs; a world adds its own with `verb`, and a kind takes part in one with `as <role> for <verb> { permit { … } do { … } }`. A phrase’s `[slot]` is filled by the role of that name, and phrases are tried in the order written. A synonym takes every phrase that writes the verb’s name: `walk` gives `"walk [way]"` and `"walk through [way]"`.

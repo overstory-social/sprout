@@ -99,6 +99,17 @@ kind Echo {
   passage astral { 𐐨 is deseret. }
   passage emoji { 😀 smile }
   passage cased { ǅ is title. }
+  passage name_quoted { “{crate}, again.” }
+  passage name_bracketed { ({crate}) stands. }
+  passage name_lines { First.\n{crate} sits.\nand {crate} again. }
+  passage shaped {
+    {verbatim}
+      W   E   L   L
+
+    the end
+    {/verbatim}
+  }
+  passage framed { carved: {verbatim}a  b{/verbatim}   done. }
   as target for ink { do { say call  say calls  say toss  say hum } }
 }
 kind Sayer {

@@ -96,7 +96,7 @@
             "from": "bench.yard.press",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Bone dry, 3 sheets, labelled the_albion."]
+            "paragraphs": ["bone dry, 3 sheets, labelled the_albion."]
           }
         ],
         "cut": []
@@ -222,7 +222,7 @@
             "from": "bench.yard.crate",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "A rib first, a rib"]
+            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "a rib first, a rib"]
           }
         ],
         "cut": []
@@ -333,7 +333,7 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["The_albion"]
+            "paragraphs": ["the_albion"]
           }
         ],
         "cut": []
@@ -417,7 +417,7 @@
             "from": "bench.yard.press",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Some sheets.", "The end,\nAnd a line kept. A brace: {."]
+            "paragraphs": ["Some sheets.", "the end,\nand a line kept. A brace: {."]
           }
         ],
         "cut": []
@@ -459,7 +459,7 @@
             "from": "bench.yard.crate",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "A rib first, a rib"]
+            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "a rib first, a rib"]
           }
         ],
         "cut": []
@@ -505,14 +505,14 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Oh oh oh"]
+            "paragraphs": ["oh oh oh"]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#3",
             "visit": "visit-2",
-            "paragraphs": ["Oh oh oh"]
+            "paragraphs": ["oh oh oh"]
           }
         ],
         "cut": []
@@ -779,7 +779,7 @@
             "from": "bench.yard.echo",
             "to": "bench#3",
             "visit": "visit-2",
-            "paragraphs": ["Ah ah"]
+            "paragraphs": ["ah ah"]
           }
         ],
         "cut": []
@@ -867,7 +867,7 @@
             "from": "bench.yard.press",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Some sheets.", "The end,\nAnd a line kept. A brace: {."]
+            "paragraphs": ["Some sheets.", "the end,\nand a line kept. A brace: {."]
           }
         ],
         "cut": []
@@ -948,21 +948,21 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["First", "It rings,", "It fades,", "Then quiet."]
+            "paragraphs": ["First", "it rings,", "it fades,", "then quiet."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["It rings.", "It carries."]
+            "paragraphs": ["It rings.", "it carries."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["It rings.\nIt carries."]
+            "paragraphs": ["It rings.\nit carries."]
           },
           {
             "kind": "said",
@@ -1018,7 +1018,7 @@
       }
     },
     {
-      "name": "the first letter is capitalised past quotation marks and dashes, not past a bracket",
+      "name": "words keep their case past quotation marks, dashes and brackets",
       "area": "layout",
       "state": "yard",
       "seed": 1,
@@ -1092,7 +1092,7 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["“Hello there,” she said."]
+            "paragraphs": ["“hello there,” she said."]
           },
           {
             "kind": "said",
@@ -1106,7 +1106,7 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["—And then silence."]
+            "paragraphs": ["—and then silence."]
           },
           {
             "kind": "said",
@@ -1155,14 +1155,14 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["A b c d."]
+            "paragraphs": ["a b c d."]
           }
         ],
         "cut": []
       }
     },
     {
-      "name": "capitalising maps a letter as JavaScript’s upper case does, special casing included",
+      "name": "words keep the case they are written in, whatever the letter",
       "area": "layout",
       "state": "yard",
       "seed": 1,
@@ -1301,42 +1301,42 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["SSeta is not sharp."]
+            "paragraphs": ["ßeta is not sharp."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Ǆungla grows."]
+            "paragraphs": ["ǆungla grows."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["ʼN is odd."]
+            "paragraphs": ["ŉ is odd."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["FFI is a ligature."]
+            "paragraphs": ["ﬃ is a ligature."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Ϊ́ is a vowel."]
+            "paragraphs": ["ΐ is a vowel."]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Ii is dotless."]
+            "paragraphs": ["ıi is dotless."]
           },
           {
             "kind": "said",
@@ -1350,14 +1350,158 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["😀 Smile"]
+            "paragraphs": ["😀 smile"]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Ǆ is title."]
+            "paragraphs": ["ǅ is title."]
+          }
+        ],
+        "cut": []
+      }
+    },
+    {
+      "name": "a name that opens a line is capitalised past a quotation mark, and not past a bracket or mid-line",
+      "area": "layout",
+      "state": "yard",
+      "seed": 1,
+      "skip": 0,
+      "actor": "bench#1",
+      "limits": {
+        "steps": 50000,
+        "output": 8000,
+        "passageDepth": 8
+      },
+      "renames": {},
+      "lines": [
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "name_quoted"
+            }
+          },
+          "bindings": {}
+        },
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "name_bracketed"
+            }
+          },
+          "bindings": {}
+        },
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "name_lines"
+            }
+          },
+          "bindings": {}
+        }
+      ],
+      "expect": {
+        "steps": 20,
+        "effects": [
+          {
+            "kind": "said",
+            "from": "bench.yard.echo",
+            "to": "bench#1",
+            "visit": "visit-1",
+            "paragraphs": ["“The crate, again.”"]
+          },
+          {
+            "kind": "said",
+            "from": "bench.yard.echo",
+            "to": "bench#1",
+            "visit": "visit-1",
+            "paragraphs": ["(the crate) stands."]
+          },
+          {
+            "kind": "said",
+            "from": "bench.yard.echo",
+            "to": "bench#1",
+            "visit": "visit-1",
+            "paragraphs": ["First.\nThe crate sits.\nand the crate again."]
+          }
+        ],
+        "cut": []
+      }
+    },
+    {
+      "name": "a verbatim block keeps every space and break, and the words around it reflow",
+      "area": "layout",
+      "state": "yard",
+      "seed": 1,
+      "skip": 0,
+      "actor": "bench#1",
+      "limits": {
+        "steps": 50000,
+        "output": 8000,
+        "passageDepth": 8
+      },
+      "renames": {},
+      "lines": [
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "shaped"
+            }
+          },
+          "bindings": {}
+        },
+        {
+          "effect": "said",
+          "to": ["bench#1"],
+          "by": "bench.yard.echo",
+          "speaker": null,
+          "said": {
+            "passage": {
+              "origin": "bench.Echo",
+              "name": "framed"
+            }
+          },
+          "bindings": {}
+        }
+      ],
+      "expect": {
+        "steps": 0,
+        "effects": [
+          {
+            "kind": "said",
+            "from": "bench.yard.echo",
+            "to": "bench#1",
+            "visit": "visit-1",
+            "paragraphs": ["  W   E   L   L\n\nthe end"]
+          },
+          {
+            "kind": "said",
+            "from": "bench.yard.echo",
+            "to": "bench#1",
+            "visit": "visit-1",
+            "paragraphs": ["carved: a  b done."]
           }
         ],
         "cut": []
@@ -1422,7 +1566,7 @@
             "from": "bench.yard.sayer",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Plain words, “quoted” ones"]
+            "paragraphs": ["plain words, “quoted” ones"]
           }
         ],
         "cut": []
@@ -1584,14 +1728,14 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["Oh oh"]
+            "paragraphs": ["oh oh"]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#3",
             "visit": "visit-2",
-            "paragraphs": ["Oh oh"]
+            "paragraphs": ["oh oh"]
           }
         ],
         "cut": []
@@ -1743,7 +1887,7 @@
             "from": "bench.yard.crate",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "A rib first, a rib"]
+            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "a rib first, a rib"]
           },
           {
             "kind": "notice",
@@ -2072,7 +2216,7 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["An echo"]
+            "paragraphs": ["an echo"]
           }
         ],
         "cut": ["bench#3"]
@@ -2127,14 +2271,14 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["😀 Smile"]
+            "paragraphs": ["😀 smile"]
           },
           {
             "kind": "said",
             "from": "bench.yard.echo",
             "to": "bench#3",
             "visit": "visit-2",
-            "paragraphs": ["😀 Smile"]
+            "paragraphs": ["😀 smile"]
           }
         ],
         "cut": []
@@ -2328,7 +2472,7 @@
             "from": "bench.yard.echo",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["One, two, three"]
+            "paragraphs": ["one, two, three"]
           }
         ],
         "cut": []
@@ -2541,7 +2685,7 @@
             "from": "bench.yard.crate",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "A rib first, a rib"]
+            "paragraphs": ["In the crate: an apple, a rib, a spare rib.", "a rib first, a rib"]
           }
         ],
         "cut": []

@@ -11,7 +11,7 @@ passage arrival {
 
   {for thing in self}{if thing != actor}{thing}{if $last}.{else}, {/if}{/if}{/for}
 
-  {for rib: Rib in self}{rib.short}{if !$last}; {/if}{/for}
+  {for rib: Rib in self}{if $first}On the frames: {/if}{rib.short}{if $last}.{else}; {/if}{/for}
 }
 
 passage arrives { {item} comes in, and the frames rattle. }

@@ -18,7 +18,9 @@
 
 /* What rendering prose gives, in order: words, or a break. */
 typedef enum prose_piece_kind {
-  PROSE_WORDS,
+  PROSE_WORDS,     /* as an author wrote them, or a string, option or number a slot put in */
+  PROSE_NAME,      /* what an object slot renders: the engine's own words, capitalised where they open a line */
+  PROSE_VERBATIM,  /* a `{verbatim}` block's words, laid out exactly as written */
   PROSE_PARAGRAPH, /* a blank line */
   PROSE_LINE       /* `\n`, which reflow keeps */
 } prose_piece_kind;
@@ -44,22 +46,23 @@ typedef struct prose_paragraphs {
 bool prose_put(sprout_arena *arena, prose_pieces *pieces, prose_piece_kind kind, const char *bytes, size_t length);
 
 /*
- * The paragraphs `rendered` lays out to (the spec's Prose > Passages, Slots): every run of white
- * space is one space and a paragraph has none at its ends, a blank line is a paragraph break and
- * a paragraph left with nothing is none, `\n` is kept, and the first letter of every line is
- * capitalised, past an opening quotation mark but not past a bracket. White space is what
- * JavaScript's `\s` is, and a letter or a number what `\p{L}` and `\p{N}` are.
+ * The paragraphs `rendered` lays out to (the spec's Prose > Passages, Slots, Verbatim): every run
+ * of white space is one space and a paragraph has none at its ends, a blank line is a paragraph
+ * break and a paragraph left with nothing is none, and `\n` is kept. The case of words is kept;
+ * only a name that opens a line has its first letter capitalised, past an opening quotation mark
+ * but not past a bracket. A verbatim block keeps every space and break it holds. White space is
+ * what JavaScript's `\s` is, and a letter or a number what `\p{L}` and `\p{N}` are.
  */
 bool prose_reflow(sprout_arena *arena, const prose_pieces *rendered, prose_paragraphs *out);
 
 /*
  * `rendered` as a slot puts it in its line (the spec's Prose > Slots): nothing where it holds no
  * words; otherwise its words with the space at their ends taken off, a blank line or two `\n` at
- * either end a paragraph break, and one `\n` a line break.
+ * either end a paragraph break, and one `\n` a line break. A verbatim block keeps its own spaces.
  */
 bool prose_slotted(sprout_arena *arena, const prose_pieces *rendered, prose_pieces *out);
 
-/* `line` with its first letter capitalised as reflow does. */
+/* `line` with its first letter capitalised as reflow capitalises a name that opens a line. */
 bool prose_capitalise(sprout_arena *arena, sprout_str line, sprout_str *out);
 
 /* Whether the code point is white space to JavaScript's `\s`, `trim` and the spec's reflow. */
