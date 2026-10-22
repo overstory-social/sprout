@@ -380,6 +380,9 @@ static sprout_status unread(reader *r, const parse_line *line, const parse_tried
       draws[0] = among;
       r->out->draws = draws;
       r->out->draw_count = 1;
+      /* A tie the rules could not break is drawn, and logged as a warning, as a whole reading's is. */
+      r->out->drawn = true;
+      r->out->drawn_among = among;
     }
     given.object = chosen->uncarried.bytes != NULL;
     given.name = given.object ? "thing" : "reading";

@@ -80,7 +80,7 @@ export const CommandEntry = TurnInputs.extend({
   effects: z.array(LoggedEffect),
   /** At play depth, how many effects there were and their digest; absent at debug depth. */
   digest: LoggedDigest.optional(),
-  /** The reading was drawn from this many that tied; null where it stood alone, or none was read. */
+  /** The reading, or the partial reading the line was answered by, was drawn from this many that tied; null where none was. */
   drawn: z.object({ level: z.literal('warning'), among: z.number().int().min(2) }).nullable(),
   /** Who a line would have taken past their output, each a warning. */
   cutShort: z.array(LoggedCut),

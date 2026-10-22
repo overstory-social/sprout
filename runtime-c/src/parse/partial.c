@@ -3,9 +3,11 @@
  * intent understood, and a slot's words naming something in range the role cannot take, or, in a carried role, only
  * something the actor does not carry. Each way the slots fill so is a partial reading, a step, written as a visitor
  * would type it: a thing by its name after `the`, a set's things joined by `and`, an exit by its direction or label,
- * a value as typed. The one answered matched most of the line's words, then filled most roles, a tie drawn from the
- * turn's stream. Only the partials tied for best so far are kept, in the order made, which is what a stable sort of
- * every one of them leaves at its head.
+ * a value as typed. The one answered matched most of the line's words, then filled most roles, then names nearer
+ * things, role by role in declared order, as a whole reading is ranked under Choosing a reading, so the visitor's
+ * own place is named only where nothing in it answers as well; a tie still standing is drawn from the turn's stream.
+ * Only the partials tied for best so far are kept, in the order made, which is what a stable sort of every one of
+ * them leaves at its head.
  */
 #include <string.h>
 
@@ -14,8 +16,13 @@
 #include "parse.h"
 
 int parse_compare_partial(const parse_partial *a, const parse_partial *b) {
+  size_t at, most = a->near_count > b->near_count ? a->near_count : b->near_count;
   if (a->literal != b->literal) return a->literal > b->literal ? -1 : 1;
   if (a->bound != b->bound) return a->bound > b->bound ? -1 : 1;
+  for (at = 0; at < most; at++) {
+    size_t mine = at < a->near_count ? a->near[at] : 0, theirs = at < b->near_count ? b->near[at] : 0;
+    if (mine != theirs) return mine < theirs ? -1 : 1;
+  }
   return 0;
 }
 
@@ -33,6 +40,14 @@ static size_t literal_of(const parse_filled *one, const parse_span *span, size_t
   if (one->fills == PARSE_FILLS_OPTIONS && one->way != NULL) return one->literal;
   if (one->fills == PARSE_FILLS_OPTIONS && one->set_count > 0) return one->sets[at].literal;
   return one->things[at].literal;
+}
+
+/* How near the thing or set the option `at` of a slot names is; a value's words and a way out are 0, as nearest. */
+static size_t near_of(const parse_filled *one, size_t at) {
+  if (one->fills == PARSE_FILLS_WORDS) return 0;
+  if (one->fills == PARSE_FILLS_OPTIONS && one->way != NULL) return 0;
+  if (one->fills == PARSE_FILLS_OPTIONS && one->set_count > 0) return one->sets[at].near;
+  return one->things[at].near;
 }
 
 /* A growing run of bytes in an arena. */
@@ -142,11 +157,19 @@ static sprout_eval_status write_partial(const sprout_frame *frame, const parse_p
   return SPROUT_EVAL_OK;
 }
 
+/* A copy of the nearness of `count` roles in `keep`; NULL where it has no room. */
+static const size_t *kept_near(sprout_arena *keep, const size_t *near, size_t count) {
+  size_t *kept = (size_t *)sprout_arena_take(keep, (count + 1) * sizeof *kept);
+  if (kept != NULL) memcpy(kept, near, count * sizeof *kept);
+  return kept;
+}
+
 sprout_eval_status parse_partials_of(const sprout_frame *frame, const parse_placement *placement, sprout_arena *keep,
                                      parse_partials *partials) {
   const sprout_typed_part *parts = placement->phrase != NULL ? placement->phrase->parts : placement->intent->parts;
   size_t part_count = placement->phrase != NULL ? placement->phrase->part_count : placement->intent->part_count;
-  size_t i, phrase_literal = 0, *at;
+  size_t role_count = placement->phrase != NULL ? placement->phrase->verb->role_count : placement->intent->intent->slot_count;
+  size_t i, phrase_literal = 0, *at, *near;
   bool unfit = false, outward = false;
   for (i = 0; i < placement->count; i++) {
     unfit = unfit || placement->fills[i]->fills == PARSE_FILLS_UNFIT;
@@ -163,17 +186,26 @@ sprout_eval_status parse_partials_of(const sprout_frame *frame, const parse_plac
   at = (size_t *)sprout_arena_take(frame->turn, (placement->count + 1) * sizeof *at);
   if (at == NULL) return SPROUT_EVAL_NO_MEMORY;
   memset(at, 0, (placement->count + 1) * sizeof *at);
+  near = (size_t *)sprout_arena_take(frame->turn, (role_count + 1) * sizeof *near);
+  if (near == NULL) return SPROUT_EVAL_NO_MEMORY;
   /* Each way to take one option from each slot, the last slot turning fastest, as TS's flatMap orders them. */
   for (;;) {
     parse_partial made;
     EXPR_NEED(expr_spend(frame));
     made.literal = phrase_literal;
     made.bound = placement->count;
-    for (i = 0; i < placement->count; i++) made.literal += literal_of(placement->fills[i], &placement->spans[i], at[i]);
+    made.near = near;
+    made.near_count = role_count;
+    memset(near, 0, (role_count + 1) * sizeof *near);
+    for (i = 0; i < placement->count; i++) {
+      made.literal += literal_of(placement->fills[i], &placement->spans[i], at[i]);
+      if (placement->spans[i].role < role_count) near[placement->spans[i].role] = near_of(placement->fills[i], at[i]);
+    }
     if (partials->count == 0 || parse_compare_partial(&made, &partials->best[0]) <= 0) {
       parse_partial *slot;
       if (partials->count > 0 && parse_compare_partial(&made, &partials->best[0]) < 0) partials->count = 0;
       EXPR_NEED(write_partial(frame, placement, parts, part_count, at, unfit, keep, &made));
+      if ((made.near = kept_near(keep, near, role_count)) == NULL) return SPROUT_EVAL_NO_MEMORY;
       slot = (parse_partial *)sprout_exec_grow(keep, (void **)&partials->best, &partials->count, &partials->capacity,
                                                sizeof *partials->best);
       if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;

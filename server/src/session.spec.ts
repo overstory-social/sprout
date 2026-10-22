@@ -100,6 +100,37 @@ describe('a frame', () => {
     ]);
   });
 
+  it('records a draw among partial readings at warning, and none where nearness decides', async () => {
+    const made = await context('partial-nearness');
+    const connection = keptConnection();
+    await frame(made, connection, HELLO);
+    await frame(
+      made,
+      connection,
+      JSON.stringify({ t: 'admit', world: 'partial_nearness', nickname: 'Marta' }),
+    );
+    await frame(made, connection, JSON.stringify({ t: 'levels', show: ['prose', 'warning'] }));
+    const records = () => connection.sent.filter((one) => (one as { t: string }).t === 'record');
+    await frame(
+      made,
+      connection,
+      JSON.stringify({ t: 'command', seq: 1, line: 'look behind house' }),
+    );
+    expect(records()).toEqual([]);
+    expect(JSON.stringify(connection.sent)).toContain("You can't look behind the white house.");
+    await frame(
+      made,
+      connection,
+      JSON.stringify({ t: 'command', seq: 2, line: 'look behind bell' }),
+    );
+    expect(records()).toEqual([
+      expect.objectContaining({
+        level: 'warning',
+        text: 'drawn: the line read 2 ways that tied, and one was drawn',
+      }),
+    ]);
+  });
+
   it('grants none of the time a command asks to pass, and records the ask at info to one who asked for it', async () => {
     const made = await context('passing-time');
     const connection = keptConnection();

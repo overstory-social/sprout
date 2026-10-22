@@ -1,0 +1,160 @@
+{
+  "about": "Read only in part, `look behind house` is refused naming the white house under every seed, never the place called West of House, and nothing is drawn; the place's whole name still names it. `look behind bell`, the two bells equally near, draws the one it names, and the draw is logged as a warning.",
+  "steps": [
+    {
+      "arrive": "Marta"
+    },
+    {
+      "seed": 0
+    },
+    {
+      "as": "Marta",
+      "type": "look behind house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the white house."
+        }
+      ]
+    },
+    {
+      "seed": 1
+    },
+    {
+      "as": "Marta",
+      "type": "look behind house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the white house."
+        }
+      ]
+    },
+    {
+      "seed": 2
+    },
+    {
+      "as": "Marta",
+      "type": "look behind house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the white house."
+        }
+      ]
+    },
+    {
+      "seed": 3
+    },
+    {
+      "as": "Marta",
+      "type": "look behind house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the white house."
+        }
+      ]
+    },
+    {
+      "seed": 4
+    },
+    {
+      "as": "Marta",
+      "type": "look behind house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the white house."
+        }
+      ]
+    },
+    {
+      "seed": 5
+    },
+    {
+      "as": "Marta",
+      "type": "look behind house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the white house."
+        }
+      ]
+    },
+    {
+      "as": "Marta",
+      "type": "look behind west of house",
+      "forbid": [
+        "warning"
+      ],
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the west of house."
+        }
+      ]
+    },
+    {
+      "seed": 0
+    },
+    {
+      "as": "Marta",
+      "type": "look behind bell",
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the brass bell."
+        },
+        {
+          "level": "warning",
+          "text": "drawn: the line read 2 ways that tied, and one was drawn"
+        }
+      ]
+    },
+    {
+      "seed": 1
+    },
+    {
+      "as": "Marta",
+      "type": "look behind bell",
+      "expect": [
+        {
+          "reader": "Marta",
+          "kind": "notice",
+          "words": "You can't look behind the iron bell."
+        },
+        {
+          "level": "warning",
+          "text": "drawn: the line read 2 ways that tied, and one was drawn"
+        }
+      ]
+    }
+  ]
+}

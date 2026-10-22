@@ -2,8 +2,8 @@
  * Tests for src/parse/partial.c: a line read in part (the spec's Parsing > When nothing matches; Verbs > Carried
  * roles). The partials of `unlock [target] with [tool]` are made in the
  * study (the corpus world `grammar`) from fills built here, where the line `unlock door with gong` puts its slots;
- * a line read in part for a carried role is read through `sprout_parse` in the corpus world `carried`, and a tie
- * among partials in the study.
+ * a line read in part for a carried role is read through `sprout_parse` in the corpus world `carried`, a tie
+ * among partials in the study, and nearness among partials in `partial-nearness`.
  */
 #include "parse_fixture.h"
 
@@ -189,6 +189,36 @@ static void the_one_answered_matched_most_words_then_filled_most_roles_whatever_
   bench_close(&b);
 }
 
+/* A partial filling the first of two roles with a thing `near` away and the second with one `second` away. */
+static parse_partial partial_near(const char *words, const size_t near[2]) {
+  parse_partial out = partial(words, 2, 2);
+  out.near = near;
+  out.near_count = 2;
+  return out;
+}
+
+static void of_those_the_one_naming_nearer_things_role_by_role_is_answered(void) {
+  bench b;
+  parse_partial two[2];
+  const parse_partial *chosen;
+  size_t among;
+  static const size_t nearer_first[2] = {1, 5}, nearer_second[2] = {2, 0}, same[2] = {1, 5};
+  two[0] = partial_near("far", nearer_second);
+  two[1] = partial_near("near", nearer_first);
+  CHECK(parse_compare_partial(&two[1], &two[0]) < 0);
+  /* More words matched still come first. */
+  two[0].literal = 3;
+  CHECK(parse_compare_partial(&two[0], &two[1]) < 0);
+  two[0] = partial_near("same", same);
+  CHECK_INT(parse_compare_partial(&two[0], &two[1]), 0);
+  bench_open(&b, "grammar", "Marta");
+  two[0] = partial_near("far", nearer_second);
+  CHECK_INT(parse_choose_partial(&b.frame, two, 2, &chosen, &among), SPROUT_EVAL_OK);
+  CHECK_BYTES(chosen->words.bytes, chosen->words.length, "near");
+  CHECK_INT(among, 1);
+  bench_close(&b);
+}
+
 static void it_is_drawn_among_those_still_tied_a_step_and_varies_with_the_seed(void) {
   bench b;
   parse_partial two[2];
@@ -336,7 +366,33 @@ static void partials_tied_are_drawn_from_the_turns_stream_its_first_draw(void) {
   answered_with(&t, "cannot", "reading", false, "unlock the door with the pebble");
   CHECK_INT(t.out.draw_count, 1);
   if (t.out.draw_count == 1) CHECK_INT(t.out.draws[0], 2);
-  CHECK(!t.out.drawn);
+  CHECK(t.out.drawn);
+  CHECK_INT(t.out.drawn_among, 2);
+  close_typing(&t);
+}
+
+/* Parses `line` as Marta under `seed`. */
+static void typed_under(typing *t, const char *line, uint64_t seed) {
+  t->w.seed = seed;
+  CHECK_INT(sprout_parse(t->w.world, t->w.state, &t->w.host, "v-marta", line, strlen(line), NULL, &t->keep, &t->out),
+            SPROUT_OK);
+}
+
+static void the_visitors_own_place_is_named_only_where_nothing_in_it_answers_as_well_under_every_seed(void) {
+  typing t;
+  uint64_t seed;
+  open_typing(&t, "partial-nearness");
+  for (seed = 0; seed < 16; seed++) {
+    /* The place takes `house` from its name, and the white house in it is nearer. */
+    typed_under(&t, "look behind house", seed);
+    answered_with(&t, "cannot", "reading", false, "look behind the white house");
+    CHECK_INT(t.out.draw_count, 0);
+    CHECK(!t.out.drawn);
+    /* Its whole name names it better. */
+    typed_under(&t, "look behind west of house", seed);
+    answered_with(&t, "cannot", "reading", false, "look behind the west of house");
+    CHECK(!t.out.drawn);
+  }
   close_typing(&t);
 }
 
@@ -346,6 +402,7 @@ int main(void) {
   RUN(it_writes_a_run_in_a_role_that_takes_one_thing_as_its_first_item);
   RUN(there_are_none_where_no_slot_names_what_it_cannot_take_or_one_names_nothing_or_no_thing);
   RUN(the_one_answered_matched_most_words_then_filled_most_roles_whatever_order_they_came_in);
+  RUN(of_those_the_one_naming_nearer_things_role_by_role_is_answered);
   RUN(it_is_drawn_among_those_still_tied_a_step_and_varies_with_the_seed);
   RUN(a_carried_role_naming_only_what_lies_further_out_is_not_carrying_that_thing);
   RUN(what_is_carried_is_read_and_never_drawn_against_what_lies_further_out);
@@ -353,5 +410,6 @@ int main(void) {
   RUN(an_intents_slot_given_to_a_carried_role_fills_the_same_way);
   RUN(a_role_that_is_not_carried_reaches_further_out);
   RUN(partials_tied_are_drawn_from_the_turns_stream_its_first_draw);
+  RUN(the_visitors_own_place_is_named_only_where_nothing_in_it_answers_as_well_under_every_seed);
   return REPORT();
 }

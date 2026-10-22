@@ -394,9 +394,10 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
       out.push(hostLineOf(`step: ${read.step.verb.library}.${read.step.verb.name}`));
     }
     out.push(...turnLines(stage, turn, step.entry));
-    // A reading drawn from a tie is the host's to log as a warning.
-    if (read !== null && read.drawn !== null) {
-      const text = `drawn: the line read ${read.drawn.among} ways that tied, and one was drawn`;
+    // A reading drawn from a tie, or the partial reading a line was answered by, is the host's to log as a warning.
+    const drawn = 'answered' in value ? value.answered.drawn : read === null ? null : read.drawn;
+    if (drawn !== null) {
+      const text = `drawn: the line read ${drawn.among} ways that tied, and one was drawn`;
       out.push({ level: 'warning', text, words: null, kind: null, shown: text, reader: null });
     }
     // Time a command asks to pass passes before anything else runs, its line's next turn included.

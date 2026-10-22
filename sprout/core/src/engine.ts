@@ -73,12 +73,13 @@ export interface GivenFaulted {
  * a reading, the step of a line of several it ran as, which is logged at
  * info, how many readings tied where the parser drew one, a warning, and
  * the seconds the host is to let pass once it is over, lowered to the
- * host's longest pass (the spec's Time › Passing time); nothing for a line
- * the parser answered or a visitor displaced. `answered` and `displaced`
- * only mark which: nothing reads what they hold.
+ * host's longest pass (the spec's Time › Passing time); for a line the
+ * parser answered, how many partial readings tied where its answer was
+ * drawn from them, a warning too (the spec's Parsing › Choosing a reading);
+ * nothing for a visitor displaced, which `displaced` only marks.
  */
 export type CommandNotes =
-  | { readonly answered: object }
+  | { readonly answered: { readonly drawn: { readonly among: number } | null } }
   | { readonly displaced: object }
   | {
       readonly step: { readonly verb: { readonly library: string; readonly name: string } } | null;

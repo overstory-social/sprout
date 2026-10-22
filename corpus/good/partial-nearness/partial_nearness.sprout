@@ -1,0 +1,31 @@
+// A line read only in part ranks its partial readings by nearness, as a
+// whole reading is ranked (the spec's Parsing › Choosing a reading; When
+// nothing matches): the place takes the noun `house` from its name, and
+// neither it nor the white house can be looked behind, so `look behind
+// house` is refused naming the white house, since the visitor's own place
+// is named only where nothing in it answers as well. The two bells are
+// equally near, so `look behind bell` is drawn, and the draw is logged as
+// a warning.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+kind Thing { grammar { article the } }
+kind Hiding is Thing {
+  as target for look_behind { do { say "Nothing is hidden there." } }
+}
+verb look_behind { role target: Hiding  "look behind [target]" }
+
+world partial_nearness is sprout.World {
+  visitors are Person
+  visitors arrive at west_of_house
+
+  passage cannot { You can't {reading}. }
+
+  object west_of_house is sprout.Place {
+    grammar { name "West of House" }
+    object house is Thing { grammar { name "white house"  nouns "house" } }
+    object brass_bell is Thing
+    object iron_bell is Thing
+    object curtain is Hiding
+  }
+}
