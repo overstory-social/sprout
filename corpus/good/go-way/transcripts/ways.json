@@ -1,0 +1,34 @@
+{
+  "about": "The actor's part of `go` reads the way taken: `n` is read as `north`, an exit typed by its label as its direction, a link as its label, and west is refused by the permit before anything moves.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "as": "Marta", "type": "w", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "A wind off the moor turns you back." }
+    ] },
+    { "as": "Marta", "type": "n", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The way you took: north." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a lane." }
+    ] },
+    { "as": "Marta", "type": "dig in lane", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You dig a pit in the lane." }
+    ] },
+    { "as": "Marta", "type": "go the pit", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The way you took: the pit." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a pit." }
+    ] },
+    { "as": "Marta", "type": "go the rim", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The way you took: the rim." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a lane." }
+    ] },
+    { "as": "Marta", "type": "back to the yard", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The way you took: south." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a yard." }
+    ] },
+    { "as": "Marta", "type": "go up the lane", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The way you took: north." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a lane." }
+    ] }
+  ]
+}

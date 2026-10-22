@@ -47,6 +47,9 @@ export function aboveType(expr: Expr, below: BindingType, context: Checker): Bin
   }
 }
 
+/** The operators that take two integers and give one (the spec's Properties › What the compiler checks). */
+export const ARITHMETIC: ReadonlySet<BinaryOperator> = new Set(['+', '-', '*', '/', '%']);
+
 /** `!e` takes a boolean and `-e` an integer, and each gives back the same. */
 export function unaryType(
   operator: string,
@@ -93,8 +96,7 @@ export function binaryType(
   ) {
     return null;
   }
-  const comparison = operator === '+' || operator === '-' ? integer() : BOOLEAN;
-  return valueOf(comparison);
+  return valueOf(ARITHMETIC.has(operator) ? integer() : BOOLEAN);
 }
 
 /**

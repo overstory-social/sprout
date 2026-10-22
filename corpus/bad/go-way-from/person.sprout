@@ -1,0 +1,13 @@
+// `way` in `as actor for go` is the way taken, a string, and `from`
+// narrows only a value role's options.
+import * as sprout from 'sprout'
+import {go} from 'sprout'
+
+kind Walker is sprout.Actor {
+  as actor for go {
+    way from 1 to 4
+    do { say "The way you took: {way}." }
+  }
+}
+
+kind Person is Walker, sprout.Visitor { }

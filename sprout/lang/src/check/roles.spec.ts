@@ -12,8 +12,9 @@ import { VerbNames } from '../declare/roles.js';
 import { VerbTable } from '../declare/verbs.js';
 import { checkPlay } from './roles.js';
 
-/** The standard library's part: what an actor is, and a person. */
-const SPROUT_TEXT = 'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\n';
+/** The standard library's part: what an actor is, a person, and `go`. */
+const SPROUT_TEXT =
+  'kind Actor { contains :capacity 8 }\nkind Visitor is Actor { }\nverb go { role way: exit  "go [way]" }\n';
 
 /** The verbs every case here may play. */
 const VERBS = `enum Topic { bridge, toll, weather }
@@ -42,7 +43,9 @@ function checked(text: string): string[][] {
     setup,
   );
   const verbDeclarations = shop.filter((d): d is VerbDeclaration => d.kind === 'verb');
+  const engineVerbs = sprout.filter((d): d is VerbDeclaration => d.kind === 'verb');
   const names = new VerbNames();
+  names.add('sprout', engineVerbs);
   names.add('shop', verbDeclarations);
   const kinds = new KindTable();
   kinds.add(
@@ -57,6 +60,7 @@ function checked(text: string): string[][] {
   );
   kinds.resolve('shop', enums, setup, undefined, { verbs: names });
   const verbs = new VerbTable();
+  verbs.add('sprout', engineVerbs, { kinds, enums, diagnostics: setup });
   verbs.add('shop', verbDeclarations, { kinds, enums, diagnostics: setup });
   expect(
     setup.all.map((d) => d.message),
@@ -294,6 +298,38 @@ kind Safe { as target for dial { do { if (number > 1) { } } } }`),
         ),
       ),
     ).toEqual(['`target` is filled by a thing, so there is nothing for `from` to narrow.']);
+  });
+});
+
+describe('the way `go` takes is bound as a string', () => {
+  it('reads `way` in the actor’s `permit` and `do`, typed as text', () => {
+    expect(
+      checked(`kind Walker is sprout.Actor {
+  as actor for go {
+    permit { if (way == "west") { refuse "The wind turns you back." } }
+    do { say "You went {way}." }
+  }
+}`),
+    ).toEqual([]);
+    expect(
+      messages(
+        checked('kind Walker is sprout.Actor { as actor for go { do { if (way == 1) { } } } }'),
+      ),
+    ).toEqual(['This holds text, and 1 is a number.']);
+  });
+
+  it('refuses a `from` on it, and binds it all the same', () => {
+    expect(
+      checked(
+        'kind Walker is sprout.Actor { as actor for go { way from 1 to 4  do { say "{way}" } } }',
+      ),
+    ).toEqual([
+      [
+        'shop.sprout:10:49',
+        '`way` is the way taken, so there is nothing for `from` to narrow.',
+        'Read `way` in the body instead, as in `if (way == "north") { … }`.',
+      ],
+    ]);
   });
 });
 

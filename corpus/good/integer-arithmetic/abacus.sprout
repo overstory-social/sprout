@@ -1,0 +1,28 @@
+import {weigh, share, divide} from 'integer_arithmetic'
+
+kind Abacus {
+  :beads 7 min 0 max 99
+  :rows 0 min 0 max 9
+  :grains 0 min 0 max 999
+  :pairs 0 min 0 max 99
+  :odd 0 min 0 max 1
+  as target for weigh {
+    do {
+      self.set(:grains, self.get(:beads) * 3 + 1)
+      say "The abacus weighs {self.get(:grains)} grains."
+    }
+  }
+  as target for share {
+    do {
+      self.set(:pairs, self.get(:beads) / 2)
+      self.set(:odd, self.get(:beads) % 2)
+      say "That is {self.get(:pairs)} pairs of beads, and {self.get(:odd)} over."
+    }
+  }
+  as target for divide {
+    do {
+      self.set(:pairs, self.get(:beads) / self.get(:rows))
+      say "Each row takes {self.get(:pairs)}."
+    }
+  }
+}

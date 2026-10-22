@@ -1,0 +1,43 @@
+// `way` in `as actor for go`: north typed as `n` is read as `north`, a
+// link is read by its label, and west is refused by the actor's permit
+// before anything moves.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Pit} from 'pit'
+
+world go_way is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit north "up the lane"   -> lane
+      exit west  "onto the moor" -> moor
+    }
+  }
+
+  object lane is Lane {
+    grammar { exit south "back to the yard" -> yard }
+  }
+
+  object moor is sprout.Place {
+    grammar { exit east "back to the yard" -> yard }
+  }
+}
+
+verb dig { role target: Lane  "dig [target]"  "dig in [target]" }
+
+kind Lane is sprout.Place {
+  grammar {
+    name "lane"
+    link down_into "the pit"
+  }
+
+  as target for dig {
+    do {
+      let pit = spawn Pit in self
+      connect down_into to pit
+      say "You dig a pit in the lane."
+    }
+  }
+}

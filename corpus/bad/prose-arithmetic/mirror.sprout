@@ -1,5 +1,6 @@
-// A passage does no arithmetic.
+// A passage does no arithmetic: no sum, and no product or quotient.
 kind Mirror {
   :sheets 2 min 0 max 9
   passage greeting { {self.get(:sheets) + 1} sheets. }
+  passage halves { {self.get(:sheets) / 2} halves. }
 }

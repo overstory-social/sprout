@@ -39,7 +39,7 @@ describe('separator', () => {
   });
 
   it('reads a character the lexer already refused as `gap`, without consuming anything', () => {
-    const { p, diagnostics } = parserOver('% b');
+    const { p, diagnostics } = parserOver('@ b');
     expect(separator(p, ']')).toBe('gap');
     expect(diagnostics.refusals).toHaveLength(1);
     expect(p.at('name', 'b')).toBe(true);

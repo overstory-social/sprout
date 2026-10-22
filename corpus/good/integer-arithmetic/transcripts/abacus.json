@@ -1,0 +1,18 @@
+{
+  "about": "An abacus of seven beads weighs 7 * 3 + 1, which is 22 grains and not 28, since `*` binds tighter than `+`; shared by twos it is 7 / 2 pairs and 7 % 2 over; and divided among its nought rows it faults, and the visitor is told that something went wrong.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a counting house." }
+    ] },
+    { "as": "Marta", "type": "weigh abacus", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The abacus weighs 22 grains." }
+    ] },
+    { "as": "Marta", "type": "share abacus", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "That is 3 pairs of beads, and 1 over." }
+    ] },
+    { "as": "Marta", "type": "divide abacus", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Something in this world has gone wrong, and nothing has changed." },
+      { "level": "error", "text": "the command faulted, DivisionByZero: 7 / 0: nothing divides by zero." }
+    ] }
+  ]
+}
