@@ -243,7 +243,7 @@ static sprout_status check_bound(checker *c, size_t v, const sprout_stored_bound
   if (bound->kind == SPROUT_BOUND_OBJECT) PASS(an_id(c, bound->object));
   if (bound->kind == SPROUT_BOUND_SET)
     for (i = 0; i < bound->set_count; i++) PASS(an_id(c, bound->set[i]));
-  if (bound->kind == SPROUT_BOUND_EXIT) PASS(an_id(c, bound->to));
+  if (bound->kind == SPROUT_BOUND_EXIT && bound->to.length > 0) PASS(an_id(c, bound->to));
   return SPROUT_OK;
 }
 

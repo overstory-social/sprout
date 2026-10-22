@@ -101,19 +101,40 @@ export interface GrammarSaying extends Node {
 }
 
 /**
+ * One choice of a drawn way: a place it may lead to, or the refusal it
+ * may answer with instead.
+ */
+export interface GrammarChoice extends Node {
+  readonly kind: 'grammar-choice';
+  readonly leads: ObjectPath | GrammarRefusal;
+}
+
+/**
+ * `one of (room_8, marble_hall, refuse "There is no way to go in that
+ * direction.")` after an exit's `->`: a way whose destination is drawn
+ * from the turn's seed as it is taken (the spec's Verbs › A way drawn as
+ * it is taken), its choices in the order written.
+ */
+export interface GrammarDrawn extends Node {
+  readonly kind: 'grammar-drawn';
+  readonly choices: readonly GrammarChoice[];
+}
+
+/**
  * `exit north "deeper into the dark" -> maze_hall when (!self.get(:lit))`:
  * a way out of a place, its direction, its label, where it leads, what
  * it says to whoever takes it, and the guard that decides whether it
  * applies; or, written with `refuse` in place of `->`, a way that does
- * not go and says why. Which directions there are is
+ * not go and says why; or, with `-> one of (…)`, a way whose destination
+ * is drawn as it is taken. Which directions there are is
  * `declare/directions.ts`'s; the word is kept as written.
  */
 export interface GrammarExit extends Node {
   readonly kind: 'grammar-exit';
   readonly direction: Ident;
   readonly label: GrammarLabel;
-  /** An identifier or a dotted path to a place; or the refusal of a way that does not go. */
-  readonly leads: ObjectPath | GrammarRefusal;
+  /** An identifier or a dotted path to a place; the refusal of a way that does not go; or the choices of a drawn way. */
+  readonly leads: ObjectPath | GrammarRefusal | GrammarDrawn;
   /** The words said to whoever takes it, after `say`; null where it says nothing, and for one that refuses. */
   readonly says: GrammarSaying | null;
   /** The condition in brackets after `when`; null where the exit always applies. */

@@ -262,7 +262,11 @@ static sprout_eval_status seen_exit(sprout_arena *keep, const char *direction, c
                                     sprout_seen_exit *out) {
   out->direction = put_text(keep, direction);
   out->label = put_text(keep, label);
-  if ((direction != NULL && out->direction == NULL) || out->label == NULL || !put(keep, to, &out->to))
+  out->to.bytes = NULL;
+  out->to.length = 0;
+  /* A drawn way leads nowhere until it is taken, so its `to` stays empty. */
+  if ((direction != NULL && out->direction == NULL) || out->label == NULL ||
+      (to.length > 0 && !put(keep, to, &out->to)))
     return SPROUT_EVAL_NO_MEMORY;
   return SPROUT_EVAL_OK;
 }
@@ -368,8 +372,11 @@ static sprout_eval_status seen_filler(poll *p, sprout_arena *keep, const sprout_
       out->binds = SPROUT_SEEN_EXIT;
       exit->direction = filled->bound.has_direction ? put_text(keep, direction.bytes) : NULL;
       exit->label = put_text(keep, label.bytes);
+      exit->to.bytes = NULL;
+      exit->to.length = 0;
+      /* A drawn way leads nowhere until it is taken, so its `to` stays empty. */
       if ((filled->bound.has_direction && exit->direction == NULL) || exit->label == NULL ||
-          !put(keep, filled->bound.to, &exit->to))
+          (filled->bound.to.length > 0 && !put(keep, filled->bound.to, &exit->to)))
         return SPROUT_EVAL_NO_MEMORY;
       return SPROUT_EVAL_OK;
     }

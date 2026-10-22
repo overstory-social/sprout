@@ -93,7 +93,7 @@ static bool bound_of(sprout_arena *arena, const sprout_filling *filling, sprout_
       out->has_direction = filling->direction != NULL;
       if (filling->direction != NULL) out->direction = str_of(filling->direction);
       out->label = str_of(filling->label);
-      out->to = str_of(filling->id);
+      if (filling->id != NULL) out->to = str_of(filling->id);
       return true;
     case SPROUT_FILL_TEXT:
       out->kind = SPROUT_BOUND_VALUE;

@@ -1,11 +1,13 @@
 // A grammar block's ways out: `exit north "deeper into the dark" ->
 // maze_hall when (!self.get(:lit))`, `exit down "down" -> maze_9 say "You
 // won't be able to get back up."`, `exit west "west" refuse "You would
-// need a machete."` and `link onward "the way on"` (the spec's Verbs ›
-// Exits, An exit may be conditional, Links). An exit is its word, a
-// direction, a label in quotes, then `->`, where it leads and optionally
-// `say` and what it says as it is taken, or `refuse` and what it says;
-// then, last, optionally `when` and a condition in brackets. A link is
+// need a machete."`, `exit west "west" -> one of (room_8, marble_hall,
+// refuse "No way.")` and `link onward "the way on"` (the spec's Verbs ›
+// Exits, An exit may be conditional, A way drawn as it is taken, Links).
+// An exit is its word, a direction, a label in quotes, then `->`, where
+// it leads or `one of` and the choices drawn among in brackets, and
+// optionally `say` and what it says as it is taken; or `refuse` and what
+// it says; then, last, optionally `when` and a condition in brackets. A link is
 // its word, its name and a label. Which words are directions, which may
 // name a link, what the condition and the words may read and where the
 // path leads are for the tiers after this one.
@@ -15,6 +17,8 @@
 
 import { writtenPath, type Ident, type ObjectPath } from '../ast.js';
 import type {
+  GrammarChoice,
+  GrammarDrawn,
   GrammarExit,
   GrammarLabel,
   GrammarLink,
@@ -77,9 +81,11 @@ export function exitLine(p: Parser, ends: LineEnds): GrammarExit | null {
     );
     return abandon(p, ends);
   }
-  const destination = destinationAfter(p, arrow, direction, label, ends);
+  const destination = drawsAt(p)
+    ? drawnAfter(p, direction, label, ends)
+    : destinationAfter(p, arrow, direction, label, ends);
   if (destination === null) return abandon(p, ends);
-  let written = `exit ${direction.text} "${label.text}" -> ${writtenPath(destination)}`;
+  let written = `exit ${direction.text} "${label.text}" -> ${writtenLeads(destination)}`;
   let says: GrammarSaying | null = null;
   const word = p.peek();
   if (word.kind === 'name' && word.text === 'say' && !ends.atLineEnd(p)) {
@@ -160,7 +166,7 @@ function strayedSay(p: Parser, head: ExitHead, written: string, ends: LineEnds):
     p.diagnostics.refuse(
       word.at,
       'This exit already says something as it is taken, and an exit says one thing.',
-      `Put all the words in one \`say\`, or in a passage it names, as in \`${exit} -> ${writtenPath(head.leads)} say taken\`.`,
+      `Put all the words in one \`say\`, or in a passage it names, as in \`${exit} -> ${writtenLeads(head.leads)} say taken\`.`,
     );
   } else {
     p.diagnostics.refuse(
@@ -170,6 +176,111 @@ function strayedSay(p: Parser, head: ExitHead, written: string, ends: LineEnds):
     );
   }
   return true;
+}
+
+/** Where an exit that leads goes, as a remedy writes it. */
+function writtenLeads(leads: ObjectPath | GrammarDrawn): string {
+  return leads.kind === 'path' ? writtenPath(leads) : 'one of (…)';
+}
+
+/** Whether `one of` stands next, where an exit's destination goes. */
+function drawsAt(p: Parser): boolean {
+  const one = p.peek();
+  const of = p.peek(1);
+  return one.kind === 'name' && one.text === 'one' && of.kind === 'name' && of.text === 'of';
+}
+
+/**
+ * `one of (…)` after an exit's `->`, `one of` next: its choices, each a
+ * place or `refuse` and its words, between commas. Null having said why;
+ * how many there are and whether one repeats is the checker's.
+ */
+function drawnAfter(
+  p: Parser,
+  direction: Ident,
+  label: GrammarLabel,
+  ends: LineEnds,
+): GrammarDrawn | null {
+  const one = p.next();
+  const of = p.next();
+  const example = `exit ${direction.text} "${label.text}" -> one of (hall, cellar)`;
+  const open = p.take('punct', '(');
+  if (open === null) {
+    refuseAt(
+      p,
+      of.at,
+      ends,
+      '`one of` is followed by the places it draws among, in brackets.',
+      `Write them between commas, as in \`${example}\`.`,
+    );
+    return null;
+  }
+  const choices: GrammarChoice[] = [];
+  for (;;) {
+    if (p.at('punct', ')') && choices.length === 0) {
+      const close = p.next();
+      p.diagnostics.refuse(
+        spanning(open.at, close.at),
+        'This `one of` names nothing to draw among.',
+        `Name the places it may lead to, as in \`${example}\`.`,
+      );
+      return null;
+    }
+    const choice = choiceAt(p, example);
+    if (choice === null) {
+      skipBracketed(p, ')');
+      return null;
+    }
+    choices.push(choice);
+    if (p.take('punct', ',') !== null) continue;
+    const close = p.take('punct', ')');
+    if (close !== null) return { kind: 'grammar-drawn', at: spanning(one.at, close.at), choices };
+    p.diagnostics.refuse(
+      p.done ? p.source.endSpan : p.peek().at,
+      "The choices of this exit's `one of` are separated by commas, and end with a ).",
+      `Write them as in \`${example}\`.`,
+    );
+    skipBracketed(p, ')');
+    return null;
+  }
+}
+
+/** One choice of a `one of`: a place, or `refuse` and its words; null having said why. */
+function choiceAt(p: Parser, example: string): GrammarChoice | null {
+  const head = p.peek();
+  if (head.kind === 'name' && head.text === 'refuse') {
+    p.next();
+    const said = refusal(p, head, choiceWords());
+    if (said === null) return null;
+    const leads: GrammarRefusal = {
+      kind: 'grammar-refusal',
+      at: spanning(head.at, said.at),
+      said,
+    };
+    return { kind: 'grammar-choice', at: leads.at, leads };
+  }
+  if (head.kind === 'name') {
+    p.next();
+    const leads = objectPath(p, head);
+    return leads === null ? null : { kind: 'grammar-choice', at: leads.at, leads };
+  }
+  p.diagnostics.refuse(
+    head.at,
+    'A choice of `one of` is a place, or `refuse` and the words for a way that does not go.',
+    `Write the place's name, as in \`${example}\`, or \`refuse "There is no way to go in that direction."\`.`,
+  );
+  return null;
+}
+
+/** Where a refusal's words among the choices stop: at the comma or the bracket after them. */
+function choiceWords(): Enclosing {
+  return {
+    owner: null,
+    within: 'exit',
+    enclosed: true,
+    startsMember: () => false,
+    unclosed: false,
+  };
 }
 
 /** A `link` line, its word next; null having said why and stepped over the rest of it. */

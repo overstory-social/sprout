@@ -295,7 +295,7 @@ static sprout_json *planned_of(sprout_arena *arena, const sprout_reading *readin
         if (exit == NULL) return NULL;
         sprout_json_adopt(exit, "direction", one->direction == NULL ? nothing(arena) : word(arena, one->direction));
         sprout_json_adopt(exit, "label", word(arena, one->label));
-        sprout_json_adopt(exit, "to", word(arena, one->id));
+        sprout_json_adopt(exit, "to", one->id == NULL ? nothing(arena) : word(arena, one->id));
         if (!whole(exit, 3)) return NULL;
         sprout_json_adopt(what, "exit", exit);
         break;

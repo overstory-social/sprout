@@ -96,7 +96,10 @@ const SentEffect = z.union([
     .strict(),
 ]);
 
-const Exit = z.object({ direction: z.enum(DIRECTIONS).nullable(), label: text, to: text }).strict();
+/** A way out; `to` is null for a way drawn as it is taken. */
+const Exit = z
+  .object({ direction: z.enum(DIRECTIONS).nullable(), label: text, to: text.nullable() })
+  .strict();
 const Thing = z.object({ id: text, name: text }).strict();
 
 /** What fills one role of a reading (`lang`'s `SeenFiller`). */
@@ -128,7 +131,7 @@ const SentFiller = z.discriminatedUnion('binds', [
       binds: z.literal('exit'),
       direction: z.enum(DIRECTIONS).nullable(),
       label: text,
-      to: text,
+      to: text.nullable(),
     })
     .strict(),
   z.object({ role: named, words: text, binds: z.literal('unbound') }).strict(),

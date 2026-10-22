@@ -92,7 +92,8 @@ export type StoredBound =
       readonly exit: {
         readonly direction: Direction | null;
         readonly label: string;
-        readonly to: string;
+        /** Null for a way drawn as it is taken. */
+        readonly to: string | null;
       };
     };
 
@@ -169,7 +170,7 @@ export const StoredVisitorSchema: z.ZodType<StoredVisitor> = z.object({
               exit: z.object({
                 direction: z.enum(DIRECTIONS).nullable(),
                 label: z.string(),
-                to: z.string(),
+                to: z.string().nullable(),
               }),
             }),
           ]),
@@ -286,7 +287,7 @@ export const StoredWorldSchema: z.ZodType<StoredWorld> = z
         const path = [...at, 'lastReading', 'bindings', b, 1];
         if ('object' in bound) anId([...path, 'object'], bound.object);
         if ('set' in bound) bound.set.forEach((id, i) => anId([...path, 'set', i], id));
-        if ('exit' in bound) anId([...path, 'exit', 'to'], bound.exit.to);
+        if ('exit' in bound && bound.exit.to !== null) anId([...path, 'exit', 'to'], bound.exit.to);
       });
     });
     // A tombstone is a declared object destroyed, and what it held went
