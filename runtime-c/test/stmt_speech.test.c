@@ -4,7 +4,8 @@
  * as the passage `self`'s kind has under the name written or the words
  * quoted, beside every name in scope. A `say` is heard by whoever the body
  * speaks to, from the NPC speaking where one is; a `tell` is heard by the
- * people it reaches.
+ * people it reaches. Each line carries the hands its frame saw into, for
+ * its words to be read with them open.
  */
 #include "exec_fixture.h"
 
@@ -111,6 +112,26 @@ static void a_tell_inside_and_outside_have_their_own_audiences(void) {
   exec_bench_close(&b);
 }
 
+static void a_line_carries_the_hands_its_frame_saw_into_and_none_where_it_saw_none(void) {
+  exec_bench b;
+  exec_case c;
+  sprout_run run;
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, exec_named(&b, "a say is heard by whoever the body speaks to"));
+  run = exec_run(&c);
+  CHECK_INT(stmt_say(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
+  CHECK(c.x.effects[0].hands.bytes == NULL);
+  exec_case_close(&c);
+  exec_case_open(&b, &c, exec_named(&b, "a tell reaches the people in the teller’s place"));
+  run = exec_run(&c);
+  /* A participant of a visitor's reading says it with the visitor's hands open. */
+  c.frame.hands = exec_str("exec_bench#1");
+  CHECK_INT(stmt_tell(&run, &c.frame, exec_first_statement(&c)), SPROUT_EVAL_OK);
+  CHECK(c.x.effects[0].hands.bytes != NULL && sprout_str_same(c.x.effects[0].hands, exec_str("exec_bench#1")));
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void a_say_in_a_body_that_decides_is_the_engines_defect(void) {
   exec_bench b;
   exec_case c;
@@ -131,6 +152,7 @@ int main(void) {
   RUN(an_npcs_line_is_heard_from_it);
   RUN(a_tell_is_heard_by_the_people_it_reaches);
   RUN(a_tell_inside_and_outside_have_their_own_audiences);
+  RUN(a_line_carries_the_hands_its_frame_saw_into_and_none_where_it_saw_none);
   RUN(a_say_in_a_body_that_decides_is_the_engines_defect);
   return REPORT();
 }
