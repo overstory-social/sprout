@@ -1,0 +1,22 @@
+// A visitor in range of a place another actor enters or leaves reads the
+// place's `arrives` or `leaves` line and is sent `:arrived` or `:departed`
+// besides (the spec's Places; Movement and consent › After the move), so a
+// kind the visitor kind composes can answer who comes and goes. The one who
+// moves is sent neither of its own move.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world arrivals_heard is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar { exit north "north to the garden" -> garden }
+    describe { text "A bare hall. A garden lies to the north." }
+  }
+
+  object garden is sprout.Place {
+    grammar { exit south "back to the hall" -> hall }
+    describe { text "A walled garden." }
+  }
+}

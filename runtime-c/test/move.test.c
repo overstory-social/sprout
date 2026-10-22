@@ -10,7 +10,8 @@
  * most; and otherwise makes the
  * one write and queues what the engine tells the world where something
  * answers it, the move's notices walked as `:arrived` and `:departed` are
- * routed, and given for no actor unseen as it moves.
+ * routed, sent to the visitors in range as well as read by them but never to
+ * the one who moved, and given for no actor unseen as it moves.
  */
 #include "exec_fixture.h"
 #include "expr/expr.h"
@@ -269,6 +270,27 @@ static void a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed(vo
   free(file);
 }
 
+static void a_visitor_in_range_reads_the_notice_and_is_sent_it_and_the_one_who_moved_is_sent_neither(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "arrivals-heard");
+  tw_arrive(&w, "v-ines", "Ines", 1000, &out);
+  sprout_outcome_free(&out);
+  /* Marta arrives: Ines reads `arrives` and her kind's `:arrived` runs; Marta is sent nothing of her own arrival. */
+  tw_arrive(&w, "v-marta", "Marta", 1001, &out);
+  CHECK(tw_told(&out, "v-ines", "Marta arrives."));
+  CHECK(tw_told(&out, "v-ines", "Your sword glows as Marta comes near."));
+  CHECK(!tw_told(&out, "v-marta", "Your sword glows as Marta comes near."));
+  sprout_outcome_free(&out);
+  /* Marta goes: Ines reads `leaves` and her kind's `:departed` runs; Marta's own does not. */
+  tw_go(&w, "v-marta", "north", "north to the garden", "garden", 1002, &out);
+  CHECK(tw_told(&out, "v-ines", "Marta leaves for a garden."));
+  CHECK(tw_told(&out, "v-ines", "Your sword dims as Marta goes."));
+  CHECK(!tw_told(&out, "v-marta", "Your sword dims as Marta goes."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 /* `place` moves `item` into `holder`, which holds 40 by `:size`: the result, and its refusal's line. */
 static void moved_into(const char *place, const char *item, const char *holder, sprout_move_end *end, const char **line,
                        size_t *bindings, bool *placed) {
@@ -395,6 +417,7 @@ int main(void) {
   RUN(a_move_out_of_range_or_into_what_holds_nothing_faults);
   RUN(an_actor_moved_between_places_is_spoken_of_and_a_description_is_owed);
   RUN(a_moves_notices_walk_the_place_as_arrived_and_departed_are_routed);
+  RUN(a_visitor_in_range_reads_the_notice_and_is_sent_it_and_the_one_who_moved_is_sent_neither);
   RUN(a_container_that_holds_by_measure_refuses_what_would_take_it_past_its_most);
   RUN(a_measure_below_nothing_counts_as_nothing_and_what_is_already_in_counts_once);
   RUN(the_golden_move_cases_end_as_the_typescript_runtime_did);
