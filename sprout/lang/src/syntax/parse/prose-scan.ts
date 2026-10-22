@@ -8,14 +8,19 @@
 // break, cut out of the words where it was written. A tag is a `{` to its
 // `}`, with quoted text inside it read as text; a tag inside a tag is
 // refused once and taken with the outer one, so nothing after it shifts.
+// A `{verbatim}` block is cut out whole to its `{/verbatim}`, its spaces,
+// line breaks and blank lines kept (the spec's Prose › Verbatim).
 
-import type { ProseNewline, ProseParagraph, ProseWords } from '../ast-prose.js';
+import type { ProseNewline, ProseParagraph, ProseVerbatim, ProseWords } from '../ast-prose.js';
 import type { Diagnostics } from '../../source/diagnostics.js';
 import type { SourceFile, Span } from '../../source/source.js';
 
 /** One thing prose is cut into: words, a break, or a tag still to be read. */
 export type Scanned =
-  | { readonly item: 'piece'; readonly piece: ProseWords | ProseParagraph | ProseNewline }
+  | {
+      readonly item: 'piece';
+      readonly piece: ProseWords | ProseParagraph | ProseNewline | ProseVerbatim;
+    }
   | {
       readonly item: 'tag';
       /** The tag, braces and all. */
@@ -85,6 +90,16 @@ export function scanProse(
     if (ch === '{') {
       flush(i);
       const close = tagEnd(source, i, end, diagnostics);
+      if (!close.refused && text.slice(i + 1, close.inner).trim() === 'verbatim') {
+        const block = verbatimBlock(source, i, close.after, end, diagnostics);
+        scanned.push({
+          item: 'piece',
+          piece: { kind: 'prose-verbatim', at: source.span(i, block.after), text: block.text },
+        });
+        i = block.after;
+        wordsStart = i;
+        continue;
+      }
       scanned.push({
         item: 'tag',
         at: source.span(i, close.after),
@@ -101,6 +116,96 @@ export function scanProse(
   }
   flush(end);
   return scanned;
+}
+
+/** `{/verbatim}`, with any spaces inside its braces. */
+const VERBATIM_CLOSE = /^\{\s*\/\s*verbatim\s*\}/;
+
+/**
+ * The words of a `{verbatim}` block opened at `open`, whose inside starts
+ * at `from`, and where reading resumes past its `{/verbatim}`. A line
+ * break straight after the opening tag and one straight before the close
+ * are the block's frame, not its words, and the indentation of the line
+ * the opening tag stands on is taken off every line after it, so the
+ * block can sit indented with the passage around it. A slot or a block
+ * inside is refused: a verbatim block holds only its words.
+ */
+function verbatimBlock(
+  source: SourceFile,
+  open: number,
+  from: number,
+  end: number,
+  diagnostics: Diagnostics,
+): { readonly text: string; readonly after: number } {
+  const text = source.text;
+  let close = -1;
+  let refused = false;
+  for (let i = from; i < end; i++) {
+    const ch = text[i]!;
+    if (ch === '\\') {
+      i += 1;
+      continue;
+    }
+    if (ch !== '{') continue;
+    const closing = VERBATIM_CLOSE.exec(text.slice(i, end));
+    if (closing !== null) {
+      close = i;
+      break;
+    }
+    if (!refused) {
+      refused = true;
+      diagnostics.refuse(
+        source.span(i, i + 1),
+        'A `{verbatim}` block holds only its words, laid out as written, so it holds no slot.',
+        'Write \\{ for a brace that is only a character, or end the block with `{/verbatim}` before the slot.',
+      );
+    }
+  }
+  if (close === -1) {
+    diagnostics.refuse(
+      source.span(open, from),
+      'This `{verbatim}` is never closed.',
+      'Add `{/verbatim}` where the words it keeps as written end.',
+    );
+  }
+  const stop = close === -1 ? end : close;
+  const after = close === -1 ? end : close + VERBATIM_CLOSE.exec(text.slice(close, end))![0].length;
+
+  // A line break is `\n` or `\r\n`, as the rest of the scan reads one.
+  let raw = text.slice(from, stop).replace(/\r\n/g, '\n');
+  const firstBreak = raw.indexOf('\n');
+  const openedAlone = firstBreak !== -1 && raw.slice(0, firstBreak).trim() === '';
+  if (openedAlone) raw = raw.slice(firstBreak + 1);
+  const lastBreak = raw.lastIndexOf('\n');
+  if (lastBreak !== -1 && raw.slice(lastBreak + 1).trim() === '') raw = raw.slice(0, lastBreak);
+  else if (lastBreak === -1 && openedAlone && raw.trim() === '') raw = '';
+
+  const lineStart = text.lastIndexOf('\n', open - 1) + 1;
+  const margin = /^[ \t]*/.exec(text.slice(lineStart, open))![0].length;
+  const lines = raw
+    .split('\n')
+    .map((line, n) =>
+      n === 0 && !openedAlone
+        ? line
+        : line.slice(Math.min(margin, /^[ \t]*/.exec(line)![0].length)),
+    );
+  return { text: resolveEscapes(lines.join('\n')), after };
+}
+
+/** Quoted text's escapes resolved: `\n` a line break, `\{` a brace, `\\` and `\"` themselves. */
+function resolveEscapes(raw: string): string {
+  let out = '';
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]!;
+    if (ch !== '\\' || i + 1 >= raw.length) {
+      out += ch;
+      continue;
+    }
+    const escape = raw[i + 1]!;
+    out += escape === 'n' ? '\n' : escape;
+    i += 1;
+  }
+  return out;
 }
 
 /**

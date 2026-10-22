@@ -30,6 +30,8 @@ function outlinePiece(piece: ProsePiece): string {
       return '¶';
     case 'prose-newline':
       return '↵';
+    case 'prose-verbatim':
+      return `verbatim(${JSON.stringify(piece.text)})`;
     case 'prose-slot':
       return `{${shape(piece.expr)}}`;
     case 'prose-for':
@@ -72,6 +74,12 @@ describe('blocks read around what they guard, to their close', () => {
   it('keeps the words around a block, its line breaks among them, for reflow', () => {
     const { prose } = readProseText('One\n{if a}\ntwo\n{/if}\nthree');
     expect(outline(prose)).toBe('"One\\n" if(a)["\\ntwo\\n"] "\\nthree"');
+  });
+
+  it('reads a verbatim block as one piece, inside a block as anywhere', () => {
+    const { prose, refusals } = readProseText('{if a}{verbatim} a  b {/verbatim}{/if} c');
+    expect(refusals).toEqual([]);
+    expect(outline(prose)).toBe('if(a)[verbatim(" a  b ")] " c"');
   });
 
   it('spans a block from its opening to its close', () => {

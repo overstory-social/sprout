@@ -1,0 +1,6 @@
+// A `{/verbatim}` with no block open.
+kind Sign {
+  passage notice {
+    CLOSED BY ORDER{/verbatim}
+  }
+}

@@ -1,6 +1,6 @@
 /*
- * ui/wrap.c: word wrap for the reader's column. The rules hold over generated text with a font
- * whose characters differ in width: no line is wider than the column unless it is one
+ * ui/wrap.c: word wrap for the reader's column. A line that fits is drawn as it is, its spaces
+ * kept. The rules hold over generated text with a font whose characters differ in width: no line is wider than the column unless it is one
  * character; no character is lost, added or moved; each line takes every word that fits, and a
  * word wider than the column is cut as late as it can be and never inside a character. A block
  * keeps its words, so the same words wrap again for a wider font with nothing changed.
@@ -40,9 +40,23 @@ static void a_newline_starts_a_line_and_nothing_is_one_empty_line(void) {
   CHECK(lines_of("", 100, lines, 8, &w) == 1 && strcmp(lines[0], "") == 0, "nothing");
   wrap_free(&fake->api, &w);
   CHECK(lines_of("one\n\ntwo  three\n", 100, lines, 8, &w) == 4, "%zu lines", w.line_count);
-  CHECK(strcmp(lines[0], "one") == 0 && strcmp(lines[1], "") == 0 && strcmp(lines[2], "two three") == 0 &&
+  CHECK(strcmp(lines[0], "one") == 0 && strcmp(lines[1], "") == 0 && strcmp(lines[2], "two  three") == 0 &&
             strcmp(lines[3], "") == 0,
         "the lines: %s|%s|%s|%s", lines[0], lines[1], lines[2], lines[3]);
+  wrap_free(&fake->api, &w);
+  end();
+}
+
+static void a_line_that_fits_keeps_its_spaces_and_one_too_wide_does_not(void) {
+  const char *lines[8];
+  wrapped w;
+  begin("shape");
+  CHECK(lines_of("    W   E   L   L\n  ab", 200, lines, 8, &w) == 2, "%zu lines", w.line_count);
+  CHECK(strcmp(lines[0], "    W   E   L   L") == 0 && strcmp(lines[1], "  ab") == 0, "kept: [%s] [%s]", lines[0], lines[1]);
+  wrap_free(&fake->api, &w);
+  /* "ab" is 4+1+... pixels; a column of 30 cannot hold the whole line, so it is wrapped by words. */
+  CHECK(lines_of("  ab   ab   ab", 30, lines, 8, &w) >= 2, "%zu lines", w.line_count);
+  CHECK(strcmp(lines[0], "ab ab") == 0, "wrapped, spaced by one: [%s]", lines[0]);
   wrap_free(&fake->api, &w);
   end();
 }
@@ -108,6 +122,12 @@ static void the_rules_hold_over_generated_text(void) {
     size_t i, k, at = 0, in_at = 0;
     generate(text, sizeof text);
     CHECK(wrap_lines(&fake->api, text, strlen(text), width, measure, NULL, &w), "wrapping");
+    if (measure(NULL, text, strlen(text)) <= width) {
+      /* A line that fits is drawn as it is. */
+      CHECK(w.line_count == 1 && strcmp(w.bytes, text) == 0, "round %d: \"%s\" fits and was changed", round, text);
+      wrap_free(&fake->api, &w);
+      continue;
+    }
     joined[0] = '\0';
     for (i = 0, line = w.bytes; i < w.line_count; i++, line = wrap_next(line)) {
       size_t n = strlen(line);
@@ -206,6 +226,7 @@ static void the_same_words_wrap_again_for_another_font(void) {
 int main(void) {
   test_program("wrap");
   a_newline_starts_a_line_and_nothing_is_one_empty_line();
+  a_line_that_fits_keeps_its_spaces_and_one_too_wide_does_not();
   a_word_too_wide_is_cut_between_characters();
   the_rules_hold_over_generated_text();
   the_same_words_wrap_again_for_another_font();

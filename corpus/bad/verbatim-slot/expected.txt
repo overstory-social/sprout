@@ -1,0 +1,4 @@
+sign.sprout:5:24  A `{verbatim}` block holds only its words, laid out as written, so it holds no slot.
+                  Write \{ for a brace that is only a character, or end the block with `{/verbatim}` before the slot.
+
+refused: 1 problem

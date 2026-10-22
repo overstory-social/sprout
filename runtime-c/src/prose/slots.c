@@ -1,7 +1,8 @@
 /*
- * Prose, rendered for one reader (the spec's Prose > Passages, Slots, Conditionals and loops,
- * Bounds). A slot renders an object as the reader reads it, an option humanised, a number in
- * digits and a string as written; another object's passage runs with that object as its own
+ * Prose, rendered for one reader (the spec's Prose > Passages, Slots, Verbatim, Conditionals and
+ * loops, Bounds). A slot renders an object as the reader reads it and an option humanised, each
+ * as words reflow may capitalise, a number in digits and a string as written, its spaces and line
+ * breaks kept; another object's passage runs with that object as its own
  * `self` and only `actor`, `here` and `seen` beside it, one passage deeper against the host's
  * bound. `{if}` renders the first branch whose condition holds, and `{for}` its body once for
  * each thing or element it walks, in order, with `$first`, `$last`, `$index` (counting from 1)
@@ -117,7 +118,7 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
   switch (value.binds) {
     case SPROUT_BINDS_OBJECT:
       EXPR_NEED(prose_object_words(frame, value.id, reading->reader, &words));
-      return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
+      return put_words(reading, out, PROSE_NAME, words.bytes, words.length);
     case SPROUT_BINDS_SET:
     case SPROUT_BINDS_READINGS:
       return expr_engine(frame, "a slot rendered a set or `readings` whole, which the checker refuses.");
@@ -136,10 +137,12 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
       return put_words(reading, out, PROSE_WORDS, words.bytes, length);
     case SPROUT_STRING:
       words = (sprout_str){value.value.as.string.bytes, value.value.as.string.length};
-      if (sprout_world_option_slot(frame->world, piece) &&
-          !sprout_humanised(frame->turn, words, &words))
-        return SPROUT_EVAL_NO_MEMORY;
-      return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
+      /* An option's words are the engine's, made from its name; a string is put in as written. */
+      if (sprout_world_option_slot(frame->world, piece)) {
+        if (!sprout_humanised(frame->turn, words, &words)) return SPROUT_EVAL_NO_MEMORY;
+        return put_words(reading, out, PROSE_NAME, words.bytes, words.length);
+      }
+      return put_words(reading, out, PROSE_VERBATIM, words.bytes, words.length);
   }
   return SPROUT_EVAL_OK;
 }
@@ -269,6 +272,10 @@ static sprout_eval_status pieces(const prose_reading *reading, const sprout_node
       text = sprout_node_get(frame->graph, piece, "text");
       if (text == NULL || text->kind != SPROUT_NODE_STRING) return expr_unchecked(frame, "words with no text");
       EXPR_NEED(put_words(reading, out, PROSE_WORDS, sprout_text(frame->graph, text), sprout_text_length(frame->graph, text)));
+    } else if (strcmp(kind, "prose-verbatim") == 0) {
+      text = sprout_node_get(frame->graph, piece, "text");
+      if (text == NULL || text->kind != SPROUT_NODE_STRING) return expr_unchecked(frame, "a verbatim block with no text");
+      EXPR_NEED(put_words(reading, out, PROSE_VERBATIM, sprout_text(frame->graph, text), sprout_text_length(frame->graph, text)));
     } else if (strcmp(kind, "prose-paragraph") == 0) {
       EXPR_NEED(put_words(reading, out, PROSE_PARAGRAPH, NULL, 0));
     } else if (strcmp(kind, "prose-newline") == 0) {

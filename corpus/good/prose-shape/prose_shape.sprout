@@ -1,0 +1,35 @@
+// Prose keeps its shape: words keep the case they are written in, so
+// verse continued in lower case after `\n` reads in lower case, and a
+// `{verbatim}` block keeps every space and line break it holds. Only a
+// name the engine renders is capitalised where it opens a line, as the
+// bucket's line shows. `transcripts/riddle.json` plays it.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+verb read { role target  "read [target]" }
+
+world prose_shape is sprout.World {
+  visitors are Person
+  visitors arrive at well_head
+
+  object well_head is sprout.Place {
+    grammar { name "well head"  article the }
+    describe { text "{bucket} hangs over the well, and letters ring its rim." }
+
+    object bucket is Bucket
+    object rim is Rim
+  }
+}
+
+kind Bucket is sprout.Fixture {
+  grammar { name "bucket"  article a }
+}
+
+kind Rim is sprout.Fixture {
+  prose "well.prose"
+  grammar { name "rim"  article the  nouns "letters" }
+
+  as target for read {
+    do { say riddle }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "about": "Prose keeps its shape. The riddle's verse continues in lower case after each `\\n` and reads so; the ring of letters is a `{verbatim}` block, its spaces and indentation kept past the indentation of its own tag's line; the last paragraph, written in lower case, reads in lower case. The description opens with `{bucket}`, a name the engine renders, and only that is capitalised.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A bucket hangs over the well, and letters ring its rim." }
+    ] },
+    { "as": "Marta", "type": "read letters", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Cut into the stone:\nwhat is tall as a house,\nround as a cup,\nand all the king's horses can't draw it up?" },
+      { "reader": "Marta", "kind": "said", "words": "    W   E   L   L" },
+      { "reader": "Marta", "kind": "said", "words": "the letters are worn soft." }
+    ] }
+  ]
+}

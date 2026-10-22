@@ -48,6 +48,7 @@ const PROSE_KINDS: Record<ProseKind, true> = {
   'prose-words': true,
   'prose-paragraph': true,
   'prose-newline': true,
+  'prose-verbatim': true,
   'prose-slot': true,
   'prose-if': true,
   'prose-for': true,

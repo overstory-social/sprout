@@ -1,7 +1,9 @@
 /*
- * Word wrap for a column a number of pixels wide: a newline starts a line, a paragraph is cut at white space with the words of a line joined by one space,
- * each line takes as many words as fit, and a word wider than the column is cut between
- * characters, never inside one. `measure` is the font's (pen.h), so nothing counts characters.
+ * Word wrap for a column a number of pixels wide: a newline starts a line, and a line that fits
+ * the column is drawn as it is, its runs of spaces and its indentation kept, so a verbatim block
+ * keeps its shape (the spec's Prose > Verbatim). A line too wide is cut at white space with its
+ * words joined by one space, each line taking as many words as fit, and a word wider than the
+ * column is cut between characters, never inside one. `measure` is the font's (pen.h), so nothing counts characters.
  * A wrapped block keeps the words it was made from ahead of its lines, so the same words wrap
  * again when the font changes (`wrap_again`), with nothing joined or cut that was not.
  */

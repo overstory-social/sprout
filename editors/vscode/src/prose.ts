@@ -1,6 +1,6 @@
 // The TextMate grammar for `.prose` files, and the prose rules the
 // `.sprout` grammar borrows for inline passages and quoted speech (the
-// spec's Prose › Passages, Slots, Conditionals and loops; The compiler ›
+// spec's Prose › Passages, Slots, Verbatim, Conditionals and loops; The compiler ›
 // Lexical rules). A passage body runs to the `}` that matches its `{`, as
 // the lexer reads it: every tag nests, `\{` is a character, and `//` in a
 // body is words. Inside quoted text a tag also ends at the closing quote,
@@ -78,6 +78,7 @@ const TAG = `meta.tag.${S}`;
 const CONDITIONAL = `keyword.control.conditional.${S}`;
 const LOOP = `keyword.control.loop.${S}`;
 const CHOICE = `keyword.control.choice.${S}`;
+const VERBATIM = `keyword.control.verbatim.${S}`;
 
 /** Every tag: the closes, the bare words, `{if …}` and `{for …}`, and a slot. */
 function tags(inline: boolean): Rule[] {
@@ -101,7 +102,19 @@ function tags(inline: boolean): Rule[] {
     endCaptures: { '0': { name: CLOSE } },
     patterns: [...extra, ...body],
   });
+  // A verbatim block holds only words, laid out as written, to its close.
+  const verbatimEnd = '(\\{)\\s*(/)\\s*(verbatim)\\s*(\\})';
+  const verbatim: Rule = {
+    name: `meta.verbatim.${S}`,
+    begin: '(\\{)\\s*(verbatim)\\s*(\\})',
+    end: inline ? `${verbatimEnd}|(?=")` : verbatimEnd,
+    beginCaptures: named(OPEN, VERBATIM, CLOSE),
+    endCaptures: named(OPEN, VERBATIM, VERBATIM, CLOSE),
+    contentName: `markup.raw.block.${S}`,
+    patterns: ESCAPES,
+  };
   return [
+    verbatim,
     close('if', CONDITIONAL),
     close('for', LOOP),
     close('one\\s+of', CHOICE),
