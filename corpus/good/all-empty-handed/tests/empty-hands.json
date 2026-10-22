@@ -1,0 +1,44 @@
+{
+  "about": "With empty hands, `drop all`, narrowed or not, `put all in the table`, `drop all on the table` and `juggle all`, a carried role, are told the hands are empty, and the rest of the line stops; a noun after `all` naming nothing is not here; once the cakes are held `drop all` drops them, and `take all except the table` with nothing left to take is still not here.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the tea room." }
+    ] },
+    { "as": "Marta", "type": "drop all. look", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
+    ] },
+    { "as": "Marta", "type": "drop all cakes", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
+    ] },
+    { "as": "Marta", "type": "drop everything except the red cake", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
+    ] },
+    { "as": "Marta", "type": "put all in the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
+    ] },
+    { "as": "Marta", "type": "drop all on the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
+    ] },
+    { "as": "Marta", "type": "juggle all", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
+    ] },
+    { "as": "Marta", "type": "drop all wombats", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "take all except the table", "expect": [
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take an orange cake." },
+      { "level": "info", "text": "step: sprout.take" },
+      { "reader": "Marta", "kind": "said", "words": "You take a red cake." }
+    ] },
+    { "as": "Marta", "type": "take all except the table", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "drop all", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put an orange cake down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a red cake down." }
+    ] }
+  ]
+}

@@ -14,7 +14,7 @@ static void every_engine_line_renders_as_the_golden_holds(void) {
 }
 
 static const char *const LINES[] = {
-    "unknown",       "not_here",  "no_way",      "cannot",    "not_carrying", "meant",   "pronoun_correction",
+    "unknown",       "not_here",  "no_way",      "cannot",    "not_carrying", "empty_handed", "meant",   "pronoun_correction",
     "nothing_happens", "unremarkable", "unseen", "dark",      "fault",        "missing", "displaced",
     "inside_itself", "crowded",   "waited",      "help",      "acted",        "gone_away", "npc_says",
     "arrives",       "leaves",    "inventory",   "not_a_place"};

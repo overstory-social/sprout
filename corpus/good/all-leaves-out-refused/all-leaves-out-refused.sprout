@@ -4,7 +4,8 @@
 // in hand and leaves the lunch in the sack it holds, which `drop` refuses
 // since it is not held; `take all` leaves out what is already held; and
 // `examine all` passes over the lamp, whose own consent refuses. Where
-// nothing is left, `all` names nothing, and the line is `not_here`. What
+// nothing is left, `all` names nothing, and the line is `not_here`, or
+// `empty_handed` where it is `drop`'s and the hands are empty. What
 // is left out does not count against the things a line of `all` may run.
 import * as sprout from 'sprout'
 import {Person} from 'person'
