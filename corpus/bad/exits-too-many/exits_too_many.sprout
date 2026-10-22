@@ -1,5 +1,6 @@
-// A place has as many ways out as the host allows, eight by default,
-// guarded exits in one direction and links each counting.
+// A place has as many ways out as the host allows, 32 by default,
+// guarded exits in one direction and links each counting, and an exit
+// that refuses not counting.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 
@@ -9,15 +10,40 @@ world exits_too_many is sprout.World {
 
   object yard is sprout.Place {
     grammar {
+      exit in "in" refuse "There is no way in."
       exit north "north" -> yard
       exit north "north again" -> yard when (true)
+      exit north "north once more" -> yard when (false)
       exit south "south" -> yard
-      exit east  "east" -> yard
-      exit west  "west" -> yard
-      exit up    "up" -> yard
-      exit down  "down" -> yard
-      link inward  "in"
-      link outward "out"
+      exit south "south again" -> yard when (true)
+      exit south "south once more" -> yard when (false)
+      exit east "east" -> yard
+      exit east "east again" -> yard when (true)
+      exit east "east once more" -> yard when (false)
+      exit west "west" -> yard
+      exit west "west again" -> yard when (true)
+      exit west "west once more" -> yard when (false)
+      exit northeast "northeast" -> yard
+      exit northeast "northeast again" -> yard when (true)
+      exit northeast "northeast once more" -> yard when (false)
+      exit northwest "northwest" -> yard
+      exit northwest "northwest again" -> yard when (true)
+      exit northwest "northwest once more" -> yard when (false)
+      exit southeast "southeast" -> yard
+      exit southeast "southeast again" -> yard when (true)
+      exit southeast "southeast once more" -> yard when (false)
+      exit southwest "southwest" -> yard
+      exit southwest "southwest again" -> yard when (true)
+      exit southwest "southwest once more" -> yard when (false)
+      exit up "up" -> yard
+      exit up "up again" -> yard when (true)
+      exit up "up once more" -> yard when (false)
+      exit down "down" -> yard
+      exit down "down again" -> yard when (true)
+      exit down "down once more" -> yard when (false)
+      link inward  "inward"
+      link outward "outward"
+      link onward  "onward"
     }
   }
 }

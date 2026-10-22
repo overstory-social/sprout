@@ -1889,7 +1889,7 @@ There are two kinds of limit, for two different reasons, and keeping them apart 
 | phrases per verb or intent | 8, each at most 80 characters; synonyms and the phrases they generate do not count |
 | steps per intent | 8 |
 | nouns per object | 8, each word at most 40 characters |
-| exits per place | 8; an exit that refuses is not counted, since it is never offered |
+| exits per place | 32; an exit that refuses is not counted, since it is never offered |
 | elements in a list | 16 |
 | a `say`, `tell`, `text` or `refuse` written as a literal | 600 characters |
 | places, objects, kinds, files, total source bytes | as the host says |

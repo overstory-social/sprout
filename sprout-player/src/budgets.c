@@ -48,7 +48,7 @@ static const cap_row CAPS[] = {
     {offsetof(sprout_caps, phrase_characters), 80, "characters in one phrase"},
     {offsetof(sprout_caps, nouns_per_object), 8, "nouns on one object"},
     {offsetof(sprout_caps, noun_characters), 40, "characters in one noun word"},
-    {offsetof(sprout_caps, exits_per_place), 8, "exits on one place"},
+    {offsetof(sprout_caps, exits_per_place), 32, "exits on one place"},
     {offsetof(sprout_caps, list_elements), 16, "elements in one list"},
     {offsetof(sprout_caps, literal_characters), 600,
      "characters in a say, tell or text written as a literal"},
