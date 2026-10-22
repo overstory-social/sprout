@@ -1,0 +1,33 @@
+{
+  "about": "`all` in a set role only the actor plays, whose things the actor's own part takes, leaves out what is carried before it counts to the host's bound, and is `not_here` once that leaves nothing; a thing named is still bound, held or not; `juggle all` and `shed all`, whose actors take nothing, keep the range walk's order, the hands first.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the yard." }
+    ] },
+    { "as": "Marta", "type": "take sack", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take the sack." }
+    ] },
+    { "as": "Marta", "type": "juggle all", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You juggle 8 things." }
+    ] },
+    { "as": "Marta", "type": "gather all", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The club: taken." }
+    ] },
+    { "as": "Marta", "type": "gather all", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "gather sack", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You already have the sack." }
+    ] },
+    { "as": "Marta", "type": "shed all", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The sack: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "The club: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "A first pebble: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "A second pebble: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "A third pebble: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "A fourth pebble: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "A fifth pebble: dropped." },
+      { "reader": "Marta", "kind": "said", "words": "A sixth pebble: dropped." }
+    ] }
+  ]
+}

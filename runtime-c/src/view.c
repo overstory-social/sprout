@@ -302,9 +302,9 @@ static sprout_eval_status all_takes(poll *p, const sprout_verb *verb, const spro
   if (rule == NULL) {
     rule = (sprout_all_rule *)sprout_exec_grow(p->turn, (void **)&p->rules, &p->rule_count, &p->rule_capacity, sizeof *rule);
     if (rule == NULL) return SPROUT_EVAL_NO_MEMORY;
-    EXPR_NEED(sprout_all_rule_of(&p->frame, verb, role, rule));
+    EXPR_NEED(sprout_all_rule_of(&p->frame, verb, role, p->actor, rule));
   }
-  if (role->carried) EXPR_NEED(sprout_carries(&p->frame, p->actor, id, &carried));
+  if (role->carried || rule->leaves_carried) EXPR_NEED(sprout_carries(&p->frame, p->actor, id, &carried));
   *takes = sprout_all_takes(rule, thing, p->actor, p->place, carried);
   return SPROUT_EVAL_OK;
 }

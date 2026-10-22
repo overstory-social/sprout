@@ -121,6 +121,29 @@ static void a_filler_says_whether_all_would_take_it_as_the_parser_reads_all(void
   CHECK_INT(b.heap.pages, 0);
 }
 
+static void a_filler_in_a_set_role_the_actors_part_takes_says_all_leaves_out_what_is_carried(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading take;
+  sprout_seen_view view;
+  memset(&w, 0, sizeof w);
+  tw_open(&w, "all-set-role-skips-held");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  take = tw_reading("sprout.take", tw_person(&w, "v-marta"), &filling, "target", "all_set_role_skips_held.yard.sack");
+  tw_command(&w, "v-marta", &take, 1001, &out);
+  sprout_outcome_free(&out);
+  CHECK_INT(sprout_view(w.world, w.state, &w.host, "v-marta", &view), SPROUT_OK);
+  /* `gather` moves its things to the actor: the sack in hand is left out, the club on the floor is not. */
+  CHECK(!all_takes(&view, "all_set_role_skips_held.gather", "all_set_role_skips_held.yard.sack"));
+  CHECK(all_takes(&view, "all_set_role_skips_held.gather", "all_set_role_skips_held.yard.club"));
+  /* `juggle` moves nothing, and keeps what is carried. */
+  CHECK(all_takes(&view, "all_set_role_skips_held.juggle", "all_set_role_skips_held.yard.sack"));
+  sprout_view_free(&view);
+  tw_close(&w);
+}
+
 /* The words of the filler of `role` in the view's reading typed `typed`. */
 static const char *words_of(const sprout_seen_view *view, const char *typed, const char *role) {
   size_t i, k;
@@ -597,6 +620,7 @@ int main(void) {
   RUN(the_view_of_a_visitor_arriving_in_every_corpus_world_is_the_goldens);
   RUN(a_picture_the_description_shows_is_an_effect_with_its_payload_and_its_transcript_line);
   RUN(a_filler_says_whether_all_would_take_it_as_the_parser_reads_all);
+  RUN(a_filler_in_a_set_role_the_actors_part_takes_says_all_leaves_out_what_is_carried);
   RUN(a_filler_carries_the_words_its_verbs_phrase_puts_before_its_slot);
   RUN(the_bench_shows_each_part_a_view_is_for);
   RUN(a_visitor_whose_place_is_gone_reads_displaced_and_is_offered_nothing);

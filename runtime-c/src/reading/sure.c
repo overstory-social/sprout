@@ -150,3 +150,83 @@ sprout_eval_status sprout_moves_its_filler_away(const sprout_frame *frame, const
   *away = to != NULL && strcmp(to, "self") != 0 && strcmp(to, "actor") != 0;
   return SPROUT_EVAL_OK;
 }
+
+/* A name the walk below reads as one of a set role's things: the role itself, or what an `each ... of` it binds. */
+typedef struct role_names {
+  const char *name;
+  const struct role_names *outer;
+} role_names;
+
+static bool names_the_role(const role_names *names, const char *name) {
+  for (; names != NULL && name != NULL; names = names->outer)
+    if (strcmp(names->name, name) == 0) return true;
+  return false;
+}
+
+/* The name a `binding` expression reads, or NULL where the expression is any other. */
+static const char *bound_name(const sprout_graph *graph, const sprout_node *expression) {
+  if (!sprout_node_is(graph, sprout_node_get(graph, expression, "kind"), "binding")) return NULL;
+  return sprout_node_name(graph, expression, "name");
+}
+
+static sprout_eval_status block_takes(const sprout_frame *frame, const sprout_node *block, const role_names *names, bool *takes);
+
+/* One statement of that walk: a `move` of the role's things to `self` or `actor`, or one inside an `if` or an `each`. */
+static sprout_eval_status statement_takes(const sprout_frame *frame, const sprout_node *statement, const role_names *names,
+                                          bool *takes) {
+  const sprout_graph *graph = &frame->world->graph;
+  const sprout_node *kind = sprout_node_get(graph, statement, "kind");
+  EXPR_NEED(expr_spend(frame));
+  if (sprout_node_is(graph, kind, "move")) {
+    const char *to = lone_name(graph, sprout_node_get(graph, statement, "destination"));
+    *takes = names_the_role(names, lone_name(graph, sprout_node_get(graph, statement, "thing"))) && to != NULL &&
+             (strcmp(to, "self") == 0 || strcmp(to, "actor") == 0);
+    return SPROUT_EVAL_OK;
+  }
+  if (sprout_node_is(graph, kind, "each")) {
+    role_names inner;
+    inner.name = sprout_node_name(graph, statement, "variable");
+    inner.outer = names;
+    if (inner.name == NULL || !sprout_node_is(graph, sprout_node_get(graph, statement, "walks"), "of") ||
+        !names_the_role(names, bound_name(graph, sprout_node_get(graph, statement, "over"))))
+      return block_takes(frame, sprout_node_get(graph, statement, "body"), names, takes);
+    return block_takes(frame, sprout_node_get(graph, statement, "body"), &inner, takes);
+  }
+  while (sprout_node_is(graph, kind, "if")) {
+    const sprout_node *otherwise = sprout_node_get(graph, statement, "otherwise");
+    EXPR_NEED(block_takes(frame, sprout_node_get(graph, statement, "then"), names, takes));
+    if (*takes || otherwise == NULL || otherwise->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
+    kind = sprout_node_get(graph, otherwise, "kind");
+    if (sprout_node_is(graph, kind, "block")) return block_takes(frame, otherwise, names, takes);
+    EXPR_NEED(expr_spend(frame));
+    statement = otherwise;
+  }
+  return SPROUT_EVAL_OK;
+}
+
+static sprout_eval_status block_takes(const sprout_frame *frame, const sprout_node *block, const role_names *names,
+                                      bool *takes) {
+  const sprout_graph *graph = &frame->world->graph;
+  const sprout_node *statements = sprout_node_get(graph, block, "statements");
+  size_t i;
+  for (i = 0; statements != NULL && i < statements->count && !*takes; i++)
+    EXPR_NEED(statement_takes(frame, sprout_item(graph, statements, i), names, takes));
+  return SPROUT_EVAL_OK;
+}
+
+sprout_eval_status sprout_takes_its_things(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
+                                           sprout_str actor, bool *takes) {
+  const sprout_graph *graph = &frame->world->graph;
+  const sprout_stored_instance *self = expr_instance(frame, actor);
+  const sprout_play_group *own = self == NULL ? NULL : sprout_own_plays(verb, "actor", self->kind);
+  role_names names;
+  size_t i;
+  *takes = false;
+  names.name = role->name;
+  names.outer = NULL;
+  for (i = 0; own != NULL && i < own->count && !*takes; i++) {
+    const sprout_node *body = sprout_node_get(graph, sprout_node_get(graph, own->plays[i].node, "declaration"), "do");
+    EXPR_NEED(block_takes(frame, body, &names, takes));
+  }
+  return SPROUT_EVAL_OK;
+}

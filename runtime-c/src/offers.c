@@ -401,12 +401,17 @@ sprout_eval_status sprout_only_the_actor_plays(const sprout_frame *frame, const 
 }
 
 sprout_eval_status sprout_all_rule_of(const sprout_frame *frame, const sprout_verb *verb, const sprout_role *role,
-                                      sprout_all_rule *out) {
+                                      sprout_str actor, sprout_all_rule *out) {
   out->verb = verb;
   out->role = role;
   out->every_thing = true;
+  out->leaves_carried = false;
   if (sprout_is_engine_verb(verb)) return SPROUT_EVAL_OK;
-  return sprout_only_the_actor_plays(frame, verb, role, &out->every_thing);
+  EXPR_NEED(sprout_only_the_actor_plays(frame, verb, role, &out->every_thing));
+  /* Parsing > Sequences, again and all: such a role leaves out what is held before it counts to the set role's bound. */
+  if (out->every_thing && role->many && !role->carried && role->filler == SPROUT_FILLER_OPEN)
+    EXPR_NEED(sprout_takes_its_things(frame, verb, role, actor, &out->leaves_carried));
+  return SPROUT_EVAL_OK;
 }
 
 bool sprout_all_takes(const sprout_all_rule *rule, const sprout_stored_instance *thing, sprout_str actor, sprout_str here,
@@ -417,6 +422,7 @@ bool sprout_all_takes(const sprout_all_rule *rule, const sprout_stored_instance 
   if (role->filler != SPROUT_FILLER_OPEN && role->filler != SPROUT_FILLER_KIND) return false;
   if (thing->kind == NULL || sprout_str_same(thing->id, actor) || sprout_str_same(thing->id, here)) return false;
   if (role->carried && !carried) return false;
+  if (rule->leaves_carried && carried) return false;
   if (role->filler == SPROUT_FILLER_KIND) return role->filler_kind != NULL && expr_composes(thing->kind, role->filler_kind->qualified);
   if (rule->every_thing) return !thing->kind->composes_actor;
   for (r = 0; r < verb->role_count; r++) {
