@@ -121,8 +121,9 @@ static sprout_eval_status value_of(const sprout_frame *frame, const sprout_store
  * One role as a play sees it: a set role is always bound, the empty set
  * where nothing filled it; the role played is `self`; a tool left out is
  * unbound; and a value is bound only among the options this play's `from`
- * hears, read from its role-player now. An exit is the engine's to take,
- * and binds nothing in a play.
+ * hears, read from its role-player now. An exit is the way taken, as a
+ * string: its direction written out, or a link's label (the spec's Where
+ * types come from).
  */
 static sprout_eval_status role_in(const sprout_frame *frame, const sprout_resolved *reading, size_t index,
                                   const sprout_participant *who, const sprout_play *play,
@@ -130,7 +131,16 @@ static sprout_eval_status role_in(const sprout_frame *frame, const sprout_resolv
   const sprout_role *role = &reading->verb->roles[index];
   const sprout_filled *held = &reading->roles[index];
   *bound = false;
-  if (role->filler == SPROUT_FILLER_EXIT) return SPROUT_EVAL_OK;
+  if (role->filler == SPROUT_FILLER_EXIT) {
+    const sprout_str *way;
+    sprout_value value;
+    if (!held->filled || held->bound.kind != SPROUT_BOUND_EXIT) return SPROUT_EVAL_OK;
+    way = held->bound.has_direction ? &held->bound.direction : &held->bound.label;
+    if (!sprout_string(frame->turn, way->bytes, way->length, &value)) return SPROUT_EVAL_NO_MEMORY;
+    *out = sprout_evaluated_value(value);
+    *bound = true;
+    return SPROUT_EVAL_OK;
+  }
   if (role->many) {
     out->binds = SPROUT_BINDS_SET;
     out->items = held->filled && held->bound.kind == SPROUT_BOUND_SET ? held->bound.set : NULL;

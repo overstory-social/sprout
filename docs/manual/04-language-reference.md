@@ -1415,7 +1415,10 @@ you can add words or translate them.
 | `help`      | `help`, `?`                                     | the world's `help` passage, listing everything the actor could type   |
 
 A kind may play `as actor for go`; its `permit` can refuse the move and
-its `do` runs after it. `wait` passes no more time than any command
+its `do` runs after it. Both read the way taken as `way`, a string: the
+direction written out (`north`, however it was typed), or the label of
+the link taken, so `if (way == "west") { refuse "The wind turns you
+back." }` refuses by direction before anything moves. `wait` passes no more time than any command
 does; a kind that plays `as actor for wait` with a `pass` makes waiting
 take longer (see [Passing time](#passing-time)).
 

@@ -1,0 +1,9 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world go_way_from is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place { }
+}

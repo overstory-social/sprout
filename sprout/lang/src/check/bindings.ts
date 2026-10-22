@@ -41,7 +41,7 @@ import type { RoleFiller } from '../declare/verbs.js';
 import type { RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
-import { integer, showType, type ValueType } from '../declare/types.js';
+import { integer, showType, STRING, type ValueType } from '../declare/types.js';
 import { readable } from '../source/words.js';
 
 // --- what a binding can be ------------------------------------------------
@@ -275,16 +275,26 @@ export function letBinding(name: string, type: BindingType, at: Span): Binding {
  * A kind role binds at that kind; an open role binds as an object; a
  * value role is typed by the `from` the role-player wrote, because a
  * value role's options are the role-player's to say and not the verb's.
- * An exit role is not here: only the engine's `go` has one, and nothing
- * plays it.
+ * An exit role is the way taken, a string, as the spec's Where types come
+ * from has it, and binds even where a `from` on it is refused.
  */
 export function roleBinding(
   name: string,
-  declared: Exclude<RoleFiller, { readonly fills: 'exit' }>,
+  declared: RoleFiller,
   narrowing: RoleNarrowing | null,
   at: Span,
   diagnostics: Diagnostics,
 ): Binding | null {
+  if (declared.fills === 'exit') {
+    if (narrowing !== null) {
+      diagnostics.refuse(
+        narrowing.at,
+        `\`${name}\` is the way taken, so there is nothing for \`from\` to narrow.`,
+        `Read \`${name}\` in the body instead, as in \`if (${name} == "north") { … }\`.`,
+      );
+    }
+    return bind(name, valueOf(STRING), 'role', at);
+  }
   if (declared.fills === 'kind' || declared.fills === 'open') {
     if (narrowing !== null) {
       diagnostics.refuse(
