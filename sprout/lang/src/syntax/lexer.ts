@@ -86,6 +86,9 @@ const PUNCTUATION = [
   '>',
   '+',
   '-',
+  '*',
+  '/',
+  '%',
   '!',
 ] as const;
 
@@ -302,13 +305,8 @@ export class Lexer {
       const ch = text[start]!;
 
       // A single quote opens text only where an import's specifier
-      // stands, after `from`, and `*` is a token only in `import *`;
-      // anywhere else each is a stray character.
+      // stands, after `from`; anywhere else it is a stray character.
       if (ch === '"' || (ch === "'" && this.lastName === 'from')) return this.readString(start, ch);
-      if (ch === '*' && this.lastName === 'import') {
-        this.at = start + 1;
-        return this.token('punct', start, this.at);
-      }
 
       // `$first`, `$last`, `$index` and `$count` inside a passage's
       // slots (the spec's Prose › Conditionals and loops).

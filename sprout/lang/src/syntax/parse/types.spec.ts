@@ -108,7 +108,7 @@ describe('invariants over generated input, brackets included', () => {
     ',',
     ':',
     '.',
-    '%',
+    '@',
     '-',
   ];
 
@@ -219,7 +219,7 @@ describe('brackets inside brackets with something unreadable at the bottom, enum
   // `enum` is not among the unreadable tokens on purpose: nothing
   // reserves an option's name, so `[enum]` is a legal list holding one
   // option and says nothing.
-  const BAD = ['Zeta', '{', '}', ':a', '1.5', '%'];
+  const BAD = ['Zeta', '{', '}', ':a', '1.5', '@'];
 
   /** The vocabulary of the type path, which these shapes must never reach. */
   const TYPE_PATH = 'list type';

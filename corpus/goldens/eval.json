@@ -382,6 +382,130 @@
       "steps": 4
     },
     {
+      "name": "binds * over +",
+      "text": "2 + 3 * 4",
+      "node": 850,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 14
+      },
+      "steps": 5
+    },
+    {
+      "name": "* / and % read left to right",
+      "text": "17 / 5 * 5 + 17 % 5",
+      "node": 856,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": 17
+      },
+      "steps": 9
+    },
+    {
+      "name": "/ truncates toward zero",
+      "text": "-7 / 2",
+      "node": 866,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": -3
+      },
+      "steps": 4
+    },
+    {
+      "name": "% takes the sign of what is divided",
+      "text": "-7 % 2",
+      "node": 871,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "value": -1
+      },
+      "steps": 4
+    },
+    {
+      "name": "/ by zero",
+      "text": "self.get(:fill) / 0",
+      "node": 876,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "DivisionByZero",
+        "detail": "3 / 0: nothing divides by zero."
+      },
+      "steps": 5
+    },
+    {
+      "name": "% by zero",
+      "text": "self.get(:fill) % 0",
+      "node": 882,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "DivisionByZero",
+        "detail": "3 % 0: there is no remainder by zero."
+      },
+      "steps": 5
+    },
+    {
+      "name": "* past the largest integer",
+      "text": "65536 * 65536",
+      "node": 888,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "IntegerOverflow",
+        "detail": "65536 * 65536 is outside the integer range, -2147483648 to 2147483647."
+      },
+      "steps": 3
+    },
+    {
+      "name": "/ past the largest integer",
+      "text": "(-2147483647 - 1) / -1",
+      "node": 892,
+      "self": "eval_bench.hall.probe",
+      "library": "eval_bench",
+      "state": "fresh",
+      "bind": {},
+      "seed": null,
+      "budget": null,
+      "expect": {
+        "fault": "IntegerOverflow",
+        "detail": "2147483648 is outside the integer range, -2147483648 to 2147483647."
+      },
+      "steps": 7
+    },
+    {
       "name": "get reads the property",
       "text": "self.get(:fill)",
       "node": 656,
@@ -883,7 +1007,7 @@
     {
       "name": "sees finds no lit light",
       "text": "self.sees(sprout.LightSource, :lit)",
-      "node": 856,
+      "node": 906,
       "self": "eval_bench.dim",
       "library": "eval_bench",
       "state": "fresh",
@@ -898,7 +1022,7 @@
     {
       "name": "sees finds a lit light",
       "text": "self.sees(sprout.LightSource, :lit)",
-      "node": 856,
+      "node": 906,
       "self": "eval_bench.dim",
       "library": "eval_bench",
       "state": "worn",

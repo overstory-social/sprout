@@ -207,7 +207,8 @@ export interface UnaryExpr extends Node {
   readonly operand: Expr;
 }
 
-export type BinaryOperator = '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' | '&&' | '||';
+export type BinaryOperator =
+  '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' | '*' | '/' | '%' | '&&' | '||';
 
 export interface BinaryExpr extends Node {
   readonly kind: 'binary';

@@ -76,7 +76,7 @@ describe('a defect in one item never loses a well-formed neighbour in silence', 
   it('over a generated list default, a defect at any depth', () => {
     const c = chooser(20_260_924);
     const ELEMENT: readonly Defect[] = [
-      ...['Zeta', '1.5', '-1.5', '%', ':a', '{', ')', '-oak', '-[oak]', '-', 'Ward.oak'].map(
+      ...['Zeta', '1.5', '-1.5', '@', ':a', '{', ')', '-oak', '-[oak]', '-', 'Ward.oak'].map(
         (text) => contained(text),
       ),
       contained(tooDeep('oak')),
