@@ -36,7 +36,7 @@ Worlds run on a shared host that did not write them and cannot vet them by hand.
 
 ### What Sprout is not
 
-It is not a general-purpose language. Arithmetic is addition, subtraction and comparison on bounded integers. Strings are set and compared, never built. There are no functions, no collections beyond a bounded list, and no way to express a computation whose cost is not apparent from its source.
+It is not a general-purpose language. Arithmetic is addition, subtraction, multiplication, division and comparison on bounded integers. Strings are set and compared, never built. There are no functions, no collections beyond a bounded list, and no way to express a computation whose cost is not apparent from its source.
 
 It is not a game engine. It has no rendering, no physics, no real-time input, and no notion of a screen.
 
@@ -743,7 +743,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | --- | --- |
 | `a == b`, `a != b` | same type, and not a list; a symbol literal, on either side, must be one of the other operand's options; an integer literal, on either side, must be within the other operand's range, since outside it the comparison is decided before the world runs |
 | `<` `<=` `>` `>=` | both integer; an integer literal, on either side, must be within the other operand's range, for the same reason |
-| `+` `-`, unary `-` | integer |
+| `+` `-` `*` `/` `%`, unary `-` | integer |
 | `&&` `\|\|` `!` | operands boolean; there is no truthiness and no coercion |
 | `if (e)` | `e` boolean |
 | `self.set(:p, e)` | `e` is `p`'s declared type and, for an integer, within its range where the compiler can tell |
@@ -762,9 +762,11 @@ Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so 
 
 A `set` or `remember` whose value is out of range at run time is a fault; `adjust` clamps. The compiler catches the literal cases.
 
+Arithmetic stays on whole numbers. `/` divides and `%` gives the remainder, each truncating toward zero, so `7 / 2` is 3, `-7 / 2` is −3 and `-7 % 2` is −1. Arithmetic whose result leaves the integer range is a fault, `IntegerOverflow`, whatever the operator; a `/` or `%` by zero is a fault, `DivisionByZero`, whether the zero was written or read.
+
 ### Precedence
 
-Operators bind in the conventional order, loosest first: `||`; `&&`; `==` and `!=`; `<`, `<=`, `>` and `>=`; `+` and `-`; the prefix `!` and `-`; then a reading such as `x.get(:p)`. Within a level, left to right. Parentheses group.
+Operators bind in the conventional order, loosest first: `||`; `&&`; `==` and `!=`; `<`, `<=`, `>` and `>=`; `+` and `-`; `*`, `/` and `%`; the prefix `!` and `-`; then a reading such as `x.get(:p)`. Within a level, left to right. Parentheses group.
 
 ### Naming a value
 

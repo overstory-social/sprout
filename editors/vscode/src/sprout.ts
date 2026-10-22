@@ -198,7 +198,7 @@ const WORDS: readonly Rule[] = [
   { name: `entity.name.function.${S}`, match: `\\b${NAME}(?=\\s*\\()` },
   { name: `variable.other.${S}`, match: `\\b${NAME}` },
   { name: `keyword.operator.arrow.${S}`, match: '->' },
-  { name: `keyword.operator.${S}`, match: '==|!=|<=|>=|&&|\\|\\||[<>!=+\\-*/]' },
+  { name: `keyword.operator.${S}`, match: '==|!=|<=|>=|&&|\\|\\||[<>!=+\\-*/%]' },
   { name: `punctuation.section.block.begin.${S}`, match: '\\{' },
   { name: `punctuation.section.block.end.${S}`, match: '\\}' },
   { name: `punctuation.section.brackets.${S}`, match: '[\\[\\]]' },

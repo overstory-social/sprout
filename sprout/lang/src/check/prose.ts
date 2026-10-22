@@ -42,6 +42,7 @@ import { branchScope, checkCondition, resolveKind, typeOf, type CheckContext } f
 import { kindName } from '../declare/kinds.js';
 import { isMemberPath, placedWords } from './names.js';
 import { EFFECTS } from './check/writes.js';
+import { ARITHMETIC } from './check/operators.js';
 import type { ProseRecord } from './speech.js';
 import { refuseDraw } from './chance.js';
 
@@ -304,8 +305,8 @@ function walkable(type: BindingType, over: Expr, context: CheckContext): boolean
 }
 
 /**
- * Whether an expression only reads, having refused the first `+` or `-`
- * it holds, or the first write: a passage does neither. A minus written
+ * Whether an expression only reads, having refused the first `+`, `-`,
+ * `*`, `/` or `%` it holds, or the first write: a passage does neither. A minus written
  * on a number is the number, not a sum. Walked with a stack, as a long
  * chain has no bracket to bound it.
  */
@@ -315,7 +316,7 @@ function noArithmetic(expr: Expr, context: CheckContext): boolean {
     const node = stack.pop()!;
     switch (node.kind) {
       case 'binary':
-        if (node.operator === '+' || node.operator === '-') return refuseArithmetic(node, context);
+        if (ARITHMETIC.has(node.operator)) return refuseArithmetic(node, context);
         stack.push(node.right, node.left);
         break;
       case 'unary':

@@ -253,6 +253,18 @@ describe('what the compiler checks — the table, row by row', () => {
     expect(read('-self.get(:inked)', vessel()).type).toBeNull();
   });
 
+  it('`* / %` — integer, refused at a side that is not', () => {
+    for (const operator of ['*', '/', '%']) {
+      expect(shapeOf(`self.get(:capacity) ${operator} 2`), operator).toBe('integer');
+      const wrong = read(`self.get(:capacity) ${operator} self.get(:inked)`, vessel());
+      expect(wrong.type, operator).toBeNull();
+      expect(wrong.said, operator).toEqual([
+        `\`${operator}\` reads integer, and this is boolean. Write something that reads a whole number.`,
+      ]);
+    }
+    expect(shapeOf('self.get(:capacity) * 2 < 9')).toBe('boolean');
+  });
+
   it('`&& || !` — operands boolean, with no truthiness and no coercion', () => {
     expect(shapeOf('self.get(:inked) && self.get(:inked)')).toBe('boolean');
     expect(shapeOf('!self.get(:inked)')).toBe('boolean');

@@ -105,8 +105,8 @@ languages cannot:
 
 ## What Sprout is not
 
-Sprout is not a general programming language. Arithmetic is adding and
-subtracting whole numbers. Text is written and compared, never built up
+Sprout is not a general programming language. Arithmetic is adding,
+subtracting, multiplying and dividing whole numbers. Text is written and compared, never built up
 piece by piece. There are no functions.
 
 It is not a game engine either. There are no graphics, no physics, and no

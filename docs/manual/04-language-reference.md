@@ -826,10 +826,16 @@ that object.
 | `==`, `!=`                | two values of the same type, not lists | boolean |
 | `<`, `<=`, `>`, `>=`      | integers                             | boolean |
 | `+`, `-`, unary `-`       | integers                             | integer |
+| `*`, `/`, `%`             | integers                             | integer |
 
-Loosest first: `||`; `&&`; `==` `!=`; `<` `<=` `>` `>=`; `+` `-`; prefix `!`
-and `-`; then reads like `x.get(:p)`. Left to right within a level.
-Parentheses group.
+Loosest first: `||`; `&&`; `==` `!=`; `<` `<=` `>` `>=`; `+` `-`; `*` `/`
+`%`; prefix `!` and `-`; then reads like `x.get(:p)`. Left to right within
+a level. Parentheses group.
+
+`/` and `%` stay whole, truncating toward zero: `7 / 2` is 3 and `-7 % 2`
+is -1. A result past the integer range is an `IntegerOverflow` fault, and
+`/` or `%` by zero a `DivisionByZero` fault. A passage's slots do no
+arithmetic at all.
 
 There is no truthiness and no coercion: `if` wants a boolean, and `1 ==
 "1"` is an error. A literal compared against something with a range must

@@ -26,7 +26,7 @@ describe('each file is read, and checked for what it can be alone', () => {
   });
 
   it('names the line and column of what it refuses', () => {
-    const { diagnostics } = readFile(file('ward.sprout', 'enum Ward {\n  oak % silver\n}'));
+    const { diagnostics } = readFile(file('ward.sprout', 'enum Ward {\n  oak @ silver\n}'));
     // Exactly one: the lexer steps the character over and the parser
     // does not report the gap it left as a missing comma.
     expect(diagnostics).toHaveLength(1);
@@ -194,7 +194,7 @@ describe('every file in the bundle is read', () => {
   });
 
   it('refuses a world file that does not compile at publish, and says it was the world’s', () => {
-    const { tier, report } = read([file('shop.sprout', '%')]);
+    const { tier, report } = read([file('shop.sprout', '@')]);
     expect(tier.ownFileRefused).toBe(true);
     expect(tier.byLibrary.has('shop')).toBe(false);
     expect(report.diagnostics.refusals.map((d) => locationOf(d.at))).toEqual(['shop.sprout:1:1']);
@@ -202,7 +202,7 @@ describe('every file in the bundle is read', () => {
 
   it('reads such a file as absent at load, keeping what it said as warnings', () => {
     const { tier, report } = read(
-      [file('shop.sprout', '%'), file('ok.sprout', 'enum A { b }')],
+      [file('shop.sprout', '@'), file('ok.sprout', 'enum A { b }')],
       'load',
     );
     expect(tier.ownFileRefused).toBe(true);
@@ -223,7 +223,7 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
     const files = [
       file('printers_shop.sprout', WORLD_LINE),
       PERSON,
-      file('shop.sprout', 'enum Season { spring }\n%\n'),
+      file('shop.sprout', 'enum Season { spring }\n@\n'),
     ];
     const { bundle, diagnostics } = compileBundle(world({ files }));
     expect(bundle).toBeNull();
@@ -233,7 +233,7 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
   it('refuses a syntax problem in a vendored library too, because they compile together', () => {
     const broken: LibrarySource = {
       ...STANDARD_LIBRARY,
-      files: [file('ward.sprout', 'enum Ward { oak }\n%\n')],
+      files: [file('ward.sprout', 'enum Ward { oak }\n@\n')],
     };
     const { bundle, diagnostics } = compileBundle(
       world({
@@ -246,7 +246,7 @@ describe('the whole bundle is read, the world’s files and its libraries alike'
   });
 
   it('gives every problem in reading order, not the first', () => {
-    const files = [file('a.sprout', '% ; %'), file('b.sprout', '%'), ...worldFiles(WORLD_LINE)];
+    const files = [file('a.sprout', '@ ; @'), file('b.sprout', '@'), ...worldFiles(WORLD_LINE)];
     const { diagnostics } = compileBundle(world({ files }));
     expect(refusals(diagnostics)).toHaveLength(4);
     expect(refusals(diagnostics).map((d) => locationOf(d.at))).toEqual([
@@ -265,7 +265,7 @@ describe('a library’s own file reads as absent when it will not compile', () =
   // same path if you have read the loop.
   const broken: LibrarySource = {
     ...STANDARD_LIBRARY,
-    files: [...STANDARD_LIBRARY.files, file('ward.sprout', 'enum Ward { oak }\n%\n')],
+    files: [...STANDARD_LIBRARY.files, file('ward.sprout', 'enum Ward { oak }\n@\n')],
   };
   const withBroken = () =>
     world({
