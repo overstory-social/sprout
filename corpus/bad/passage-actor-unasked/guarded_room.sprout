@@ -1,0 +1,28 @@
+// A room's words that read `actor` outside `{if bound actor}` cannot be
+// rendered from a handler, where nobody is acting: the lizard's sniff is
+// asked about, and the name after it is not.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Bucket, lower} from 'bucket'
+
+world guarded_room is sprout.World {
+  visitors are Person
+  visitors arrive at well_top
+  pass any (true)
+
+  object well_top is sprout.Place {
+    grammar { name "top of the well" }
+    describe { text "The top of a well." }
+    object bucket is Bucket
+  }
+
+  object guarded is Guarded
+}
+
+kind Guarded is sprout.Place {
+  grammar { name "guarded room" }
+
+  passage body { A lizard guards this room.{if bound actor} It sniffs.{/if} {actor} stands still. }
+
+  describe { text body }
+}
