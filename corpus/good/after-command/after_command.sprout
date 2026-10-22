@@ -2,14 +2,19 @@
 // command a visitor makes, what they carry, then the place they stand in,
 // then the world, each run their `after command`, nearest first: the lamp
 // in their hands, the loud room, and the world, which counts the commands
-// and rings a bell at the fourth. The room's description is read before
-// what follows the command that walked into it; a refused command is
-// followed by nothing; and what is not carried, or is shut in a tin they
-// carry, follows nobody.
+// and rings a bell at the fourth. It runs once the queue has drained and
+// the engine has answered, so the room is read before what follows the
+// command that walked into it, and a visitor the chute's handler slides on
+// into the pool is followed by the pool and not the chute; the queue its
+// own bodies fill drains after it. A refused command is followed by
+// nothing; and what is not carried, or is shut in a tin they carry,
+// follows nobody.
 import * as sprout from 'sprout'
-import {Person} from 'person'
+import {Person, :slide} from 'person'
 import {Lamp} from 'lamp'
 import {LoudRoom} from 'loud_room'
+
+message :drip
 
 world after_command is sprout.World {
   visitors are Person
@@ -26,9 +31,35 @@ world after_command is sprout.World {
     grammar {
       article the
       exit north "up to the falls" -> falls
+      exit down "down the chute" -> chute
     }
     describe { text "A low cellar, dry and still." }
     object lamp is Lamp
+  }
+
+  object chute is sprout.Place {
+    grammar {
+      article the
+      exit down "down into the pool" -> pool
+    }
+    describe { text "A steep chute, slick with damp." }
+    on :entered (item, from) {
+      if (item.is(Person)) { send item :slide }
+    }
+    after command { tell actor "You are still sliding." }
+  }
+
+  object pool is sprout.Place {
+    grammar {
+      article the
+      exit up "up to the cellar" -> cellar
+    }
+    describe { text "A still pool under a dripping roof." }
+    on :drip { tell "A drop falls into the pool." }
+    after command {
+      tell actor "Water drips from the roof."
+      send self :drip
+    }
   }
 
   object falls is LoudRoom {

@@ -1,8 +1,10 @@
 /*
  * Tests for src/reading/after.c (the spec's Verbs > After a command), over the corpus world `after-command`: what
- * follows a visitor's command runs nearest first, the lamp she carries, then the place, then the world; after the
- * description of a place she walked into; not after a refused command, nor for what she has set down or shut in her
- * tin; not for an arrival or a tick; and a plain `tell` from it leaves her out while her neighbour reads it.
+ * follows a visitor's command runs nearest first, the lamp she carries, then the place, then the world; once the
+ * queue has drained and the engine has answered, so after the description of a place she walked into, after `look`'s
+ * and `wait`'s answer, and where the queue left her, with its own queue drained after it; not after a refused
+ * command, nor for what she has set down or shut in her tin; not for an arrival or a tick; and a plain `tell` from it
+ * leaves her out while her neighbour reads it.
  */
 #include "turn_fixture.h"
 
@@ -65,6 +67,56 @@ static void what_follows_runs_nearest_first_after_the_place_walked_into_is_read(
   tw_close(&w);
 }
 
+static void what_follows_runs_after_the_engine_has_answered(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading reading;
+  int answer, roar;
+  tw_open(&w, "after-command");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_go(&w, "v-wren", "north", "up to the falls", "falls", 1001, &out);
+  sprout_outcome_free(&out);
+  reading = tw_reading("sprout.look", tw_person(&w, "v-wren"), &filling, NULL, NULL);
+  tw_command(&w, "v-wren", &reading, 1002, &out);
+  answer = line_at(&out, "v-wren", "Water thunders down a cleft in the rock.");
+  roar = line_at(&out, "v-wren", "The roar of the water is deafening.");
+  CHECK(answer >= 0 && answer < roar);
+  sprout_outcome_free(&out);
+  reading = tw_reading("sprout.wait", tw_person(&w, "v-wren"), &filling, NULL, NULL);
+  tw_command(&w, "v-wren", &reading, 1003, &out);
+  answer = line_at(&out, "v-wren", "Time passes.");
+  roar = line_at(&out, "v-wren", "The roar of the water is deafening.");
+  CHECK(answer >= 0 && answer < roar);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void what_follows_finds_her_where_the_queue_left_her(void) {
+  turn_world w;
+  sprout_outcome out;
+  const sprout_stored_instance *wren;
+  int described, drips, drop;
+  tw_open(&w, "after-command");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  /* The exit takes her into the chute, and the chute's handler, in the queue, sends her on into the pool. */
+  tw_go(&w, "v-wren", "down", "down the chute", "chute", 1001, &out);
+  wren = tw_instance(&w, tw_person(&w, "v-wren"));
+  CHECK(wren != NULL && wren->has_container && wren->container.length == strlen("after_command.pool") &&
+        memcmp(wren->container.bytes, "after_command.pool", wren->container.length) == 0);
+  described = line_at(&out, "v-wren", "A still pool under a dripping roof.");
+  drips = line_at(&out, "v-wren", "Water drips from the roof.");
+  drop = line_at(&out, "v-wren", "A drop falls into the pool.");
+  /* The pool follows the command and the chute does not; what the pool's hook sends is handled after it. */
+  CHECK(described >= 0 && described < drips && drips < drop);
+  CHECK(line_at(&out, "v-wren", "You are still sliding.") < 0);
+  CHECK_INT(tw_property(&w, "after_command", "commands"), 1);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void a_refused_command_is_followed_by_nothing(void) {
   turn_world w;
   sprout_outcome out;
@@ -113,6 +165,8 @@ static void an_arrival_and_a_tick_are_followed_by_nothing(void) {
 
 int main(void) {
   RUN(what_follows_runs_nearest_first_after_the_place_walked_into_is_read);
+  RUN(what_follows_runs_after_the_engine_has_answered);
+  RUN(what_follows_finds_her_where_the_queue_left_her);
   RUN(a_refused_command_is_followed_by_nothing);
   RUN(what_she_has_set_down_follows_nobody);
   RUN(an_arrival_and_a_tick_are_followed_by_nothing);
