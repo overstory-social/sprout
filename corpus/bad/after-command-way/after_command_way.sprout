@@ -1,0 +1,10 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Lair} from 'lair'
+
+world after_command_way is sprout.World {
+  visitors are Person
+  visitors arrive at lair
+
+  object lair is Lair { }
+}

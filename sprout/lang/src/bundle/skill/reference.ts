@@ -158,7 +158,7 @@ export const MEMBER_TABLE: readonly Entry[] = [
     word: 'after',
     example: 'after command { tell actor "The probe hums." }',
     means:
-      'run at the end of every command a visitor makes while they carry it or it holds them, with `actor` and `here` bound',
+      'run at the end of every command a visitor makes while they carry it or it holds them, a refused one included, with `actor`, `here` and `refused` bound, and `way` inside `if (bound way)` after a refused `go`',
   },
   {
     word: 'pass',

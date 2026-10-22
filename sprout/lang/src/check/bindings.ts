@@ -41,7 +41,7 @@ import type { RoleFiller } from '../declare/verbs.js';
 import type { RoleNarrowing } from '../declare/roles.js';
 import type { ResolvedProperty } from '../declare/properties.js';
 import type { Span } from '../source/source.js';
-import { integer, showType, STRING, type ValueType } from '../declare/types.js';
+import { BOOLEAN, integer, showType, STRING, type ValueType } from '../declare/types.js';
 import { readable } from '../source/words.js';
 
 // --- what a binding can be ------------------------------------------------
@@ -110,6 +110,9 @@ export type BindingOrigin =
   | 'actor'
   | 'here'
   | 'seen'
+  /** In an `after command`: whether the command was refused, and the way a refused `go` tried. */
+  | 'refused'
+  | 'way'
   | 'mover'
   | 'role'
   | 'each'
@@ -131,6 +134,10 @@ export function describeOrigin(origin: BindingOrigin): string {
       return "the actor's place";
     case 'seen':
       return 'what the description is being read for';
+    case 'refused':
+      return 'whether the command was refused';
+    case 'way':
+      return 'the way a refused `go` tried';
     case 'mover':
       return 'whatever proposed the move';
     case 'role':
@@ -214,6 +221,16 @@ export function hereBinding(here: HereKind, at: Span): Binding {
 /** `seen`, in a describe — the engine's `Seen`: what it is being read for, a look, an examination, an arrival or a poll. */
 export function seenBinding(seen: DeclaredEnum, at: Span): Binding {
   return bind('seen', valueOf({ type: 'symbol', of: seen }), 'seen', at);
+}
+
+/** `refused`, in an `after command` — boolean; whether the command it follows was refused. */
+export function refusedBinding(at: Span): Binding {
+  return bind('refused', valueOf(BOOLEAN), 'refused', at);
+}
+
+/** `way`, in an `after command` inside `if (bound way)` — the engine's `Direction`: the way a refused `go` tried. */
+export function wayBinding(direction: DeclaredEnum, at: Span): Binding {
+  return bind('way', valueOf({ type: 'symbol', of: direction }), 'way', at);
 }
 
 /** `mover`, in a guard — object; whatever proposed the move. */
@@ -486,6 +503,8 @@ export interface Words {
 export interface Withheld {
   readonly name: string;
   readonly at: Span;
+  /** What the name is, where it is not a role. */
+  readonly origin?: BindingOrigin;
   /** What a read of it here is told. */
   readonly unread: Words;
   /**
@@ -548,7 +567,8 @@ export class Scope {
   /** Whether something here already answers to `name`, said at `at` where it does. */
   private taken(name: string, at: Span, diagnostics: Diagnostics): boolean {
     const before = this.lookup(name);
-    const origin = before?.origin ?? (this.withheld(name) === null ? null : 'role');
+    const withheld = this.withheld(name);
+    const origin = before?.origin ?? (withheld === null ? null : (withheld.origin ?? 'role'));
     if (origin === null) return false;
     diagnostics.refuse(
       at,

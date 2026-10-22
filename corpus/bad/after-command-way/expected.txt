@@ -1,0 +1,7 @@
+lair.sprout:9:9    `way` is bound only after a `go` that was refused, so it is read inside `if (bound way)`.
+                   Ask first, as in `if (bound way) { if (way == :north) { … } }`.
+
+lair.sprout:11:18  `Direction` has no option `nrth`. Did you mean `north`?
+                   Options: north, south, east, west, northeast, northwest, southeast, southwest, up, down, in, out.
+
+refused: 2 problems

@@ -225,11 +225,11 @@ sprout_eval_status sprout_answers_folded(sprout_exec *x, const sprout_frame *fra
   return SPROUT_EVAL_OK;
 }
 
-sprout_eval_status sprout_command_over(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
-                                       bool answered) {
+sprout_eval_status sprout_command_over(sprout_exec *x, const sprout_frame *frame, sprout_str actor,
+                                       const sprout_resolved *answered) {
   EXPR_NEED(sprout_exec_drain(x));
-  if (answered) EXPR_NEED(sprout_answers_folded(x, frame, reading));
-  EXPR_NEED(sprout_after_command(x, frame, reading->actor));
+  if (answered != NULL) EXPR_NEED(sprout_answers_folded(x, frame, answered));
+  EXPR_NEED(sprout_after_command(x, frame, actor));
   return sprout_exec_drain(x);
 }
 

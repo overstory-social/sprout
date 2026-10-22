@@ -590,7 +590,7 @@ export const turnCases: EngineCase[] = [
   {
     name: 'what follows a command',
     proves:
-      'after a person’s command, once the engine has answered it, what they carry, then their place, then the world run their `after command`, nearest first; a refused command is followed by nothing',
+      'after a person’s command, once the engine has answered it, what they carry, then their place, then the world run their `after command`, nearest first; a refused command is followed too, after its refusal, and an exit’s refusal with the way it tried bound',
     async run(make) {
       const store = await seeded(BELFRY_FOLLOWS, [[MARTA, FOLLOWED_HALL, 'Marta']]);
       const host = played(make, BELFRY_FOLLOWS);
@@ -620,10 +620,40 @@ export const turnCases: EngineCase[] = [
       const again = await runCommand(store, 'w', host, command('take bell'));
       match(
         again.effects,
-        [{ kind: 'refused', visit: MARTA, paragraphs: ['You already have it.'] }],
-        'a refused take, and nothing after it',
+        [
+          { kind: 'refused', visit: MARTA, paragraphs: ['You already have it.'] },
+          { kind: 'said', from: FOLLOWED_BELL, visit: MARTA, paragraphs: ['The bell hums.'] },
+          { kind: 'told', from: FOLLOWED_HALL, visit: MARTA, paragraphs: ['The hall echoes.'] },
+        ],
+        'a refused take, then what follows it',
       );
-      equal(await propertyOf(store, FOLLOWED, 'commands', 0), 2, 'the count after the refusal');
+      equal(await propertyOf(store, FOLLOWED, 'commands', 0), 3, 'the count after the refusal');
+      const barred = await runCommand(store, 'w', host, command('north'));
+      match(
+        barred.effects,
+        [
+          { kind: 'refused', visit: MARTA, paragraphs: ['The door is barred.'] },
+          { kind: 'said', from: FOLLOWED_BELL, visit: MARTA, paragraphs: ['The bell hums.'] },
+          { kind: 'told', from: FOLLOWED_HALL, visit: MARTA, paragraphs: ['The bar rattles.'] },
+        ],
+        'an exit’s refusal, then what follows it, the hall reading the way it tried',
+      );
+      equal(
+        await propertyOf(store, FOLLOWED, 'commands', 0),
+        4,
+        'the count after the exit’s refusal',
+      );
+      const unread = await runCommand(store, 'w', host, command('xyzzy'));
+      equal(
+        unread.effects.length,
+        1,
+        'a line nobody understood is answered, and followed by nothing',
+      );
+      equal(
+        await propertyOf(store, FOLLOWED, 'commands', 0),
+        4,
+        'the count after a line nobody understood',
+      );
     },
   },
 ];
