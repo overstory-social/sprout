@@ -257,6 +257,90 @@ kind Grip is Hand {
   });
 });
 
+describe('a passage asking whether someone is acting', () => {
+  const room = (body: string, view = 'tell "Below: {self.body}"') => `kind Room is sprout.Place {
+  passage body { ${body} }
+  describe { text body }
+  on :moved (from, to) { ${view} }
+}`;
+
+  it('reads `actor` inside `{if bound actor}`, said where someone looks and from a handler', () => {
+    expect(checked(room('A lizard.{if bound actor} It sniffs at {actor}.{/if}'))).toEqual([]);
+    expect(
+      checked(room('A lizard.{if bound actor && actor.is(sprout.Visitor)} It sniffs.{/if}')),
+    ).toEqual([]);
+  });
+
+  it('reads `here` the same way, from a handler of a kind that is no actor', () => {
+    expect(checked(room('Dark.{if bound here} {here} is still.{/if}'))).toEqual([]);
+  });
+
+  it('asks it of a passage rendered through a slot from a handler', () => {
+    expect(
+      checked(`kind Bell { passage ring { Ding{if bound actor} for {actor}{/if}. } }
+kind Tower {
+  contains
+  on :moved (from, to) { tell peal }
+  passage peal { {for b: Bell in self}{b.ring}{/for} }
+}`),
+    ).toEqual([]);
+  });
+
+  it('refuses a bare read in a passage rendered outside the asking, naming the one that asks', () => {
+    const said = diagnosed(`kind Bell { passage ring { Ding for {actor}. } }
+kind Tower {
+  contains
+  on :moved (from, to) { tell peal }
+  passage peal { {if bound actor}{actor} listens. {/if}{for b: Bell in self}{b.ring}{/for} }
+}`);
+    expect(said.map((d) => [locationOf(d.at), d.message, d.remedy])).toEqual([
+      [
+        'shop.sprout:4:38',
+        '`actor` may not be bound here: this is read through `peal`, which is also said where nobody is acting.',
+        'Read it inside `{if bound actor}`, as in `{if bound actor}{actor}{/if}`.',
+      ],
+    ]);
+  });
+
+  it('still refuses a read outside the asking, at the handler, saying how to ask', () => {
+    for (const body of [
+      'A lizard.{if bound actor} It sniffs.{/if} {actor} is here.',
+      'A lizard.{if bound actor} It sniffs.{else} {actor} waits.{/if}',
+    ]) {
+      const said = diagnosed(room(body));
+      expect(said.map((d) => [locationOf(d.at), d.message])).toEqual([
+        [
+          'shop.sprout:7:45',
+          expect.stringContaining('The passage `body` reads `actor`') as unknown as string,
+        ],
+      ]);
+      expect(said[0]!.remedy).toBe(
+        'Give the words here without `actor`, say `body` only where `actor` is bound, or read `actor` in `body` only inside `{if bound actor}`.',
+      );
+    }
+  });
+
+  it('is asked only of `actor` and `here`, and only in a passage', () => {
+    expect(checked(room('{if bound self}A lizard.{/if}'))).toEqual([
+      [
+        'shop.sprout:5:28',
+        "`bound` asks whether a verb's tool was given, and `self` is the role-player.",
+      ],
+    ]);
+    expect(
+      checked(`kind Room is sprout.Place {
+  :heard false
+  on :moved (from, to) { if (bound actor) { self.set(:heard, true) } }
+}`),
+    ).toEqual([
+      [
+        'shop.sprout:6:36',
+        '`actor` is not bound inside `on :moved`: nobody is acting when a message arrives.',
+      ],
+    ]);
+  });
+});
+
 describe('a name the body saying a passage can never bind', () => {
   it('is refused where the body says the passage, naming where the passage reads it', () => {
     expect(

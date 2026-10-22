@@ -1,0 +1,37 @@
+// A room's words read both where someone looks and where nobody acts: the
+// guarded room's `body` mentions the one looking only inside
+// `{if bound actor}`, so the bucket's handler may render it too, from the
+// top of the well, where the guard is false and the lizard sniffs at
+// nobody. The world passes, so the room below is in the bucket's range.
+// `transcripts/well.json` plays both.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Bucket, lower} from 'bucket'
+
+world guarded_room is sprout.World {
+  visitors are Person
+  visitors arrive at well_top
+  pass any (true)
+
+  object well_top is sprout.Place {
+    grammar {
+      name "top of the well"
+      exit down "down the well" -> guarded
+    }
+    describe { text "The top of a well." }
+    object bucket is Bucket
+  }
+
+  object guarded is Guarded
+}
+
+kind Guarded is sprout.Place {
+  grammar {
+    name "guarded room"
+    exit up "up the well" -> well_top
+  }
+
+  passage body { A lizard guards this room.{if bound actor} It is sniffing at {actor}.{/if} }
+
+  describe { text body }
+}
