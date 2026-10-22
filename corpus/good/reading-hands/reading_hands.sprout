@@ -48,7 +48,7 @@ kind Fuse {
     do {
       self.set(:lit, true)
       say "You touch the flame to the fuse, and it hisses. You hold {actor.count(Match)} match."
-      tell "{actor} lights the fuse."
+      tell "{actor} lights the fuse, holding {actor.count(Match)} match."
     }
   }
   passage no_flame { {if actor.count(Match) > 0}Your match is not burning.{else}You have nothing to light it with.{/if} }

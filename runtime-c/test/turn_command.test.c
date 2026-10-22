@@ -112,7 +112,7 @@ static void a_role_players_permit_and_do_see_into_the_hands_of_the_visitor_who_a
   sprout_outcome_free(&out);
   tw_do(&w, "v-wren", "light", "shed.fuse", 1005, &out);
   CHECK(tw_told(&out, "v-wren", "You touch the flame to the fuse, and it hisses. You hold 1 match."));
-  CHECK(tw_told(&out, "v-ash", "Wren lights the fuse."));
+  CHECK(tw_told(&out, "v-ash", "Wren lights the fuse, holding 1 match."));
   CHECK_INT(tw_property(&w, "reading_hands.shed.fuse", "lit"), 1);
   sprout_outcome_free(&out);
   tw_close(&w);
