@@ -7,7 +7,8 @@
  * it is taken is asked of the place that has it, and taking a way is a move
  * through it, whose refusal is handed back unsaid. A drawn way is offered as
  * one way that leads nowhere until it is taken, when its choice is drawn
- * from the turn's seed, played over corpus/good/exit-one-of.
+ * from the turn's seed, played over corpus/good/exit-one-of. A guard reads the one place its exit
+ * leads to though it is out of range, played over corpus/good/read-the-next-room.
  */
 #include "reading_fixture.h"
 #include "turn_fixture.h"
@@ -341,6 +342,37 @@ static void an_actor_moved_through_a_drawn_way_draws_as_a_visitor_does(void) {
   tw_close(&w);
 }
 
+/* Whether `visit`'s view offers a way out `direction`. */
+static bool offered(turn_world *w, const char *visit, const char *direction) {
+  sprout_seen_view view;
+  size_t i;
+  bool found = false;
+  CHECK_INT(sprout_view(w->world, w->state, &w->host, visit, &view), SPROUT_OK);
+  for (i = 0; i < view.exit_count; i++)
+    if (strcmp(view.exits[i].direction, direction) == 0) found = true;
+  sprout_view_free(&view);
+  return found;
+}
+
+static void a_guard_reads_the_place_its_exit_leads_to_though_it_is_out_of_range(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "read-the-next-room");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  CHECK(offered(&w, "v-marta", "east"));
+  tw_go(&w, "v-marta", "east", "east", "pool_room", 1001, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "pull", "pool_room.lever", 1002, &out);
+  CHECK(tw_told(&out, "v-marta", "The roof gives way, and rubble fills the passage west of the pool."));
+  sprout_outcome_free(&out);
+  tw_go(&w, "v-marta", "west", "west", "posts_room", 1003, &out);
+  sprout_outcome_free(&out);
+  /* The pool room's `:munged` now holds, so the first way east does not apply and the refusal does. */
+  CHECK(!offered(&w, "v-marta", "east"));
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(the_ways_out_of_a_place_are_those_that_apply_in_the_order_its_kind_answers_them);
   RUN(the_exits_offered_leave_out_a_way_that_refuses);
@@ -354,5 +386,6 @@ int main(void) {
   RUN(taking_a_drawn_way_draws_its_choice_from_the_turn_seed);
   RUN(a_drawn_way_named_where_it_no_longer_applies_faults);
   RUN(an_actor_moved_through_a_drawn_way_draws_as_a_visitor_does);
+  RUN(a_guard_reads_the_place_its_exit_leads_to_though_it_is_out_of_range);
   return REPORT();
 }

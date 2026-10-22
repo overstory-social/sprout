@@ -70,6 +70,9 @@ function sequence(r: Reader): ProsePiece[] {
       case 'slot':
         pieces.push({ kind: 'prose-slot', at: tag.at, expr: tag.expr });
         break;
+      case 'exit':
+        pieces.push({ kind: 'prose-exit', at: tag.at, direction: tag.direction });
+        break;
       case 'if': {
         const read = nested(r, 'if', tag.at, () => ifBlock(r, tag.at, tag.condition));
         if (read !== null) pieces.push(read);

@@ -34,6 +34,8 @@ function outlinePiece(piece: ProsePiece): string {
       return `verbatim(${JSON.stringify(piece.text)})`;
     case 'prose-slot':
       return `{${shape(piece.expr)}}`;
+    case 'prose-exit':
+      return `{exit ${piece.direction.text}}`;
     case 'prose-for':
       return `for(${piece.variable.text} ${piece.walks} ${shape(piece.over)})[${outline(piece.body)}]`;
     case 'prose-one-of':
@@ -55,6 +57,14 @@ function outlinePiece(piece: ProsePiece): string {
 
 const said = (text: string) =>
   readProseText(text).refusals.map((d) => [locationOf(d.at), d.message]);
+
+describe('a way out shown in prose', () => {
+  it('reads `{exit east}` as a piece of its own, among words and inside a block', () => {
+    const { prose, refusals } = readProseText('North: {exit north}{if a}{exit east}{/if}');
+    expect(refusals).toEqual([]);
+    expect(outline(prose)).toBe('"North: " {exit north} if(a)[{exit east}]');
+  });
+});
 
 describe('blocks read around what they guard, to their close', () => {
   it('reads an `{if}` chain, and an `{else}` as its last link', () => {

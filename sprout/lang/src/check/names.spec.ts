@@ -324,7 +324,7 @@ kind Toy { :new true }
 
   it('is refused at the name, through `get` and `is`, by a name or a path from the world', () => {
     expect(
-      refused(`    grammar { exit north "north" -> yard when (yards.yard.get(:open)) }
+      refused(`    grammar { exit north "north" -> nook when (yards.yard.get(:open)) }
     describe { text "A hall.{if yard.is(sprout.Place)} A yard lies north.{/if}" }`),
     ).toEqual([
       [
@@ -395,5 +395,91 @@ kind Person is sprout.Visitor { }
   :open true`,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('an exit reading the place it leads to', () => {
+  /** The refusals a hall whose grammar block is `grammar` makes, as line, column and message, and their remedies. */
+  function refused(grammar: string): { said: string[][]; remedies: string[] } {
+    const { diagnostics } = compileWorld('yards', {
+      'yards.sprout': `world yards is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    grammar { ${grammar} }
+  }
+  object yard is sprout.Place { :open true  object toy is Toy }
+  object cellar is sprout.Place { :dry true }
+}
+kind Person is sprout.Visitor { }
+kind Toy { :new true }
+`,
+    });
+    const refusals = diagnostics.filter((one) => one.severity === 'refusal');
+    return {
+      said: refusals.map((one) => [locationOf(one.at), one.message]),
+      remedies: refusals.map((one) => one.remedy ?? ''),
+    };
+  }
+
+  it('is taken through `get` and `is`, by a name or a path from the world', () => {
+    expect(
+      refused('exit north "north" -> yard when (yard.get(:open) && yards.yard.is(sprout.Place))')
+        .said,
+    ).toEqual([]);
+    expect(refused('exit north "north" -> yards.yard when (!yard.get(:open))').said).toEqual([]);
+  });
+
+  it('refuses what the place holds, which stays out of range', () => {
+    const words = (reading: string): string =>
+      `\`yard\` is where this exit leads, and its \`when\` reads that place itself, not what is in it, so \`yard.${reading}\` cannot be asked here.`;
+    const counted = refused('exit north "north" -> yard when (yard.count(Toy) == 0)');
+    expect(counted.said).toEqual([['yards.sprout:5:48', words('count(…)')]]);
+    expect(counted.remedies).toEqual([
+      'Read a property `yard` keeps, as in `yard.get(:…)`, and have `yard` set it when what it holds changes.',
+    ]);
+    expect(refused('exit north "north" -> yard when (!yard.holds(yards.yard.toy))').said).toEqual([
+      ['yards.sprout:5:49', words('holds(…)')],
+    ]);
+    expect(refused('exit north "north" -> yard when (yard.count == 0)').said).toEqual([
+      ['yards.sprout:5:48', words('count')],
+    ]);
+  });
+
+  it('refuses another place than the one it leads to, saying the guard reads only that one', () => {
+    const { said, remedies } = refused('exit north "north" -> yard when (cellar.get(:dry))');
+    expect(said).toEqual([
+      [
+        'yards.sprout:5:48',
+        '`cellar` is another place, out of range of `hall`, so `cellar.get(…)` can never be read from here: the world lets nothing pass between its places.',
+      ],
+    ]);
+    expect(remedies[0]).toMatch(
+      /^An exit's `when` reads only the place that exit leads to\. Keep the fact/,
+    );
+  });
+
+  it('refuses a drawn way reading one of its places, which it leads to none of until it is taken', () => {
+    const { said, remedies } = refused(
+      'exit north "north" -> one of (yard, cellar) when (yard.get(:open))',
+    );
+    expect(said).toEqual([
+      [
+        'yards.sprout:5:65',
+        '`yard` is one of the places this way is drawn to, and a drawn way leads to none of them until it is taken, so its `when` cannot read `yard`: the world lets nothing pass between its places.',
+      ],
+    ]);
+    expect(remedies).toEqual([
+      'Write the way to `yard` as an exit of its own, whose `when` may read where it leads, or keep the fact on `hall` or on the world, as `yards.get(:…)`, which every place can read.',
+    ]);
+  });
+
+  it('is no reach for a way that refuses, which leads nowhere', () => {
+    expect(refused('exit north "north" refuse "Shut." when (yard.get(:open))').said).toEqual([
+      [
+        'yards.sprout:5:55',
+        '`yard` is another place, out of range of `hall`, so `yard.get(…)` can never be read from here: the world lets nothing pass between its places.',
+      ],
+    ]);
   });
 });

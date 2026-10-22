@@ -72,6 +72,7 @@ static void poll_begin(poll *p) {
   p->reading.fault = &p->fault;
   p->reading.reader = p->actor;
   p->reading.notes = NULL;
+  p->reading.beyond = false;
   p->rules = NULL;
   p->rule_count = p->rule_capacity = 0;
 }

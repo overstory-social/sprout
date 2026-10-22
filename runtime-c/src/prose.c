@@ -327,6 +327,7 @@ sprout_eval_status sprout_render_effects(const sprout_exec *x, const sprout_str 
   reading.fault = x->fault;
   reading.reader = (sprout_str){"", 0};
   reading.notes = NULL;
+  reading.beyond = false;
   for (e = 0; e < x->effect_count; e++) {
     line_to_render *line;
     if (x->effects[e].description != NULL) {

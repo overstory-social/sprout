@@ -1,0 +1,29 @@
+import * as sprout from 'sprout'
+
+// `{exit …}` shows the place a way out of this place leads to, as its
+// describe shows it to someone looking: a direction written out, of an
+// exit that leads to a place, on a place, where someone is looking.
+world exit_shown is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar {
+      exit north "north" -> yard
+      exit east "east" refuse "A wall."
+    }
+    describe { text "A hall.{exit n}{exit sideways}{exit east}" }
+    after command { tell actor "Through the door you see:{exit north}" }
+    object bell is Bell
+  }
+  object yard is sprout.Place {
+    grammar { exit south "south" -> hall }
+    describe { text "A yard." }
+  }
+}
+
+kind Person is sprout.Visitor { }
+kind Bell {
+  grammar { name "bell" }
+  describe { text "A bell.{exit north}" }
+}
