@@ -58,8 +58,7 @@ static sprout_eval_status children(const sprout_frame *frame, sprout_str id, con
 /*
  * The people `place` holds, and those in whatever it holds wherever every container between passes, breadth-first
  * and in each container's order, less `skip` and whom the reading addresses: a voice said in a place crosses into a
- * place inside it as range does, and stops at a lid. `place`'s own rule is not asked, since a lid divides the inside
- * from the outside, and no person is entered, since a person passes nothing.
+ * place inside it as range does, and stops at a lid. No person is entered, since a person passes nothing.
  */
 static sprout_eval_status people_within(const sprout_exec *x, const sprout_frame *frame, sprout_str place,
                                         const sprout_str *skip, sprout_str **heard, size_t *count, size_t *capacity) {
@@ -132,8 +131,8 @@ bool sprout_surround_of(const sprout_frame *frame, sprout_str id, sprout_str *su
 /*
  * Who hears `teller` around it: each person on the way out to `surround` whom the walk reaches as a surface,
  * every container between passing, as a holder is reached from what is in their hands; and, where every
- * container strictly between passes, the people within `surround`, as `people_within` finds them, less the teller
- * and its own occupants. A person passes nothing, so a carried thing is heard by the hands that hold it and by
+ * container on the way and `surround` pass, the people within `surround`, as `people_within` finds them, less the
+ * teller and its own occupants. A person passes nothing, so a carried thing is heard by the hands that hold it and by
  * nobody past them.
  */
 static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *frame, sprout_str teller,
@@ -149,7 +148,6 @@ static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *fram
     const sprout_stored_instance *instance = expr_instance(frame, at);
     if (instance == NULL || !instance->has_container) return SPROUT_EVAL_OK;
     at = instance->container;
-    if (sprout_str_same(at, surround)) break;
     EXPR_NEED(expr_spend(frame));
     if (sprout_is_person(frame, at) && !listed(x->left_out, x->left_out_count, at)) {
       sprout_str *slot = (sprout_str *)sprout_exec_grow(x->turn, (void **)&heard, &heard_count, &capacity, sizeof *heard);
@@ -157,6 +155,7 @@ static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *fram
       *slot = at;
     }
     EXPR_NEED(expr_passes(frame, at, NULL, &open));
+    if (sprout_str_same(at, surround)) break;
   }
   if (open) EXPR_NEED(people_within(x, frame, surround, &teller, &heard, &heard_count, &capacity));
   *out = heard;

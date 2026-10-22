@@ -1828,9 +1828,9 @@ containment tree refuses to pass. In practice:
   first container out that refuses — so two visitors shut in one wardrobe
   can name each other. A shut box beside them still hides what is in it.
   A place is a wall of its own: rooms in a house that refuses, like the
-  world's places, are not in each other's range. (A voice is not walled
-  this way: a `tell` crosses into any place that passes, see Who hears
-  what.)
+  world's places, are not in each other's range. (A place that passes is
+  no wall to anything around it: a `tell` in the room is heard inside
+  it, see Who hears what.)
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 
@@ -1867,9 +1867,7 @@ taken`, `refuse hands_full`, `text arrival`.
 
 `tell` reaches every actor in the teller's place, and in the places
 inside it wherever everything between passes — a visitor in an open
-bucket in the room hears it, one in a shut wardrobe does not. Its own
-place's lid does not stop it: whoever is shut in with the teller hears
-it. It leaves out the actor and anyone taking part in the reading: those are
+bucket in the room hears it, one in a shut wardrobe does not. It leaves out the actor and anyone taking part in the reading: those are
 addressed separately, with `say` and `tell self`. So a verb usually has
 two lines, one for the actor and one for everyone else, and a target who
 is a person gets their own with `tell self`:

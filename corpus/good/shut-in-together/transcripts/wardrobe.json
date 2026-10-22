@@ -45,12 +45,10 @@
       { "reader": "Wren", "kind": "notice", "words": "You see nothing like that here." }
     ] },
     { "as": "Wren", "type": "open hatbox", "expect": [
-      { "reader": "Wren", "kind": "said", "words": "You open a hatbox. Inside: a hat." },
-      { "reader": "Marta", "kind": "told", "words": "Wren opens a hatbox." }
+      { "reader": "Wren", "kind": "said", "words": "You open a hatbox. Inside: a hat." }
     ] },
     { "as": "Wren", "type": "take hat", "expect": [
-      { "reader": "Wren", "kind": "said", "words": "You take a hat." },
-      { "reader": "Marta", "kind": "told", "words": "Wren takes a hat." }
+      { "reader": "Wren", "kind": "said", "words": "You take a hat." }
     ] },
     { "as": "Wren", "type": "give hat to marta", "expect": [
       { "reader": "Wren", "kind": "said", "words": "You give a hat to Marta." },

@@ -4865,7 +4865,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 8,
+        "steps": 9,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5030,7 +5030,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 8,
+        "steps": 9,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5134,7 +5134,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 11,
+        "steps": 12,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5185,7 +5185,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 11,
+        "steps": 12,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5236,7 +5236,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 12,
+        "steps": 13,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5418,7 +5418,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 9,
+        "steps": 10,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5594,7 +5594,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 18,
+        "steps": 19,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5723,7 +5723,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 11,
+        "steps": 12,
         "spawns": 0,
         "events": 0,
         "effects": [

@@ -280,16 +280,38 @@ static void a_tell_in_a_place_is_heard_in_the_places_inside_it_that_pass_and_not
   tw_close(&w);
 }
 
-static void a_tell_in_a_shut_place_is_heard_by_whoever_is_shut_in_it_and_in_what_passes_there(void) {
+static void a_voice_goes_into_the_places_inside_its_own_and_never_out(void) {
   turn_world w;
   sprout_outcome out;
   vessels_boarded(&w);
+  tw_do(&w, "v-wren", "ring", "hall.bucket.chime", 1000, &out);
+  CHECK(out.committed);
+  CHECK(tw_told(&out, "v-wren", "You ring a chime."));
+  CHECK(tw_told(&out, "v-marta", "Wren rings a chime."));
+  /* Not Ash in the hall around the bucket. */
+  CHECK_INT(out.line_count, 2);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_place_that_does_not_pass_is_not_heard_in_and_its_own_tell_crosses_in(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading open;
+  vessels_boarded(&w);
+  /* The shut wardrobe is asked, as the place the gong is rung in, and refuses. */
   tw_do(&w, "v-pip", "ring", "hall.wardrobe.gong", 1000, &out);
   CHECK(out.committed);
+  CHECK_INT(out.line_count, 1);
   CHECK(tw_told(&out, "v-pip", "You ring a gong."));
-  /* The wardrobe's own lid divides it from the hall, not from itself; the hamper inside passes. */
-  CHECK(tw_told(&out, "v-ivo", "Pip rings a gong."));
-  CHECK_INT(out.line_count, 2);
+  sprout_outcome_free(&out);
+  /* The wardrobe's own `tell` reaches Ivo through the open hamper, and the hall around it. */
+  open = tw_reading("sprout.open", tw_person(&w, "v-pip"), &filling, "target", "open_vessel_tells.hall.wardrobe");
+  tw_command(&w, "v-pip", &open, 1000, &out);
+  CHECK(out.committed);
+  CHECK(tw_told(&out, "v-ivo", "Pip opens the wardrobe."));
+  CHECK(tw_told(&out, "v-ash", "Pip opens the wardrobe."));
   sprout_outcome_free(&out);
   tw_close(&w);
 }
@@ -360,7 +382,8 @@ int main(void) {
   RUN(a_thing_in_an_open_container_a_person_carries_is_heard_by_them_and_in_a_shut_one_by_nobody);
   RUN(a_thing_in_someone_elses_hands_is_not_heard);
   RUN(a_tell_in_a_place_is_heard_in_the_places_inside_it_that_pass_and_not_through_a_lid);
-  RUN(a_tell_in_a_shut_place_is_heard_by_whoever_is_shut_in_it_and_in_what_passes_there);
+  RUN(a_voice_goes_into_the_places_inside_its_own_and_never_out);
+  RUN(a_place_that_does_not_pass_is_not_heard_in_and_its_own_tell_crosses_in);
   RUN(an_engine_line_is_found_on_the_one_it_is_about_then_its_place_then_the_world);
   RUN(effects_are_recorded_in_order_with_the_names_in_scope);
   RUN(the_golden_speech_cases_end_as_the_typescript_runtime_did);

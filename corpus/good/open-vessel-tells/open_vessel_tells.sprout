@@ -2,9 +2,10 @@
 // spec's Other people › Who hears it; Places inside places). A bell rung in
 // the hall is heard by a visitor riding the open bucket, and by one in the
 // open basket inside the bucket; not by one in the shut wardrobe, and not
-// once the bucket is shut. A gong rung in the shut wardrobe is heard by whoever
-// is in the open hamper there, though range's reach past the wardrobe's door
-// stops at the hamper, a place, so the two cannot name each other.
+// once the bucket is shut. A voice goes in, never out: a chime rung in the
+// bucket is heard in the basket and not in the hall. And a place that does
+// not pass is heard by nobody, even inside it: a gong rung in the shut
+// wardrobe is not heard in the open hamper there.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 
@@ -29,6 +30,8 @@ world open_vessel_tells is sprout.World {
         exit in  "into the basket"    -> hall.bucket.basket
       }
       describe { text "Inside the bucket." }
+
+      object chime is Bell { grammar { name "chime" } }
 
       object basket is Vessel {
         grammar { name "basket"  exit out "out to the bucket" -> hall.bucket }
