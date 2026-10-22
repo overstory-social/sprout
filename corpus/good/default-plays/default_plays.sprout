@@ -1,0 +1,51 @@
+// Plays written `default` (the spec's Kinds › How members combine): a base
+// kind answers every verb in one stock voice, and the answer steps aside,
+// `permit` and `do` alike, wherever another kind plays the same role for
+// the verb, by whatever path the default reached the thing. The cake is
+// Food and Readable, both Things, and reads and eats as each says; the
+// place mat is a Bag, a Box and Portable, and only Portable answers `pull`.
+import * as sprout from 'sprout'
+
+world default_plays is sprout.World {
+  visitors are Person
+  visitors arrive at kitchen
+
+  object kitchen is sprout.Place {
+    grammar { article the }
+    object cake is Food, Readable { grammar { nouns "cake" } }
+    object loaf is Food { grammar { nouns "loaf" } }
+    object mat is Bag { grammar { name "place mat"  nouns "mat" } }
+    object rock is Thing { grammar { nouns "rock" } }
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+verb read { role target  "read [target]" }
+verb eat { role target  "eat [target]" }
+verb pull { role target  "pull [target]"  "move [target]" }
+
+kind Thing {
+  as target for read default { do { say cannot_read } }
+  as target for eat default { permit { refuse inedible } }
+  as target for pull default { do { say no_budge } }
+  passage cannot_read { How does one read {self}? }
+  passage inedible { I don't think that {self} would agree with you. }
+  passage no_budge { Moving {self} reveals nothing. }
+}
+
+kind Food is Thing {
+  as target for eat { do { say "That really hit the spot." } }
+}
+
+kind Readable is Thing {
+  as target for read { do { say "The icing reads: “Eat me.”" } }
+}
+
+kind Box is Thing { }
+
+kind Portable is Thing {
+  as target for pull { do { say "You pull {self} toward you. There is nothing under it." } }
+}
+
+kind Bag is Box, Portable { }

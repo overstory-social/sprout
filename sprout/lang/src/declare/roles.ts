@@ -20,8 +20,20 @@
 // run for. A wildcard only permits, so it holds a `permit` and nothing
 // else; for a participant, its wildcard plays run before the ones for the
 // verb.
+//
+// A play written `default` steps aside, `permit` and `do` alike, in any
+// kind where another source's play of its role in its verb meets it, and
+// stays out of every kind composing that one, as a `without` would leave
+// it out (Kinds › How members combine). Where only defaults meet, the
+// composer's own replaces the rest, and two others are refused.
 
-import type { FromDeclaration, Ident, KindMember, PlayDeclaration } from '../syntax/ast.js';
+import type {
+  FromDeclaration,
+  Ident,
+  KindExpr,
+  KindMember,
+  PlayDeclaration,
+} from '../syntax/ast.js';
 import type { RoleDeclaration, VerbDeclaration } from '../syntax/ast-verbs.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import type { Span } from '../source/source.js';
@@ -312,6 +324,14 @@ function wildcardOf(play: PlayDeclaration, diagnostics: Diagnostics): Wildcard |
     );
     whole = false;
   }
+  if (play.yields === true) {
+    diagnostics.refuse(
+      play.head.at,
+      `\`as ${role.text} for any\` is written \`default\`, and only a play for one verb steps aside for another source's play of it.`,
+      `Take out \`default\`, or write \`as ${role.text === ACTOR_ROLE ? ACTOR_ROLE : '<role>'} for <verb> default { … }\` for the verb whose answer should step aside.`,
+    );
+    whole = false;
+  }
   for (const line of play.narrows) {
     diagnostics.refuse(
       line.at,
@@ -373,18 +393,34 @@ function exceptions(
   return whole ? except : null;
 }
 
+/** Whether a play was written `default`, and so steps aside for another source's. */
+function yieldsPlay(play: ResolvedPlay): boolean {
+  return play.declaration.yields === true;
+}
+
+/** The composer whose plays are composed: its name, its composed kinds as written, and how a kind is shown from it. */
+export interface PlaysComposer {
+  readonly name: string;
+  readonly written: readonly KindExpr[];
+  shown(identity: string): string;
+}
+
 /**
  * The plays a composer runs: for each role of each verb, what its composed
  * kinds run, each origin once in closure order, less what its own
- * `suppressed` leaves out, then its own. `reach` says which verb a bare
- * name in one of its own `without` lines reaches, by its full identity.
+ * `suppressed` leaves out, then its own, and less the defaults that step
+ * aside. `reach` says which verb a bare name in one of its own `without`
+ * lines reaches, by its full identity. `composed` and `composer.written`
+ * are in the order the composition list writes them.
  */
 export function composePlays(
+  composer: PlaysComposer,
   composed: readonly Plays[],
   order: readonly string[],
   suppressed: readonly Suppression[],
   own: ReadonlyMap<string, ResolvedPlay>,
   reach: (verb: string) => VerbIdentity | null,
+  diagnostics: Diagnostics,
 ): Plays {
   const keys: string[] = [];
   for (const plays of composed)
@@ -392,16 +428,67 @@ export function composePlays(
   for (const key of own.keys()) if (!keys.includes(key)) keys.push(key);
   const plays = new Map<string, readonly ResolvedPlay[]>();
   for (const key of keys) {
+    const mine = own.get(key);
     const runs = composeContributions(
       composed.map((one) => one.get(key) ?? []),
       order,
       suppressed,
-      own.get(key),
+      mine,
       (suppression, play) => leavesOut(suppression, play, reach),
     );
-    if (runs.length > 0) plays.set(key, runs);
+    const left = stepAside(composer, composed, key, runs, mine, diagnostics);
+    if (left.length > 0) plays.set(key, left);
   }
   return composedWhereSame(plays, composed);
+}
+
+/**
+ * What runs of one key once its defaults step aside: every play but the
+ * defaults where any play is not one; else the composer's own default
+ * alone where it writes one; else the one default that arrived. A
+ * composer's own default that a composed play displaces never runs, and
+ * two composed defaults with nothing else beside them are two answers to
+ * one question: both are refused, and the first kept.
+ */
+function stepAside(
+  composer: PlaysComposer,
+  composed: readonly Plays[],
+  key: string,
+  runs: readonly ResolvedPlay[],
+  mine: ResolvedPlay | undefined,
+  diagnostics: Diagnostics,
+): readonly ResolvedPlay[] {
+  if (!runs.some(yieldsPlay)) return runs;
+  const answering = runs.filter((play) => !yieldsPlay(play));
+  if (answering.length > 0) {
+    if (mine !== undefined && yieldsPlay(mine)) {
+      const by = readable(answering.map((play) => composer.shown(play.origin)));
+      const written = `as ${mine.role} for ${mine.verb}`;
+      diagnostics.refuse(
+        mine.declaration.head.at,
+        `\`${composer.name}\`'s own \`${written} default\` never runs: ${by} ${answering.length === 1 ? 'plays' : 'play'} \`${mine.role}\` for \`${mine.verb}\` in it, and a default steps aside for any other play.`,
+        `Take out \`default\` to run it beside ${answering.length === 1 ? 'that one' : 'them'}, or leave ${answering.length === 1 ? 'that one' : 'them'} out with \`without ${written} from ${composer.shown(answering[0]!.origin)}\` to answer in its place.`,
+      );
+    }
+    return answering;
+  }
+  if (mine !== undefined) return runs.length === 1 ? runs : [mine];
+  if (runs.length > 1) {
+    const second = runs[1]!;
+    const through = composed.findIndex((plays) =>
+      (plays.get(key) ?? []).some((play) => play.origin === second.origin),
+    );
+    const at = composer.written[through]?.at ?? second.declaration.head.at;
+    const written = `as ${second.role} for ${second.verb}`;
+    const from = readable(runs.map((play) => composer.shown(play.origin)));
+    diagnostics.refuse(
+      at,
+      `\`${composer.name}\` gets a default \`${written}\` from ${runs.length === 2 ? `both ${from}` : from}, and a default steps aside only for a play that is not one, so ${runs.length === 2 ? 'both' : 'all'} would answer.`,
+      `Write its own \`${written} { … }\` in \`${composer.name}\`, which the defaults step aside for, or its own \`${written} default { … }\`, which replaces them, or leave one out with \`without ${written} from ${composer.shown(second.origin)}\`.`,
+    );
+    return [runs[0]!];
+  }
+  return runs;
 }
 
 /** Whether a kind's plays include one of `role` for a verb that `origin` wrote itself. */

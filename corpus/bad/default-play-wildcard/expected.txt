@@ -1,0 +1,4 @@
+kinds.sprout:3:3  `as target for any` is written `default`, and only a play for one verb steps aside for another source's play of it.
+                  Take out `default`, or write `as <role> for <verb> default { … }` for the verb whose answer should step aside.
+
+refused: 1 problem
