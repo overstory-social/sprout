@@ -1,7 +1,7 @@
 /*
  * Tests for src/parse/words.c: the parser's word lists are the golden's, list by list and in order
  * (`corpus/goldens/parser-words.json`, a hand-kept golden), and a typed word is read
- * against them as that parser reads it.
+ * against them as that parser reads it, its quotation marks dropped where they open or close a word.
  */
 #include "parse_fixture.h"
 
@@ -136,6 +136,55 @@ static void articles_connectors_and_all_are_the_lists_words(void) {
   CHECK(!parse_is_all(bench_str("each")));
 }
 
+/* `line` as typed words with its quotation marks dropped, joined by single spaces into `out`. */
+static void unquoted(sprout_arena *arena, const char *line, char *out, size_t size) {
+  sprout_str *words;
+  size_t count, i, used = 0;
+  CHECK_INT(typed_words(arena, bench_str(line), &words, &count), SPROUT_OK);
+  count = parse_without_quotes(words, count);
+  out[0] = '\0';
+  for (i = 0; i < count; i++) {
+    /* Each word left is still NUL-terminated where it ends. */
+    CHECK_INT(strlen(words[i].bytes), words[i].length);
+    used += (size_t)snprintf(out + used, size - used, "%s%.*s", i > 0 ? " " : "", (int)words[i].length, words[i].bytes);
+  }
+}
+
+static void a_quotation_mark_that_opens_or_closes_a_word_is_dropped_and_one_inside_a_word_is_kept(void) {
+  test_heap heap;
+  sprout_host host = test_host(&heap);
+  sprout_arena arena;
+  char out[128];
+  sprout_arena_init(&arena, &host);
+  unquoted(&arena, "say \"well\"", out, sizeof out);
+  CHECK_STR(out, "say well");
+  unquoted(&arena, "answer \"a well\"", out, sizeof out);
+  CHECK_STR(out, "answer a well");
+  unquoted(&arena, "answer \"well\" to door", out, sizeof out);
+  CHECK_STR(out, "answer well to door");
+  unquoted(&arena, "take \"door\"", out, sizeof out);
+  CHECK_STR(out, "take door");
+  /* Curly and single, double and nested, and a closing mark before a comma. */
+  unquoted(&arena, "say \xe2\x80\x9cWell\xe2\x80\x9d, \xe2\x80\x98" "echo\xe2\x80\x99 '\"deep\"'", out, sizeof out);
+  CHECK_STR(out, "say well , echo deep");
+  /* An apostrophe inside a word, straight or curly, is the word's own. */
+  unquoted(&arena, "take king's crown", out, sizeof out);
+  CHECK_STR(out, "take king's crown");
+  unquoted(&arena, "say don\xe2\x80\x99t", out, sizeof out);
+  CHECK_STR(out, "say don\xe2\x80\x99t");
+  unquoted(&arena, "say 'don't'", out, sizeof out);
+  CHECK_STR(out, "say don't");
+  /* A mark without its pair is dropped all the same, and a word of marks alone is no word. */
+  unquoted(&arena, "answer \"well to door", out, sizeof out);
+  CHECK_STR(out, "answer well to door");
+  unquoted(&arena, "answer well\" to door", out, sizeof out);
+  CHECK_STR(out, "answer well to door");
+  unquoted(&arena, "\" '' \xe2\x80\x9c\xe2\x80\x9d", out, sizeof out);
+  CHECK_STR(out, "");
+  sprout_arena_reset(&arena);
+  CHECK_INT(heap.pages, 0);
+}
+
 int main(void) {
   RUN(the_lists_are_the_typescript_parsers_in_order);
   RUN(a_direction_is_written_out_or_abbreviated_and_in_and_out_have_no_shorter_form);
@@ -143,5 +192,6 @@ int main(void) {
   RUN(articles_connectors_and_all_are_the_lists_words);
   RUN(a_holder_word_is_one_word_or_out_of_and_is_counted_where_it_stands);
   RUN(a_plural_is_read_less_s_less_es_and_with_ies_as_y);
+  RUN(a_quotation_mark_that_opens_or_closes_a_word_is_dropped_and_one_inside_a_word_is_kept);
   return REPORT();
 }
