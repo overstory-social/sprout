@@ -698,6 +698,8 @@ Every binding is typed where it enters scope. There is no unknown receiver anywh
 | `actor` | `sprout.Actor`, a visitor or an NPC; anything more is read through `is()` |
 | `here` | the actor's place, or in an actor's own handler its own: `sprout.Place` where every kind in the world that holds actors composes it, else object |
 | `seen`, in a `describe` and the passages it invokes | symbol: one of `look`, `examine`, `arrival` and `poll`, an option written bare, `seen == :look` |
+| `refused`, in an `after command` | boolean: whether the command it follows was refused |
+| `way`, in an `after command` | symbol: the direction a refused `go` tried, one of the closed set under Exits written out, `way == :north`, inside `if (bound way)` only |
 | `mover`, in a guard | object; whatever proposed the move |
 | a role | the kind or value type the verb declares; object if it declares none |
 | a set role | as above, as a set |
@@ -756,7 +758,7 @@ A role's kind also constrains the parser. `dip pot in crate` fails to match rath
 | `x.holds(y)` | `x` a container; `y` an object binding; true when `y` is directly in `x` and in range of `self` |
 | `x.sees(K, :p)` | only in a place's `lit`; `x` a container; `K` a kind in scope; `p` a boolean `K` declares |
 | `x.is(K)` | `K` is a kind in scope; `x` an object binding, or a name read through the object type |
-| `bound x` | `x` an optional tool; inside the branch it guards, `x` is bound |
+| `bound x` | `x` an optional tool, or `way` in an `after command`; inside the branch it guards, `x` is bound |
 
 Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so a kind's own properties are readable there. That is how anything of object type is read. A name in a kind's body narrows the same way, `if (lamp.is(Lamp)) { lamp.get(:lit) }`, and the branch holds the object the condition resolved, so a move inside it cannot change what the name reaches.
 
@@ -929,7 +931,7 @@ There is no other statement for it. `tell target` needs no narrowing, since it n
 
 An understood command produces one **reading**: a verb, an actor, and its roles filled with objects or values. Running it is two passes over the participants, the actor first and then the roles in the order the verb declares them.
 
-The **consent pass** runs every `permit`. These are read-only — no writing, sending, moving or narrating — and the first refusal halts the whole reading, its text becoming the entire output. Same shape as `depart`, `release` and `accept`, for the same reason: a poll that can change the world is a poll you cannot trust.
+The **consent pass** runs every `permit`. These are read-only — no writing, sending, moving or narrating — and the first refusal halts the whole reading, its text becoming the reading's whole answer, which only what follows the command, under After a command, comes after. Same shape as `depart`, `release` and `accept`, for the same reason: a poll that can change the world is a poll you cannot trust.
 
 Within one participant, its plays of the role's category, `as tool for any` and `as target for any` under Roles compose, run before its plays for the verb, each in composition order; so `unlock chest with key` still reads the chest's refusal before the key's.
 
@@ -958,9 +960,9 @@ kind Lamp {
 }
 ```
 
-It runs once the command is over: after the effect pass, `nothing_happens` included where nothing else answered it, once the queue the reading filled has drained, and after what an engine verb answers, which follows the queue. So the visitor reads the place a move took them to, and whatever the move set off, before what follows the command, and `look` in a loud room reads the room and then the roar. The queue its own bodies fill drains after it. What runs is settled as it begins, nearest the visitor first: what they carry, in their hands and inside what they carry wherever every container between passes, as under Carried roles, so never through a shut tin; then the visitor; then each container that holds them, out to the world. Each runs every `after command` its kinds compose, in composition order, and one destroyed before its turn runs nothing. Inside, `self` is the one running, `actor` the visitor and `here` their place as it begins, where the command and its queue left them, and nothing else is bound. It acts and speaks as a `do` does — `say` and `tell actor` reach the visitor, and a plain `tell` everyone else who hears `self` — and never decides, so `refuse` and `allow` are refused in it. Each thing whose `after command` runs is one event against the turn's budget, and what it runs is charged to the turn's steps.
+It runs once the command is over: after the effect pass, `nothing_happens` included where nothing else answered it, once the queue the reading filled has drained, and after what an engine verb answers, which follows the queue. So the visitor reads the place a move took them to, and whatever the move set off, before what follows the command, and `look` in a loud room reads the room and then the roar. The queue its own bodies fill drains after it. What runs is settled as it begins, nearest the visitor first: what they carry, in their hands and inside what they carry wherever every container between passes, as under Carried roles, so never through a shut tin; then the visitor; then each container that holds them, out to the world. Each runs every `after command` its kinds compose, in composition order, and one destroyed before its turn runs nothing. Inside, `self` is the one running, `actor` the visitor and `here` their place as it begins, where the command and its queue left them; `refused` is true where the command was refused and false where it was not; and `way` is the direction a refused `go` tried, read only inside `if (bound way)`, since it is bound only where the command refused was a `go` through an exit. `way` is a symbol of the closed set of directions under Exits, written out, so `way == :north` is checked as `seen == :look` is and `way == :nrth` is refused. Nothing else is bound. It acts and speaks as a `do` does — `say` and `tell actor` reach the visitor, and a plain `tell` everyone else who hears `self` — and never decides, so `refuse` and `allow` are refused in it. Each thing whose `after command` runs is one event against the turn's budget, and what it runs is charged to the turn's steps.
 
-It follows a visitor's own command, whatever the verb, the engine's included: each turn of a line, as each step of an intent and each thing of `all` or a run is its own turn, under Sequences, again and all. It does not follow a reading its consent pass refused, a `go` whose exit refused, a line the parser answered, an NPC's reading, a reading an `act` performs, a tick, a wake, a message, an arrival or a departure. A body writes one; a second is refused.
+It follows a visitor's own command, whatever the verb, the engine's included, and whether it was allowed or refused: each turn of a line, as each step of an intent and each thing of `all` or a run is its own turn, under Sequences, again and all. A command refused, by its consent pass, by the exit it tried or by one of the move's guards, is followed once its refusal is said: the refusal stays the answer, and what follows comes after it, so a clock counts the move and a place can answer a visitor pushing at a way it bars. A refusal still ends the line it stands in. It does not follow a line the parser answered with one of the world's lines, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying`, since no command was read; nor an NPC's reading, a reading an `act` performs, a tick, a wake, a message, an arrival or a departure. A body writes one; a second is refused.
 
 ### Word order stops mattering
 
@@ -1164,7 +1166,7 @@ grammar {
 }
 ```
 
-`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words, as a refusal: nothing moves. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
+`refuse` and its words stand in place of `->` and a destination: words in quotes, a one-line passage, or the name of a passage of the place, as `refuse` takes them elsewhere. An exit that refuses applies as any exit does, under An exit may be conditional, and going that way is answered with its words, as a refusal: nothing moves, and what follows a command follows it, with the exit's direction as `way`, under After a command. It is a way that does not go, so it is never offered: no chip, no reading among `help`'s or the view's, not among the view's exits, and not counted against a place's exits.
 
 An exit that leads may say something to whoever takes it, which is how a way narrates itself:
 
@@ -1998,7 +2000,7 @@ A world's state belongs to the files it started with, or to an earlier version o
 - `move` through a way, `move x north` or `move x along an exit`, of anything but `self`, or in a body whose kind does not compose `sprout.Actor`; a direction outside the closed set, or abbreviated.
 - A visitor kind that does not compose `sprout.Visitor`, or that is not one of the world's own kinds: `visitors are sprout.Visitor` included.
 - `optional` on any role of a verb that has phrases, or on the target of one that has none; a phrase that does not name the verb's target.
-- An optional tool read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
+- An optional tool, or `way` in an `after command`, read outside `if (bound x)`; `bound` on a tool that is not optional, or on a `symbol` or `integer` tool with no `from`.
 - `many` on a `symbol` or `integer` tool.
 - An unknown kind, enum, verb, message, property, passage, exit target or extension; an undeclared message sent or handled; a name declared in another file that the file does not import; a dotted name whose first part is neither an imported namespace nor an object path's first step.
 - An import from a specifier that reaches no file or library of the bundle, or of a name its file does not declare at its top level; one name imported twice into a file, or imported under a name the file declares; a world file whose path is a library's name.
@@ -2070,7 +2072,7 @@ Everything that runs is a **turn**, and there are five kinds:
 
 Write turns on one world are serialized under a lock and run in a transaction: a fault abandons the transaction, and the world is exactly as it was; a maintenance turn abandons only the part that faulted, under Faults. A poll runs against the last committed state, holds no lock, draws no seed, and has its own step budget; it may run while a write turn runs, and sees the state before it.
 
-Within a command turn, the order is fixed: parse; the consent pass; the effect pass, actor first and then roles in declared order; the queue, breadth-first in insertion order, including any reading an `act` starts and the messages a `move` sends; what an engine verb answers; every `after command` that follows the command, and then the queue its bodies fill; then the views of everyone present are marked stale. `act` runs its reading inline where it stands, and a `move`'s guards run inline where it stands, since guards are pure.
+Within a command turn, the order is fixed: parse; the consent pass; the effect pass, actor first and then roles in declared order; the queue, breadth-first in insertion order, including any reading an `act` starts and the messages a `move` sends; what an engine verb answers; every `after command` that follows the command, a refused one's included once its refusal is said, and then the queue its bodies fill; then the views of everyone present are marked stale. `act` runs its reading inline where it stands, and a `move`'s guards run inline where it stands, since guards are pure.
 
 ### The view
 

@@ -1,6 +1,6 @@
 // A lamp burns down by the command, not by the clock: lit and carried, it
 // is a little lower after every command its bearer makes, and goes out
-// after its fifth. Set down, or shut in a tin, it follows nobody's
+// after its sixth. Set down, or shut in a tin, it follows nobody's
 // commands, so it keeps what it has.
 import * as sprout from 'sprout'
 
@@ -8,7 +8,7 @@ verb light { role target: Lamp  "light [target]" }
 
 kind Lamp {
   :lit false
-  :charge 5
+  :charge 6
 
   grammar { name "lamp"  article a }
 

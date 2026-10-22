@@ -323,6 +323,32 @@ static void what_follows_a_submitted_reading_runs_once_its_queue_has_drained(voi
   tw_close(&w);
 }
 
+/* A refused reading is followed too: its refusal comes back on its own, and what follows it among the effects. */
+static void what_follows_a_refused_submitted_reading_runs_too(void) {
+  turn_world w;
+  sprout_outcome arrived;
+  sprout_filling lamp;
+  sprout_reading reading;
+  sprout_reading_outcome outcome;
+  const char *verbs[] = {"sprout.take", "after_command.light", "after_command.light"};
+  size_t i;
+  tw_open(&w, "after-command");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &arrived);
+  sprout_outcome_free(&arrived);
+  for (i = 0; i < 3; i++) {
+    reading = tw_reading(verbs[i], tw_person(&w, "v-wren"), &lamp, "target", "after_command.cellar.lamp");
+    CHECK_INT(sprout_reading_run(w.world, w.state, &reading, 1001 + i, &outcome), SPROUT_OK);
+    if (i < 2) sprout_reading_outcome_free(&outcome);
+  }
+  CHECK_INT(outcome.end, SPROUT_READ_REFUSED);
+  CHECK(outcome.refused != NULL && strstr(outcome.refused, "It is already lit.") != NULL);
+  CHECK(strstr(outcome.effects, "The lamp burns a little lower.") != NULL);
+  CHECK(strstr(outcome.effects, "Nothing stirs in the still cellar.") != NULL);
+  sprout_reading_outcome_free(&outcome);
+  CHECK_INT(tw_property(&w, "after_command", "commands"), 3);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(every_golden_reading_submitted_comes_back_as_the_golden_ends_it);
   RUN(a_reading_the_world_cannot_take_is_bad_input_in_words);
@@ -331,5 +357,6 @@ int main(void) {
   RUN(a_run_with_nothing_to_run_it_on_is_bad_input);
   RUN(the_world_a_committed_reading_leaves_is_the_one_the_next_reading_runs_in);
   RUN(what_follows_a_submitted_reading_runs_once_its_queue_has_drained);
+  RUN(what_follows_a_refused_submitted_reading_runs_too);
   return REPORT();
 }

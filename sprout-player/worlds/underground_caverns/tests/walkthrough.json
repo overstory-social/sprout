@@ -517,7 +517,7 @@
       { "reader": "Marta", "kind": "said", "words": "A ancient map" }
     ] },
     { "as": "Marta", "type": "quit", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "Your score is 350 (total of 350 points), in 339 moves." },
+      { "reader": "Marta", "kind": "said", "words": "Your score is 350 (total of 350 points), in 343 moves." },
       { "reader": "Marta", "kind": "said", "words": "This gives you the rank of Master Adventurer." },
       { "reader": "Marta", "kind": "said", "words": "There is no quitting the Great Underground Empire from inside it. Walk away whenever you like; it will keep your place, and your score, until you come back." }
     ] },
