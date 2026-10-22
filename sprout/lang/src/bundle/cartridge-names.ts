@@ -16,8 +16,8 @@ import type { Ident, ObjectPath } from '../syntax/ast.js';
 import type { Span } from '../source/source.js';
 import type { Rewrite } from './cartridge-graph.js';
 
-/** What a field holds: one name, an object path, or a list of names (each possibly null). */
-type NameField = 'name' | 'path' | 'names';
+/** What a field holds: one name, an object path, a list of names (each possibly null), or a list of paths. */
+type NameField = 'name' | 'path' | 'names' | 'paths';
 
 /** Every field of a node that holds a name, by the node's kind. */
 export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameField>>>> = {
@@ -59,7 +59,7 @@ export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameFi
   move: { thing: 'path', destination: 'path' },
   'move-through': { thing: 'path', direction: 'name' },
   'named-type': { library: 'name', name: 'name' },
-  object: { name: 'name', placedIn: 'path' },
+  object: { name: 'name', placedIn: 'path', places: 'paths' },
   option: { name: 'name' },
   'option-literal': { name: 'name' },
   pass: { message: 'name' },
@@ -158,6 +158,15 @@ export function namesWritten(bound: ReadonlySet<object>): NamesWritten {
         }
         return written;
       }
+      case 'paths': {
+        const list = value as readonly ObjectPath[];
+        let written = lists.get(list);
+        if (written === undefined) {
+          written = list.map(pathCell);
+          lists.set(list, written);
+        }
+        return written;
+      }
       case undefined:
         if (isName(value)) throw new Error(`a cartridge holds no name at ${where}`);
         return value;
@@ -197,12 +206,15 @@ export function restoreNames(object: Record<string, unknown>, nowhere: Span): vo
   for (const [key, field] of Object.entries(NAME_FIELDS[kind]!)) {
     if (!(key in object)) continue;
     const value = object[key];
+    const path = (one: unknown): unknown =>
+      typeof one === 'string'
+        ? { kind: 'path', parts: one.split('.').map(ident), at: nowhere }
+        : kindOf(one) === 'ident'
+          ? { kind: 'path', parts: [one], at: nowhere }
+          : one;
     if (field === 'name') object[key] = name(value);
     else if (field === 'names') object[key] = (value as readonly unknown[]).map(name);
-    else if (typeof value === 'string') {
-      object[key] = { kind: 'path', parts: value.split('.').map(ident), at: nowhere };
-    } else if (kindOf(value) === 'ident') {
-      object[key] = { kind: 'path', parts: [value], at: nowhere };
-    }
+    else if (field === 'paths') object[key] = (value as readonly unknown[]).map(path);
+    else object[key] = path(value);
   }
 }

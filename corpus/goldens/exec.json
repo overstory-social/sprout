@@ -835,7 +835,7 @@
     {
       "name": "a let is bound for the rest of the block",
       "area": "write",
-      "node": 690,
+      "node": 696,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -880,7 +880,7 @@
     {
       "name": "set a string",
       "area": "write",
-      "node": 702,
+      "node": 708,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -919,7 +919,7 @@
     {
       "name": "set an option",
       "area": "write",
-      "node": 708,
+      "node": 714,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -958,7 +958,7 @@
     {
       "name": "adjust clamps at the top",
       "area": "write",
-      "node": 714,
+      "node": 720,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1003,7 +1003,7 @@
     {
       "name": "adjust clamps at the bottom",
       "area": "write",
-      "node": 722,
+      "node": 728,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1048,7 +1048,7 @@
     {
       "name": "add an element to a list",
       "area": "write",
-      "node": 730,
+      "node": 736,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1087,7 +1087,7 @@
     {
       "name": "add an element the list holds",
       "area": "write",
-      "node": 736,
+      "node": 742,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1126,7 +1126,7 @@
     {
       "name": "remove an element from a list",
       "area": "write",
-      "node": 742,
+      "node": 748,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1165,7 +1165,7 @@
     {
       "name": "remove an element the list lacks",
       "area": "write",
-      "node": 748,
+      "node": 754,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1204,7 +1204,7 @@
     {
       "name": "a new element in a full list faults",
       "area": "write",
-      "node": 754,
+      "node": 760,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1238,7 +1238,7 @@
     {
       "name": "remember writes what self remembers about an actor",
       "area": "write",
-      "node": 760,
+      "node": 766,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1279,7 +1279,7 @@
     {
       "name": "adjust on memory steps from the default",
       "area": "write",
-      "node": 771,
+      "node": 777,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1320,7 +1320,7 @@
     {
       "name": "adjust on memory steps from what was written",
       "area": "write",
-      "node": 782,
+      "node": 788,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1361,7 +1361,7 @@
     {
       "name": "a write that changes a watched property queues its hook",
       "area": "write",
-      "node": 793,
+      "node": 799,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1406,7 +1406,7 @@
     {
       "name": "a write that changes nothing queues no hook",
       "area": "write",
-      "node": 799,
+      "node": 805,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1445,7 +1445,7 @@
     {
       "name": "two changes queue two hooks, each with the value it replaced",
       "area": "write",
-      "node": 805,
+      "node": 811,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1495,7 +1495,7 @@
     {
       "name": "a value the property cannot hold faults",
       "area": "write",
-      "node": 816,
+      "node": 822,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1529,7 +1529,7 @@
     {
       "name": "only self writes self",
       "area": "write",
-      "node": 826,
+      "node": 832,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1565,7 +1565,7 @@
     {
       "name": "text reaches a body that acts",
       "area": "write",
-      "node": 832,
+      "node": 838,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1599,7 +1599,7 @@
     {
       "name": "an if takes its then",
       "area": "if",
-      "node": 834,
+      "node": 840,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1638,7 +1638,7 @@
     {
       "name": "an if takes its else",
       "area": "if",
-      "node": 853,
+      "node": 859,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1677,7 +1677,7 @@
     {
       "name": "an else if is a step of its own",
       "area": "if",
-      "node": 872,
+      "node": 878,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1716,7 +1716,7 @@
     {
       "name": "a let lives to the end of its block",
       "area": "if",
-      "node": 903,
+      "node": 909,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1761,7 +1761,7 @@
     {
       "name": "a condition that narrows a name binds it in its branch",
       "area": "if",
-      "node": 920,
+      "node": 926,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1806,7 +1806,7 @@
     {
       "name": "each visits what a container holds that composes the kind",
       "area": "each",
-      "node": 930,
+      "node": 936,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1851,7 +1851,7 @@
     {
       "name": "each visits every thing without a filter",
       "area": "each",
-      "node": 939,
+      "node": 945,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1901,7 +1901,7 @@
     {
       "name": "each walks a shut chest as empty",
       "area": "each",
-      "node": 947,
+      "node": 953,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1940,7 +1940,7 @@
     {
       "name": "each walks an open chest",
       "area": "each",
-      "node": 947,
+      "node": 953,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -1990,7 +1990,7 @@
     {
       "name": "an each inside an each is charged by the step",
       "area": "each",
-      "node": 963,
+      "node": 969,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2050,7 +2050,7 @@
     {
       "name": "an each past the step budget faults",
       "area": "each",
-      "node": 973,
+      "node": 979,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2085,7 +2085,7 @@
     {
       "name": "what an each walks is fixed before its first visit",
       "area": "each",
-      "node": 983,
+      "node": 989,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2140,7 +2140,7 @@
     {
       "name": "a refused move in an each ends the body",
       "area": "each",
-      "node": 987,
+      "node": 993,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2217,7 +2217,7 @@
     {
       "name": "a move that every party allows",
       "area": "move",
-      "node": 996,
+      "node": 1002,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2267,7 +2267,7 @@
     {
       "name": "a move into a full place is refused by its accept, in its passage",
       "area": "move",
-      "node": 998,
+      "node": 1004,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2330,7 +2330,7 @@
     {
       "name": "depart is asked before accept",
       "area": "move",
-      "node": 1000,
+      "node": 1006,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2388,7 +2388,7 @@
     {
       "name": "release is asked before accept",
       "area": "move",
-      "node": 1002,
+      "node": 1008,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2449,7 +2449,7 @@
     {
       "name": "release refuses alone",
       "area": "move",
-      "node": 1004,
+      "node": 1010,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2510,7 +2510,7 @@
     {
       "name": "an allow ends the guard that wrote it",
       "area": "move",
-      "node": 1006,
+      "node": 1012,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2560,7 +2560,7 @@
     {
       "name": "a guard that reaches its refuse refuses",
       "area": "move",
-      "node": 1008,
+      "node": 1014,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2621,7 +2621,7 @@
     {
       "name": "a refused move ends the body",
       "area": "move",
-      "node": 1010,
+      "node": 1016,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2684,7 +2684,7 @@
     {
       "name": "nothing goes inside itself",
       "area": "move",
-      "node": 1017,
+      "node": 1023,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2741,7 +2741,7 @@
     {
       "name": "a move into what holds nothing faults",
       "area": "move",
-      "node": 1019,
+      "node": 1025,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2777,7 +2777,7 @@
     {
       "name": "a move of what is out of range faults",
       "area": "move",
-      "node": 1021,
+      "node": 1027,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2813,7 +2813,7 @@
     {
       "name": "a move into what is out of range faults",
       "area": "move",
-      "node": 1019,
+      "node": 1025,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -2849,7 +2849,7 @@
     {
       "name": "an actor moved between places is told, and the places tell their people",
       "area": "move",
-      "node": 1358,
+      "node": 1364,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -2935,7 +2935,7 @@
     {
       "name": "a place speaks to the people in its range when someone arrives",
       "area": "move",
-      "node": 1360,
+      "node": 1366,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3021,7 +3021,7 @@
     {
       "name": "an actor is not put in what holds no actors",
       "area": "move",
-      "node": 1362,
+      "node": 1368,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3078,7 +3078,7 @@
     {
       "name": "a move into a full place meets crowded before any guard",
       "area": "move",
-      "node": 1364,
+      "node": 1370,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3140,7 +3140,7 @@
     {
       "name": "without a crowd the same move meets the guards",
       "area": "move",
-      "node": 1364,
+      "node": 1370,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -3202,7 +3202,7 @@
     {
       "name": "a spawn within the host’s bound on instances",
       "area": "spawn",
-      "node": 1025,
+      "node": 1031,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3247,7 +3247,7 @@
     {
       "name": "a spawn past the host’s bound on instances faults",
       "area": "spawn",
-      "node": 1025,
+      "node": 1031,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3281,7 +3281,7 @@
     {
       "name": "a binding to a destroyed object stays readable for the rest of the turn",
       "area": "destroy",
-      "node": 1031,
+      "node": 1037,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3291,7 +3291,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1623,
+        "node": 1630,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3331,7 +3331,7 @@
     {
       "name": "a destroyed object is not destroyed again",
       "area": "destroy",
-      "node": 1630,
+      "node": 1637,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3339,7 +3339,7 @@
       "bind": {},
       "heard": [],
       "prior": {
-        "node": 1630,
+        "node": 1637,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3368,7 +3368,7 @@
     {
       "name": "a destroyed object is out of range of a move",
       "area": "destroy",
-      "node": 1046,
+      "node": 1052,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3378,7 +3378,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1630,
+        "node": 1637,
         "self": "exec_bench#8"
       },
       "speaker": null,
@@ -3407,7 +3407,7 @@
     {
       "name": "a spawn into a destroyed container is out of range",
       "area": "destroy",
-      "node": 1048,
+      "node": 1054,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3417,7 +3417,7 @@
       },
       "heard": [],
       "prior": {
-        "node": 1630,
+        "node": 1637,
         "self": "exec_bench#12"
       },
       "speaker": null,
@@ -3446,7 +3446,7 @@
     {
       "name": "a spawn makes an instance in a container",
       "area": "spawn",
-      "node": 1051,
+      "node": 1057,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3496,7 +3496,7 @@
     {
       "name": "a let names the spawned object",
       "area": "spawn",
-      "node": 1054,
+      "node": 1060,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3551,7 +3551,7 @@
     {
       "name": "a spawn is given what its kind holds",
       "area": "spawn",
-      "node": 1025,
+      "node": 1031,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3596,7 +3596,7 @@
     {
       "name": "a spawn past the budget faults",
       "area": "spawn",
-      "node": 1062,
+      "node": 1068,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3631,7 +3631,7 @@
     {
       "name": "a spawn out of range faults",
       "area": "spawn",
-      "node": 1048,
+      "node": 1054,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3667,7 +3667,7 @@
     {
       "name": "a spawn into what holds nothing faults",
       "area": "spawn",
-      "node": 1048,
+      "node": 1054,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -3703,7 +3703,7 @@
     {
       "name": "destroy takes effect where the body ends",
       "area": "destroy",
-      "node": 1636,
+      "node": 1643,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3742,7 +3742,7 @@
     {
       "name": "finally destroy waits until the queue is empty",
       "area": "destroy",
-      "node": 1643,
+      "node": 1650,
       "mode": "act",
       "self": "exec_bench#8",
       "library": "exec_bench",
@@ -3787,7 +3787,7 @@
     {
       "name": "a destroyed object takes what it sent with it",
       "area": "destroy",
-      "node": 1646,
+      "node": 1653,
       "mode": "act",
       "self": "exec_bench#10",
       "library": "exec_bench",
@@ -3826,7 +3826,7 @@
     {
       "name": "a destroyed container takes what it held",
       "area": "destroy",
-      "node": 1654,
+      "node": 1661,
       "mode": "act",
       "self": "exec_bench#12",
       "library": "exec_bench",
@@ -3865,7 +3865,7 @@
     {
       "name": "connect leads a link to a place",
       "area": "connect",
-      "node": 1192,
+      "node": 1198,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3910,7 +3910,7 @@
     {
       "name": "connecting a link again replaces where it leads",
       "area": "connect",
-      "node": 1197,
+      "node": 1203,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3960,7 +3960,7 @@
     {
       "name": "a link cannot lead to what holds no actors",
       "area": "connect",
-      "node": 1206,
+      "node": 1212,
       "mode": "act",
       "self": "exec_bench.hall.cell",
       "library": "exec_bench",
@@ -3994,7 +3994,7 @@
     {
       "name": "a send is delivered once the body has ended, and answered",
       "area": "send",
-      "node": 1073,
+      "node": 1079,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4044,7 +4044,7 @@
     {
       "name": "sends are delivered in the order queued, breadth-first",
       "area": "send",
-      "node": 1075,
+      "node": 1081,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4099,7 +4099,7 @@
     {
       "name": "a send to what is out of range goes nowhere",
       "area": "send",
-      "node": 1078,
+      "node": 1084,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4138,7 +4138,7 @@
     {
       "name": "a send to what is in range of an open chest is delivered",
       "area": "send",
-      "node": 1078,
+      "node": 1084,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4183,7 +4183,7 @@
     {
       "name": "a broadcast walks the sender’s range, into a container that passes the message",
       "area": "send",
-      "node": 1082,
+      "node": 1088,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4253,7 +4253,7 @@
     {
       "name": "a broadcast reaches into an open chest",
       "area": "send",
-      "node": 1082,
+      "node": 1088,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4333,7 +4333,7 @@
     {
       "name": "an each stops at a container that refuses the question",
       "area": "each",
-      "node": 1086,
+      "node": 1092,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4372,7 +4372,7 @@
     {
       "name": "a cascade past the depth budget faults",
       "area": "bus",
-      "node": 1094,
+      "node": 1100,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4407,7 +4407,7 @@
     {
       "name": "a cascade within a smaller depth budget faults at it",
       "area": "bus",
-      "node": 1097,
+      "node": 1103,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4442,7 +4442,7 @@
     {
       "name": "events past the budget fault",
       "area": "bus",
-      "node": 1100,
+      "node": 1106,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4477,7 +4477,7 @@
     {
       "name": "a hook and a handler each run in the order queued",
       "area": "bus",
-      "node": 1103,
+      "node": 1109,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4532,7 +4532,7 @@
     {
       "name": "a wake is raised to the host’s shortest",
       "area": "wake",
-      "node": 1110,
+      "node": 1116,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4571,7 +4571,7 @@
     {
       "name": "a wake asked for longer is kept",
       "area": "wake",
-      "node": 1113,
+      "node": 1119,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4610,7 +4610,7 @@
     {
       "name": "a wake past the pending cap faults",
       "area": "wake",
-      "node": 1116,
+      "node": 1122,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4644,7 +4644,7 @@
     {
       "name": "wakes are kept oldest first",
       "area": "wake",
-      "node": 1121,
+      "node": 1127,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4683,7 +4683,7 @@
     {
       "name": "a host’s longer floor raises a wake further",
       "area": "wake",
-      "node": 1126,
+      "node": 1132,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4722,7 +4722,7 @@
     {
       "name": "cancel wakes takes back every pending wake",
       "area": "wake",
-      "node": 1129,
+      "node": 1135,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4761,7 +4761,7 @@
     {
       "name": "cancel wakes then wake puts off what was coming",
       "area": "wake",
-      "node": 1131,
+      "node": 1137,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4800,7 +4800,7 @@
     {
       "name": "cancel wakes with none pending does nothing",
       "area": "wake",
-      "node": 1135,
+      "node": 1141,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4839,7 +4839,7 @@
     {
       "name": "a tell reaches the people in the teller’s place",
       "area": "speech",
-      "node": 1138,
+      "node": 1144,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4890,7 +4890,7 @@
     {
       "name": "a tell to one reaches a person in range",
       "area": "speech",
-      "node": 1140,
+      "node": 1146,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -4947,7 +4947,7 @@
     {
       "name": "a tell to one out of range reaches nobody",
       "area": "speech",
-      "node": 1142,
+      "node": 1148,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5004,7 +5004,7 @@
     {
       "name": "a tell may name a passage",
       "area": "speech",
-      "node": 1144,
+      "node": 1150,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5057,7 +5057,7 @@
     {
       "name": "a tell inside reaches only the teller’s own occupants",
       "area": "speech",
-      "node": 1183,
+      "node": 1189,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5108,7 +5108,7 @@
     {
       "name": "a tell outside reaches only the place around the teller",
       "area": "speech",
-      "node": 1185,
+      "node": 1191,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5159,7 +5159,7 @@
     {
       "name": "a plain tell from a place that holds actors reaches both audiences",
       "area": "speech",
-      "node": 1187,
+      "node": 1193,
       "mode": "act",
       "self": "exec_bench.hall.wardrobe",
       "library": "exec_bench",
@@ -5210,7 +5210,7 @@
     {
       "name": "a tell carries every name in scope",
       "area": "speech",
-      "node": 1146,
+      "node": 1152,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5265,7 +5265,7 @@
     {
       "name": "a say is heard by whoever the body speaks to",
       "area": "speech",
-      "node": 671,
+      "node": 677,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5326,7 +5326,7 @@
     {
       "name": "a say may name a passage",
       "area": "speech",
-      "node": 673,
+      "node": 679,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5389,7 +5389,7 @@
     {
       "name": "a tell leaves out the people the reading addresses",
       "area": "speech",
-      "node": 675,
+      "node": 681,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5468,7 +5468,7 @@
     {
       "name": "an NPC’s line is heard from it",
       "area": "speech",
-      "node": 1356,
+      "node": 1362,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5529,7 +5529,7 @@
     {
       "name": "an act names its roles by what they are bound to",
       "area": "act",
-      "node": 1368,
+      "node": 1374,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5568,7 +5568,7 @@
     {
       "name": "an act the consent pass refuses is said to whoever hears the actor and ends the body",
       "area": "act",
-      "node": 1370,
+      "node": 1376,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5626,7 +5626,7 @@
     {
       "name": "an act at what is out of the actor’s range faults the turn",
       "area": "act",
-      "node": 1377,
+      "node": 1383,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5662,7 +5662,7 @@
     {
       "name": "an act is one level deeper against the cascade depth",
       "area": "act",
-      "node": 1368,
+      "node": 1374,
       "mode": "act",
       "self": "exec_bench.hall.dog",
       "library": "exec_bench",
@@ -5697,7 +5697,7 @@
     {
       "name": "an extension’s statement records an effect for the people in the place",
       "area": "extension",
-      "node": 1153,
+      "node": 1159,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5750,7 +5750,7 @@
     {
       "name": "recording past the host’s cap faults",
       "area": "extension",
-      "node": 1153,
+      "node": 1159,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",
@@ -5785,7 +5785,7 @@
     {
       "name": "an extension the host does not install records nothing",
       "area": "extension",
-      "node": 1161,
+      "node": 1167,
       "mode": "act",
       "self": "exec_bench.hall.runner",
       "library": "exec_bench",

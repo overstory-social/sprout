@@ -1,0 +1,22 @@
+// A thing in more than one place stands only in places (the spec's The
+// world model › One thing in several places): not in a container, not in
+// the world, not in one place twice, and not where nothing is.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world several_places_not_places is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object chest is sprout.Container { }
+  }
+  object yard is sprout.Place { }
+}
+
+object bell is Bell in hall, hall.chest
+object gong is Bell in several_places_not_places, yard
+object horn is Bell in hall, yard, hall
+object drum is Bell in hall, yrad
+
+kind Bell { }

@@ -7,6 +7,11 @@
 // it holds still has somewhere to be. What a kind's body holds is a node
 // under each instance of the kind, one declaration placed many times.
 //
+// An object declared in several places (The world model › One thing in
+// several places) is placed once, under the first, and stands in each of
+// the others as a lobe: what a place holds there, for naming, beside what
+// it holds. It holds nothing, so nothing is ever placed under a lobe.
+//
 // A name resolves nearest first, walking outward one container at a time
 // to the world (`resolveFrom`), so an object that hides one of its name
 // further out is warned about once the tree is whole; a first step read
@@ -47,6 +52,8 @@ export interface Placement {
   readonly kind: KindRef | null;
   /** What it holds, by name, in the order declared. */
   readonly holds: ReadonlyMap<string, Placement>;
+  /** The other places it stands in, beside its container, where it is declared in several. */
+  readonly alsoIn?: readonly TreePath[];
 }
 
 /** The tree: the world at its root, and every object that was placed. */
@@ -59,6 +66,8 @@ export interface ObjectTree {
   readonly placed: ReadonlyMap<string, Placement>;
   /** The same, by what was placed. */
   readonly placements: ReadonlyMap<Placeable, Placement>;
+  /** What stands in each place declared in another place too, by name, under the place's `pathKey`. */
+  readonly lobes: ReadonlyMap<string, ReadonlyMap<string, Placement>>;
 }
 
 /** What a path resolves to from somewhere in the tree. */
@@ -79,9 +88,18 @@ export function pathKey(path: TreePath): string {
   return path.join('.');
 }
 
+/** What a node holds with what stands in it as a lobe, by name. */
+function standingIn(tree: ObjectTree, node: Placement): ReadonlyMap<string, Placement> {
+  if (tree.lobes.size === 0) return node.holds;
+  const lobes = tree.lobes.get(pathKey(node.path));
+  return lobes === undefined ? node.holds : new Map([...node.holds, ...lobes]);
+}
+
 /**
  * What each node from the world down to `vantage` holds, the world's
- * first, as far down as the vantage is placed.
+ * first, as far down as the vantage is placed. Below an object in several
+ * places, each of its other places stands beside its first, which is
+ * nearer.
  */
 function ringsTo(tree: ObjectTree, vantage: TreePath): ReadonlyMap<string, Placement>[] {
   const rings = [tree.holds];
@@ -89,7 +107,11 @@ function ringsTo(tree: ObjectTree, vantage: TreePath): ReadonlyMap<string, Place
   for (const name of vantage) {
     const next = holds.get(name);
     if (next === undefined) break;
-    holds = next.holds;
+    for (const other of next.alsoIn ?? []) {
+      const place = tree.placed.get(pathKey(other));
+      if (place !== undefined) rings.splice(rings.length - 1, 0, standingIn(tree, place));
+    }
+    holds = standingIn(tree, next);
     rings.push(holds);
   }
   return rings;
@@ -145,7 +167,7 @@ export function resolveFrom(tree: ObjectTree, vantage: TreePath, path: TreePath)
   for (; step < path.length; step++) {
     const name = path[step]!;
     if (name === tree.world) return { found: 'world-inside', step };
-    const next: Placement | undefined = reached.holds.get(name);
+    const next: Placement | undefined = standingIn(tree, reached).get(name);
     if (next === undefined) return { found: 'missing', step, within: reached.path };
     reached = next;
   }
@@ -180,7 +202,10 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
   const placed = new Map<string, Placement>();
   const placements = new Map<Placeable, Placement>();
   const worldHolds = new Map<string, Placement>();
-  const tree: ObjectTree = { world, holds: worldHolds, placed, placements };
+  const lobes = new Map<string, Map<string, Placement>>();
+  const tree: ObjectTree = { world, holds: worldHolds, placed, placements, lobes };
+  /** The other places of each object declared in several, filled once every object is placed. */
+  const others = new Map<Placement, TreePath[]>();
   /** Every placed node's contents, writable while placing. */
   const writable = new Map<Placeable, { at: Placement; holds: Map<string, Placement> }>();
 
@@ -224,21 +249,120 @@ export function placeObjects(objects: readonly Placeable[], context: TreeContext
     }
     const container = holder === null ? [] : holder.at.path;
     const holds = new Map<string, Placement>();
+    const alsoIn: TreePath[] = [];
     const placement: Placement = {
       path: [...container, name],
       container,
       declaration,
       kind,
       holds,
+      ...(declaration.places === undefined ? {} : { alsoIn }),
     };
+    if (declaration.places !== undefined) others.set(placement, alsoIn);
     writable.set(object, { at: placement, holds });
     siblings.set(name, placement);
     placed.set(pathKey(placement.path), placement);
     placements.set(object, placement);
   }
 
+  for (const [placement, alsoIn] of others) {
+    standInPlaces(tree, placement, alsoIn, lobes, diagnostics);
+  }
   warnHidden(tree, diagnostics);
   return tree;
+}
+
+/**
+ * Stand an object declared in several places in each place after its
+ * first, as `alsoIn` and as a lobe of each (the spec's The world model ›
+ * One thing in several places). Each path names a place, and each place
+ * once; the object holds nothing, since what it held would be in every
+ * place at once. What is refused is said at what was written, and a
+ * refused object stands only where it was placed.
+ */
+function standInPlaces(
+  tree: ObjectTree,
+  placement: Placement,
+  alsoIn: TreePath[],
+  lobes: Map<string, Map<string, Placement>>,
+  diagnostics: Sayer,
+): void {
+  const { declaration, kind } = placement;
+  const name = declaration.name.text;
+  const written = declaration.places ?? [];
+  let refused = false;
+  if (kind !== null && kind.contains) {
+    diagnostics.refuse(
+      declaration.name.at,
+      `\`${name}\` stands in more than one place, so it cannot hold things: what it held would be in every one of them at once.`,
+      `Leave out what lets \`${name}\` hold things (\`contains\`, or a kind such as \`sprout.Container\`), or name one place it sits in.`,
+    );
+    refused = true;
+  }
+  const seen = new Set<string>();
+  const places: TreePath[] = [];
+  for (const [i, path] of written.entries()) {
+    const steps = path.parts.map((part) => part.text);
+    const reached = i === 0 ? placementAt(tree, placement.container) : resolveFrom(tree, [], steps);
+    const shown = steps.join('.');
+    if (reached.found === 'missing' || reached.found === 'world-inside') {
+      diagnostics.refuse(
+        path.at,
+        `\`${shown}\` names nothing in the world for \`${name}\` to stand in.`,
+        "Write the path of a place from the world's body, as in `in tiny_room, dreary_room`.",
+      );
+      refused = true;
+      continue;
+    }
+    const where = reached.found === 'world' ? [] : reached.placement.path;
+    if (reached.found === 'world' || reached.placement.kind?.containsActors !== true) {
+      diagnostics.refuse(
+        path.at,
+        reached.found === 'world'
+          ? `\`${shown}\` is the world, and a thing in more than one place stands only in places.`
+          : `\`${shown}\` is not a place, and a thing in more than one place stands only in places.`,
+        `Name only places, things that declare \`contains actors\`, after \`in\`; or write one container for \`${name}\` to sit in.`,
+      );
+      refused = true;
+      continue;
+    }
+    if (seen.has(pathKey(where))) {
+      diagnostics.refuse(
+        path.at,
+        `\`${shown}\` is named twice for \`${name}\`.`,
+        'Name each place it stands in once.',
+      );
+      refused = true;
+      continue;
+    }
+    seen.add(pathKey(where));
+    if (i > 0) places.push(where);
+  }
+  if (refused) return;
+  for (const place of places) {
+    const at = tree.placed.get(pathKey(place))!;
+    const standing = lobes.get(pathKey(place)) ?? new Map<string, Placement>();
+    if (at.holds.has(name) || standing.has(name)) {
+      diagnostics.refuse(
+        declaration.name.at,
+        `\`${pathKey(place)}\` holds two objects called \`${name}\`.`,
+        'Give one of them another name, or remove it.',
+      );
+      continue;
+    }
+    standing.set(name, placement);
+    lobes.set(pathKey(place), standing);
+    alsoIn.push(place);
+  }
+}
+
+/** What the tree holds at `path`, as `resolveFrom` would say it. */
+function placementAt(tree: ObjectTree, path: TreePath): Resolution {
+  if (path.length === 0) return { found: 'world' };
+  const placement = tree.placed.get(pathKey(path));
+  return placement === undefined
+    ? { found: 'missing', step: 0, within: null }
+    : { found: 'object', placement };
 }
 
 /**

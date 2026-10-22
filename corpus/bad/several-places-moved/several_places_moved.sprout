@@ -1,0 +1,24 @@
+// A thing in more than one place is never moved (the spec's The world
+// model › One thing in several places): a `move` the compiler can see is
+// refused, of it by name and of `self` in its own body.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world several_places_moved is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    object box is sprout.Container { }
+    on :entered (item, from) { move door to hall.box }
+  }
+  object yard is sprout.Place { }
+}
+
+object door is Door in hall, yard {
+  as target for push { do { move self to yard } }
+}
+
+verb push { role target: Door  "push [target]" }
+
+kind Door { }

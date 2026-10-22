@@ -4,7 +4,9 @@
  * engine's, so a move is the engine polling everyone with standing: the
  * thing's `depart`, then the source's `release`, then the destination's
  * `accept`, each list in its kind's run order, and the first refusal decides:
- * nothing after it is asked. Once all three allow, a destination that holds
+ * nothing after it is asked. A thing declared in several places is never
+ * moved, nor any place it stands in, nor what holds one: the engine refuses
+ * it in the world's `fixed`, before any guard. Once all three allow, a destination that holds
  * by measure (`capacity 100 by :size`) refuses what would take it past its
  * most with the engine's `too_heavy`. This is the one place the tree changes.
  *
@@ -38,6 +40,45 @@ static bool within(const sprout_frame *frame, sprout_str node, sprout_str outer)
     if (instance == NULL || !instance->has_container || ++guard > 1000000) return false;
     at = instance->container;
   }
+}
+
+/* Whether `place` is `item` or inside it, climbing containers, each a step. */
+static sprout_eval_status place_within(const sprout_frame *frame, sprout_str place, sprout_str item, bool *inside) {
+  sprout_str at = place;
+  size_t guard = 0;
+  *inside = false;
+  for (;;) {
+    const sprout_stored_instance *instance;
+    EXPR_NEED(expr_spend(frame));
+    if (sprout_str_same(at, item)) {
+      *inside = true;
+      return SPROUT_EVAL_OK;
+    }
+    instance = expr_instance(frame, at);
+    if (instance == NULL || !instance->has_container || ++guard > 1000000) return SPROUT_EVAL_OK;
+    at = instance->container;
+  }
+}
+
+sprout_eval_status sprout_move_fixed(const sprout_frame *frame, sprout_str item, bool *fixed) {
+  const sprout_world *world = frame->world;
+  size_t i, k;
+  *fixed = false;
+  if (!world->shares) return SPROUT_EVAL_OK;
+  for (i = 0; i < world->declared_count && !*fixed; i++) {
+    const sprout_declared *one = &world->declared[i];
+    sprout_str place;
+    if (one->also_count == 0 || sprout_draft_instance(frame->draft, (sprout_str){one->id, strlen(one->id)}) == NULL)
+      continue;
+    /* Itself and what holds it, its first place among them, then each other place and what holds one: moving any splits it. */
+    for (k = 0; k <= one->also_count && !*fixed; k++) {
+      const char *id = k == 0 ? one->id : one->also_in[k - 1];
+      place.bytes = id;
+      place.length = strlen(id);
+      EXPR_NEED(place_within(frame, place, item, fixed));
+    }
+  }
+  return SPROUT_EVAL_OK;
 }
 
 /* The people already in `to`, other than `item`, as many as the host lets stand in one place. */
@@ -295,6 +336,17 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
   /* The engine's lines here are about the mover, where it stands somewhere. */
   mover_instance = expr_instance(frame, mover);
   if (mover_instance != NULL && mover_instance->has_container) standing = mover_instance->container;
+  {
+    bool fixed;
+    EXPR_NEED(sprout_move_fixed(frame, item, &fixed));
+    if (fixed) {
+      sprout_str by;
+      sprout_engine_said(frame, "fixed", &mover, standing.bytes == NULL ? NULL : &standing, &by, &refusal->said);
+      refusal->by = by;
+      *end = SPROUT_MOVE_REFUSED_BY_ENGINE;
+      return names_of(frame, "item", item, NULL, item, refusal);
+    }
+  }
   if (within(frame, to, item)) {
     sprout_str by;
     sprout_engine_said(frame, "inside_itself", &mover, standing.bytes == NULL ? NULL : &standing, &by, &refusal->said);

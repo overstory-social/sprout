@@ -1,0 +1,7 @@
+several_places_moved.sprout:13:37  `door` stands in more than one place, and a thing in several places is never moved.
+                                   Leave `door` where it stands, or declare it in one place if it should move.
+
+several_places_moved.sprout:19:34  `door` stands in more than one place, and a thing in several places is never moved.
+                                   Leave `door` where it stands, or declare it in one place if it should move.
+
+refused: 2 problems

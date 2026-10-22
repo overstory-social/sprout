@@ -12,6 +12,7 @@
 #include "reading/reading.h"
 #include "parse_fixture.h"
 #include "view_fixture.h"
+#include "several_fixture.h"
 
 typedef struct sure_case {
   view_bench b;
@@ -56,7 +57,7 @@ static void a_sure_move_that_puts_a_thing_inside_itself_is_refused_in_the_engine
   bool refused;
   sure_open(&k, "two tins written alike");
   memset(&refusal, 0, sizeof refusal);
-  CHECK_INT(sprout_inside_itself(&k.p.x, &k.p.frame, reading_typed(&k, "stuff big into small"), &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_sure_move_refused(&k.p.x, &k.p.frame, reading_typed(&k, "stuff big into small"), &refused, &refusal), SPROUT_EVAL_OK);
   CHECK(refused);
   CHECK_STR(refusal.role, "box");
   CHECK(refusal.refusal.origin == NULL);
@@ -72,7 +73,7 @@ static void a_sure_move_that_does_not_is_not_refused(void) {
   sprout_permit_refusal refusal;
   bool refused = true;
   sure_open(&k, "two tins written alike");
-  CHECK_INT(sprout_inside_itself(&k.p.x, &k.p.frame, reading_typed(&k, "stuff small into big"), &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_sure_move_refused(&k.p.x, &k.p.frame, reading_typed(&k, "stuff small into big"), &refused, &refusal), SPROUT_EVAL_OK);
   CHECK(!refused);
   sure_close(&k);
 }
@@ -82,7 +83,7 @@ static void a_reading_with_no_move_written_in_a_do_is_not_refused(void) {
   sprout_permit_refusal refusal;
   bool refused = true;
   sure_open(&k, "two tins written alike");
-  CHECK_INT(sprout_inside_itself(&k.p.x, &k.p.frame, reading_typed(&k, "look"), &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_sure_move_refused(&k.p.x, &k.p.frame, reading_typed(&k, "look"), &refused, &refusal), SPROUT_EVAL_OK);
   CHECK(!refused);
   sure_close(&k);
 }
@@ -94,7 +95,7 @@ static void each_play_read_and_each_container_climbed_is_a_step(void) {
   uint64_t before;
   sure_open(&k, "two tins written alike");
   before = k.p.meter.steps;
-  CHECK_INT(sprout_inside_itself(&k.p.x, &k.p.frame, reading_typed(&k, "stuff big into small"), &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_sure_move_refused(&k.p.x, &k.p.frame, reading_typed(&k, "stuff big into small"), &refused, &refusal), SPROUT_EVAL_OK);
   /* The one play there is, then `small` and `big` on the way up from `small`. */
   CHECK_INT(k.p.meter.steps - before, 3);
   sure_close(&k);
@@ -156,9 +157,38 @@ static void a_budget_spent_reading_plays_faults_as_any_work_does(void) {
   bool refused;
   sure_open(&k, "two tins written alike");
   k.c.host.budgets.poll_steps = (sprout_limit){true, k.p.meter.steps + 1};
-  CHECK_INT(sprout_inside_itself(&k.p.x, &k.p.frame, reading_typed(&k, "stuff big into small"), &refused, &refusal), SPROUT_EVAL_FAULT);
+  CHECK_INT(sprout_sure_move_refused(&k.p.x, &k.p.frame, reading_typed(&k, "stuff big into small"), &refused, &refusal), SPROUT_EVAL_FAULT);
   CHECK(k.p.meter.faulted);
   sure_close(&k);
+}
+
+static void a_sure_move_of_a_thing_in_several_places_is_refused_in_the_engines_fixed(void) {
+  several s;
+  const sprout_way *ways;
+  const sprout_reached *reached;
+  const sprout_offer *offers;
+  size_t way_count, reached_count, count, i;
+  const sprout_offer *take = NULL;
+  sprout_str place = exec_str(SEVERAL_DREARY);
+  several_open(&s);
+  CHECK_INT(sprout_exits_from(&s.frame, place, &ways, &way_count), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_range_of(&s.frame, exec_str(s.ash), NULL, &reached, &reached_count), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_offers_to(&s.x, &s.frame, exec_str(s.ash), ways, way_count, reached, reached_count, &offers, &count),
+            SPROUT_EVAL_OK);
+  for (i = 0; i < count; i++)
+    if (strcmp(offers[i].typed, "take door") == 0) take = &offers[i];
+  CHECK(take != NULL);
+  if (take != NULL) {
+    sprout_permit_refusal refusal;
+    bool refused;
+    CHECK(take->refused);
+    CHECK_STR(take->refusal.refusal.said.name, "fixed");
+    CHECK_INT(sprout_sure_move_refused(&s.x, &s.frame, &take->reading, &refused, &refusal), SPROUT_EVAL_OK);
+    CHECK(refused);
+    CHECK_STR(refusal.refusal.said.name, "fixed");
+    CHECK(sprout_str_same(refusal.refusal.bindings[0].bound.id, exec_str(SEVERAL_DOOR)));
+  }
+  several_close(&s);
 }
 
 /* Whether the actor's own play in `verb` of `library`, in the bench's world, takes `role`'s things to the actor. */
@@ -190,6 +220,7 @@ static void a_move_of_a_set_roles_things_to_the_actor_anywhere_in_its_do_takes_t
 }
 
 int main(void) {
+  RUN(a_sure_move_of_a_thing_in_several_places_is_refused_in_the_engines_fixed);
   RUN(a_sure_move_that_puts_a_thing_inside_itself_is_refused_in_the_engines_words);
   RUN(a_sure_move_that_does_not_is_not_refused);
   RUN(a_reading_with_no_move_written_in_a_do_is_not_refused);

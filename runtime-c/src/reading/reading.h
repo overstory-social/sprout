@@ -129,11 +129,12 @@ bool sprout_play_runs(const sprout_play *play, const sprout_verb *verb);
 /* ---- sure.c ---- */
 
 /*
- * The engine's `inside_itself` where the reading's first sure move, the first `move` written directly in a
- * `do`, would put a thing inside itself, said as the move would say it; *refused is false where it would
- * not, or where no `move` is written directly in its `do`s. Each play read is a step.
+ * The engine's refusal of the reading's first sure move, the first `move` written directly in a `do`, said as
+ * the move would say it: `fixed` where it would move a thing declared in several places, a place it stands in or what holds one, `inside_itself` where
+ * it would put a thing inside itself; *refused is false where it would be neither, or where no `move` is written
+ * directly in its `do`s. Each play read is a step.
  */
-sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+sprout_eval_status sprout_sure_move_refused(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
                                         bool *refused, sprout_permit_refusal *out);
 
 /* Whether the first sure move of one of `actor`'s own plays in `verb` moves what fills `role`. */

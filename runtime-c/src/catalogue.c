@@ -1,7 +1,9 @@
 /*
  * Builds the typed catalogue from a cartridge (the spec's The compiler > What
  * compiling produces; The runtime > State): the header, the caps, the
- * declared tree with each object's rank, and every section handed to the
+ * declared tree with each object's rank and, for one thing in several places,
+ * the places it stands in and, on each place, what stands in it that way
+ * (The world model > One thing in several places), and every section handed to the
  * readers of `catalogue_kinds.c` and `catalogue_grammar.c`. A cartridge that
  * is not shaped as one is refused in a sentence that names where.
  */
@@ -83,6 +85,60 @@ static int by_qualified(const void *a, const void *b) {
   return strcmp(((const sprout_kind_def *)a)->qualified, ((const sprout_kind_def *)b)->qualified);
 }
 
+/*
+ * The other places a placement stands in, from its `alsoIn`, as ids (the spec's The world model > One thing in
+ * several places): each a declared place, and none for a placement that names none.
+ */
+static sprout_status read_also_in(loader *l, const sprout_node *placement, sprout_declared *entry) {
+  const sprout_node *also = sprout_node_get(l->graph, placement, "alsoIn");
+  size_t i;
+  if (also == NULL) return SPROUT_OK;
+  if (!cat_is_array(also)) return cat_shaped(l, "a placement's alsoIn");
+  if (also->count == 0) return SPROUT_OK;
+  entry->also_in = (const char **)cat_array(l, also->count, sizeof *entry->also_in);
+  MEMORY(entry->also_in);
+  for (i = 0; i < also->count; i++) {
+    size_t count;
+    const char **path;
+    const sprout_declared *place;
+    NEED(cat_strings(l, sprout_item(l->graph, also, i), "a placement's alsoIn", &count, &path));
+    entry->also_in[i] = cat_id_of(l, l->world->header.name, count, path);
+    MEMORY(entry->also_in[i]);
+    place = sprout_world_declared(l->world, entry->also_in[i]);
+    if (place == NULL || place->kind == NULL || !place->kind->contains_actors)
+      return cat_shaped(l, "a placement's alsoIn, which names a place");
+  }
+  entry->also_count = also->count;
+  l->world->shares = true;
+  return SPROUT_OK;
+}
+
+/* On each place, what stands in it beside what it holds: every placement naming it in `alsoIn`, in rank order. */
+static sprout_status gather_lobes(loader *l) {
+  sprout_world *w = l->world;
+  size_t i, k;
+  for (i = 0; i < w->declared_count; i++) {
+    for (k = 0; k < w->declared[i].also_count; k++) {
+      sprout_declared *place = (sprout_declared *)sprout_world_declared(w, w->declared[i].also_in[k]);
+      place->lobe_count++;
+    }
+  }
+  for (i = 0; i < w->declared_count; i++) {
+    sprout_declared *place = &w->declared[i];
+    if (place->lobe_count == 0) continue;
+    place->lobes = (const char **)cat_array(l, place->lobe_count, sizeof *place->lobes);
+    MEMORY(place->lobes);
+    place->lobe_count = 0;
+  }
+  for (i = 0; i < w->declared_count; i++) {
+    for (k = 0; k < w->declared[i].also_count; k++) {
+      sprout_declared *place = (sprout_declared *)sprout_world_declared(w, w->declared[i].also_in[k]);
+      place->lobes[place->lobe_count++] = w->declared[i].id;
+    }
+  }
+  return SPROUT_OK;
+}
+
 static sprout_status build_tree(loader *l, const sprout_node *holds) {
   sprout_world *w = l->world;
   tree_queue q;
@@ -126,6 +182,8 @@ static sprout_status build_tree(loader *l, const sprout_node *holds) {
   MEMORY(w->declared_by_id);
   for (head = 0; head < q.tail; head++) w->declared_by_id[head] = &w->declared[head];
   MEMORY(cat_sort(l, (const void **)w->declared_by_id, q.tail, by_declared_id));
+  for (head = 0; head < q.tail; head++) NEED(read_also_in(l, q.items[head], &w->declared[head]));
+  if (w->shares) NEED(gather_lobes(l));
   return SPROUT_OK;
 }
 
@@ -459,6 +517,34 @@ static int pieces_compare(const char *text, const piece *pieces, size_t count) {
       if (order != 0) return order;
     }
   return (int)(unsigned char)*text;
+}
+
+size_t sprout_world_also_in(const sprout_world *world, sprout_str id, const char *const **places) {
+  const sprout_declared *declared;
+  *places = NULL;
+  if (!world->shares || id.bytes == NULL) return 0;
+  declared = sprout_world_declared(world, id.bytes);
+  if (declared == NULL) return 0;
+  *places = declared->also_in;
+  return declared->also_count;
+}
+
+size_t sprout_world_lobes(const sprout_world *world, sprout_str id, const char *const **lobes) {
+  const sprout_declared *declared;
+  *lobes = NULL;
+  if (!world->shares || id.bytes == NULL) return 0;
+  declared = sprout_world_declared(world, id.bytes);
+  if (declared == NULL) return 0;
+  *lobes = declared->lobes;
+  return declared->lobe_count;
+}
+
+bool sprout_world_also_stands_in(const sprout_world *world, sprout_str id, sprout_str place) {
+  const char *const *places;
+  size_t count = sprout_world_also_in(world, id, &places), i;
+  for (i = 0; i < count; i++)
+    if (strlen(places[i]) == place.length && memcmp(places[i], place.bytes, place.length) == 0) return true;
+  return false;
 }
 
 const sprout_declared *sprout_world_declared(const sprout_world *world, const char *id) {

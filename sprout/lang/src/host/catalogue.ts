@@ -42,6 +42,8 @@ export interface DeclaredEntry {
   readonly path: TreePath;
   /** The id of its declared container, the world's for an object written in the world's body. */
   readonly container: InstanceId;
+  /** The ids of the other places it stands in, where it is declared in several (One thing in several places). */
+  readonly alsoIn: readonly InstanceId[];
   /** Its composed anonymous kind; null where the kind is absent and the object with it. */
   readonly kind: KindRef | null;
   /** Its position in a walk of the declared tree, so siblings keep their declared order. */
@@ -165,6 +167,7 @@ export function catalogueFrom(parts: CatalogueParts, caps: StaticCaps): Catalogu
       id,
       path: placement.path,
       container: declaredId(name, placement.container),
+      alsoIn: (placement.alsoIn ?? []).map((place) => declaredId(name, place)),
       kind: placement.kind,
       rank: head,
       at: placement.declaration.at,

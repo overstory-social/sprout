@@ -347,7 +347,34 @@ static void a_set_roles_run_is_decided_by_its_first_noun_that_names_nothing_it_m
   bench_close(&s.b);
 }
 
+/* A thing in several places stands directly in each, so a relative phrase finds it in any of them. */
+static void a_thing_in_several_places_is_named_as_in_each_of_them(void) {
+  bench b;
+  sprout_arena keep;
+  sprout_parsed out;
+  bench_open(&b, "several-places", "Marta");
+  sprout_arena_init(&keep, &b.w.host);
+  CHECK_INT(bench_parse(&b, &keep, "examine the door in the tiny room", 1, NULL, &out), SPROUT_OK);
+  CHECK_INT(out.end, SPROUT_PARSED_READING);
+  CHECK_INT(out.reading.filling_count, 1);
+  CHECK_STR(out.reading.fillings[0].id, "several_places.tiny_room.pdoor");
+  sprout_arena_reset(&keep);
+  /* Marta goes through to the dreary room, where the same door stands. */
+  bench_command(&b, "several_places.swing", "several_places.tiny_room.pdoor");
+  {
+    sprout_outcome gone;
+    tw_go(&b.w, "v-marta", "east", "east, through the door", "dreary_room", 1002, &gone);
+    sprout_outcome_free(&gone);
+  }
+  CHECK_INT(bench_parse(&b, &keep, "examine the door in the dreary room", 1, NULL, &out), SPROUT_OK);
+  CHECK_INT(out.end, SPROUT_PARSED_READING);
+  CHECK_STR(out.reading.fillings[0].id, "several_places.tiny_room.pdoor");
+  sprout_arena_reset(&keep);
+  bench_close(&b);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_named_as_in_each_of_them);
   RUN(it_is_tried_as_typed_and_without_a_leading_article_or_determiner);
   RUN(it_is_every_thing_that_answers_and_fits_with_how_near_and_how_many_words_it_matched);
   RUN(it_drops_nothing_that_answers_and_marks_what_was_named_in_full);

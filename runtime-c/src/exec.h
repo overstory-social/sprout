@@ -300,6 +300,13 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
 bool sprout_move_would_roam(const sprout_frame *frame, sprout_str mover, sprout_str item, sprout_str to);
 
 /*
+ * Whether moving `item` would move one of the places a thing declared in several stands in, or that thing itself:
+ * such a thing never moves, and nor does any place it stands in, nor what holds one (the spec's The world model >
+ * One thing in several places). Each container climbed is a step.
+ */
+sprout_eval_status sprout_move_fixed(const sprout_frame *frame, sprout_str item, bool *fixed);
+
+/*
  * What `place` says and sends of `actor` leaving it for `other` (`leaving`) or entering it from `other`: the
  * engine's `leaves` or `arrives` recorded for the visitors in its range, and `:departed` or `:arrived` queued
  * for everything there but `actor`, the visitors too. `other` is left unbound where it is the world, and `way` (which may be NULL)

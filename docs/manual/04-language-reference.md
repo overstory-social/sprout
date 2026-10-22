@@ -274,6 +274,24 @@ object cabinet is sprout.Container, Warded, sprout.Fixture {
 
   An object in its own file is placed exactly once, by one of the two.
 
+- An object written at the top of a file may stand in **several places
+  at once**: name them after `in`, between commas. A door between two
+  rooms is then one door, seen, named and opened from either side, and
+  opened from one it stands open in the other:
+
+  ```sprout
+  object pdoor is Door in tiny_room, dreary_room
+  ```
+
+  Each path names a place (something that declares `contains actors`),
+  not a container and not the world, and each place once. The object
+  holds nothing, and it never moves, nor does a place it stands in: a
+  `move` of either is refused, by the compiler where it can see a move
+  of the object, and otherwise with the world's `fixed`
+  passage, "The door is fixed where it stands.". It is among what each
+  of its places holds, reaches out from each of them, and a `tell` it
+  says is heard in each.
+
 ### Kinds
 
 A kind is a reusable description of a sort of thing. It has no place in
@@ -1681,7 +1699,8 @@ there is one, and the body that ran the `move` stops there. If all allow,
 the thing moves.
 
 A move that would put a container inside itself is refused before any
-guard, with the world's `inside_itself` passage. A move that would bring
+guard, with the world's `inside_itself` passage, and so is a move of a
+thing that stands in several places, with its `fixed` passage. A move that would bring
 one more person into a full place (if the host limits it) is refused with
 the world's `crowded` passage.
 
@@ -2657,6 +2676,7 @@ So a character can have its own `arrives`, and a place its own
 | `missing`         | This world uses something this host does not provide, and will be missing some of itself. |
 | `displaced`       | The place you were standing is gone.                                |
 | `inside_itself`   | {item} cannot go inside itself.                                     |
+| `fixed`           | {item} is fixed where it stands.                                    |
 | `crowded`         | There is no room in {to} for {item}.                                |
 | `too_heavy`       | {to} cannot hold {item}.                                       |
 | `waited`          | Time passes.                                                        |

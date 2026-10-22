@@ -98,7 +98,9 @@ bool sprout_draft_tombstoned(const sprout_draft *draft, sprout_str id);
 /*
  * What `id` holds among decoded instances, in contents order: a declared
  * object still where it was declared before anything that arrived, and among
- * those by rank; what arrived by arrival. The ids are in the turn arena.
+ * those by rank; what arrived by arrival. A place lists what stands in it as
+ * well as elsewhere among its declared objects (the spec's The world model >
+ * One thing in several places). The ids are in the turn arena.
  */
 sprout_draft_result sprout_draft_children(const sprout_draft *draft, sprout_str id,
                                           const sprout_str **ids, size_t *count);

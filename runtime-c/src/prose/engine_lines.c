@@ -30,6 +30,7 @@ static const struct {
     {"missing", "This world uses something this host does not provide, and will be missing some of itself."},
     {"displaced", "The place you were standing is gone."},
     {"inside_itself", "{item} cannot go inside itself."},
+    {"fixed", "{item} is fixed where it stands."},
     {"crowded", "There is no room in {to} for {item}."},
     {"too_heavy", "{to} cannot hold {item}."},
     {"waited", "Time passes."},

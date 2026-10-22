@@ -129,6 +129,27 @@ bool sprout_surround_of(const sprout_frame *frame, sprout_str id, sprout_str *su
 }
 
 /*
+ * Who else hears a teller declared in several places: the people within each place it stands in beside its first,
+ * where that place passes, as though it stood there (the spec's The world model > One thing in several places).
+ */
+static sprout_eval_status other_places(const sprout_exec *x, const sprout_frame *frame, sprout_str teller,
+                                       sprout_str **heard, size_t *count, size_t *capacity) {
+  const char *const *places;
+  size_t place_count = expr_live(frame, teller) ? sprout_world_also_in(frame->world, teller, &places) : 0, i;
+  for (i = 0; i < place_count; i++) {
+    sprout_str place;
+    bool open;
+    place.bytes = places[i];
+    place.length = strlen(places[i]);
+    if (!expr_live(frame, place)) continue;
+    EXPR_NEED(expr_spend(frame));
+    EXPR_NEED(expr_passes(frame, place, NULL, &open));
+    if (open) EXPR_NEED(people_within(x, frame, place, &teller, heard, count, capacity));
+  }
+  return SPROUT_EVAL_OK;
+}
+
+/*
  * Who hears `teller` around it: each person on the way out to `surround` whom the walk reaches as a surface,
  * every container between passing, as a holder is reached from what is in their hands; and, where every
  * container on the way and `surround` pass, the people within `surround`, as `people_within` finds them, less the
@@ -158,6 +179,7 @@ static sprout_eval_status outside(const sprout_exec *x, const sprout_frame *fram
     if (sprout_str_same(at, surround)) break;
   }
   if (open) EXPR_NEED(people_within(x, frame, surround, &teller, &heard, &heard_count, &capacity));
+  EXPR_NEED(other_places(x, frame, teller, &heard, &heard_count, &capacity));
   *out = heard;
   *count = heard_count;
   return SPROUT_EVAL_OK;

@@ -152,6 +152,16 @@ describe('an object in a file of its own', () => {
     expect(paths(result)).toEqual(['yard', 'shed', 'shed.crate', 'shed.crate.lid']);
   });
 
+  it('sits under the first place its `in` names, and stands in the others, through objects other files place', () => {
+    const result = world('', {
+      'shed.sprout': 'object shed is sprout.Place in w { }\n',
+      'door.sprout': 'kind Door { }\nobject door is Door in yard, w.shed\n',
+    });
+    expect(refused(result)).toEqual([]);
+    expect(paths(result)).toEqual(['yard', 'yard.door', 'shed']);
+    expect(result.bundle!.tree.placed.get('yard.door')!.alsoIn).toEqual([['shed']]);
+  });
+
   it('sits where a stub in the body names it, having been imported there', () => {
     const result = world('  object shed', {
       'w.sprout': `import {shed} from ${Q}rooms/shed${Q}\nworld w is sprout.World {\n  visitors are Person\n  visitors arrive at yard\n  object yard is sprout.Place {\n    object shed\n  }\n}\n`,

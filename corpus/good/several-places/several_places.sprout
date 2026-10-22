@@ -1,0 +1,89 @@
+// One thing in several places (the spec's The world model › One thing in
+// several places). The Tiny Room's door stands in the Tiny Room and the
+// Dreary Room at once: it is seen from both sides, opened from one and
+// seen open from the other, heard on both, and fixed where it stands. The
+// Bank's four walls each stand in all four of its rooms, so `east wall`
+// names one wall wherever it is typed, and every room lists all four.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world several_places is sprout.World {
+  visitors are Person
+  visitors arrive at tiny_room
+
+  object tiny_room is sprout.Place {
+    grammar {
+      name "tiny room"  article the
+      exit east "east, through the door" -> dreary_room when (pdoor.get(:open))
+    }
+    describe { text "A tiny room.{if self.holds(pdoor)} A door is set in the east wall.{/if}" }
+  }
+
+  object dreary_room is sprout.Place {
+    grammar {
+      name "dreary room"  article the
+      exit west "west, through the door" -> tiny_room when (pdoor.get(:open))
+      exit south "south, into the bank" -> west_teller
+    }
+    describe { text "A dreary room.{if self.holds(pdoor)} A door is set in the west wall.{/if}" }
+  }
+
+  object west_teller is BankRoom {
+    grammar {
+      name "west teller's room"  article the
+      exit north "north, out of the bank" -> dreary_room
+      exit east "east" -> east_teller
+    }
+  }
+  object east_teller is BankRoom {
+    grammar { name "east teller's room"  article the  exit west "west" -> west_teller  exit south "south" -> depository }
+  }
+  object depository is BankRoom {
+    grammar { name "safety depository"  article the  exit north "north" -> east_teller  exit west "west" -> chairman }
+  }
+  object chairman is BankRoom {
+    grammar { name "chairman's office"  article the  exit east "east" -> depository }
+  }
+}
+
+// One door, standing in both rooms: its state is one `:open`.
+object pdoor is Door in tiny_room, dreary_room
+
+object north_wall is Wall in west_teller, east_teller, depository, chairman {
+  grammar { name "north wall"  article the }
+}
+object south_wall is Wall in west_teller, east_teller, depository, chairman {
+  grammar { name "south wall"  article the }
+}
+object east_wall is Wall in west_teller, east_teller, depository, chairman {
+  grammar { name "east wall"  article the }
+}
+object west_wall is Wall in west_teller, east_teller, depository, chairman {
+  grammar { name "west wall"  article the }
+}
+
+verb swing { role target: Door  "open [target]" }
+verb slam  { role target: Door  "close [target]"  "shut [target]" }
+
+kind Door {
+  :open false
+  grammar { name "door"  article the }
+  describe { text "{if self.get(:open)}The door stands open.{else}The door is shut.{/if}" }
+
+  as target for swing {
+    permit { if (self.get(:open)) { refuse "It is already open." } }
+    do { self.set(:open, true)  say "You open the door."  tell "{actor} opens the door." }
+  }
+  as target for slam {
+    permit { if (!self.get(:open)) { refuse "It is already shut." } }
+    do { self.set(:open, false)  say "You shut the door."  tell "{actor} shuts the door." }
+  }
+}
+
+kind Wall {
+  describe { text "{self} is cold, veined marble." }
+}
+
+kind BankRoom is sprout.Place {
+  describe { text "{self}, in the bank. Around you: {for wall: Wall in self}{wall}{if $last}.{else}, {/if}{/for}" }
+}
