@@ -75,7 +75,7 @@ static sprout_eval_status run_does(sprout_exec *x, const sprout_resolved *readin
       const sprout_node *body = sprout_node_get(&x->world->graph, sprout_node_get(&x->world->graph, play->node, "declaration"), "do");
       sprout_frame inside;
       sprout_ended ended;
-      if (body == NULL || body->kind == SPROUT_NODE_NULL) continue;
+      if (body == NULL || body->kind == SPROUT_NODE_NULL || !sprout_play_runs(play, reading->verb)) continue;
       /* `destroy self` takes effect as the `do` that ran it ends, so a composed play after it has no `self` to run for. */
       if (sprout_draft_instance(x->draft, who->id) == NULL) return SPROUT_EVAL_OK;
       EXPR_NEED(sprout_play_frame(x, reading, who, play, true, &inside));

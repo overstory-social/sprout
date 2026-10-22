@@ -1,0 +1,4 @@
+kinds.sprout:3:6  Only an actor acts, and `Lever` does not compose `sprout.Actor`.
+                  Compose `sprout.Actor` into `Lever`, or write `as target for any` or `as tool for any` to guard the roles it fills.
+
+refused: 1 problem

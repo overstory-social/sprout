@@ -9,7 +9,13 @@
 // A top-level object is placed once, by its `in` clause or by a stub,
 // and stands in the world's body where it sits, as if written there.
 
-import type { Declaration, Ident, ObjectDeclaration, WorldDeclaration } from '../../syntax/ast.js';
+import type {
+  Declaration,
+  Ident,
+  ObjectDeclaration,
+  PlayDeclaration,
+  WorldDeclaration,
+} from '../../syntax/ast.js';
 import type { ImportDeclaration } from '../../syntax/ast-imports.js';
 import type { Report } from './report.js';
 import { rewrite, type FileScope } from './renames.js';
@@ -343,6 +349,12 @@ function checkImported(
         continue;
       refuse(name, name.text, name.text);
       continue;
+    }
+    // A wildcard's `except` names verbs, each imported as a play's head's is.
+    if (node.kind === 'play') {
+      for (const verb of (node as PlayDeclaration).except ?? []) {
+        if (!own.has(verb.text) && !scope.names.has(verb.text)) refuse(verb, verb.text, verb.text);
+      }
     }
     for (const field of ['verb', 'message'] as const) {
       const written = (node as unknown as Record<string, unknown>)[field] as

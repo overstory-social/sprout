@@ -617,7 +617,10 @@ object bedroom is sprout.Place {
 
 Everything follows from the rules already given. Shutting the wardrobe
 cuts its occupants off from the bedroom, because a shut container passes
-nothing. `tell` inside the wardrobe reaches only those in it. And someone
+nothing. `tell` inside the wardrobe reaches only those in it, and `tell`
+in the bedroom reaches them only while the wardrobe is open: a voice goes
+into the places inside the one it is said in, through whatever passes, so
+a visitor riding an open bucket hears the room. And someone
 shut inside can always open it, because a thing can always reach the
 container it is in.
 
@@ -1172,6 +1175,29 @@ permits: a `do` in it is refused, and so is a `from`. It knows no verb,
 so its `permit` reads `self`, `actor` and `here`, and naming a role such
 as `target` in it is refused. For one participant, its `for any` permits
 run before its permits for the verb.
+
+`as actor for any` guards the actor's own part of every verb it
+performs, the engine's `go`, `examine` and `wait` included, and only a
+kind that composes `sprout.Actor` may write it. Any of the three may
+leave verbs out with `except`, so one verb can answer in a voice of its
+own:
+
+```sprout
+kind Illusion {
+  as target for any except examine { permit { refuse gone } }
+  as target for examine { permit { refuse gone_look } }
+  passage gone default { Your hand closes on nothing. }
+  passage gone_look default { You look closer, and {self} wavers like heat over a road. }
+}
+
+kind Frozen is sprout.Actor {
+  :frozen false
+  as actor for any except wait { permit { if (self.get(:frozen)) { refuse frozen } } }
+  passage frozen default { You are frozen solid. You might as well wait it out. }
+}
+```
+
+A verb named after `except` is imported as any verb a play names is.
 
 - **`permit`** decides whether it may happen. It is read-only. It may
   `refuse`, and the first refusal from anyone ends the whole command with
@@ -1856,7 +1882,9 @@ containment tree refuses to pass. In practice:
   first container out that refuses — so two visitors shut in one wardrobe
   can name each other. A shut box beside them still hides what is in it.
   A place is a wall of its own: rooms in a house that refuses, like the
-  world's places, are not in each other's range.
+  world's places, are not in each other's range. (A place that passes is
+  no wall to anything around it: a `tell` in the room is heard inside
+  it, see Who hears what.)
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 
@@ -1892,8 +1920,10 @@ Each of these takes either quoted text or the name of a passage: `say
 taken`, `refuse hands_full`, `text arrival`.
 
 `tell` reaches every actor in the teller's place that the teller can
-reach, except the actor and anyone taking part in the reading: those are
-addressed separately, with `say` and `tell self`. So a verb usually has
+reach, and those in the places inside it wherever everything between
+passes — a visitor in an open bucket in the room hears it, one in a shut
+wardrobe does not. It leaves out the actor and anyone taking part in the
+reading: those are addressed separately, with `say` and `tell self`. So a verb usually has
 two lines, one for the actor and one for everyone else, and a target who
 is a person gets their own with `tell self`:
 

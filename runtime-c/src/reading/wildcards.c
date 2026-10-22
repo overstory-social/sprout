@@ -3,8 +3,9 @@
  * Verbs > Roles compose, The two passes). `as target for any` and `as tool
  * for any` play every verb at once by the category of the role the
  * participant fills, the target being the verb's first role and a tool any
- * other, and run before the participant's plays for the verb. The actor's
- * own part has no wildcard.
+ * other, and `as actor for any` the actor's own part of every verb; each
+ * runs before the participant's plays for the verb, and none runs for a
+ * verb its `except` names.
  */
 #include <string.h>
 
@@ -41,10 +42,17 @@ void sprout_plays_for(const sprout_resolved *reading, const sprout_participant *
                       sprout_plays *out) {
   const sprout_verb *verb = reading->verb;
   const sprout_play_group *own = group_for(kind, who->role == NULL ? "actor" : who->role->name, verb->library, verb->name);
+  const char *part = who->role == NULL ? "actor" : who->role == &verb->roles[0] ? "target" : "tool";
+  const sprout_play_group *any = group_for(kind, part, NULL, "any");
   out->count = 0;
-  if (who->role != NULL) {
-    const sprout_play_group *any = group_for(kind, who->role == &verb->roles[0] ? "target" : "tool", NULL, "any");
-    if (any != NULL) out->groups[out->count++] = any;
-  }
+  if (any != NULL) out->groups[out->count++] = any;
   if (own != NULL) out->groups[out->count++] = own;
+}
+
+bool sprout_play_runs(const sprout_play *play, const sprout_verb *verb) {
+  size_t i;
+  for (i = 0; i < play->except_count; i++)
+    if (strcmp(play->except[i].name, verb->name) == 0 && strcmp(play->except[i].library, verb->library) == 0)
+      return false;
+  return true;
 }

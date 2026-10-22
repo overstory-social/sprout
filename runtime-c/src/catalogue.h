@@ -60,11 +60,18 @@ typedef struct sprout_property {
   sprout_literal default_value;
 } sprout_property;
 
+/* A verb a wildcard's `except` leaves out, by its full identity. */
+typedef struct sprout_verb_name {
+  const char *library, *name;
+} sprout_verb_name;
+
 /* One kind's play of a verb's role, as a body that plays it reads it. */
 typedef struct sprout_play {
   const char *origin, *library, *verb, *role;
   bool any;
-  const sprout_node *node; /* the play: its guard, its narrowings and its body */
+  size_t except_count;
+  const sprout_verb_name *except; /* for a wildcard, the verbs it does not run for */
+  const sprout_node *node;        /* the play: its guard, its narrowings and its body */
 } sprout_play;
 
 /* The plays under one key, "as actor for sprout.take", in the order they run. */

@@ -4865,7 +4865,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 2,
+        "steps": 9,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5030,7 +5030,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 2,
+        "steps": 9,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5134,13 +5134,13 @@
         "instances": null
       },
       "expect": {
-        "steps": 2,
+        "steps": 12,
         "spawns": 0,
         "events": 0,
         "effects": [
           {
             "effect": "told",
-            "to": ["exec_bench#1"],
+            "to": ["exec_bench#1", "exec_bench#4"],
             "by": "exec_bench.hall.wardrobe",
             "speaker": null,
             "said": {
@@ -5185,13 +5185,13 @@
         "instances": null
       },
       "expect": {
-        "steps": 2,
+        "steps": 12,
         "spawns": 0,
         "events": 0,
         "effects": [
           {
             "effect": "told",
-            "to": ["exec_bench#6", "exec_bench#1"],
+            "to": ["exec_bench#6", "exec_bench#1", "exec_bench#4"],
             "by": "exec_bench.hall.wardrobe",
             "speaker": null,
             "said": {
@@ -5236,7 +5236,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 6,
+        "steps": 13,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5418,7 +5418,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 3,
+        "steps": 10,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5594,7 +5594,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 12,
+        "steps": 19,
         "spawns": 0,
         "events": 0,
         "effects": [
@@ -5723,7 +5723,7 @@
         "instances": null
       },
       "expect": {
-        "steps": 5,
+        "steps": 12,
         "spawns": 0,
         "events": 0,
         "effects": [

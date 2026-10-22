@@ -1,0 +1,129 @@
+{
+  "about": "Wren rides the open bucket in the hall and Marta the open basket inside it; Pip is in the wardrobe and Ivo in the open hamper inside that. With the wardrobe shut, Ash rings the bell in the hall and Wren and Marta hear it, two places down, while Pip and Ivo do not. Wren rings the chime in the bucket and Marta hears it, Ash in the hall does not: a voice goes in, never out. Pip rings the gong in the shut wardrobe and nobody hears it, since the wardrobe does not pass, and neither Pip nor Ivo can name the other. Once Wren shuts the bucket, the bell in the hall reaches nobody in it.",
+  "steps": [
+    { "arrive": "Ash", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "A tall hall." }
+    ] },
+    { "arrive": "Wren", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Wren arrives." },
+      { "reader": "Wren", "kind": "described", "words": "A tall hall." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "A tall hall." }
+    ] },
+    { "arrive": "Pip", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Pip arrives." },
+      { "reader": "Wren", "kind": "notice", "words": "Pip arrives." },
+      { "reader": "Marta", "kind": "notice", "words": "Pip arrives." },
+      { "reader": "Pip", "kind": "described", "words": "A tall hall." }
+    ] },
+    { "arrive": "Ivo", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Ivo arrives." },
+      { "reader": "Wren", "kind": "notice", "words": "Ivo arrives." },
+      { "reader": "Marta", "kind": "notice", "words": "Ivo arrives." },
+      { "reader": "Pip", "kind": "notice", "words": "Ivo arrives." },
+      { "reader": "Ivo", "kind": "described", "words": "A tall hall." }
+    ] },
+    { "as": "Wren", "type": "go in", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Wren leaves for the bucket." },
+      { "reader": "Marta", "kind": "notice", "words": "Wren leaves for the bucket." },
+      { "reader": "Pip", "kind": "notice", "words": "Wren leaves for the bucket." },
+      { "reader": "Ivo", "kind": "notice", "words": "Wren leaves for the bucket." },
+      { "reader": "Ash", "kind": "notice", "words": "Wren arrives from the hall." },
+      { "reader": "Marta", "kind": "notice", "words": "Wren arrives from the hall." },
+      { "reader": "Pip", "kind": "notice", "words": "Wren arrives from the hall." },
+      { "reader": "Ivo", "kind": "notice", "words": "Wren arrives from the hall." },
+      { "reader": "Wren", "kind": "described", "words": "Inside the bucket." }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Marta leaves for the bucket." },
+      { "reader": "Pip", "kind": "notice", "words": "Marta leaves for the bucket." },
+      { "reader": "Ivo", "kind": "notice", "words": "Marta leaves for the bucket." },
+      { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the bucket." },
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives from the hall." },
+      { "reader": "Ash", "kind": "notice", "words": "Marta arrives from the hall." },
+      { "reader": "Pip", "kind": "notice", "words": "Marta arrives from the hall." },
+      { "reader": "Ivo", "kind": "notice", "words": "Marta arrives from the hall." },
+      { "reader": "Marta", "kind": "described", "words": "Inside the bucket." }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the basket." },
+      { "reader": "Ash", "kind": "notice", "words": "Marta leaves for the basket." },
+      { "reader": "Pip", "kind": "notice", "words": "Marta leaves for the basket." },
+      { "reader": "Ivo", "kind": "notice", "words": "Marta leaves for the basket." },
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives from the bucket." },
+      { "reader": "Ash", "kind": "notice", "words": "Marta arrives from the bucket." },
+      { "reader": "Pip", "kind": "notice", "words": "Marta arrives from the bucket." },
+      { "reader": "Ivo", "kind": "notice", "words": "Marta arrives from the bucket." },
+      { "reader": "Marta", "kind": "described", "words": "Inside the basket." }
+    ] },
+    { "as": "Pip", "type": "go north", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Pip leaves for the wardrobe." },
+      { "reader": "Ivo", "kind": "notice", "words": "Pip leaves for the wardrobe." },
+      { "reader": "Wren", "kind": "notice", "words": "Pip leaves for the wardrobe." },
+      { "reader": "Marta", "kind": "notice", "words": "Pip leaves for the wardrobe." },
+      { "reader": "Ash", "kind": "notice", "words": "Pip arrives from the hall." },
+      { "reader": "Ivo", "kind": "notice", "words": "Pip arrives from the hall." },
+      { "reader": "Wren", "kind": "notice", "words": "Pip arrives from the hall." },
+      { "reader": "Marta", "kind": "notice", "words": "Pip arrives from the hall." },
+      { "reader": "Pip", "kind": "described", "words": "Inside the wardrobe." }
+    ] },
+    { "as": "Ivo", "type": "go north", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Ivo leaves for the wardrobe." },
+      { "reader": "Wren", "kind": "notice", "words": "Ivo leaves for the wardrobe." },
+      { "reader": "Pip", "kind": "notice", "words": "Ivo leaves for the wardrobe." },
+      { "reader": "Marta", "kind": "notice", "words": "Ivo leaves for the wardrobe." },
+      { "reader": "Pip", "kind": "notice", "words": "Ivo arrives from the hall." },
+      { "reader": "Ash", "kind": "notice", "words": "Ivo arrives from the hall." },
+      { "reader": "Wren", "kind": "notice", "words": "Ivo arrives from the hall." },
+      { "reader": "Marta", "kind": "notice", "words": "Ivo arrives from the hall." },
+      { "reader": "Ivo", "kind": "described", "words": "Inside the wardrobe." }
+    ] },
+    { "as": "Ivo", "type": "go in", "expect": [
+      { "reader": "Pip", "kind": "notice", "words": "Ivo leaves for the hamper." },
+      { "reader": "Ash", "kind": "notice", "words": "Ivo leaves for the hamper." },
+      { "reader": "Wren", "kind": "notice", "words": "Ivo leaves for the hamper." },
+      { "reader": "Marta", "kind": "notice", "words": "Ivo leaves for the hamper." },
+      { "reader": "Pip", "kind": "notice", "words": "Ivo arrives from the wardrobe." },
+      { "reader": "Ash", "kind": "notice", "words": "Ivo arrives from the wardrobe." },
+      { "reader": "Wren", "kind": "notice", "words": "Ivo arrives from the wardrobe." },
+      { "reader": "Marta", "kind": "notice", "words": "Ivo arrives from the wardrobe." },
+      { "reader": "Ivo", "kind": "described", "words": "Inside the hamper." }
+    ] },
+    { "as": "Pip", "type": "close wardrobe", "expect": [
+      { "reader": "Pip", "kind": "said", "words": "You shut the wardrobe." },
+      { "reader": "Ivo", "kind": "told", "words": "Pip shuts the wardrobe." },
+      { "reader": "Ash", "kind": "told", "words": "Pip shuts the wardrobe." },
+      { "reader": "Wren", "kind": "told", "words": "Pip shuts the wardrobe." },
+      { "reader": "Marta", "kind": "told", "words": "Pip shuts the wardrobe." }
+    ] },
+    { "as": "Ash", "type": "ring bell", "expect": [
+      { "reader": "Ash", "kind": "said", "words": "You ring a bell." },
+      { "reader": "Wren", "kind": "told", "words": "Ash rings a bell." },
+      { "reader": "Marta", "kind": "told", "words": "Ash rings a bell." }
+    ] },
+    { "as": "Wren", "type": "ring chime", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You ring a chime." },
+      { "reader": "Marta", "kind": "told", "words": "Wren rings a chime." }
+    ] },
+    { "as": "Pip", "type": "ring gong", "expect": [
+      { "reader": "Pip", "kind": "said", "words": "You ring a gong." }
+    ] },
+    { "as": "Pip", "type": "examine ivo", "expect": [
+      { "reader": "Pip", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Ivo", "type": "examine pip", "expect": [
+      { "reader": "Ivo", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Wren", "type": "close bucket", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You shut the bucket." },
+      { "reader": "Marta", "kind": "told", "words": "Wren shuts the bucket." },
+      { "reader": "Ash", "kind": "told", "words": "Wren shuts the bucket." }
+    ] },
+    { "as": "Ash", "type": "ring bell", "expect": [
+      { "reader": "Ash", "kind": "said", "words": "You ring a bell." }
+    ] }
+  ]
+}

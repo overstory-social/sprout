@@ -169,9 +169,9 @@ sprout_eval_status sprout_value_heard(sprout_exec *x, const sprout_frame *frame,
     for (g = 0; g < plays.count && !*heard; g++)
       for (p = 0; p < plays.groups[g]->count && !*heard; p++) {
         const sprout_graph *graph = &frame->world->graph;
-        const sprout_node *narrowing =
-            sprout_node_map_find(graph, sprout_node_get(graph, plays.groups[g]->plays[p].node, "narrows"), role->name);
-        if (narrowing != NULL) EXPR_NEED(hears(frame, narrowing, self, value, heard));
+        const sprout_play *play = &plays.groups[g]->plays[p];
+        const sprout_node *narrowing = sprout_node_map_find(graph, sprout_node_get(graph, play->node, "narrows"), role->name);
+        if (narrowing != NULL && sprout_play_runs(play, reading->verb)) EXPR_NEED(hears(frame, narrowing, self, value, heard));
       }
   }
   return SPROUT_EVAL_OK;

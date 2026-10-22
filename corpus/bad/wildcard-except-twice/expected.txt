@@ -1,0 +1,4 @@
+kinds.sprout:5:37  `as target for any` leaves out `examine` twice.
+                   Name `examine` once after `except`.
+
+refused: 1 problem

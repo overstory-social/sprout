@@ -1,0 +1,4 @@
+kinds.sprout:5:22  `except` leaves verbs out of a play for every verb, and `as target for take` plays only `take`.
+                   Take out `except …` to play `take` alone, or write `as target for any except drop` to play every verb but that one.
+
+refused: 1 problem

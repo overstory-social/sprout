@@ -1,0 +1,6 @@
+import {take, drop} from 'sprout'
+
+// `except` follows only `for any`.
+kind Mirage {
+  as target for take except drop { permit { refuse "Your hand closes on nothing." } }
+}

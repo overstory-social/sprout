@@ -91,6 +91,21 @@ describe('what a file imports', () => {
     ]);
   });
 
+  it('needs a verb a wildcard’s `except` names imported, as a play’s head needs its own', () => {
+    const ghost = (imports: string, verb = 'examine') =>
+      world('', {
+        'ghost.sprout': `${imports}kind Ghost {\n  as target for any except ${verb} { permit { refuse "Gone." } }\n}\n`,
+      });
+    expect(refused(ghost(''))).toEqual([
+      [
+        'ghost.sprout:2:28',
+        '`examine` is declared in the library `sprout`, and this file does not import it.',
+      ],
+    ]);
+    expect(refused(ghost(`import {examine} from ${Q}sprout${Q}\n`))).toEqual([]);
+    expect(refused(ghost(`import {examine as peer} from ${Q}sprout${Q}\n`, 'peer'))).toEqual([]);
+  });
+
   it('reads an import of a file the manifest names and did not arrive as absent, not unknown', () => {
     const result = compileWorld(
       'w',

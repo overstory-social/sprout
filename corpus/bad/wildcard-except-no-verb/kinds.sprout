@@ -1,0 +1,4 @@
+// `except` names the verbs it leaves out.
+kind Mirage {
+  as target for any except { permit { refuse "Your hand closes on nothing." } }
+}
