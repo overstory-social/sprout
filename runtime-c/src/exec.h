@@ -168,6 +168,7 @@ typedef struct sprout_exec {
   bool records_as_said; /* an extension's effect reaches those who read what is said, rather than the teller's place */
   bool hears_live;      /* what is said is heard by whoever would hear the speaker's `tell` now, rather than by `heard_by` */
   size_t acting;        /* the `act`s the readings now running stand inside, one deeper against the cascade depth each */
+  bool follows;         /* a person's own command was run, so its `after command`s are owed once the queue drains */
 
   /* What the turn has done, in order. */
   sprout_effect *effects;

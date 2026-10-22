@@ -1,6 +1,14 @@
-// Every visitor arrives with a tin of their own.
+// Every visitor arrives with a tin of their own, and one sent `:slide` goes
+// on down into the pool by their own move, since only they may move
+// themselves.
 import * as sprout from 'sprout'
 
-kind Person is sprout.Visitor {
+message :slide
+
+kind Slider is sprout.Actor {
+  on :slide { move self to pool }
+}
+
+kind Person is Slider, sprout.Visitor {
   object tin is sprout.Container
 }
