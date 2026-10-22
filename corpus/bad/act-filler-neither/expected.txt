@@ -1,0 +1,4 @@
+cat.sprout:9:39  `topic` is filled by a name or a value, and `->` is neither.
+                 Name something in reach in lower case, as in `topic: p`, or write a value its role takes, as in `topic: :toll` or `topic: 3`.
+
+refused: 1 problem

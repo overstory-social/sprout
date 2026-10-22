@@ -62,7 +62,13 @@ function checked(text: string) {
   ).toEqual([]);
 
   const diagnostics = new Diagnostics();
-  const setting = { kinds, here: hereKindOf(kinds.all(), kinds), verbs, diagnostics };
+  const setting = {
+    kinds,
+    here: hereKindOf(kinds.all(), kinds),
+    verbs,
+    heard: () => [],
+    diagnostics,
+  };
   const clean: boolean[] = [];
   for (const kind of kinds.all().filter((one) => one.library === 'shop')) {
     for (const runs of kind.handlers.values()) {

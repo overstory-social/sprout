@@ -1125,7 +1125,31 @@ object cat is Creature {
 }
 ```
 
-`act <verb> (<role>: <binding>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done; a refused `act` ends the body it stands in, as a refused `move` does. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes `sprout.Actor`, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
+`act <verb> (<role>: <filler>, …)` builds a reading with `self` as the actor and runs it on the spot — the consent pass, the effect pass, everything a typed command would do — and continues when it is done; a refused `act` ends the body it stands in, as a refused `move` does. Roles are named, so no phrase is needed and a verb with no phrases is a verb only an NPC can perform; an optional tool may be left unnamed, and one that is not optional may not. `act` is legal only in a body whose `self` composes `sprout.Actor`, and it is charged like any other work; an `act` inside an `act` counts against cascade depth.
+
+A role a thing fills is filled by a binding, or an object named by its path. A value role is filled by a value of its type, worked out where the `act` stands: a `symbol` role by an option written bare, `spell: :feeble`, or a binding that holds one, and an `integer` role by any whole-number expression, `count: n + 1`. A bare option names no enum of its own, so it is checked against the enums whose options the role's role-players' `from`s hear it as, and one none of them has is a compile error naming the options; where no `from` narrows the role at all, the compiler warns instead, under The compiler › What it warns about, since nothing it is given is ever bound. What an `act` gives is narrowed exactly as a typed value is: each role-player's `from` reads it against its own options at the time, so a value outside them arrives unbound, and the role-player's `else` branch is where it is answered:
+
+```sprout
+enum Spell { feeble, fear, float }
+verb enchant { role target  role spell: symbol }
+
+kind Wizard is sprout.Actor {
+  as target for provoke {
+    do { act enchant (target: actor, spell: :feeble) }
+  }
+}
+
+kind Mortal is sprout.Actor {
+  :hears [Spell] default [feeble, fear]
+  as target for enchant {
+    spell from :hears
+    do {
+      if (bound spell) { tell self "Your limbs go weak." }
+      else             { tell self "The spell washes over you." }
+    }
+  }
+}
+```
 
 Inside the reading, `actor` is the cat. Nobody is behind it to read its `say` lines, so they come from it instead: everyone who would hear its `tell` hears them as the cat speaking, *the cat says "miaow"*, through the `npc_says` line, under Engine lines. A reading of an NPC's that says nothing has no output; `nothing_happens` answers only a person. Its `tell` lines reach everyone present as they would for a person, and the one its act is aimed at reads what its own part tells that role, under The actor's own part. This is what makes an NPC and a visitor the same thing to a world: the cat carries a toy with `act take` and licks a hand with a verb the world declared, and every rule that governs a person governs it.
 
@@ -2022,7 +2046,7 @@ A world's state belongs to the files it started with, or to an earlier version o
 
 ### What it warns about
 
-A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, where what can play is what the world can hold: each declared object, what a kind's body gives its instances, the world, the visitor kind and each kind some body spawns; and a role in a verb nothing fills: a kind role that nothing which can take part composes, or a value role that no `from` narrows and no `act` names, a role anything may fill never. Both only for the world's own verbs. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`, `say` alone counting. A passage on an object or the world that nothing says, tells, refuses or renders by name and the engine does not say, and nothing it composes declares, which is most often a misspelt override; the warning offers the nearest name it probably meant. `contains` or `contains actors` written twice in one body. A statement after `allow` or `refuse` in a guard or a `permit`, which never runs. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at. An `on :tick` on an object, declared or spawnable, whose kind does not declare `contains actors`, since only a place is ticked: "`cat` is not a place, so `on :tick` never runs." A `wake` on a kind that answers no `:woke`, and an `on :woke` on a kind whose bodies never write `wake`: "Nothing here asks to be woken, so `on :woke` never runs." These two are warned rather than refused, since what a kind is composed with may bring the other half. A `{one of}` with one choice, which says the same words every time and is most often a missing `{or}`.
+A handler nothing sends to, and a message nothing handles — the second symmetric with the first, so a `send` that will never arrive is visible at compile time rather than being a silent no-op forever. An object hiding one of its name further out, at the inner declaration, naming the path the outer one is now reached by. A verb no object plays a role for, where what can play is what the world can hold: each declared object, what a kind's body gives its instances, the world, the visitor kind and each kind some body spawns; and a role in a verb nothing fills: a kind role that nothing which can take part composes, or a value role that no `from` narrows, whatever an `act` gives it, since what an `act` gives is narrowed by the same `from`; a role anything may fill never. Both only for the world's own verbs. A verb with phrases that no participant ever `say`s for, which will fall back to `nothing_happens`, `say` alone counting. A passage on an object or the world that nothing says, tells, refuses or renders by name and the engine does not say, and nothing it composes declares, which is most often a misspelt override; the warning offers the nearest name it probably meant. `contains` or `contains actors` written twice in one body. A statement after `allow` or `refuse` in a guard or a `permit`, which never runs. An exit guard that is the literal `false`. `destroy self` in a declared object's body, or in a kind a declared object is made of. A `.prose` file no kind points at. An `on :tick` on an object, declared or spawnable, whose kind does not declare `contains actors`, since only a place is ticked: "`cat` is not a place, so `on :tick` never runs." A `wake` on a kind that answers no `:woke`, and an `on :woke` on a kind whose bodies never write `wake`: "Nothing here asks to be woken, so `on :woke` never runs." These two are warned rather than refused, since what a kind is composed with may bring the other half. A `{one of}` with one choice, which says the same words every time and is most often a missing `{or}`.
 
 ### Diagnostics
 

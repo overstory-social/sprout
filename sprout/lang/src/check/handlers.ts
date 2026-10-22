@@ -50,6 +50,7 @@ import { checkBlock } from './blocks.js';
 export interface HandlerSetting {
   readonly kinds: KindLookup;
   readonly verbs: ActSetting['verbs'];
+  readonly heard: ActSetting['heard'];
   readonly diagnostics: Diagnostics;
   /** What `here` is typed as, which an actor's own handler and an `after command` bind. */
   readonly here: HereKind;
@@ -264,7 +265,7 @@ function contextFor(
     from: self.library,
     self,
     diagnostics: setting.diagnostics,
-    acting: { verbs: setting.verbs },
+    acting: { verbs: setting.verbs, heard: setting.heard },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
     ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),

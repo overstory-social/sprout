@@ -5,20 +5,25 @@
 // since `self` becomes the reading's actor and every actor may act. The
 // verb is reached as a play reaches one, the body's own library first and
 // then the standard library's. Each role named must be one the verb
-// declares, named once, and filled by a binding its filler takes; every
-// role that is neither optional nor a set must be named. Where a body
-// may stand is `blocks.ts`'s, which refuses `act` in a guard or a `permit`.
+// declares, named once, and filled by what its filler takes: a role a
+// thing fills by a name, and a value role by a value of its type, whose
+// bare option is checked against the enums the role-players' `from`s
+// hear; every role that is neither optional nor a set must be named.
+// Where a body may stand is `blocks.ts`'s, which refuses `act` in a guard
+// or a `permit`.
 
-import type { ActRole, ActStatement } from '../syntax/ast.js';
+import type { ActRole, ActStatement, ActValue } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
 import { readable } from '../source/words.js';
+import { textOf } from '../source/source.js';
 import { ACTOR, isActor } from '../declare/actors.js';
-import { nearestOption, shownName, SPROUT } from '../declare/enums.js';
+import { checkOption, nearestOption, qualifiedName, shownName, SPROUT } from '../declare/enums.js';
 import { composesKind, kindName, type KindRef } from '../declare/kinds.js';
 import type { ResolvedRole, ResolvedVerb } from '../declare/verbs.js';
-import { showType } from '../declare/types.js';
+import { describeLiteral, showType } from '../declare/types.js';
 import type { BindingType } from './bindings.js';
-import type { CheckContext } from './check.js';
+import { typeOf, type ActSetting, type CheckContext } from './check.js';
+import { describeKind } from './check/values.js';
 import { nameOf, pathType } from './statements.js';
 
 /**
@@ -36,7 +41,7 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
   const verb = acting.verbs.unqualified(statement.verb.text, context.from);
   if (verb === null) {
     unknownVerb(statement, context);
-    for (const role of statement.roles) pathType(role.filler, context);
+    for (const role of statement.roles) typeFiller(role, context);
     return false;
   }
   const named = new Set<string>();
@@ -44,7 +49,7 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
     const declared = verb.roles.find((one) => one.name === role.role.text);
     if (declared === undefined) {
       unknownRole(role, verb, context);
-      pathType(role.filler, context);
+      typeFiller(role, context);
       passed = false;
       continue;
     }
@@ -58,7 +63,11 @@ export function checkAct(statement: ActStatement, context: CheckContext): boolea
       continue;
     }
     named.add(declared.name);
-    if (!fills(role, declared, verb, context)) passed = false;
+    const filled =
+      role.kind === 'act-role'
+        ? fills(role, declared, verb, context)
+        : fillsWithValue(role, declared, verb, acting, context);
+    if (!filled) passed = false;
   }
   for (const role of verb.roles) {
     if (named.has(role.name) || role.optional || role.many) continue;
@@ -99,7 +108,7 @@ function unknownVerb(statement: ActStatement, context: CheckContext): void {
 }
 
 /** A role the verb does not declare. */
-function unknownRole(role: ActRole, verb: ResolvedVerb, context: CheckContext): void {
+function unknownRole(role: ActRole | ActValue, verb: ResolvedVerb, context: CheckContext): void {
   const names = verb.roles.map((one) => one.name);
   if (names.length === 0) {
     context.diagnostics.refuse(
@@ -113,7 +122,7 @@ function unknownRole(role: ActRole, verb: ResolvedVerb, context: CheckContext): 
   context.diagnostics.refuse(
     role.role.at,
     `\`${verb.name}\` has no role \`${role.role.text}\`. Its ${names.length === 1 ? 'role is' : 'roles are'} ${readable(names)}.`,
-    `Name one of them, as in \`act ${verb.name} (${meant ?? names[0]}: ${writtenPath(role.filler)})\`.`,
+    `Name one of them, as in \`act ${verb.name} (${meant ?? names[0]}: ${writtenFiller(role)})\`.`,
   );
 }
 
@@ -164,9 +173,9 @@ function wants(role: ResolvedRole, context: CheckContext): string {
       case 'exit':
         return 'an exit';
       case 'symbol':
-        return 'an option the visitor names';
+        return 'an option';
       case 'integer':
-        return 'a number the visitor names';
+        return 'a whole number';
       case 'open':
         return 'a thing in the world';
       case 'kind':
@@ -207,9 +216,8 @@ function remedy(
     case 'exit':
       return 'An exit is named only by the direction a visitor types.';
     case 'symbol':
-      return 'Name a binding that holds an option, as a value role bound inside `if (bound …)` does.';
     case 'integer':
-      return 'Name a binding that holds a number, as a `let` or a value role bound inside `if (bound …)` does.';
+      return valueRemedy(filler.fills, declared, verb, context);
     case 'open':
       return type.binds === 'set'
         ? `Name one thing: only a role marked \`many\` takes a set.`
@@ -241,11 +249,131 @@ function leftOut(
   // The example keeps the roles written right, and leaves out any the verb lacks.
   const named = statement.roles
     .filter((one) => verb.roles.some((declared) => declared.name === one.role.text))
-    .map((one) => `${one.role.text}: ${writtenPath(one.filler)}`);
+    .map((one) => `${one.role.text}: ${writtenFiller(one)}`);
   const example = [...named, `${role.name}: <what fills it>`].join(', ');
   context.diagnostics.refuse(
     statement.verb.at,
     `\`act ${verb.name}\` leaves out \`${role.name}\`, ${why}.`,
     `Name it: \`act ${verb.name} (${example})\`.`,
   );
+}
+
+/** A filler as written, for a remedy that shows it again. */
+function writtenFiller(role: ActRole | ActValue): string {
+  return role.kind === 'act-role' ? writtenPath(role.filler) : textOf(role.value.at);
+}
+
+/** Type a filler whose role is not known, so what it names is still checked and recorded. */
+function typeFiller(role: ActRole | ActValue, context: CheckContext): void {
+  if (role.kind === 'act-role') pathType(role.filler, context);
+  else if (role.value.kind !== 'symbol-expr') typeOf(role.value, context);
+}
+
+/**
+ * Whether a value given to a named role is one it takes, said where it is
+ * not: a value role takes a value of its type, and a bare option one of the
+ * enums its role-players' `from`s hear, or any where none does, since the
+ * role is then never bound and the compiler warns of that instead.
+ */
+function fillsWithValue(
+  role: ActValue,
+  declared: ResolvedRole,
+  verb: ResolvedVerb,
+  acting: ActSetting,
+  context: CheckContext,
+): boolean {
+  const { value } = role;
+  const filler = declared.filler ?? { fills: 'open' as const };
+  if (value.kind === 'symbol-expr') {
+    if (filler.fills === 'symbol') return heardOption(role, declared, verb, acting, context);
+    refuseValue(role, declared, verb, `\`:${value.name.text}\` is an option`, context);
+    return false;
+  }
+  const type = typeOf(value, context);
+  if (type === null) return false;
+  if (filler.fills === 'symbol' && type.binds === 'value' && type.type.type === 'symbol')
+    return true;
+  if (filler.fills === 'integer' && type.binds === 'value' && type.type.type === 'integer')
+    return true;
+  const given =
+    value.kind === 'integer' || value.kind === 'string' || value.kind === 'boolean'
+      ? describeLiteral(value)
+      : `\`${textOf(value.at)}\` is ${describeKind(type)}`;
+  refuseValue(role, declared, verb, given, context);
+  return false;
+}
+
+/** Whether a bare option is one some role-player of the role hears, said where none does. */
+function heardOption(
+  role: ActValue,
+  declared: ResolvedRole,
+  verb: ResolvedVerb,
+  acting: ActSetting,
+  context: CheckContext,
+): boolean {
+  if (role.value.kind !== 'symbol-expr') return true;
+  const option = role.value.name;
+  const enums = acting.heard(verb, declared.name);
+  if (enums.length === 0 || enums.some((one) => one.options.includes(option.text))) return true;
+  if (enums.length === 1)
+    return checkOption(enums[0]!, option.text, role.value.at, context.diagnostics);
+  const options = [...new Set(enums.flatMap((one) => one.options))];
+  const meant = nearestOption(option.text, options);
+  const named = enums.map((one) => shownName(qualifiedName(one.library, one.name), context.from));
+  context.diagnostics.refuse(
+    role.value.at,
+    `\`${declared.name}\` of \`${verb.name}\` is heard as an option of ${readable(named)}, and \`:${option.text}\` is not one of theirs.${meant === null ? '' : ` Did you mean \`:${meant}\`?`}`,
+    `Options: ${options.join(', ')}.`,
+  );
+  return false;
+}
+
+/** A value given to a role that does not take it; `given` says what it is. */
+function refuseValue(
+  role: ActValue,
+  declared: ResolvedRole,
+  verb: ResolvedVerb,
+  given: string,
+  context: CheckContext,
+): void {
+  const filler = declared.filler ?? { fills: 'open' as const };
+  const remedy = (() => {
+    switch (filler.fills) {
+      case 'exit':
+        return 'An exit is named only by the direction a visitor types.';
+      case 'symbol':
+      case 'integer':
+        return valueRemedy(filler.fills, declared, verb, context);
+      case 'open':
+        return `Name a thing in the world, as in \`act ${verb.name} (${declared.name}: self)\`.`;
+      case 'kind': {
+        const kind = shownName(kindName(filler.kind), context.from);
+        return `Name a \`${kind}\`, by a binding or a role that holds one.`;
+      }
+    }
+  })();
+  context.diagnostics.refuse(
+    role.value.at,
+    `\`${declared.name}\` of \`${verb.name}\` is filled by ${wants(declared, context)}, and ${given}.`,
+    remedy,
+  );
+}
+
+/**
+ * What to give a value role instead, written out: an option shown is one
+ * a role-player's `from` hears for the role, where any does.
+ */
+function valueRemedy(
+  fills: 'symbol' | 'integer',
+  declared: ResolvedRole,
+  verb: ResolvedVerb,
+  context: CheckContext,
+): string {
+  if (fills === 'integer') {
+    return `Give it a whole number, as in \`act ${verb.name} (${declared.name}: 3)\`, or a binding that holds one.`;
+  }
+  const heard = context.acting?.heard(verb, declared.name)[0]?.options[0];
+  return heard === undefined
+    ? 'Give it an option, or a binding that holds one; a role-player says which options it hears with `from`.'
+    : `Give it an option, as in \`act ${verb.name} (${declared.name}: :${heard})\`, or a binding that holds one.`;
 }

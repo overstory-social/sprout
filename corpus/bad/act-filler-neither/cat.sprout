@@ -1,0 +1,13 @@
+// A role is filled by the name of something in reach or by a value, and
+// punctuation is neither.
+import {Creature} from 'creature'
+import {pet, quiz} from 'act_filler_neither'
+
+kind Cat is Creature {
+  as target for pet {
+    do {
+      act quiz (target: actor, topic: ->)
+      say "The cat settles."
+    }
+  }
+}

@@ -1,0 +1,26 @@
+// An NPC fills a value role itself: the wizard casts a spell with
+// `act enchant (target: …, spell: :feeble)`, and the visitor's own part
+// of `enchant` reads which spell it was (the spec's Verbs › Acting). The
+// visitor's `from` still narrows what arrives, so a spell outside what
+// she hears, or a count outside her range, arrives unbound, as a typed
+// one would.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Wizard} from 'wizard'
+
+world act_values is sprout.World {
+  contains actors
+  visitors are Person
+  visitors arrive at tower
+
+  object tower is sprout.Place {
+    describe { text "A round room at the top of a tower." }
+    object wizard is Wizard
+  }
+}
+
+enum Spell { feeble, fear, float }
+
+verb provoke { role target  "provoke [target]" }
+verb enchant { role target  role spell: symbol }
+verb chime   { role target  role count: integer }

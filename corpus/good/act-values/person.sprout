@@ -1,0 +1,30 @@
+// A visitor's part of what the wizard casts: she hears two of the three
+// spells, and the chimes from one to three.
+import * as sprout from 'sprout'
+import {Spell, enchant, chime} from 'act_values'
+
+kind Mortal is sprout.Actor {
+  :hears [Spell] default [feeble, fear]
+
+  as target for enchant {
+    spell from :hears
+    do {
+      if (bound spell) {
+        if (spell == :feeble) { tell self "Your limbs go weak." }
+        else                  { tell self "You are seized by dread." }
+      } else {
+        tell self "The spell washes over you."
+      }
+    }
+  }
+
+  as target for chime {
+    count from 1 to 3
+    do {
+      if (bound count) { tell self "A bell rings {count} times." }
+      else             { tell self "The bell is silent." }
+    }
+  }
+}
+
+kind Person is Mortal, sprout.Visitor { }

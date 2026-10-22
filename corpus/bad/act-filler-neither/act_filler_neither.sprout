@@ -1,7 +1,7 @@
 import * as sprout from 'sprout'
 import {Person} from 'person'
 
-world act_filler_not_a_name is sprout.World {
+world act_filler_neither is sprout.World {
   contains actors
   visitors are Person
   visitors arrive at hall
