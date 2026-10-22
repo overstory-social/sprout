@@ -1,0 +1,18 @@
+// The bucket's view of the room below, rendered from a handler, where
+// nobody is acting.
+message :lowered
+
+verb lower { role target  "lower [target]" }
+
+kind Bucket {
+  grammar { name "bucket"  article a }
+
+  as target for lower {
+    do {
+      send self :lowered
+      say "You lower the bucket."
+    }
+  }
+
+  on :lowered { tell "Far below: {guarded_room.guarded.body}" }
+}

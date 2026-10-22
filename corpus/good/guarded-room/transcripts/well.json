@@ -1,0 +1,18 @@
+{
+  "about": "The guarded room's `body` reads `actor` only inside `{if bound actor}`. Lowered from the top of the well, the bucket's handler renders it with nobody acting, and the lizard sniffs at no one; going down, the room is described to the one arriving, and the lizard sniffs at them.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "The top of a well." }
+    ] },
+    { "as": "Marta", "type": "lower bucket", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You lower the bucket." },
+      { "reader": "Marta", "kind": "told", "words": "Far below: A lizard guards this room." }
+    ] },
+    { "as": "Marta", "type": "down", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A lizard guards this room. It is sniffing at you." }
+    ] },
+    { "as": "Marta", "type": "look", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "A lizard guards this room. It is sniffing at you." }
+    ] }
+  ]
+}

@@ -1,0 +1,4 @@
+bucket.sprout:16:56  The passage `body` reads `actor` at guarded_room.sprout:25:54, and `actor` is not bound inside `on :lowered`: nobody is acting when a message arrives.
+                     Give the words here without `actor`, say `body` only where `actor` is bound, or read `actor` in `body` only inside `{if bound actor}`.
+
+refused: 1 problem
