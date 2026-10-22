@@ -293,7 +293,7 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
 /*
  * What `place` says and sends of `actor` leaving it for `other` (`leaving`) or entering it from `other`: the
  * engine's `leaves` or `arrives` recorded for the visitors in its range, and `:departed` or `:arrived` queued
- * for everything else there. `other` is left unbound where it is the world, and `way` (which may be NULL)
+ * for everything there but `actor`, the visitors too. `other` is left unbound where it is the world, and `way` (which may be NULL)
  * where the move went through no exit or link. The tree is read as it stands after the move.
  */
 sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
