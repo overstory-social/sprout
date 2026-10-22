@@ -303,11 +303,13 @@ static uint32_t word_at(const unsigned char *bytes) {
   return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
 }
 
-/* Overwrites the first digit of the first hash in `text` with `digit`, which it must not already be. */
-static void redigit_hash(char *text, char digit) {
+/* Moves the first hex digit of the first hash in `text` on by `step`, 1 to 15, so each step gives a hash of its own. */
+static void redigit_hash(char *text, char step) {
+  static const char HEX[] = "0123456789abcdef";
   char *at = strstr(text, "\"hash\":\"");
-  CHECK(at != NULL && at[8] != digit, "the teashop's header has a hash not beginning %c", digit);
-  if (at != NULL) at[8] = digit;
+  const char *was = at == NULL ? NULL : strchr(HEX, at[8]);
+  CHECK(was != NULL && *was != '\0' && step > '0' && step <= '9', "the teashop's header has a hash");
+  if (was != NULL && *was != '\0') at[8] = HEX[((size_t)(was - HEX) + (size_t)(step - '0')) % 16];
 }
 
 static void put_word(unsigned char *bytes, size_t value) {
