@@ -1,0 +1,4 @@
+kinds.sprout:8:23  `Tablet` gets a default `as target for read` from both `Thing` and `Glyphs`, and a default steps aside only for a play that is not one, so both would answer.
+                   Write its own `as target for read { … }` in `Tablet`, which the defaults step aside for, or its own `as target for read default { … }`, which replaces them, or leave one out with `without as target for read from Glyphs`.
+
+refused: 1 problem

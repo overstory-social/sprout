@@ -384,7 +384,7 @@ Members divide by whether more than one answer makes sense.
 | `changed :p` hook | all run |
 | `after command` | all run |
 | `depart` / `release` / `accept` | all run; any refusal decides |
-| `as <role> for <verb>` | all `permit` run, any refusal decides; all `do` run |
+| `as <role> for <verb>` | all `permit` run, any refusal decides; all `do` run; a `default` one steps aside for any other |
 | nouns in the grammar block | all apply |
 | `name`, `article`, `capacity` | refuse |
 | `contains`, `contains actors`, `roams` | idempotent |
@@ -403,6 +403,32 @@ Four rules cover the table, less its last row: an exit or a link is not composed
 A composer's own exclusive member always replaces what it composes — a collision is only ever between two *sources*, neither of which is the composer — so an object that writes its own `immovable` passage over `sprout.Fixture`'s has suppressed nothing and needs no `without`.
 
 A passage may be declared `default`. A default passage yields to any passage of the same name from any other source, without collision; two defaults of one name collide as any two sources do, except that the standard library's default yields to another library's. The standard library's stock lines are all defaults, which is what lets a world compose `victorian.Voice` beside `sprout.Actor` and take the library's `taken` without writing anything, lets a second library supply the lines the first left out, and lets a register library write its own lines as defaults that still yield to the world's. A composer's own default replaces a composed passage of the same name, default or not, as any exclusive member of its own does, and stays a default, so it still yields to a source further up.
+
+A play may be declared `default` too, after its head: `as target for read default { … }`. A default play steps aside, its `permit` and its `do` alike, wherever another source's play of the same role in the same verb meets it, so a base kind can give every verb a stock answer and a more specific kind replace it by writing the real one, along whatever path the stock answer arrives:
+
+```sprout
+kind Thing {
+  as target for read default { do { say cannot_read } }
+  as target for eat default { permit { refuse inedible } }
+  passage cannot_read default { How does one read {self}? }
+  passage inedible default { I don't think that {self} would agree with you. }
+}
+
+kind Food is Thing {
+  as target for eat { do { say "That really hit the spot." } }
+}
+
+kind Readable is Thing {
+  as target for read { do { say inscription } }
+  passage inscription default { Something is written on {self}. }
+}
+
+object cake is Food, Readable {
+  passage inscription { The icing reads: "Eat me." }
+}
+```
+
+The cake reaches `Thing`'s `read` through `Food` as well as through `Readable`, and it steps aside all the same: what the cake reads is the inscription, and eating it is allowed. A default play steps aside only for a play of its own role in its own verb, never for the actor's part or for a wildcard. Where it steps aside in a kind, it stays out of every kind that composes that one, as a `without` leaves a contribution out, under Suppressing a contribution. Where only defaults meet, the composer's own replaces the others and stays a default, so it still steps aside further up. Two defaults from other sources, with nothing else beside them, collide: both would answer, and the composer resolves it by writing its own. A composer's own default that a composed play displaces is refused, since it would never run. A wildcard is never `default`, under Roles compose.
 
 Order in the composition list sequences effects. It never decides which effect applies. `A, B` and `B, A` may narrate in a different order and can never differ in what happened, and no composed kind's member silently shadows another composed kind's at any depth.
 
@@ -424,7 +450,7 @@ kind SafetyLamp is sprout.LightSource {
 
 This is the exception, which is why it is the verbose form.
 
-What a kind leaves out stays left out in every kind that composes it. Where the same member also reaches the composer through another kind, which does not leave it out, that copy still runs.
+What a kind leaves out stays left out in every kind that composes it. Where the same member also reaches the composer through another kind, which does not leave it out, that copy still runs. So a `without` settles one path; a base kind's answer that should give way to any more specific kind's, by every path at once, is written as a `default` play, under How members combine.
 
 ### Properties merge; they never shadow
 
@@ -1005,7 +1031,7 @@ kind RequiresHeld {
 }
 ```
 
-A wildcard only permits: a `do` in one is refused, since what an object does belongs to a verb, and so is a `from`, since there is no verb whose value role it could narrow. It cannot know any verb's other roles, so its body has `self`, `actor` and `here` and no role, and naming a role is refused in words that say why. For one participant its wildcard permits run before its permits for the verb, under The two passes, and it composes as every `permit` does: it can refuse, and never allow what another permit refuses.
+A wildcard only permits: a `do` in one is refused, since what an object does belongs to a verb, and so is a `from`, since there is no verb whose value role it could narrow, and so is `default`, since it plays no one verb whose other plays it could step aside for. It cannot know any verb's other roles, so its body has `self`, `actor` and `here` and no role, and naming a role is refused in words that say why. For one participant its wildcard permits run before its permits for the verb, under The two passes, and it composes as every `permit` does: it can refuse, and never allow what another permit refuses.
 
 The split by role is what makes a wildcard usable. A key guarded on every role could never be picked up, because it is `take`'s target before it is ever held; guarded as a tool, `take key` is untouched. `sprout.RequiresHeld` is the standard library's: a key and a torch that compose it work only from the actor's hands, and a book that does not works from an open pouch as well. Where a verb says its tool must be carried at all, that is the verb's `carried`, under Carried roles; the two compose, and neither needs the other.
 
@@ -2079,6 +2105,7 @@ A world's state belongs to the files it started with, or to an earlier version o
 - `chance`, `random` or `{one of}` in `describe`, in a `when` guard, in a consent guard, in a `permit`, in a pass rule, or in the world's `unseen`, `unremarkable` or `acted`, or a thing's `contents` — including in any passage reachable from one.
 - A comparison between different types, a symbol that is not one of its enum's options, an integer literal compared against a range it lies outside, arithmetic or a relation on anything but integers, a non-boolean where a boolean belongs, a `get` on a binding of object type, a `set` or `remember` of a literal outside its range.
 - A property arriving from two origins under composition; an exclusive member — `describe`, a passage, a `pass` rule, `name`, `article`, `capacity` — arriving from two sources.
+- Two `default` plays of one role in one verb arriving from two sources with no other play of it beside them; a composer's own `default` play that a composed play of the same role and verb displaces; `default` on a wildcard.
 - A message or a verb taking a reserved name; a `name` beginning with an article.
 - `pass` anywhere but a `do` or an `after command`; a `pass` whose count is written below nothing, or past the largest integer in seconds.
 - A composition written with the colon rather than `is`.

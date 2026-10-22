@@ -2439,7 +2439,7 @@ inheritance chain and no `super`.
 | `on :m` handler, `changed :p` hook   | all run                                              |
 | `after command`                      | all run                                              |
 | `depart`, `release`, `accept`        | all run; any refusal decides                         |
-| `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs |
+| `as <role> for <verb>`               | every `permit` runs, any refusal decides; every `do` runs; a `default` one steps aside for any other |
 | `nouns`, `adjectives`                | all apply                                            |
 | `name`, `article`, `pronouns`       | error                                                |
 | `contains`, `contains actors`        | the same either way                                  |
@@ -2485,6 +2485,33 @@ library default gives way to another library's. This is what lets you
 replace any stock line by writing a passage of the same name, and lets a
 library supply a whole world's stock lines in another voice.
 
+### `default` plays
+
+A play marked `default`, after its head, is a stock answer: it runs only
+where nothing else plays the same role for the same verb, and steps aside,
+`permit` and `do` alike, wherever something does, however it arrived:
+
+```sprout
+kind Thing {
+  as target for read default { do { say "How does one read {self}?" } }
+  as target for eat default { permit { refuse "I don't think that {self} would agree with you." } }
+}
+
+kind Food is Thing { as target for eat { do { say "That really hit the spot." } } }
+kind Readable is Thing { as target for read { do { say "The icing reads: “Eat me.”" } } }
+```
+
+A rock made of `Thing` answers `read rock` with Thing's line. A cake made
+of `Food, Readable` reaches Thing's `read` through `Food` too, and still
+reads only as `Readable` says; `eat cake` is allowed, since Thing's
+refusal stepped aside with the rest of its play. A default steps aside
+only for a play of its own role in its own verb, never for the actor's
+part or a `for any` wildcard, and a wildcard cannot be `default`. Where
+only defaults meet, a kind's own replaces the ones it composes. Two
+defaults from two other sources with nothing else beside them are an
+error, and so is a kind's own default that something it composes always
+displaces, since it would never run.
+
 ### `without`
 
 A kind may drop one member it would compose, naming the member and where
@@ -2497,7 +2524,8 @@ kind SafetyLamp is sprout.LightSource {
 ```
 
 What a kind leaves out stays out for everything that composes it — unless
-the same member also arrives by another route.
+the same member also arrives by another route. To have a base kind's
+answer give way by every route at once, write it as a `default` play.
 
 ### Splitting work between a library and a world
 
@@ -2670,6 +2698,9 @@ cat.sprout:4:14  `say` has nobody to speak to inside `on :stir`.
   non-boolean condition, `get` on the object type, setting a literal out of
   range.
 - Two sources for a property or an exclusive member.
+- Two `default` plays of one role in one verb with nothing else beside
+  them; a kind's own `default` play that what it composes always
+  displaces; `default` on a `for any` wildcard.
 - Reserved names, a `name` beginning with an article, composing with `:`.
 - A world that does not compose `sprout.World`; anything else that does;
   no world, two worlds, or a world not named as in the manifest.
