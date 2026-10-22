@@ -1,0 +1,4 @@
+// A play for every verb has no one verb to step aside in.
+kind Mirage {
+  as target for any default { permit { refuse "Your hand closes on nothing." } }
+}

@@ -1,0 +1,8 @@
+// Two kinds each give a stock answer to `read`, and the tablet composes
+// both with nothing else to read it by: both would answer.
+verb read { role target  "read [target]" }
+
+kind Thing { as target for read default { do { say "How does one read {self}?" } } }
+kind Glyphs { as target for read default { do { say "The marks mean nothing to you." } } }
+
+kind Tablet is Thing, Glyphs { }

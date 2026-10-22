@@ -405,6 +405,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
 
   // --- plays, every one of each role, in closure order ------------------
   const plays = composePlays(
+    { name: composer.name, written: composed.map(({ written }) => written), shown },
     composed.map(({ kind }) => kind.plays),
     order,
     suppressed,
@@ -414,6 +415,7 @@ export function composeKind(composer: Composer, context: ComposeContext): KindRe
       ...(context.onUnknownVerb === undefined ? {} : { onUnknownVerb: context.onUnknownVerb }),
     }),
     reach,
+    diagnostics,
   );
   // --- handlers and hooks, all of them, in closure order ----------------
   const messages = messageSetting(composer.library, context);

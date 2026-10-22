@@ -1,0 +1,4 @@
+kinds.sprout:8:3  `Scroll`'s own `as target for read default` never runs: `Readable` plays `target` for `read` in it, and a default steps aside for any other play.
+                  Take out `default` to run it beside that one, or leave that one out with `without as target for read from Readable` to answer in its place.
+
+refused: 1 problem
