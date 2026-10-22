@@ -5,7 +5,8 @@
  * and `wait`'s answer, and where the queue left her, with its own queue drained after it; after a refused command too,
  * once its refusal is said, with `refused` bound and, for an exit that refused, `way`; not after a line nobody
  * understood, nor for what she has set down or shut in her tin; not for an arrival or a tick; and a plain `tell` from
- * it leaves her out while her neighbour reads it.
+ * it leaves her out while her neighbour reads it. Over `after-command-own-body`, what an object's own body and the
+ * world's write follows a command where no declared kind writes one.
  */
 #include "turn_fixture.h"
 
@@ -217,6 +218,46 @@ static void an_arrival_and_a_tick_are_followed_by_nothing(void) {
   tw_close(&w);
 }
 
+/* `after-command-own-body`, where no declared kind writes one: the watch's own, the carousel's and the world's still run. */
+static void what_an_object_or_the_world_writes_for_itself_follows_too(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading reading;
+  int answer, watch, carousel, organ;
+  tw_open(&w, "after-command-own-body");
+  CHECK(w.world->follows_commands);
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  reading = tw_reading("sprout.look", tw_person(&w, "v-wren"), &filling, NULL, NULL);
+  tw_command(&w, "v-wren", &reading, 1001, &out);
+  answer = line_at(&out, "v-wren", "A carousel, its horses rising and falling.");
+  carousel = line_at(&out, "v-wren", "The carousel turns.");
+  organ = line_at(&out, "v-wren", "The band organ plays on.");
+  CHECK(answer >= 0 && answer < carousel && carousel < organ);
+  CHECK(line_at(&out, "v-wren", "The watch ticks.") < 0);
+  sprout_outcome_free(&out);
+  reading = tw_reading("sprout.take", tw_person(&w, "v-wren"), &filling, "target", "after_command_own_body.carousel.watch");
+  tw_command(&w, "v-wren", &reading, 1002, &out);
+  watch = line_at(&out, "v-wren", "The watch ticks.");
+  carousel = line_at(&out, "v-wren", "The carousel turns.");
+  organ = line_at(&out, "v-wren", "The band organ plays on.");
+  CHECK(watch >= 0 && watch < carousel && carousel < organ);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+/* A world none of whose kinds writes `after command` walks nothing after a command. */
+static void a_world_that_writes_none_follows_nothing(void) {
+  turn_world w;
+  tw_open(&w, "after-command");
+  CHECK(w.world->follows_commands);
+  tw_close(&w);
+  tw_open(&w, "act");
+  CHECK(!w.world->follows_commands);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(what_follows_runs_nearest_first_after_the_place_walked_into_is_read);
   RUN(what_follows_runs_after_the_engine_has_answered);
@@ -226,5 +267,7 @@ int main(void) {
   RUN(a_line_nobody_understood_is_followed_by_nothing);
   RUN(what_she_has_set_down_follows_nobody);
   RUN(an_arrival_and_a_tick_are_followed_by_nothing);
+  RUN(what_an_object_or_the_world_writes_for_itself_follows_too);
+  RUN(a_world_that_writes_none_follows_nothing);
   return REPORT();
 }

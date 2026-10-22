@@ -457,6 +457,35 @@ export const FOLLOWED = declaredId('followed', []);
 export const FOLLOWED_HALL = declaredId('followed', ['hall']);
 export const FOLLOWED_BELL = declaredId('followed', ['hall', 'bell']);
 
+/**
+ * The belfry again, where no declared kind writes `after command`: the
+ * bell's own body, the hall's and the world's write it, and they follow a
+ * command as a kind's would (the spec's Verbs › After a command).
+ */
+export const BELFRY_OWN_FOLLOWS = compiled('own_followed', {
+  'own_followed.sprout': `world own_followed is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  :commands 0
+  after command { self.adjust(:commands, 1) }
+  object hall is sprout.Place {
+    after command { tell actor "The hall echoes." }
+    object bell is Bell {
+      after command { say "The bell hums." }
+    }
+  }
+}
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'bell.sprout': `kind Bell {
+  grammar { name "bell" }
+}
+`,
+});
+export const OWN_FOLLOWED = declaredId('own_followed', []);
+export const OWN_FOLLOWED_HALL = declaredId('own_followed', ['hall']);
+export const OWN_FOLLOWED_BELL = declaredId('own_followed', ['hall', 'bell']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');
