@@ -1,0 +1,34 @@
+// Two people shut in one wardrobe reach each other (the spec's Range: an
+// object always reaches what shares its own container). The wardrobe is a
+// place of its own and a container whose door is its lid; pulled shut, it
+// is a wall to the bedroom, and not between the two inside. The hatbox
+// in it is shut too, and stays a wall: the hat inside cannot be named
+// until the hatbox is opened.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world shut_in_together is sprout.World {
+  visitors are Person
+  visitors arrive at bedroom
+
+  object bedroom is sprout.Place {
+    grammar { article the  exit in "into the wardrobe" -> bedroom.wardrobe }
+    describe { text "A low bedroom. A wardrobe stands against the wall." }
+
+    object wardrobe is Wardrobe {
+      object hatbox is sprout.Container {
+        :open false
+        grammar { name "hatbox"  article a }
+        object hat is Hat
+      }
+    }
+  }
+}
+
+kind Wardrobe is sprout.Place, sprout.Container {
+  contains actors
+  grammar { name "wardrobe"  article the  exit out "out to the bedroom" -> bedroom }
+  describe { text "Inside the wardrobe, among the coats." }
+}
+
+kind Hat { grammar { name "hat"  article a } }

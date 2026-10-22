@@ -1,0 +1,66 @@
+{
+  "about": "Wren and Marta step into the wardrobe and Wren pulls it shut. Shut in together, each can still name the other, and Ash in the bedroom can name neither. The hatbox beside them is shut and hides its hat until Wren opens it; then Wren can take the hat and hand it to Marta. With the wardrobe open again, Ash can name Marta.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A low bedroom. A wardrobe stands against the wall." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "A low bedroom. A wardrobe stands against the wall." }
+    ] },
+    { "arrive": "Ash", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Ash arrives." },
+      { "reader": "Marta", "kind": "notice", "words": "Ash arrives." },
+      { "reader": "Ash", "kind": "described", "words": "A low bedroom. A wardrobe stands against the wall." }
+    ] },
+    { "as": "Wren", "type": "go in", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "Wren leaves for the wardrobe." },
+      { "reader": "Ash", "kind": "notice", "words": "Wren leaves for the wardrobe." },
+      { "reader": "Marta", "kind": "notice", "words": "Wren arrives from the bedroom." },
+      { "reader": "Ash", "kind": "notice", "words": "Wren arrives from the bedroom." },
+      { "reader": "Wren", "kind": "described", "words": "Inside the wardrobe, among the coats." }
+    ] },
+    { "as": "Marta", "type": "go in", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "Marta leaves for the wardrobe." },
+      { "reader": "Wren", "kind": "notice", "words": "Marta leaves for the wardrobe." },
+      { "reader": "Wren", "kind": "notice", "words": "Marta arrives from the bedroom." },
+      { "reader": "Ash", "kind": "notice", "words": "Marta arrives from the bedroom." },
+      { "reader": "Marta", "kind": "described", "words": "Inside the wardrobe, among the coats." }
+    ] },
+    { "as": "Wren", "type": "close wardrobe", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You shut the wardrobe." },
+      { "reader": "Marta", "kind": "told", "words": "Wren shuts the wardrobe." },
+      { "reader": "Ash", "kind": "told", "words": "Wren shuts the wardrobe." }
+    ] },
+    { "as": "Wren", "type": "examine marta", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "There is nothing special about Marta." }
+    ] },
+    { "as": "Marta", "type": "examine wren", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about Wren." }
+    ] },
+    { "as": "Ash", "type": "examine wren", "expect": [
+      { "reader": "Ash", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Wren", "type": "examine hat", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Wren", "type": "open hatbox", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You open a hatbox. Inside: a hat." }
+    ] },
+    { "as": "Wren", "type": "take hat", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You take a hat." }
+    ] },
+    { "as": "Wren", "type": "give hat to marta", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You give a hat to Marta." },
+      { "reader": "Marta", "kind": "told", "words": "Wren gives you a hat." }
+    ] },
+    { "as": "Marta", "type": "open wardrobe", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You open the wardrobe. Inside: a hatbox, Wren, you." },
+      { "reader": "Wren", "kind": "told", "words": "Marta opens the wardrobe." },
+      { "reader": "Ash", "kind": "told", "words": "Marta opens the wardrobe." }
+    ] },
+    { "as": "Ash", "type": "examine marta", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "There is nothing special about Marta." }
+    ] }
+  ]
+}

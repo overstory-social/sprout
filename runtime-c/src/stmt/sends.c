@@ -112,7 +112,7 @@ sprout_eval_status stmt_broadcast(sprout_run *run, const sprout_frame *frame, co
   send.from = frame->self;
   send.declared = declared;
   for (i = 0; i < count; i++) {
-    if (walked[i].via != SPROUT_VIA_HELD && walked[i].via != SPROUT_VIA_PASSED) continue;
+    if (walked[i].via == SPROUT_VIA_SELF || walked[i].via == SPROUT_VIA_SURFACE) continue;
     send.recipient = walked[i].node;
     EXPR_NEED(sprout_exec_queue(run->x, &send));
   }

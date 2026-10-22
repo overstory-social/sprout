@@ -8,8 +8,10 @@
  * Two invariants. The asker always reaches itself, its own contents and the
  * surface of every container out to the first that refuses, whatever that
  * one's rule says, because a lid stops others looking in, not the chest
- * looking down. And the walk is a loop over a queue, never recursion, since
- * nesting has no cap.
+ * looking down; and it reaches what is shut in with it in the first
+ * container out that refuses, since a lid divides the inside from the
+ * outside, not the inside from itself, though never across a place. And
+ * the walk is a loop over a queue, never recursion, since nesting has no cap.
  */
 #include "expr/expr.h"
 #include "exec.h"
@@ -17,7 +19,8 @@
 typedef struct walk {
   const sprout_frame *frame;
   const char *asking;
-  bool sight; /* what is unseen, and what it holds, is passed over */
+  bool sight;   /* what is unseen, and what it holds, is passed over */
+  bool walled;  /* a place's contents are passed over, as they are past a container that refuses */
   sprout_reached *reached;
   size_t count, capacity;
 } walk;
@@ -74,7 +77,7 @@ static sprout_eval_status sweep(walk *w, ids *frontier) {
     size_t n;
     bool open;
     EXPR_NEED(contents(w->frame, node, &held, &n));
-    if (n == 0) continue;
+    if (n == 0 || (w->walled && expr_holds_actors(w->frame, node))) continue;
     EXPR_NEED(expr_passes(w->frame, node, w->asking, &open));
     if (!open) continue;
     for (i = 0; i < n; i++) {
@@ -88,34 +91,38 @@ static sprout_eval_status sweep(walk *w, ids *frontier) {
 
 static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker, const char *asking, bool sight,
                                     const sprout_reached **reached, size_t *count) {
-  walk w = {frame, asking, sight, NULL, 0, 0};
+  walk w = {frame, asking, sight, false, NULL, 0, 0};
   ids own = {NULL, 0, 0}, ring = {NULL, 0, 0};
   const sprout_str *held;
   size_t n, i;
   sprout_str inner = asker, outer;
-  bool has_outer;
+  bool has_outer, inside;
   EXPR_NEED(reach(&w, asker, SPROUT_VIA_SELF));
   EXPR_NEED(contents(frame, asker, &held, &n));
   for (i = 0; i < n; i++)
     if (!sight || !expr_unseen(frame, held[i])) EXPR_NEED(push(frame, &own, held[i]));
   for (i = 0; i < own.count; i++) EXPR_NEED(reach(&w, own.items[i], SPROUT_VIA_HELD));
   EXPR_NEED(sweep(&w, &own));
+  /* Whether no place stands between the asker and the container out it has come to: inside a lid, not across one. */
+  inside = !expr_holds_actors(frame, asker);
   has_outer = container_of(frame, asker, &outer);
   while (has_outer) {
     bool open;
     EXPR_NEED(expr_passes(frame, outer, asking, &open));
-    if (!open) {
-      EXPR_NEED(reach(&w, outer, SPROUT_VIA_SURFACE));
-      break;
-    }
-    EXPR_NEED(reach(&w, outer, SPROUT_VIA_PASSED));
+    EXPR_NEED(reach(&w, outer, open ? SPROUT_VIA_PASSED : SPROUT_VIA_SURFACE));
+    /* A container that refuses is a wall to what is outside it, not between two things inside it; a place is a wall
+     * of its own, so nothing is reached across one (Range). */
+    if (!open && (!inside || sprout_str_same(outer, frame->draft->base->world))) break;
     EXPR_NEED(contents(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++)
       if (!sprout_str_same(held[i], inner) && (!sight || !expr_unseen(frame, held[i])))
         EXPR_NEED(push(frame, &ring, held[i]));
-    for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], SPROUT_VIA_PASSED));
+    for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], open ? SPROUT_VIA_PASSED : SPROUT_VIA_BESIDE));
+    w.walled = !open;
     EXPR_NEED(sweep(&w, &ring));
+    if (!open) break;
+    inside = inside && !expr_holds_actors(frame, outer);
     inner = outer;
     has_outer = container_of(frame, outer, &outer);
   }
