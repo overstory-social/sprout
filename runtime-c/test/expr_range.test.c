@@ -114,6 +114,23 @@ static bool among(const sprout_str *ids, size_t count, const char *id) {
   return false;
 }
 
+
+static void sight_reaches_what_is_shut_in_with_it_and_no_further(void) {
+  bench b;
+  bench_turn t;
+  const sprout_str *seen;
+  size_t count;
+  bench_open(&b);
+  bench_turn_for(&b, &t, "get reads the property");
+  /* The coin is shut in the vault with the box. */
+  CHECK_INT(expr_seen_from(&t.frame, bench_id(COIN), &seen, &count), SPROUT_EVAL_OK);
+  CHECK(among(seen, count, "eval_bench.hall.vault"));
+  CHECK(among(seen, count, "eval_bench.hall.vault.box"));
+  CHECK(!among(seen, count, HALL));
+  CHECK(!among(seen, count, PROBE));
+  bench_turn_close(&t);
+  bench_close(&b);
+}
 static void what_is_unseen_is_reached_and_not_seen_but_by_itself_and_what_it_holds(void) {
   unseen_bench b;
   bool reached = false, seen = true;
@@ -182,6 +199,7 @@ int main(void) {
   RUN(every_node_the_walk_touches_costs_a_step);
   RUN(a_container_shows_what_self_can_see_in_its_order);
   RUN(sight_walks_outward_from_where_a_thing_stands);
+  RUN(sight_reaches_what_is_shut_in_with_it_and_no_further);
   RUN(what_is_unseen_is_reached_and_not_seen_but_by_itself_and_what_it_holds);
   RUN(a_container_shows_nothing_unseen_save_in_the_acting_visitors_open_hands);
   RUN(sight_does_not_see_what_is_unseen);

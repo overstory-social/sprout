@@ -1725,7 +1725,10 @@ through containment:
 2. The sender's container receives it if it passes that message, and
    delivers it on to its other contents (a container among them passes it
    in only if its own rule says so).
-3. And so on outward, until a container refuses.
+3. And so on outward, until a container refuses. Everything else that
+   container holds still receives it, being shut in with the sender, unless
+   a place stands in between: rooms in a shut house, like the world's
+   places, do not hear each other.
 
 So a lamp broadcasting inside a shut cabinet lights nothing outside it,
 and a room's broadcast stops at the world, which passes nothing unless you
@@ -1806,6 +1809,11 @@ containment tree refuses to pass. In practice:
   can still count what is in it.
 - It always reaches **the container it is in**, as a surface — so a
   visitor shut in a wardrobe can still open the wardrobe.
+- It reaches **what is shut in with it** — the other contents of the
+  first container out that refuses — so two visitors shut in one wardrobe
+  can name each other. A shut box beside them still hides what is in it.
+  A place is a wall of its own: rooms in a house that refuses, like the
+  world's places, are not in each other's range.
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 
