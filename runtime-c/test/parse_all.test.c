@@ -379,6 +379,27 @@ static void in_and_on_say_where_the_things_go_in_a_role_the_visitor_carries_and_
   bench_close(&t.b);
 }
 
+/* `all in` a place takes what stands in it as well as elsewhere, as what it holds. */
+static void all_in_a_place_takes_a_thing_that_stands_in_several(void) {
+  bench b;
+  sprout_arena keep;
+  sprout_parsed out;
+  bench_open(&b, "several-places", "Marta");
+  sprout_arena_init(&keep, &b.w.host);
+  bench_command(&b, "several_places.swing", "several_places.tiny_room.pdoor");
+  {
+    sprout_outcome gone;
+    tw_go(&b.w, "v-marta", "east", "east, through the door", "dreary_room", 1002, &gone);
+    sprout_outcome_free(&gone);
+  }
+  CHECK_INT(bench_parse(&b, &keep, "examine everything in the dreary room", 1, NULL, &out), SPROUT_OK);
+  CHECK_INT(out.end, SPROUT_PARSED_READING);
+  CHECK_INT(out.reading.filling_count, 1);
+  CHECK_STR(out.reading.fillings[0].id, "several_places.tiny_room.pdoor");
+  sprout_arena_reset(&keep);
+  bench_close(&b);
+}
+
 /* The yard of `all-set-role-skips-held`, reached in its order, the visitor first: the sack, its nine pebbles, the club. */
 static void open_yard(taking *t, bool sack_held, bool club_held) {
   static const char *const things[] = {
@@ -431,6 +452,7 @@ static void a_set_role_the_actors_own_part_takes_leaves_out_what_is_carried_befo
 }
 
 int main(void) {
+  RUN(all_in_a_place_takes_a_thing_that_stands_in_several);
   RUN(everything_is_all_with_except_after_it_and_each_is_neither);
   RUN(words_that_do_not_begin_with_all_or_a_value_role_are_read_as_any_slot);
   RUN(a_role_only_the_actor_plays_takes_every_thing_in_reach_but_people_in_the_order_reached);

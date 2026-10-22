@@ -147,6 +147,17 @@ static sprout_eval_status relatives(const parse_noun_context *context, parse_wor
       answer one;
       if (things[i].by == PARSE_BY_NONE || !instance->has_container) continue;
       holder = holder_of(candidates, count, holders, instance->container);
+      if (holder == count) {
+        /* One in several places stands directly in each. */
+        const char *const *places;
+        size_t place_count = sprout_world_also_in(context->frame->world, instance->id, &places), k;
+        for (k = 0; k < place_count && holder == count; k++) {
+          sprout_str place;
+          place.bytes = places[k];
+          place.length = strlen(places[k]);
+          holder = holder_of(candidates, count, holders, place);
+        }
+      }
       if (holder == count) continue;
       one.by = things[i].by == PARSE_BY_NAME ? PARSE_BY_NOUN : things[i].by;
       one.literal = things[i].literal + joining + holders[holder].literal;

@@ -229,6 +229,15 @@ export function saveBreaks(earlier: Catalogue, later: Catalogue): SaveBreak[] {
       );
       continue;
     }
+    if (before.alsoIn.length === 0 && after.alsoIn.length > 0) {
+      breaks.add(
+        `places|${id}`,
+        after.at,
+        'later',
+        `\`${inWorld(id)}\` stands in more than one place now, and was in one: a save may hold it moved, and a thing in several places is never moved, so such a save cannot be read.`,
+        `Leave it in one place, ${AGAIN}`,
+      );
+    }
     if (before.kind !== null && after.kind !== null)
       compareProperties(before.kind, after.kind, breaks);
   }

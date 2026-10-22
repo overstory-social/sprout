@@ -1,0 +1,13 @@
+several_places_not_places.sprout:17:30  `hall.chest` is not a place, and a thing in more than one place stands only in places.
+                                        Name only places, things that declare `contains actors`, after `in`; or write one container for `bell` to sit in.
+
+several_places_not_places.sprout:18:24  `several_places_not_places` is the world, and a thing in more than one place stands only in places.
+                                        Name only places, things that declare `contains actors`, after `in`; or write one container for `gong` to sit in.
+
+several_places_not_places.sprout:19:36  `hall` is named twice for `horn`.
+                                        Name each place it stands in once.
+
+several_places_not_places.sprout:20:30  `yrad` names nothing in the world for `drum` to stand in.
+                                        Write the path of a place from the world's body, as in `in tiny_room, dreary_room`.
+
+refused: 4 problems

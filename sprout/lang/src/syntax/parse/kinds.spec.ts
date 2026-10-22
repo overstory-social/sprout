@@ -178,6 +178,32 @@ describe('an object at a file’s top level', () => {
     expect(diagnostics.refusals).toEqual([]);
   });
 
+  it('is read with every place its `in` names between commas, the first as its container', () => {
+    const { p, diagnostics } = parserOver(
+      'object door is Door in tiny_room, bank.vault {\n}\nenum Ward { oak }',
+    );
+    const read = topLevelObject(p);
+    expect(read?.placedIn?.parts.map((part) => part.text)).toEqual(['tiny_room']);
+    expect(read?.places?.map((one) => one.parts.map((part) => part.text))).toEqual([
+      ['tiny_room'],
+      ['bank', 'vault'],
+    ]);
+    expect(p.peek().text).toBe('enum');
+    expect(diagnostics.refusals).toEqual([]);
+    const one = topLevelObject(parserOver('object bench is Bench in yard').p);
+    expect(one?.places).toBeUndefined();
+  });
+
+  it('refuses a comma after `in` with no place after it, keeping the places before it', () => {
+    const { p, diagnostics } = parserOver('object door is Door in tiny_room,\nenum Ward { oak }');
+    const read = topLevelObject(p);
+    expect(read?.placedIn?.parts.map((part) => part.text)).toEqual(['tiny_room']);
+    expect(diagnostics.refusals.map((d) => d.message)).toEqual([
+      'A comma after `in` goes before another place this object stands in.',
+    ]);
+    expect(p.peek().text).toBe('enum');
+  });
+
   it('is read with no container where a stub is to place it, which the bundle checks', () => {
     const { p, refusals } = readWith(topLevelObject, 'object bench is Bench\nenum Ward { oak }\n');
     expect(refusals).toEqual([]);

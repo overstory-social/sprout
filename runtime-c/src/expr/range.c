@@ -6,6 +6,8 @@
  * where no place does on either side; and the walk outward from an asker that a place's `lit` makes. Sight
  * passes over what is unseen and what it holds (Range > Unseen), and what an
  * object can reach does not. Every node touched costs a step, as the rules count them.
+ * An object declared in several places is reached, and reaches, through any
+ * of them, as though it stood there (The world model > One thing in several places).
  */
 #include "expr.h"
 
@@ -108,8 +110,18 @@ static bool inside_of(const sprout_frame *frame, const ids *chain, size_t at) {
   return true;
 }
 
-static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
-                                  bool hands, bool sight, bool *out) {
+/* What holds `node` on a path: `instead` where it is given, as one of the places an object in several stands in. */
+static bool up_from(const sprout_frame *frame, sprout_str node, sprout_str *instead, sprout_str *container) {
+  if (instead->bytes == NULL) return container_of(frame, node, container);
+  *container = *instead;
+  instead->bytes = NULL;
+  return true;
+}
+
+/* Whether `asker` reaches `target`, each climbing first into `asker_in` or `target_in` where it is given. */
+static sprout_eval_status reaches_through(const sprout_frame *frame, sprout_str asker, sprout_str asker_in,
+                                          sprout_str target, sprout_str target_in, const char *asking, bool hands,
+                                          bool sight, bool *out) {
   ids chain = {NULL, 0, 0}, below = {NULL, 0, 0};
   sprout_str node;
   size_t meet = 0, at;
@@ -118,7 +130,7 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
   for (node = asker, have = true; have;) {
     EXPR_NEED(expr_spend(frame));
     if (!push(frame, &chain, node)) return SPROUT_EVAL_NO_MEMORY;
-    have = container_of(frame, node, &node);
+    have = up_from(frame, node, &asker_in, &node);
   }
   node = target;
   for (have = true; have;) {
@@ -132,7 +144,7 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
     if (known) break;
     EXPR_NEED(expr_spend(frame));
     if (!push(frame, &below, node)) return SPROUT_EVAL_NO_MEMORY;
-    have = container_of(frame, node, &node);
+    have = up_from(frame, node, &target_in, &node);
   }
   if (!have) return SPROUT_EVAL_OK;
   if (sight && hidden_below(frame, &chain, meet, &below, hands)) return SPROUT_EVAL_OK;
@@ -160,6 +172,41 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
     if (!open) return SPROUT_EVAL_OK;
   }
   *out = true;
+  return SPROUT_EVAL_OK;
+}
+
+/* The places `id` stands in beside its container, where it is live and declared in several. */
+static size_t also_in(const sprout_frame *frame, sprout_str id, const char *const **places) {
+  if (!frame->world->shares || !expr_live(frame, id)) {
+    *places = NULL;
+    return 0;
+  }
+  return sprout_world_also_in(frame->world, id, places);
+}
+
+static sprout_str str_of(const char *text) {
+  sprout_str out;
+  out.bytes = text;
+  out.length = text == NULL ? 0 : strlen(text);
+  return out;
+}
+
+/* Whether `asker` reaches `target` from any place either stands in. */
+static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
+                                  bool hands, bool sight, bool *out) {
+  const char *const *asker_places, *const *target_places;
+  size_t asker_count, target_count, a, t;
+  EXPR_NEED(reaches_through(frame, asker, str_of(NULL), target, str_of(NULL), asking, hands, sight, out));
+  if (*out) return SPROUT_EVAL_OK;
+  asker_count = also_in(frame, asker, &asker_places);
+  target_count = also_in(frame, target, &target_places);
+  /* Index 0 is the container itself, each later one a place beside it. */
+  for (a = 0; a <= asker_count && !*out; a++)
+    for (t = 0; t <= target_count && !*out; t++) {
+      if (a == 0 && t == 0) continue;
+      EXPR_NEED(reaches_through(frame, asker, str_of(a == 0 ? NULL : asker_places[a - 1]), target,
+                                str_of(t == 0 ? NULL : target_places[t - 1]), asking, hands, sight, out));
+    }
   return SPROUT_EVAL_OK;
 }
 

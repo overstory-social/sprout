@@ -35,6 +35,7 @@ import {
   vessel,
   warded,
 } from '../fixtures/check.js';
+import { nameSource } from '../fixtures/names.js';
 
 /** A statement as written. The parse must succeed first. */
 
@@ -360,6 +361,47 @@ describe('`destroy self` removes the object whose body runs it', () => {
   it('is accepted where no kind is known for `self`', () => {
     const context: CheckContext = { ...vessel(), self: null };
     expect(checkDestroy(destroy, context)).toBe(true);
+  });
+});
+
+describe('`move` of a thing declared in several places', () => {
+  /** The name scope of `shop` from `vantage`, with the hall's lamp standing in the cellar too. */
+  function sharedLamp(vantage: readonly string[]): CheckContext {
+    const source = nameSource();
+    const placed = new Map(
+      [...source.tree.placed].map(([key, one]) => [
+        key,
+        key === 'hall.lamp' ? { ...one, alsoIn: [['cellar']] } : one,
+      ]),
+    );
+    return {
+      ...vessel(),
+      names: {
+        source: { ...source, tree: { ...source.tree, placed } },
+        vantage: { in: 'tree', path: vantage },
+        world: null,
+        table: new Map(),
+      },
+    };
+  }
+
+  it('is refused where the compiler sees it: by its name, and as `self` in its own body', () => {
+    expect(moved('move lamp to self', sharedLamp(['hall']))).toEqual({
+      passed: false,
+      said: [
+        [
+          'b.sprout:1:6',
+          '`lamp` stands in more than one place, and a thing in several places is never moved.',
+          'Leave `lamp` where it stands, or declare it in one place if it should move.',
+        ],
+      ],
+    });
+    expect(moved('move self to actor', sharedLamp(['hall', 'lamp'])).passed).toBe(false);
+  });
+
+  it('leaves a thing in one place to move, and `self` in another body', () => {
+    expect(moved('move lamp to self', sharedLamp([])).passed).toBe(true);
+    expect(moved('move self to actor', sharedLamp(['hall', 'bench'])).passed).toBe(true);
   });
 });
 

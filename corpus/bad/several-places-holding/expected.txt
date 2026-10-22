@@ -1,0 +1,7 @@
+several_places_holding.sprout:17:8  `keyhole` stands in more than one place, so it cannot hold things: what it held would be in every one of them at once.
+                                    Leave out what lets `keyhole` hold things (`contains`, or a kind such as `sprout.Container`), or name one place it sits in.
+
+several_places_holding.sprout:18:8  `yard` holds two objects called `gate`.
+                                    Give one of them another name, or remove it.
+
+refused: 2 problems

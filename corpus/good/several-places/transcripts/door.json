@@ -1,0 +1,67 @@
+{
+  "about": "Ash opens the Tiny Room's door, goes through it, and shuts it from the Dreary Room side, which Wren in the Tiny Room hears. The door is shut from both sides; Wren opens it, Ash hears it and sees it open from the far side, finds it among what the Dreary Room holds, and cannot take it, since it stands in both rooms. Ash goes on into the Bank, where the east wall is one wall seen from each of its rooms.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A tiny room. A door is set in the east wall." }
+    ] },
+    { "arrive": "Ash", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Ash arrives." },
+      { "reader": "Ash", "kind": "described", "words": "A tiny room. A door is set in the east wall." }
+    ] },
+    { "as": "Ash", "type": "open door", "expect": [
+      { "reader": "Ash", "kind": "said", "words": "You open the door." },
+      { "reader": "Wren", "kind": "told", "words": "Ash opens the door." }
+    ] },
+    { "as": "Ash", "type": "east", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Ash leaves for the dreary room." },
+      { "reader": "Ash", "kind": "described", "words": "A dreary room. A door is set in the west wall." }
+    ] },
+    { "as": "Ash", "type": "close door", "expect": [
+      { "reader": "Ash", "kind": "said", "words": "You shut the door." },
+      { "reader": "Wren", "kind": "told", "words": "Ash shuts the door." }
+    ] },
+    { "as": "Wren", "type": "examine door", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "The door is shut." }
+    ] },
+    { "as": "Ash", "type": "examine door", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The door is shut." }
+    ] },
+    { "as": "Wren", "type": "east", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "You can't go that way." }
+    ] },
+    { "as": "Wren", "type": "open door", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You open the door." },
+      { "reader": "Ash", "kind": "told", "words": "Wren opens the door." }
+    ] },
+    { "as": "Ash", "type": "examine door", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The door stands open." }
+    ] },
+    { "as": "Ash", "type": "take door", "expect": [
+      { "reader": "Ash", "kind": "refused", "words": "The door is fixed where it stands." }
+    ] },
+    { "as": "Ash", "type": "examine the door in the dreary room", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The door stands open." }
+    ] },
+    { "as": "Ash", "type": "examine everything in the dreary room", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The door stands open." }
+    ] },
+    { "as": "Ash", "type": "look", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "A dreary room. A door is set in the west wall." }
+    ] },
+    { "as": "Ash", "type": "south", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The west teller's room, in the bank. Around you: the north wall, the south wall, the east wall, the west wall." }
+    ] },
+    { "as": "Ash", "type": "examine east wall", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The east wall is cold, veined marble." }
+    ] },
+    { "as": "Ash", "type": "east", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The east teller's room, in the bank. Around you: the north wall, the south wall, the east wall, the west wall." }
+    ] },
+    { "as": "Ash", "type": "examine east wall", "expect": [
+      { "reader": "Ash", "kind": "described", "words": "The east wall is cold, veined marble." }
+    ] },
+    { "as": "Ash", "type": "take east wall", "expect": [
+      { "reader": "Ash", "kind": "refused", "words": "The east wall is fixed where it stands." }
+    ] }
+  ]
+}

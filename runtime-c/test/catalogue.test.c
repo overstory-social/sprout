@@ -249,7 +249,36 @@ static void the_name_table_and_the_option_slots_are_sized_to_what_they_hold(void
   sprout_arena_reset(&arena);
 }
 
+static void a_thing_in_several_places_is_declared_once_and_stands_in_each(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("several-places", &host);
+  const sprout_declared *door = sprout_world_declared(world, "several_places.tiny_room.pdoor");
+  const sprout_declared *dreary = sprout_world_declared(world, "several_places.dreary_room");
+  const sprout_declared *chairman = sprout_world_declared(world, "several_places.chairman");
+  const char *const *places;
+  sprout_str door_id = {"several_places.tiny_room.pdoor", 30};
+  CHECK(world->shares);
+  CHECK(sprout_world_declared(world, "several_places.dreary_room.pdoor") == NULL);
+  CHECK_STR(door->container, "several_places.tiny_room");
+  CHECK_INT(door->also_count, 1);
+  CHECK_STR(door->also_in[0], "several_places.dreary_room");
+  CHECK_INT(dreary->lobe_count, 1);
+  CHECK_STR(dreary->lobes[0], "several_places.tiny_room.pdoor");
+  /* Each of the four walls stands in the chairman's office, in the order declared. */
+  CHECK_INT(chairman->lobe_count, 4);
+  CHECK_STR(chairman->lobes[0], "several_places.west_teller.north_wall");
+  CHECK_STR(chairman->lobes[3], "several_places.west_teller.west_wall");
+  CHECK_INT(sprout_world_also_in(world, door_id, &places), 1);
+  CHECK(sprout_world_also_stands_in(world, door_id, (sprout_str){"several_places.dreary_room", 26}));
+  CHECK(!sprout_world_also_stands_in(world, door_id, (sprout_str){"several_places.tiny_room", 24}));
+  CHECK_INT(sprout_world_also_in(world, (sprout_str){"several_places.tiny_room", 24}, &places), 0);
+  sprout_world_free(world);
+  CHECK_INT(heap.pages, 0);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_declared_once_and_stands_in_each);
   RUN(every_corpus_cartridge_loads_with_the_header_and_tree_the_dump_holds);
   RUN(the_words_the_world_and_the_visitor_are_made_of_match_the_dump);
   RUN(the_caps_a_cartridge_records_are_read_and_the_optional_ones_stay_unset);

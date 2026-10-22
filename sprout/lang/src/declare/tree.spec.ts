@@ -11,7 +11,7 @@ import { Diagnostics } from '../source/diagnostics.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
 import { resolveContents } from './contents.js';
-import { resolveObjects } from './objects.js';
+import { resolveObjects, type ComposedObject } from './objects.js';
 import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import {
@@ -641,5 +641,116 @@ describe('the words for a path where visitors arrive', () => {
     expect(unknownStep(tree, writtenPath('shop.zzzz'), { step: 1, within: [] }).remedy).toBe(
       '`shop` holds `hall`.',
     );
+  });
+});
+
+/**
+ * Place `body` as `place` does, with each object `places` names by its path
+ * standing in the places listed for it, as a top-level object's `in a, b`
+ * writes them: written at the object's name.
+ */
+function placeShared(body: string, places: Readonly<Record<string, readonly string[]>>) {
+  const read = new Diagnostics();
+  const declared = parseDeclarations(
+    new SourceFile('shop.sprout', `${KINDS}world shop is sprout.World {\n${body}\n}\n`),
+    read,
+  );
+  const enums = new EnumTable();
+  const table = new KindTable();
+  const kinds = declared.filter((d): d is KindDeclaration => d.kind === 'kind');
+  table.add('shop', kinds, read);
+  table.resolve('shop', enums, read);
+  const world = declared.find((d): d is WorldDeclaration => d.kind === 'world')!;
+  const context = { enums, kinds: table, diagnostics: read, onUnknown: () => {} };
+  const contents = resolveContents(new Map([['shop', kinds]]), { ...context, world: 'shop' });
+  const pathOf = (object: ComposedObject): string =>
+    object.within === null
+      ? object.declaration.name.text
+      : `${pathOf(object.within)}.${object.declaration.name.text}`;
+  const composed = resolveObjects('shop', world, context, contents).map((object) => {
+    const named = places[pathOf(object)];
+    if (named === undefined) return object;
+    const at = object.declaration.name.at;
+    const written: ObjectPath[] = named.map((one) => ({
+      kind: 'path',
+      parts: one.split('.').map((text) => ({ kind: 'ident', text, at })),
+      at,
+    }));
+    return { ...object, declaration: { ...object.declaration, places: written } };
+  });
+  expect(read.refusals, 'the fixture composes').toEqual([]);
+  const diagnostics = new Diagnostics();
+  const tree = placeObjects(composed, { world: 'shop', diagnostics });
+  return { tree, said: diagnostics.sorted().map((d) => [locationOf(d.at), d.message] as const) };
+}
+
+describe('an object declared in several places', () => {
+  const ROOMS =
+    'object hall is Room {\n  object door is Thing\n}\nobject yard is Room {\n  object well is Thing\n}\nobject cellar is Room';
+
+  it('stands in each place after its first as a lobe, and is placed once, under the first', () => {
+    const { tree, said } = placeShared(ROOMS, { 'hall.door': ['hall', 'yard', 'cellar'] });
+    expect(said).toEqual([]);
+    expect(paths(tree)).toEqual(['hall', 'yard', 'cellar', 'hall.door', 'yard.well']);
+    expect(tree.placed.get('hall.door')!.alsoIn).toEqual([['yard'], ['cellar']]);
+    expect([...tree.lobes.keys()]).toEqual(['yard', 'cellar']);
+    expect(tree.lobes.get('yard')!.get('door')).toBe(tree.placed.get('hall.door'));
+    expect(tree.placed.get('yard')!.holds.has('door')).toBe(false);
+  });
+
+  it('is named from each of its places, by its name or by the place’s path, as the one object', () => {
+    const { tree } = placeShared(ROOMS, { 'hall.door': ['hall', 'yard'] });
+    expect(shown(resolveFrom(tree, ['yard'], ['door']))).toBe('hall.door');
+    expect(shown(resolveFrom(tree, ['yard', 'well'], ['door']))).toBe('hall.door');
+    expect(shown(resolveFrom(tree, [], ['yard', 'door']))).toBe('hall.door');
+    expect(shown(resolveFrom(tree, ['cellar'], ['door']))).toBe('missing at 0');
+    expect(inReach(tree, ['yard'])).toContain('door');
+    expect(contentsOf(tree, ['yard'])).toEqual(['well', 'door']);
+  });
+
+  it('names from its own body what each of its places holds, its first place’s nearer', () => {
+    const { tree } = placeShared(ROOMS, { 'hall.door': ['hall', 'yard'] });
+    expect(shown(resolveFrom(tree, ['hall', 'door'], ['well']))).toBe('yard.well');
+  });
+
+  it('refuses a place that is not one, the world, one named twice and a path to nothing', () => {
+    const { tree, said } = placeShared(
+      'object hall is Room {\n  object chest is Chest { }\n  object bell is Thing\n  object gong is Thing\n  object horn is Thing\n  object drum is Thing\n}\nobject yard is Room',
+      {
+        'hall.bell': ['hall', 'hall.chest'],
+        'hall.gong': ['hall', 'shop'],
+        'hall.horn': ['hall', 'yard', 'hall'],
+        'hall.drum': ['hall', 'yrad'],
+      },
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:7:10',
+        '`hall.chest` is not a place, and a thing in more than one place stands only in places.',
+      ],
+      [
+        'shop.sprout:8:10',
+        '`shop` is the world, and a thing in more than one place stands only in places.',
+      ],
+      ['shop.sprout:9:10', '`hall` is named twice for `horn`.'],
+      ['shop.sprout:10:10', '`yrad` names nothing in the world for `drum` to stand in.'],
+    ]);
+    expect(tree.lobes.size).toBe(0);
+  });
+
+  it('refuses one that holds things, and a name already standing in one of its places', () => {
+    const { tree, said } = placeShared(
+      'object hall is Room {\n  object hutch is Chest { }\n  object well is Thing\n}\nobject yard is Room {\n  object well is Thing\n}',
+      { 'hall.hutch': ['hall', 'yard'], 'hall.well': ['hall', 'yard'] },
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:6:10',
+        '`hutch` stands in more than one place, so it cannot hold things: what it held would be in every one of them at once.',
+      ],
+      ['shop.sprout:7:10', '`yard` holds two objects called `well`.'],
+    ]);
+    expect(tree.lobes.size).toBe(0);
+    expect(tree.placed.get('hall.well')!.alsoIn).toEqual([]);
   });
 });

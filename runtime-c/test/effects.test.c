@@ -10,6 +10,7 @@
  */
 #include "exec_fixture.h"
 #include "turn_fixture.h"
+#include "several_fixture.h"
 
 static bool has(const sprout_str *ids, size_t count, const char *id) {
   size_t i;
@@ -373,7 +374,22 @@ static void the_golden_speech_cases_end_as_the_typescript_runtime_did(void) {
   CHECK_INT(b.heap.pages, 0);
 }
 
+static void a_thing_in_several_places_is_heard_in_each_of_them(void) {
+  several s;
+  const sprout_str *heard;
+  size_t count;
+  several_open(&s);
+  CHECK_INT(sprout_told_to(&s.x, &s.frame, exec_str(SEVERAL_DOOR), SPROUT_TELL_PLACE, &heard, &count), SPROUT_EVAL_OK);
+  CHECK_INT(count, 2);
+  CHECK(sprout_str_same(heard[0], exec_str(s.wren)));
+  CHECK(sprout_str_same(heard[1], exec_str(s.ash)));
+  CHECK_INT(sprout_told_to(&s.x, &s.frame, exec_str(SEVERAL_DOOR), SPROUT_TELL_OUTSIDE, &heard, &count), SPROUT_EVAL_OK);
+  CHECK_INT(count, 2);
+  several_close(&s);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_heard_in_each_of_them);
   RUN(a_plain_tell_reaches_the_people_in_the_tellers_place);
   RUN(a_tell_leaves_out_the_people_the_reading_addresses);
   RUN(a_place_that_holds_actors_has_two_audiences);

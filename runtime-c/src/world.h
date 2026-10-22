@@ -29,6 +29,7 @@ struct sprout_world {
   size_t declared_count;
   sprout_declared *declared; /* in rank order */
   const sprout_declared **declared_by_id; /* the same objects in code-unit order of their ids */
+  bool shares;               /* some object stands in more than one place */
   const char *arrival;       /* the id visitors arrive at, or NULL */
 
   size_t verb_count;
@@ -62,6 +63,18 @@ struct sprout_world {
 
 /* The declared object with this id, or NULL. */
 const sprout_declared *sprout_world_declared(const sprout_world *world, const char *id);
+
+/*
+ * The other places `id` stands in, beside its container, where it is declared in several (the spec's The world
+ * model > One thing in several places): none for anything else.
+ */
+size_t sprout_world_also_in(const sprout_world *world, sprout_str id, const char *const **places);
+
+/* What stands in the place `id` beside what it holds, declared there as well as elsewhere, in rank order. */
+size_t sprout_world_lobes(const sprout_world *world, sprout_str id, const char *const **lobes);
+
+/* Whether `place` is one of the other places `id` stands in, beside its container. */
+bool sprout_world_also_stands_in(const sprout_world *world, sprout_str id, sprout_str place);
 
 /* The kind with this qualified name, or NULL. */
 const sprout_kind_def *sprout_world_kind(const sprout_world *world, const char *qualified);

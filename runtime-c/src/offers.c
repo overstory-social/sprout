@@ -278,7 +278,7 @@ static sprout_eval_status offer_for(scene *s, const sprout_verb *verb, const fil
   offer->typed = typed_line(s->frame, phrase, lists, at);
   if (offer->typed == NULL) return SPROUT_EVAL_NO_MEMORY;
   EXPR_NEED(sprout_consent_pass(s->x, s->frame, &offer->reading, &offer->refused, &offer->refusal));
-  if (!offer->refused) EXPR_NEED(sprout_inside_itself(s->x, s->frame, &offer->reading, &offer->refused, &offer->refusal));
+  if (!offer->refused) EXPR_NEED(sprout_sure_move_refused(s->x, s->frame, &offer->reading, &offer->refused, &offer->refusal));
   *made = true;
   return SPROUT_EVAL_OK;
 }

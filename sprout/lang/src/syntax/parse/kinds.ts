@@ -88,10 +88,12 @@ export function objectDeclaration(p: Parser, nested: boolean): ObjectDeclaration
 
   const composes = composition(p, 'object', name);
   if (composes === null) return null;
-  const placedIn = nested ? null : placement(p);
+  const written = nested ? null : placement(p);
+  const placedIn = written?.[0] ?? null;
   const container = nested ? namesItsContainer(p, name) : null;
-  const head = container ?? placedIn?.at ?? composes.at(-1)?.at ?? name.at;
-  const placed = placedIn === null ? {} : { placedIn };
+  const head = container ?? written?.at(-1)?.at ?? composes.at(-1)?.at ?? name.at;
+  const placed =
+    placedIn === null ? {} : written!.length > 1 ? { placedIn, places: written! } : { placedIn };
 
   const open = p.peek();
   if (!punct(open, '{')) {
@@ -142,8 +144,12 @@ export function topLevelObject(p: Parser): ObjectDeclaration | null {
   return declared;
 }
 
-/** `in composing_room.paper_store` after a top-level object's kinds: the path of what holds it. */
-function placement(p: Parser): ObjectPath | null {
+/**
+ * `in composing_room.paper_store` after a top-level object's kinds: the
+ * path of what holds it, or `in tiny_room, dreary_room`, the places it
+ * stands in. Null where none was read.
+ */
+function placement(p: Parser): ObjectPath[] | null {
   const word = p.take('name', 'in');
   if (word === null) return null;
   // A word that starts the next declaration is not this path's first
@@ -157,7 +163,24 @@ function placement(p: Parser): ObjectPath | null {
     );
     return null;
   }
-  return objectPath(p, head);
+  const first = objectPath(p, head);
+  if (first === null) return null;
+  const paths = [first];
+  while (p.at('punct', ',')) {
+    const comma = p.next();
+    const next = p.atDeclarationStart() ? null : p.take('name');
+    const path = next === null ? null : objectPath(p, next);
+    if (path === null) {
+      p.diagnostics.refuse(
+        comma.at,
+        'A comma after `in` goes before another place this object stands in.',
+        'Name the next place, as in `object door is Door in tiny_room, dreary_room { … }`, or take out the comma.',
+      );
+      return paths;
+    }
+    paths.push(path);
+  }
+  return paths;
 }
 
 /**

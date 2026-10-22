@@ -8,6 +8,7 @@
 #include "eval_fixture.h"
 #include "expr/expr.h"
 #include "unseen_fixture.h"
+#include "several_fixture.h"
 
 #define HALL "eval_bench.hall"
 #define PROBE "eval_bench.hall.probe"
@@ -192,7 +193,32 @@ static void sight_does_not_see_what_is_unseen(void) {
   unseen_close(&b);
 }
 
+static void a_thing_in_several_places_is_reached_through_any_of_them_both_ways(void) {
+  several s;
+  bool reached;
+  several_open(&s);
+  CHECK_INT(expr_reaches(&s.frame, exec_str(s.ash), exec_str(SEVERAL_DOOR), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&s.frame, exec_str(s.wren), exec_str(SEVERAL_DOOR), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&s.frame, exec_str(SEVERAL_DOOR), exec_str(s.ash), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&s.frame, exec_str(SEVERAL_DOOR), exec_str(SEVERAL_DREARY), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(reached);
+  /* Two things in several places reach each other through a place they share, and not across the world. */
+  CHECK_INT(expr_reaches(&s.frame, exec_str(SEVERAL_EAST_WALL), exec_str("several_places.west_teller.north_wall"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&s.frame, exec_str(SEVERAL_DOOR), exec_str(SEVERAL_EAST_WALL), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(!reached);
+  CHECK_INT(expr_reaches(&s.frame, exec_str(s.ash), exec_str(s.wren), NULL, &reached), SPROUT_EVAL_OK);
+  CHECK(!reached);
+  several_close(&s);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_reached_through_any_of_them_both_ways);
   RUN(what_is_in_the_tree_is_live_and_what_is_not_is_not);
   RUN(a_target_is_in_range_when_every_container_between_lets_it_through);
   RUN(opening_the_container_brings_what_it_holds_into_range);

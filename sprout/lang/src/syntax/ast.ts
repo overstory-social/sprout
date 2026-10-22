@@ -877,6 +877,12 @@ export interface ObjectDeclaration extends Node {
   /** `in composing_room`, where an object at a file's top level names the container it sits in. */
   readonly placedIn?: ObjectPath;
   /**
+   * `in tiny_room, dreary_room`: every place it stands in, as written,
+   * where it names more than one (the spec's The world model › One thing
+   * in several places). The first is `placedIn`.
+   */
+  readonly places?: readonly ObjectPath[];
+  /**
    * True for `object paper_store` with no kinds and no body, written in a
    * body: a stub, placing there the object its file imports by that name.
    */
