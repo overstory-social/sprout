@@ -1,0 +1,76 @@
+// A voice said in a place is heard in the places inside it that pass (the
+// spec's Other people › Who hears it; Places inside places). A bell rung in
+// the hall is heard by a visitor riding the open bucket, and by one in the
+// open basket inside the bucket; not by one in the shut wardrobe, and not
+// once the bucket is shut. A voice goes in, never out: a chime rung in the
+// bucket is heard in the basket and not in the hall. And a place that does
+// not pass is heard by nobody, even inside it: a gong rung in the shut
+// wardrobe is not heard in the open hamper there.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world open_vessel_tells is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar {
+      article the
+      exit in    "into the bucket"   -> hall.bucket
+      exit north "into the wardrobe" -> hall.wardrobe
+    }
+    describe { text "A tall hall." }
+
+    object bell is Bell
+
+    object bucket is Vessel {
+      grammar {
+        name "bucket"
+        exit out "out to the hall"    -> hall
+        exit in  "into the basket"    -> hall.bucket.basket
+      }
+      describe { text "Inside the bucket." }
+
+      object chime is Bell { grammar { name "chime" } }
+
+      object basket is Vessel {
+        grammar { name "basket"  exit out "out to the bucket" -> hall.bucket }
+        describe { text "Inside the basket." }
+      }
+    }
+
+    object wardrobe is Vessel {
+      grammar {
+        name "wardrobe"
+        exit out "out to the hall"     -> hall
+        exit in  "into the hamper"     -> hall.wardrobe.hamper
+      }
+      describe { text "Inside the wardrobe." }
+
+      object gong is Bell { grammar { name "gong" } }
+
+      object hamper is Vessel {
+        grammar { name "hamper"  exit out "out to the wardrobe" -> hall.wardrobe }
+        describe { text "Inside the hamper." }
+      }
+    }
+  }
+}
+
+verb ring { role target: Bell  "ring [target]" }
+
+kind Vessel is sprout.Place, sprout.Container {
+  contains actors
+  grammar { article the }
+}
+
+kind Bell {
+  grammar { name "bell"  article a }
+
+  as target for ring {
+    do {
+      say "You ring {self}."
+      tell "{actor} rings {self}."
+    }
+  }
+}

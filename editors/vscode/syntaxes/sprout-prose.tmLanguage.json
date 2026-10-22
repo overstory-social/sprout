@@ -39,6 +39,27 @@
         { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
         { "match": "\\\\." },
         {
+          "name": "meta.verbatim.sprout-prose",
+          "begin": "(\\{)\\s*(verbatim)\\s*(\\})",
+          "end": "(\\{)\\s*(/)\\s*(verbatim)\\s*(\\})",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.verbatim.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.verbatim.sprout-prose" },
+            "3": { "name": "keyword.control.verbatim.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          },
+          "contentName": "markup.raw.block.sprout-prose",
+          "patterns": [
+            { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+            { "match": "\\\\." }
+          ]
+        },
+        {
           "name": "meta.tag.sprout-prose",
           "match": "(\\{)\\s*(/)\\s*(if)\\s*(\\})",
           "captures": {
@@ -282,6 +303,27 @@
       "patterns": [
         { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
         { "match": "\\\\." },
+        {
+          "name": "meta.verbatim.sprout-prose",
+          "begin": "(\\{)\\s*(verbatim)\\s*(\\})",
+          "end": "(\\{)\\s*(/)\\s*(verbatim)\\s*(\\})|(?=\")",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.verbatim.sprout-prose" },
+            "3": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.sprout-prose" },
+            "2": { "name": "keyword.control.verbatim.sprout-prose" },
+            "3": { "name": "keyword.control.verbatim.sprout-prose" },
+            "4": { "name": "punctuation.definition.tag.end.sprout-prose" }
+          },
+          "contentName": "markup.raw.block.sprout-prose",
+          "patterns": [
+            { "name": "constant.character.escape.sprout-prose", "match": "\\\\[\"\\\\n{]" },
+            { "match": "\\\\." }
+          ]
+        },
         {
           "name": "meta.tag.sprout-prose",
           "match": "(\\{)\\s*(/)\\s*(if)\\s*(\\})",

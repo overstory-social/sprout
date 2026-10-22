@@ -12,11 +12,19 @@ export interface Row {
   readonly text: string;
 }
 
-/** `text` in rows no wider than `width`, broken at spaces, a word too long for a row broken where it must be. */
+/**
+ * `text` in rows no wider than `width`: a line that fits as it is, and one
+ * that does not broken at spaces, a word too long for a row broken where it must be.
+ */
 export function wrap(text: string, width: number): string[] {
   const room = Math.max(1, width);
   const rows: string[] = [];
   for (const paragraph of text.split('\n')) {
+    // A line that fits is kept as it is, its spaces and indentation with it: a verbatim block's shape.
+    if (paragraph.length <= room) {
+      rows.push(paragraph);
+      continue;
+    }
     let row = '';
     for (const word of paragraph.split(' ')) {
       let rest = word;

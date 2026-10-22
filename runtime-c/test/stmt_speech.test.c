@@ -102,8 +102,10 @@ static void a_tell_inside_and_outside_have_their_own_audiences(void) {
   exec_case_open(&b, &outside, exec_named(&b, "a tell outside reaches only the place around the teller"));
   run = exec_run(&outside);
   CHECK_INT(stmt_tell(&run, &outside.frame, exec_first_statement(&outside)), SPROUT_EVAL_OK);
-  CHECK_INT(outside.x.effects[0].to_count, 1);
+  /* The hall around the wardrobe, and the lodge in the hall, which passes. */
+  CHECK_INT(outside.x.effects[0].to_count, 2);
   CHECK(sprout_str_same(outside.x.effects[0].to[0], exec_str("exec_bench#1")));
+  CHECK(sprout_str_same(outside.x.effects[0].to[1], exec_str("exec_bench#4")));
   exec_case_close(&outside);
   exec_case_close(&inside);
   exec_bench_close(&b);

@@ -1,0 +1,4 @@
+sign.sprout:4:5  This `{verbatim}` is never closed.
+                 Add `{/verbatim}` where the words it keeps as written end.
+
+refused: 1 problem

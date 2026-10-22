@@ -125,6 +125,18 @@ describe('a tag that cannot be read is said once, and costs itself', () => {
     ]);
   });
 
+  it('refuses a `{/verbatim}` with no block open, in words of its own', () => {
+    const { read, said } = tag('{/ verbatim}');
+    expect(read).toBeNull();
+    expect(said).toEqual([
+      [
+        'lines.prose:1:8',
+        '`{/verbatim}` closes no `{verbatim}`.',
+        'Take it out, or write `{verbatim}` where the words to keep as written begin.',
+      ],
+    ]);
+  });
+
   it('keeps a block’s opening that did not read as broken, so its close is still its own', () => {
     for (const [text, opens, message] of [
       ['{if}', 'if', '`{if}` needs a condition.'],
