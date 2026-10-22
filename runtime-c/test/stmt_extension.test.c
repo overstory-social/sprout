@@ -31,8 +31,9 @@ static void a_pinned_extensions_statement_is_recorded_with_what_it_was_given(voi
   CHECK_BYTES(c.x.effects[0].said.transcript.bytes, c.x.effects[0].said.transcript.length, "a purr");
   /* Recorded in a handler, it reaches the people in the recorder's place. */
   CHECK_INT(c.x.effects[0].to_count, 1);
-  /* The argument's step, the recording's, and the climb to the people who are told. */
-  CHECK_INT(c.meter.steps, 4);
+  /* The argument's step, the recording's, the climb to the people who are told, and asking each container in the
+   * place that holds something whether it passes. */
+  CHECK_INT(c.meter.steps, 11);
   CHECK_INT(c.meter.effects, 1);
   exec_case_close(&c);
   exec_bench_close(&b);

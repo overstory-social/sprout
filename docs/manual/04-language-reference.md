@@ -586,7 +586,10 @@ object bedroom is sprout.Place {
 
 Everything follows from the rules already given. Shutting the wardrobe
 cuts its occupants off from the bedroom, because a shut container passes
-nothing. `tell` inside the wardrobe reaches only those in it. And someone
+nothing. `tell` inside the wardrobe reaches only those in it, and `tell`
+in the bedroom reaches them only while the wardrobe is open: a voice goes
+into the places inside the one it is said in, through whatever passes, so
+a visitor riding an open bucket hears the room. And someone
 shut inside can always open it, because a thing can always reach the
 container it is in.
 
@@ -1825,7 +1828,9 @@ containment tree refuses to pass. In practice:
   first container out that refuses — so two visitors shut in one wardrobe
   can name each other. A shut box beside them still hides what is in it.
   A place is a wall of its own: rooms in a house that refuses, like the
-  world's places, are not in each other's range.
+  world's places, are not in each other's range. (A place that passes is
+  no wall to anything around it: a `tell` in the room is heard inside
+  it, see Who hears what.)
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 
@@ -1861,8 +1866,10 @@ Each of these takes either quoted text or the name of a passage: `say
 taken`, `refuse hands_full`, `text arrival`.
 
 `tell` reaches every actor in the teller's place that the teller can
-reach, except the actor and anyone taking part in the reading: those are
-addressed separately, with `say` and `tell self`. So a verb usually has
+reach, and those in the places inside it wherever everything between
+passes — a visitor in an open bucket in the room hears it, one in a shut
+wardrobe does not. It leaves out the actor and anyone taking part in the
+reading: those are addressed separately, with `say` and `tell self`. So a verb usually has
 two lines, one for the actor and one for everyone else, and a target who
 is a person gets their own with `tell self`:
 
