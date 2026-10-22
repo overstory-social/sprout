@@ -285,8 +285,9 @@ object cabinet is sprout.Container, Warded, sprout.Fixture {
 
   Each path names a place (something that declares `contains actors`),
   not a container and not the world, and each place once. The object
-  holds nothing, and it never moves: a `move` of it is refused, by the
-  compiler where it can see it, and otherwise with the world's `fixed`
+  holds nothing, and it never moves, nor does a place it stands in: a
+  `move` of either is refused, by the compiler where it can see a move
+  of the object, and otherwise with the world's `fixed`
   passage, "The door is fixed where it stands.". It is among what each
   of its places holds, reaches out from each of them, and a `tell` it
   says is heard in each.

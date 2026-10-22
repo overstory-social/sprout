@@ -130,7 +130,7 @@ bool sprout_play_runs(const sprout_play *play, const sprout_verb *verb);
 
 /*
  * The engine's refusal of the reading's first sure move, the first `move` written directly in a `do`, said as
- * the move would say it: `fixed` where it would move a thing declared in several places, `inside_itself` where
+ * the move would say it: `fixed` where it would move a thing declared in several places, a place it stands in or what holds one, `inside_itself` where
  * it would put a thing inside itself; *refused is false where it would be neither, or where no `move` is written
  * directly in its `do`s. Each play read is a step.
  */

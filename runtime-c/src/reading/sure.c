@@ -4,7 +4,7 @@
  * written directly in a `do`, between names that play's frame binds, is the move it is sure to
  * propose. Read across a reading's plays in the effect pass's order, it greys an offer that would put
  * a thing inside itself with the engine's `inside_itself`, and one that would move a thing declared in
- * several places with its `fixed`, as the move would be refused; read in the actor's own plays, it says
+ * several places, or a place it stands in, with its `fixed`, as the move would be refused; read in the actor's own plays, it says
  * which roles move their filler, which the view never fills with the actor's own place, and which move
  * it away from the actor, where `in` and `on` after `all` say where it goes. Each play
  * read is a step, and each container climbed another.
@@ -106,8 +106,9 @@ sprout_eval_status sprout_sure_move_refused(sprout_exec *x, const sprout_frame *
             sprout_str_same(item, frame->draft->base->world))
           return SPROUT_EVAL_OK;
         {
-          const char *const *places;
-          if (sprout_world_also_in(frame->world, item, &places) > 0) {
+          bool fixed;
+          EXPR_NEED(sprout_move_fixed(frame, item, &fixed));
+          if (fixed) {
             *refused = true;
             return refusal_of(frame, &participants[i], self, "fixed", item, out);
           }
