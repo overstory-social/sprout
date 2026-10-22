@@ -30,6 +30,7 @@ sprout_eval_status stmt_say(sprout_run *run, const sprout_frame *frame, const sp
   effect.kind = SPROUT_EFFECT_SAID;
   EXPR_NEED(sprout_exec_hearers(run->x, frame, &effect.to, &effect.to_count));
   effect.by = frame->self;
+  effect.hands = frame->hands;
   effect.has_speaker = run->x->has_speaker;
   effect.speaker = run->x->speaker;
   stmt_speech_of(frame, statement, &effect.said);
@@ -51,6 +52,7 @@ sprout_eval_status stmt_tell(sprout_run *run, const sprout_frame *frame, const s
   memset(&effect, 0, sizeof effect);
   effect.kind = SPROUT_EFFECT_TOLD;
   effect.by = frame->self;
+  effect.hands = frame->hands;
   stmt_speech_of(frame, statement, &effect.said);
   EXPR_NEED(sprout_effect_names(frame, &effect.bindings, &effect.binding_count));
   if (named) EXPR_NEED(sprout_told_to_one(run->x, frame, frame->self, one, &effect.to, &effect.to_count));

@@ -71,7 +71,7 @@ static sprout_eval_status contents_of(const sprout_frame *frame, sprout_str node
   return children_of(frame, node, held, count);
 }
 
-/* Whether `container` lets the question through: the acting visitor's open hands do, where a refusal's words ask. */
+/* Whether `container` lets the question through: the acting visitor's open hands do, where their reading or a refusal's words ask. */
 static sprout_eval_status passes_with_hands(const sprout_frame *frame, sprout_str container, const char *asking,
                                             bool hands, bool *open) {
   if (hands && frame->hands.bytes != NULL && sprout_str_same(container, frame->hands)) {
