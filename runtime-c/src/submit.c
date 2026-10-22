@@ -4,7 +4,8 @@
  * from the view's chips, hands the verb, the actor and what fills each role
  * by id. The reading runs through the consent pass and the effect pass
  * against a draft of the stored world, the queue its bodies filled is
- * drained, and a reading that was not abandoned commits the draft. Nothing
+ * drained, what follows the command runs, a refused one's included, and a
+ * reading that was not abandoned commits the draft. Nothing
  * here reads text, and nothing is rendered: what the turn said comes back as
  * the lines it recorded.
  */
@@ -13,6 +14,7 @@
 #include "answers.h"
 #include "draft.h"
 #include "draws.h"
+#include "engine-verbs.h"
 #include "exits.h"
 #include "expr/expr.h"
 #include "outcome.h"
@@ -309,8 +311,15 @@ sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const
   frame = sprout_exec_frame(&x, resolved.actor, NULL, NULL);
   run = sprout_reading_exits(&frame, &resolved);
   if (run == SPROUT_EVAL_OK) run = sprout_perform(&x, &frame, &resolved, &end, &refusal);
+  /* A person's refused reading is followed as an allowed one is, its refusal coming back on its own. */
+  if (run == SPROUT_EVAL_OK && end == SPROUT_READING_REFUSED && sprout_is_person(&frame, resolved.actor)) {
+    const sprout_stored_bound *way = sprout_exit_of(&resolved);
+    sprout_str tried = {NULL, 0};
+    if (way != NULL && way->has_direction) tried = way->direction;
+    sprout_after_owed(&x, true, tried);
+  }
   /* Nothing here answers as the engine does: what the reading said comes back as recorded. */
-  if (run == SPROUT_EVAL_OK && end != SPROUT_READING_REFUSED) run = sprout_command_over(&x, &frame, &resolved, false);
+  if (run == SPROUT_EVAL_OK) run = sprout_command_over(&x, &frame, resolved.actor, NULL);
   if (run == SPROUT_EVAL_NO_MEMORY) {
     sprout_arena_reset(&turn);
     return SPROUT_NO_MEMORY;

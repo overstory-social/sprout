@@ -298,8 +298,9 @@ typedef struct sprout_reading_outcome {
 
 /*
  * Runs one reading through the consent pass and then the effect pass
- * against a draft of `state`, drains the queue its bodies filled, and
- * commits the draft: the turn's one write, which a refusal does not make.
+ * against a draft of `state`, drains the queue its bodies filled, runs
+ * what follows a person's command, a refused one's included, and commits
+ * the draft: the turn's one write, which a refusal itself does not make.
  * `instant` is when the turn runs, in host seconds. A reading the world
  * cannot take, an unknown verb or role or thing, or a filling the role
  * does not take, is SPROUT_BAD_INPUT with `fault.text` saying which; a

@@ -2,9 +2,10 @@
  * Tests for src/reading/after.c (the spec's Verbs > After a command), over the corpus world `after-command`: what
  * follows a visitor's command runs nearest first, the lamp she carries, then the place, then the world; once the
  * queue has drained and the engine has answered, so after the description of a place she walked into, after `look`'s
- * and `wait`'s answer, and where the queue left her, with its own queue drained after it; not after a refused
- * command, nor for what she has set down or shut in her tin; not for an arrival or a tick; and a plain `tell` from it
- * leaves her out while her neighbour reads it.
+ * and `wait`'s answer, and where the queue left her, with its own queue drained after it; after a refused command too,
+ * once its refusal is said, with `refused` bound and, for an exit that refused, `way`; not after a line nobody
+ * understood, nor for what she has set down or shut in her tin; not for an arrival or a tick; and a plain `tell` from
+ * it leaves her out while her neighbour reads it.
  */
 #include "turn_fixture.h"
 
@@ -50,7 +51,7 @@ static void what_follows_runs_nearest_first_after_the_place_walked_into_is_read(
   sprout_outcome out;
   int described, lamp_line, roar, bell;
   lit_in_hand(&w);
-  CHECK_INT(tw_property(&w, lamp, "charge"), 4);
+  CHECK_INT(tw_property(&w, lamp, "charge"), 5);
   CHECK_INT(tw_property(&w, "after_command", "commands"), 3);
   tw_go(&w, "v-marta", "north", "up to the falls", "falls", 1005, &out);
   described = line_at(&out, "v-marta", "Water thunders down a cleft in the rock.");
@@ -61,7 +62,7 @@ static void what_follows_runs_nearest_first_after_the_place_walked_into_is_read(
   /* The room's plain `tell` leaves out the one who made the command, and reaches the one beside her. */
   CHECK(tw_told(&out, "v-wren", "Marta winces at the noise."));
   CHECK(line_at(&out, "v-marta", "Marta winces at the noise.") < 0);
-  CHECK_INT(tw_property(&w, lamp, "charge"), 3);
+  CHECK_INT(tw_property(&w, lamp, "charge"), 4);
   CHECK_INT(tw_property(&w, "after_command", "commands"), 4);
   sprout_outcome_free(&out);
   tw_close(&w);
@@ -117,16 +118,69 @@ static void what_follows_finds_her_where_the_queue_left_her(void) {
   tw_close(&w);
 }
 
-static void a_refused_command_is_followed_by_nothing(void) {
+/* `text`, typed by `visit`. */
+static void typed(turn_world *w, const char *visit, const char *text, uint64_t instant, sprout_outcome *out) {
+  sprout_turn_input input = tw_input(SPROUT_TURN_COMMAND, instant);
+  input.visit = visit;
+  input.text = text;
+  input.text_length = strlen(text);
+  CHECK_INT(tw_run(w, input, 4, out), SPROUT_OK);
+}
+
+static void a_refused_command_is_followed_once_its_refusal_is_said(void) {
   turn_world w;
   sprout_outcome out;
+  int refusal, burns, stirs, bell;
   lit_in_hand(&w);
   on_lamp(&w, "v-marta", "after_command.light", 1005, &out);
-  CHECK(out.refused);
-  CHECK_INT(out.line_count, 1);
-  CHECK(tw_told(&out, "v-marta", "It is already lit."));
+  CHECK(out.refused && !out.goes_on);
+  refusal = line_at(&out, "v-marta", "It is already lit.");
+  burns = line_at(&out, "v-marta", "The lamp burns a little lower.");
+  stirs = line_at(&out, "v-marta", "Nothing stirs in the still cellar.");
+  bell = line_at(&out, "v-marta", "Somewhere far off, a bell tolls.");
+  /* The refusal stays the answer, and is read first; the cellar reads `refused`, and no `way`. */
+  CHECK(refusal == 0 && refusal < burns && burns < stirs && stirs < bell);
+  CHECK(line_at(&out, "v-marta", "The grate rattles in its frame.") < 0);
   CHECK_INT(tw_property(&w, lamp, "charge"), 4);
-  CHECK_INT(tw_property(&w, "after_command", "commands"), 3);
+  CHECK_INT(tw_property(&w, "after_command", "commands"), 4);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void an_exit_that_refuses_is_followed_with_the_way_it_tried(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "after-command");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  typed(&w, "v-wren", "east", 1001, &out);
+  CHECK(out.answered && !out.goes_on);
+  CHECK_INT(line_at(&out, "v-wren", "A rusted grate bars the way east."), 0);
+  CHECK_INT(line_at(&out, "v-wren", "The grate rattles in its frame."), 1);
+  CHECK(line_at(&out, "v-wren", "Nothing stirs in the still cellar.") < 0);
+  CHECK_INT(tw_property(&w, "after_command", "commands"), 1);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_line_nobody_understood_is_followed_by_nothing(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "after-command");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  typed(&w, "v-wren", "xyzzy", 1001, &out);
+  CHECK(out.answered);
+  CHECK_INT(out.line_count, 1);
+  sprout_outcome_free(&out);
+  typed(&w, "v-wren", "take jewels", 1002, &out);
+  CHECK(out.answered);
+  CHECK_INT(out.line_count, 1);
+  sprout_outcome_free(&out);
+  typed(&w, "v-wren", "west", 1003, &out);
+  CHECK(out.answered);
+  CHECK_INT(out.line_count, 1);
+  CHECK_INT(tw_property(&w, "after_command", "commands"), 0);
   sprout_outcome_free(&out);
   tw_close(&w);
 }
@@ -137,7 +191,7 @@ static void what_she_has_set_down_follows_nobody(void) {
   lit_in_hand(&w);
   on_lamp(&w, "v-marta", "sprout.drop", 1005, &out);
   CHECK(line_at(&out, "v-marta", "The lamp burns a little lower.") < 0);
-  CHECK_INT(tw_property(&w, lamp, "charge"), 4);
+  CHECK_INT(tw_property(&w, lamp, "charge"), 5);
   CHECK_INT(tw_property(&w, "after_command", "commands"), 4);
   sprout_outcome_free(&out);
   tw_close(&w);
@@ -167,7 +221,9 @@ int main(void) {
   RUN(what_follows_runs_nearest_first_after_the_place_walked_into_is_read);
   RUN(what_follows_runs_after_the_engine_has_answered);
   RUN(what_follows_finds_her_where_the_queue_left_her);
-  RUN(a_refused_command_is_followed_by_nothing);
+  RUN(a_refused_command_is_followed_once_its_refusal_is_said);
+  RUN(an_exit_that_refuses_is_followed_with_the_way_it_tried);
+  RUN(a_line_nobody_understood_is_followed_by_nothing);
   RUN(what_she_has_set_down_follows_nobody);
   RUN(an_arrival_and_a_tick_are_followed_by_nothing);
   return REPORT();

@@ -1,0 +1,14 @@
+// `way` is bound only after a `go` that was refused, so it is read inside
+// `if (bound way)`; and it is a direction, so it compares with one.
+import * as sprout from 'sprout'
+
+kind Lair is sprout.Place {
+  grammar { exit north "north" refuse "The dragon's claw bars the way." }
+
+  after command {
+    if (way == :north) { tell actor "The dragon growls." }
+    if (bound way) {
+      if (way == :nrth) { tell actor "The dragon snorts." }
+    }
+  }
+}
