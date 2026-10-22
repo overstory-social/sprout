@@ -1,0 +1,11 @@
+// A watcher's sword glows while someone else is near and dims as they go:
+// its handlers for `:arrived` and `:departed` sit on a kind the visitor kind
+// composes.
+import * as sprout from 'sprout'
+
+kind Watcher is sprout.Actor {
+  on :arrived (who, from) { tell self "Your sword glows as {who} comes near." }
+  on :departed (who, to) { tell self "Your sword dims as {who} goes." }
+}
+
+kind Person is Watcher, sprout.Visitor { }
