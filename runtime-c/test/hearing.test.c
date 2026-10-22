@@ -111,7 +111,7 @@ static void a_refused_move_is_recorded_to_the_audience_with_the_speaker(void) {
   c.x.heard_count = 1;
   c.x.has_speaker = true;
   c.x.speaker = exec_str("bench.shop.cat");
-  CHECK_INT(sprout_record_refusal(&c.x, &c.frame, &refusal), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_record_refusal(&c.x, &c.frame, &refusal, NULL), SPROUT_EVAL_OK);
   CHECK_INT(c.x.effect_count, 1);
   CHECK_INT(c.x.effects[0].kind, SPROUT_EFFECT_REFUSED);
   CHECK(sprout_str_same(c.x.effects[0].by, exec_str("bench.vault")));

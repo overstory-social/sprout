@@ -1,7 +1,8 @@
 /*
  * `send` and `broadcast` (the spec's Events, messages and the bus >
  * Sending). A directed send is queued to its target where the target is live
- * and in the sender's range for that message, and to no one otherwise; a
+ * and in the sender's range for that message, and to no one otherwise, which
+ * the log keeps as a warning; a
  * broadcast walks the sender's range for the message, nearest first, and is
  * queued to everything the walk reaches but the sender itself and a container
  * outward that refuses, which the walk reaches only as a surface. Nothing is
@@ -69,22 +70,25 @@ static sprout_eval_status carried(const sprout_frame *frame, const sprout_node *
 }
 
 sprout_eval_status stmt_send(sprout_run *run, const sprout_frame *frame, const sprout_node *statement) {
+  const sprout_node *path = sprout_node_get(frame->graph, statement, "target");
   sprout_str target;
   bool found, reached = false;
   const sprout_message *declared;
-  const char *key;
+  const char *key, *written;
   sprout_send send;
   EXPR_NEED(stmt_acting(run, frame, "`send`"));
-  EXPR_NEED(stmt_target_at(frame, sprout_node_get(frame->graph, statement, "target"), &target, &found));
+  EXPR_NEED(stmt_target_at(frame, path, &target, &found));
   EXPR_NEED(declared_message(frame, statement, &declared));
   if (declared == NULL) return SPROUT_EVAL_OK;
   memset(&send, 0, sizeof send);
   EXPR_NEED(carried(frame, statement, &send));
-  if (!found || !expr_live(frame, target)) return SPROUT_EVAL_OK;
   key = stmt_message_key(run->x, declared);
   if (key == NULL) return SPROUT_EVAL_NO_MEMORY;
-  EXPR_NEED(expr_reaches(frame, frame->self, target, key, &reached));
-  if (!reached) return SPROUT_EVAL_OK;
+  if (found && expr_live(frame, target)) EXPR_NEED(expr_reaches(frame, frame->self, target, key, &reached));
+  if (!reached) {
+    EXPR_NEED(stmt_written(frame, path, &written));
+    return sprout_warn_send_lost(run->x, frame, written, key);
+  }
   send.message = SPROUT_MSG_AUTHORED;
   send.recipient = target;
   send.has_from = true;

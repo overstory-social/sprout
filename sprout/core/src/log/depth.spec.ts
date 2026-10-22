@@ -45,6 +45,7 @@ const tick = (effects: LoggedEffect[]): LogEntry => ({
   fault: null,
   effects,
   cutShort: [],
+  warnings: [],
 });
 
 describe('the depth a log keeps a turn at', () => {

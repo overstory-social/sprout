@@ -1,7 +1,7 @@
 /*
  * A turn's outcome as JSON a host keeps and hands on; see logged.h. The entry's shape is the log's own
  * (the spec's The runtime > The log): the turn's inputs and the budgets it ran under, what it was for, its
- * fault, what it said and who it cut short, each part at its level.
+ * fault, what it said, who it cut short and what its bodies did that nobody was told of, each part at its level.
  */
 #include "logged.h"
 
@@ -226,6 +226,35 @@ static sprout_json *cuts_of(sprout_arena *arena, const sprout_outcome *outcome, 
   return whole(list, count) ? list : NULL;
 }
 
+/* What the turn's bodies did that nobody was told of, each a warning: a refused `move` nobody read, a `send` lost. */
+static sprout_json *warnings_of(sprout_arena *arena, const sprout_outcome *outcome) {
+  sprout_json *list = sprout_json_make(arena, SPROUT_JSON_ARRAY, outcome->warning_count);
+  size_t i;
+  if (list == NULL) return NULL;
+  for (i = 0; i < outcome->warning_count; i++) {
+    const sprout_warning *one = &outcome->warnings[i];
+    bool unread = one->kind == SPROUT_WARNING_UNREAD_REFUSAL;
+    sprout_json *warning = sprout_json_make(arena, SPROUT_JSON_OBJECT, 8);
+    if (warning == NULL) return NULL;
+    sprout_json_adopt(warning, "level", word(arena, "warning"));
+    sprout_json_adopt(warning, "what", word(arena, unread ? "unread-refusal" : "lost-send"));
+    sprout_json_adopt(warning, "by", text_of(arena, one->by));
+    if (unread) {
+      sprout_json_adopt(warning, "item", text_of(arena, one->item));
+      sprout_json_adopt(warning, "to", text_of(arena, one->to));
+      sprout_json_adopt(warning, "refuser", text_of(arena, one->refuser));
+      sprout_json_adopt(warning, "guard", one->guard == NULL ? nothing(arena) : word(arena, one->guard));
+      sprout_json_adopt(warning, "words", word(arena, one->words));
+    } else {
+      sprout_json_adopt(warning, "target", word(arena, one->target));
+      sprout_json_adopt(warning, "message", word(arena, one->message));
+    }
+    if (!whole(warning, unread ? 8 : 5)) return NULL;
+    sprout_json_adopt(list, NULL, warning);
+  }
+  return whole(list, outcome->warning_count) ? list : NULL;
+}
+
 /* How many effects there were and the SHA-256 of them as debug depth logs them, read in canonical order. */
 static sprout_json *digest_of(sprout_arena *arena, const sprout_json *effects) {
   static const char hex[] = "0123456789abcdef";
@@ -373,7 +402,8 @@ static size_t parts_of(sprout_arena *arena, const sprout_outcome *outcome, sprou
       sprout_json_adopt(entry, "delivered", wakes_of(arena, log->delivered_count, log->delivered, false));
       sprout_json_adopt(entry, "faulted", wakes_of(arena, log->faulted_count, log->faulted_wakes, true));
       sprout_json_adopt(entry, "abandoned", wakes_of(arena, log->abandoned_count, log->abandoned, false));
-      return 3;
+      sprout_json_adopt(entry, "warnings", warnings_of(arena, outcome));
+      return 4;
     case SPROUT_TURN_TICK:
       sprout_json_adopt(entry, "place", text_of(arena, log->who));
       added = 1;
@@ -409,7 +439,8 @@ static size_t parts_of(sprout_arena *arena, const sprout_outcome *outcome, sprou
   sprout_json_adopt(entry, "effects", *effects_kept);
   /* A refused arrival kept nobody from reading on: only an admission's lines can cut anyone short. */
   sprout_json_adopt(entry, "cutShort", cuts_of(arena, outcome, cuts));
-  return added + 3;
+  sprout_json_adopt(entry, "warnings", warnings_of(arena, outcome));
+  return added + 4;
 }
 
 sprout_status sprout_logged_entry(sprout_arena *arena, const sprout_host *host, const sprout_outcome *outcome,
@@ -421,7 +452,7 @@ sprout_status sprout_logged_entry(sprout_arena *arena, const sprout_host *host, 
   *out = NULL;
   if (!outcome->has_log || log->kind == SPROUT_TURN_POLL) return SPROUT_BAD_INPUT;
   if (!budgets_of(arena, &host->budgets, &budgets)) return SPROUT_BAD_HOST;
-  entry = sprout_json_make(arena, SPROUT_JSON_OBJECT, 16);
+  entry = sprout_json_make(arena, SPROUT_JSON_OBJECT, 17);
   if (entry == NULL || budgets == NULL) return SPROUT_NO_MEMORY;
   sprout_json_adopt(entry, "kind", word(arena, log->kind == SPROUT_TURN_COMMAND       ? "command"
                                                : log->kind == SPROUT_TURN_TICK        ? "tick"

@@ -4,14 +4,15 @@ import { basename, join } from 'node:path';
 import { playSteps, type Made, type PlayedStep } from './play.js';
 import type { PlayedRun } from './report.js';
 import type { PlayableWorld } from './engine.js';
-import { lineOf, readScript, shownExpectation, type Expectation } from './script.js';
+import { lineOf, plays, readScript, shownExpectation, type Expectation } from './script.js';
 
 // `sprout test`: an author's own tests of their world. A test is a script
 // `sprout play` plays, each on a freshly loaded world, and a step's
 // `expect` is what the author expects it to make. Each expected line must
 // be among what the step made, in the order written: a reader's line
 // whole, or the words alone, which any reader reading them matches; `[]`
-// expects silence. A step with no `expect` is played and not checked,
+// expects silence, and `forbid` names levels at which it may make no line
+// it does not expect. A step with no `expect` is played and not checked,
 // except that a turn which faults fails the test unless the fault is
 // expected. So a script `sprout play` filled in is a test that passes,
 // and an author accepts what the world says by keeping it.
@@ -97,6 +98,17 @@ function problems(played: PlayedStep, at: number): string[] {
     return [
       `${where}, the world did not say${order}:`,
       ...missing.map((expected) => `  ${shownExpectation(expected)}`),
+      ...said(made),
+    ];
+  }
+  const forbid = plays(step) ? (step.forbid ?? []) : [];
+  const forbidden = made.filter(
+    (one) => forbid.includes(one.level) && !written.some((expected) => matches(expected, one)),
+  );
+  if (forbidden.length > 0) {
+    return [
+      `${where}, the world made a line at a level the step forbids (${forbid.join(', ')}):`,
+      ...forbidden.map((one) => `  ${one.text}`),
       ...said(made),
     ];
   }

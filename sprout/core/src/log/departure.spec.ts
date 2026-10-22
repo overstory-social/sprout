@@ -10,6 +10,7 @@ const departed = {
   fault: null,
   effects: [SAID],
   cutShort: [],
+  warnings: [],
 } as const;
 
 describe('a visitor’s exit in the log', () => {

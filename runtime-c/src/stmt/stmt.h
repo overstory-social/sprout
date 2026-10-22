@@ -33,8 +33,12 @@ sprout_eval_status stmt_block(sprout_run *run, const sprout_frame *outer, const 
 sprout_eval_status stmt_object_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out);
 /* What a path evaluates to, an object or a set. One step. */
 sprout_eval_status stmt_evaluated_at(const sprout_frame *frame, const sprout_node *path, sprout_evaluated *out);
-/* A `move`'s destination: a binding, or what the name table says it reaches in range of the mover. */
-sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out);
+/*
+ * A `move`'s destination: a binding, or what the name table says it reaches in range of the mover; out of range, a
+ * fault that tells an NPC moving itself, `item`, about `roams`.
+ */
+sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_node *path, sprout_str item,
+                                       sprout_str *out);
 /* A `send`'s target: a binding, or what the name reaches whatever its range; *found is false where it reaches nothing. */
 sprout_eval_status stmt_target_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out, bool *found);
 /* The path as written, `kiln.shelf`. */

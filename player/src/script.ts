@@ -8,7 +8,8 @@
 // "kind", "words" }`; the words alone, which any reader reading them
 // matches; or any other line at its level, `{ "level", "text" }`, the
 // level one of the spec's five (The runtime › Levels). `"expect": []` is
-// silence.
+// silence. A step that plays may also carry `forbid`, levels at which it
+// may make no line but one it expects: `"forbid": ["warning"]`.
 //
 // The typed line grammar an interactive session reads, `Marta> take brass
 // key` and `@arrive Marta`, is read into the same steps, so what a session
@@ -32,7 +33,11 @@ export type Playing = (
   | { readonly leave: string }
   | { readonly tick: true }
   | { readonly advance: string }
-) & { readonly expect?: readonly Expectation[] };
+) & {
+  readonly expect?: readonly Expectation[];
+  /** Levels at which the step may make no line but one it expects. */
+  readonly forbid?: readonly Level[];
+};
 
 /** Whether `step` plays, as every step but a comment and `@seed` does. */
 export function plays(step: Step): step is Playing {
@@ -103,7 +108,7 @@ function expectationOf(value: unknown, where: string): Expectation {
 
 function stepOf(value: unknown, where: string): Step {
   if (!isRecord(value)) throw new Error(`${where}: ${SHAPES}.`);
-  const { expect, ...rest } = value;
+  const { expect, forbid, ...rest } = value;
   const keys = Object.keys(rest).sort().join(',');
   let step: Step;
   if (keys === 'as,type' && nonEmpty(rest['as']) && typeof rest['type'] === 'string') {
@@ -122,15 +127,27 @@ function stepOf(value: unknown, where: string): Step {
   } else if (keys === 'comment' && typeof rest['comment'] === 'string') {
     step = { comment: rest['comment'] };
   } else throw new Error(`${where}: ${SHAPES}.`);
-  if (expect === undefined) return step;
+  if (expect === undefined && forbid === undefined) return step;
   if ('seed' in step || 'comment' in step) {
     throw new Error(`${where}: \`${lineOf(step)}\` makes nothing, so it expects nothing.`);
   }
+  if (
+    forbid !== undefined &&
+    (!Array.isArray(forbid) || forbid.length === 0 || !forbid.every(isLevel))
+  ) {
+    throw new Error(
+      `${where}: \`forbid\` is a list of the levels the step may make no line at, as in ` +
+        '`"forbid": ["warning"]`, each one of `prose`, `error`, `warning`, `info` and `debug`.',
+    );
+  }
+  const forbidding = forbid === undefined ? {} : { forbid: forbid.filter(isLevel) };
+  if (expect === undefined) return { ...step, ...forbidding };
   if (!Array.isArray(expect)) {
     throw new Error(`${where}: \`expect\` is a list of lines, or \`[]\` for silence.`);
   }
   return {
     ...step,
+    ...forbidding,
     expect: expect.map((one, i) => expectationOf(one, `${where}, expect ${i + 1}`)),
   };
 }

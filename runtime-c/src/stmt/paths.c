@@ -69,7 +69,8 @@ static sprout_eval_status binding_at(const sprout_frame *frame, const sprout_nod
   return expr_as_object(frame, &held->bound, out);
 }
 
-sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_node *path, sprout_str *out) {
+sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_node *path, sprout_str item,
+                                       sprout_str *out) {
   bool bound, found, reached = false;
   const char *written = NULL;
   const sprout_node *named;
@@ -81,6 +82,15 @@ sprout_eval_status stmt_destination_at(const sprout_frame *frame, const sprout_n
   if (named == NULL) return unresolved(frame, written);
   EXPR_NEED(expr_named_object(frame, named, out, &found));
   if (found && expr_live(frame, *out)) EXPR_NEED(sprout_move_reaches(frame, frame->self, (sprout_str){NULL, 0}, *out, &reached));
+  if (found && !reached && sprout_move_would_roam(frame, frame->self, item, *out)) {
+    expr_text text = expr_text_begin(frame);
+    expr_put(&text, "`");
+    expr_put_str(&text, *out);
+    expr_put(&text, "` is out of range of `");
+    expr_put_str(&text, frame->self);
+    expr_put(&text, "`; a kind that `roams` may go there.");
+    return expr_fail_on(frame, "NameOutOfRange", *out);
+  }
   if (!found || !reached) return expr_name_out_of_range(frame, written, found, *out);
   return SPROUT_EVAL_OK;
 }
