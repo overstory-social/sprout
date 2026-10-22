@@ -1,6 +1,7 @@
 /*
- * Tests for host/steps.c: a script read into steps, each with the line the typed grammar writes for it and the
- * clock and seed it begins under, and a script that is not one refused in words naming the step.
+ * Tests for host/steps.c: a script read into steps, each with the line the typed grammar writes for it, the clock
+ * it begins under and its seed, the one a seed step just set or the next of the stream begun from it, and a script
+ * that is not one refused in words naming the step.
  */
 #include "steps.h"
 #include "host.h"
@@ -43,6 +44,10 @@ static void steps_read_with_their_line_clock_seed_and_kind(void) {
   CHECK_INT(steps.steps[3].seed, 7);
   CHECK_INT(steps.steps[3].index, 3);
   CHECK_INT(steps.steps[4].kind, SPROUTC_STEP_ADVANCE);
+  /* The first values of the mulberry32 stream begun from 7, as the player's Draws gives them. */
+  CHECK_INT(steps.steps[4].seed, 50271532);
+  CHECK_INT(steps.steps[5].seed, 266108690);
+  CHECK_INT(steps.steps[6].seed, 4195786334u);
   CHECK_INT(steps.steps[4].for_seconds, 2400);
   CHECK_INT(steps.steps[4].at_seconds, 0);
   CHECK_STR(steps.steps[5].line, "@tick");
@@ -50,7 +55,7 @@ static void steps_read_with_their_line_clock_seed_and_kind(void) {
   CHECK_INT(steps.steps[6].for_seconds, 7200);
   CHECK_INT(steps.steps[7].kind, SPROUTC_STEP_LEAVE);
   CHECK_INT(steps.steps[7].at_seconds, 9600);
-  CHECK_INT(steps.steps[7].seed, 7);
+  CHECK_INT(steps.steps[7].seed, 3002305430u);
   sproutc_steps_close(&steps);
   CHECK_INT(host.pages, 0);
   sproutc_host_close(&host);
@@ -74,6 +79,9 @@ static void a_script_that_is_not_one_is_refused_in_words(void) {
   CHECK(sproutc_steps_open(&steps, &host.record, PATH) != NULL);
   written("{\"steps\":[{\"seed\":-1}]}");
   CHECK(sproutc_steps_open(&steps, &host.record, PATH) != NULL);
+  written("{\"steps\":[{\"seed\":4294967296}]}");
+  why = sproutc_steps_open(&steps, &host.record, PATH);
+  CHECK(why != NULL && strstr(why, "step 1: a seed is a whole number from 0 to 4294967295.") != NULL);
   written("{\"turns\":[]}");
   why = sproutc_steps_open(&steps, &host.record, PATH);
   CHECK(why != NULL && strstr(why, "a script is `{ \"steps\": [ … ] }`") != NULL);

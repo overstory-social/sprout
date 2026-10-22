@@ -77,8 +77,8 @@
       { "level": "info", "text": "step: sprout.take" },
       { "reader": "Marta", "kind": "said", "words": "You take the lamp." },
       { "level": "info", "text": "step: sprout.take" },
-      { "reader": "Marta", "kind": "notice", "words": "(an iron key)" },
-      { "reader": "Marta", "kind": "said", "words": "You take an iron key." },
+      { "reader": "Marta", "kind": "notice", "words": "(a brass key)" },
+      { "reader": "Marta", "kind": "said", "words": "You take a brass key." },
       { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
     ] },
     { "as": "Marta", "type": "take shaker and look", "expect": [
@@ -89,7 +89,7 @@
       { "reader": "Marta", "kind": "said", "words": "You juggle 2 things at once." }
     ] },
     { "as": "Marta", "type": "take brass key", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You take a brass key." }
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
     ] },
     { "as": "Marta", "type": "examine box", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the box." },
@@ -99,9 +99,7 @@
       { "level": "info", "text": "step: sprout.put" },
       { "reader": "Marta", "kind": "said", "words": "You put the lamp in the box." },
       { "level": "info", "text": "step: sprout.put" },
-      { "reader": "Marta", "kind": "notice", "words": "(a brass key)" },
-      { "reader": "Marta", "kind": "said", "words": "You put a brass key in the box." },
-      { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
+      { "reader": "Marta", "kind": "said", "words": "You put a brass key in the box." }
     ] },
     { "as": "Marta", "type": "ask owl and guard about toll", "expect": [
       { "level": "info", "text": "step: sprout.ask" },
