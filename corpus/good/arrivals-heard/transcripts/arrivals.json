@@ -1,0 +1,28 @@
+{
+  "about": "Ines waits in the hall. Marta arrives, walks to the garden and back, and leaves: Ines reads each `arrives` and `leaves` line and her sword answers each `:arrived` and `:departed`, while Marta is sent nothing of her own moves.",
+  "steps": [
+    { "arrive": "Ines", "expect": [
+      { "reader": "Ines", "kind": "described", "words": "A bare hall. A garden lies to the north." }
+    ] },
+    { "arrive": "Marta", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives." },
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. A garden lies to the north." },
+      { "reader": "Ines", "kind": "told", "words": "Your sword glows as Marta comes near." }
+    ] },
+    { "as": "Marta", "type": "north", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves for a garden." },
+      { "reader": "Marta", "kind": "described", "words": "A walled garden." },
+      { "reader": "Ines", "kind": "told", "words": "Your sword dims as Marta goes." }
+    ] },
+    { "as": "Marta", "type": "south", "expect": [
+      { "reader": "Ines", "kind": "notice", "words": "Marta arrives from a garden." },
+      { "reader": "Marta", "kind": "described", "words": "A bare hall. A garden lies to the north." },
+      { "reader": "Ines", "kind": "told", "words": "Your sword glows as Marta comes near." }
+    ] },
+    { "leave": "Marta", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You leave, and take what you carry with you." },
+      { "reader": "Ines", "kind": "notice", "words": "Marta leaves." },
+      { "reader": "Ines", "kind": "told", "words": "Your sword dims as Marta goes." }
+    ] }
+  ]
+}

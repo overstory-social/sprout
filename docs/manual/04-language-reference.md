@@ -455,8 +455,8 @@ That is where `tell` reaches, what they leave when they go, and what
 `look` describes.
 
 When someone enters a place, every other visitor in reach of it reads the
-`arrives` line, every other object there is sent `:arrived`, and the one
-arriving reads the place's description. Leaving is the mirror: `leaves`,
+`arrives` line, everyone and everything else there, visitors included,
+is sent `:arrived`, and the one arriving reads the place's description. Leaving is the mirror: `leaves`,
 and `:departed`. `arrives` is given `from`, the place they came from, and
 `leaves` is given `to`, the place they went to; someone coming into the
 world or leaving it has none. Both are given `way`, the label of the exit
@@ -1630,7 +1630,7 @@ Once the move happens, the engine sends:
 
 When the thing moved is an actor, both containers are places, and the
 engine also has everyone else in reach of the old place read its `leaves`
-passage and sends the other objects there `:departed (actor, to)`; does the
+passage and sends everything else there, visitors too, `:departed (actor, to)`; does the
 same with `arrives` and `:arrived (actor, from)` for the new place; and
 shows the one who moved the new place's description. They read it before
 anything the handlers of those messages say, so a place's `:entered` that
