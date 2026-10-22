@@ -1,0 +1,58 @@
+// `all` in a set role (the spec's Parsing › Sequences, again and all).
+// `gather`'s things are a set role only the actor plays, and the actor's
+// own part moves them to itself, so `gather all` leaves out what the
+// visitor already carries before it counts to the host's bound: with the
+// sack of nine pebbles in hand, it reaches the club on the floor. Any
+// other set role keeps the range walk's order, the visitor's hands first,
+// up to that bound: `juggle all`, whose actor moves nothing, binds eight
+// of what is carried, and so does `shed all`, whose actor moves its
+// things away, as `drop` does.
+import * as sprout from 'sprout'
+
+world all_set_role_skips_held is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar { article the }
+    object sack is sprout.Container {
+      grammar { article the }
+      object pebble_1 is Pebble { grammar { name "first pebble" } }
+      object pebble_2 is Pebble { grammar { name "second pebble" } }
+      object pebble_3 is Pebble { grammar { name "third pebble" } }
+      object pebble_4 is Pebble { grammar { name "fourth pebble" } }
+      object pebble_5 is Pebble { grammar { name "fifth pebble" } }
+      object pebble_6 is Pebble { grammar { name "sixth pebble" } }
+      object pebble_7 is Pebble { grammar { name "seventh pebble" } }
+      object pebble_8 is Pebble { grammar { name "eighth pebble" } }
+      object pebble_9 is Pebble { grammar { name "ninth pebble" } }
+    }
+    object club is Club { grammar { article the } }
+  }
+}
+
+kind Pebble { }
+kind Club { }
+
+verb gather { role things many  "gather [things]" }
+verb juggle { role things many  "juggle [things]" }
+verb shed { role things many  "shed [things]" }
+
+kind Gatherer is sprout.Actor {
+  as actor for gather {
+    do {
+      each t of things {
+        if (self.holds(t)) { say "You already have {t}." }
+        else { move t to self  say "{t}: taken." }
+      }
+    }
+  }
+  as actor for juggle {
+    do { say "You juggle {things.count} things." }
+  }
+  as actor for shed {
+    do { each t of things { move t to here  say "{t}: dropped." } }
+  }
+}
+
+kind Person is Gatherer, sprout.Visitor { }

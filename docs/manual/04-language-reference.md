@@ -1577,7 +1577,13 @@ only what you carry. `except` leaves things out, by name or by kind: `take
 all except the brass key and the lamp`. A set role takes them all at once; any other
 role runs once for each, as a line of several commands would, in the order
 they are reached, and stops at the first refusal. No more are taken than a
-set role may hold, 8 by default.
+set role may hold, 8 by default, and what you carry is reached first. So
+where a set role is one only the actor plays and the actor's own part moves
+its things to itself, `each t of things { … move t to self … }` as a
+`take` with a set target writes, `all` leaves out what you already carry
+before it counts: with nine things in hand, `take all` still reaches the
+club on the floor. A set role whose actor moves nothing, or moves its
+things elsewhere, keeps what you carry.
 
 A run of things, `take sack and bottle` or `take sack, bottle and lamp`,
 with or without a comma before the `and`, fills a set role at once; any
