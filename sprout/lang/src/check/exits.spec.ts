@@ -151,6 +151,14 @@ describe('an exit, against the whole bundle', () => {
     expect(
       said('exit west "west" -> one of (shop, refuse "{mover} stops.")')[0]!.slice(2, 3),
     ).toEqual(['Nothing here is called `mover`.']);
+    // A passage a drawn refusal names is checked where the refusal says it, as a refusing exit's is.
+    expect(
+      said(
+        'exit west "west" -> one of (shop, refuse gone)',
+        {},
+        'passage gone { {mover} goes. }',
+      ).map((one) => one.slice(0, 2)),
+    ).toEqual([['refusal', 'ways.sprout:4:84']]);
   });
 
   it('refuses a drawn way of one choice, a place named twice, or a second refusal, since the draw is even', () => {
@@ -173,6 +181,13 @@ describe('an exit, against the whole bundle', () => {
         'ways.sprout:4:88',
         "`shop` is already among this `one of`'s choices, and naming it twice would make it likelier than the others.",
         'Name each place once: every choice is drawn as often as any other.',
+      ],
+    ]);
+    expect(
+      said('exit west "west" -> one of (shop, ways.shop)').map((one) => one.slice(2, 3)),
+    ).toEqual([
+      [
+        "`ways.shop` is already among this `one of`'s choices, and naming it twice would make it likelier than the others.",
       ],
     ]);
     expect(

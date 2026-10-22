@@ -1,6 +1,6 @@
 // A drawn way draws evenly among two or more choices: each place named
-// once, one refusal at most, every place one that holds actors, and a
-// refusal's words read only what an exit's refusal may.
+// once, by whatever path, one refusal at most, every place one that
+// holds actors, and a refusal's words read only what an exit's refusal may.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 
@@ -16,6 +16,7 @@ world exit_one_of_choices is sprout.World {
       exit south "south" -> one of (shed, refuse "No.", refuse "Never.")
       exit up    "up"    -> one of (shed, crate)
       exit down  "down"  -> one of (shed, refuse "{way} is closed.")
+      exit in    "in"    -> one of (shed, exit_one_of_choices.shed)
     }
 
     object crate is sprout.Container { }

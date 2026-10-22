@@ -16,4 +16,7 @@ exit_one_of_choices.sprout:17:43  `crate` does not hold actors, so nobody could 
 exit_one_of_choices.sprout:18:52  Nothing here is called `way`.
                                   In reach: `self`, `actor`, `here`, `crate`, `yard`, `shed`, `barn` and `exit_one_of_choices`.
 
-refused: 6 problems
+exit_one_of_choices.sprout:19:43  `exit_one_of_choices.shed` is already among this `one of`'s choices, and naming it twice would make it likelier than the others.
+                                  Name each place once: every choice is drawn as often as any other.
+
+refused: 7 problems

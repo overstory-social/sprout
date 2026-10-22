@@ -118,7 +118,9 @@ function checkDrawn(
       continue;
     }
     const written = writtenPath(choice.leads);
-    if (named.has(written)) {
+    accepted = checkDestination(choice.leads, self, setting) && accepted;
+    const place = placeOf(choice.leads, setting);
+    if (named.has(place)) {
       diagnostics.refuse(
         choice.at,
         `\`${written}\` is already among this \`one of\`'s choices, and naming it twice would make it likelier than the others.`,
@@ -126,10 +128,21 @@ function checkDrawn(
       );
       accepted = false;
     }
-    named.add(written);
-    accepted = checkDestination(choice.leads, self, setting) && accepted;
+    named.add(place);
   }
   return accepted;
+}
+
+/**
+ * The place a choice names, as the name table resolved it, so two paths
+ * to one declared object are one place; a name resolved only as each
+ * instance runs is known by how it is written.
+ */
+function placeOf(path: ObjectPath, setting: ExitSetting): string {
+  const named = setting.names.table.get(path);
+  if (named?.names === 'declared') return `declared ${named.path.join('.')}`;
+  if (named?.names === 'own') return `own ${named.parts.join('.')}`;
+  return `written ${writtenPath(path)}`;
 }
 
 /** Where an exit leads: a place written in the world, named from where the exit is. */
