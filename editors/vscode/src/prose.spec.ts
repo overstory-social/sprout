@@ -58,6 +58,19 @@ describe('the .prose grammar', () => {
     expect(choice.map((t) => t.text)).toEqual(['one of', 'or', '/', 'one of']);
   });
 
+  it('colours a {verbatim} block, its words raw and no slot inside it', async () => {
+    const [tokens] = await tokenise(
+      'source.sprout-prose',
+      'passage p { {verbatim}  W   {x}{/verbatim} }',
+    );
+    const tags = tokens!.filter((t) => t.scopes.includes('keyword.control.verbatim.sprout-prose'));
+    expect(tags.map((t) => t.text)).toEqual(['verbatim', '/', 'verbatim']);
+    expect(tokens!.find((t) => t.text.includes('W'))?.scopes).toContain(
+      'markup.raw.block.sprout-prose',
+    );
+    expect(tokens!.some((t) => t.scopes.includes('meta.slot.sprout-prose'))).toBe(false);
+  });
+
   it('reads \\{ as a character, not a slot, and keeps the passage open after it', async () => {
     const [tokens] = await tokenise('source.sprout-prose', 'passage p { a \\{ b } c');
     expect(tokens!.find((t) => t.text === '\\{')?.scopes).toContain(

@@ -19,6 +19,11 @@ describe('wrap', () => {
     expect(wrap('ab abcdefghij', 4)).toEqual(['ab', 'abcd', 'efgh', 'ij']);
     expect(wrap('one\n\ntwo', 10)).toEqual(['one', '', 'two']);
   });
+
+  it('keeps a line that fits as it is, its indentation and runs of spaces with it', () => {
+    expect(wrap('    W   E   L   L\n  end', 20)).toEqual(['    W   E   L   L', '  end']);
+    for (const row of wrap('    W   E   L   L', 8)) expect(row.length).toBeLessThanOrEqual(8);
+  });
 });
 
 describe('rowsOf', () => {
