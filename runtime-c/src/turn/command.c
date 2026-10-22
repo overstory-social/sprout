@@ -560,11 +560,7 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
       before_count = 1;
     } else if (eval == SPROUT_EVAL_OK) {
       outcome->goes_on = !refused_actor(&run.x, said_from, actor);
-      eval = sprout_exec_drain(&run.x);
-      /* What follows the command runs once the move is over and read, and its own queue drains after it. */
-      if (eval == SPROUT_EVAL_OK) eval = sprout_answers_folded(&run.x, &frame, &c.reading);
-      if (eval == SPROUT_EVAL_OK) eval = sprout_after_command(&run.x, &frame, actor);
-      if (eval == SPROUT_EVAL_OK) eval = sprout_exec_drain(&run.x);
+      eval = sprout_command_over(&run.x, &frame, &c.reading, true);
       if (eval == SPROUT_EVAL_OK) eval = sprout_arrivals_read(&run.x, &frame, &arrivals, &arrival_count);
     }
   }

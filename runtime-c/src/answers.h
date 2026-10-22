@@ -40,6 +40,14 @@ sprout_eval_status sprout_engine_answers(sprout_exec *x, const sprout_frame *fra
 sprout_eval_status sprout_answers_folded(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading);
 
 /*
+ * Ends a reading its consent pass allowed (the spec's The runtime > Turns): its queue drains; where it is
+ * `answered`, as a command turn's is, the arrivals and the engine's answer are folded into the lines; every
+ * `after command` the effect pass marked as owed runs (reading/after.c); and the queue those fill drains.
+ */
+sprout_eval_status sprout_command_over(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+                                       bool answered);
+
+/*
  * The turn's lines as the person reads them: `before`, then what the exec recorded with each arrival read
  * where its `after` falls among them, then `later`. The exec's lines are replaced by the result, which is
  * what rendering reads.

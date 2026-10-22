@@ -225,6 +225,14 @@ sprout_eval_status sprout_answers_folded(sprout_exec *x, const sprout_frame *fra
   return SPROUT_EVAL_OK;
 }
 
+sprout_eval_status sprout_command_over(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+                                       bool answered) {
+  EXPR_NEED(sprout_exec_drain(x));
+  if (answered) EXPR_NEED(sprout_answers_folded(x, frame, reading));
+  EXPR_NEED(sprout_after_command(x, frame, reading->actor));
+  return sprout_exec_drain(x);
+}
+
 sprout_eval_status sprout_lines_assembled(sprout_exec *x, const sprout_effect *before, size_t before_count,
                                           const sprout_arrived *arrived, size_t arrived_count,
                                           const sprout_effect *later, size_t later_count) {

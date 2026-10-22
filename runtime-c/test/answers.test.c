@@ -2,7 +2,8 @@
  * Tests for src/answers.c: a person who moved reads the place they arrived in, and one who typed `look` reads
  * the place they stand in, both after what the turn's bodies said (the spec's Verbs > Engine verbs; The runtime
  * > Effects); `seen` is `:look` for a look and `:examine` for an examination, the place's own included (Prose);
- * and `help` offers nothing unseen (Range > Unseen).
+ * and `help` offers nothing unseen (Range > Unseen). Both are folded into the lines before what follows the command
+ * runs (Verbs > After a command), and a place is read once for one arrival.
  */
 #include "turn_fixture.h"
 
@@ -102,10 +103,42 @@ static void help_offers_nothing_that_is_unseen(void) {
   tw_close(&w);
 }
 
+/* Where `text` stands among the outcome's lines, or -1. */
+static int line_index(const sprout_outcome *out, const char *text) {
+  size_t i;
+  for (i = 0; i < out->line_count; i++)
+    if (out->lines[i].text_length == strlen(text) && memcmp(out->lines[i].text, text, out->lines[i].text_length) == 0) return (int)i;
+  return -1;
+}
+
+static void the_arrival_and_the_answer_are_read_before_what_follows_the_command(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_reading look;
+  sprout_filling none;
+  const char *falls = "Water thunders down a cleft in the rock.", *roar = "The roar of the water is deafening.";
+  size_t i;
+  int read = 0;
+  tw_open(&w, "after-command");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_go(&w, "v-marta", "north", "up to the falls", "falls", 1001, &out);
+  CHECK(line_index(&out, falls) >= 0 && line_index(&out, falls) < line_index(&out, roar));
+  for (i = 0; i < out.line_count; i++) read += out.lines[i].kind == SPROUT_LINE_DESCRIBED;
+  CHECK_INT(read, 1);
+  sprout_outcome_free(&out);
+  look = tw_reading("sprout.look", tw_person(&w, "v-marta"), &none, NULL, NULL);
+  tw_command(&w, "v-marta", &look, 1002, &out);
+  CHECK(line_index(&out, falls) >= 0 && line_index(&out, falls) < line_index(&out, roar));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_person_who_moved_reads_the_place_they_arrived_in);
   RUN(a_look_is_answered_with_the_place_and_a_body_that_spoke_is_heard_alone);
   RUN(a_look_and_an_examination_of_the_place_are_told_apart_by_seen);
   RUN(help_offers_nothing_that_is_unseen);
+  RUN(the_arrival_and_the_answer_are_read_before_what_follows_the_command);
   return REPORT();
 }
