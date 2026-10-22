@@ -8,7 +8,8 @@
  * wildcard's for none of the verbs its `except` names; and
  * the frame a play runs in binds `actor`, `here` and each other role as that
  * play sees it, a set role always, a value only among the options the play
- * hears, and the way `go` takes as a string.
+ * hears, and the way `go` takes as a string, with a visitor actor's hands
+ * open to it and an NPC's not (Range).
  */
 #include "expr/expr.h"
 #include "reading_fixture.h"
@@ -253,6 +254,37 @@ static void a_permit_is_given_no_draws_and_a_do_is(void) {
   consent_close(&k);
 }
 
+/* The frame participant `index`'s first play runs in. */
+static sprout_frame play_frame_of(consent_case *k, size_t index) {
+  const sprout_participant *participants;
+  const sprout_stored_instance *self;
+  sprout_plays plays;
+  sprout_frame inside;
+  size_t count;
+  memset(&inside, 0, sizeof inside);
+  CHECK_INT(sprout_participants(&k->c.x, &k->reading, &participants, &count), SPROUT_EVAL_OK);
+  self = sprout_draft_instance(&k->c.draft, participants[index].id);
+  sprout_plays_for(&k->reading, &participants[index], self->kind, &plays);
+  CHECK(plays.count > 0);
+  CHECK_INT(sprout_play_frame(&k->c.x, &k->reading, &participants[index], &plays.groups[0]->plays[0], true, &inside), SPROUT_EVAL_OK);
+  return inside;
+}
+
+static void a_visitors_reading_opens_their_hands_to_every_part_and_an_npcs_opens_none(void) {
+  consent_case k;
+  sprout_frame inside;
+  consent_open(&k, "every part plays: the target’s composed kinds, its tool, then the weights of a set role");
+  inside = play_frame_of(&k, 1);
+  CHECK(inside.hands.bytes != NULL && sprout_str_same(inside.hands, exec_str("bench#1")));
+  inside = play_frame_of(&k, 2);
+  CHECK(inside.hands.bytes != NULL && sprout_str_same(inside.hands, exec_str("bench#1")));
+  consent_close(&k);
+  consent_open(&k, "an NPC that carries the tool goes through to the permits");
+  inside = play_frame_of(&k, 1);
+  CHECK(inside.hands.bytes == NULL);
+  consent_close(&k);
+}
+
 static void the_golden_composition_and_value_readings_end_as_the_typescript_runtime_did(void) {
   exec_bench b;
   reading_bench_open(&b);
@@ -275,6 +307,7 @@ int main(void) {
   RUN(a_plays_frame_binds_actor_here_and_each_other_role);
   RUN(a_value_is_bound_only_among_the_options_the_play_hears);
   RUN(a_permit_is_given_no_draws_and_a_do_is);
+  RUN(a_visitors_reading_opens_their_hands_to_every_part_and_an_npcs_opens_none);
   RUN(the_golden_composition_and_value_readings_end_as_the_typescript_runtime_did);
   return REPORT();
 }

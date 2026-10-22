@@ -1205,6 +1205,28 @@ A verb named after `except` is imported as any verb a play names is.
   agrees.
 - **`do`** is what happens. A participant without a `do` does nothing.
 
+When a visitor acts, every participant sees into their hands, in its
+`permit`, its `do` and the words it says there: `actor.count(Match)`,
+`actor.holds(x)` and `each m: Match in actor` see what the visitor
+carries, though a person passes nothing. So a fuse can light only for
+someone carrying a burning match:
+
+```sprout
+as target for light {
+  permit {
+    each m: Match in actor { if (m.get(:burning)) { allow } }
+    refuse "You have nothing to light it with."
+  }
+  do { self.set(:lit, true)  say "The fuse hisses." }
+}
+```
+
+Only the visitor who acted opens their hands, and a shut box in them
+stays shut. An NPC's reading opens none, and neither does a handler the
+reading's messages run, nor a description. The fuse can count the match
+and read it, but cannot `send` to it or `move` it, since it is still out
+of range.
+
 ### The actor's own part
 
 Every verb has one more participant than its roles: the one acting. An

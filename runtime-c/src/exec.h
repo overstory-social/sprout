@@ -76,6 +76,7 @@ typedef struct sprout_effect {
   sprout_speech said;
   size_t binding_count;
   const sprout_effect_binding *bindings;
+  sprout_str hands; /* the acting visitor whose hands the words see into, as the frame that said them did; or none */
 } sprout_effect;
 
 /* A description a move owes the one it carried between places, read once `after` effects are said. */
