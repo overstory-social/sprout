@@ -10,7 +10,8 @@
 // must be a place, and the run leads nowhere through one that is not. Its
 // `when` is a condition over `self`, the place, read-only and pure as a
 // pass rule's is: nobody is acting while it is polled, so `actor` and
-// `here` are not bound. A way drawn as it is taken names two or more
+// `here` are not bound; it may read the place the exit leads to, though
+// that place is out of range, and not a place a drawn way names. A way drawn as it is taken names two or more
 // choices, each place once and at most one refusal, since the draw is
 // even and a choice written twice would weigh it. An exit that refuses
 // says its words to whoever goes that way, and one that leads may say
@@ -22,7 +23,12 @@
 
 import type { ConnectStatement, Expr, ObjectPath } from '../syntax/ast.js';
 import { writtenPath } from '../syntax/ast.js';
-import type { GrammarDrawn, GrammarRefusal, GrammarSaying } from '../syntax/ast-grammar.js';
+import type {
+  GrammarDrawn,
+  GrammarExit,
+  GrammarRefusal,
+  GrammarSaying,
+} from '../syntax/ast-grammar.js';
 import type { Diagnostics } from '../source/diagnostics.js';
 import { isLinkName, type ResolvedExit } from '../declare/exits.js';
 import { shownName } from '../declare/enums.js';
@@ -32,7 +38,7 @@ import type { HereKind } from '../declare/places.js';
 import { actorBinding, hereBinding, Scope, selfBinding, showBindingType } from './bindings.js';
 import { checkPassage } from './audiences.js';
 import type { SpeechBook } from './speech.js';
-import { typeOf, type CheckContext } from './check.js';
+import { typeOf, type CheckContext, type WayEnds } from './check.js';
 import { dottedType, type NameScope } from './names.js';
 import { pathType } from './statements.js';
 
@@ -74,7 +80,8 @@ export function checkExit(exit: ResolvedExit, self: KindRef, setting: ExitSettin
         ? checkDrawn(line.leads, `exit ${line.direction.text} "${line.label.text}"`, self, setting)
         : checkWords(line.leads, self, setting);
   const says = line.says === null || checkWords(line.says, self, setting);
-  const holds = line.when === null || checkWhen(line.when, self, setting);
+  const holds =
+    line.when === null || checkWhen(line.when, self, wayEnds(line.leads, setting), setting);
   return leads && says && holds;
 }
 
@@ -219,11 +226,34 @@ function checkWords(
 }
 
 /**
- * An exit's `when`: a boolean over `self`, with `actor` and `here`
- * withheld, that draws nothing; the literal `false`, which never holds,
- * is warned about.
+ * Where an exit leads, as its `when` may read it: each place it names that
+ * the world's tree declares, the one a plain exit leads to or those a drawn
+ * way names; none for an exit that refuses, which leads nowhere.
  */
-function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
+function wayEnds(leads: GrammarExit['leads'], setting: ExitSetting): WayEnds | undefined {
+  const declared = (path: ObjectPath): (readonly string[])[] => {
+    const named = setting.names.table.get(path);
+    return named?.names === 'declared' ? [named.path] : [];
+  };
+  if (leads.kind === 'path') return { leads: 'one', places: declared(leads) };
+  if (leads.kind !== 'grammar-drawn') return undefined;
+  const places = leads.choices.flatMap((choice) =>
+    choice.leads.kind === 'path' ? declared(choice.leads) : [],
+  );
+  return { leads: 'drawn', places };
+}
+
+/**
+ * An exit's `when`: a boolean over `self`, with `actor` and `here`
+ * withheld, that draws nothing, and may read the place it leads to; the
+ * literal `false`, which never holds, is warned about.
+ */
+function checkWhen(
+  when: Expr,
+  self: KindRef,
+  way: WayEnds | undefined,
+  setting: ExitSetting,
+): boolean {
   const { diagnostics } = setting;
   const scope = Scope.root();
   scope.introduce(selfBinding(self, when.at), diagnostics);
@@ -246,6 +276,7 @@ function checkWhen(when: Expr, self: KindRef, setting: ExitSetting): boolean {
     diagnostics,
     names: setting.names,
     undrawn: { by: 'when' },
+    ...(way === undefined ? {} : { way }),
   };
   const type = typeOf(when, context);
   if (type === null) return false;

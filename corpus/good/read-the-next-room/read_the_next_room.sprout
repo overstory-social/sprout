@@ -1,0 +1,76 @@
+// One place reads the next, though the world keeps its places out of one
+// another's range. The posts room's way east reads the pool room it leads
+// to, so pulling the lever there closes it (the spec's An exit may be
+// conditional); and its describe shows the parlour through the window to
+// the north, as the parlour's own describe gives it, with `{exit north}`
+// (the spec's Prose › Slots). The parlour shows the posts room back with
+// `{exit south}`, which shows nothing inside a place itself shown, so the
+// two windows end.
+import * as sprout from 'sprout'
+
+message :collapse
+
+world read_the_next_room is sprout.World {
+  visitors are Person
+  visitors arrive at posts_room
+
+  object posts_room is sprout.Place {
+    grammar {
+      name "posts room"
+      article the
+      exit east "east" -> pool_room when (!pool_room.get(:munged))
+      exit east "east" refuse "Rubble fills the way east."
+      exit north "north" -> parlour
+    }
+    describe {
+      text "Wooden posts hold up a low ceiling. A barred window looks north."
+      text "{exit north}"
+    }
+  }
+
+  object pool_room is sprout.Place {
+    :munged false
+    grammar {
+      name "pool room"
+      article the
+      exit west "west" -> posts_room
+    }
+    describe { text "A still pool under a cracked roof." }
+    on :collapse {
+      self.set(:munged, true)
+      tell "The roof gives way, and rubble fills the passage west of the pool."
+    }
+    object lever is Lever
+  }
+
+  object parlour is sprout.Place {
+    grammar {
+      name "parlour"
+      article the
+      exit south "south" -> posts_room
+    }
+    describe {
+      text "A dusty parlour. On the mantel sits {for thing in self}{if thing != actor}{thing}{/if}{/for}."
+      text "{exit south}"
+    }
+    object clock is Clock
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+verb pull { role target: Lever  "pull [target]" }
+
+kind Lever {
+  grammar { name "lever"  article a }
+  as target for pull {
+    do {
+      say "You pull the lever."
+      send here :collapse
+    }
+  }
+}
+
+kind Clock {
+  grammar { name "clock"  article a }
+}

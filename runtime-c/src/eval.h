@@ -72,6 +72,7 @@ typedef struct sprout_frame {
   const sprout_binding *bindings;
   sprout_eval_fault *fault; /* filled when an evaluation returns SPROUT_EVAL_FAULT or SPROUT_EVAL_ENGINE */
   sprout_str hands;     /* a visitor's reading or a refusal's words: the acting visitor whose hands a range question sees into (the spec's Range), or none */
+  sprout_str beyond;    /* an exit's `when`: the place it leads to, which a name reaches though it is out of range (the spec's An exit may be conditional), or none */
 } sprout_frame;
 
 sprout_evaluated sprout_evaluated_value(sprout_value value);

@@ -7,7 +7,7 @@
     { "advance": "1 minute", "expect": [{ "words": "A cat arrives from an attic." }] },
     { "as": "Marta", "type": "whistle for dog", "expect": [{ "words": "The dog pricks up its ears." }] },
     { "advance": "1 minute", "expect": [
-      { "level": "error", "text": "the wake of kitchen.dog faulted, against attic, NameOutOfRange: `roaming.attic` is out of range of `roaming.kitchen.dog`, so it could not be read through `attic`." }
+      { "level": "error", "text": "the wake of kitchen.dog faulted, against attic, NameOutOfRange: `roaming.attic` is out of range of `roaming.kitchen.dog`; a kind that `roams` may go there." }
     ] },
     { "advance": "1 minute", "expect": [] },
     { "as": "Marta", "type": "nudge cat", "expect": [

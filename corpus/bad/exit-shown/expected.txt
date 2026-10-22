@@ -1,0 +1,16 @@
+exit_shown.sprout:15:35  `n` is how a visitor types `north`, and source writes the direction out.
+                         Write `{exit north}`.
+
+exit_shown.sprout:15:43  `sideways` is not a direction, so `{exit sideways}` names no way out.
+                         Name the direction of one of its exits, as in `{exit east}`.
+
+exit_shown.sprout:15:58  `hall` has no exit east that leads to a place, so `{exit east}` has nothing to show.
+                         Name a way it has that leads to a place: `{exit north}`.
+
+exit_shown.sprout:16:58  `{exit north}` shows the place that way leads to as its `describe` shows it to someone looking, and nobody is looking here.
+                         Write it in a `describe`, or in a passage only a `describe` renders.
+
+exit_shown.sprout:28:27  `{exit north}` shows the place one of this place's ways out leads to, and `Bell` is not a place, so it has no ways out.
+                         Write it in the `describe` of the place whose exit it looks through.
+
+refused: 5 problems

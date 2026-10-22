@@ -1,0 +1,13 @@
+import * as sprout from 'sprout'
+import {:granted} from 'lost_work'
+
+// Granted the gem, a visitor takes it from the pedestal: the pedestal
+// refuses, and a handler has nobody to say the refusal to.
+kind Taker is sprout.Actor {
+  on :granted {
+    move glade.pedestal.gem to self
+    tell "The gem is yours."
+  }
+}
+
+kind Person is Taker, sprout.Visitor { }

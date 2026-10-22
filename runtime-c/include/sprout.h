@@ -775,6 +775,24 @@ typedef struct sprout_ran {
 } sprout_ran;
 
 /*
+ * Something a turn's bodies did that nobody in the world was told of, which the log keeps as a warning (the
+ * spec's The runtime > The log): a `move` refused where nobody read the refusal, or a `send` that reached
+ * nothing. Every id is an instance's.
+ */
+typedef enum sprout_warning_kind { SPROUT_WARNING_UNREAD_REFUSAL, SPROUT_WARNING_SEND_LOST } sprout_warning_kind;
+
+typedef struct sprout_warning {
+  sprout_warning_kind kind;
+  sprout_str by;       /* the object whose body ran the statement */
+  sprout_str item, to; /* a refusal: what the `move` would have moved, and where to */
+  sprout_str refuser;  /* a refusal: the party whose guard refused, or whom the engine's line is said by */
+  const char *guard;   /* a refusal: `depart`, `release` or `accept`; NULL where the engine refused */
+  const char *words;   /* a refusal: its words as written, the line in quotes, or `passage <name>` */
+  const char *target;  /* a send: the name it was sent to, as written */
+  const char *message; /* a send: the message, `library.name` */
+} sprout_warning;
+
+/*
  * What a turn came to. The lines, effects and cuts are the turn's own, in the order told, valid until
  * sprout_outcome_free; a faulted turn tells nothing but what the world says of the fault to the one who
  * typed. `committed` is that the turn's own draft was committed; `state_changed` that the stored state is
@@ -834,6 +852,8 @@ typedef struct sprout_outcome {
   size_t ran_count;
   const sprout_ran *ran;
   const char *answer;
+  size_t warning_count;
+  const sprout_warning *warnings; /* what its committed work did that nobody was told of, in the order done */
   void *held;
 } sprout_outcome;
 
@@ -892,7 +912,8 @@ typedef enum sprout_log_depth { SPROUT_LOG_PLAY, SPROUT_LOG_DEBUG } sprout_log_d
 
 /*
  * The entry a write turn leaves in the log, as the JSON a host's log keeps it (the spec's The runtime > The
- * log): the turn's inputs, the budgets `host` gave it, what it was for, its fault, who it cut short, and, at
+ * log): the turn's inputs, the budgets `host` gave it, what it was for, its fault, who it cut short, the warnings
+ * of what its bodies did that nobody was told of, and, at
  * debug depth, every effect, or at play depth how many and the SHA-256 of them; a command's also keeps the
  * step a line planned for it, the item it re-read, and the draw its reading was. Built in `scratch`. An
  * outcome with no entry, and a row of the budgets the log keeps that `host` leaves unset, are

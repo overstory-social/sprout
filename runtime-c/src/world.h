@@ -22,6 +22,7 @@ struct sprout_world {
   const sprout_kind_def **kinds_by_name; /* the same kinds in code-unit order of their qualified names */
   sprout_kind_def *world_kind;    /* NULL where the world has none */
   sprout_kind_def *visitor_kind;  /* NULL where visitors have none */
+  bool follows_commands; /* some kind an instance can have writes `after command`, an object's own or the world's included */
   size_t content_list_count;
   sprout_content_list *contents;
 

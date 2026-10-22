@@ -3,7 +3,8 @@
  * with `self` the thing, `actor` whoever looks, `here` their place and `seen` what it is read for, and gives
  * its words with `text`, each one line, carried unrendered with the names in scope; a place that is not lit
  * is described by the world's `dark`, and a thing that gives no words by the engine's `unremarkable`, with
- * `thing` the thing.
+ * `thing` the thing. A place shown through another's `{exit …}` gives its own lines, with the names it is
+ * handed, its `lit` not asked.
  */
 #include "describe.h"
 #include "expr/expr.h"
@@ -137,6 +138,37 @@ static void an_instance_that_is_not_there_is_the_engines_defect(void) {
   describe_close(&k);
 }
 
+static void a_place_shown_through_a_way_gives_its_own_lines_with_the_names_it_is_handed(void) {
+  describe_case k;
+  sprout_description d;
+  const sprout_binding *handed, *bound;
+  bool actor = false;
+  describe_open(&k, "gate that stands open");
+  handed = sprout_bind(&k.p.frame, "actor", sprout_evaluated_object(k.p.actor));
+  CHECK(handed != NULL);
+  CHECK_INT(sprout_describe_beyond(&k.p.frame, view_str("viewbench.yard"), handed, &d), SPROUT_EVAL_OK);
+  CHECK_INT(d.line_count, 2);
+  CHECK(sprout_str_same(d.of, view_str("viewbench.yard")));
+  CHECK(sprout_str_same(d.lines[1].by, view_str("viewbench.yard")));
+  for (bound = d.lines[0].bindings; bound != NULL; bound = bound->next) {
+    if (strcmp(bound->name, "actor") == 0) actor = sprout_str_same(bound->bound.id, k.p.actor);
+    CHECK(strcmp(bound->name, "seen") != 0);
+  }
+  CHECK(actor);
+  describe_close(&k);
+}
+
+static void a_dark_place_shown_through_a_way_is_not_asked_its_light(void) {
+  describe_case k;
+  sprout_description d;
+  describe_open(&k, "the cellar is dark");
+  CHECK_INT(sprout_describe_beyond(&k.p.frame, k.p.place, NULL, &d), SPROUT_EVAL_OK);
+  CHECK_INT(d.line_count, 1);
+  CHECK_INT(d.lines[0].said.kind, SPROUT_SPEECH_TEXT);
+  CHECK_INT(sprout_describe_beyond(&k.p.frame, view_str("viewbench.nowhere"), NULL, &d), SPROUT_EVAL_ENGINE);
+  describe_close(&k);
+}
+
 int main(void) {
   RUN(each_text_a_describe_runs_is_one_line_said_by_the_thing);
   RUN(a_condition_that_does_not_hold_leaves_its_text_out);
@@ -147,5 +179,7 @@ int main(void) {
   RUN(looking_at_a_thing_that_is_not_the_place_asks_nothing_of_the_light);
   RUN(a_budget_spent_describing_faults_as_any_work_does);
   RUN(an_instance_that_is_not_there_is_the_engines_defect);
+  RUN(a_place_shown_through_a_way_gives_its_own_lines_with_the_names_it_is_handed);
+  RUN(a_dark_place_shown_through_a_way_is_not_asked_its_light);
   return REPORT();
 }

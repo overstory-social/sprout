@@ -105,6 +105,28 @@ describe('readScript', () => {
     const [step] = read([{ arrive: 'Marta', expect: lines }]).steps;
     expect(step).toEqual({ arrive: 'Marta', expect: lines });
   });
+
+  it('reads the levels a step forbids, with or without what it expects, and writes them back', () => {
+    const script = read([
+      { arrive: 'Marta', forbid: ['warning'] },
+      { as: 'Marta', type: 'look', forbid: ['warning', 'error'], expect: [{ words: 'A yard.' }] },
+    ]);
+    expect(script.steps).toEqual([
+      { arrive: 'Marta', forbid: ['warning'] },
+      { as: 'Marta', type: 'look', forbid: ['warning', 'error'], expect: [{ words: 'A yard.' }] },
+    ]);
+    expect(readScript(writeScript(script), 'walk.json')).toEqual(script);
+  });
+
+  it('refuses a `forbid` that names no level, or one that is not a level, or on a step that makes nothing', () => {
+    expect(() => read([{ arrive: 'Marta', forbid: [] }])).toThrow(
+      /`forbid` is a list of the levels/,
+    );
+    expect(() => read([{ arrive: 'Marta', forbid: ['loud'] }])).toThrow(
+      /`"forbid": \["warning"\]`/,
+    );
+    expect(() => read([{ seed: 7, forbid: ['warning'] }])).toThrow(/makes nothing/);
+  });
 });
 
 describe('writeScript', () => {

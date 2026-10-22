@@ -2,9 +2,11 @@
  * Tests for src/prose/slots.c: every case the goldens hold of a slot of each kind, of `{if}`,
  * `{for}` and `{one of}`, and of passages nested to the host's depth and the step budget, renders
  * as the golden holds it; and what rendering refuses is the engine's defect, never a fault an
- * author can cause.
+ * author can cause. `{exit …}` shows the place a way out leads to as it describes itself, and
+ * nothing inside a place so shown, played over corpus/good/read-the-next-room.
  */
 #include "prose_fixture.h"
+#include "turn_fixture.h"
 
 static void slots_of_each_kind_render_as_the_golden_holds(void) {
   prose_bench b;
@@ -80,6 +82,23 @@ static void a_passage_renders_nothing_when_it_is_empty_of_words(void) {
   prose_bench_close(&b);
 }
 
+static void a_describe_shows_the_place_a_way_out_leads_to_and_no_further(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "read-the-next-room");
+  tw_arrive(&w, "v-marta", "Marta", 1000, &out);
+  CHECK(tw_told(&out, "v-marta", "Wooden posts hold up a low ceiling. A barred window looks north."));
+  CHECK(tw_told(&out, "v-marta", "A dusty parlour. On the mantel sits a clock."));
+  sprout_outcome_free(&out);
+  tw_go(&w, "v-marta", "north", "north", "parlour", 1001, &out);
+  /* The parlour shows the posts room back, and the posts room's own window shows nothing inside it. */
+  CHECK(tw_told(&out, "v-marta", "A dusty parlour. On the mantel sits a clock."));
+  CHECK(tw_told(&out, "v-marta", "Wooden posts hold up a low ceiling. A barred window looks north."));
+  CHECK_INT(out.line_count, 2);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(slots_of_each_kind_render_as_the_golden_holds);
   RUN(conditions_loops_and_choices_render_as_the_golden_holds);
@@ -87,5 +106,6 @@ int main(void) {
   RUN(a_choice_where_nothing_draws_is_the_engines_defect);
   RUN(a_choice_is_a_step_and_a_draw_and_an_if_is_a_step_for_each_condition);
   RUN(a_passage_renders_nothing_when_it_is_empty_of_words);
+  RUN(a_describe_shows_the_place_a_way_out_leads_to_and_no_further);
   return REPORT();
 }

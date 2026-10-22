@@ -8,7 +8,8 @@
       { "reader": "Marta", "kind": "said", "words": "You take a lamp." }
     ] },
     { "as": "Marta", "type": "light lantern", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "The lantern catches." }
+      { "reader": "Marta", "kind": "said", "words": "The lantern catches." },
+      { "level": "warning", "text": "a send reached nothing: hall.lantern sent :kindle to lamp, which reaches nothing in its range now" }
     ] },
     { "as": "Marta", "type": "examine lamp", "expect": [
       { "reader": "Marta", "kind": "described", "words": "It is dark." }
@@ -29,7 +30,8 @@
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about a hall." }
     ] },
     { "as": "Marta", "type": "open cupboard", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "A new lamp is set out, unlit." }
+      { "reader": "Marta", "kind": "said", "words": "A new lamp is set out, unlit." },
+      { "level": "warning", "text": "a send reached nothing: hall.cupboard sent :kindle to instance_scope.beacon, which reaches nothing in its range now" }
     ] },
     { "as": "Marta", "type": "light lantern", "expect": [
       { "reader": "Marta", "kind": "said", "words": "The lantern catches." }

@@ -143,6 +143,7 @@ typedef struct prose_reading {
   sprout_eval_fault *fault;
   sprout_str reader; /* a name for this reader is "you" */
   prose_notes *notes; /* where the words are noted, or NULL where nobody asks */
+  bool beyond;        /* a place shown through `{exit …}`, whose own `{exit …}` shows nothing */
 } prose_reading;
 
 /* Notes the passage `passage` (a node with `name`, `origin` and `at`) as having given the reader words, once. */

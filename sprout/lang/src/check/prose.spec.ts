@@ -8,6 +8,7 @@ import { at, bodyOf, saidBy, vessel, VESSEL, warded, WARDED } from '../fixtures/
 import type { CheckContext } from './check.js';
 import { READINGS, type Binding } from './bindings.js';
 import { checkProse } from './prose.js';
+import { compileWorld } from '../fixtures/bundle.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { inKind, nameSource } from '../fixtures/names.js';
 import type { PassageRendered } from './speech.js';
@@ -326,5 +327,77 @@ describe('a `{one of}` checks each of its choices', () => {
     expect(
       checked('{self.greeting}', bodyOf(withPassage)).rendered.map((site) => site.undrawn),
     ).toEqual([null]);
+  });
+});
+
+describe('`{exit …}` shows the place a way out leads to', () => {
+  /** What compiling a hall whose grammar block holds `ways` and whose body holds `body` refused, as message and remedy. */
+  function refused(ways: string, body: string, kinds = ''): string[][] {
+    const { diagnostics } = compileWorld('rooms', {
+      'rooms.sprout': `world rooms is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place {
+    grammar { ${ways} }
+    ${body}
+  }
+  object yard is sprout.Place { describe { text "A yard." } }
+}
+kind Person is sprout.Visitor { }
+${kinds}`,
+    });
+    return diagnostics
+      .filter((one) => one.severity === 'refusal')
+      .map((one) => [one.message, one.remedy ?? '']);
+  }
+
+  it('is taken in a describe, of a direction in which the place leads to a place, under any guard', () => {
+    expect(
+      refused(
+        'exit north "north" -> yard when (!yard.get(:unseen))  exit north "north" refuse "Shut."',
+        'describe { text "A hall.{exit north}" }',
+      ),
+    ).toEqual([]);
+  });
+
+  it('refuses a direction abbreviated or outside the closed set, and one with no exit leading to a place', () => {
+    expect(
+      refused(
+        'exit north "north" -> yard  exit east "east" refuse "A wall."',
+        'describe { text "{exit n}{exit sideways}{exit east}" }',
+      ),
+    ).toEqual([
+      [
+        '`n` is how a visitor types `north`, and source writes the direction out.',
+        'Write `{exit north}`.',
+      ],
+      [
+        '`sideways` is not a direction, so `{exit sideways}` names no way out.',
+        'Name the direction of one of its exits, as in `{exit east}`.',
+      ],
+      [
+        '`hall` has no exit east that leads to a place, so `{exit east}` has nothing to show.',
+        'Name a way it has that leads to a place: `{exit north}`.',
+      ],
+    ]);
+  });
+
+  it('refuses it where nobody is looking, and on what is not a place', () => {
+    expect(
+      refused(
+        'exit north "north" -> yard',
+        'after command { tell actor "{exit north}" }\n    object bell is Bell',
+        'kind Bell { describe { text "A bell.{exit north}" } }\n',
+      ),
+    ).toEqual([
+      [
+        '`{exit north}` shows the place that way leads to as its `describe` shows it to someone looking, and nobody is looking here.',
+        'Write it in a `describe`, or in a passage only a `describe` renders.',
+      ],
+      [
+        "`{exit north}` shows the place one of this place's ways out leads to, and `Bell` is not a place, so it has no ways out.",
+        'Write it in the `describe` of the place whose exit it looks through.',
+      ],
+    ]);
   });
 });

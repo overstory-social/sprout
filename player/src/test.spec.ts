@@ -139,6 +139,27 @@ describe('runTests', () => {
     expect(fired({ advance: '2 hours', expect: [{ words: woke }] }).ok).toBe(false);
   });
 
+  it('fails a step that makes a line at a level it forbids, unless it expects that line', () => {
+    const fired = (step: Script['steps'][number]) =>
+      run(
+        steps(
+          ARRIVE,
+          { as: 'Marta', type: 'fire kiln', expect: [{ words: 'The chamber takes the flame.' }] },
+          step,
+        ),
+      );
+    const woke = 'yard.kiln woke, 3600 seconds after it asked';
+    expect(fired({ advance: '2 hours', forbid: ['warning'] }).ok).toBe(true);
+    const forbidden = fired({ advance: '2 hours', forbid: ['info'] });
+    expect(forbidden.ok).toBe(false);
+    expect(forbidden.page).toContain(
+      `step 3, \`@advance 2 hours\`, the world made a line at a level the step forbids (info):\n    ${woke}\n`,
+    );
+    expect(
+      fired({ advance: '2 hours', forbid: ['info'], expect: [{ level: 'info', text: woke }] }).ok,
+    ).toBe(true);
+  });
+
   it('fails a test that expects nothing, since it would pass whatever the world said', () => {
     expect(run(steps(ARRIVE, { as: 'Marta', type: 'fire kiln' })).page).toBe(
       't1.json: failed, since it expects nothing and would pass whatever the world said\n' +
