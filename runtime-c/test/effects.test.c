@@ -62,12 +62,13 @@ static void a_place_that_holds_actors_has_two_audiences(void) {
   CHECK_INT(sprout_told_to(&c.x, &c.frame, wardrobe, SPROUT_TELL_INSIDE, &ids, &count), SPROUT_EVAL_OK);
   CHECK_INT(count, 1);
   CHECK(has(ids, count, "exec_bench#6"));
+  /* The place around it is the hall, with the lodge in it, which writes no pass rule and so passes. */
   CHECK_INT(sprout_told_to(&c.x, &c.frame, wardrobe, SPROUT_TELL_OUTSIDE, &ids, &count), SPROUT_EVAL_OK);
-  CHECK_INT(count, 1);
-  CHECK(has(ids, count, "exec_bench#1"));
-  CHECK_INT(sprout_told_to(&c.x, &c.frame, wardrobe, SPROUT_TELL_PLACE, &ids, &count), SPROUT_EVAL_OK);
   CHECK_INT(count, 2);
-  CHECK(has(ids, count, "exec_bench#6") && has(ids, count, "exec_bench#1"));
+  CHECK(has(ids, count, "exec_bench#1") && has(ids, count, "exec_bench#4"));
+  CHECK_INT(sprout_told_to(&c.x, &c.frame, wardrobe, SPROUT_TELL_PLACE, &ids, &count), SPROUT_EVAL_OK);
+  CHECK_INT(count, 3);
+  CHECK(has(ids, count, "exec_bench#6") && has(ids, count, "exec_bench#1") && has(ids, count, "exec_bench#4"));
   exec_case_close(&c);
   exec_bench_close(&b);
 }
@@ -211,6 +212,88 @@ static void a_thing_in_someone_elses_hands_is_not_heard(void) {
   tw_close(&w);
 }
 
+/* Runs `reading` as `visit` and frees what it said. */
+static void vessels_command(turn_world *w, const char *visit, const sprout_reading *reading) {
+  sprout_outcome out;
+  tw_command(w, visit, reading, 1000, &out);
+  CHECK(out.committed);
+  sprout_outcome_free(&out);
+}
+
+/* `visit` goes `direction` along the exit labelled `label` to `to`. */
+static void vessels_go(turn_world *w, const char *visit, const char *direction, const char *label, const char *to) {
+  sprout_outcome out;
+  tw_go(w, visit, direction, label, to, 1000, &out);
+  CHECK(out.committed);
+  sprout_outcome_free(&out);
+}
+
+/* `visit` shuts `id`, a container below the world of `corpus/good/open-vessel-tells`. */
+static void vessels_close(turn_world *w, const char *visit, const char *id) {
+  sprout_filling filling;
+  sprout_reading close = tw_reading("sprout.close", tw_person(w, visit), &filling, "target", id);
+  vessels_command(w, visit, &close);
+}
+
+/*
+ * The hall of `corpus/good/open-vessel-tells`: Ash in the hall, Wren in the open bucket and Marta in the open basket
+ * inside it, Pip in the wardrobe and Ivo in the open hamper inside that; the wardrobe shut by Pip.
+ */
+static void vessels_boarded(turn_world *w) {
+  static const char *const visits[][2] = {
+      {"v-ash", "Ash"}, {"v-wren", "Wren"}, {"v-marta", "Marta"}, {"v-pip", "Pip"}, {"v-ivo", "Ivo"}};
+  sprout_outcome out;
+  size_t i;
+  tw_open(w, "open-vessel-tells");
+  for (i = 0; i < sizeof visits / sizeof visits[0]; i++) {
+    tw_arrive(w, visits[i][0], visits[i][1], 1000, &out);
+    sprout_outcome_free(&out);
+  }
+  vessels_go(w, "v-wren", "in", "into the bucket", "hall.bucket");
+  vessels_go(w, "v-marta", "in", "into the bucket", "hall.bucket");
+  vessels_go(w, "v-marta", "in", "into the basket", "hall.bucket.basket");
+  vessels_go(w, "v-pip", "north", "into the wardrobe", "hall.wardrobe");
+  vessels_go(w, "v-ivo", "north", "into the wardrobe", "hall.wardrobe");
+  vessels_go(w, "v-ivo", "in", "into the hamper", "hall.wardrobe.hamper");
+  vessels_close(w, "v-pip", "open_vessel_tells.hall.wardrobe");
+}
+
+static void a_tell_in_a_place_is_heard_in_the_places_inside_it_that_pass_and_not_through_a_lid(void) {
+  turn_world w;
+  sprout_outcome out;
+  vessels_boarded(&w);
+  tw_do(&w, "v-ash", "ring", "hall.bell", 1000, &out);
+  CHECK(out.committed);
+  CHECK(tw_told(&out, "v-ash", "You ring a bell."));
+  /* The open bucket passes, and the open basket inside it. */
+  CHECK(tw_told(&out, "v-wren", "Ash rings a bell."));
+  CHECK(tw_told(&out, "v-marta", "Ash rings a bell."));
+  /* The shut wardrobe does not, nor the open hamper behind its door. */
+  CHECK_INT(out.line_count, 3);
+  sprout_outcome_free(&out);
+  vessels_close(&w, "v-wren", "open_vessel_tells.hall.bucket");
+  tw_do(&w, "v-ash", "ring", "hall.bell", 1000, &out);
+  CHECK(out.committed);
+  CHECK_INT(out.line_count, 1);
+  CHECK(tw_told(&out, "v-ash", "You ring a bell."));
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
+static void a_tell_in_a_shut_place_is_heard_by_whoever_is_shut_in_it_and_in_what_passes_there(void) {
+  turn_world w;
+  sprout_outcome out;
+  vessels_boarded(&w);
+  tw_do(&w, "v-pip", "ring", "hall.wardrobe.gong", 1000, &out);
+  CHECK(out.committed);
+  CHECK(tw_told(&out, "v-pip", "You ring a gong."));
+  /* The wardrobe's own lid divides it from the hall, not from itself; the hamper inside passes. */
+  CHECK(tw_told(&out, "v-ivo", "Pip rings a gong."));
+  CHECK_INT(out.line_count, 2);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void an_engine_line_is_found_on_the_one_it_is_about_then_its_place_then_the_world(void) {
   exec_bench b;
   exec_case c;
@@ -276,6 +359,8 @@ int main(void) {
   RUN(a_thing_in_a_persons_hands_is_heard_by_them_and_nobody_else);
   RUN(a_thing_in_an_open_container_a_person_carries_is_heard_by_them_and_in_a_shut_one_by_nobody);
   RUN(a_thing_in_someone_elses_hands_is_not_heard);
+  RUN(a_tell_in_a_place_is_heard_in_the_places_inside_it_that_pass_and_not_through_a_lid);
+  RUN(a_tell_in_a_shut_place_is_heard_by_whoever_is_shut_in_it_and_in_what_passes_there);
   RUN(an_engine_line_is_found_on_the_one_it_is_about_then_its_place_then_the_world);
   RUN(effects_are_recorded_in_order_with_the_names_in_scope);
   RUN(the_golden_speech_cases_end_as_the_typescript_runtime_did);
