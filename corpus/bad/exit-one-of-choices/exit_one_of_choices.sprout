@@ -1,0 +1,26 @@
+// A drawn way draws evenly among two or more choices: each place named
+// once, one refusal at most, every place one that holds actors, and a
+// refusal's words read only what an exit's refusal may.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_one_of_choices is sprout.World {
+  visitors are Person
+  visitors arrive at yard
+
+  object yard is sprout.Place {
+    grammar {
+      exit west  "west"  -> one of (shed)
+      exit east  "east"  -> one of (refuse "No.")
+      exit north "north" -> one of (shed, barn, shed)
+      exit south "south" -> one of (shed, refuse "No.", refuse "Never.")
+      exit up    "up"    -> one of (shed, crate)
+      exit down  "down"  -> one of (shed, refuse "{way} is closed.")
+    }
+
+    object crate is sprout.Container { }
+  }
+
+  object shed is sprout.Place { }
+  object barn is sprout.Place { }
+}

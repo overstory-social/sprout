@@ -60,7 +60,7 @@ static sprout_eval_status thing(inspecting *in, sprout_str id, sprout_json **out
 }
 
 /*
- * What fills `role`, or null where nothing does: `{"object"}`, `{"set"}`, `{"exit": {"direction", "label", "to"}}`, or
+ * What fills `role`, or null where nothing does: `{"object"}`, `{"set"}`, `{"exit": {"direction", "label", "to"}}`, `to` null for a drawn way, or
  * `{"value", "symbol"}`, a symbol role's value marked so.
  */
 static sprout_eval_status filler(inspecting *in, const sprout_role *role, const sprout_filled *filled, sprout_json **out) {
@@ -92,7 +92,8 @@ static sprout_eval_status filler(inspecting *in, const sprout_role *role, const 
       MADE(inner = object(e, 3));
       sprout_json_adopt(inner, "direction", bound->has_direction ? copied(e, bound->direction) : engine_null(e));
       sprout_json_adopt(inner, "label", copied(e, bound->label));
-      sprout_json_adopt(inner, "to", copied(e, bound->to));
+      /* A drawn way leads nowhere until it is taken. */
+      sprout_json_adopt(inner, "to", bound->to.length == 0 ? engine_null(e) : copied(e, bound->to));
       EXPR_NEED(whole(inner, 3));
       sprout_json_adopt(one, "exit", inner);
       break;

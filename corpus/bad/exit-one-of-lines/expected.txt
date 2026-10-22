@@ -1,0 +1,13 @@
+exit_one_of_lines.sprout:13:36  `one of` is followed by the places it draws among, in brackets.
+                                Write them between commas, as in `exit west "west" -> one of (hall, cellar)`.
+
+exit_one_of_lines.sprout:14:36  This `one of` names nothing to draw among.
+                                Name the places it may lead to, as in `exit east "east" -> one of (hall, cellar)`.
+
+exit_one_of_lines.sprout:15:43  A choice of `one of` is a place, or `refuse` and the words for a way that does not go.
+                                Write the place's name, as in `exit north "north" -> one of (hall, cellar)`, or `refuse "There is no way to go in that direction."`.
+
+exit_one_of_lines.sprout:16:42  The choices of this exit's `one of` are separated by commas, and end with a ).
+                                Write them as in `exit south "south" -> one of (hall, cellar)`.
+
+refused: 4 problems

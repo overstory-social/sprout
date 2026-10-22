@@ -63,7 +63,17 @@ const written = (line: GrammarExit | GrammarLink): string =>
 
 /** Where an exit leads, or what it refuses with, written back. */
 const leadsWritten = (leads: GrammarExit['leads']): string =>
-  leads.kind === 'path' ? `-> ${writtenPath(leads)}` : `refuse ${wordsWritten(leads.said)}`;
+  leads.kind === 'path'
+    ? `-> ${writtenPath(leads)}`
+    : leads.kind === 'grammar-drawn'
+      ? `-> one of (${leads.choices
+          .map((choice) =>
+            choice.leads.kind === 'path'
+              ? writtenPath(choice.leads)
+              : `refuse ${wordsWritten(choice.leads.said)}`,
+          )
+          .join(', ')})`
+      : `refuse ${wordsWritten(leads.said)}`;
 
 /** An exit's words written back: a passage by its name, or the words in quotes. */
 const wordsWritten = (said: NonNullable<GrammarExit['says']>['said']): string =>
@@ -179,6 +189,64 @@ describe('an exit line and a link line', () => {
       'say "You won\'t be able to get back up."',
       'say chimney',
     ]);
+  });
+
+  it('read a drawn way, its choices places and a refusal in the order written, with what it says and its guard', () => {
+    const text = [
+      'exit west "west" -> one of (room_8, marble_hall, refuse "There is no way to go in that direction.") when (self.get(:spinning))',
+      'exit east "east" -> one of (refuse lost, cellar.bin) say "The room lurches."',
+    ];
+    const { lines, said, rest } = readWays(text.join('\n    '));
+    expect(said).toEqual([]);
+    expect(rest).toBe('}\n}\n');
+    expect(unspanned(lines)).toEqual([]);
+    expect(ways(lines).map((line) => textOf(line.at))).toEqual(text);
+    expect(ways(lines).map(written)).toEqual([
+      'exit west "west" -> one of (room_8, marble_hall, refuse "There is no way to go in that direction.") when (self.get(:spinning))',
+      'exit east "east" -> one of (refuse lost, cellar.bin) say "The room lurches."',
+    ]);
+    const drawn = ways(lines)[0]!;
+    expect(drawn.kind === 'grammar-exit' && drawn.leads.kind).toBe('grammar-drawn');
+  });
+
+  it('read `one` alone after the arrow as a place of that name', () => {
+    const { lines, said } = readWays('exit up "up" -> one');
+    expect(said).toEqual([]);
+    expect(ways(lines).map(written)).toEqual(['exit up "up" -> one']);
+  });
+
+  it('refuse a drawn way with no brackets, none named, a choice that is neither, or no comma, each once', () => {
+    const cases: [string, string, string][] = [
+      [
+        'exit west "west" -> one of hall, cellar',
+        '`one of` is followed by the places it draws among, in brackets.',
+        'Write them between commas, as in `exit west "west" -> one of (hall, cellar)`.',
+      ],
+      [
+        'exit west "west" -> one of ()',
+        'This `one of` names nothing to draw among.',
+        'Name the places it may lead to, as in `exit west "west" -> one of (hall, cellar)`.',
+      ],
+      [
+        'exit west "west" -> one of (hall, "the cellar")',
+        'A choice of `one of` is a place, or `refuse` and the words for a way that does not go.',
+        'Write the place\'s name, as in `exit west "west" -> one of (hall, cellar)`, or `refuse "There is no way to go in that direction."`.',
+      ],
+      [
+        'exit west "west" -> one of (hall cellar)',
+        "The choices of this exit's `one of` are separated by commas, and end with a ).",
+        'Write them as in `exit west "west" -> one of (hall, cellar)`.',
+      ],
+    ];
+    for (const [line, message, remedy] of cases) {
+      const { lines, said, rest } = readWays(`${line}\n    name "cell"`);
+      expect(
+        said.map((one) => one.slice(1)),
+        line,
+      ).toEqual([[message, remedy]]);
+      expect(lines, line).toEqual([]);
+      expect(rest.startsWith('name "cell"'), line).toBe(true);
+    }
   });
 
   it('read a way that goes and says nothing as saying nothing', () => {
@@ -316,6 +384,8 @@ const WELL_FORMED = [
   'exit east "east" refuse boarded when (!self.get(:open))',
   'exit down "down" -> maze_9 say "You won\'t get back up."',
   'exit in "in" -> shop.loft say climbing when (!self.get(:lit))',
+  'exit west "west" -> one of (hall, shop.loft, refuse "No way.") when (self.get(:spinning))',
+  'exit east "east" -> one of (refuse lost, hall) say "You lurch."',
 ];
 
 describe('an exit or a link never vanishes silently, and never takes the line after it', () => {
@@ -325,7 +395,7 @@ describe('an exit or a link never vanishes silently, and never takes the line af
       const line = c.one(WELL_FORMED);
       const whole = readBlock(`${line}\n    name "cell"`);
       expect(whole.said, line).toEqual([]);
-      const tokens = [...line.matchAll(/"[^"]*"|->|[()!.:]|&&|\w+/g)];
+      const tokens = [...line.matchAll(/"[^"]*"|->|[()!.:,]|&&|\w+/g)];
       const dropped = tokens[c.below(tokens.length)]!;
       const gap = `${line.slice(0, dropped.index)}${line.slice(dropped.index + dropped[0].length)}`;
       let readGap: ReturnType<typeof readBlock> | undefined;

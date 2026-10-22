@@ -1,0 +1,87 @@
+// A way drawn as it is taken (the spec's Verbs › A way drawn as it is
+// taken). While the carousel spins, west is one way, offered by its label,
+// whose destination is drawn from the turn's seed only when it is taken:
+// the marble hall, the stream path, or a refusal in the carousel's words,
+// through which nothing moves and which `after command` follows as it
+// follows a refusing exit. What the way says as it is taken is said only
+// to a person, and only where it led somewhere. The mouse shooed west goes
+// the same way, drawn the same way, and where the draw refuses it nothing
+// moves and the body that moved it ends. Once the carousel stops, west
+// leads to the hall alone.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world exit_one_of is sprout.World {
+  visitors are Person
+  visitors arrive at carousel
+
+  object carousel is Carousel {
+    grammar {
+      exit west "west" -> one of (marble_hall, stream_path, refuse "There is no way to go in that direction.") say "The room lurches as you go." when (self.get(:spinning))
+      exit west "west" -> marble_hall
+    }
+
+    object mouse is Mouse
+  }
+
+  object marble_hall is sprout.Place {
+    grammar {
+      name "marble hall"
+      article the
+      exit east "east" -> carousel
+    }
+  }
+
+  object stream_path is sprout.Place {
+    grammar {
+      name "stream path"
+      article the
+      exit east "east" -> carousel
+    }
+  }
+}
+
+verb stop { role target  "stop [target]" }
+verb shoo { role target: Mouse  "shoo [target]" }
+
+kind Mouse is sprout.Actor {
+  grammar {
+    name "mouse"
+    article the
+  }
+
+  as target for shoo {
+    do {
+      say "You shoo the mouse."
+      move self west
+      say "The mouse darts off."
+    }
+  }
+}
+
+kind Carousel is sprout.Place {
+  :spinning true
+
+  grammar {
+    name "carousel"
+    article the
+  }
+
+  describe {
+    if (self.get(:spinning)) { text "The room turns slowly about you." }
+    else { text "The room stands still." }
+  }
+
+  after command {
+    if (bound way) {
+      if (way == :west) { tell actor "The walls go on turning." }
+    }
+  }
+
+  as target for stop {
+    do {
+      self.set(:spinning, false)
+      say "The room grinds to a halt."
+    }
+  }
+}

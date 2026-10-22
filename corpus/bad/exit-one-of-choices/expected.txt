@@ -1,0 +1,19 @@
+exit_one_of_choices.sprout:13:29  `one of` draws among two or more choices, and this names one.
+                                  Lead the exit there, as in `exit west "west" -> shed`, or name the other places it may lead to.
+
+exit_one_of_choices.sprout:14:29  `one of` draws among two or more choices, and this names one.
+                                  Write the refusal in place of `->`, as in `exit east "east" refuse "…"`, or name the places it may lead to.
+
+exit_one_of_choices.sprout:15:49  `shed` is already among this `one of`'s choices, and naming it twice would make it likelier than the others.
+                                  Name each place once: every choice is drawn as often as any other.
+
+exit_one_of_choices.sprout:16:57  This `one of` already refuses among its choices, and a second refusal would make refusing likelier than each place.
+                                  Keep one `refuse`: every choice is drawn as often as any other.
+
+exit_one_of_choices.sprout:17:43  `crate` does not hold actors, so nobody could stand where this exit leads.
+                                  Lead it to a place: something that composes `sprout.Place` or writes `contains actors`.
+
+exit_one_of_choices.sprout:18:52  Nothing here is called `way`.
+                                  In reach: `self`, `actor`, `here`, `crate`, `yard`, `shed`, `barn` and `exit_one_of_choices`.
+
+refused: 6 problems

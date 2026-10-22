@@ -22,7 +22,8 @@ export type ParsedFiller =
       readonly exit: {
         readonly direction: string | null;
         readonly label: string;
-        readonly to: InstanceId;
+        /** Null for a way drawn as it is taken. */
+        readonly to: InstanceId | null;
       };
     }
   | { readonly value: string | number; readonly symbol: boolean };

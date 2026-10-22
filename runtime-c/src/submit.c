@@ -106,14 +106,15 @@ static sprout_status filled_from(const sprout_draft *draft, sprout_arena *turn, 
       break;
     case SPROUT_FILL_EXIT:
       out->bound.kind = SPROUT_BOUND_EXIT;
-      if (filling->id == NULL || filling->label == NULL || !is_instance(draft, filling->id)) {
-        problem(outcome, "an exit of `", role->name, "` needs a label and a place that is an instance of this world.");
+      /* A drawn way names no place, its id NULL; any other names an instance. */
+      if (filling->label == NULL || (filling->id != NULL && !is_instance(draft, filling->id))) {
+        problem(outcome, "an exit of `", role->name, "` needs a label, and a place that is an instance of this world or none for a drawn way.");
         return SPROUT_BAD_INPUT;
       }
       out->bound.has_direction = filling->direction != NULL;
       if (filling->direction != NULL) out->bound.direction = str_of(filling->direction);
       out->bound.label = str_of(filling->label);
-      out->bound.to = str_of(filling->id);
+      if (filling->id != NULL) out->bound.to = str_of(filling->id);
       break;
     case SPROUT_FILL_TEXT:
       out->bound.kind = SPROUT_BOUND_VALUE;
@@ -176,7 +177,7 @@ sprout_status sprout_reading_resolve(const sprout_world *world, const sprout_dra
 /*
  * An exit a submitted reading names must be one the actor's place has now:
  * its label and destination among the ways that lead and whose guard admits
- * them, as the parser offers them. Otherwise it is out of range, as a thing
+ * them, as the parser offers them, a drawn way by its label and direction alone. Otherwise it is out of range, as a thing
  * out of range is (the spec's Verbs > Exits, Acting).
  */
 sprout_eval_status sprout_reading_exits(const sprout_frame *frame, const sprout_resolved *reading) {
@@ -195,6 +196,18 @@ sprout_eval_status sprout_reading_exits(const sprout_frame *frame, const sprout_
           (leading[j].direction == NULL ? !way->has_direction
                                         : way->has_direction && sprout_str_is(way->direction, leading[j].direction)))
         found = true;
+    if (!found && way->to.length == 0) {
+      /* A drawn way names no place, so the place it was not found in is named. */
+      expr_text text = expr_text_begin(frame);
+      expr_put(&text, "`");
+      expr_put_str(&text, way->label);
+      expr_put(&text, "` is not a way out of `");
+      expr_put_str(&text, place);
+      expr_put(&text, "` now, so `");
+      expr_put(&text, reading->verb->name);
+      expr_put(&text, "` could not be performed with it.");
+      return expr_fail_on(frame, "ActFault", place);
+    }
     if (!found) {
       expr_text text = expr_text_begin(frame);
       expr_put(&text, "`");

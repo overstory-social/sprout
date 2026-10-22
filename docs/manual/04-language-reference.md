@@ -512,7 +512,7 @@ Like any refusal's words, they see into the visitor's hands, so
 `actor.count(Coffin)` counts the coffins the visitor carries, which a
 description of the place cannot. Going that way, by its direction or its label, reads those words, and
 nothing moves. Such an exit is never offered: it has no chip, `help` does
-not list it, and it does not count toward a place's 8.
+not list it, and it does not count toward a place's exits.
 
 An exit that leads somewhere may also say something as a visitor goes
 through it. Write `say` and its words after the destination, before any
@@ -565,6 +565,37 @@ grammar {
   exit north "north" refuse "The brambles are too thick."
 }
 ```
+
+### Ways that turn a visitor
+
+An exit may lead to one of several places, picked at random each time
+someone takes it. Write `one of` and the places in brackets in place of
+the destination; a `refuse` and its words may be one of the choices:
+
+```sprout
+grammar {
+  exit west "west" -> one of (room_8, marble_hall, stream_path) when (self.get(:spinning))
+  exit west "west" -> one of (marble_hall, refuse "There is no way to go in that direction.")
+}
+```
+
+- It is offered as one way, by its direction and label. Nothing shows
+  where it leads, because that is not decided until someone goes.
+- The pick is made when a visitor goes that way, from the turn's seed, so
+  a replayed log picks the same. Looking, or a client asking what can be
+  done, never picks.
+- Every choice is as likely as any other. Name each place once, and write
+  `refuse` at most once; there are no weights. There must be at least two
+  choices.
+- If the refusal is picked, its words are the answer and nothing moves,
+  just as with an exit that refuses, and `after command` runs with the
+  direction as `way`.
+- A `say` after the brackets is read only when the visitor actually went
+  somewhere.
+- `when` still may not use `chance` or `random`: it decides whether the way
+  is offered, and the pick happens only once it is taken.
+- An NPC that moves with `move self west` or `move self along an exit`
+  picks the same way.
 
 ### Places inside places
 

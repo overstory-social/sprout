@@ -1,0 +1,46 @@
+{
+  "about": "While the carousel spins, west is one way whose destination is drawn from the turn's seed as it is taken. Seed 0 draws its refusal: nothing moves, the refusal is the answer, and `after command` follows it with the way tried. Seed 1 draws the stream path and seed 5 the marble hall, each said to lurch as it is taken. The mouse shooed west draws as a visitor does: at seed 0 nothing moves and the body that moved it ends, at seed 1 it leaves for the stream path, and the way says nothing to it. Once the carousel stops, west is the plain way to the hall, and says nothing.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "The room turns slowly about you." }
+    ] },
+    { "seed": 0 },
+    { "as": "Marta", "type": "shoo mouse", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You shoo the mouse." }
+    ] },
+    { "seed": 1 },
+    { "as": "Marta", "type": "shoo mouse", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You shoo the mouse." },
+      { "reader": "Marta", "kind": "notice", "words": "The mouse leaves for the stream path." },
+      { "reader": "Marta", "kind": "said", "words": "The mouse darts off." }
+    ] },
+    { "seed": 0 },
+    { "as": "Marta", "type": "west", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "There is no way to go in that direction." },
+      { "reader": "Marta", "kind": "told", "words": "The walls go on turning." }
+    ] },
+    { "seed": 1 },
+    { "as": "Marta", "type": "west", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The room lurches as you go." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the stream path." }
+    ] },
+    { "as": "Marta", "type": "east", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "The room turns slowly about you." }
+    ] },
+    { "seed": 5 },
+    { "as": "Marta", "type": "west", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The room lurches as you go." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the marble hall." }
+    ] },
+    { "as": "Marta", "type": "east", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "The room turns slowly about you." }
+    ] },
+    { "as": "Marta", "type": "stop carousel", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The room grinds to a halt." }
+    ] },
+    { "seed": 1 },
+    { "as": "Marta", "type": "west", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the marble hall." }
+    ] }
+  ]
+}
