@@ -305,7 +305,7 @@ describe('`act` in a body whose kind composes `sprout.Actor`', () => {
         'act ask (target: stone, topic: stone)',
         'b.sprout:1:32',
         '`topic` of `ask` is filled by an option, and `stone` is an object of no known kind.',
-        'Give it an option, as in `act ask (topic: :toll)`, or a binding that holds one.',
+        'Give it an option, as in `act ask (topic: :bridge)`, or a binding that holds one.',
       ],
       [
         'act dial (target: stone, number: t)',
@@ -337,7 +337,13 @@ describe('`act` in a body whose kind composes `sprout.Actor`', () => {
         'act ask (target: stone, topic: 3)',
         'b.sprout:1:32',
         '`topic` of `ask` is filled by an option, and 3 is a number.',
-        'Give it an option, as in `act ask (topic: :toll)`, or a binding that holds one.',
+        'Give it an option, as in `act ask (topic: :bridge)`, or a binding that holds one.',
+      ],
+      [
+        'act mull (target: stone, topic: 3)',
+        'b.sprout:1:33',
+        '`topic` of `mull` is filled by an option, and 3 is a number.',
+        'Give it an option, or a binding that holds one; a role-player says which options it hears with `from`.',
       ],
       [
         'act dial (target: stone, number: :toll)',

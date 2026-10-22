@@ -217,7 +217,7 @@ function remedy(
       return 'An exit is named only by the direction a visitor types.';
     case 'symbol':
     case 'integer':
-      return valueRemedy(filler.fills, declared, verb);
+      return valueRemedy(filler.fills, declared, verb, context);
     case 'open':
       return type.binds === 'set'
         ? `Name one thing: only a role marked \`many\` takes a set.`
@@ -257,9 +257,6 @@ function leftOut(
     `Name it: \`act ${verb.name} (${example})\`.`,
   );
 }
-
-/** The option a remedy shows where it writes one out. */
-const OPTION_EXAMPLE = 'toll';
 
 /** A filler as written, for a remedy that shows it again. */
 function writtenFiller(role: ActRole | ActValue): string {
@@ -346,7 +343,7 @@ function refuseValue(
         return 'An exit is named only by the direction a visitor types.';
       case 'symbol':
       case 'integer':
-        return valueRemedy(filler.fills, declared, verb);
+        return valueRemedy(filler.fills, declared, verb, context);
       case 'open':
         return `Name a thing in the world, as in \`act ${verb.name} (${declared.name}: self)\`.`;
       case 'kind': {
@@ -362,13 +359,21 @@ function refuseValue(
   );
 }
 
-/** What to give a value role instead, written out. */
+/**
+ * What to give a value role instead, written out: an option shown is one
+ * a role-player's `from` hears for the role, where any does.
+ */
 function valueRemedy(
   fills: 'symbol' | 'integer',
   declared: ResolvedRole,
   verb: ResolvedVerb,
+  context: CheckContext,
 ): string {
-  return fills === 'symbol'
-    ? `Give it an option, as in \`act ${verb.name} (${declared.name}: :${OPTION_EXAMPLE})\`, or a binding that holds one.`
-    : `Give it a whole number, as in \`act ${verb.name} (${declared.name}: 3)\`, or a binding that holds one.`;
+  if (fills === 'integer') {
+    return `Give it a whole number, as in \`act ${verb.name} (${declared.name}: 3)\`, or a binding that holds one.`;
+  }
+  const heard = context.acting?.heard(verb, declared.name)[0]?.options[0];
+  return heard === undefined
+    ? 'Give it an option, or a binding that holds one; a role-player says which options it hears with `from`.'
+    : `Give it an option, as in \`act ${verb.name} (${declared.name}: :${heard})\`, or a binding that holds one.`;
 }
