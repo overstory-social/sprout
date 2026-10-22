@@ -54,7 +54,8 @@ static sprout_json *exit_node(writer *w, const sprout_seen_exit *exit) {
   sprout_json *object = made(w, SPROUT_JSON_OBJECT, 3);
   sprout_json_adopt(object, "direction", exit->direction == NULL ? nothing(w) : cstring(w, exit->direction));
   sprout_json_adopt(object, "label", cstring(w, exit->label));
-  sprout_json_adopt(object, "to", str(w, exit->to));
+  /* A drawn way leads nowhere until it is taken. */
+  sprout_json_adopt(object, "to", exit->to.length == 0 ? nothing(w) : str(w, exit->to));
   return object;
 }
 
@@ -102,7 +103,7 @@ static sprout_json *filler_node(writer *w, const sprout_seen_filler *filler) {
       sprout_json_adopt(object, "direction",
                         filler->exit.direction == NULL ? nothing(w) : cstring(w, filler->exit.direction));
       sprout_json_adopt(object, "label", cstring(w, filler->exit.label));
-      sprout_json_adopt(object, "to", str(w, filler->exit.to));
+      sprout_json_adopt(object, "to", filler->exit.to.length == 0 ? nothing(w) : str(w, filler->exit.to));
       break;
     case SPROUT_SEEN_UNBOUND:
       sprout_json_adopt(object, "binds", cstring(w, "unbound"));

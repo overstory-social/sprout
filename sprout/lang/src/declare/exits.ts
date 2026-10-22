@@ -122,7 +122,12 @@ export function checkExitLines(
 function checkDirection(line: GrammarExit, diagnostics: Diagnostics): void {
   const direction = line.direction.text;
   if (isDirection(direction)) return;
-  const leads = line.leads.kind === 'path' ? ` -> ${writtenPath(line.leads)}` : ' refuse "…"';
+  const leads =
+    line.leads.kind === 'path'
+      ? ` -> ${writtenPath(line.leads)}`
+      : line.leads.kind === 'grammar-drawn'
+        ? ' -> one of (…)'
+        : ' refuse "…"';
   const meant = ABBREVIATIONS.get(direction);
   diagnostics.refuse(
     line.direction.at,

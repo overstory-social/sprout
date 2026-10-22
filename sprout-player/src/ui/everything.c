@@ -5,7 +5,9 @@
 
 #include "budgets.h"
 
-static bool same_str(sprout_str a, sprout_str b) { return a.length == b.length && memcmp(a.bytes, b.bytes, a.length) == 0; }
+static bool same_str(sprout_str a, sprout_str b) {
+  return a.length == b.length && (a.length == 0 || memcmp(a.bytes, b.bytes, a.length) == 0);
+}
 
 static bool same_text(const char *a, const char *b) { return a == b || (a != NULL && b != NULL && strcmp(a, b) == 0); }
 

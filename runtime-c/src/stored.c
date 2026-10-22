@@ -536,7 +536,9 @@ static sprout_status read_bound(reader *r, const sprout_json *json, sprout_store
       return refuse(r, "`direction` should be a direction or null.", NULL, NULL);
     }
     NEED(want_string(r, field, "label", true, &out->label));
-    NEED(want_string(r, field, "to", true, &out->to));
+    /* A drawn way names no place: `to` is null. */
+    if (member(field, "to") == NULL || member(field, "to")->kind != SPROUT_JSON_NULL)
+      NEED(want_string(r, field, "to", false, &out->to));
   } else {
     return refuse(r, "it should hold an object, a set, a value or an exit.", NULL, NULL);
   }

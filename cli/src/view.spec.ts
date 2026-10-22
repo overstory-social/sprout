@@ -199,3 +199,28 @@ describe('inspectReadings', () => {
     );
   });
 });
+
+describe('a way drawn as it is taken', () => {
+  const carousel = checkWorld(
+    worldFolder('carousel', {
+      'carousel.sprout': `world carousel is sprout.World {
+  visitors are Walker
+  visitors arrive at hub
+
+  object hub is sprout.Place {
+    grammar { exit west "west" -> one of (hall, refuse "No way.") }
+    describe { text "The room turns." }
+  }
+  object hall is sprout.Place { }
+}
+`,
+      'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+    }),
+  ).bundle!;
+
+  it('is shown as one way out that leads nowhere until it is taken', () => {
+    const { page } = inspectView(standIn(carousel, {}));
+    expect(page).toContain('\nways out\n  exit west "west" -> one of (…)\n');
+    expect(page).toContain('\n  go west  (sprout.go)\n    way: exit west "west" -> one of (…)\n');
+  });
+});

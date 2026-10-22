@@ -256,7 +256,7 @@ typedef enum sprout_fill {
 typedef struct sprout_filling {
   const char *role;
   sprout_fill binds;
-  const char *id;               /* OBJECT: the thing; EXIT: where it leads */
+  const char *id;               /* OBJECT: the thing; EXIT: where it leads, NULL for a drawn way */
   size_t id_count;
   const char *const *ids;       /* SET: the things, in the order typed */
   const char *direction;        /* EXIT: NULL for a link */
@@ -326,7 +326,7 @@ typedef struct sprout_seen_thing {
 typedef struct sprout_seen_exit {
   const char *direction;
   const char *label;
-  sprout_str to;
+  sprout_str to; /* empty for a drawn way, whose destination is drawn as it is taken */
 } sprout_seen_exit;
 
 /* One option of a symbol role: the value it binds, and the words a visitor types for it. */

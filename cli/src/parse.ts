@@ -101,7 +101,8 @@ function fillerWords(filler: ParsedFiller | null, world: InstanceId): string {
   if ('exit' in filler) {
     const { direction, label, to } = filler.exit;
     const way = direction === null ? 'link' : `exit ${direction}`;
-    return `${way} "${label}" -> ${pathOf(world, to)}`;
+    // A drawn way leads nowhere until it is taken.
+    return `${way} "${label}" -> ${to === null ? 'one of (…)' : pathOf(world, to)}`;
   }
   return filler.symbol ? `:${filler.value}` : String(filler.value);
 }
