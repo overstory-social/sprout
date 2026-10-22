@@ -1,3 +1,4 @@
+import { Draws, SEED_MAX } from '@overstory/sprout/lang';
 import { emptyState } from '@overstory/sprout/core';
 import { describe, expect, it } from 'vitest';
 
@@ -62,6 +63,47 @@ describe('playSteps', () => {
         reader: null,
       },
     ]);
+  });
+});
+
+describe('playStep', () => {
+  /** The seed each step of `lines` played with, in order, a comment and `@seed` left out. */
+  const seedsOf = (lines: string): number[] => {
+    const stage = freshStage(bundle);
+    return scriptOf(lines).steps.flatMap((step, i) =>
+      playStep(stage, step, `step ${i + 1}`) === null ? [] : [stage.seed],
+    );
+  };
+  /** The first `n` values of the mulberry32 stream begun from `seed`. */
+  const stream = (seed: number, n: number): number[] => {
+    const draws = new Draws(seed);
+    return Array.from({ length: n }, () => draws.below(SEED_MAX + 1));
+  };
+
+  it('gives the first step 0, and each step after it the next of the stream begun from 0', () => {
+    expect(seedsOf('@arrive Marta\n@tick\nMarta> go in\n@advance 1 minutes\n')).toEqual([
+      0,
+      ...stream(0, 3),
+    ]);
+  });
+
+  it('gives the step after `@seed n` the seed n, and each later one the next of the stream begun from n', () => {
+    expect(seedsOf('@arrive Marta\n@seed 7\n@tick\n# aside\n@tick\n@tick\n')).toEqual([
+      0,
+      7,
+      ...stream(7, 2),
+    ]);
+  });
+
+  it('lets a step that wants one fixed seed set it again before it', () => {
+    expect(seedsOf('@arrive Marta\n@seed 7\n@tick\n@seed 7\n@tick\n')).toEqual([0, 7, 7]);
+  });
+
+  it('throws, naming the step, for a seed past the largest', () => {
+    const stage = freshStage(bundle);
+    expect(() => playStep(stage, { seed: SEED_MAX + 1 }, 'step 2')).toThrow(
+      `step 2: a seed is a whole number from 0 to ${SEED_MAX}.`,
+    );
   });
 });
 

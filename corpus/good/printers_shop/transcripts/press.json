@@ -40,17 +40,17 @@
     { "comment": "Both ribs answer to `rib`, and either reading ranks as well as the other," },
     { "comment": "so one is drawn and Marta is told which." },
     { "as": "Marta", "type": "take rib", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "(a wooden rib)" },
-      { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." },
-      { "reader": "Ines", "kind": "told", "words": "Marta takes a wooden rib." },
+      { "reader": "Marta", "kind": "notice", "words": "(a bone rib)" },
+      { "reader": "Marta", "kind": "said", "words": "You take a bone rib." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a bone rib." },
       { "level": "warning", "text": "drawn: the line read 2 ways that tied, and one was drawn" }
     ] },
     { "as": "Marta", "type": "take wooden rib", "expect": [
-      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
+      { "reader": "Marta", "kind": "said", "words": "You take a wooden rib." },
+      { "reader": "Ines", "kind": "told", "words": "Marta takes a wooden rib." }
     ] },
     { "as": "Marta", "type": "take bone rib", "expect": [
-      { "reader": "Marta", "kind": "said", "words": "You take a bone rib." },
-      { "reader": "Ines", "kind": "told", "words": "Marta takes a bone rib." }
+      { "reader": "Marta", "kind": "refused", "words": "You already have it." }
     ] },
     { "as": "Marta", "type": "work press with wooden rib and bone rib", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "Two ribs at once is one rib too many." }

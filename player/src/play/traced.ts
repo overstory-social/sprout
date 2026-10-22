@@ -1,6 +1,7 @@
 import {
   contentAt,
   type Catalogue,
+  type Draws,
   type Effect,
   type Fault,
   type HostSeconds,
@@ -73,7 +74,7 @@ export interface Traced {
 
 /**
  * The host's side of one play: the engine it runs on and the host it runs
- * for, the world as a store would hold it, the instant, the seed, each
+ * for, the world as a store would hold it, the instant, the seeds, each
  * nickname's visit, and every turn run.
  */
 export interface Stage {
@@ -81,7 +82,12 @@ export interface Stage {
   readonly engine: Engine;
   stored: StoredState;
   now: HostSeconds;
+  /** The seed of the step playing now. */
   seed: number;
+  /** The seed a seed step set for the next step that plays, or null where that step takes the next of `seeds`. */
+  set: number | null;
+  /** The stream the seed of each later step is drawn from, begun from the last seed set. */
+  seeds: Draws;
   readonly visits: Map<string, VisitKey>;
   readonly turns: Traced[];
 }
