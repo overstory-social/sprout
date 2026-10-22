@@ -130,4 +130,13 @@ describe('a name withheld, and `bound`', () => {
       'Nothing here is called `shelf`.',
     );
   });
+  it('asks in a passage whether someone is acting, and nowhere else', () => {
+    const passage = { ...bodyOf(VESSEL), passage: true as const };
+    expect(read('bound actor', passage).type).toEqual(valueOf(BOOLEAN));
+    expect(read('bound here', passage).type).toEqual(valueOf(BOOLEAN));
+    expect(read('bound self', passage).said.join(' ')).toContain('`self` is the role-player');
+    const body = bodyOf(VESSEL);
+    expect(read('bound actor', body).type).toBeNull();
+    expect(saidBy(body).join(' ')).toContain("`bound` asks whether a verb's tool was given");
+  });
 });

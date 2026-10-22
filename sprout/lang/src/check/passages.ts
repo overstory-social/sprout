@@ -16,9 +16,12 @@
 // renders that is bound nowhere it is said from is refused where it is
 // said, and so is one the saying body can never bind, at that body even
 // through a chain of slots; nothing more is said of that passage from
-// there. A passage said or rendered from a body that draws nothing, or a
-// line the engine says in a poll, may not draw either (`chance.ts`), and
-// a draw in it is refused where it is said, as a name it lacks is.
+// there. A passage that reads `actor` or `here` only inside `{if bound …}`
+// asking for it may be said where it is not bound, the guard being false
+// there (the spec's Prose). A passage said or rendered from a body that
+// draws nothing, or a line the engine says in a poll, may not draw either
+// (`chance.ts`), and a draw in it is refused where it is said, as a name
+// it lacks is.
 
 import type { Expr } from '../syntax/ast.js';
 import type { Prose, ProseIf, ProsePiece } from '../syntax/ast-prose.js';
@@ -34,8 +37,10 @@ import type { ResolvedPassage } from '../declare/passages.js';
 import { STRING } from '../declare/types.js';
 import type { HereKind } from '../declare/places.js';
 import {
+  ACTING,
   actorBinding,
   hereBinding,
+  isActing,
   OPEN_OBJECT,
   READINGS,
   Scope,
@@ -44,7 +49,9 @@ import {
   valueOf,
   type Binding,
   type BindingType,
+  type Withheld,
 } from './bindings.js';
+import { isAnd } from './check/narrowing.js';
 import type { CheckContext } from './check.js';
 import type { NameScope } from './names.js';
 import { nameFrom } from '../declare/names.js';
@@ -366,14 +373,20 @@ function checkSaying(run: Run, saying: Saying): void {
   // A passage whose writer did not compose has been said of already.
   if (speaker === undefined) return;
   const self = speaker.kind;
-  const withSelf = scope.carried(new Set(['self'])).bounding(selfBinding(self, passage.at));
+  const asked = askedHere(passage, scope);
+  const withSelf = scope
+    .carried(new Set(['self', ...asked]))
+    .bounding(selfBinding(self, passage.at));
   const diagnostics = new Diagnostics();
+  for (const name of asked)
+    withSelf.withhold(askedBinding(name, passage, run.setting), diagnostics);
   const context: CheckContext = {
     scope: withSelf,
     kinds: run.setting.kinds,
     from: self.library,
     self,
     diagnostics,
+    passage: true,
     ...(speaker.names === undefined ? {} : { names: speaker.names }),
     ...(undrawn === null ? {} : { undrawn }),
   };
@@ -393,6 +406,93 @@ function checkSaying(run: Run, saying: Saying): void {
   });
   for (const diagnostic of diagnostics.all) tell(run, diagnostic);
   for (const site of sites) rendered(run, site, saying);
+}
+
+/**
+ * `actor` and `here` where `scope` does not bind them and the passage
+ * reads each only inside `{if bound …}` asking for it: given to the
+ * passage as a tool some reading leaves out is, so the guard is a
+ * question with an answer and the read inside it is narrowed.
+ */
+function askedHere(passage: ResolvedPassage, scope: Scope): ('actor' | 'here')[] {
+  return ACTING.filter(
+    (name) =>
+      scope.lookup(name) === null &&
+      scope.withheld(name)?.bound.bindable !== true &&
+      readOnlyAsked(passage.body.prose, name),
+  );
+}
+
+/** `name`, withheld from a passage that asks whether it is bound, and bound inside the asking. */
+function askedBinding(
+  name: 'actor' | 'here',
+  passage: ResolvedPassage,
+  setting: PassageSetting,
+): Withheld {
+  const unread = {
+    message: `\`${name}\` may not be bound here: this is read through \`${passage.name}\`, which is also said where nobody is acting.`,
+    remedy: `Read it inside \`{if bound ${name}}\`, as in \`{if bound ${name}}{${name}}{/if}\`.`,
+  };
+  const binding = engineBinding(name, name, passage.at, setting);
+  return { name, at: passage.at, unread, bound: { bindable: true, binding } };
+}
+
+/**
+ * Whether `prose` asks `bound name` and reads `name` only after asking:
+ * in the branch of an `{if}` whose condition asks it, or after it in that
+ * condition's `&&`.
+ */
+function readOnlyAsked(prose: Prose, name: string): boolean {
+  const found = { asked: false, bare: false };
+  const scan = (expr: Expr, held: boolean): void => {
+    for (const [read, , asks] of namesIn(expr)) {
+      if (read !== name) continue;
+      if (asks) found.asked = true;
+      else if (!held) found.bare = true;
+    }
+  };
+  const walk = (inside: Prose, held: boolean): void => {
+    for (const piece of inside.pieces) {
+      switch (piece.kind) {
+        case 'prose-slot':
+          scan(piece.expr, held);
+          break;
+        case 'prose-for':
+          scan(piece.over, held);
+          walk(piece.body, held);
+          break;
+        case 'prose-one-of':
+          for (const choice of piece.choices) walk(choice, held);
+          break;
+        case 'prose-if': {
+          let link: ProseIf['otherwise'] = piece;
+          for (; link !== null && link.kind === 'prose-if'; link = link.otherwise) {
+            let asking = held;
+            for (const operand of andOperands(link.condition)) {
+              scan(operand, asking);
+              if (operand.kind === 'bound' && operand.name.text === name) asking = true;
+            }
+            walk(link.then, asking);
+          }
+          if (link !== null) walk(link, held);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  };
+  walk(prose, false);
+  return found.asked && !found.bare;
+}
+
+/** The operands of `a && b && …`, left to right; a condition of one is its own. */
+function andOperands(condition: Expr): Expr[] {
+  const operands: Expr[] = [];
+  let node = condition;
+  for (; isAnd(node); node = node.left) operands.push(node.right);
+  operands.push(node);
+  return operands.reverse();
 }
 
 /**
@@ -429,7 +529,9 @@ function refusedWithheld(run: Run, saying: Saying, scope: Scope): boolean {
     diagnostics.refuse(
       saying.root,
       `The passage ${chainWords(chain)} \`${name}\` at ${locationOf(at)}, and ${withheld.unread.message}`,
-      `Give the words here without \`${name}\`, or say ${chain[0]} only where \`${name}\` is bound.`,
+      isActing(name)
+        ? `Give the words here without \`${name}\`, say ${chain[0]} only where \`${name}\` is bound, or read \`${name}\` in \`${saying.passage.name}\` only inside \`{if bound ${name}}\`.`
+        : `Give the words here without \`${name}\`, or say ${chain[0]} only where \`${name}\` is bound.`,
     );
     for (const diagnostic of diagnostics.all) tell(run, diagnostic);
     return true;
@@ -590,16 +692,19 @@ function walkProse(prose: Prose, visit: (piece: ProsePiece) => void): void {
   }
 }
 
-/** The names an expression reads, as bindings or through `bound`, each with where it is written. */
-function namesIn(expr: Expr): [string, Span][] {
-  const found: [string, Span][] = [];
+/**
+ * The names an expression reads, as bindings or through `bound`, each with
+ * where it is written and whether it is `bound` asking about it.
+ */
+function namesIn(expr: Expr): [string, Span, boolean][] {
+  const found: [string, Span, boolean][] = [];
   const stack: Expr[] = [expr];
   while (stack.length > 0) {
     const node = stack.pop()!;
     switch (node.kind) {
       case 'binding':
       case 'bound':
-        found.push([node.name.text, node.name.at]);
+        found.push([node.name.text, node.name.at, node.kind === 'bound']);
         break;
       case 'binary':
         stack.push(node.right, node.left);
