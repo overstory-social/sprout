@@ -762,7 +762,7 @@ Inside `if (x.is(K)) { … }` the binding `x` narrows to `K` for the branch, so 
 
 A `set` or `remember` whose value is out of range at run time is a fault; `adjust` clamps. The compiler catches the literal cases.
 
-Arithmetic stays on whole numbers. `/` divides and `%` gives the remainder, each truncating toward zero, so `7 / 2` is 3, `-7 / 2` is −3 and `-7 % 2` is −1. Arithmetic whose result leaves the integer range is a fault, `IntegerOverflow`, whatever the operator; a `/` or `%` by zero is a fault, `DivisionByZero`, whether the zero was written or read.
+Arithmetic stays on whole numbers. `/` divides and `%` gives the remainder, each truncating toward zero, so `7 / 2` is 3, `-7 / 2` is −3 and `-7 % 2` is −1. Arithmetic whose result leaves the integer range is a fault, `IntegerOverflow`, whatever the operator; a `/` or `%` by zero is a fault, `DivisionByZero`.
 
 ### Precedence
 
