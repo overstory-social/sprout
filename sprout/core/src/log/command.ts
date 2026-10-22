@@ -108,7 +108,15 @@ export function commandOf(entry: CommandEntry, catalogue: Catalogue): Command {
         if ('object' in bound) return [role, { object: storedId(world, bound.object) }];
         if ('set' in bound) return [role, { set: bound.set.map((id) => storedId(world, id)) }];
         if ('exit' in bound)
-          return [role, { exit: { ...bound.exit, to: storedId(world, bound.exit.to) } }];
+          return [
+            role,
+            {
+              exit: {
+                ...bound.exit,
+                to: bound.exit.to === null ? null : storedId(world, bound.exit.to),
+              },
+            },
+          ];
         return [role, { value: bound.value }];
       }),
     ),

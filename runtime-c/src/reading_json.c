@@ -128,6 +128,11 @@ static const char *string_at(const sprout_json *tree, const char *key) {
   return found->bytes;
 }
 
+static bool null_at(const sprout_json *tree, const char *key) {
+  const sprout_json *found = tree == NULL || tree->kind != SPROUT_JSON_OBJECT ? NULL : sprout_json_get(tree, key);
+  return found != NULL && found->kind == SPROUT_JSON_NULL;
+}
+
 static const sprout_json *array_at(const sprout_json *tree, const char *key) {
   const sprout_json *found = tree == NULL || tree->kind != SPROUT_JSON_OBJECT ? NULL : sprout_json_get(tree, key);
   return found != NULL && found->kind == SPROUT_JSON_ARRAY ? found : NULL;
@@ -168,7 +173,9 @@ const char *sprout_fillings_of_tree(sprout_arena *arena, const sprout_json *fill
       found[i].ids = strings_of(arena, ids);
       found[i].id_count = ids->count;
       if (found[i].ids == NULL) return "A set filler holds something other than ids.";
-    } else if (strcmp(binds, "exit") == 0 && string_at(one, "to") != NULL && string_at(one, "label") != NULL) {
+    } else if (strcmp(binds, "exit") == 0 && (string_at(one, "to") != NULL || null_at(one, "to")) &&
+               string_at(one, "label") != NULL) {
+      /* A drawn way's `to` is null: where it leads is drawn as it is taken. */
       found[i].binds = SPROUT_FILL_EXIT;
       found[i].id = string_at(one, "to");
       found[i].label = string_at(one, "label");

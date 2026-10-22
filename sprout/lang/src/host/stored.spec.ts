@@ -230,6 +230,24 @@ describe('the stored form of a world', () => {
     ]);
   });
 
+  it('reads a drawn way in a last reading as naming no place', () => {
+    const stored = world();
+    expect(
+      issues({
+        ...stored,
+        visitors: [
+          {
+            ...stored.visitors[0]!,
+            lastReading: {
+              verb: { library: 'sprout', name: 'go' },
+              bindings: [['way', { exit: { direction: 'west', label: 'west', to: null } }]],
+            },
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
   it('refuses one id stored twice, and one visit stored twice', () => {
     expect(issues(withInstance(1, { id: 'printers_shop#3' }))).toContain(
       'instances.2.id: `printers_shop#3` is stored twice.',

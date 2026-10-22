@@ -694,7 +694,8 @@ void sentence_reading(sentence *s, sprout_reading *reading) {
       filling->id_count = pick->count;
     } else if (pick->filler->binds == SPROUT_SEEN_EXIT) {
       filling->binds = SPROUT_FILL_EXIT;
-      filling->id = pick->filler->exit.to.bytes;
+      /* A drawn way names no place: where it leads is drawn as it is taken. */
+      filling->id = pick->filler->exit.to.length == 0 ? NULL : pick->filler->exit.to.bytes;
       filling->direction = pick->filler->exit.direction;
       filling->label = pick->filler->exit.label;
     } else {

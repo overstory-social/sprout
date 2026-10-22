@@ -302,7 +302,9 @@ static void put_bound(text *t, const sprout_stored_bound *b) {
       put_text(t, ",\"label\":");
       put_string(t, b->label);
       put_text(t, ",\"to\":");
-      put_string(t, b->to);
+      /* A drawn way's binding names no place, since its choice is drawn as it is taken. */
+      if (b->to.length == 0) put_text(t, "null");
+      else put_string(t, b->to);
       put_char(t, '}');
       break;
   }
