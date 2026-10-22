@@ -1,5 +1,5 @@
 {
-  "about": "Words left over after a reading are dropped, and what was read is restated before it through the world's `understood`: `push` has no `with` phrase, so `push the menhir with the sword` is `push the menhir`, and a trailing word or clause no phrase reads goes the same way, `and` and a command after it included. A noun dropped with them is dropped whatever it names, `in case` after `drop sword` among them. A relative phrase that names something is read whole, and `again` runs what was read. A noun that names nothing in reach in a slot of its own is never dropped: `drop sword on gong` and `look at gong` are `not_here`, though `drop sword` and `look` would read, and so is a line whose first words name nothing.",
+  "about": "Words left over after a reading are dropped, and what was read is restated before it through the world's `understood`: `push` has no `with` phrase, so `push the menhir with the sword` is `push the menhir`, and a trailing word or clause no phrase reads goes the same way, `and` and a command after it included. A noun dropped with them is dropped whatever it names, `in case` after `drop sword` among them. A relative phrase that names something is read whole, and `again` runs what was read. A noun that names nothing in reach in a slot of its own is never dropped: `drop sword on gong` and `look at gong` are `not_here`, though `drop sword` and `look` would read, and so is a line whose first words name nothing, or name something only by adjectives cut from the name of a thing that is not here.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the clearing." }
@@ -38,6 +38,16 @@
     ] },
     { "as": "Marta", "type": "examine gong closely", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "examine the old red ball", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "pull old red ball", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "pull the old red box gently", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(pull the old red box)" },
+      { "reader": "Marta", "kind": "said", "words": "You tug at an old red box." }
     ] },
     { "as": "Marta", "type": "push the gong with the sword", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }

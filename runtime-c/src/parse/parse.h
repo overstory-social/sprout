@@ -515,6 +515,8 @@ typedef struct parse_tried {
   bool empty_handed;       /* every slot of a placement read, and `all` in a role whose things the visitor carries leaves nothing, their hands empty */
   bool missing;            /* a placement answered with `not_here` holds a noun that names nothing in reach */
   size_t missing_from;     /* where in the words the last such noun begins */
+  parse_stretch *missing_nouns; /* where each such noun runs in the words, in the turn's arena */
+  size_t missing_count, missing_capacity;
 } parse_tried;
 
 /*
@@ -527,7 +529,8 @@ sprout_eval_status parse_phrases_read(const parse_line *line, parse_words words,
  * The line `whole` tried, which made no reading, read by its first words, the longest first, down to the verb's
  * own (the spec's Parsing > When nothing matches): `*read` where some first words make a reading, which `out` holds,
  * with those words. A noun that names nothing in reach is never dropped whole, so no shorter words are tried than
- * reach into the last such noun any placement holds, in the line or in longer first words tried; nor is `and`, a
+ * reach into the last such noun any placement holds, in the line or in longer first words tried, and words that cut
+ * such a noun are read only where its words before the cut name something by a noun or a whole name; nor is `and`, a
  * comma or `except`, which join a run's items or two commands, or leave things out of `all`.
  */
 sprout_eval_status parse_first_words_read(const parse_line *line, const parse_tried *whole, parse_tried *out,

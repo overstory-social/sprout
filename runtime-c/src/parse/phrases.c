@@ -2,8 +2,9 @@
  * Every phrase of the world's and its intents' tried against a line's words (the spec's Parsing > Matching a line,
  * When nothing matches): each placement of each phrase a step, with what its slots' words fill their roles with, the
  * readings and partial readings it makes, and what a line no reading reads is answered by. Where nothing reads the
- * line whole, its first words are tried, the longest first, so words left over are dropped; never past a noun that
- * names nothing in reach in a slot of its own, since a thing the visitor named that is not here is `not_here`, and
+ * line whole, its first words are tried, the longest first, so words left over are dropped; never inside a noun that
+ * names nothing in reach unless its words before the cut name something by a noun, never past such a noun in a slot
+ * of its own, since a thing the visitor named that is not here is `not_here`, and
  * never past `and`, a comma or `except`, which join a run's items or two commands, or leave things out of `all`,
  * rather than trail.
  */
@@ -113,15 +114,29 @@ static sprout_eval_status empty_handed_all(const trying *t, const parse_span *sp
   return SPROUT_EVAL_OK;
 }
 
-/* The nouns of a placement that name nothing in reach, kept as the last place in the line one of them begins. */
-static void missing_in(parse_tried *out, const parse_span *spans, const parse_filled *const *fills, size_t count) {
+/* `noun` added to `nouns`, in `arena`. */
+static bool kept_noun(sprout_arena *arena, parse_stretch **nouns, size_t *count, size_t *capacity, parse_stretch noun) {
+  parse_stretch *slot = (parse_stretch *)sprout_exec_grow(arena, (void **)nouns, count, capacity, sizeof **nouns);
+  if (slot == NULL) return false;
+  *slot = noun;
+  return true;
+}
+
+/* The nouns of a placement that name nothing in reach, where they run in the line, kept in the turn's arena. */
+static sprout_eval_status missing_in(trying *t, const parse_span *spans, const parse_filled *const *fills, size_t count) {
+  parse_tried *out = t->out;
   size_t i;
   for (i = 0; i < count; i++) {
-    size_t from = spans[i].start + fills[i]->start;
+    parse_stretch noun;
     if (fills[i]->fills != PARSE_FILLS_NOTHING) continue;
-    if (!out->missing || from > out->missing_from) out->missing_from = from;
+    noun.start = spans[i].start + fills[i]->start;
+    noun.end = spans[i].start + fills[i]->end;
+    if (!out->missing || noun.start > out->missing_from) out->missing_from = noun.start;
     out->missing = true;
+    if (!kept_noun(t->keep, &out->missing_nouns, &out->missing_count, &out->missing_capacity, noun))
+      return SPROUT_EVAL_NO_MEMORY;
   }
+  return SPROUT_EVAL_OK;
 }
 
 /* One placement of the phrase's slots: a step, its fills, what they come to, and the readings they make. */
@@ -172,7 +187,7 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
     } else {
       named = true;
     }
-    if (named) missing_in(out, spans, fills, count);
+    if (named) EXPR_NEED(missing_in(t, spans, fills, count));
     out->not_here = out->not_here || named;
     return SPROUT_EVAL_OK;
   }
@@ -249,21 +264,50 @@ sprout_eval_status parse_phrases_read(const parse_line *line, parse_words words,
   return status;
 }
 
+/*
+ * Whether every noun among `nouns` that `cut` falls inside keeps, before it, words that name something in reach by a
+ * noun or its whole name, or a way out that applies: the noun at the front matches, so only what trails it is dropped,
+ * and adjectives alone left of a name never stand for another thing.
+ */
+static sprout_eval_status front_named(const parse_line *line, parse_words words, const parse_stretch *nouns,
+                                      size_t count, size_t cut, bool *named) {
+  parse_noun_context context;
+  size_t i;
+  context.frame = &line->frame;
+  context.referents = line->referents;
+  context.referent_count = line->referent_count;
+  *named = true;
+  for (i = 0; i < count && *named; i++) {
+    parse_words front = words_between(words, nouns[i].start, cut);
+    if (nouns[i].start >= cut || cut >= nouns[i].end) continue;
+    EXPR_NEED(parse_names_outright(&context, front, line->candidates, line->candidate_count, named));
+    if (!*named) *named = parse_exit_named(&line->frame.world->graph, front, line->ways, line->way_count) != NULL;
+  }
+  return SPROUT_EVAL_OK;
+}
+
 sprout_eval_status parse_first_words_read(const parse_line *line, const parse_tried *whole, parse_tried *out,
                                           bool *read) {
-  size_t cut = whole->words.count, past = whole->missing ? whole->missing_from : 0, i;
+  size_t cut = whole->words.count, past = whole->missing ? whole->missing_from : 0, i, count = 0, capacity = 0;
+  parse_stretch *nouns = NULL;
   *read = false;
+  for (i = 0; i < whole->missing_count; i++)
+    if (!kept_noun(line->run->x.turn, &nouns, &count, &capacity, whole->missing_nouns[i])) return SPROUT_EVAL_NO_MEMORY;
   /* A run's later items, a command after `and` and what `except` leaves out are never words left over. */
   for (i = 0; i < whole->words.count; i++)
     if ((parse_is_connector(whole->words.words[i]) || parse_is(whole->words.words[i], "except")) && i > past) past = i;
   while (cut > 1 && cut - 1 > past) {
+    bool named;
     cut--;
     EXPR_NEED(parse_phrases_read(line, words_between(whole->words, 0, cut), out));
-    if (out->readings.count > 0) {
+    EXPR_NEED(front_named(line, whole->words, nouns, count, cut, &named));
+    if (out->readings.count > 0 && named) {
       *read = true;
       return SPROUT_EVAL_OK;
     }
     if (out->missing && out->missing_from > past) past = out->missing_from;
+    for (i = 0; i < out->missing_count; i++)
+      if (!kept_noun(line->run->x.turn, &nouns, &count, &capacity, out->missing_nouns[i])) return SPROUT_EVAL_NO_MEMORY;
   }
   return SPROUT_EVAL_OK;
 }

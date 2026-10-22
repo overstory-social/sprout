@@ -1,7 +1,8 @@
 /*
  * Tests for src/parse/phrases.c: every phrase tried against a line, and a line no reading reads tried by its first
  * words (the spec's Parsing > Matching a line, When nothing matches), in the corpus world `trailing-words`, where
- * Marta stands in the clearing with the menhir, the sword, the place mat and the case, and the gong is in the cellar.
+ * Marta stands in the clearing with the menhir, the sword, the place mat, the case and the old red box, and the gong and
+ * the old red ball are in the cellar.
  * What the line comes to through `sprout_parse`, the words read restated, is parse_command's.
  */
 #include "parse_fixture.h"
@@ -67,6 +68,8 @@ static void a_noun_naming_nothing_in_reach_is_kept_as_the_last_place_one_begins(
   t = tried(&r, "drop sword on gong");
   CHECK(t.missing);
   CHECK_INT(t.missing_from, 3);
+  /* Each such noun is kept with where it runs: `drop [target]`'s `sword on gong`, and `gong` in its own slot. */
+  CHECK_INT(t.missing_count, 2);
   /* A line no phrase reads names nothing missing. */
   t = tried(&r, "frobnicate the menhir");
   CHECK(!t.not_here);
@@ -96,6 +99,11 @@ static void a_noun_naming_nothing_in_a_slot_of_its_own_is_never_dropped(void) {
   CHECK(first_words(&r, "drop sword on gong") == NULL);
   /* Longer first words tried count too: `examine gong` names the gong alone, so `examine` is not tried. */
   CHECK(first_words(&r, "examine gong closely") == NULL);
+  /* Cut inside the old red ball, `old red` names the old red box by adjectives alone, which is no name for it. */
+  CHECK(first_words(&r, "examine the old red ball") == NULL);
+  CHECK(first_words(&r, "pull old red ball") == NULL);
+  /* A noun kept whole may still be followed by words dropped. */
+  CHECK_STR(first_words(&r, "pull the old red box gently"), "pull the old red box");
   /* First words whose nouns name nothing make no reading. */
   CHECK(first_words(&r, "push the gong with the sword") == NULL);
   CHECK(first_words(&r, "frobnicate the menhir") == NULL);
@@ -108,8 +116,8 @@ static void and_a_comma_or_except_is_never_dropped(void) {
   /* `all` is no item of a run, so nothing reads the line; `take the sword` would. */
   CHECK(first_words(&r, "take the sword and all") == NULL);
   CHECK(first_words(&r, "take the sword, all") == NULL);
-  /* `pull` takes the sword and the mat, so `all` leaves nothing once both are left out; `pull all` would read. */
-  CHECK(first_words(&r, "pull all except the sword and the mat") == NULL);
+  /* `pull` takes the sword, the mat and the box, so `all` leaves nothing once they are left out; `pull all` would read. */
+  CHECK(first_words(&r, "pull all except the sword, the mat and the box") == NULL);
   bench_close(&r.b);
 }
 
