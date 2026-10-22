@@ -1,13 +1,15 @@
 /*
  * After a command (the spec's Verbs > After a command). Once a person's own
- * reading has run its effect pass, every `after command` that follows it
- * runs: what they carry, nearest first and through what passes, then the
- * person, then each container that holds them, out to the world; each runs
- * its kind's bodies in composition order, with `actor` the person and `here`
- * their place as the hooks begin. What a body says reaches the person and
- * what it tells leaves them out, as a `do`'s does. A thing gone before its
- * turn runs nothing. Each thing whose bodies run is one event; nothing is
- * walked in a world whose kinds write none.
+ * reading has run its effect pass, the queue it filled has drained and the
+ * engine has answered it, every `after command` that follows it runs, and
+ * the queue its bodies fill drains after it. What runs is what they carry,
+ * nearest first and through what passes, then the person, then each
+ * container that holds them, out to the world; each runs its kind's bodies
+ * in composition order, with `actor` the person and `here` their place as
+ * the hooks begin. What a body says reaches the person and what it tells
+ * leaves them out, as a `do`'s does. A thing gone before its turn runs
+ * nothing. Each thing whose bodies run is one event; nothing is walked in a
+ * world whose kinds write none.
  */
 #include <string.h>
 
@@ -132,6 +134,8 @@ sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *fram
   sprout_hearing saved;
   sprout_eval_status status = SPROUT_EVAL_OK;
   size_t i;
+  if (!x->follows) return SPROUT_EVAL_OK;
+  x->follows = false;
   if (!any_follows(x->world) || sprout_draft_instance(x->draft, actor) == NULL) return SPROUT_EVAL_OK;
   memset(&order, 0, sizeof order);
   EXPR_NEED(sprout_place_of(frame, actor, &here));

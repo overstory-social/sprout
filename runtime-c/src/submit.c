@@ -10,6 +10,7 @@
  */
 #include <string.h>
 
+#include "answers.h"
 #include "draft.h"
 #include "draws.h"
 #include "exits.h"
@@ -308,7 +309,8 @@ sprout_status sprout_reading_run(sprout_world *world, sprout_state *state, const
   frame = sprout_exec_frame(&x, resolved.actor, NULL, NULL);
   run = sprout_reading_exits(&frame, &resolved);
   if (run == SPROUT_EVAL_OK) run = sprout_perform(&x, &frame, &resolved, &end, &refusal);
-  if (run == SPROUT_EVAL_OK && end != SPROUT_READING_REFUSED) run = sprout_exec_drain(&x);
+  /* Nothing here answers as the engine does: what the reading said comes back as recorded. */
+  if (run == SPROUT_EVAL_OK && end != SPROUT_READING_REFUSED) run = sprout_command_over(&x, &frame, &resolved, false);
   if (run == SPROUT_EVAL_NO_MEMORY) {
     sprout_arena_reset(&turn);
     return SPROUT_NO_MEMORY;

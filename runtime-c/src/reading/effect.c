@@ -8,8 +8,8 @@
  * `nothing_happens` when no participant said, told or refused anything to
  * them; an NPC's reading is not answered, nor is a reading performed by
  * `act`. A person's own command then reads the descriptions its moves owe,
- * and what follows a command runs (after.c), unless `go` was refused, which
- * ends the pass.
+ * and is marked as owing what follows a command (after.c), which runs once
+ * the queue drains, unless `go` was refused, which ends the pass.
  */
 #include <string.h>
 
@@ -106,8 +106,8 @@ sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame,
     status = nothing_happens(x, frame, reading->actor);
   sprout_hearing_restore(x, &saved);
   if (status != SPROUT_EVAL_OK || x->acting > 0) return status;
-  /* A typed command's descriptions are read once everything its participants said is said, before what follows it. */
+  /* A typed command's descriptions are read once everything its participants said is said. */
   for (i = owed_from; i < x->owed_count; i++) x->owed[i].after = x->effect_count;
-  if (person && !(way != NULL && went == SPROUT_WENT_REFUSED)) status = sprout_after_command(x, frame, reading->actor);
+  x->follows = person && !(way != NULL && went == SPROUT_WENT_REFUSED);
   return status;
 }
