@@ -1,0 +1,29 @@
+{
+  "about": "A base kind's default play answers where nothing else plays the role, and steps aside, permit and all, where something does, by whatever path it arrived: the cake reads and eats as Readable and Food say, the loaf takes Thing's `read`, and the place mat answers `pull` once, as Portable.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the kitchen." }
+    ] },
+    { "as": "Marta", "type": "read rock", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "How does one read a rock?" }
+    ] },
+    { "as": "Marta", "type": "read cake", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The icing reads: “Eat me.”" }
+    ] },
+    { "as": "Marta", "type": "read loaf", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "How does one read a loaf?" }
+    ] },
+    { "as": "Marta", "type": "eat rock", "expect": [
+      { "reader": "Marta", "kind": "refused", "words": "I don't think that a rock would agree with you." }
+    ] },
+    { "as": "Marta", "type": "eat cake", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "That really hit the spot." }
+    ] },
+    { "as": "Marta", "type": "pull rock", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "Moving a rock reveals nothing." }
+    ] },
+    { "as": "Marta", "type": "pull mat", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You pull a place mat toward you. There is nothing under it." }
+    ] }
+  ]
+}

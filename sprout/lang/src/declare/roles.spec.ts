@@ -468,3 +468,111 @@ kind Idle is Busy { without as target for any from Busy }`);
     ]);
   });
 });
+
+describe('a `default` play steps aside for any other source’s play of its role in its verb', () => {
+  const STOCK = `verb read { role target  "read [target]" }
+verb shift { role target  "pull [target]" }
+kind Thing {
+  as target for read default { permit { } do { say "How does one read {self}?" } }
+  as target for shift default { do { say "Moving {self} reveals nothing." } }
+}
+kind Food is Thing { }
+kind Readable is Thing { as target for read { do { say "It reads." } } }
+kind Box is Thing { }
+kind Portable is Thing { as target for shift { do { say "You pull {self}." } } }
+`;
+
+  it('runs where nothing else plays the role, and steps aside, permit and all, where something does', () => {
+    const { said, plays, kinds } = world(`${STOCK}kind Cake is Food, Readable { }
+kind Bag is Box, Portable { }`);
+    expect(said).toEqual([]);
+    expect(plays('Food', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Readable', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+    // The cake reaches Thing's `read` through Food too, and it steps aside there as well.
+    expect(plays('Cake', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+    expect(plays('Cake', 'shop', 'shift', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Box', 'shop', 'shift', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Bag', 'shop', 'shift', 'target')).toEqual(['shop.Portable']);
+    const bag = kinds.qualified('shop', 'Bag')!.plays;
+    expect(playsOf(bag, 'shop', 'read', 'target').map((play) => play.declaration.yields)).toEqual([
+      true,
+    ]);
+  });
+
+  it('steps aside for its own role in its own verb only, never for the actor’s part or a wildcard', () => {
+    const { said, plays } = world(`${STOCK}kind Reader is Food {
+  as actor for read { do { } }
+  as target for any { permit { } }
+  as target for shift { do { } }
+}`);
+    expect(said).toEqual([]);
+    expect(plays('Reader', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+    expect(plays('Reader', 'shop', 'read', 'actor')).toEqual(['shop.Reader']);
+    expect(plays('Reader', 'shop', 'shift', 'target')).toEqual(['shop.Reader']);
+  });
+
+  it('stays aside in a kind composing one where it stepped aside, as a `without` would leave it out', () => {
+    const { said, plays } =
+      world(`${STOCK}kind Mute is Readable { without as target for read from Readable }
+kind Muffin is Food, Mute { }`);
+    expect(said).toEqual([]);
+    expect(plays('Mute', 'shop', 'read', 'target')).toEqual([]);
+    // Through Food, Thing's `read` arrives and nothing else plays it.
+    expect(plays('Muffin', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+  });
+
+  it('is left out by `without` as any play is', () => {
+    const { said, plays } = world(
+      `${STOCK}kind Stone is Thing { without as target for read from Thing }`,
+    );
+    expect(said).toEqual([]);
+    expect(plays('Stone', 'shop', 'read', 'target')).toEqual([]);
+  });
+
+  it('gives way to a composer’s own default, which still steps aside further up', () => {
+    const { said, plays } =
+      world(`${STOCK}kind Book is Thing { as target for read default { do { } } }
+kind Novel is Book, Readable { }`);
+    expect(said).toEqual([]);
+    expect(plays('Book', 'shop', 'read', 'target')).toEqual(['shop.Book']);
+    expect(plays('Novel', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+  });
+
+  it('refuses a composer’s own default that a composed play displaces, since it never runs', () => {
+    const { said, plays } = world(
+      `${STOCK}kind Scroll is Readable { as target for read default { do { } } }`,
+    );
+    expect(said).toEqual([
+      [
+        'shop.sprout:11:27',
+        "`Scroll`'s own `as target for read default` never runs: `Readable` plays `target` for `read` in it, and a default steps aside for any other play.",
+        'Take out `default` to run it beside that one, or leave that one out with `without as target for read from Readable` to answer in its place.',
+      ],
+    ]);
+    expect(plays('Scroll', 'shop', 'read', 'target')).toEqual(['shop.Readable']);
+  });
+
+  it('refuses two defaults from two sources with nothing else beside them, at the kind that brought the second', () => {
+    const { said, plays } = world(`${STOCK}kind Glyphs { as target for read default { do { } } }
+kind Tablet is Food, Glyphs { }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:12:22',
+        '`Tablet` gets a default `as target for read` from both `Thing` and `Glyphs`, and a default steps aside only for a play that is not one, so both would answer.',
+        'Write its own `as target for read { … }` in `Tablet`, which the defaults step aside for, or its own `as target for read default { … }`, which replaces them, or leave one out with `without as target for read from Glyphs`.',
+      ],
+    ]);
+    expect(plays('Tablet', 'shop', 'read', 'target')).toEqual(['shop.Thing']);
+  });
+
+  it('refuses `default` on a wildcard, which plays no one verb to step aside in', () => {
+    const { said } = world(`kind Ghost { as target for any default { permit { } } }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:1:14',
+        "`as target for any` is written `default`, and only a play for one verb steps aside for another source's play of it.",
+        'Take out `default`, or write `as <role> for <verb> default { … }` for the verb whose answer should step aside.',
+      ],
+    ]);
+  });
+});

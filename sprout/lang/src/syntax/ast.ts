@@ -788,6 +788,8 @@ export interface PlayDeclaration extends Node {
   readonly head: RoleRef;
   /** `for any except examine, wait`: the verbs a wildcard does not run for, where any are written. */
   readonly except?: readonly Ident[];
+  /** `as target for read default`: steps aside wherever another source plays the role for the verb; present only where written. */
+  readonly yields?: true;
   readonly narrows: readonly FromDeclaration[];
   readonly permit: Block | null;
   readonly do: Block | null;

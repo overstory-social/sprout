@@ -4,7 +4,9 @@
 // options).
 //
 // A play is its head, `as <role> for <verb>`, after `for any` the verbs
-// it leaves out, `except examine, wait`, and a body in braces that
+// it leaves out, `except examine, wait`, `default` where it steps aside
+// for any other source's play (Kinds › How members combine), and a body
+// in braces that
 // holds, in any order, the `from` lines that narrow a value role, one
 // `permit` and one `do`, each read by the statement reader. Which verb and
 // which role the head names, and what the blocks may do, are the second
@@ -51,7 +53,8 @@ export function play(
     stepOverHead(p, startsMember);
     return null;
   }
-  const written = `as ${head.role.text} for ${head.verb.text}`;
+  const yields = p.take('name', 'default') !== null;
+  const written = `as ${head.role.text} for ${head.verb.text}${yields ? ' default' : ''}`;
   const open = p.take('punct', '{');
   if (open === null) {
     p.diagnostics.refuse(
@@ -83,6 +86,7 @@ export function play(
         at: spanning(keyword.at, close.at),
         head,
         ...(except.length === 0 ? {} : { except }),
+        ...(yields ? { yields: true as const } : {}),
         narrows,
         permit,
         do: effect,

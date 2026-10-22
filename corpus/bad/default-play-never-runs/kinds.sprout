@@ -1,0 +1,9 @@
+// A scroll's own stock answer to `read`, beside the one Readable writes,
+// which it always steps aside for.
+verb read { role target  "read [target]" }
+
+kind Readable { as target for read { do { say "It reads." } } }
+
+kind Scroll is Readable {
+  as target for read default { do { say "The ink has run." } }
+}

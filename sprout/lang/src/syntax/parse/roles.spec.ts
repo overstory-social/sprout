@@ -91,6 +91,26 @@ describe('a play', () => {
     expect(plays[0]!.head.verb.text).toBe('any');
   });
 
+  it('takes `default` after its head, and is written so only where it is', () => {
+    const { plays, said, rest } = readPlays(
+      'as target for read default { do { say cannot_read } }\n  as actor for read { do { } }',
+    );
+    expect(said).toEqual([]);
+    expect(rest).toBe('}\n');
+    expect(unspanned(plays)).toEqual([]);
+    expect(plays.map((one) => one.yields)).toEqual([true, undefined]);
+    expect(plays[0]!.head.verb.text).toBe('read');
+  });
+
+  it('says a `default` play is never closed, or has nothing in braces, in its own words', () => {
+    expect(readPlays('as target for read default do { }').messages).toEqual([
+      'What `as target for read default` does goes in braces.',
+    ]);
+    expect(readPlays('as target for read default { }').messages).toEqual([
+      '`as target for read default` says nothing: write a `permit { … }`, a `do { … }`, or both.',
+    ]);
+  });
+
   it('may leave out either block, but not both', () => {
     expect(readPlays('as target for pull { permit { allow } }').plays[0]!.do).toBeNull();
     expect(readPlays('as target for pull { do { } }').plays[0]!.permit).toBeNull();
@@ -272,6 +292,10 @@ const WELL_FORMED_PLAYS = [
     name: 'ghost',
     text: 'as target for any except examine, wait { permit { refuse "Nothing." } }',
   },
+  {
+    name: 'stock',
+    text: 'as target for read default { do { say "How does one read {self}?" } }',
+  },
 ];
 
 const PLAY_DEFECTS: readonly string[] = [
@@ -299,6 +323,9 @@ const PLAY_DEFECTS: readonly string[] = [
   'as target for any except { permit { } }',
   'as target for any except take, { permit { } }',
   'as target for any except Take { permit { } }',
+  'as target for read default',
+  'as target for read default { }',
+  'as target for read default default { do { } }',
 ];
 const PLAY_UNCLOSED = 'as target for pull { do { say "Hi." }';
 
@@ -349,6 +376,7 @@ describe('a well-formed play never vanishes, and never answers for its neighbour
       'kept guard',
       'kept hand',
       'kept key',
+      'kept stock',
       'unclosed',
     ]);
   });
