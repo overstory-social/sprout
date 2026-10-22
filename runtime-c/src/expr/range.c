@@ -1,10 +1,11 @@
 /*
  * What is in range of what (the spec's Range; Range > Sight): the live
  * containment tree, whether a target is reached by the path between it and
- * an asker with every container strictly between letting it through, and the
- * walk outward from an asker that a place's `lit` makes. Sight passes over
- * what is unseen and what it holds (Range > Unseen), and what an object
- * can reach does not. Every node touched costs a step, as the rules count them.
+ * an asker with every container strictly between letting it through, save
+ * the asker's own container, which never stands between it and what shares
+ * it; and the walk outward from an asker that a place's `lit` makes. Sight
+ * passes over what is unseen and what it holds (Range > Unseen), and what an
+ * object can reach does not. Every node touched costs a step, as the rules count them.
  */
 #include "expr.h"
 
@@ -128,7 +129,8 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
     *out = true;
     return SPROUT_EVAL_OK;
   }
-  for (at = 1; at <= meet; at++) {
+  /* The asker's own container never stands between it and what shares it, save the world between its places. */
+  for (at = (meet == 1 && !sprout_str_same(chain.items[1], world_of(frame))) ? 2 : 1; at <= meet; at++) {
     EXPR_NEED(passes_with_hands(frame, chain.items[at], asking, hands, &open));
     if (!open) return SPROUT_EVAL_OK;
   }
@@ -216,12 +218,10 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
   SWEEP(own);
   has_outer = container_of(frame, from, &outer);
   while (has_outer) {
-    EXPR_NEED(sight_passes(frame, outer, &open));
-    if (!open) {
-      REACH(outer);
-      break;
-    }
+    bool own_container = sprout_str_same(inner, from) && !sprout_str_same(outer, world_of(frame)), outer_open;
+    EXPR_NEED(sight_passes(frame, outer, &outer_open));
     REACH(outer);
+    if (!outer_open && !own_container) break;
     EXPR_NEED(contents_of(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++) {
@@ -230,6 +230,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
     }
     for (i = 0; i < ring.count; i++) REACH(ring.items[i]);
     SWEEP(ring);
+    if (!outer_open) break;
     inner = outer;
     has_outer = container_of(frame, outer, &outer);
   }

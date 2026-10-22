@@ -1695,10 +1695,13 @@ A `send` to something out of range does nothing. A `broadcast` travels
 through containment:
 
 1. The sender's own contents always receive it.
-2. The sender's container receives it if it passes that message, and
-   delivers it on to its other contents (a container among them passes it
-   in only if its own rule says so).
-3. And so on outward, until a container refuses.
+2. Everything else in the sender's container always receives it, since
+   it shares the container (a container among them passes it in only if
+   its own rule says so). The container itself receives it if it passes
+   that message. A place's container is the world, which is the exception:
+   other places hear only if the world passes.
+3. Further containers receive it outward while each passes, delivering it
+   on to their other contents, until a container refuses.
 
 So a lamp broadcasting inside a shut cabinet lights nothing outside it,
 and a room's broadcast stops at the world, which passes nothing unless you
@@ -1779,6 +1782,10 @@ containment tree refuses to pass. In practice:
   can still count what is in it.
 - It always reaches **the container it is in**, as a surface — so a
   visitor shut in a wardrobe can still open the wardrobe.
+- It always reaches **what shares its container**, shut or not — so two
+  visitors shut in one wardrobe can name each other. A shut box beside
+  them still hides what is in it. The world is the exception: places are
+  not in each other's range just because the world holds them all.
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 

@@ -2,12 +2,14 @@
  * Tests for src/range.c: the walk outward from an asker (the spec's The world
  * model > Range) reaches itself, its own contents, and each container
  * outward with what it holds, nearest first, stopping at the first container
- * that refuses the question and reaching that one only as a surface; the walk
+ * that refuses the question and reaching that one only as a surface, save
+ * that what shares the asker's own container is reached whatever it says; the walk
  * a visitor sees passes over what is unseen (Range > Unseen). Every
  * walk the golden holds is made here and must reach the
  * same objects the same way, for the same steps.
  */
 #include "exec_fixture.h"
+#include "expr/expr.h"
 #include "unseen_fixture.h"
 
 static const char *via_name(sprout_via via) {
@@ -20,6 +22,8 @@ static const char *via_name(sprout_via via) {
       return "surface";
     case SPROUT_VIA_PASSED:
       return "passed";
+    case SPROUT_VIA_BESIDE:
+      return "beside";
   }
   return "";
 }
@@ -105,6 +109,62 @@ static bool walked_to(const sprout_reached *walked, size_t count, const char *id
   return false;
 }
 
+/* How the walk reached `id`: empty where it did not. */
+static const char *exec_via(const sprout_reached *walked, size_t count, const char *id) {
+  size_t i;
+  for (i = 0; i < count; i++)
+    if (sprout_str_same(walked[i].node, exec_str(id))) return via_name(walked[i].via);
+  return "";
+}
+
+static void what_shares_a_shut_container_is_reached_and_a_shut_container_inside_it_is_a_wall(void) {
+  exec_bench b;
+  exec_case c;
+  const sprout_reached *walked;
+  size_t count;
+  bool reached;
+  const sprout_str chest = exec_str("exec_bench.hall.chest");
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, case_in(&b, "fresh"));
+  /* The runner is shut in the chest with the coin, the bin and the glass case, which passes only `:ping`. */
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.runner"), &chest), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.glass"), &chest), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.runner"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.chest"), "surface");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.chest.coin"), "beside");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.glass"), "beside");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.glass.moth"), "");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall"), "");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.lamp"), "");
+  /* Asked `:ping`, the glass case passes it, and the chest is still a wall to the hall. */
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.runner"), "exec_bench.ping", &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.glass.moth"), "passed");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall"), "");
+  /* The path a `get` or a `send` asks agrees with the walk. */
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.runner"), exec_str("exec_bench.hall.chest.coin"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.chest.coin"), exec_str("exec_bench.hall.runner"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.runner"), exec_str("exec_bench.hall.glass.moth"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(!reached);
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.runner"), exec_str("exec_bench.hall.lamp"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(!reached);
+  /* A place is in the world, and the world is still a wall between places. */
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench"), "surface");
+  CHECK_INT(walked[count - 1].via, SPROUT_VIA_SURFACE);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds(void) {
   unseen_bench b;
   const sprout_reached *walked;
@@ -130,5 +190,6 @@ int main(void) {
   RUN(a_walk_is_charged_at_least_a_step_for_every_object_it_reaches);
   RUN(a_walk_that_runs_out_of_steps_faults);
   RUN(the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds);
+  RUN(what_shares_a_shut_container_is_reached_and_a_shut_container_inside_it_is_a_wall);
   return REPORT();
 }

@@ -8,8 +8,9 @@
  * Two invariants. The asker always reaches itself, its own contents and the
  * surface of every container out to the first that refuses, whatever that
  * one's rule says, because a lid stops others looking in, not the chest
- * looking down. And the walk is a loop over a queue, never recursion, since
- * nesting has no cap.
+ * looking down; and it always reaches what shares its own container, since a
+ * lid divides the inside from the outside, not the inside from itself. And
+ * the walk is a loop over a queue, never recursion, since nesting has no cap.
  */
 #include "expr/expr.h"
 #include "exec.h"
@@ -102,20 +103,20 @@ static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker,
   EXPR_NEED(sweep(&w, &own));
   has_outer = container_of(frame, asker, &outer);
   while (has_outer) {
-    bool open;
+    bool open, own_container = sprout_str_same(inner, asker) && !sprout_str_same(outer, frame->draft->base->world);
     EXPR_NEED(expr_passes(frame, outer, asking, &open));
-    if (!open) {
-      EXPR_NEED(reach(&w, outer, SPROUT_VIA_SURFACE));
-      break;
-    }
-    EXPR_NEED(reach(&w, outer, SPROUT_VIA_PASSED));
+    EXPR_NEED(reach(&w, outer, open ? SPROUT_VIA_PASSED : SPROUT_VIA_SURFACE));
+    /* A container that refuses is a wall, save between the asker and what shares its own container; the world is a
+     * wall between the places it holds (Range). */
+    if (!open && !own_container) break;
     EXPR_NEED(contents(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++)
       if (!sprout_str_same(held[i], inner) && (!sight || !expr_unseen(frame, held[i])))
         EXPR_NEED(push(frame, &ring, held[i]));
-    for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], SPROUT_VIA_PASSED));
+    for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], open ? SPROUT_VIA_PASSED : SPROUT_VIA_BESIDE));
     EXPR_NEED(sweep(&w, &ring));
+    if (!open) break;
     inner = outer;
     has_outer = container_of(frame, outer, &outer);
   }

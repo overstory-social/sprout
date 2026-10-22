@@ -546,7 +546,7 @@
       "steps": 26
     },
     {
-      "name": "what is inside a shut chest reaches the chest as a surface",
+      "name": "what is inside a shut chest reaches the chest as a surface, and what shares it",
       "asker": "exec_bench.hall.chest.coin",
       "asking": null,
       "state": "fresh",
@@ -558,9 +558,13 @@
         {
           "node": "exec_bench.hall.chest",
           "via": "surface"
+        },
+        {
+          "node": "exec_bench.hall.chest.bin",
+          "via": "beside"
         }
       ],
-      "steps": 5
+      "steps": 6
     },
     {
       "name": "what is inside an open chest reaches the place outside",
