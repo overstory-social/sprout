@@ -5,6 +5,7 @@
 "actors":{"world":"actors","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "after-command":{"world":"after_command","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "after-command-own-body":{"world":"after_command_own_body","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"all-empty-handed":{"world":"all_empty_handed","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "all-in-order":{"world":"all_in_order","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "all-leaves-out-refused":{"world":"all_leaves_out_refused","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "all-narrowed":{"world":"all_narrowed","serial":0,"instances":[],"visitors":[],"tombstones":[]},

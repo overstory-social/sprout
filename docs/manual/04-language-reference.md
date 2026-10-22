@@ -1557,7 +1557,7 @@ lantern, go down`, where the line does not read whole as one command; a
 comma before a name keeps a run of things, `take sword, coin and lamp`.
 A line is never said to someone: `troll, hello` is not understood, and a
 visitor speaks to a person through the verbs that take them, `ask troll
-about the axe`. Each runs as its own turn, in order. A refusal, `unknown`, `not_here`, `no_way`, `cannot` or `not_carrying` stops the rest, and what
+about the axe`. Each runs as its own turn, in order. A refusal, `unknown`, `not_here`, `no_way`, `cannot`, `not_carrying` or `empty_handed` stops the rest, and what
 ran before stays done.
 
 `again`, or `g`, runs your last command's reading again: the same verb
@@ -1626,6 +1626,7 @@ the first of these that fits:
 
 | passage    | when                                                               |
 | ---------- | ------------------------------------------------------------------ |
+| `empty_handed` | `all` in a role whose things you carry, as `drop all` or `put all in the sack`, finds your hands empty: "You aren't carrying anything." |
 | `cannot`   | a phrase matches, and something in reach answers to a noun but cannot fill its role: "You can't put the key in the anvil." |
 | `not_carrying` | a phrase matches, and only something you do not carry answers to the noun in a [carried role](#carried-roles): "You aren't carrying the key." |
 | `no_way`   | the line is a direction, or `go` and one, and no exit that applies goes that way: "You can't go that way." |
@@ -2634,6 +2635,7 @@ So a character can have its own `arrives`, and a place its own
 | `no_way`          | You can't go that way.                                              |
 | `cannot`          | You can't {reading}.                                                |
 | `not_carrying`    | You aren't carrying {thing}.                                        |
+| `empty_handed`    | You aren't carrying anything.                                       |
 | `meant`           | ({thing})                                                           |
 | `pronoun_correction` | {thing} is a {pronoun}.                                          |
 | `nothing_happens` | Nothing much comes of that.                                         |

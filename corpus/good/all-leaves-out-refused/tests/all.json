@@ -1,5 +1,5 @@
 {
-  "about": "`all` leaves out what its reading's consent pass would refuse: what is not in hand from `drop all`, though it is inside a sack in hand; what is held from `take all`; and the lamp from `examine all`. Where nothing is left, the line is `not_here`.",
+  "about": "`all` leaves out what its reading's consent pass would refuse: what is not in hand from `drop all`, though it is inside a sack in hand; what is held from `take all`; and the lamp from `examine all`. Where nothing is left, the line is `not_here`, or, for `drop all` with empty hands, `empty_handed`.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
@@ -17,7 +17,7 @@
       { "reader": "Marta", "kind": "said", "words": "You put a ball down." }
     ] },
     { "as": "Marta", "type": "drop all", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
     ] },
     { "as": "Marta", "type": "examine all", "expect": [
       { "level": "info", "text": "step: sprout.examine" },

@@ -259,6 +259,7 @@ typedef struct parse_filled {
   parse_fills fills;
   size_t start, end;           /* NOTHING */
   bool narrowed;               /* `all` narrowed by a noun or by what holds the things, NOTHING where none qualifies */
+  bool all;                    /* the slot's words are `all`, alone, narrowed or with `except` */
   size_t thing_count;          /* OPTIONS of a thing role, UNFIT, RUN's first item, OUTWARD, ALL */
   const parse_named *things;
   size_t set_count;            /* OPTIONS of a set role */
