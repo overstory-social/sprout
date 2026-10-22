@@ -1,0 +1,25 @@
+import * as sprout from 'sprout'
+import {touch, blow, :granted, :called} from 'lost_work'
+
+kind Pedestal {
+  contains
+  release (item, to) { if (mover != self) { refuse "The pedestal keeps its gem." } }
+
+  as target for touch {
+    do {
+      say "You touch the pedestal, and the gem glows."
+      send actor :granted
+    }
+  }
+}
+
+kind Gem { }
+
+kind Horn {
+  as target for blow {
+    do {
+      say "You blow the horn."
+      send glade.stag :called
+    }
+  }
+}

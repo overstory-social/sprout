@@ -1,7 +1,8 @@
 /*
  * Tests for src/logged.c: a turn's outcome as the JSON a host keeps. The entry is in the log's own shape, with
  * every effect at debug depth and, at play depth, their count and the SHA-256 of them read in code-unit order;
- * a command's also keeps its words, the step a line planned for it and its draw; and a budget the log keeps left
+ * a command's also keeps its words, the step a line planned for it and its draw; every write turn's keeps what
+ * its bodies did that nobody was told of; and a budget the log keeps left
  * unset is the host's defect (the spec's The runtime > The log, Effects, Faults). The replay compares every entry with core's own.
  */
 #include "logged.h"
@@ -131,7 +132,7 @@ static void a_command_s_entry_keeps_its_words_and_the_step_a_line_planned(void) 
                "{\"kind\":\"command\",\"level\":\"info\",\"seed\":7,") != NULL);
   CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY),
                "\"visit\":\"v-marta\",\"text\":\"xyzzy\",\"planned\":null,\"reread\":null,\"drawn\":null,\"fault\":null,"
-               "\"effects\":[],\"cutShort\":[],\"digest\":{\"count\":1,") != NULL);
+               "\"effects\":[],\"cutShort\":[],\"warnings\":[],\"digest\":{\"count\":1,") != NULL);
   sprout_outcome_free(&out);
   crack = tw_reading("turn_faults.crack", tw_person(&w, "v-marta"), &filling, "target", "turn_faults.porch.dud");
   planned.visit = "v-marta";
@@ -155,7 +156,7 @@ static void a_command_s_entry_keeps_its_words_and_the_step_a_line_planned(void) 
   CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG),
                "\"drawn\":null,\"fault\":{\"level\":\"error\",\"name\":\"BudgetExhausted\",") != NULL);
   CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG), "\"effects\":[{\"kind\":\"notice\",") != NULL);
-  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG), "\"cutShort\":[]}") != NULL);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG), "\"cutShort\":[],\"warnings\":[]}") != NULL);
   sprout_arena_reset(&scratch);
   sprout_outcome_free(&out);
   tw_close(&w);
@@ -199,6 +200,50 @@ static void effects_in_the_languages_shape_carry_the_actor_and_where_their_words
   tw_close(&w);
 }
 
+/*
+ * What a body did that nobody was told of is kept as a warning: a handler's refused `move`, with the guard and its
+ * words as written, and a `send` to a name that reached nothing, with the name as written; neither is an effect.
+ */
+static void what_nobody_was_told_of_is_kept_as_a_warning(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_arena scratch;
+  char want[512];
+  tw_open(&w, "lost-work");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  CHECK_INT((int)out.warning_count, 0);
+  sprout_outcome_free(&out);
+  CHECK_INT(sprout_arena_init(&scratch, &w.host), SPROUT_OK);
+  tw_do(&w, "v-marta", "touch", "glade.pedestal", 0, &out);
+  CHECK(out.committed);
+  CHECK_INT((int)out.effect_count, 1);
+  CHECK_INT((int)out.warning_count, 1);
+  CHECK_INT(out.warnings[0].kind, SPROUT_WARNING_UNREAD_REFUSAL);
+  CHECK_STR(out.warnings[0].guard, "release");
+  snprintf(want, sizeof want,
+           "\"warnings\":[{\"level\":\"warning\",\"what\":\"unread-refusal\",\"by\":\"%s\","
+           "\"item\":\"lost_work.glade.pedestal.gem\",\"to\":\"%s\",\"refuser\":\"lost_work.glade.pedestal\","
+           "\"guard\":\"release\",\"words\":\"\\\"The pedestal keeps its gem.\\\"\"}]",
+           tw_person(&w, "v-marta"), tw_person(&w, "v-marta"));
+  /* Kept at either depth, since a replay does not give it back. */
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY), want) != NULL);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_DEBUG), want) != NULL);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "blow", "glade.horn", 0, &out);
+  CHECK_INT((int)out.warning_count, 0);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "shoo", "glade.stag", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "blow", "glade.horn", 0, &out);
+  CHECK(out.committed);
+  CHECK(strstr(entry_text(&scratch, &w.host, &out, SPROUT_LOG_PLAY),
+               "\"warnings\":[{\"level\":\"warning\",\"what\":\"lost-send\",\"by\":\"lost_work.glade.horn\","
+               "\"target\":\"glade.stag\",\"message\":\"lost_work.called\"}]") != NULL);
+  sprout_arena_reset(&scratch);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(canonical_order_sorts_every_object_all_the_way_down);
   RUN(the_play_digest_is_the_sha256_of_the_debug_effects_in_canonical_order);
@@ -206,5 +251,6 @@ int main(void) {
   RUN(a_command_s_entry_keeps_its_words_and_the_step_a_line_planned);
   RUN(a_budget_the_log_keeps_as_a_figure_left_unset_is_the_hosts_defect);
   RUN(effects_in_the_languages_shape_carry_the_actor_and_where_their_words_were_written);
+  RUN(what_nobody_was_told_of_is_kept_as_a_warning);
   return REPORT();
 }

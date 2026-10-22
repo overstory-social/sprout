@@ -13,9 +13,10 @@ import {
 // What every entry of the log is built from (the spec's The runtime ›
 // The log, Effects, Levels, Faults; Extensions): a turn's inputs, its
 // effects, an extension's with its payload, who it cut short, and its
-// fault, as zod schemas, since an adapter validates what it reads back.
-// Each carries its level: an effect is prose, a fault an error, and a
-// reader cut short a warning. A turn's inputs are what the host handed
+// fault, and what its bodies did that nobody was told of, as zod schemas,
+// since an adapter validates what it reads back. Each carries its level:
+// an effect is prose, a fault an error, and a reader cut short, a refused
+// `move` nobody read and a `send` that reached nothing are warnings. A turn's inputs are what the host handed
 // it and everything that decides what it does: the seed, the bound on
 // stored instances, its instant, and the host's runtime budgets as they
 // were, so a replay under other figures still reproduces what ran. The
@@ -146,3 +147,35 @@ export function loggedFault(fault: Fault): LoggedFault {
 /** Someone a turn's line would have taken past their output, who read nothing more that turn. */
 export const LoggedCut = z.object({ level: z.literal('warning'), to: z.string().min(1) });
 export type LoggedCut = z.infer<typeof LoggedCut>;
+
+/**
+ * What a turn's bodies did that nobody in the world was told of, a
+ * warning: a `move` refused where nobody read the refusal, by the guard
+ * that refused it and its words as written, or a `send` that reached
+ * nothing, by the name it was sent to as written.
+ */
+export const LoggedWarning = z.discriminatedUnion('what', [
+  z.object({
+    level: z.literal('warning'),
+    what: z.literal('unread-refusal'),
+    /** The object whose body ran the `move`. */
+    by: z.string().min(1),
+    item: z.string().min(1),
+    to: z.string().min(1),
+    /** The party whose guard refused, or who says the engine's line. */
+    refuser: z.string().min(1),
+    /** `depart`, `release` or `accept`; null where the engine refused. */
+    guard: z.enum(['depart', 'release', 'accept']).nullable(),
+    /** The line in quotes, or `passage <name>`. */
+    words: z.string(),
+  }),
+  z.object({
+    level: z.literal('warning'),
+    what: z.literal('lost-send'),
+    by: z.string().min(1),
+    target: z.string().min(1),
+    /** The message, `library.name`. */
+    message: z.string().min(1),
+  }),
+]);
+export type LoggedWarning = z.infer<typeof LoggedWarning>;

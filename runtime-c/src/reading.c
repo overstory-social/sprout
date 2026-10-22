@@ -203,7 +203,7 @@ sprout_eval_status sprout_run_reading(sprout_exec *x, const sprout_frame *frame,
     size_t count;
     EXPR_NEED(ids_of(x, &reading, &ids, &count));
     EXPR_NEED(sprout_hear_reading(x, frame, actor, ids, count, &saved));
-    status = sprout_record_refusal(x, frame, &refusal.refusal);
+    status = sprout_record_refusal(x, frame, &refusal.refusal, NULL);
     sprout_hearing_restore(x, &saved);
   }
   return status;

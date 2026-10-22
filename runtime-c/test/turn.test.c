@@ -136,6 +136,29 @@ static void a_fault_names_the_object_its_rule_names_and_the_log_keeps_it(void) {
   tw_close(&w);
 }
 
+/* An NPC that does not roam, moving itself out of range, is told that a kind that roams may go there. */
+static void an_npc_moving_itself_out_of_range_is_told_of_roams(void) {
+  turn_world w;
+  sprout_outcome out;
+  tw_open(&w, "roaming");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-marta", "whistle", "kitchen.dog", 0, &out);
+  sprout_outcome_free(&out);
+  CHECK_INT(tw_run(&w, (sprout_turn_input){.kind = SPROUT_TURN_WAKE, .instant = 60, .object = "roaming.kitchen.dog",
+                                           .serial = tw_instance(&w, "roaming.kitchen.dog")->wakes[0].serial},
+                   0, &out),
+            SPROUT_OK);
+  CHECK_STR(out.fault_name, "NameOutOfRange");
+  CHECK_STR(out.fault.text, "`roaming.attic` is out of range of `roaming.kitchen.dog`; a kind that `roams` may go there.");
+  sprout_outcome_free(&out);
+  /* The cat roams, and carrying the hay is no move of itself: its fault says nothing of roaming. */
+  tw_do(&w, "v-marta", "nudge", "kitchen.cat", 0, &out);
+  CHECK_STR(out.fault.text, "`roaming.attic` is out of range of `roaming.kitchen.cat`, so nothing could be moved into it.");
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void a_fault_whose_rule_names_nothing_has_no_object(void) {
   turn_world w;
   sprout_outcome out;
@@ -163,6 +186,7 @@ int main(void) {
   RUN(a_seed_outside_the_range_is_the_hosts_defect);
   RUN(a_turn_compacts_a_crowded_state_once_its_scratch_is_gone);
   RUN(a_fault_names_the_object_its_rule_names_and_the_log_keeps_it);
+  RUN(an_npc_moving_itself_out_of_range_is_told_of_roams);
   RUN(a_fault_whose_rule_names_nothing_has_no_object);
   return REPORT();
 }

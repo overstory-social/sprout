@@ -2,7 +2,14 @@ import { z } from 'zod';
 
 import { storedId, type Tick } from '@overstory/sprout/lang';
 
-import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
+import {
+  LoggedCut,
+  LoggedWarning,
+  LoggedEffect,
+  LoggedFault,
+  TurnInputs,
+  writeInputsOf,
+} from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A tick in the log (the spec's The runtime › The log; Time › Ticks): the
@@ -24,6 +31,8 @@ export const TickEntry = TurnInputs.extend({
   digest: LoggedDigest.optional(),
   /** Who a line would have taken past their output, each a warning. */
   cutShort: z.array(LoggedCut),
+  /** What its bodies did that nobody was told of, each a warning. */
+  warnings: z.array(LoggedWarning),
 });
 export type TickEntry = z.infer<typeof TickEntry>;
 

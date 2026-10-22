@@ -10,6 +10,7 @@ const ticked = {
   fault: null,
   effects: [SAID],
   cutShort: [],
+  warnings: [],
 } as const;
 
 describe('a tick in the log', () => {

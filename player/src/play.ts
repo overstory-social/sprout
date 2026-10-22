@@ -15,6 +15,7 @@ import {
   emptyState,
   type GivenCommand,
   type LoggedFault,
+  type LoggedWarning,
   type Step as EngineStep,
   type StoredState,
   type TurnEntry,
@@ -118,21 +119,52 @@ function effectLines(stage: Stage, effects: readonly Effect[]): Made[] {
 }
 
 /**
- * What a committed turn said, and a warning for each reader it cut short
- * past their output, as the host would log it.
+ * What a committed turn said, a warning for each reader it cut short past
+ * their output, and one for each thing its bodies did that nobody was
+ * told of, as the host would log it.
  */
 function turnLines(
   stage: Stage,
   turn: { readonly effects: readonly Effect[]; readonly cutShort: readonly InstanceId[] },
+  entry: TurnEntry | null,
 ): Made[] {
   const { output } = stage.host.budgets;
   return [
     ...effectLines(stage, turn.effects),
     ...turn.cutShort.map((id): Made => {
       const text = `${whoIs(stage, id)} was cut short: one turn may say ${output} characters to any one person`;
-      return { level: 'warning', text, words: null, kind: null, shown: text, reader: null };
+      return warningOf(text);
     }),
+    ...warningLines(stage, entry),
   ];
+}
+
+/** A line the host logs as a warning. */
+function warningOf(text: string): Made {
+  return { level: 'warning', text, words: null, kind: null, shown: text, reader: null };
+}
+
+/** What `entry`'s turn did that nobody in the world was told of, each a warning; none where it has no entry. */
+function warningLines(stage: Stage, entry: TurnEntry | null): Made[] {
+  const warnings: readonly LoggedWarning[] = entry === null ? [] : entry.warnings;
+  return warnings.map((warning) => {
+    const by = whoIs(stage, storedId(worldOf(stage), warning.by));
+    if (warning.what === 'lost-send') {
+      const message = warning.message.slice(warning.message.lastIndexOf('.') + 1);
+      return warningOf(
+        `a send reached nothing: ${by} sent :${message} to ${warning.target}, which reaches nothing in its range now`,
+      );
+    }
+    const who = (id: string) => whoIs(stage, storedId(worldOf(stage), id));
+    const refused =
+      warning.guard === null
+        ? 'the engine refused'
+        : `${who(warning.refuser)}'s \`${warning.guard}\` refused`;
+    return warningOf(
+      `a refusal nobody read: ${by} could not move ${who(warning.item)} to ${who(warning.to)}, ` +
+        `${refused} with ${warning.words}`,
+    );
+  });
 }
 
 /** The world's id, which a path is written under. */
@@ -260,6 +292,7 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     ...wakes.abandoned.map((wake) =>
       hostLineOf(`left for live time: ${pathOf(world, wake.object)}'s wake`),
     ),
+    ...warningLines(stage, step.entry),
   ];
   const { before, wanted } = seatReturning(stage.stored, catalogue, at, visit, nickname);
   stage.stored = before;
@@ -273,7 +306,7 @@ export function arrive(stage: Stage, nickname: string, at?: string): Made[] {
     if (wanted !== null && place !== wanted) {
       throw seatingMismatch(world, at!, place ?? world);
     }
-    return [...out, ...turnLines(stage, arrived)];
+    return [...out, ...turnLines(stage, arrived, arrival.entry)];
   }
   if ('closed' in arrived) {
     traceArrival({});
@@ -298,7 +331,7 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
   const left = land(stage, step);
   if (left.committed) {
     trace(stage, 'departure', { as: nickname, effects: left.effects, account: step.account });
-    return turnLines(stage, left);
+    return turnLines(stage, left, step.entry);
   }
   trace(stage, 'departure', {
     as: nickname,
@@ -306,7 +339,10 @@ export function leave(stage: Stage, nickname: string, where: string): Made[] {
     faults: [left.fault],
     account: step.account,
   });
-  return [...turnLines(stage, left.quietly), faultLine(stage, 'the departure', left.fault)];
+  return [
+    ...turnLines(stage, left.quietly, step.entry),
+    faultLine(stage, 'the departure', left.fault),
+  ];
 }
 
 /**
@@ -355,7 +391,7 @@ function command(stage: Stage, nickname: string, text: string, where: string): M
     if (read !== null && read.step !== null) {
       out.push(hostLineOf(`step: ${read.step.verb.library}.${read.step.verb.name}`));
     }
-    out.push(...turnLines(stage, turn));
+    out.push(...turnLines(stage, turn, step.entry));
     // A reading drawn from a tie is the host's to log as a warning.
     if (read !== null && read.drawn !== null) {
       const text = `drawn: the line read ${read.drawn.among} ways that tied, and one was drawn`;
@@ -388,7 +424,7 @@ function tick(stage: Stage): Made[] {
       continue;
     }
     trace(stage, 'tick', { effects: turn.effects, account: step.account });
-    out.push(...turnLines(stage, turn));
+    out.push(...turnLines(stage, turn, step.entry));
   }
   return out;
 }
@@ -428,7 +464,7 @@ function advance(stage: Stage, seconds: number): Made[] {
     }
     trace(stage, 'wake', { effects: turn.effects, account: step.account });
     out.push(hostLineOf(`${woken} woke, ${stage.now - next.askedAt} seconds after it asked`));
-    out.push(...turnLines(stage, turn));
+    out.push(...turnLines(stage, turn, step.entry));
   }
   stage.now = until;
   return out;

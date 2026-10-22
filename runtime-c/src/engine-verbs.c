@@ -63,7 +63,7 @@ sprout_eval_status sprout_go(sprout_exec *x, const sprout_frame *frame, const sp
     taken = *drawn;
   }
   EXPR_NEED(sprout_take_way(x, frame, reading->actor, here, &taken, person, &moved, &refusal));
-  if (!moved) EXPR_NEED(sprout_record_refusal(x, frame, &refusal));
+  if (!moved) EXPR_NEED(sprout_record_refusal(x, frame, &refusal, NULL));
   *went = moved ? SPROUT_WENT_DONE : SPROUT_WENT_REFUSED;
   return SPROUT_EVAL_OK;
 }

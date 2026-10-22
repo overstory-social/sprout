@@ -35,7 +35,7 @@ static void a_dotted_path_is_read_through_in_range(void) {
   exec_case_open(&b, &c, exec_named(&b, "a move that every party allows"));
   CHECK_INT(stmt_object_at(&c.frame, path_in(&c, "thing"), &thing), SPROUT_EVAL_OK);
   CHECK_BYTES(thing.bytes, thing.length, "exec_bench.hall.shelf.jar");
-  CHECK_INT(stmt_destination_at(&c.frame, path_in(&c, "destination"), &destination), SPROUT_EVAL_OK);
+  CHECK_INT(stmt_destination_at(&c.frame, path_in(&c, "destination"), thing, &destination), SPROUT_EVAL_OK);
   CHECK_BYTES(destination.bytes, destination.length, "exec_bench.hall.basket");
   exec_case_close(&c);
   exec_bench_close(&b);
