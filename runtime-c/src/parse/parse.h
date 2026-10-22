@@ -52,6 +52,11 @@ bool parse_is_determiner(sprout_str word);
 bool parse_is_connector(sprout_str word);
 /* `all`, or `everything` for it. */
 bool parse_is_all(sprout_str word);
+/*
+ * `words` with every quotation mark that opens or closes a word dropped, paired or not, and each word left empty
+ * dropped; how many are left, in place (the spec's Parsing > Matching a line). A mark inside a word is kept.
+ */
+size_t parse_without_quotes(sprout_str *words, size_t count);
 /* `through`, `into`, `down` or `up`, a word that may stand between a direction and a way's label: `south through the crawlway`. */
 bool parse_is_way_word(sprout_str word);
 /*
