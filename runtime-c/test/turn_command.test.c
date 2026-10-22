@@ -90,6 +90,34 @@ static void a_refusals_words_see_into_the_hands_of_the_visitor_who_acted(void) {
   tw_close(&w);
 }
 
+static void a_role_players_permit_and_do_see_into_the_hands_of_the_visitor_who_acted_only(void) {
+  turn_world w;
+  sprout_outcome out;
+  sprout_filling filling;
+  sprout_reading take;
+  tw_open(&w, "reading-hands");
+  tw_arrive(&w, "v-wren", "Wren", 1000, &out);
+  sprout_outcome_free(&out);
+  tw_arrive(&w, "v-ash", "Ash", 1001, &out);
+  sprout_outcome_free(&out);
+  take = tw_reading("sprout.take", tw_person(&w, "v-wren"), &filling, "target", "reading_hands.shed.match");
+  tw_command(&w, "v-wren", &take, 1002, &out);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-wren", "strike", "shed.match", 1003, &out);
+  sprout_outcome_free(&out);
+  /* Wren's burning match is not in Ash's hands, and only the acting visitor's open. */
+  tw_do(&w, "v-ash", "light", "shed.fuse", 1004, &out);
+  CHECK(tw_told(&out, "v-ash", "You have nothing to light it with."));
+  CHECK_INT(tw_property(&w, "reading_hands.shed.fuse", "lit"), 0);
+  sprout_outcome_free(&out);
+  tw_do(&w, "v-wren", "light", "shed.fuse", 1005, &out);
+  CHECK(tw_told(&out, "v-wren", "You touch the flame to the fuse, and it hisses. You hold 1 match."));
+  CHECK(tw_told(&out, "v-ash", "Wren lights the fuse."));
+  CHECK_INT(tw_property(&w, "reading_hands.shed.fuse", "lit"), 1);
+  sprout_outcome_free(&out);
+  tw_close(&w);
+}
+
 static void a_command_by_someone_not_in_the_world_is_the_hosts_defect_and_writes_nothing(void) {
   turn_world w;
   sprout_outcome out;
@@ -312,6 +340,7 @@ int main(void) {
   RUN(a_command_that_acts_writes_what_it_changed_and_leaves_a_log_entry);
   RUN(a_command_that_faults_tells_the_actor_and_leaves_the_world_byte_for_byte);
   RUN(a_refusals_words_see_into_the_hands_of_the_visitor_who_acted);
+  RUN(a_role_players_permit_and_do_see_into_the_hands_of_the_visitor_who_acted_only);
   RUN(a_command_by_someone_not_in_the_world_is_the_hosts_defect_and_writes_nothing);
   RUN(a_typed_intent_runs_its_first_step_and_hands_the_rest_on_each_a_turn);
   RUN(a_typed_line_the_parser_answers_is_answered_and_ends_the_line);

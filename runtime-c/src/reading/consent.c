@@ -4,7 +4,8 @@
  * role-player narrows its own options). It runs every `permit` of every
  * participant, only reading, and the first refusal is the reading's whole
  * outcome. The same frame is built for a `do`: `self` the participant,
- * `actor` and `here`, and each other role as the play sees it.
+ * `actor` and `here`, and each other role as the play sees it, with the
+ * acting visitor's hands open to it (the spec's Range), an NPC's opening none.
  */
 #include <string.h>
 
@@ -171,7 +172,7 @@ static sprout_eval_status role_in(const sprout_frame *frame, const sprout_resolv
 sprout_eval_status sprout_play_frame(sprout_exec *x, const sprout_resolved *reading, const sprout_participant *who,
                                      const sprout_play *play, bool draws, sprout_frame *out) {
   const char *dot = strchr(play->origin, '.');
-  const sprout_stored_instance *self;
+  const sprout_stored_instance *self, *acting;
   sprout_frame bare = sprout_exec_frame(x, who->id, NULL, NULL);
   const sprout_binding *bound;
   sprout_str here;
@@ -185,6 +186,8 @@ sprout_eval_status sprout_play_frame(sprout_exec *x, const sprout_resolved *read
   *out = sprout_exec_frame(x, who->id, library, NULL);
   if (!draws) out->draws = NULL;
   EXPR_NEED(sprout_place_of(out, reading->actor, &here));
+  acting = expr_instance(out, reading->actor);
+  if (acting != NULL && acting->made == SPROUT_MADE_VISITOR) out->hands = reading->actor;
   bound = sprout_bind(out, "actor", sprout_evaluated_object(reading->actor));
   if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
   out->bindings = bound;

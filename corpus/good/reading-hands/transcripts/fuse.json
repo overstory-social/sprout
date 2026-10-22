@@ -1,0 +1,35 @@
+{
+  "about": "The fuse's permit walks the hands of whoever lights it for a burning match, and its do counts their matches in what it says. Ash beside Wren's burning match is refused, since only the acting visitor's hands open.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A tool shed. A fuse trails from a keg." }
+    ] },
+    { "arrive": "Ash", "expect": [
+      { "reader": "Wren", "kind": "notice", "words": "Ash arrives." },
+      { "reader": "Ash", "kind": "described", "words": "A tool shed. A fuse trails from a keg." }
+    ] },
+    { "as": "Wren", "type": "light fuse", "expect": [
+      { "reader": "Wren", "kind": "refused", "words": "You have nothing to light it with." }
+    ] },
+    { "as": "Wren", "type": "take match", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You take a match." },
+      { "reader": "Ash", "kind": "told", "words": "Wren takes a match." }
+    ] },
+    { "as": "Wren", "type": "light fuse", "expect": [
+      { "reader": "Wren", "kind": "refused", "words": "Your match is not burning." }
+    ] },
+    { "as": "Wren", "type": "strike match", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "The match flares." }
+    ] },
+    { "as": "Ash", "type": "light fuse", "expect": [
+      { "reader": "Ash", "kind": "refused", "words": "You have nothing to light it with." }
+    ] },
+    { "as": "Wren", "type": "light fuse", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You touch the flame to the fuse, and it hisses. You hold 1 match." },
+      { "reader": "Ash", "kind": "told", "words": "Wren lights the fuse." }
+    ] },
+    { "as": "Ash", "type": "light fuse", "expect": [
+      { "reader": "Ash", "kind": "refused", "words": "The fuse is already burning." }
+    ] }
+  ]
+}

@@ -1,0 +1,55 @@
+// The participants of a visitor's reading see into that visitor's hands
+// (the spec's Range), though `sprout.Actor` passes nothing: the fuse's
+// `permit` walks the matches the one lighting it carries for a burning
+// one, and its `do` counts them in the words it says. Only the acting
+// visitor's hands open, so a burning match in someone else's hands does
+// not light the fuse for whoever stands beside them.
+import * as sprout from 'sprout'
+
+world reading_hands is sprout.World {
+  visitors are Person
+  visitors arrive at shed
+
+  object shed is sprout.Place {
+    grammar { article the }
+    describe { text "A tool shed. A fuse trails from a keg." }
+    object fuse is Fuse
+    object match is Match
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+verb strike { role target: Match  "strike [target]" }
+verb light  { role target: Fuse  "light [target]" }
+
+kind Match {
+  :burning false
+  grammar { name "match"  article a }
+  as target for strike {
+    do {
+      self.set(:burning, true)
+      say "The match flares."
+    }
+  }
+}
+
+kind Fuse {
+  :lit false
+  grammar { name "fuse"  article the }
+  as target for light {
+    permit {
+      if (self.get(:lit)) { refuse "The fuse is already burning." }
+      each m: Match in actor {
+        if (m.get(:burning)) { allow }
+      }
+      refuse no_flame
+    }
+    do {
+      self.set(:lit, true)
+      say "You touch the flame to the fuse, and it hisses. You hold {actor.count(Match)} match."
+      tell "{actor} lights the fuse."
+    }
+  }
+  passage no_flame { {if actor.count(Match) > 0}Your match is not burning.{else}You have nothing to light it with.{/if} }
+}
