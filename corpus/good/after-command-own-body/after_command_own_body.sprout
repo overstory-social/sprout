@@ -1,0 +1,26 @@
+// What follows a command where only an object's own body and the world's
+// write it (the spec's Verbs › After a command): no declared kind writes
+// `after command`, and the watch once she holds it, the carousel she rides
+// and the world still follow every command she makes, nearest first.
+import * as sprout from 'sprout'
+
+kind Rider is sprout.Visitor {}
+kind Trinket {}
+
+world after_command_own_body is sprout.World {
+  visitors are Rider
+  visitors arrive at carousel
+
+  after command { say "The band organ plays on." }
+
+  object carousel is sprout.Place {
+    grammar { article the }
+    describe { text "A carousel, its horses rising and falling." }
+    after command { say "The carousel turns." }
+
+    object watch is Trinket {
+      grammar { name "watch"  article a }
+      after command { say "The watch ticks." }
+    }
+  }
+}
