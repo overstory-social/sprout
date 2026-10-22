@@ -96,6 +96,7 @@
     { "as": "Marta", "type": "up", "expect": [
       { "reader": "Marta", "kind": "refused", "words": "Weeds wind round your legs and hold you in the pool." },
       { "reader": "Marta", "kind": "told", "words": "Water drips from the roof." },
+      { "reader": "Marta", "kind": "told", "words": "The weeds tug you back down." },
       { "reader": "Marta", "kind": "told", "words": "A drop falls into the pool." }
     ] }
   ]

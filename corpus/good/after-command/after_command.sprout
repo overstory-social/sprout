@@ -9,7 +9,8 @@
 // own bodies fill drains after it. A refused command is followed too,
 // after its refusal: the grate east of the cellar refuses, and the cellar,
 // which reads the way a refused `go` tried, rattles it; and the pool,
-// whose weeds let nobody leave, still drips after the attempt. And what
+// whose weeds let nobody leave, drips after the attempt and reads the
+// way it tried. And what
 // is not carried, or is shut in a tin they carry, follows nobody.
 import * as sprout from 'sprout'
 import {Person, :slide} from 'person'
@@ -69,6 +70,7 @@ world after_command is sprout.World {
     release (item, to) { refuse "Weeds wind round your legs and hold you in the pool." }
     after command {
       tell actor "Water drips from the roof."
+      if (bound way) { tell actor "The weeds tug you back down." }
       send self :drip
     }
   }
