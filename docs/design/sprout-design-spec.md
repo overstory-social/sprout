@@ -996,7 +996,7 @@ kind Frozen is sprout.Actor {
 }
 ```
 
-A verb nothing declares is refused after `except`, and so is a verb named twice, and one the wildcard never plays for, as `look`, which has no target, after `as target for any`; `except` after a verb named, `as target for take except drop`, is refused, since that play runs for one verb already.
+A verb nothing declares is refused after `except`, and so is a verb named twice; `except` after a verb named, `as target for take except drop`, is refused, since that play runs for one verb already.
 
 ```sprout
 kind RequiresHeld {
