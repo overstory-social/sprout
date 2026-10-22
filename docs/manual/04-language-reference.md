@@ -2363,10 +2363,11 @@ rather than every time someone happens to look.
 
 Every roll comes from a seed recorded with each turn, so a world replays
 exactly. One line is rolled once, however many people read it, so
-everyone in the room sees the same outcome. (A script starts at seed 0,
-and `@seed` changes it; an interactive session draws each turn's seed
-from a stream begun at `--seed`, or the clock, and `@seed` begins it
-again.)
+everyone in the room sees the same outcome. (A script's first step rolls
+from seed 0 and each later step from the next seed of a stream begun
+there, and `@seed` sets the next step's seed and begins the stream again
+from it; an interactive session draws each turn's seed from a stream
+begun at `--seed`, or the clock, and `@seed` begins it again.)
 
 ---
 
@@ -3013,7 +3014,7 @@ so the place's `accept` is still asked.
 | `{ "leave": "Marta" }`                    | Marta leaves                                                    |
 | `{ "tick": true }`                        | every occupied place gets a tick                                |
 | `{ "advance": "40 minutes" }`             | time moves on; due wakes happen (`seconds`, `minutes`, `hours`) |
-| `{ "seed": 7 }`                           | the dice use seed 7 from now on                                 |
+| `{ "seed": 7 }`                           | the next step rolls from seed 7, the steps after it from 7's stream |
 | `{ "comment": "…" }`                      | a note, kept as written                                         |
 
 Any step but `seed` and `comment` may carry `expect`, the lines it should
@@ -3032,8 +3033,12 @@ make:
 
 `play` prints the script back with every step expecting everything it
 made, and `--write` saves that over the file, so a played script is its
-own golden. Time starts at 0 and the seed at 0. Wakes are delivered as
-time advances while someone is in the world; while nobody is, they wait
+own golden. Time starts at 0. The first step rolls from seed 0, and each
+step after it from the next seed of a stream begun there, as a live
+session's turns do, so a coin is fair from one step to the next. A `seed`
+step gives the step after it that seed and begins the stream again from
+it, so a step that wants one fixed seed sets it just before. Wakes are
+delivered as time advances while someone is in the world; while nobody is, they wait
 for the next arrival.
 
 Each place a tick reaches, and each wake an advance delivers, rolls from

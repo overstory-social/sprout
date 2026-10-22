@@ -76,10 +76,11 @@ describe('playScript', () => {
   });
 
   it('ticks each place a visitor stands in, and says so where a tick says nothing', () => {
-    expect(play('@arrive Marta\n@tick\nMarta> go in\n@tick\n')).toBe(
+    expect(play('@arrive Marta\n@seed 0\n@tick\nMarta> go in\n@tick\n')).toBe(
       [
         '@arrive Marta',
         '  Marta (described): A kiln yard.',
+        '@seed 0',
         '@tick',
         '  Marta (told): Smoke drifts.',
         'Marta> go in',
@@ -112,18 +113,24 @@ describe('playScript', () => {
     expect(page).toContain('Marta> fire kiln\n  Marta (said): The chamber takes the flame.\n');
   });
 
-  it('gives every turn after `@seed` that seed, and writes nothing for the line itself', () => {
+  it('gives the turn after `@seed` that seed and each later turn the next of its stream, writing nothing for the line', () => {
     const seeds = [0, 1, 2, 3, 4, 5, 6, 7];
-    // Each is `@seed n`, `@tick`, its line, `@tick`, its line.
+    // Each is `@seed n`, then four ticks, each with its line.
     const heard = seeds.map((seed) =>
-      play(`@arrive Marta\n@seed ${seed}\n@tick\n@tick\n`).split('\n').slice(2, 7),
+      play(`@arrive Marta\n@seed ${seed}\n@tick\n@tick\n@tick\n@tick\n`).split('\n').slice(2, 11),
     );
     for (const [seed, lines] of heard.entries()) {
       expect(lines.slice(0, 2)).toEqual([`@seed ${seed}`, '@tick']);
-      expect(lines[4], `seed ${seed}: each tick draws from the one seed`).toBe(lines[2]);
+      // The first tick after `@seed n` draws from n, as one with `@seed n` before it alone does.
+      expect(play(`@arrive Marta\n@seed ${seed}\n@tick\n`).split('\n')[4]).toBe(lines[2]);
     }
-    expect(new Set(heard.map((lines) => lines[2]))).toEqual(
+    const told = heard.flatMap((lines) => [lines[2], lines[4], lines[6], lines[8]]);
+    expect(new Set(told)).toEqual(
       new Set(['  Marta (told): Smoke drifts.', '  Marta (told): The air is still.']),
+    );
+    // Later ticks do not all repeat the first: the stream moves on.
+    expect(heard.some((lines) => new Set([lines[2], lines[4], lines[6], lines[8]]).size > 1)).toBe(
+      true,
     );
   });
 
