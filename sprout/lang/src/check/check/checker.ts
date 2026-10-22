@@ -19,6 +19,7 @@ import type { OnUnknownMessage } from '../../declare/handlers.js';
 import type { SpeechSetting } from '../speech.js';
 import type { Undrawn } from '../chance.js';
 import type { PinnedExtensions } from '../../declare/extensions.js';
+import type { DeclaredEnum } from '../../declare/enums.js';
 
 /** What a body is being read inside. */
 export interface CheckContext {
@@ -59,9 +60,11 @@ export interface MessageSetting {
   readonly onUnknown?: OnUnknownMessage;
 }
 
-/** The verbs an `act` may name (the spec's Verbs › Acting). */
+/** The verbs an `act` may name, and the options it may give a value role (the spec's Verbs › Acting). */
 export interface ActSetting {
   readonly verbs: VerbLookup & { all(): readonly ResolvedVerb[] };
+  /** The enums whose options a role-player's `from` hears for a role of a verb. */
+  readonly heard: (verb: ResolvedVerb, role: string) => readonly DeclaredEnum[];
 }
 
 /** A context that can type an expression it meets on the way, by the walk it was made with. */

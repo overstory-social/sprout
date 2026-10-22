@@ -1,0 +1,14 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world act_value_mismatch is sprout.World {
+  contains actors
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+verb pet    { role target  "pet [target]" }
+verb quiz   { role target  role topic: symbol  "quiz [target] about [topic]" }
+verb dial   { role target  role number: integer  "dial [number] on [target]" }

@@ -1,0 +1,22 @@
+// The wizard answers a provocation with spells and chimes, each named as
+// he casts it: an option written bare, a binding that holds one, and
+// counts worked out where he stands.
+import * as sprout from 'sprout'
+import {Spell, provoke, enchant, chime} from 'act_values'
+
+kind Wizard is sprout.Actor {
+  :rings 1 min 0 max 9
+  :dreaded Spell default fear
+
+  as target for provoke {
+    do {
+      say "The wizard scowls, and raises his staff."
+      act enchant (target: actor, spell: :feeble)
+      act enchant (target: actor, spell: :float)
+      let worst = self.get(:dreaded)
+      act enchant (target: actor, spell: worst)
+      act chime (target: actor, count: self.get(:rings) + 1)
+      act chime (target: actor, count: 7)
+    }
+  }
+}

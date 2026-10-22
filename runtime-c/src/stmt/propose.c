@@ -3,7 +3,8 @@
  * a proposal that the engine move a thing into a container through consent,
  * with the object whose body runs it as the mover; a refusal is said to
  * whoever the body speaks to, and ends the body. An `act` is a reading with
- * `self` as the actor and each named role filled, run on the spot through
+ * `self` as the actor and each named role filled, by a name or by a value
+ * worked out where the `act` stands, run on the spot through
  * the reading pass; a refused one ends the body, as a refused `move` does,
  * and so does one that destroyed the actor.
  */
@@ -33,8 +34,13 @@ sprout_eval_status stmt_act(sprout_run *run, const sprout_frame *frame, const sp
   filled = (sprout_pending_role *)sprout_arena_take(frame->turn, (count + 1) * sizeof *filled);
   if (filled == NULL) return SPROUT_EVAL_NO_MEMORY;
   for (i = 0; i < count; i++) {
-    filled[i].role = sprout_node_name(frame->graph, sprout_item(frame->graph, roles, i), "role");
-    EXPR_NEED(stmt_evaluated_at(frame, sprout_node_get(frame->graph, sprout_item(frame->graph, roles, i), "filler"), &filled[i].filler));
+    const sprout_node *role = sprout_item(frame->graph, roles, i);
+    filled[i].role = sprout_node_name(frame->graph, role, "role");
+    /* A role filled by a value works it out here; one filled by a name reaches what it names. */
+    if (sprout_node_is(frame->graph, sprout_node_get(frame->graph, role, "kind"), "act-value"))
+      EXPR_NEED(sprout_eval(frame, sprout_node_get(frame->graph, role, "value"), &filled[i].filler));
+    else
+      EXPR_NEED(stmt_evaluated_at(frame, sprout_node_get(frame->graph, role, "filler"), &filled[i].filler));
   }
   EXPR_NEED(run->x->reading(run->x, frame, frame->self, sprout_node_name(frame->graph, statement, "verb"), count, filled, &end));
   switch (end) {

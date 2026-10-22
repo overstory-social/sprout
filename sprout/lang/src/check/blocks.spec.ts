@@ -67,7 +67,10 @@ function check(statements: string, kind: BodyKind) {
     },
     context.diagnostics,
   );
-  const acting = { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } };
+  const acting = {
+    verbs: { qualified: () => null, unqualified: () => null, all: () => [] },
+    heard: () => [],
+  };
   checkBlock(blockOf(statements), { ...context, acting }, kind);
   return context.diagnostics.refusals.map((d) => [locationOf(d.at), d.message]);
 }
@@ -83,7 +86,10 @@ describe('an `if` over a name in a kind’s body', () => {
     const context = {
       ...bodyOf(VESSEL),
       names: { source, vantage: inKind(source, 'shop.Lantern'), world: null, table: new Map() },
-      acting: { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } },
+      acting: {
+        verbs: { qualified: () => null, unqualified: () => null, all: () => [] },
+        heard: () => [],
+      },
     };
     checkBlock(blockOf(statements), context, PERMIT);
     return context.diagnostics.refusals.map((d) => d.message);
@@ -210,7 +216,10 @@ describe('a statement after `allow` or `refuse` never runs', () => {
   /** What checking `statements` as `kind` warned about. */
   function warned(statements: string, kind: BodyKind) {
     const context = bodyOf(VESSEL);
-    const acting = { verbs: { qualified: () => null, unqualified: () => null, all: () => [] } };
+    const acting = {
+      verbs: { qualified: () => null, unqualified: () => null, all: () => [] },
+      heard: () => [],
+    };
     checkBlock(blockOf(statements), { ...context, acting }, kind);
     expect(context.diagnostics.refusals.map((d) => d.message)).toEqual([]);
     return context.diagnostics.warnings.map((d) => [locationOf(d.at), d.message, d.remedy]);
