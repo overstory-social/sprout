@@ -18,9 +18,9 @@
 
 /* What rendering prose gives, in order: words, or a break. */
 typedef enum prose_piece_kind {
-  PROSE_WORDS,     /* as an author wrote them, or a string, option or number a slot put in */
-  PROSE_NAME,      /* what an object slot renders: the engine's own words, capitalised where they open a line */
-  PROSE_VERBATIM,  /* a `{verbatim}` block's words, laid out exactly as written */
+  PROSE_WORDS,     /* as an author wrote them, or a number a slot put in */
+  PROSE_NAME,      /* what an object or option slot renders: the engine's own words, capitalised where they open a line */
+  PROSE_VERBATIM,  /* a `{verbatim}` block's words, or a string a slot put in, laid out exactly as written */
   PROSE_PARAGRAPH, /* a blank line */
   PROSE_LINE       /* `\n`, which reflow keeps */
 } prose_piece_kind;
@@ -49,8 +49,9 @@ bool prose_put(sprout_arena *arena, prose_pieces *pieces, prose_piece_kind kind,
  * The paragraphs `rendered` lays out to (the spec's Prose > Passages, Slots, Verbatim): every run
  * of white space is one space and a paragraph has none at its ends, a blank line is a paragraph
  * break and a paragraph left with nothing is none, and `\n` is kept. The case of words is kept;
- * only a name that opens a line has its first letter capitalised, past an opening quotation mark
- * but not past a bracket. A verbatim block keeps every space and break it holds. White space is
+ * only a name or an option word that opens a line has its first letter capitalised, past an
+ * opening quotation mark but not past a bracket. A verbatim block, and a string a slot puts in,
+ * keeps every space and break it holds. White space is
  * what JavaScript's `\s` is, and a letter or a number what `\p{L}` and `\p{N}` are.
  */
 bool prose_reflow(sprout_arena *arena, const prose_pieces *rendered, prose_paragraphs *out);

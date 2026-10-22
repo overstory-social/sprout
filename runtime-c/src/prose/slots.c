@@ -1,7 +1,8 @@
 /*
  * Prose, rendered for one reader (the spec's Prose > Passages, Slots, Verbatim, Conditionals and
- * loops, Bounds). A slot renders an object as the reader reads it, as a name reflow may
- * capitalise, an option humanised, a number in digits and a string as written; another object's passage runs with that object as its own
+ * loops, Bounds). A slot renders an object as the reader reads it and an option humanised, each
+ * as words reflow may capitalise, a number in digits and a string as written, its spaces and line
+ * breaks kept; another object's passage runs with that object as its own
  * `self` and only `actor`, `here` and `seen` beside it, one passage deeper against the host's
  * bound. `{if}` renders the first branch whose condition holds, and `{for}` its body once for
  * each thing or element it walks, in order, with `$first`, `$last`, `$index` (counting from 1)
@@ -136,10 +137,12 @@ static sprout_eval_status slot(const prose_reading *reading, const sprout_node *
       return put_words(reading, out, PROSE_WORDS, words.bytes, length);
     case SPROUT_STRING:
       words = (sprout_str){value.value.as.string.bytes, value.value.as.string.length};
-      if (sprout_world_option_slot(frame->world, piece) &&
-          !sprout_humanised(frame->turn, words, &words))
-        return SPROUT_EVAL_NO_MEMORY;
-      return put_words(reading, out, PROSE_WORDS, words.bytes, words.length);
+      /* An option's words are the engine's, made from its name; a string is put in as written. */
+      if (sprout_world_option_slot(frame->world, piece)) {
+        if (!sprout_humanised(frame->turn, words, &words)) return SPROUT_EVAL_NO_MEMORY;
+        return put_words(reading, out, PROSE_NAME, words.bytes, words.length);
+      }
+      return put_words(reading, out, PROSE_VERBATIM, words.bytes, words.length);
   }
   return SPROUT_EVAL_OK;
 }

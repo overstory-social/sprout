@@ -96,7 +96,7 @@
             "from": "bench.yard.press",
             "to": "bench#1",
             "visit": "visit-1",
-            "paragraphs": ["bone dry, 3 sheets, labelled the_albion."]
+            "paragraphs": ["Bone dry, 3 sheets, labelled the_albion."]
           }
         ],
         "cut": []
@@ -2016,6 +2016,55 @@
             "to": "bench#3",
             "visit": "visit-2",
             "paragraphs": ["A tabby cat says \"Prrrr\""]
+          }
+        ],
+        "cut": []
+      }
+    },
+    {
+      "name": "an NPC’s line keeps a verbatim block’s shape inside its quotation",
+      "area": "readers",
+      "state": "yard",
+      "seed": 3,
+      "skip": 0,
+      "actor": "bench#1",
+      "limits": {
+        "steps": 50000,
+        "output": 8000,
+        "passageDepth": 8
+      },
+      "renames": {},
+      "lines": [
+        {
+          "effect": "said",
+          "to": ["bench#1", "bench#3"],
+          "by": "bench.yard.cat",
+          "speaker": "bench.yard.cat",
+          "said": {
+            "passage": {
+              "origin": "bench.Cat",
+              "name": "carved"
+            }
+          },
+          "bindings": {}
+        }
+      ],
+      "expect": {
+        "steps": 4,
+        "effects": [
+          {
+            "kind": "said",
+            "from": "bench.yard.cat",
+            "to": "bench#1",
+            "visit": "visit-1",
+            "paragraphs": ["A tabby cat says \"  A   B\nC\""]
+          },
+          {
+            "kind": "said",
+            "from": "bench.yard.cat",
+            "to": "bench#3",
+            "visit": "visit-2",
+            "paragraphs": ["A tabby cat says \"  A   B\nC\""]
           }
         ],
         "cut": []

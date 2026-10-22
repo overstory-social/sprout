@@ -86,6 +86,13 @@ describe('prose is cut into words, breaks and tags', () => {
     expect(verbatimText(scanned)).toEqual(['  W   E\n\nend']);
   });
 
+  it('reads a `\\r\\n` line break as one, leaving no `\\r` in the block', () => {
+    const { scanned } = scan(
+      'Above.\r\n  {verbatim}\r\n  W   E\r\n    L\r\n  {/verbatim}\r\nBelow.',
+    );
+    expect(verbatimText(scanned)).toEqual(['W   E\n  L']);
+  });
+
   it('keeps a first line written on the opening tag’s own line whole', () => {
     const { scanned } = scan('  {verbatim}   one\n    two{/verbatim}');
     expect(verbatimText(scanned)).toEqual(['   one\n  two']);

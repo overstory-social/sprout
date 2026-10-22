@@ -171,7 +171,8 @@ function verbatimBlock(
   const stop = close === -1 ? end : close;
   const after = close === -1 ? end : close + VERBATIM_CLOSE.exec(text.slice(close, end))![0].length;
 
-  let raw = text.slice(from, stop);
+  // A line break is `\n` or `\r\n`, as the rest of the scan reads one.
+  let raw = text.slice(from, stop).replace(/\r\n/g, '\n');
   const firstBreak = raw.indexOf('\n');
   const openedAlone = firstBreak !== -1 && raw.slice(0, firstBreak).trim() === '';
   if (openedAlone) raw = raw.slice(firstBreak + 1);

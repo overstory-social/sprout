@@ -1893,7 +1893,8 @@ passage greeting {
 - Lines are joined into paragraphs; a blank line starts a new one. A
   block that renders nothing leaves no empty paragraph.
 - Words keep the case you write them in. Only an object slot, such as
-  `{actor}` or `{thing}`, is capitalised where it opens a line, so
+  `{actor}` or `{thing}`, or an option slot, is capitalised where it
+  opens a line, so
   `{actor} arrives.` reads "Marta arrives." and `{thing} is here.` reads
   "A brass key is here.".
 - Text with a shape of its own, verse or a sign, goes between

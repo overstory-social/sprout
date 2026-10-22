@@ -183,7 +183,7 @@ export function statementsSection(): string {
       'what compiling each example in each body said. None may stand where it is marked —.',
     table(['statement', 'what it does', ...BODIES.map((body) => body.name)], rows),
     'Words are printed in the case they are written in: only a slot that names a thing, ' +
-      'such as `{actor}`, is capitalised where it opens a line. Reflow makes every run of spaces ' +
+      'such as `{actor}`, or an option, is capitalised where it opens a line. Reflow makes every run of spaces ' +
       'one; text with a shape of its own, verse or a sign, goes between `{verbatim}` and ' +
       '`{/verbatim}`, which keeps every space and line break, holds no slots, and should keep ' +
       'its lines to 40 characters so the narrowest screen need not wrap them.',

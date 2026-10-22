@@ -2,9 +2,10 @@
  * Rendered words, laid out (the spec's Prose > Passages, Slots, Verbatim). Lines in source are
  * reflowed: every run of spaces and line breaks is one space, and a paragraph has none at its
  * ends. A blank line is a paragraph break, and a paragraph left with nothing in it is no
- * paragraph. Words keep the case they were written in; only a name an object slot renders, where
- * it opens a line, has its first letter capitalised, past an opening quotation mark but not past
- * a bracket. A verbatim block keeps every space and line break it holds. A passage put into a
+ * paragraph. Words keep the case they were written in; only a name or an option word a slot
+ * renders, where it opens a line, has its first letter capitalised, past an opening quotation mark
+ * but not past a bracket. A verbatim block, and a string a slot puts in, keeps every space and
+ * line break it holds. A passage put into a
  * slot loses the padding inside its braces and keeps a paragraph break it opens or closes with
  * only where it renders words.
  *
