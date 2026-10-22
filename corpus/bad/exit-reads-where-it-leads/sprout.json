@@ -1,0 +1,16 @@
+{
+  "name": "exit_reads_where_it_leads",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "288fb32a046731445e67b4f5794e445fc3bb1de81d98420b9ab26e2f5cb22e41"
+    }
+  ],
+  "files": ["exit_reads_where_it_leads.sprout"]
+}

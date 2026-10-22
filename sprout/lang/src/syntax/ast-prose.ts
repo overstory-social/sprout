@@ -49,6 +49,16 @@ export interface ProseSlot extends Node {
 }
 
 /**
+ * `{exit east}` — the place the exit that applies in that direction leads
+ * to, as its own `describe` shows it (the spec's Prose › Slots). The
+ * direction is the word as written.
+ */
+export interface ProseExit extends Node {
+  readonly kind: 'prose-exit';
+  readonly direction: Ident;
+}
+
+/**
  * `{if c}…{else if d}…{else}…{/if}` — a condition written without
  * parentheses, since the braces already delimit. An `{else if}` is the
  * `{if}` in `otherwise`, as a statement's is.
@@ -92,6 +102,7 @@ export type ProsePiece =
   | ProseNewline
   | ProseVerbatim
   | ProseSlot
+  | ProseExit
   | ProseIf
   | ProseFor
   | ProseOneOf;

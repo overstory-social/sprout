@@ -1,0 +1,28 @@
+import * as sprout from 'sprout'
+
+// An exit's `when` reads the place it leads to, and only the place itself:
+// not what it holds, and not the places a drawn way may be drawn to, since
+// a drawn way leads to none of them until it is taken.
+world exit_reads_where_it_leads is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place {
+    grammar {
+      exit north "north" -> yard when (yard.count(Person) == 0)
+      exit east "east" -> cellar when (!cellar.holds(cellar.barrel))
+      exit west "west" -> one of (yard, cellar) when (yard.get(:open))
+    }
+  }
+  object yard is sprout.Place {
+    :open true
+    grammar { exit south "south" -> hall }
+  }
+  object cellar is sprout.Place {
+    grammar { exit west "west" -> hall }
+    object barrel is Barrel
+  }
+}
+
+kind Person is sprout.Visitor { }
+kind Barrel { grammar { name "barrel" } }

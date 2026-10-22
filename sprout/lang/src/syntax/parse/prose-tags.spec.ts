@@ -27,6 +27,8 @@ function kindOf(read: Tag | null): string {
   switch (read.tag) {
     case 'slot':
       return `slot ${shape(read.expr)}`;
+    case 'exit':
+      return `exit ${read.direction.text}`;
     case 'if':
     case 'else-if':
       return `${read.tag} ${shape(read.condition)}`;
@@ -69,6 +71,23 @@ describe('a tag says what it is by its first word', () => {
     expect(kindOf(tag('{for thing in self}').read)).toBe('for thing in self');
     expect(kindOf(tag('{for pot: Vessel in self}').read)).toBe('for pot: Vessel in self');
     expect(kindOf(tag('{for key of self.get(:keys)}').read)).toBe('for key of self.get(:keys)');
+  });
+
+  it('reads `{exit …}` as the one word after it, where its span is the word’s', () => {
+    const { read, said } = tag('{exit  east }');
+    expect(said).toEqual([]);
+    expect(kindOf(read)).toBe('exit east');
+    if (read?.tag !== 'exit') return expect.unreachable('an exit was written');
+    expect(textOf(read.direction.at)).toBe('east');
+    expect(kindOf(tag('{exit sideways}').read)).toBe('exit sideways');
+  });
+
+  it('refuses `{exit}` with no direction, or more than one word', () => {
+    const remedy = 'Write the direction after `exit`, as in `{exit east}`.';
+    const message = '`{exit …}` names one direction, the way out whose place it shows.';
+    expect(tag('{exit}')).toEqual({ read: null, said: [['lines.prose:1:8', message, remedy]] });
+    expect(tag('{exit east west}').said).toEqual([['lines.prose:1:8', message, remedy]]);
+    expect(tag('{exit east.view}').read).toBeNull();
   });
 
   it('reads the closes, and the words of a choice', () => {

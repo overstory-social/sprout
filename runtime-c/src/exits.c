@@ -2,7 +2,8 @@
  * The exits and links that apply on a place (the spec's Verbs > Exits, An
  * exit may be conditional, Links). What does not apply, rather than
  * faulting: an unset link; a guard that reads through a name out of the
- * place's range, or to a declared object destroyed; and a destination that
+ * place's range, save the one place its exit leads to, or to a declared
+ * object destroyed; and a destination that
  * is absent, destroyed, gone or no longer a place; and a drawn way none of
  * whose places is one now. A guard only reads, and is charged to the turn's
  * steps as any reading is, so a guard too dear to ask faults as any work
@@ -38,9 +39,12 @@ bool sprout_reads_nothing(const sprout_frame *frame, sprout_eval_status status) 
          (strcmp(frame->fault->name, "NameOutOfRange") == 0 || strcmp(frame->fault->name, "DestroyedReference") == 0);
 }
 
-/* Whether an exit's `when` holds, asked of `place`; a read out of its range, or of a destroyed name, does not. */
+/*
+ * Whether an exit's `when` holds, asked of `place`, with `to` the one place it leads to, which the guard
+ * may read by name, or none; a read out of its range otherwise, or of a destroyed name, does not hold.
+ */
 static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, const sprout_node *exit,
-                                const sprout_node *line, bool *out) {
+                                const sprout_node *line, sprout_str to, bool *out) {
   const sprout_node *when = sprout_node_get(&frame->world->graph, line, "when");
   sprout_frame at = *frame;
   sprout_eval_status status;
@@ -49,6 +53,7 @@ static sprout_eval_status holds(const sprout_frame *frame, sprout_str place, con
   EXPR_NEED(sprout_origin_library(frame, sprout_node_text(&frame->world->graph, exit, "origin"), &at.library));
   at.self = place;
   at.bindings = NULL;
+  at.beyond = to;
   status = sprout_eval_condition(&at, when, out);
   if (sprout_reads_nothing(frame, status)) {
     *out = false;
@@ -170,7 +175,7 @@ static sprout_eval_status destination_of(const sprout_frame *frame, const sprout
     return SPROUT_EVAL_OK;
   }
   if (strcmp(kind, "exit") == 0) {
-    EXPR_NEED(holds(frame, place->id, exit, line, &applies));
+    EXPR_NEED(holds(frame, place->id, exit, line, *to, &applies));
     *found = applies;
   }
   return SPROUT_EVAL_OK;
@@ -218,7 +223,7 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
       /* A drawn way applies while its guard holds and one of its places is one, and its choice waits until it is taken. */
       choice *choices;
       size_t choice_count, places;
-      EXPR_NEED(holds(frame, place->id, exit, line, &applies));
+      EXPR_NEED(holds(frame, place->id, exit, line, (sprout_str){NULL, 0}, &applies));
       if (!applies) continue;
       EXPR_NEED(choices_now(frame, place, exit, &choices, &choice_count, &places));
       if (places == 0) continue;
@@ -229,7 +234,7 @@ static sprout_eval_status applying(const sprout_frame *frame, const sprout_store
       continue;
     }
     if (direction != NULL && leads_is(frame, leads, "grammar-refusal")) {
-      EXPR_NEED(holds(frame, place->id, exit, line, &applies));
+      EXPR_NEED(holds(frame, place->id, exit, line, (sprout_str){NULL, 0}, &applies));
       if (!applies) continue;
       seen[seen_count++] = direction;
       way.direction = direction;
