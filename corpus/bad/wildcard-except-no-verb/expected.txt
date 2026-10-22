@@ -1,0 +1,4 @@
+kinds.sprout:3:27  `except` names the verbs `as target for any` does not run for, separated by commas.
+                   Write `as target for any except examine, wait { … }`, naming verbs.
+
+refused: 1 problem

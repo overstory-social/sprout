@@ -4,7 +4,8 @@
  * role-player narrows its own options): the participants are the actor and
  * then each role's players in the verb's order, a set role's in the order
  * typed and none for a tool left out; the first `permit` to refuse is the
- * reading's whole outcome, a play of the target before one of its tool; and
+ * reading's whole outcome, a play of the target before one of its tool, and a
+ * wildcard's for none of the verbs its `except` names; and
  * the frame a play runs in binds `actor`, `here` and each other role as that
  * play sees it, a set role always, a value only among the options the play
  * hears, and the way `go` takes as a string, with a visitor actor's hands
@@ -113,6 +114,32 @@ static void a_reading_every_participant_consents_to_is_not_refused(void) {
   sprout_permit_refusal refusal;
   consent_open(&k, "every part plays: the target’s composed kinds, its tool, then the weights of a set role");
   CHECK_INT(sprout_consent_pass(&k.c.x, &k.c.frame, &k.reading, &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK(!refused);
+  consent_close(&k);
+}
+
+static void a_wildcard_asks_nothing_of_a_verb_its_except_names(void) {
+  consent_case k;
+  bool refused = true;
+  sprout_permit_refusal refusal;
+  sprout_resolved nod;
+  sprout_filled shelf;
+  /* The wobbly shelf refuses `prop` through its wildcard, and its wildcard leaves `nod` out. */
+  consent_open(&k, "the order across participants is unchanged: the target refuses before its tool");
+  CHECK_INT(sprout_consent_pass(&k.c.x, &k.c.frame, &k.reading, &refused, &refusal), SPROUT_EVAL_OK);
+  CHECK(refused);
+  CHECK(sprout_str_same(refusal.refusal.by, exec_str("bench.shop.shelf")));
+  CHECK_STR(refusal.refusal.origin, "bench.Shelf");
+  memset(&nod, 0, sizeof nod);
+  memset(&shelf, 0, sizeof shelf);
+  nod.verb = reading_verb(k.c.world, "bench.nod");
+  nod.actor = exec_str("bench#1");
+  shelf.filled = true;
+  shelf.bound.kind = SPROUT_BOUND_OBJECT;
+  shelf.bound.object = exec_str("bench.shop.shelf");
+  nod.roles = &shelf;
+  refused = true;
+  CHECK_INT(sprout_consent_pass(&k.c.x, &k.c.frame, &nod, &refused, &refusal), SPROUT_EVAL_OK);
   CHECK(!refused);
   consent_close(&k);
 }
@@ -276,6 +303,7 @@ int main(void) {
   RUN(an_actor_that_is_away_or_stands_where_none_stand_is_the_engines_defect);
   RUN(the_first_permit_to_refuse_is_the_readings_whole_outcome);
   RUN(a_reading_every_participant_consents_to_is_not_refused);
+  RUN(a_wildcard_asks_nothing_of_a_verb_its_except_names);
   RUN(a_plays_frame_binds_actor_here_and_each_other_role);
   RUN(a_value_is_bound_only_among_the_options_the_play_hears);
   RUN(a_permit_is_given_no_draws_and_a_do_is);

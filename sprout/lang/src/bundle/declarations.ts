@@ -219,13 +219,13 @@ function unknownKindGap(
 /** A verb a play names that nothing declares, as the absent table's `verb` row. */
 export function unknownVerbGap(report: DeclarationReport): OnUnknownVerb {
   const { consequence } = absenceRule('verb');
-  return (play, message, remedy) =>
+  return (written, message, remedy) =>
     report.gap(
       {
-        what: play.head.verb.text,
+        what: written.text,
         kind: 'verb',
         reason: 'missing',
-        at: play.head.verb.at,
+        at: written.at,
         consequence,
       },
       message,

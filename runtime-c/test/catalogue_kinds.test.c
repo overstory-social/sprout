@@ -2,7 +2,8 @@
  * Tests for src/catalogue_kinds.c: the kinds a cartridge declares, with their
  * properties' types and defaults, passages and plays, match the dump the
  * language's cartridge reader gives for every corpus world, and plays two kinds
- * hold alike are one array; the contents a kind's body gives are found by path.
+ * hold alike are one array; a wildcard's `except` is read by each verb's full
+ * identity; the contents a kind's body gives are found by path.
  */
 #include "corpus.h"
 
@@ -143,6 +144,46 @@ static void plays_two_kinds_hold_alike_are_one_record(void) {
   sprout_world_free(world);
 }
 
+/* The kind of `world` with this qualified name; the test aborts if there is none. */
+static const sprout_kind_def *kind_named(const sprout_world *world, const char *qualified) {
+  size_t i;
+  for (i = 0; i < world->kind_count; i++)
+    if (strcmp(world->kinds[i]->qualified, qualified) == 0) return world->kinds[i];
+  fprintf(stderr, "the world declares no kind `%s`\n", qualified);
+  exit(2);
+}
+
+/* The one play `kind` writes under `key`; the test aborts if it writes none there. */
+static const sprout_play *play_under(const sprout_kind_def *kind, const char *key) {
+  size_t g;
+  for (g = 0; g < kind->play_group_count; g++)
+    if (strcmp(kind->plays[g]->key, key) == 0) return &kind->plays[g]->plays[kind->plays[g]->count - 1];
+  fprintf(stderr, "`%s` writes nothing under `%s`\n", kind->qualified, key);
+  exit(2);
+}
+
+static void a_wildcards_except_is_read_by_each_verbs_library_and_name(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("wildcard-except", &host);
+  const sprout_play *illusion = play_under(kind_named(world, "wildcard_except.Illusion"), "as target for any");
+  const sprout_play *frozen = play_under(kind_named(world, "wildcard_except.Freezable"), "as actor for any");
+  const sprout_play *look = play_under(kind_named(world, "wildcard_except.Illusion"), "as target for sprout.examine");
+  CHECK(illusion->any);
+  CHECK_INT(illusion->except_count, 1);
+  CHECK_STR(illusion->except[0].library, "sprout");
+  CHECK_STR(illusion->except[0].name, "examine");
+  CHECK_INT(frozen->except_count, 2);
+  CHECK_STR(frozen->except[0].library, "sprout");
+  CHECK_STR(frozen->except[0].name, "wait");
+  CHECK_STR(frozen->except[1].library, "wildcard_except");
+  CHECK_STR(frozen->except[1].name, "thaw");
+  /* A play for one verb, and a wildcard that leaves nothing out, carry none. */
+  CHECK_INT(look->except_count, 0);
+  CHECK(look->except == NULL);
+  sprout_world_free(world);
+}
+
 static void a_property_two_kinds_list_is_one_record(void) {
   test_heap heap;
   sprout_host host = corpus_host(&heap);
@@ -237,6 +278,7 @@ static void the_contents_a_kind_gives_are_found_by_the_path_in_its_body(void) {
 int main(void) {
   RUN(every_kind_of_every_corpus_world_matches_the_dump);
   RUN(plays_two_kinds_hold_alike_are_one_record);
+  RUN(a_wildcards_except_is_read_by_each_verbs_library_and_name);
   RUN(a_property_two_kinds_list_is_one_record);
   RUN(a_property_is_found_by_name_with_its_type_range_and_options);
   RUN(the_world_and_visitor_kinds_are_never_spawnable);

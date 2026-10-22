@@ -64,6 +64,7 @@ export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameFi
   pass: { message: 'name' },
   passage: { name: 'name' },
   'phrase-slot': { role: 'name' },
+  play: { except: 'names' },
   property: { name: 'name' },
   'prose-for': { variable: 'name' },
   refuse: { said: 'name' },

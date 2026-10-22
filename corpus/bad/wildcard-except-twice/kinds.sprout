@@ -1,0 +1,6 @@
+import {examine} from 'sprout'
+
+// A wildcard names each verb it leaves out once.
+kind Mirage {
+  as target for any except examine, examine { permit { refuse "Your hand closes on nothing." } }
+}

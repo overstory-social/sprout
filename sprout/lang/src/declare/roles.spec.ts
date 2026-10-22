@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KindDeclaration, PlayDeclaration } from '../syntax/ast.js';
+import type { Ident, KindDeclaration } from '../syntax/ast.js';
 import type { VerbDeclaration } from '../syntax/ast-verbs.js';
 import { Diagnostics } from '../source/diagnostics.js';
 import { parseDeclarations } from '../syntax/parse.js';
@@ -15,6 +15,7 @@ import {
   playsOf,
   VerbNames,
   type ResolvedPlay,
+  type Wildcard,
 } from './roles.js';
 
 /** The standard library's part: a verb of its own, and one the world may declare over. */
@@ -64,10 +65,10 @@ function world(text: string, options: { onUnknownVerb?: boolean } = {}) {
     shop.filter((d) => d.kind === 'enum'),
     diagnostics,
   );
-  const unknown: PlayDeclaration[] = [];
+  const unknown: Ident[] = [];
   kinds.resolve('shop', enums, diagnostics, undefined, {
     verbs,
-    ...(options.onUnknownVerb === true ? { onUnknownVerb: (play) => unknown.push(play) } : {}),
+    ...(options.onUnknownVerb === true ? { onUnknownVerb: (verb) => unknown.push(verb) } : {}),
   });
   return {
     kinds,
@@ -156,7 +157,7 @@ kind Hand { as target for take { do { } } }`);
       onUnknownVerb: true,
     });
     expect(said).toEqual([]);
-    expect(unknown.map((play) => play.head.verb.text)).toEqual(['wibble']);
+    expect(unknown.map((verb) => verb.text)).toEqual(['wibble']);
     expect(kinds.qualified('shop', 'Warded')!.plays.size).toBe(0);
   });
 
@@ -325,8 +326,85 @@ kind Box is Lock { without as tool for unlock from Lock }`);
 });
 
 describe('a wildcard plays every verb at once, by the category of role it fills', () => {
-  const any = (kinds: KindTable, name: string, category: 'target' | 'tool') =>
-    anyPlaysOf(kinds.qualified('shop', name)!.plays, category).map((play) => play.origin);
+  const any = (kinds: KindTable, name: string, part: Wildcard) =>
+    anyPlaysOf(kinds.qualified('shop', name)!.plays, part).map((play) => play.origin);
+  const except = (kinds: KindTable, name: string, part: Wildcard) =>
+    anyPlaysOf(kinds.qualified('shop', name)!.plays, part).map((play) => play.except);
+
+  it('holds `as actor for any` under the actor’s own part, and `without` leaves it out', () => {
+    const { said, kinds } = world(`kind Frozen { as actor for any { permit { } } }
+kind Statue is Frozen { as actor for any { permit { } } }
+kind Thawed is Frozen { without as actor for any from Frozen }`);
+    expect(said).toEqual([]);
+    expect(any(kinds, 'Statue', 'actor')).toEqual(['shop.Frozen', 'shop.Statue']);
+    expect(any(kinds, 'Statue', 'target')).toEqual([]);
+    expect(any(kinds, 'Thawed', 'actor')).toEqual([]);
+  });
+
+  it('resolves `except` as a head resolves its verb: the composer’s own library first, then the standard library’s', () => {
+    const { said, kinds } = world(`verb take { role item  "grab [item]" }
+${UNLOCK}kind Ghost {
+  as target for any except take, look_at, unlock { permit { } }
+  as tool for any except unlock { permit { } }
+  as actor for any except look { permit { } }
+}
+kind Plain { as target for any { permit { } } }
+verb look_at { role target  "look at [target]" }`);
+    expect(said).toEqual([]);
+    expect(except(kinds, 'Ghost', 'target')).toEqual([
+      [
+        { library: 'shop', name: 'take' },
+        { library: 'shop', name: 'look_at' },
+        { library: 'shop', name: 'unlock' },
+      ],
+    ]);
+    expect(except(kinds, 'Ghost', 'tool')).toEqual([[{ library: 'shop', name: 'unlock' }]]);
+    expect(except(kinds, 'Ghost', 'actor')).toEqual([[{ library: 'sprout', name: 'look' }]]);
+    // A wildcard that leaves nothing out carries no list, so it reads as before.
+    expect(except(kinds, 'Plain', 'target')).toEqual([undefined]);
+  });
+
+  it('refuses an `except` naming a verb nothing declares, twice, or one the wildcard never plays', () => {
+    const { said, kinds } =
+      world(`${UNLOCK}kind Ghost { as target for any except unlokc { permit { } } }
+kind Twice { as tool for any except unlock, unlock { permit { } } }
+kind Idle { as target for any except look { permit { } } }
+kind Lone { as tool for any except take { permit { } } }`);
+    expect(said).toEqual([
+      [
+        'shop.sprout:3:39',
+        '`Ghost` leaves `unlokc` out of `as target for any`, and nothing declares that verb. Did you mean `unlock`?',
+        'Write `as target for any except unlock`, or declare `verb unlokc { … }`.',
+      ],
+      [
+        'shop.sprout:4:45',
+        '`as tool for any` leaves out `unlock` twice.',
+        'Name `unlock` once after `except`.',
+      ],
+      [
+        'shop.sprout:5:38',
+        '`look` has no roles, so `as target for any` never runs for it and has nothing to leave out.',
+        'Take `look` out of the `except` list.',
+      ],
+      [
+        'shop.sprout:6:36',
+        '`take` has no role but its target, so `as tool for any` never runs for it and has nothing to leave out.',
+        'Take `take` out of the `except` list.',
+      ],
+    ]);
+    // A refused `except` drops the wildcard, as any refused play is dropped.
+    expect(any(kinds, 'Ghost', 'target')).toEqual([]);
+  });
+
+  it('tells a load of an `except` verb nothing declares, and keeps the wildcard without it', () => {
+    const { said, unknown, kinds } = world(
+      `${UNLOCK}kind Ghost { as target for any except wibble, unlock { permit { } } }`,
+      { onUnknownVerb: true },
+    );
+    expect(said).toEqual([]);
+    expect(unknown.map((verb) => verb.text)).toEqual(['wibble']);
+    expect(except(kinds, 'Ghost', 'target')).toEqual([[{ library: 'shop', name: 'unlock' }]]);
+  });
 
   it('holds `as target for any` and `as tool for any` under their category, apart from any verb’s', () => {
     const { said, kinds, plays } = world(`${UNLOCK}kind Grip {
@@ -374,8 +452,8 @@ kind Idle is Busy { without as target for any from Busy }`);
       ],
       [
         'shop.sprout:5:17',
-        '`as item for any` names a role, and `for any` plays every verb at once, so it names what kind of role instead: `target` or `tool`.',
-        'Write `as target for any` for the thing a verb is done to, `as tool for any` for any other role, or name the verb: `as item for <verb>`.',
+        '`as item for any` names a role, and `for any` plays every verb at once, so it names what kind of role instead: `target`, `tool` or `actor`.',
+        'Write `as target for any` for the thing a verb is done to, `as tool for any` for any other role, `as actor for any` for whoever is acting, or name the verb: `as item for <verb>`.',
       ],
       [
         'shop.sprout:6:46',
