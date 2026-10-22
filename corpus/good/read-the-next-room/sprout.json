@@ -1,0 +1,16 @@
+{
+  "name": "read_the_next_room",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "70d802f8e66f2dba499b1022352cd575cd4d924017667c706884f6184e89a9e5"
+    }
+  ],
+  "files": ["read_the_next_room.sprout"]
+}

@@ -94,6 +94,25 @@ static bool any_fills(const parse_filled *const *fills, size_t count, parse_fill
   return false;
 }
 
+/*
+ * Whether the visitor's hands hold nothing they can see and `fill`, `all` that left nothing, is in a role whose things
+ * they carry: a carried role, or one the actor's own sure move takes away from them.
+ */
+static sprout_eval_status empty_handed_all(const trying *t, const parse_span *span, const parse_filled *fill, bool *out) {
+  const sprout_role *role;
+  size_t i;
+  *out = false;
+  if (t->phrase == NULL || !fill->all || (fill->fills != PARSE_FILLS_ALL && fill->fills != PARSE_FILLS_NOTHING))
+    return SPROUT_EVAL_OK;
+  if (fill->fills == PARSE_FILLS_NOTHING && (fill->start != 0 || fill->end != 1)) return SPROUT_EVAL_OK;
+  for (i = 0; i < t->all.fill.candidate_count; i++)
+    if (t->all.fill.candidates[i].carried) return SPROUT_EVAL_OK;
+  role = &t->phrase->verb->roles[span->role];
+  *out = role->carried;
+  if (!*out) EXPR_NEED(sprout_moves_its_filler_away(t->all.fill.nouns.frame, t->phrase->verb, role, t->all.actor, out));
+  return SPROUT_EVAL_OK;
+}
+
 /* The nouns of a placement that name nothing in reach, kept as the last place in the line one of them begins. */
 static void missing_in(parse_tried *out, const parse_span *spans, const parse_filled *const *fills, size_t count) {
   size_t i;
@@ -113,7 +132,7 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   const parse_filled **fills = t->fills;
   parse_placement placement;
   size_t i, at, several = 0;
-  bool nothing = false, named;
+  bool nothing = false, named, empty;
   EXPR_NEED(expr_spend(frame));
   for (i = 0; i < count; i++) EXPR_NEED(fill_of(t, &spans[i], &at));
   /* The memos may move as they grow, so each is found once they are all filled. */
@@ -141,6 +160,11 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   for (i = 0; i < count; i++)
     if (fills[i]->narrowed && fills[i]->fills == PARSE_FILLS_NOTHING && fills[i]->start == 0 && fills[i]->end == 1)
       out->narrowed_nothing = true;
+  for (i = 0; i < count && !out->empty_handed; i++)
+    if (fills[i]->fills == PARSE_FILLS_NOTHING) {
+      EXPR_NEED(empty_handed_all(t, &spans[i], fills[i], &empty));
+      out->empty_handed = empty;
+    }
   if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
     /* An object's synonym typed where the object is out of reach. */
     if (t->phrase != NULL && t->phrase->only != NULL) {
@@ -159,6 +183,10 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   EXPR_NEED(parse_placement_readings(t->x, frame, t->all.actor, &placement, t->keep, &out->readings, &nothing));
   out->not_here = out->not_here || nothing;
   for (i = 0; i < count && nothing; i++) out->narrowed_nothing = out->narrowed_nothing || fills[i]->narrowed;
+  for (i = 0; i < count && nothing && !out->empty_handed; i++) {
+    EXPR_NEED(empty_handed_all(t, &spans[i], fills[i], &empty));
+    out->empty_handed = empty;
+  }
   return SPROUT_EVAL_OK;
 }
 

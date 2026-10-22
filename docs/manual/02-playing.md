@@ -150,6 +150,9 @@ A few more things worth knowing:
 
 - **Articles are optional.** `take the brass key` and `take brass key` are
   the same. So are `my`, `this` and `that`.
+- **Quotation marks are optional too.** `say "well"` is `say well`, and
+  `answer "a well"` is `answer well`. An apostrophe inside a word, as in
+  `king's`, stays.
 - **You can use a short name.** "brass key" also answers to `key`, and to
   `brass` where nothing else is called brass. `the key in the box` names
   the one in the box.

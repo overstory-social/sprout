@@ -22,7 +22,7 @@ import {
   remembers,
 } from './receivers.js';
 import { elementOf, held, matches } from './values.js';
-import { otherPlaceWords } from '../names.js';
+import { otherPlaceWords, wayEndHoldingWords } from '../names.js';
 import { EFFECTS, effectCall } from './writes.js';
 
 /** Every reading this checker knows, for the message when a word is none of them. */
@@ -41,6 +41,11 @@ export function memberType(
       `Sprout does not know how to read \`${member.text}\`.`,
       `A reading is one of ${readable([...READINGS])}, and \`count\` is the only one written without brackets.`,
     );
+    return null;
+  }
+  const holding = wayEndHoldingWords(receiver, 'count', context);
+  if (holding !== null) {
+    context.diagnostics.refuse(receiver.at, holding.message, holding.remedy);
     return null;
   }
   return countable(type, member.at, context, receiver) ? valueOf(integer()) : null;
@@ -67,6 +72,13 @@ export function callType(
 
   if (method.text === 'get' || method.text === 'is') {
     const words = otherPlaceWords(receiver, method.text, context);
+    if (words !== null) {
+      context.diagnostics.refuse(receiver.at, words.message, words.remedy);
+      return null;
+    }
+  }
+  if (method.text === 'count' || method.text === 'holds') {
+    const words = wayEndHoldingWords(receiver, `${method.text}(…)`, context);
     if (words !== null) {
       context.diagnostics.refuse(receiver.at, words.message, words.remedy);
       return null;

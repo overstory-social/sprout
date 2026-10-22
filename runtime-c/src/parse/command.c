@@ -7,9 +7,10 @@
  * is: the ways out of the actor's place, then the words, then what the actor can reach, then each placement of each
  * phrase, a step, with what its slots' words fill their roles with and the readings they make (phrases.c). The best
  * reading is the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with
- * `cannot` or `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; else, where its first
- * words make a reading, understood as them, the words read restated through `understood`; naming nothing in reach,
- * with `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
+ * `cannot` or `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; `all` in a role whose
+ * things the visitor carries, with nothing in their hands, with `empty_handed`; else, where its first words make a
+ * reading, understood as them, the words read restated through `understood`; naming nothing in reach, with
+ * `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
  * handed on as words; `again` runs the last reading again; and a later turn of a line is read as it was handed, a
  * planned reading or an item of a run to read afresh (the spec's Parsing > Sequences, again and all).
  */
@@ -349,7 +350,8 @@ static const char *joined(sprout_arena *arena, parse_words words) {
 }
 
 /*
- * The world's answer to a line no reading reads: `not_here` where `all` narrowed by a noun or a holder leaves
+ * The world's answer to a line no reading reads: `empty_handed` where `all` in a role whose things the visitor
+ * carries leaves nothing and their hands are empty; else `not_here` where `all` narrowed by a noun or a holder leaves
  * nothing; else the partial reading chosen, a tie drawn, as `cannot` or `not_carrying`; else the first way out named
  * that does not go, `no_way` or the exit's own words; else the reading its first words make, the words left over
  * dropped and the words read restated; else `not_here` where a noun names nothing in reach, and `unknown` otherwise.
@@ -359,6 +361,8 @@ static sprout_status unread(reader *r, const parse_line *line, const parse_tried
   parse_tried first;
   bool read;
   sprout_eval_status status;
+  /* A line read whole whose `all` found nothing because the hands are empty is told so, before anything else. */
+  if (t->empty_handed) return answer(r, "empty_handed", NULL);
   /* A line read whole, `all` narrowed to what is in reach, is owed `not_here` rather than another phrase's part. */
   if (t->narrowed_nothing) return answer(r, "not_here", NULL);
   if (t->partials.count > 0) {
@@ -506,6 +510,7 @@ static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, 
   parse_words typed;
   sprout_eval_status status;
   if (typed_words(&r->run->scratch, parse_without_question(line), &words, &count) != SPROUT_OK) return SPROUT_NO_MEMORY;
+  count = parse_without_quotes(words, count);
   if (count == 0) return answer(r, "unknown", NULL);
   status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
   if (status != SPROUT_EVAL_OK) return stopped(r, status);

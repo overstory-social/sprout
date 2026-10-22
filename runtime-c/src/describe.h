@@ -45,4 +45,12 @@ typedef struct sprout_description {
 sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, sprout_str actor, const char *seen,
                                    sprout_description *out);
 
+/*
+ * What `place`'s describe gives where an `{exit …}` in another place's words shows it (the spec's Prose >
+ * Slots): its lines, run with `place` its own `self` and `bindings` beside it, the looker's `actor`, `here`
+ * and `seen`. Its `lit` is not asked, and a place that writes no describe gives no lines.
+ */
+sprout_eval_status sprout_describe_beyond(const sprout_frame *frame, sprout_str place, const sprout_binding *bindings,
+                                          sprout_description *out);
+
 #endif

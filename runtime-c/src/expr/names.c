@@ -281,6 +281,9 @@ sprout_eval_status expr_reached_by_name(const sprout_frame *frame, const sprout_
   bool found, in_range = false;
   EXPR_NEED(object_named(frame, named, false, &target, &found));
   if (found && expr_live(frame, target)) EXPR_NEED(expr_reaches(frame, frame->self, target, NULL, &in_range));
+  /* An exit's `when` reaches the place its exit leads to by name (the spec's An exit may be conditional). */
+  if (found && !in_range && frame->beyond.bytes != NULL && sprout_str_same(target, frame->beyond) && expr_live(frame, target))
+    in_range = true;
   if (!found || !in_range) return expr_name_out_of_range(frame, written, found, target);
   *out = target;
   return SPROUT_EVAL_OK;

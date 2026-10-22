@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "532ee3631bbff5bb41462d66a35c63107bc81357e3f0718833f16119e69186ef"
+      "sha": "70d802f8e66f2dba499b1022352cd575cd4d924017667c706884f6184e89a9e5"
     }
   ],
   "files": ["prose_if_unclosed.sprout", "person.sprout", "mirror.sprout"]

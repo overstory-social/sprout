@@ -1,7 +1,8 @@
 /*
  * Tests for src/expr/members.c: `x.count` on a container, a set and a list,
  * and each reading on a receiver already evaluated, with the steps naming a
- * property or a kind costs.
+ * property or a kind costs. What the place an exit's `when` reaches past
+ * range holds stays out of range, so `count` and `holds` through it fault.
  */
 #include "eval_fixture.h"
 #include "expr/expr.h"
@@ -159,6 +160,28 @@ static void sees_asks_what_a_thing_sees_for_a_kind_with_a_property_true(void) {
   bench_close(&b);
 }
 
+static void what_a_place_reached_past_range_holds_stays_out_of_range(void) {
+  bench b;
+  bench_turn t;
+  sprout_evaluated out, dim = object("eval_bench.dim"), hall = object("eval_bench.hall");
+  bench_open(&b);
+  bench_turn_for(&b, &t, "count(K) is those of a kind");
+  t.frame.beyond = bench_id("eval_bench.dim");
+  CHECK_INT(expr_member(&t.frame, bench_expr(&b, "a list counts its elements"), &dim, &out), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.name, "NameOutOfRange");
+  CHECK_STR(t.fault.text,
+            "What `eval_bench.dim` holds is out of range of `eval_bench.hall.probe`: an exit's `when` reads the place it "
+            "leads to, not what is in it.");
+  CHECK_INT(expr_reading(&t.frame, bench_expr(&b, "count(K) is those of a kind"), &dim, &out), SPROUT_EVAL_FAULT);
+  CHECK_INT(expr_reading(&t.frame, bench_expr(&b, "holds asks of a thing held elsewhere"), &dim, &out), SPROUT_EVAL_FAULT);
+  /* A place in range is counted as ever, though it is the one reached. */
+  t.frame.beyond = bench_id("eval_bench.hall");
+  CHECK_INT(expr_member(&t.frame, bench_expr(&b, "a list counts its elements"), &hall, &out), SPROUT_EVAL_OK);
+  CHECK(number_of(&out) == 4);
+  bench_turn_close(&t);
+  bench_close(&b);
+}
+
 int main(void) {
   RUN(count_is_what_a_container_holds_in_range_a_sets_members_or_a_lists_elements);
   RUN(get_reads_a_property_and_naming_it_costs_a_step);
@@ -168,5 +191,6 @@ int main(void) {
   RUN(holds_asks_the_container_of_a_thing_in_range);
   RUN(includes_looks_for_an_element_in_a_list_or_a_set);
   RUN(sees_asks_what_a_thing_sees_for_a_kind_with_a_property_true);
+  RUN(what_a_place_reached_past_range_holds_stays_out_of_range);
   return REPORT();
 }

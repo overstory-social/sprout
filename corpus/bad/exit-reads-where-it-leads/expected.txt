@@ -1,0 +1,10 @@
+exit_reads_where_it_leads.sprout:12:40  `yard` is where this exit leads, and its `when` reads that place itself, not what is in it, so `yard.count(…)` cannot be asked here.
+                                        Read a property `yard` keeps, as in `yard.get(:…)`, and have `yard` set it when what it holds changes.
+
+exit_reads_where_it_leads.sprout:13:41  `cellar` is where this exit leads, and its `when` reads that place itself, not what is in it, so `cellar.holds(…)` cannot be asked here.
+                                        Read a property `cellar` keeps, as in `cellar.get(:…)`, and have `cellar` set it when what it holds changes.
+
+exit_reads_where_it_leads.sprout:14:55  `yard` is one of the places this way is drawn to, and a drawn way leads to none of them until it is taken, so its `when` cannot read `yard`: the world lets nothing pass between its places.
+                                        Write the way to `yard` as an exit of its own, whose `when` may read where it leads, or keep the fact on `hall` or on the world, as `exit_reads_where_it_leads.get(:…)`, which every place can read.
+
+refused: 3 problems

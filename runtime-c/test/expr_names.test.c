@@ -3,7 +3,8 @@
  * world, a declared object by its path, what is nearest by what each
  * container holds), that a name is read only if it is in range, that a
  * declared object destroyed is gone for good, and that narrowing a name
- * binds it to what it reached.
+ * binds it to what it reached. An exit's `when` reaches the one place its
+ * exit leads to past range.
  */
 #include "eval_fixture.h"
 #include "expr/expr.h"
@@ -76,6 +77,25 @@ static void a_name_behind_a_closed_container_is_out_of_range(void) {
   CHECK_STR(t.fault.text,
             "`eval_bench.hall.vault.coin` is out of range of `eval_bench.hall.probe`, so it could not be read through "
             "`vault.coin`.");
+  bench_turn_close(&t);
+  bench_close(&b);
+}
+
+static void the_place_an_exit_leads_to_is_reached_past_range_by_its_when(void) {
+  bench b;
+  bench_turn t;
+  sprout_str reached;
+  const sprout_node *path;
+  bench_open(&b);
+  bench_turn_for(&b, &t, "a name behind a closed container");
+  path = sprout_node_get(&b.world->graph, bench_expr(&b, "a name behind a closed container"), "receiver");
+  t.frame.beyond = bench_id("eval_bench.hall.vault.coin");
+  CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, path), "vault.coin", &reached), SPROUT_EVAL_OK);
+  CHECK_BYTES(reached.bytes, reached.length, "eval_bench.hall.vault.coin");
+  /* Only the one place: another reached past range is out of range still. */
+  t.frame.beyond = bench_id("eval_bench.dim");
+  CHECK_INT(expr_reached_by_name(&t.frame, named_by(&b, path), "vault.coin", &reached), SPROUT_EVAL_FAULT);
+  CHECK_STR(t.fault.name, "NameOutOfRange");
   bench_turn_close(&t);
   bench_close(&b);
 }
@@ -168,6 +188,7 @@ int main(void) {
   RUN(a_declared_object_is_reached_by_its_path);
   RUN(the_nearest_thing_called_that_is_reached_by_what_each_container_holds);
   RUN(a_name_behind_a_closed_container_is_out_of_range);
+  RUN(the_place_an_exit_leads_to_is_reached_past_range_by_its_when);
   RUN(a_name_that_reaches_nothing_says_so);
   RUN(a_declared_object_destroyed_is_gone_for_good);
   RUN(narrowing_a_name_binds_it_to_what_it_reached);

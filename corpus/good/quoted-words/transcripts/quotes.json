@@ -1,0 +1,50 @@
+{
+  "about": "Quotation marks that open or close a typed word are dropped before the line is read, straight or curly, single or double, paired or not, and the article inside them after: `answer \"a well\" to door` is `answer well to door`. An apostrophe inside a word is kept, so `king's` names the crown and `don't` is no answer; a line of quotation marks alone is `unknown`.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the vault." }
+    ] },
+    { "as": "Marta", "type": "answer well to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer \"well\" to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer \"a well\" to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "say “well” to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer 'well' to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer ‘a well’ to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer \"well to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer well\" to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door grinds open." }
+    ] },
+    { "as": "Marta", "type": "answer don't to door", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The door laughs, hollow and long." }
+    ] },
+    { "as": "Marta", "type": "touch \"door\"", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The stone is cold." }
+    ] },
+    { "as": "Marta", "type": "touch \"the stone door\"", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The stone is cold." }
+    ] },
+    { "as": "Marta", "type": "touch king's crown", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The crown is heavy with gold." }
+    ] },
+    { "as": "Marta", "type": "touch 'king's crown'", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "The crown is heavy with gold." }
+    ] },
+    { "as": "Marta", "type": "\" \"", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+    ] }
+  ]
+}

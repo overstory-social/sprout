@@ -1,5 +1,5 @@
 {
-  "about": "A line a verb's phrase reads whose noun names nothing in reach is `not_here`, whether a word of it names nothing in the world or names something elsewhere, unless the line's first words name something in reach, when the rest is dropped and they are read; a line no phrase reads is `unknown`, whatever its nouns.",
+  "about": "A line a verb's phrase reads whose noun names nothing in reach is `not_here`, whether a word of it names nothing in the world or names something elsewhere, unless the line's first words name something in reach, when the rest is dropped and they are read; a line no phrase reads is `unknown`, whatever its nouns; `drop everything` with empty hands is `empty_handed`.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the hall." }
@@ -28,7 +28,7 @@
       { "reader": "Marta", "kind": "said", "words": "You put a ball down." }
     ] },
     { "as": "Marta", "type": "drop everything", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+      { "reader": "Marta", "kind": "notice", "words": "You aren't carrying anything." }
     ] },
     { "as": "Marta", "type": "xyzzy jewels", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }

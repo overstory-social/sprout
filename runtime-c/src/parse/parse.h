@@ -53,6 +53,11 @@ bool parse_is_determiner(sprout_str word);
 bool parse_is_connector(sprout_str word);
 /* `all`, or `everything` for it. */
 bool parse_is_all(sprout_str word);
+/*
+ * `words` with every quotation mark that opens or closes a word dropped, paired or not, and each word left empty
+ * dropped; how many are left, in place (the spec's Parsing > Matching a line). A mark inside a word is kept.
+ */
+size_t parse_without_quotes(sprout_str *words, size_t count);
 /* `through`, `into`, `down` or `up`, a word that may stand between a direction and a way's label: `south through the crawlway`. */
 bool parse_is_way_word(sprout_str word);
 /*
@@ -255,6 +260,7 @@ typedef struct parse_filled {
   parse_fills fills;
   size_t start, end;           /* NOTHING */
   bool narrowed;               /* `all` narrowed by a noun or by what holds the things, NOTHING where none qualifies */
+  bool all;                    /* the slot's words are `all`, alone, narrowed or with `except` */
   size_t thing_count;          /* OPTIONS of a thing role, UNFIT, RUN's first item, OUTWARD, ALL */
   const parse_named *things;
   size_t set_count;            /* OPTIONS of a set role */
@@ -506,6 +512,7 @@ typedef struct parse_tried {
   parse_filled going;      /* the first: an exit that refuses, or a direction none answers */
   bool not_here;           /* a placement's noun names nothing in reach, or `all` leaves nothing */
   bool narrowed_nothing;   /* every slot of a placement read, and `all` narrowed by a noun or a holder leaves nothing */
+  bool empty_handed;       /* every slot of a placement read, and `all` in a role whose things the visitor carries leaves nothing, their hands empty */
   bool missing;            /* a placement answered with `not_here` holds a noun that names nothing in reach */
   size_t missing_from;     /* where in the words the last such noun begins */
 } parse_tried;
