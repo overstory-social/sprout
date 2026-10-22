@@ -12,7 +12,8 @@
  * direction a refused `go` tried, unbound for any other command. What a body says reaches the person and what it tells
  * leaves them out, as a `do`'s does. A thing gone before its turn runs
  * nothing. Each thing whose bodies run is one event; nothing is walked in a
- * world whose kinds write none.
+ * world none of whose kinds writes one, an object's own and the world's
+ * among them.
  */
 #include <string.h>
 
@@ -36,13 +37,6 @@ static sprout_eval_status push(sprout_arena *turn, ids *list, sprout_str id) {
 static const sprout_node *bodies_of(const sprout_world *world, const sprout_kind_def *kind) {
   const sprout_node *list = sprout_node_get(&world->graph, kind->node, "afterCommand");
   return list == NULL || list->count == 0 ? NULL : list;
-}
-
-static bool any_follows(const sprout_world *world) {
-  size_t i;
-  for (i = 0; i < world->kind_count; i++)
-    if (bodies_of(world, world->kinds[i]) != NULL) return true;
-  return false;
 }
 
 /* What `actor` carries, nearest first: their hands, then inside each thing that passes, every node a step. */
@@ -155,7 +149,7 @@ sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *fram
   size_t i;
   if (!x->follows) return SPROUT_EVAL_OK;
   x->follows = false;
-  if (!any_follows(x->world) || sprout_draft_instance(x->draft, actor) == NULL) return SPROUT_EVAL_OK;
+  if (!x->world->follows_commands || sprout_draft_instance(x->draft, actor) == NULL) return SPROUT_EVAL_OK;
   memset(&order, 0, sizeof order);
   EXPR_NEED(sprout_place_of(frame, actor, &here));
   EXPR_NEED(carried(frame, actor, &order));
