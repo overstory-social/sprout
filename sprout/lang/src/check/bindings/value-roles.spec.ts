@@ -2,13 +2,14 @@
 // a property's enum, an integer role by a property's range or a literal
 // `from … to …`, and each mismatch — a symbol with nothing to narrow, a
 // range on a symbol, a list on an integer, a downward range, a `from` on
-// a role with nothing to narrow — is refused in its own words.
+// a role with nothing to narrow — is refused in its own words. An exit
+// role is the way taken, a string, and narrows nothing.
 
 import { describe, expect, it } from 'vitest';
 
 import { roleBinding, valueOf } from '../bindings.js';
 import type { RoleFiller } from '../../declare/verbs.js';
-import { integer } from '../../declare/types.js';
+import { integer, STRING } from '../../declare/types.js';
 import {
   at,
   ENUMS,
@@ -101,5 +102,16 @@ describe('a role-player narrows its own options', () => {
     const { made, said } = trying((d) => roleBinding('n', { fills: 'integer' }, null, at('n'), d));
     expect(said).toEqual([]);
     expect(made!.type).toEqual(valueOf(integer()));
+  });
+
+  it('types an exit role as the way taken, a string, and refuses a `from` on it', () => {
+    const plain = trying((d) => roleBinding('way', { fills: 'exit' }, null, at('target'), d));
+    expect(plain.said).toEqual([]);
+    expect(plain.made).toMatchObject({ name: 'way', origin: 'role', type: valueOf(STRING) });
+    const narrowed = trying((d) =>
+      roleBinding('way', { fills: 'exit' }, fromRange(1, 4), at('target'), d),
+    );
+    expect(narrowed.said.join(' ')).toContain('`way` is the way taken');
+    expect(narrowed.made!.type).toEqual(valueOf(STRING));
   });
 });

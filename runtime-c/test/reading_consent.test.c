@@ -7,8 +7,9 @@
  * reading's whole outcome, a play of the target before one of its tool; and
  * the frame a play runs in binds `actor`, `here` and each other role as that
  * play sees it, a set role always, a value only among the options the play
- * hears.
+ * hears, and the way `go` takes as a string.
  */
+#include "expr/expr.h"
 #include "reading_fixture.h"
 
 typedef struct consent_case {
@@ -176,6 +177,35 @@ static void a_value_is_bound_only_among_the_options_the_play_hears(void) {
   consent_close(&k);
 }
 
+/* The `way` the actor's own part of `go` is given, in a frame a play of the bench's `Person` would run in. */
+static void way_of(const char *name, const char *said) {
+  consent_case k;
+  const sprout_participant *participants;
+  const sprout_binding *way;
+  sprout_play play;
+  sprout_frame inside;
+  size_t count;
+  memset(&play, 0, sizeof play);
+  play.origin = "bench.Person";
+  consent_open(&k, name);
+  CHECK_INT(sprout_participants(&k.c.x, &k.reading, &participants, &count), SPROUT_EVAL_OK);
+  CHECK_INT(sprout_play_frame(&k.c.x, &k.reading, &participants[0], &play, false, &inside), SPROUT_EVAL_OK);
+  way = expr_binding(&inside, "way");
+  CHECK(way != NULL);
+  if (way != NULL) {
+    CHECK_INT(way->bound.binds, SPROUT_BINDS_VALUE);
+    CHECK_INT(way->bound.value.kind, SPROUT_STRING);
+    CHECK(way->bound.value.as.string.length == strlen(said) &&
+          memcmp(way->bound.value.as.string.bytes, said, strlen(said)) == 0);
+  }
+  consent_close(&k);
+}
+
+static void the_actors_part_of_go_is_given_the_way_taken_as_a_string(void) {
+  way_of("go through an exit", "north");
+  way_of("go through a link", "onward");
+}
+
 static void a_permit_is_given_no_draws_and_a_do_is(void) {
   consent_case k;
   const sprout_participant *participants;
@@ -209,6 +239,7 @@ int main(void) {
   RUN(the_participants_are_the_actor_then_each_roles_players_in_the_verbs_order);
   RUN(a_tool_left_out_and_a_set_left_empty_are_not_participants);
   RUN(a_value_and_an_exit_are_named_by_the_visitor_and_play_no_part);
+  RUN(the_actors_part_of_go_is_given_the_way_taken_as_a_string);
   RUN(the_actors_place_is_its_container_which_holds_actors);
   RUN(an_actor_that_is_away_or_stands_where_none_stand_is_the_engines_defect);
   RUN(the_first_permit_to_refuse_is_the_readings_whole_outcome);
