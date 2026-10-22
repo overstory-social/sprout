@@ -476,9 +476,6 @@ export function defaultVisitor(stage: Stage): string | null {
 export function playStep(stage: Stage, step: Step, where: string): Made[] | null {
   if ('comment' in step) return null;
   if ('seed' in step) {
-    if (step.seed > SEED_MAX) {
-      throw new Error(`${where}: a seed is a whole number from 0 to ${SEED_MAX}.`);
-    }
     stage.set = step.seed;
     stage.seeds = new Draws(step.seed);
     return null;

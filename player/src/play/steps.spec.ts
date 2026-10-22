@@ -98,13 +98,6 @@ describe('playStep', () => {
   it('lets a step that wants one fixed seed set it again before it', () => {
     expect(seedsOf('@arrive Marta\n@seed 7\n@tick\n@seed 7\n@tick\n')).toEqual([0, 7, 7]);
   });
-
-  it('throws, naming the step, for a seed past the largest', () => {
-    const stage = freshStage(bundle);
-    expect(() => playStep(stage, { seed: SEED_MAX + 1 }, 'step 2')).toThrow(
-      `step 2: a seed is a whole number from 0 to ${SEED_MAX}.`,
-    );
-  });
 });
 
 describe('freshStage', () => {
