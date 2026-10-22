@@ -5,7 +5,8 @@
  * takes one (runs.c), the way out a slot's words name (exits.c), what a slot's words fill its role with
  * (fill.c), `all` and `except` (all.c), where a phrase's slots fall in a line (match.c), the readings a placement
  * makes (readings.c), choosing among them (rank.c), a line read in part (partial.c), an object's synonym out of reach
- * (offered.c), the engine's answers to what it cannot read (answers.c), a run's items after its first (later.c),
+ * (offered.c), every phrase tried against a line and its first words (phrases.c), the engine's answers to what it
+ * cannot read (answers.c), a run's items after its first (later.c),
  * `and` or a comma between two commands (chain.c), a reading a line planned (planned.c), the last reading run again
  * (again.c), an item of a run read on its own turn (item.c), and a line read as the command turn reads it
  * (command.c, `parse_command_turn` inside the turn and `sprout_parse` for a host). Every step is charged where `corpus/goldens/addresses.json` pins it. Scratch is the
@@ -486,6 +487,54 @@ sprout_eval_status parse_choose_partial(const sprout_frame *frame, const parse_p
  */
 sprout_eval_status parse_offered_out_of_reach(const parse_fill_context *fill, const parse_placement *placement,
                                               bool *named);
+
+/* ---- phrases.c: every phrase tried against a line ---- */
+
+/* What a line is read against: the turn, who typed it and where they stand, what they can name, and the ways out. */
+typedef struct parse_line {
+  turn_run *run;
+  sprout_frame frame;
+  sprout_str actor, here;
+  const sprout_str *referents; /* what the actor's pronouns name */
+  size_t referent_count;
+  const parse_candidate *candidates;
+  size_t candidate_count;
+  const sprout_way *ways;
+  size_t way_count;
+} parse_line;
+
+/* What every phrase tried against a line's words came to. */
+typedef struct parse_tried {
+  parse_words words;
+  parse_readings readings;
+  parse_partials partials; /* the partial readings tied for best, which the line is answered by where nothing reads */
+  bool has_going;          /* a way out named does not go */
+  parse_filled going;      /* the first: an exit that refuses, or a direction none answers */
+  bool not_here;           /* a placement's noun names nothing in reach, or `all` leaves nothing */
+  bool narrowed_nothing;   /* every slot of a placement read, and `all` narrowed by a noun or a holder leaves nothing */
+  bool empty_handed;       /* every slot of a placement read, and `all` in a role whose things the visitor carries leaves nothing, their hands empty */
+  bool missing;            /* a placement answered with `not_here` holds a noun that names nothing in reach */
+  size_t missing_from;     /* where in the words the last such noun begins */
+  parse_stretch *missing_nouns; /* where each such noun runs in the words, in the turn's arena */
+  size_t missing_count, missing_capacity;
+} parse_tried;
+
+/*
+ * Every phrase of the world's and its intents' tried against `words`, each placement a step, its fills in an arena
+ * rewound for the next phrase, and the readings and partial readings it makes kept in the turn's.
+ */
+sprout_eval_status parse_phrases_read(const parse_line *line, parse_words words, parse_tried *out);
+
+/*
+ * The line `whole` tried, which made no reading, read by its first words, the longest first, down to the verb's
+ * own (the spec's Parsing > When nothing matches): `*read` where some first words make a reading, which `out` holds,
+ * with those words. A noun that names nothing in reach is never dropped whole, so no shorter words are tried than
+ * reach into the last such noun any placement holds, in the line or in longer first words tried, and words that cut
+ * such a noun are read only where its words before the cut name something by a noun or a whole name; nor is `and`, a
+ * comma or `except`, which join a run's items or two commands, or leave things out of `all`.
+ */
+sprout_eval_status parse_first_words_read(const parse_line *line, const parse_tried *whole, parse_tried *out,
+                                          bool *read);
 
 /* ---- answers.c: the engine's answers to what it cannot read ---- */
 

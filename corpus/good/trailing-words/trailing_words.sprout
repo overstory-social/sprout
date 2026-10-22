@@ -1,0 +1,47 @@
+// Words left over after a reading (the spec's Parsing › When nothing
+// matches). Where no phrase reads the line whole but one reads its first
+// words, every noun in them naming something in reach, the line is read as
+// them, the rest dropped, and the world's `understood` restates what was
+// read first. A noun that names nothing in reach is never dropped whole: a
+// line that names one in a slot of its own is still `not_here`, and so is
+// one cut inside such a noun where the words kept of it name nothing by a
+// noun: `old red`, of the old red ball, is no name for the old red box.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {go} from 'sprout'
+
+world trailing_words is sprout.World {
+  visitors are Person
+  visitors arrive at clearing
+  synonyms go: "take"
+
+  object clearing is sprout.Place {
+    grammar { article the  exit north "passage" -> ledge }
+    object menhir is Stone { grammar { name "menhir" } }
+    object sword is Loose { grammar { name "sword" } }
+    object mat is Loose { grammar { name "place mat"  nouns "mat" } }
+    object case is sprout.Container { grammar { name "case" } }
+    object box is Loose { grammar { name "old red box" } }
+  }
+
+  object ledge is sprout.Place {
+    grammar { article the  exit south "clearing" -> clearing }
+  }
+
+  object cellar is sprout.Place {
+    grammar { article the }
+    object gong is Loose { grammar { name "gong" } }
+    object ball is Loose { grammar { name "old red ball" } }
+  }
+}
+
+verb push { role target: Stone  "push [target]" }
+verb pull { role target: Loose  "pull [target]" }
+
+kind Stone {
+  as target for push { do { say "The menhir does not budge." } }
+}
+
+kind Loose {
+  as target for pull { do { say "You tug at {self}." } }
+}

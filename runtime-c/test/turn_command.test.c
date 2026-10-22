@@ -3,8 +3,9 @@
  * turn and runs what they make, in a draft that commits when the turn ends and is dropped when it faults; a fault
  * tells the actor so in the world's words and leaves the stored world byte for byte as it was (the spec's The
  * runtime > Turns). A typed line's turns are driven through src/line.c as a host drives them: an intent's steps,
- * each a turn, a refusal or an answer ending the line (Parsing > Intents; Sequences, again and all). Where the host
- * asks, a command accounts for the handlers it ran and the line it was answered with; a consent refusal is told apart.
+ * each a turn, a refusal or an answer ending the line (Parsing > Intents; Sequences, again and all), and words left
+ * over dropped and the words read restated first (When nothing matches). Where the host asks, a command accounts for
+ * the handlers it ran and the line it was answered with; a consent refusal is told apart.
  */
 #include "turn_fixture.h"
 
@@ -206,6 +207,20 @@ static void a_typed_line_the_parser_answers_is_answered_and_ends_the_line(void) 
   tw_close(&w);
 }
 
+static void words_left_over_are_dropped_and_the_words_read_told_first_through_understood(void) {
+  turn_world w;
+  sprout_outcome out;
+  char seen[1024];
+  tw_open(&w, "trailing-words");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  line_runs(&w, "v-marta", "push the menhir with the sword", 1, seen, sizeof seen);
+  CHECK_STR(seen, "- (push the menhir) The menhir does not budge.");
+  line_runs(&w, "v-marta", "push the menhir", 2, seen, sizeof seen);
+  CHECK_STR(seen, "- The menhir does not budge.");
+  tw_close(&w);
+}
+
 static void a_command_accounts_for_the_handlers_it_ran_where_the_host_asks(void) {
   turn_world w;
   sprout_outcome out;
@@ -345,6 +360,7 @@ int main(void) {
   RUN(a_typed_intent_runs_its_first_step_and_hands_the_rest_on_each_a_turn);
   RUN(a_typed_line_the_parser_answers_is_answered_and_ends_the_line);
   RUN(a_command_is_one_of_a_reading_typed_words_or_a_planned_step);
+  RUN(words_left_over_are_dropped_and_the_words_read_told_first_through_understood);
   RUN(a_command_accounts_for_the_handlers_it_ran_where_the_host_asks);
   RUN(a_command_tells_a_consent_refusal_apart_and_names_the_line_it_was_answered_with);
   RUN(a_command_asks_for_the_time_its_passes_count_lowered_to_the_longest_pass);

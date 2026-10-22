@@ -501,14 +501,16 @@ typedef struct sprout_following {
 } sprout_following;
 
 /*
- * A line the parser says before the reading's own (the spec's Parsing > Pronouns, Choosing a reading): the world's
- * `pronoun_correction` for a thing a pronoun named, with the pronoun the thing declares, or the engine's `meant`,
+ * A line the parser says before the reading's own (the spec's Parsing > Pronouns, Choosing a reading, When nothing
+ * matches): the engine's `understood`, with the words read where words left over were dropped; the world's
+ * `pronoun_correction` for a thing a pronoun named, with the pronoun the thing declares; or the engine's `meant`,
  * telling the actor which thing a reading drawn from a tie took the words to name.
  */
 typedef struct sprout_aside {
-  const char *line;    /* `pronoun_correction` or `meant` */
-  const char *thing;   /* the thing it names, by id */
+  const char *line;    /* `understood`, `pronoun_correction` or `meant` */
+  const char *thing;   /* pronoun_correction, meant: the thing it names, by id */
   const char *pronoun; /* pronoun_correction: the pronoun the thing declares */
+  const char *reading; /* understood: the words read, as typed, joined by single spaces */
 } sprout_aside;
 
 /* A name a line of the engine's binds: a thing by id, or a value, which an answer only ever binds to words. */
@@ -563,7 +565,8 @@ typedef struct sprout_parsed {
  * and a handed reading whose verb or role the world does not have are SPROUT_BAD_INPUT with `fault.text` saying
  * which. The runtime reads a line to the reading the best of its readings makes, a tie drawn, with the turns it runs
  * after it in `rest`: `all`'s readings, a run's later items, each planned or left to read afresh, and the command
- * after an `and` or a comma that splits the line; a pronoun's correction and a draw's `meant` are among its asides.
+ * after an `and` or a comma that splits the line; a pronoun's correction and a draw's `meant` are among its asides,
+ * and so is `understood` where no reading reads the line whole and its first words are read, the rest dropped.
  * `again` runs the visitor's last reading where it still fits its verb. It answers a line no reading reads:
  * `cannot` or `not_carrying` where a phrase reads it in part, the partial reading a tie drawn; `no_way` or an exit's
  * own words where it names a way that does not go; `not_here` where a noun names nothing in reach, a way out written

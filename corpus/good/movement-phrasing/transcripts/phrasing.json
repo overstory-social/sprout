@@ -1,5 +1,5 @@
 {
-  "about": "Movement as players phrase it: a direction through, into or up that way's own label, or a label that begins with that word, and through or into a label alone; `walk`, `crawl` and `run` as `go`. A way that refuses answers with its words however it is named. A direction with a label another way carries is `no_way`; a direction through words no way carries is `unknown`, as `climb` is, a world's word.",
+  "about": "Movement as players phrase it: a direction through, into or up that way's own label, or a label that begins with that word, and through or into a label alone; `walk`, `crawl` and `run` as `go`. A way that refuses answers with its words however it is named. A direction with a label another way carries is `no_way`; a direction through words no way carries is read as the direction alone, the words left over dropped and `(go south)` restated; `climb`, a world's word, is `unknown`.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about a low chamber." }
@@ -56,7 +56,8 @@
       { "reader": "Marta", "kind": "notice", "words": "You can't go that way." }
     ] },
     { "as": "Marta", "type": "go south through the bananas", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
+      { "reader": "Marta", "kind": "notice", "words": "(go south)" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about a den." }
     ] },
     { "as": "Marta", "type": "climb north", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }

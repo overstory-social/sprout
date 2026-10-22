@@ -1658,6 +1658,16 @@ value as typed. Where it could be read in part more than one way, the one
 that matched most of the line's words wins, then the one that filled most
 roles; any still tied are drawn with the dice.
 
+Before `not_here` and `unknown`, a line no phrase reads whole is read by
+its first words where some phrase reads them, and the words left over are
+dropped: `push` takes no tool, so `push the menhir with the sword` is
+`push the menhir`, and `wait for the floating to stop` is `wait`. The
+longest first words that read are taken, and the visitor is first told
+what was read through the world's `understood` passage, "(push the
+menhir)". A noun that names nothing in reach in a slot of its own is never
+dropped, so `look at gong` with the gong elsewhere is `not_here`; nor are
+`and`, a comma or `except`.
+
 ---
 
 ## 11. Moving things, and consent
@@ -2655,6 +2665,7 @@ So a character can have its own `arrives`, and a place its own
 | `cannot`          | You can't {reading}.                                                |
 | `not_carrying`    | You aren't carrying {thing}.                                        |
 | `empty_handed`    | You aren't carrying anything.                                       |
+| `understood`      | ({reading})                                                         |
 | `meant`           | ({thing})                                                           |
 | `pronoun_correction` | {thing} is a {pronoun}.                                          |
 | `nothing_happens` | Nothing much comes of that.                                         |

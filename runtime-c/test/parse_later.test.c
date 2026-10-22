@@ -190,9 +190,9 @@ static void and_before_a_verb_joins_two_commands_the_second_read_on_its_own_turn
   CHECK_STR(turns(&p, "take salt, and look", 7), "salt [look]");
   /* A run runs before the command it joins. */
   CHECK_STR(turns(&p, "take salt and lamp and take box", 7), "salt lamp [take box]");
-  /* A first command that names nothing answers the line. */
-  CHECK_STR(turns(&p, "take the lamp in the box and take lamp", 7), "answered not_here");
+  /* A first command that names nothing answers the line; one whose first words read drops the rest of its own. */
   CHECK_STR(turns(&p, "take unicorn and take lamp", 7), "answered not_here");
+  CHECK_STR(turns(&p, "take the lamp in the box and take lamp", 7), "lamp [take lamp]");
   CHECK_STR(turns(&p, "dance and take lamp", 7), "answered unknown");
   close_pantry(&p);
 }

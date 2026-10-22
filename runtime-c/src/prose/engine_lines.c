@@ -19,6 +19,7 @@ static const struct {
     {"cannot", "You can't {reading}."},
     {"not_carrying", "You aren't carrying {thing}."},
     {"empty_handed", "You aren't carrying anything."},
+    {"understood", "({reading})"},
     {"meant", "({thing})"},
     {"pronoun_correction", "{thing} is a {pronoun}."},
     {"nothing_happens", "Nothing much comes of that."},

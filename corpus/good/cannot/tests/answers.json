@@ -1,5 +1,5 @@
 {
-  "about": "A role given what it cannot take is told what was understood; a noun naming nothing in reach, `not_here`, whether its words name something elsewhere or nothing in the world; and a line no phrase reads, `unknown`.",
+  "about": "A role given what it cannot take is told what was understood; a noun naming nothing in reach, `not_here`, whether its words name something elsewhere or nothing in the world, unless its first words name something, when the rest is dropped; and a line no phrase reads, `unknown`.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the cellar." }
@@ -17,7 +17,8 @@
       { "reader": "Marta", "kind": "notice", "words": "You can't unlock the crate with the key." }
     ] },
     { "as": "Marta", "type": "take the anvil in the crate", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+      { "reader": "Marta", "kind": "notice", "words": "(take the anvil)" },
+      { "reader": "Marta", "kind": "refused", "words": "An anvil is not something you can pick up." }
     ] },
     { "as": "Marta", "type": "put key in zebra", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }

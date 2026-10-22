@@ -177,6 +177,9 @@ A few more things worth knowing:
   that is not there, you read "You see nothing like that here." If you
   ask for something that cannot be used that way, the world tells you
   what it understood: "You can't put the key in the anvil."
+- **Words it cannot use are left off.** `push the menhir with the sword`,
+  where pushing takes no tool, is read as `push the menhir`, and the world
+  says so first: "(push the menhir)".
 - **`help` is a real list.** It shows every command that makes sense right
   now, built from what is in front of you.
 - Each world adds its own verbs. In the printer's shop you can `ink the

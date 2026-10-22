@@ -41,6 +41,7 @@ export const WORLD_LINES = [
   { name: 'cannot', binds: { ...ACTING, reading: 'text' } },
   { name: 'not_carrying', binds: { ...ACTING, thing: 'object' } },
   { name: 'empty_handed', binds: ACTING },
+  { name: 'understood', binds: { ...ACTING, reading: 'text' } },
   { name: 'meant', binds: { ...ACTING, thing: 'object' } },
   { name: 'pronoun_correction', binds: { ...ACTING, thing: 'object', pronoun: 'text' } },
   { name: 'nothing_happens', binds: ACTING },
