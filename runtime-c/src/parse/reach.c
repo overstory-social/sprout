@@ -66,6 +66,15 @@ static sprout_eval_status nearness(const sprout_frame *frame, const sprout_reach
       outer = i;
     } else {
       size_t inside = held ? index_of(reached, i, holder) : i;
+      /* One in several places is reached through whichever of them the walk came to first. */
+      const char *const *places;
+      size_t place_count = held ? sprout_world_also_in(frame->world, reached[i].node, &places) : 0, k;
+      for (k = 0; k < place_count && inside == i; k++) {
+        sprout_str place;
+        place.bytes = places[k];
+        place.length = strlen(places[k]);
+        inside = index_of(reached, i, place);
+      }
       if (inside == i) return expr_engine(frame, "a thing in range was reached before what holds it.");
       where[i].ring = where[inside].ring;
       where[i].depth = where[inside].depth + 1;

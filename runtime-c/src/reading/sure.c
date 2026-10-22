@@ -3,7 +3,8 @@
  * Movement and consent > After the move). A poll runs no `do`, so it reads them: the first `move`
  * written directly in a `do`, between names that play's frame binds, is the move it is sure to
  * propose. Read across a reading's plays in the effect pass's order, it greys an offer that would put
- * a thing inside itself with the engine's `inside_itself`; read in the actor's own plays, it says
+ * a thing inside itself with the engine's `inside_itself`, and one that would move a thing declared in
+ * several places with its `fixed`, as the move would be refused; read in the actor's own plays, it says
  * which roles move their filler, which the view never fills with the actor's own place, and which move
  * it away from the actor, where `in` and `on` after `all` say where it goes. Each play
  * read is a step, and each container climbed another.
@@ -63,11 +64,12 @@ static sprout_eval_status within(const sprout_frame *frame, sprout_str node, spr
 }
 
 static sprout_eval_status refusal_of(const sprout_frame *frame, const sprout_participant *who,
-                                     const sprout_stored_instance *self, sprout_str item, sprout_permit_refusal *out) {
+                                     const sprout_stored_instance *self, const char *line, sprout_str item,
+                                     sprout_permit_refusal *out) {
   sprout_effect_binding *bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, sizeof *bound);
   if (bound == NULL) return SPROUT_EVAL_NO_MEMORY;
   memset(out, 0, sizeof *out);
-  sprout_engine_said(frame, "inside_itself", &who->id, self->has_container ? &self->container : NULL,
+  sprout_engine_said(frame, line, &who->id, self->has_container ? &self->container : NULL,
                      &out->refusal.by, &out->refusal.said);
   out->role = who->role == NULL ? "actor" : who->role->name;
   bound->name = "item";
@@ -77,7 +79,7 @@ static sprout_eval_status refusal_of(const sprout_frame *frame, const sprout_par
   return SPROUT_EVAL_OK;
 }
 
-sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
+sprout_eval_status sprout_sure_move_refused(sprout_exec *x, const sprout_frame *frame, const sprout_resolved *reading,
                                         bool *refused, sprout_permit_refusal *out) {
   const sprout_participant *participants;
   size_t count, i, g, p;
@@ -103,10 +105,17 @@ sprout_eval_status sprout_inside_itself(sprout_exec *x, const sprout_frame *fram
             !named(&inside, sprout_node_get(frame->graph, move, "destination"), &to) ||
             sprout_str_same(item, frame->draft->base->world))
           return SPROUT_EVAL_OK;
+        {
+          const char *const *places;
+          if (sprout_world_also_in(frame->world, item, &places) > 0) {
+            *refused = true;
+            return refusal_of(frame, &participants[i], self, "fixed", item, out);
+          }
+        }
         EXPR_NEED(within(frame, to, item, &in));
         if (!in) return SPROUT_EVAL_OK;
         *refused = true;
-        return refusal_of(frame, &participants[i], self, item, out);
+        return refusal_of(frame, &participants[i], self, "inside_itself", item, out);
       }
     }
   }

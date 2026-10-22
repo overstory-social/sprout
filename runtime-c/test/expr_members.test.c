@@ -6,6 +6,7 @@
 #include "eval_fixture.h"
 #include "expr/expr.h"
 #include "lists.h"
+#include "several_fixture.h"
 
 static sprout_evaluated object(const char *id) { return sprout_evaluated_object(bench_id(id)); }
 
@@ -159,7 +160,24 @@ static void sees_asks_what_a_thing_sees_for_a_kind_with_a_property_true(void) {
   bench_close(&b);
 }
 
+/* `holds` is true of a thing in several places in each of them: the dreary room's description asks it of the door. */
+static void holds_is_true_of_a_thing_in_several_places_in_each(void) {
+  several s;
+  sprout_outcome out;
+  several_open(&s);
+  sprout_arena_reset(&s.turn);
+  tw_do(&s.w, "v-wren", "slam", "tiny_room.pdoor", 1004, &out);
+  sprout_outcome_free(&out);
+  tw_go(&s.w, "v-ash", "south", "south, into the bank", "west_teller", 1005, &out);
+  sprout_outcome_free(&out);
+  tw_go(&s.w, "v-ash", "north", "north, out of the bank", "dreary_room", 1006, &out);
+  CHECK(tw_told(&out, "v-ash", "A dreary room. A door is set in the west wall."));
+  sprout_outcome_free(&out);
+  tw_close(&s.w);
+}
+
 int main(void) {
+  RUN(holds_is_true_of_a_thing_in_several_places_in_each);
   RUN(count_is_what_a_container_holds_in_range_a_sets_members_or_a_lists_elements);
   RUN(get_reads_a_property_and_naming_it_costs_a_step);
   RUN(recall_reads_what_self_remembers_about_the_actor);

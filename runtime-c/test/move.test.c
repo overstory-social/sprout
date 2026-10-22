@@ -17,6 +17,7 @@
 #include "expr/expr.h"
 #include "stmt/stmt.h"
 #include "turn_fixture.h"
+#include "several_fixture.h"
 
 static sprout_eval_status move(exec_case *c, const char *mover, const char *item, const char *to, sprout_move_end *end,
                                sprout_move_refusal *refusal) {
@@ -408,7 +409,26 @@ static void an_actor_unseen_as_it_moves_is_told_to_nobody(void) {
   tw_close(&w);
 }
 
+static void a_thing_in_several_places_is_never_moved_and_the_engine_says_so_before_any_guard(void) {
+  several s;
+  sprout_move_end end;
+  sprout_move_refusal refusal;
+  several_open(&s);
+  CHECK_INT(sprout_move_instance(&s.x, &s.frame, exec_str(s.ash), exec_str(SEVERAL_DOOR), exec_str(s.ash),
+                                 SPROUT_REACH_RANGE, NULL, &end, &refusal),
+            SPROUT_EVAL_OK);
+  CHECK_INT(end, SPROUT_MOVE_REFUSED_BY_ENGINE);
+  CHECK_STR(refusal.said.name, "fixed");
+  CHECK_INT(refusal.binding_count, 1);
+  CHECK_STR(refusal.bindings[0].name, "item");
+  CHECK(sprout_str_same(refusal.bindings[0].bound.id, exec_str(SEVERAL_DOOR)));
+  CHECK(sprout_str_same(sprout_draft_instance(&s.draft, exec_str(SEVERAL_DOOR))->container, exec_str(SEVERAL_TINY)));
+  CHECK_INT(s.x.queue_count, 0);
+  several_close(&s);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_never_moved_and_the_engine_says_so_before_any_guard);
   RUN(a_move_every_party_allows_makes_the_one_write_and_queues_what_the_engine_tells);
   RUN(the_first_refusal_decides_and_nothing_is_written);
   RUN(nothing_goes_inside_itself_and_the_engine_says_so_before_any_guard);

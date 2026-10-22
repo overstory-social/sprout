@@ -37,6 +37,21 @@ describe('a catalogue says what one bundle holds as instances', () => {
     expect(catalogue.declared.get(id('hall'))!.container).toBe(catalogue.world);
   });
 
+  it('holds a thing declared in several places once, under its first, with the ids of the others', () => {
+    const shared = catalogueOf(
+      compiledWorld('printers_shop', {
+        ...SHOP,
+        'gate.sprout': 'object gate is Jar in hall, yard\n',
+      }),
+      DEFAULT_LIMITS.caps,
+    );
+    const gate = shared.declared.get(id('hall', 'gate'))!;
+    expect(gate.container).toBe(id('hall'));
+    expect(gate.alsoIn).toEqual([id('yard')]);
+    expect(shared.declared.has(id('yard', 'gate'))).toBe(false);
+    expect(catalogue.declared.get(id('hall', 'shelf', 'jar'))!.alsoIn).toEqual([]);
+  });
+
   it('keeps where each placement is declared', () => {
     expect(locationOf(catalogue.declared.get(id('hall', 'shelf', 'jar'))!.at)).toBe(
       'printers_shop.sprout:4:7',

@@ -134,6 +134,12 @@ typedef struct sprout_declared {
   const char **path;
   const sprout_kind_def *kind; /* NULL where the kind is absent */
   size_t rank;                 /* its position in one walk of the tree, outside in */
+  /* One thing in several places: the ids of the other places it stands in, beside its container, and, on a place,
+   * the ids of what stands in it that way, in rank order. */
+  size_t also_count;
+  const char **also_in;
+  size_t lobe_count;
+  const char **lobes;
 } sprout_declared;
 
 typedef enum sprout_filler_kind {

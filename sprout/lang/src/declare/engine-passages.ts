@@ -50,6 +50,7 @@ export const WORLD_LINES = [
   { name: 'missing', binds: {} },
   { name: 'displaced', binds: {} },
   { name: 'inside_itself', binds: { item: 'object' } },
+  { name: 'fixed', binds: { item: 'object' } },
   { name: 'crowded', binds: { item: 'object', to: 'object' } },
   { name: 'too_heavy', binds: { item: 'object', to: 'object' } },
   { name: 'waited', binds: {} },

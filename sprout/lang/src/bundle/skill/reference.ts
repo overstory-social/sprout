@@ -69,7 +69,7 @@ export const DECLARATION_TABLE: readonly Entry[] = [
     word: 'object',
     example: 'object lamp is Lamp { … }',
     means:
-      'a thing in the world, written inside what holds it, or in a file of its own with `in` naming what holds it',
+      'a thing in the world, written inside what holds it, or at a file’s top level with `in` naming what holds it; `in tiny_room, dreary_room` stands one thing, which holds nothing and never moves, in each of several places',
   },
   {
     word: 'verb',

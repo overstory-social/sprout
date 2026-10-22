@@ -141,7 +141,8 @@ sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *ex
     EXPR_NEED(sprout_eval(frame, argument, &item));
     EXPR_NEED(expr_as_object(frame, &item, &thing));
     EXPR_NEED(expr_instance_of(frame, thing, &instance));
-    if (instance->has_container && sprout_str_same(instance->container, object))
+    if (instance->has_container && (sprout_str_same(instance->container, object) ||
+                                    sprout_world_also_stands_in(frame->world, thing, object)))
       EXPR_NEED(expr_seen_by(frame, thing, &seen));
     *out = sprout_evaluated_value(sprout_bool(seen));
     return SPROUT_EVAL_OK;

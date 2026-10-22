@@ -11,7 +11,9 @@
 // Actors and visitors). And a spawn's container
 // and a move's destination must hold things where the compiler can tell:
 // a binding of the bare object type is accepted, and the engine checks it
-// when the statement runs.
+// when the statement runs. A thing in several places never moves, so a
+// `move` of one the compiler can see is refused (The world model › One
+// thing in several places).
 
 import type {
   DestroyStatement,
@@ -45,6 +47,7 @@ import {
   type CheckContext,
 } from './check.js';
 import { dottedType } from './names.js';
+import { pathKey } from '../declare/tree.js';
 
 /**
  * `let ribs = tools.count(Rib)` — a name for what an expression works
@@ -197,13 +200,45 @@ function checkThing(path: ObjectPath, context: CheckContext): boolean {
     );
     return false;
   }
-  if (type.kind === null || !type.kind.composes.has(WORLD)) return true;
+  if (type.kind !== null && type.kind.composes.has(WORLD)) {
+    context.diagnostics.refuse(
+      path.at,
+      `\`move ${name.text}\` here would move the world, and the world goes nowhere.`,
+      'Write it in the body of the thing that should move.',
+    );
+    return false;
+  }
+  const several = inSeveralPlaces(path, context);
+  if (several === null) return true;
   context.diagnostics.refuse(
     path.at,
-    `\`move ${name.text}\` here would move the world, and the world goes nowhere.`,
-    'Write it in the body of the thing that should move.',
+    `\`${several}\` stands in more than one place, and a thing in several places is never moved.`,
+    `Leave \`${several}\` where it stands, or declare it in one place if it should move.`,
   );
   return false;
+}
+
+/**
+ * The name of the object `path` names where it is declared in several
+ * places, which never move (the spec's The world model › One thing in
+ * several places): `self` in its own body, or its identifier or path.
+ * Null where it names anything else, or what the compiler cannot tell.
+ */
+function inSeveralPlaces(path: ObjectPath, context: CheckContext): string | null {
+  const scope = context.names;
+  if (scope === undefined) return null;
+  const { tree } = scope.source;
+  const only = path.parts.length === 1 ? path.parts[0]! : null;
+  let at: readonly string[] | null = null;
+  if (only !== null && only.text === 'self') {
+    at = scope.vantage.in === 'tree' && scope.vantage.path.length > 0 ? scope.vantage.path : null;
+  } else {
+    const named = scope.table.get(only ?? path);
+    at = named?.names === 'declared' ? named.path : null;
+  }
+  if (at === null) return null;
+  const placement = tree.placed.get(pathKey(at));
+  return placement?.alsoIn !== undefined && placement.alsoIn.length > 0 ? at.at(-1)! : null;
 }
 
 /** How a container's refusal names what goes into it. */

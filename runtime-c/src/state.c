@@ -623,6 +623,13 @@ static sprout_status read_record(opening *o, size_t i, sprout_stored_instance *i
     in->has_container = false;
     in->has_arrival = false;
   }
+  if (in->made == SPROUT_MADE_DECLARED) {
+    /* A thing declared in several places never moves, so it is only ever where it was declared first. */
+    const sprout_declared *declared = sprout_world_declared(o->world, in->id.bytes);
+    if (declared->also_count > 0 && (in->has_arrival || !in->has_container || !sprout_str_is(in->container, declared->container)))
+      return refuse_about(o, i, ".container", in->id, "` stands in more than one place, and is stored somewhere else.",
+                          NULL, NULL);
+  }
   PASS(sort_records(arena, in->properties, in->property_count, sizeof *in->properties, by_property_name));
   PASS(read_properties(o, i, ".properties", in, in->properties, in->property_count, false, &in->property_count));
   PASS(sort_records(arena, in->memory, in->memory_count, sizeof *in->memory, by_actor));

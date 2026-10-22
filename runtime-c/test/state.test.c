@@ -576,7 +576,34 @@ static void a_visitor_who_stood_in_a_place_the_later_build_renamed_is_displaced_
   free(save);
 }
 
+/* A thing in several places never moves, so a record that holds it anywhere but its first place is refused. */
+static void a_thing_in_several_places_is_read_only_where_it_was_declared_first(void) {
+  test_heap heap;
+  sprout_host host = corpus_host(&heap);
+  sprout_world *world = corpus_load("several-places", &host);
+  sprout_state *state = NULL;
+  sprout_refusal why;
+  const char *moved =
+      "{\"world\":\"several_places\",\"serial\":0,\"instances\":["
+      "{\"id\":\"several_places.tiny_room.pdoor\",\"container\":\"several_places.dreary_room\"}],"
+      "\"visitors\":[],\"tombstones\":[]}";
+  const char *home =
+      "{\"world\":\"several_places\",\"serial\":0,\"instances\":["
+      "{\"id\":\"several_places.tiny_room.pdoor\",\"properties\":{\"open\":true}}],"
+      "\"visitors\":[],\"tombstones\":[]}";
+  CHECK_INT(read_in(&host, moved, strlen(moved), &state, &why), SPROUT_OK);
+  CHECK_INT(sprout_state_open(state, world, &why), SPROUT_BAD_INPUT);
+  CHECK(strstr(why.text, "`several_places.tiny_room.pdoor` stands in more than one place, and is stored somewhere else.") != NULL);
+  sprout_state_free(state);
+  CHECK_INT(read_in(&host, home, strlen(home), &state, &why), SPROUT_OK);
+  CHECK_INT(sprout_state_open(state, world, &why), SPROUT_OK);
+  CHECK(sprout_str_same(sprout_state_find(state, S("several_places.tiny_room.pdoor"))->container, S("several_places.tiny_room")));
+  sprout_state_free(state);
+  sprout_world_free(world);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_read_only_where_it_was_declared_first);
   RUN(a_new_worlds_store_opened_is_the_initial_state_which_the_diff_form_writes_as_nothing);
   RUN(a_declared_objects_container_is_its_id_up_to_the_last_dot_in_every_corpus_world);
   RUN(an_opened_record_keeps_only_what_holds_other_than_its_default);

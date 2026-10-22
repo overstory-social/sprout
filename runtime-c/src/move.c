@@ -4,7 +4,8 @@
  * engine's, so a move is the engine polling everyone with standing: the
  * thing's `depart`, then the source's `release`, then the destination's
  * `accept`, each list in its kind's run order, and the first refusal decides:
- * nothing after it is asked. Once all three allow, a destination that holds
+ * nothing after it is asked. A thing declared in several places is never
+ * moved: the engine refuses it in the world's `fixed`, before any guard. Once all three allow, a destination that holds
  * by measure (`capacity 100 by :size`) refuses what would take it past its
  * most with the engine's `too_heavy`. This is the one place the tree changes.
  *
@@ -295,6 +296,17 @@ sprout_eval_status sprout_move_instance(sprout_exec *x, const sprout_frame *fram
   /* The engine's lines here are about the mover, where it stands somewhere. */
   mover_instance = expr_instance(frame, mover);
   if (mover_instance != NULL && mover_instance->has_container) standing = mover_instance->container;
+  {
+    const char *const *places;
+    if (sprout_world_also_in(frame->world, item, &places) > 0) {
+      /* A thing in several places stands in each and goes nowhere (the spec's The world model > One thing in several places). */
+      sprout_str by;
+      sprout_engine_said(frame, "fixed", &mover, standing.bytes == NULL ? NULL : &standing, &by, &refusal->said);
+      refusal->by = by;
+      *end = SPROUT_MOVE_REFUSED_BY_ENGINE;
+      return names_of(frame, "item", item, NULL, item, refusal);
+    }
+  }
   if (within(frame, to, item)) {
     sprout_str by;
     sprout_engine_said(frame, "inside_itself", &mover, standing.bytes == NULL ? NULL : &standing, &by, &refusal->said);

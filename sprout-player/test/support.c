@@ -339,8 +339,12 @@ void build_of(const char *path, const char *version, const char *author, char di
   if (body != NULL && overwrite(body, "\"version\":\"0.1.0\"", field)) {
     snprintf(field, sizeof field, "\"author\":\"%s\"", author);
     overwrite(body, "\"author\":\"Ada\"", field);
-    snprintf(field, sizeof field, "\"hash\":\"%c", digit);
-    overwrite(body, "\"hash\":\"2", field);
+    {
+      /* The hash's first digit, whatever the packed teashop's is. */
+      char *hash = strstr(body, "\"hash\":\"");
+      CHECK(hash != NULL, "the teashop's header has a hash");
+      if (hash != NULL) hash[8] = digit;
+    }
     gzipped = (unsigned char *)malloc(body_bytes + 5 * (body_bytes / 65535 + 1) + 18);
     gzipped_bytes = gzip_stored((const unsigned char *)body, body_bytes, gzipped);
     put_word(cartridge + 16, 24 + gzipped_bytes);

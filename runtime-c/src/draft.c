@@ -259,29 +259,48 @@ static sprout_draft_result chains_of(const sprout_draft *draft, chained *out) {
   return SPROUT_DRAFT_OK;
 }
 
-/* The children of `id`, read off its chain, in contents order, in exactly the room they need. */
+/* Puts `one` among the first `n` of `held`, in contents order. */
+static void rank_in(const sprout_draft *draft, ranked *held, size_t n, const sprout_stored_instance *one) {
+  ranked next;
+  size_t j;
+  next.record = one;
+  next.rank = one->has_arrival ? 0 : rank_of(draft, one->id);
+  for (j = n; j > 0 && comes_before(&next, &held[j - 1]); j--) held[j] = held[j - 1];
+  held[j] = next;
+}
+
+/*
+ * The children of `id`, read off its chain, in contents order, in exactly the room they need: with what stands in
+ * it as well as elsewhere, where it is a place one is declared in beside its first (the spec's The world model >
+ * One thing in several places), which never moves, so is always where it was declared.
+ */
 static sprout_draft_result children_in(const sprout_draft *draft, sprout_str id, const sprout_str **ids, size_t *count) {
   chained c;
-  size_t head, i, n = 0, j, matches = 0;
+  size_t head, i, n = 0, matches = 0, lobe_count;
+  const char *const *lobes;
   ranked *held;
   sprout_str *out;
   NEED(chains_of(draft, &c));
+  lobe_count = sprout_world_lobes(draft->world, id, &lobes);
   head = c.heads[hash_of(id) & c.mask];
   for (i = head; i != c.none; i = c.next[i])
     if (sprout_str_same(record(&c, i)->container, id)) matches++;
-  held = (ranked *)sprout_arena_take(draft->turn, (matches + 1) * sizeof *held);
-  out = (sprout_str *)sprout_arena_take(draft->turn, (matches + 1) * sizeof *out);
+  held = (ranked *)sprout_arena_take(draft->turn, (matches + lobe_count + 1) * sizeof *held);
+  out = (sprout_str *)sprout_arena_take(draft->turn, (matches + lobe_count + 1) * sizeof *out);
   MEMORY(held);
   MEMORY(out);
   for (i = head; i != c.none; i = c.next[i]) {
     const sprout_stored_instance *one = record(&c, i);
-    ranked next;
     if (!sprout_str_same(one->container, id)) continue;
-    next.record = one;
-    next.rank = one->has_arrival ? 0 : rank_of(draft, one->id);
-    for (j = n; j > 0 && comes_before(&next, &held[j - 1]); j--) held[j] = held[j - 1];
-    held[j] = next;
-    n++;
+    rank_in(draft, held, n++, one);
+  }
+  for (i = 0; i < lobe_count; i++) {
+    sprout_str lobe;
+    const sprout_stored_instance *one;
+    lobe.bytes = lobes[i];
+    lobe.length = strlen(lobes[i]);
+    one = sprout_draft_instance(draft, lobe);
+    if (one != NULL && one->has_container) rank_in(draft, held, n++, one);
   }
   for (i = 0; i < n; i++) out[i] = held[i].record->id;
   *ids = out;

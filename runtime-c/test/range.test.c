@@ -11,6 +11,7 @@
 #include "exec_fixture.h"
 #include "expr/expr.h"
 #include "unseen_fixture.h"
+#include "several_fixture.h"
 
 static const char *via_name(sprout_via via) {
   switch (via) {
@@ -277,7 +278,34 @@ static void the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds
   unseen_close(&b);
 }
 
+static void a_thing_in_several_places_is_reached_once_from_each_and_reaches_out_from_each(void) {
+  several s;
+  const sprout_reached *walked;
+  size_t count;
+  several_open(&s);
+  /* From the dreary room the door is beside Ash, as though it stood there, and reached once. */
+  CHECK_INT(sprout_range_of(&s.frame, exec_str(s.ash), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_INT(several_reached(walked, count, SEVERAL_DOOR), 1);
+  CHECK_INT(several_reached(walked, count, s.wren), 0);
+  /* The door walks out from the tiny room, then the dreary room: both rooms and both people, each once. */
+  CHECK_INT(sprout_range_of(&s.frame, exec_str(SEVERAL_DOOR), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK(sprout_str_same(walked[0].node, exec_str(SEVERAL_DOOR)));
+  CHECK_INT(several_reached(walked, count, SEVERAL_TINY), 1);
+  CHECK_INT(several_reached(walked, count, SEVERAL_DREARY), 1);
+  CHECK_INT(several_reached(walked, count, s.wren), 1);
+  CHECK_INT(several_reached(walked, count, s.ash), 1);
+  CHECK_INT(several_reached(walked, count, "several_places"), 1);
+  CHECK_INT(several_reached(walked, count, "several_places.west_teller"), 0);
+  /* A wall in four rooms reaches all four. */
+  CHECK_INT(sprout_range_of(&s.frame, exec_str(SEVERAL_EAST_WALL), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_INT(several_reached(walked, count, "several_places.west_teller"), 1);
+  CHECK_INT(several_reached(walked, count, "several_places.chairman"), 1);
+  CHECK_INT(several_reached(walked, count, "several_places.west_teller.north_wall"), 1);
+  several_close(&s);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_reached_once_from_each_and_reaches_out_from_each);
   RUN(every_golden_walk_reaches_what_the_typescript_walk_did);
   RUN(a_walk_is_charged_at_least_a_step_for_every_object_it_reaches);
   RUN(a_walk_that_runs_out_of_steps_faults);

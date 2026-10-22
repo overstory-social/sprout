@@ -7,7 +7,7 @@
  * applies, a link typed by its label. In the dark a thing role is offered only what the actor carries,
  * and the ways out still. A tool is left out and a value role left unbound, which a body reads only
  * inside `if (bound ...)` and a `from` may leave so anyway. Each offer is typed by its verb's first
- * phrase that fits, with the consent pass's answer beside it, or the `inside_itself` its move would
+ * phrase that fits, with the consent pass's answer beside it, or the `inside_itself` or `fixed` its move would
  * meet, and costs a step, so a world too large to list faults as any work does. What `all` takes in a role is
  * here too, one rule for the parser's `all` and the view's word on each filler.
  */

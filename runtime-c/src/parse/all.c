@@ -154,7 +154,8 @@ static sprout_eval_status held_by(const parse_all_context *context, parse_words 
     const sprout_stored_instance *instance = fill->candidates[i].instance;
     EXPR_NEED(expr_spend(frame));
     for (h = 0; h < found.count && instance->has_container && !held[i]; h++)
-      held[i] = sprout_str_same(instance->container, found.things[h].candidate->instance->id);
+      held[i] = sprout_str_same(instance->container, found.things[h].candidate->instance->id) ||
+                sprout_world_also_stands_in(frame->world, instance->id, found.things[h].candidate->instance->id);
   }
   return SPROUT_EVAL_OK;
 }

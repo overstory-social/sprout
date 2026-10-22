@@ -78,6 +78,26 @@ describe('the names a cartridge writes', () => {
     expect(entries).toContainEqual({ o: expect.objectContaining({ message: 'tick' }) as unknown });
   });
 
+  it('writes a list of paths as their texts, and reads each back as a path', () => {
+    const object = {
+      kind: 'object',
+      name: ident('door'),
+      places: [path('tiny_room'), path('bank', 'vault')],
+      at: at(0),
+    };
+    const names = namesWritten(new Set<object>());
+    const { roots, tables } = writeGraph({ object }, names.rewrite);
+    const graph = readGraph(tables, restoreNames);
+    const read = graph.read(roots['object']!) as {
+      places: { kind: string; parts: { text: string }[] }[];
+    };
+    expect(read.places.map((one) => one.kind)).toEqual(['path', 'path']);
+    expect(read.places.map((one) => one.parts.map((part) => part.text))).toEqual([
+      ['tiny_room'],
+      ['bank', 'vault'],
+    ]);
+  });
+
   it('writes words in a name field that holds words, and refuses a string where a name belongs', () => {
     const literal = { kind: 'prose-literal', value: 'Hello.', at: at(0) };
     const { entries } = roundTrip({ say: { kind: 'say', said: literal, at: at(0) } });
@@ -144,9 +164,10 @@ describe('the names a cartridge writes', () => {
     expect(readHandler.parameters.map((one) => one?.text ?? null)).toEqual(['who', null]);
   });
 
-  it('lists only fields of node kinds, each one name, path or list of names', () => {
+  it('lists only fields of node kinds, each one name, path, list of names or list of paths', () => {
     for (const fields of Object.values(NAME_FIELDS)) {
-      for (const field of Object.values(fields)) expect(['name', 'path', 'names']).toContain(field);
+      for (const field of Object.values(fields))
+        expect(['name', 'path', 'names', 'paths']).toContain(field);
     }
   });
 });

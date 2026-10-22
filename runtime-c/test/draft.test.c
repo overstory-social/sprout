@@ -7,6 +7,7 @@
  */
 #include "corpus.h"
 #include "draft.h"
+#include "several_fixture.h"
 
 #define WORLD "printers_shop"
 #define ROOM WORLD ".composing_room"
@@ -668,7 +669,40 @@ static void a_state_after_hundreds_of_committed_turns_is_no_bigger_than_after_a_
   finish(&f);
 }
 
+/* One thing in several places is among each one's contents, in declared order, and goes with any of them. */
+static void a_thing_in_several_places_is_among_each_ones_contents_and_goes_with_any_of_them(void) {
+  several s;
+  const sprout_str *ids, *removed;
+  sprout_str *under;
+  size_t count, i;
+  bool door = false;
+  several_open(&s);
+  CHECK_INT(sprout_draft_children(&s.draft, exec_str(SEVERAL_DREARY), &ids, &count), SPROUT_DRAFT_OK);
+  CHECK_INT(count, 2);
+  CHECK(sprout_str_same(ids[0], exec_str(SEVERAL_DOOR)));
+  CHECK(sprout_str_same(ids[1], exec_str(s.ash)));
+  CHECK_INT(sprout_draft_children(&s.draft, exec_str(SEVERAL_TINY), &ids, &count), SPROUT_DRAFT_OK);
+  CHECK_INT(count, 2);
+  CHECK(sprout_str_same(ids[0], exec_str(SEVERAL_DOOR)));
+  CHECK(sprout_str_same(ids[1], exec_str(s.wren)));
+  /* Its record keeps one container, the first place written. */
+  CHECK(sprout_str_same(sprout_draft_instance(&s.draft, exec_str(SEVERAL_DOOR))->container, exec_str(SEVERAL_TINY)));
+  CHECK_INT(sprout_draft_subtree(&s.draft, exec_str(SEVERAL_DREARY), &under, &count), SPROUT_DRAFT_OK);
+  for (i = 0; i < count; i++) door = door || sprout_str_same(under[i], exec_str(SEVERAL_DOOR));
+  CHECK(door);
+  /* Ash steps back so the dreary room holds no person, then it goes, and the door with it. */
+  CHECK_INT(sprout_draft_place(&s.draft, exec_str(s.ash), &(sprout_str){SEVERAL_TINY, strlen(SEVERAL_TINY)}),
+            SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_remove(&s.draft, exec_str(SEVERAL_DREARY), &removed, &count), SPROUT_DRAFT_OK);
+  CHECK_INT(count, 2);
+  CHECK(sprout_draft_tombstoned(&s.draft, exec_str(SEVERAL_DOOR)));
+  CHECK_INT(sprout_draft_children(&s.draft, exec_str(SEVERAL_TINY), &ids, &count), SPROUT_DRAFT_OK);
+  for (i = 0; i < count; i++) CHECK(!sprout_str_same(ids[i], exec_str(SEVERAL_DOOR)));
+  several_close(&s);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_among_each_ones_contents_and_goes_with_any_of_them);
   RUN(reads_go_through_to_the_state);
   RUN(contents_come_unmoved_declared_objects_by_rank_then_arrivals_by_serial);
   RUN(contents_asked_for_again_take_no_more_room_until_the_overlay_changes);

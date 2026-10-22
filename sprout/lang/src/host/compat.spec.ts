@@ -62,6 +62,20 @@ describe('what a save of one build of a world does not survive in the next', () 
     );
   });
 
+  it('breaks on a thing that comes to stand in several places, since a save may hold it moved, and not back', () => {
+    const one = { ...SHOP_WITH_LANTERN, 'gate.sprout': 'object gate is Jar in hall\n' };
+    const two = { ...SHOP_WITH_LANTERN, 'gate.sprout': 'object gate is Jar in hall, yard\n' };
+    const breaks = saveBreaks(catalogue(one), catalogue(two));
+    expect(breaks.map((one) => [where(one), one.message])).toEqual([
+      [
+        'later gate.sprout:1:1',
+        '`hall.gate` stands in more than one place now, and was in one: a save may hold it moved, and a thing in several places is never moved, so such a save cannot be read.',
+      ],
+    ]);
+    expect(breaks[0]!.remedy).toBe('Leave it in one place, or make this a breaking version.');
+    expect(saveBreaks(catalogue(two), catalogue(one))).toEqual([]);
+  });
+
   it('breaks on a property whose type changed, once, at its declaration in the later build', () => {
     const breaks = breaksTo({
       'jar.sprout':

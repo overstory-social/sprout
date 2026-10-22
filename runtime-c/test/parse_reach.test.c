@@ -6,6 +6,7 @@
  */
 #include "parse_golden.h"
 #include "unseen_fixture.h"
+#include "several_fixture.h"
 
 /* The candidate for `id`, or NULL where it may not be named. */
 static const parse_candidate *find(const parse_candidate *candidates, size_t count, const char *id) {
@@ -136,7 +137,26 @@ static void every_corpus_worlds_arrived_visitor_may_name_what_the_typescript_run
   golden_worlds(reached_alike);
 }
 
+static void a_thing_in_several_places_is_named_from_each_as_near_as_what_stands_there(void) {
+  several s;
+  parse_candidate *candidates;
+  size_t count, i, door = 0, door_near = 0, ash_room_near = 0;
+  several_open(&s);
+  CHECK_INT(parse_reach_of(&s.frame, exec_str(s.ash), &candidates, &count), SPROUT_EVAL_OK);
+  for (i = 0; i < count; i++) {
+    if (sprout_str_same(candidates[i].instance->id, exec_str(SEVERAL_DOOR))) {
+      door++;
+      door_near = candidates[i].near;
+    }
+    if (sprout_str_same(candidates[i].instance->id, exec_str(SEVERAL_DREARY))) ash_room_near = candidates[i].near;
+  }
+  CHECK_INT(door, 1);
+  CHECK(door_near < ash_room_near);
+  several_close(&s);
+}
+
 int main(void) {
+  RUN(a_thing_in_several_places_is_named_from_each_as_near_as_what_stands_there);
   RUN(it_is_every_live_thing_the_walk_reaches_but_the_world_the_visitor_first);
   RUN(it_ranks_the_visitors_own_place_below_everything_it_holds);
   RUN(it_says_what_the_visitor_carries);
