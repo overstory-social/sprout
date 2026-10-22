@@ -2,8 +2,8 @@
  * Tests for src/range.c: the walk outward from an asker (the spec's The world
  * model > Range) reaches itself, its own contents, and each container
  * outward with what it holds, nearest first, stopping at the first container
- * that refuses the question and reaching that one only as a surface, save
- * that what shares the asker's own container is reached whatever it says; the walk
+ * that refuses the question and reaching that one only as a surface, and
+ * what is shut in it with the asker where no place stands between; the walk
  * a visitor sees passes over what is unseen (Range > Unseen). Every
  * walk the golden holds is made here and must reach the
  * same objects the same way, for the same steps.
@@ -165,6 +165,65 @@ static void what_shares_a_shut_container_is_reached_and_a_shut_container_inside_
   exec_bench_close(&b);
 }
 
+static void what_is_shut_in_together_reaches_both_ways_through_what_passes_between(void) {
+  exec_bench b;
+  exec_case c;
+  const sprout_reached *walked;
+  size_t count;
+  bool reached;
+  const sprout_str chest = exec_str("exec_bench.hall.chest"), basket = exec_str("exec_bench.hall.basket");
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, case_in(&b, "fresh"));
+  /* The runner stands in the open basket, and the basket is shut in the chest with the coin. */
+  CHECK_INT(sprout_draft_place(&c.draft, basket, &chest), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.runner"), &basket), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.runner"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.basket"), "passed");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.chest"), "surface");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.chest.coin"), "beside");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.lamp"), "");
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.chest.coin"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.runner"), "passed");
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.runner"), exec_str("exec_bench.hall.chest.coin"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(reached);
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.chest.coin"), exec_str("exec_bench.hall.runner"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(reached);
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
+static void places_inside_a_container_that_refuses_stay_out_of_range_of_one_another(void) {
+  exec_bench b;
+  exec_case c;
+  const sprout_reached *walked;
+  size_t count;
+  bool reached;
+  const sprout_str wardrobe = exec_str("exec_bench.hall.wardrobe"), tent = exec_str("exec_bench.hall.tent");
+  exec_bench_open(&b);
+  exec_case_open(&b, &c, case_in(&b, "fresh"));
+  /* The shut wardrobe holds two places, and the runner stands in one of them. */
+  CHECK_INT(sprout_draft_place(&c.draft, tent, &wardrobe), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.lodge"), &wardrobe), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_draft_place(&c.draft, exec_str("exec_bench.hall.runner"), &tent), SPROUT_DRAFT_OK);
+  CHECK_INT(sprout_range_of(&c.frame, exec_str("exec_bench.hall.runner"), NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.tent"), "passed");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.wardrobe"), "surface");
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.lodge"), "");
+  CHECK_INT(expr_reaches(&c.frame, exec_str("exec_bench.hall.runner"), exec_str("exec_bench.hall.lodge"), NULL,
+                         &reached),
+            SPROUT_EVAL_OK);
+  CHECK(!reached);
+  /* Nor does one of those places reach the other. */
+  CHECK_INT(sprout_range_of(&c.frame, tent, NULL, &walked, &count), SPROUT_EVAL_OK);
+  CHECK_STR(exec_via(walked, count, "exec_bench.hall.lodge"), "");
+  exec_case_close(&c);
+  exec_bench_close(&b);
+}
+
 static void the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds(void) {
   unseen_bench b;
   const sprout_reached *walked;
@@ -191,5 +250,7 @@ int main(void) {
   RUN(a_walk_that_runs_out_of_steps_faults);
   RUN(the_walk_a_visitor_sees_passes_over_what_is_unseen_and_what_it_holds);
   RUN(what_shares_a_shut_container_is_reached_and_a_shut_container_inside_it_is_a_wall);
+  RUN(what_is_shut_in_together_reaches_both_ways_through_what_passes_between);
+  RUN(places_inside_a_container_that_refuses_stay_out_of_range_of_one_another);
   return REPORT();
 }

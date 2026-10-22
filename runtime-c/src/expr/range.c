@@ -2,8 +2,8 @@
  * What is in range of what (the spec's Range; Range > Sight): the live
  * containment tree, whether a target is reached by the path between it and
  * an asker with every container strictly between letting it through, save
- * the asker's own container, which never stands between it and what shares
- * it; and the walk outward from an asker that a place's `lit` makes. Sight
+ * the first that refuses, which never stands between two things inside it
+ * where no place does; and the walk outward from an asker that a place's `lit` makes. Sight
  * passes over what is unseen and what it holds (Range > Unseen), and what an
  * object can reach does not. Every node touched costs a step, as the rules count them.
  */
@@ -39,6 +39,11 @@ bool expr_live(const sprout_frame *frame, sprout_str id) {
     at = instance->container;
   }
   return true;
+}
+
+bool expr_holds_actors(const sprout_frame *frame, sprout_str id) {
+  const sprout_stored_instance *instance = expr_instance(frame, id);
+  return sprout_str_same(id, world_of(frame)) || (instance != NULL && instance->kind != NULL && instance->kind->contains_actors);
 }
 
 /* What holds `node`: nothing for the world, and for anything not live. */
@@ -93,6 +98,16 @@ static bool hidden_below(const sprout_frame *frame, const ids *chain, size_t mee
   return false;
 }
 
+/* Whether the asker, `chain`'s first, is inside its `at`th container rather than across a place from it, and that
+ * container is not the world, which is a wall between its places. */
+static bool inside_of(const sprout_frame *frame, const ids *chain, size_t at) {
+  size_t below;
+  if (sprout_str_same(chain->items[at], world_of(frame))) return false;
+  for (below = 0; below < at; below++)
+    if (expr_holds_actors(frame, chain->items[below])) return false;
+  return true;
+}
+
 static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, sprout_str target, const char *asking,
                                   bool hands, bool sight, bool *out) {
   ids chain = {NULL, 0, 0}, below = {NULL, 0, 0};
@@ -129,10 +144,10 @@ static sprout_eval_status reaches(const sprout_frame *frame, sprout_str asker, s
     *out = true;
     return SPROUT_EVAL_OK;
   }
-  /* The asker's own container never stands between it and what shares it, save the world between its places. */
-  for (at = (meet == 1 && !sprout_str_same(chain.items[1], world_of(frame))) ? 2 : 1; at <= meet; at++) {
+  /* The first container out that refuses, where no place stands below it, does not stand between two things inside. */
+  for (at = 1; at <= meet; at++) {
     EXPR_NEED(passes_with_hands(frame, chain.items[at], asking, hands, &open));
-    if (!open) return SPROUT_EVAL_OK;
+    if (!open && (at < meet || !inside_of(frame, &chain, meet))) return SPROUT_EVAL_OK;
   }
   for (at = below.count - 1; at >= 1; at--) {
     EXPR_NEED(passes_with_hands(frame, below.items[at], asking, hands, &open));
@@ -187,7 +202,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
   const sprout_str *held;
   size_t n, i, head;
   sprout_str inner = from, outer;
-  bool has_outer, open;
+  bool has_outer, open, inside;
 #define REACH(id)                                       \
   do {                                                  \
     EXPR_NEED(expr_spend(frame));                       \
@@ -216,12 +231,14 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
   }
   for (i = 0; i < own.count; i++) REACH(own.items[i]);
   SWEEP(own);
+  /* Whether no place stands between `from` and the container out it has come to: inside a lid, not across one. */
+  inside = !expr_holds_actors(frame, from);
   has_outer = container_of(frame, from, &outer);
   while (has_outer) {
-    bool own_container = sprout_str_same(inner, from) && !sprout_str_same(outer, world_of(frame)), outer_open;
+    bool outer_open;
     EXPR_NEED(sight_passes(frame, outer, &outer_open));
     REACH(outer);
-    if (!outer_open && !own_container) break;
+    if (!outer_open && (!inside || sprout_str_same(outer, world_of(frame)))) break;
     EXPR_NEED(contents_of(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++) {
@@ -231,6 +248,7 @@ sprout_eval_status expr_seen_from(const sprout_frame *frame, sprout_str from, co
     for (i = 0; i < ring.count; i++) REACH(ring.items[i]);
     SWEEP(ring);
     if (!outer_open) break;
+    inside = inside && !expr_holds_actors(frame, outer);
     inner = outer;
     has_outer = container_of(frame, outer, &outer);
   }

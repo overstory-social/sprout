@@ -234,7 +234,7 @@ typedef enum sprout_via {
   SPROUT_VIA_HELD,    /* one of its own contents */
   SPROUT_VIA_SURFACE, /* a container outward that refuses, seen from inside only as a surface */
   SPROUT_VIA_PASSED,  /* reached through a rule that passed */
-  SPROUT_VIA_BESIDE   /* another of the asker's own container's contents, when that container refuses */
+  SPROUT_VIA_BESIDE   /* inside the first container out that refuses, beside the way the walk came */
 } sprout_via;
 
 typedef struct sprout_reached {

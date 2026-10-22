@@ -8,8 +8,9 @@
  * Two invariants. The asker always reaches itself, its own contents and the
  * surface of every container out to the first that refuses, whatever that
  * one's rule says, because a lid stops others looking in, not the chest
- * looking down; and it always reaches what shares its own container, since a
- * lid divides the inside from the outside, not the inside from itself. And
+ * looking down; and it reaches what shares the first container out that
+ * refuses, where no place stands below it, since a lid divides the inside
+ * from the outside, not the inside from itself. And
  * the walk is a loop over a queue, never recursion, since nesting has no cap.
  */
 #include "expr/expr.h"
@@ -94,21 +95,23 @@ static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker,
   const sprout_str *held;
   size_t n, i;
   sprout_str inner = asker, outer;
-  bool has_outer;
+  bool has_outer, inside;
   EXPR_NEED(reach(&w, asker, SPROUT_VIA_SELF));
   EXPR_NEED(contents(frame, asker, &held, &n));
   for (i = 0; i < n; i++)
     if (!sight || !expr_unseen(frame, held[i])) EXPR_NEED(push(frame, &own, held[i]));
   for (i = 0; i < own.count; i++) EXPR_NEED(reach(&w, own.items[i], SPROUT_VIA_HELD));
   EXPR_NEED(sweep(&w, &own));
+  /* Whether no place stands between the asker and the container out it has come to: inside a lid, not across one. */
+  inside = !expr_holds_actors(frame, asker);
   has_outer = container_of(frame, asker, &outer);
   while (has_outer) {
-    bool open, own_container = sprout_str_same(inner, asker) && !sprout_str_same(outer, frame->draft->base->world);
+    bool open;
     EXPR_NEED(expr_passes(frame, outer, asking, &open));
     EXPR_NEED(reach(&w, outer, open ? SPROUT_VIA_PASSED : SPROUT_VIA_SURFACE));
-    /* A container that refuses is a wall, save between the asker and what shares its own container; the world is a
-     * wall between the places it holds (Range). */
-    if (!open && !own_container) break;
+    /* A container that refuses is a wall to what is outside it, not between two things inside it; a place is a wall
+     * of its own, so nothing is reached across one (Range). */
+    if (!open && (!inside || sprout_str_same(outer, frame->draft->base->world))) break;
     EXPR_NEED(contents(frame, outer, &held, &n));
     ring.count = 0;
     for (i = 0; i < n; i++)
@@ -117,6 +120,7 @@ static sprout_eval_status walk_from(const sprout_frame *frame, sprout_str asker,
     for (i = 0; i < ring.count; i++) EXPR_NEED(reach(&w, ring.items[i], open ? SPROUT_VIA_PASSED : SPROUT_VIA_BESIDE));
     EXPR_NEED(sweep(&w, &ring));
     if (!open) break;
+    inside = inside && !expr_holds_actors(frame, outer);
     inner = outer;
     has_outer = container_of(frame, outer, &outer);
   }
