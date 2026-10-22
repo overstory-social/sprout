@@ -198,6 +198,17 @@ export function selfBinding(kind: KindRef, at: Span): Binding {
 }
 
 /**
+ * The names bound only where someone is acting, which a passage said both
+ * there and where nobody is reads inside `{if bound …}` (the spec's Prose).
+ */
+export const ACTING = ['actor', 'here'] as const;
+
+/** Whether `name` is one of `ACTING`. */
+export function isActing(name: string): name is (typeof ACTING)[number] {
+  return (ACTING as readonly string[]).includes(name);
+}
+
+/**
  * `actor` — `sprout.Actor`, since a person or an NPC may be the one
  * acting, so anything more is read through `is()`; an object where the
  * standard library's kind is absent, which has been said.

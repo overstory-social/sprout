@@ -52,6 +52,12 @@ export interface CheckContext {
   readonly extensions?: PinnedExtensions;
   /** Set where the body is a place's `lit`, the one place `sees` may be read (the spec's Range › Sight). */
   readonly sight?: true;
+  /**
+   * Set where the body is a passage, which may be said both where someone
+   * is acting and where nobody is, so `bound actor` and `bound here` ask
+   * which (the spec's Prose).
+   */
+  readonly passage?: true;
 }
 
 /** The messages a body's sends reach, and what is told of one nothing declares. */
@@ -94,6 +100,7 @@ export function checkerOf(
     ...(context.names === undefined ? {} : { names: context.names }),
     ...(context.undrawn === undefined ? {} : { undrawn: context.undrawn }),
     ...(context.sight === undefined ? {} : { sight: context.sight }),
+    ...(context.passage === undefined ? {} : { passage: context.passage }),
     typeOf: (expr) => walk(expr, checker),
     within: (scope) => checkerOf({ ...context, scope }, walk),
     held: new WeakMap(),

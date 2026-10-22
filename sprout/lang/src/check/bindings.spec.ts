@@ -8,7 +8,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ACTING,
   describeOrigin,
+  isActing,
   elapsedBinding,
   hereBinding,
   isObjectBinding,
@@ -76,5 +78,12 @@ describe('a binding type is not a property type', () => {
       expect(describeOrigin(origin), origin).not.toBe('');
       expect(describeOrigin(origin), origin).not.toContain('undefined');
     }
+  });
+});
+
+describe('the names bound only where someone is acting', () => {
+  it('are `actor` and `here`, and nothing else a body binds', () => {
+    expect([...ACTING]).toEqual(['actor', 'here']);
+    expect(['actor', 'here', 'seen', 'self', 'way'].filter(isActing)).toEqual(['actor', 'here']);
   });
 });
