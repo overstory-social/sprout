@@ -169,6 +169,8 @@ typedef struct sprout_exec {
   bool hears_live;      /* what is said is heard by whoever would hear the speaker's `tell` now, rather than by `heard_by` */
   size_t acting;        /* the `act`s the readings now running stand inside, one deeper against the cascade depth each */
   bool follows;         /* a person's own command was run, so its `after command`s are owed once the queue drains */
+  bool follows_refused; /* the command they follow was refused, which they read as `refused` */
+  sprout_str follows_way; /* the direction a refused `go` tried, bound as `way`; no bytes for any other command */
 
   /* What the turn has done, in order. */
   sprout_effect *effects;

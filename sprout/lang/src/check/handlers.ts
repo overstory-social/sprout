@@ -12,8 +12,10 @@
 // bound in an actor's own handler, as its own place, and in no other
 // handler or hook (the spec's Prose). An `after command` follows a
 // visitor's command, so `actor` is that visitor and `here` their place,
-// and it acts and speaks as a `do` does, but never refuses: the deciding
-// was done before it ran. A pass rule is a condition over `self`, the
+// `refused` whether the command was refused, and `way`, inside
+// `if (bound way)` only, the direction a refused `go` tried; it acts and
+// speaks as a `do` does, but never refuses: the deciding was done before
+// it ran. A pass rule is a condition over `self`, the
 // container asked.
 
 import type { Diagnostics } from '../source/diagnostics.js';
@@ -28,10 +30,12 @@ import {
   engineParameters,
   handlerParameters,
   hereBinding,
+  refusedBinding,
   Scope,
   selfBinding,
   showBindingType,
   wasBinding,
+  wayBinding,
   type Binding,
 } from './bindings.js';
 import { typeOf, type ActSetting, type CheckContext, type MessageSetting } from './check.js';
@@ -39,6 +43,7 @@ import type { NameScope } from './names.js';
 import type { SpeechBook } from './speech.js';
 import type { PinnedExtensions } from '../declare/extensions.js';
 import { ACTOR, isActor } from '../declare/actors.js';
+import { DIRECTION } from '../declare/direction.js';
 import { checkBlock } from './blocks.js';
 
 /** Where a handler, a hook, an `after command` or a pass rule is read: the kinds and verbs in scope, and somewhere to say what is wrong. */
@@ -140,7 +145,8 @@ export function checkHook(hook: ResolvedHook, self: KindRef, setting: HandlerSet
 
 /**
  * Check one `after command` `self` wrote, with `actor`, typed as
- * `sprout.Actor`, and `here` bound. Returns whether nothing in it was refused.
+ * `sprout.Actor`, `here` and `refused` bound, and `way` read only inside
+ * `if (bound way)`. Returns whether nothing in it was refused.
  */
 export function checkAfterCommand(
   after: ResolvedAfterCommand,
@@ -154,6 +160,22 @@ export function checkAfterCommand(
   scope.introduce(selfBinding(self, body.at), diagnostics);
   scope.introduce(actorBinding(setting.kinds.qualified(SPROUT, 'Actor'), body.at), diagnostics);
   scope.introduce(hereBinding(setting.here, body.at), diagnostics);
+  scope.introduce(refusedBinding(body.at), diagnostics);
+  const unread = {
+    message:
+      '`way` is bound only after a `go` that was refused, so it is read inside `if (bound way)`.',
+    remedy: 'Ask first, as in `if (bound way) { if (way == :north) { … } }`.',
+  };
+  scope.withhold(
+    {
+      name: 'way',
+      at: body.at,
+      origin: 'way',
+      unread,
+      bound: { bindable: true, binding: wayBinding(DIRECTION, body.at) },
+    },
+    diagnostics,
+  );
   checkBlock(body, contextFor(after.declaration, self, scope, setting), { body: 'after' });
   return diagnostics.refusals.length === before;
 }

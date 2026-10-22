@@ -6,9 +6,12 @@
 // the engine has answered, so the room is read before what follows the
 // command that walked into it, and a visitor the chute's handler slides on
 // into the pool is followed by the pool and not the chute; the queue its
-// own bodies fill drains after it. A refused command is followed by
-// nothing; and what is not carried, or is shut in a tin they carry,
-// follows nobody.
+// own bodies fill drains after it. A refused command is followed too,
+// after its refusal: the grate east of the cellar refuses, and the cellar,
+// which reads the way a refused `go` tried, rattles it; and the pool,
+// whose weeds let nobody leave, drips after the attempt and reads the
+// way it tried. And what
+// is not carried, or is shut in a tin they carry, follows nobody.
 import * as sprout from 'sprout'
 import {Person, :slide} from 'person'
 import {Lamp} from 'lamp'
@@ -32,8 +35,16 @@ world after_command is sprout.World {
       article the
       exit north "up to the falls" -> falls
       exit down "down the chute" -> chute
+      exit east "east" refuse "A rusted grate bars the way east."
     }
     describe { text "A low cellar, dry and still." }
+    after command {
+      if (bound way) {
+        if (way == :east) { tell actor "The grate rattles in its frame." }
+      } else if (refused) {
+        tell actor "Nothing stirs in the still cellar."
+      }
+    }
     object lamp is Lamp
   }
 
@@ -56,8 +67,10 @@ world after_command is sprout.World {
     }
     describe { text "A still pool under a dripping roof." }
     on :drip { tell "A drop falls into the pool." }
+    release (item, to) { refuse "Weeds wind round your legs and hold you in the pool." }
     after command {
       tell actor "Water drips from the roof."
+      if (bound way) { tell actor "The weeds tug you back down." }
       send self :drip
     }
   }

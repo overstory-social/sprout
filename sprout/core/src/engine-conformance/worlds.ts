@@ -435,12 +435,18 @@ export const BELFRY_FOLLOWS = compiled('followed', {
   :commands 0
   after command { self.adjust(:commands, 1) }
   object hall is Hall {
+    grammar { exit north "north" refuse "The door is barred." }
     object bell is Bell
   }
 }
 `,
   'person.sprout': 'kind Person is sprout.Visitor { }\n',
-  'hall.sprout': 'kind Hall is sprout.Place { after command { tell actor "The hall echoes." } }\n',
+  'hall.sprout': `kind Hall is sprout.Place {
+  after command {
+    if (bound way) { tell actor "The bar rattles." } else { tell actor "The hall echoes." }
+  }
+}
+`,
   'bell.sprout': `kind Bell {
   grammar { name "bell" }
   after command { say "The bell hums." }

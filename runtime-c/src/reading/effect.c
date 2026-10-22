@@ -9,7 +9,8 @@
  * them; an NPC's reading is not answered, nor is a reading performed by
  * `act`. A person's own command then reads the descriptions its moves owe,
  * and is marked as owing what follows a command (after.c), which runs once
- * the queue drains, unless `go` was refused, which ends the pass.
+ * the queue drains; a refused `go`, which ends the pass, is marked as
+ * refused, with its direction where it tried an exit.
  */
 #include <string.h>
 
@@ -108,6 +109,11 @@ sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame,
   if (status != SPROUT_EVAL_OK || x->acting > 0) return status;
   /* A typed command's descriptions are read once everything its participants said is said. */
   for (i = owed_from; i < x->owed_count; i++) x->owed[i].after = x->effect_count;
-  x->follows = person && !(way != NULL && went == SPROUT_WENT_REFUSED);
+  if (person) {
+    bool refused = way != NULL && went == SPROUT_WENT_REFUSED;
+    sprout_str tried = {NULL, 0};
+    if (refused && way->has_direction) tried = way->direction;
+    sprout_after_owed(x, refused, tried);
+  }
   return status;
 }

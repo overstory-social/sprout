@@ -154,13 +154,20 @@ sprout_eval_status sprout_effect_pass(sprout_exec *x, const sprout_frame *frame,
 /* ---- after.c ---- */
 
 /*
- * What follows a person's command, where the effect pass marked it as owed
- * (`x->follows`): every `after command` of what `actor` carries, of `actor`,
- * and of each container out to the world, nearest first, each thing's in
- * composition order (the spec's Verbs > After a command). It runs only
- * through sprout_command_over (answers.h), which a reading its consent pass
- * refused never reaches: a refused command that is to be followed must be
- * ended through it too, its refusal recorded among the lines first.
+ * Marks a person's command as owing what follows it: `refused` where it was
+ * refused, by its consent pass, its exit or the move's guards, and `way` the
+ * direction a refused `go` tried through an exit, else one with no bytes.
+ */
+void sprout_after_owed(sprout_exec *x, bool refused, sprout_str way);
+
+/*
+ * What follows a person's command, where it was marked as owed
+ * (sprout_after_owed): every `after command` of what `actor` carries, of
+ * `actor`, and of each container out to the world, nearest first, each
+ * thing's in composition order (the spec's Verbs > After a command), with
+ * `refused` bound, and `way` where a refused `go` tried one. It runs only
+ * through sprout_command_over (answers.h), once the command's own lines,
+ * a refusal among them, are recorded.
  */
 sprout_eval_status sprout_after_command(sprout_exec *x, const sprout_frame *frame, sprout_str actor);
 
