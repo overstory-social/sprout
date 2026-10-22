@@ -13,11 +13,15 @@ import type { Plain } from '../declare/extensions.js';
 import type { Fault } from './faults.js';
 import type { InstanceId, VisitKey } from './ids.js';
 
-/** One exit or link that applies where the actor stands: its direction, null for a link, its label, and the place it leads to. */
+/**
+ * One exit or link that applies where the actor stands: its direction,
+ * null for a link, its label, and the place it leads to, null for a way
+ * drawn as it is taken (the spec's Verbs › A way drawn as it is taken).
+ */
 export interface CommandExit {
   readonly direction: Direction | null;
   readonly label: string;
-  readonly to: InstanceId;
+  readonly to: InstanceId | null;
 }
 
 /** A whole-number range, both ends included. */
@@ -80,7 +84,7 @@ export type SeenFiller =
       readonly binds: 'exit';
       readonly direction: Direction | null;
       readonly label: string;
-      readonly to: InstanceId;
+      readonly to: InstanceId | null;
     }
   | { readonly role: string; readonly words: string; readonly binds: 'unbound' };
 

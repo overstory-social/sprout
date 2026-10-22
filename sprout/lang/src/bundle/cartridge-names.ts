@@ -36,6 +36,7 @@ export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameFi
   'extension-use': { name: 'name' },
   'free-call': { name: 'name' },
   from: { role: 'name' },
+  'grammar-choice': { leads: 'path' },
   'grammar-exit': { direction: 'name', leads: 'path' },
   'grammar-link': { name: 'name' },
   'grammar-refusal': { said: 'name' },

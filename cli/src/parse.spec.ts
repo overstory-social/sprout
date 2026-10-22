@@ -300,3 +300,27 @@ describe('parseLine, for the standard library’s everyday phrasings', () => {
     );
   });
 });
+
+describe('parseLine over a way drawn as it is taken', () => {
+  it('names the way, and nowhere it leads, since that is drawn as it is taken', () => {
+    const carousel = checkWorld(
+      worldFolder('carousel', {
+        'carousel.sprout': `world carousel is sprout.World {
+  visitors are Walker
+  visitors arrive at hub
+
+  object hub is sprout.Place {
+    grammar { exit west "west" -> one of (hall, refuse "No way.") }
+  }
+  object hall is sprout.Place { }
+}
+`,
+        'walker.sprout': 'kind Walker is sprout.Visitor { }\n',
+      }),
+    ).bundle!;
+    expect(parseLine('west', standIn(carousel, {})).page).toBe(`in hub, "west" reads as sprout.go
+  way: exit west "west" -> one of (…)
+every participant consents
+`);
+  });
+});

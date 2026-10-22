@@ -107,7 +107,9 @@ static void put_path(FILE *out, sprout_str world, sprout_str id) {
 static void put_exit(FILE *out, sprout_str world, const sprout_seen_exit *exit) {
   if (exit->direction == NULL) fprintf(out, "link \"%s\" -> ", exit->label);
   else fprintf(out, "exit %s \"%s\" -> ", exit->direction, exit->label);
-  put_path(out, world, exit->to);
+  /* A drawn way leads nowhere until it is taken. */
+  if (exit->to.length == 0) fputs("one of (…)", out);
+  else put_path(out, world, exit->to);
 }
 
 static void put_thing(FILE *out, sprout_str world, const sprout_seen_thing *thing) {

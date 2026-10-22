@@ -184,6 +184,11 @@ function bodiesOf(kind: KindRef): Node[] {
         ? []
         : [
             ...(way.line.leads.kind === 'grammar-refusal' ? [way.line.leads] : []),
+            ...(way.line.leads.kind === 'grammar-drawn'
+              ? way.line.leads.choices.flatMap((choice) =>
+                  choice.leads.kind === 'grammar-refusal' ? [choice.leads] : [],
+                )
+              : []),
             ...(way.line.says === null ? [] : [way.line.says]),
           ],
     ),
