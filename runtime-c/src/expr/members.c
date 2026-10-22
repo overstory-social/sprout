@@ -3,10 +3,31 @@
  * Per-actor memory; Range > Sight): `x.count` on a container, a set or a
  * list; and `get`, `recall`, `count(K)`, `holds`, `is`, `includes` and
  * `sees` on a receiver already evaluated. Naming a property or a kind is a
- * node, and costs a step.
+ * node, and costs a step. What the place an exit's `when` reached past range
+ * holds stays out of range: `count` and `holds` through it fault.
  */
 #include "expr.h"
 #include "../lists.h"
+
+/*
+ * What `container` holds, where an exit's `when` reached it past range as the place its exit leads to:
+ * out of range all the same, so the read faults `NameOutOfRange` and the exit does not apply (the spec's
+ * An exit may be conditional). OK for any other container.
+ */
+static sprout_eval_status contents_reached(const sprout_frame *frame, sprout_str container) {
+  bool in_range = false;
+  expr_text text;
+  if (frame->beyond.bytes == NULL || !sprout_str_same(container, frame->beyond)) return SPROUT_EVAL_OK;
+  EXPR_NEED(expr_reaches(frame, frame->self, container, NULL, &in_range));
+  if (in_range) return SPROUT_EVAL_OK;
+  text = expr_text_begin(frame);
+  expr_put(&text, "What `");
+  expr_put_str(&text, container);
+  expr_put(&text, "` holds is out of range of `");
+  expr_put_str(&text, frame->self);
+  expr_put(&text, "`: an exit's `when` reads the place it leads to, not what is in it.");
+  return expr_fail_on(frame, "NameOutOfRange", container);
+}
 
 sprout_eval_status expr_member(const sprout_frame *frame, const sprout_node *expr, const sprout_evaluated *receiver,
                                sprout_evaluated *out) {
@@ -19,6 +40,7 @@ sprout_eval_status expr_member(const sprout_frame *frame, const sprout_node *exp
       const sprout_str *seen;
       size_t count;
       EXPR_NEED(expr_as_object(frame, receiver, &container));
+      EXPR_NEED(contents_reached(frame, container));
       EXPR_NEED(expr_contents_seen(frame, container, &seen, &count));
       *out = sprout_evaluated_value(sprout_number((double)count));
       return SPROUT_EVAL_OK;
@@ -124,6 +146,7 @@ sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *ex
       count = receiver->count;
     } else {
       EXPR_NEED(expr_as_object(frame, receiver, &object));
+      EXPR_NEED(contents_reached(frame, object));
       EXPR_NEED(expr_contents_seen(frame, object, &ids, &count));
     }
     for (i = 0; i < count; i++) {
@@ -138,6 +161,7 @@ sprout_eval_status expr_reading(const sprout_frame *frame, const sprout_node *ex
     sprout_str thing;
     bool seen = false;
     EXPR_NEED(expr_as_object(frame, receiver, &object));
+    EXPR_NEED(contents_reached(frame, object));
     EXPR_NEED(sprout_eval(frame, argument, &item));
     EXPR_NEED(expr_as_object(frame, &item, &thing));
     EXPR_NEED(expr_instance_of(frame, thing, &instance));

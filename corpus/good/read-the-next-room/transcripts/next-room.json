@@ -1,0 +1,35 @@
+{
+  "about": "The posts room shows the parlour through its window as the parlour describes itself, and the parlour's own window back shows nothing inside it; the way east reads the pool room it leads to, and closes once the pool room's roof comes down.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "Wooden posts hold up a low ceiling. A barred window looks north." },
+      { "reader": "Wren", "kind": "described", "words": "A dusty parlour. On the mantel sits a clock." }
+    ] },
+    { "as": "Wren", "type": "north", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A dusty parlour. On the mantel sits a clock." },
+      { "reader": "Wren", "kind": "described", "words": "Wooden posts hold up a low ceiling. A barred window looks north." }
+    ] },
+    { "as": "Wren", "type": "south", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "Wooden posts hold up a low ceiling. A barred window looks north." },
+      { "reader": "Wren", "kind": "described", "words": "A dusty parlour. On the mantel sits a clock." }
+    ] },
+    { "as": "Wren", "type": "east", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A still pool under a cracked roof." }
+    ] },
+    { "as": "Wren", "type": "pull lever", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You pull the lever." },
+      { "reader": "Wren", "kind": "told", "words": "The roof gives way, and rubble fills the passage west of the pool." }
+    ] },
+    { "as": "Wren", "type": "west", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "Wooden posts hold up a low ceiling. A barred window looks north." },
+      { "reader": "Wren", "kind": "described", "words": "A dusty parlour. On the mantel sits a clock." }
+    ] },
+    { "as": "Wren", "type": "east", "expect": [
+      { "reader": "Wren", "kind": "refused", "words": "Rubble fills the way east." }
+    ] },
+    { "as": "Wren", "type": "look", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "Wooden posts hold up a low ceiling. A barred window looks north." },
+      { "reader": "Wren", "kind": "described", "words": "A dusty parlour. On the mantel sits a clock." }
+    ] }
+  ]
+}

@@ -660,6 +660,7 @@ static sprout_status read_line(reader *r, const sprout_stored_visitor *visitor, 
   parse_words typed;
   sprout_eval_status status;
   if (typed_words(&r->run->scratch, parse_without_question(line), &words, &count) != SPROUT_OK) return SPROUT_NO_MEMORY;
+  count = parse_without_quotes(words, count);
   if (count == 0) return answer(r, "unknown", NULL);
   status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
   if (status != SPROUT_EVAL_OK) return stopped(r, status);

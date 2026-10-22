@@ -1,0 +1,25 @@
+{
+  "about": "No declared kind writes `after command`, and what an object's own body and the world's write still follows every command: the carousel and the world after `look`, and the watch first once she holds it.",
+  "steps": [
+    { "arrive": "Wren", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A carousel, its horses rising and falling." }
+    ] },
+    { "as": "Wren", "type": "look", "expect": [
+      { "reader": "Wren", "kind": "described", "words": "A carousel, its horses rising and falling." },
+      { "reader": "Wren", "kind": "said", "words": "The carousel turns." },
+      { "reader": "Wren", "kind": "said", "words": "The band organ plays on." }
+    ] },
+    { "as": "Wren", "type": "take watch", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "You take a watch." },
+      { "reader": "Wren", "kind": "said", "words": "The watch ticks." },
+      { "reader": "Wren", "kind": "said", "words": "The carousel turns." },
+      { "reader": "Wren", "kind": "said", "words": "The band organ plays on." }
+    ] },
+    { "as": "Wren", "type": "wait", "expect": [
+      { "reader": "Wren", "kind": "said", "words": "Time passes." },
+      { "reader": "Wren", "kind": "said", "words": "The watch ticks." },
+      { "reader": "Wren", "kind": "said", "words": "The carousel turns." },
+      { "reader": "Wren", "kind": "said", "words": "The band organ plays on." }
+    ] }
+  ]
+}

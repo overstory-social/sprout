@@ -8,6 +8,7 @@ import {
   BELFRY,
   BELFRY_FOLLOWS,
   BELFRY_GONE,
+  BELFRY_OWN_FOLLOWS,
   CANDLE,
   CHAPEL,
   COUNTER,
@@ -24,6 +25,9 @@ import {
   INES,
   MARTA,
   NAVE,
+  OWN_FOLLOWED,
+  OWN_FOLLOWED_BELL,
+  OWN_FOLLOWED_HALL,
   PEBBLE,
   played,
   PORCH,
@@ -653,6 +657,31 @@ export const turnCases: EngineCase[] = [
         await propertyOf(store, FOLLOWED, 'commands', 0),
         4,
         'the count after a line nobody understood',
+      );
+    },
+  },
+  {
+    name: 'what an object or the world writes for itself follows a command',
+    proves:
+      'an `after command` written in an object’s own body or the world’s runs where no declared kind writes one, nearest first as a kind’s would',
+    async run(make) {
+      const store = await seeded(BELFRY_OWN_FOLLOWS, [[MARTA, OWN_FOLLOWED_HALL, 'Marta']]);
+      const host = played(make, BELFRY_OWN_FOLLOWS);
+      const taken = await runCommand(store, 'w', host, command('take bell'));
+      ok(taken.committed, 'the take commits');
+      match(
+        taken.effects,
+        [
+          { kind: 'said', visit: MARTA, paragraphs: ['You take a bell.'] },
+          { kind: 'said', from: OWN_FOLLOWED_BELL, visit: MARTA, paragraphs: ['The bell hums.'] },
+          { kind: 'told', from: OWN_FOLLOWED_HALL, visit: MARTA, paragraphs: ['The hall echoes.'] },
+        ],
+        'what the take, the bell in her hands and the hall said, in that order',
+      );
+      equal(
+        await propertyOf(store, OWN_FOLLOWED, 'commands', 0),
+        1,
+        'the commands the world counted',
       );
     },
   },

@@ -129,13 +129,31 @@ static sprout_eval_status engine_line(const sprout_frame *frame, const char *nam
   return SPROUT_EVAL_OK;
 }
 
+/* `instance`'s describe, run with it its own `self` and `bindings` beside it, into `out`'s lines; none where it writes none. */
+static sprout_eval_status run_describe(const sprout_frame *frame, const sprout_stored_instance *instance,
+                                       const sprout_binding *bindings, sprout_description *out) {
+  const sprout_node *describe = sprout_node_get(&frame->world->graph, instance->kind->node, "describe");
+  sprout_frame inside = *frame;
+  described d;
+  if (describe == NULL || describe->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
+  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(&frame->world->graph, describe, "origin"), &inside.library));
+  inside.self = instance->id;
+  inside.bindings = bindings;
+  memset(&d, 0, sizeof d);
+  d.thing = instance->id;
+  EXPR_NEED(run_block(&d, &inside, sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, describe, "declaration"), "body")));
+  out->line_count = d.count;
+  out->lines = d.lines;
+  out->recorded_count = d.recorded_count;
+  out->recorded = d.recorded;
+  return SPROUT_EVAL_OK;
+}
+
 sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, sprout_str actor, const char *seen,
                                    sprout_description *out) {
   const sprout_stored_instance *instance = expr_instance(frame, thing), *standing = expr_instance(frame, actor);
-  const sprout_node *describe;
   sprout_str here;
   sprout_frame inside = *frame;
-  described d;
   sprout_value seen_value;
   bool lit;
   memset(out, 0, sizeof *out);
@@ -158,21 +176,19 @@ sprout_eval_status sprout_describe(const sprout_frame *frame, sprout_str thing, 
       return SPROUT_EVAL_OK;
     }
   }
-  describe = sprout_node_get(&frame->world->graph, instance->kind->node, "describe");
-  if (describe == NULL || describe->kind == SPROUT_NODE_NULL) return SPROUT_EVAL_OK;
-  EXPR_NEED(sprout_origin_library(frame, sprout_node_text(&frame->world->graph, describe, "origin"), &inside.library));
-  inside.self = thing;
   inside.bindings = NULL;
   if (!sprout_string(frame->turn, seen, strlen(seen), &seen_value)) return SPROUT_EVAL_NO_MEMORY;
   EXPR_NEED(bound_with(&inside, "actor", sprout_evaluated_object(actor)));
   EXPR_NEED(bound_with(&inside, "here", sprout_evaluated_object(here)));
   EXPR_NEED(bound_with(&inside, "seen", sprout_evaluated_value(seen_value)));
-  memset(&d, 0, sizeof d);
-  d.thing = thing;
-  EXPR_NEED(run_block(&d, &inside, sprout_node_get(&frame->world->graph, sprout_node_get(&frame->world->graph, describe, "declaration"), "body")));
-  out->line_count = d.count;
-  out->lines = d.lines;
-  out->recorded_count = d.recorded_count;
-  out->recorded = d.recorded;
-  return SPROUT_EVAL_OK;
+  return run_describe(frame, instance, inside.bindings, out);
+}
+
+sprout_eval_status sprout_describe_beyond(const sprout_frame *frame, sprout_str place, const sprout_binding *bindings,
+                                          sprout_description *out) {
+  const sprout_stored_instance *instance = expr_instance(frame, place);
+  memset(out, 0, sizeof *out);
+  if (instance == NULL) return expr_engine(frame, "a place is shown through a way out, and is not an instance.");
+  out->of = place;
+  return run_describe(frame, instance, bindings, out);
 }

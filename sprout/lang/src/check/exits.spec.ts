@@ -213,6 +213,18 @@ describe('an exit, against the whole bundle', () => {
     ]);
   });
 
+  it('reads in its `when` the place it leads to, and refuses another place and what that one holds', () => {
+    expect(said('exit in "in" -> shop when (shop.is(sprout.Place) && !shop.get(:unseen))')).toEqual(
+      [],
+    );
+    expect(said('exit up "up" -> shop.loft when (!shop.get(:unseen))')[0]!.slice(2, 3)).toEqual([
+      '`shop` is another place, out of range of `yard`, so `shop.get(…)` can never be read from here: the world lets nothing pass between its places.',
+    ]);
+    expect(said('exit in "in" -> shop when (shop.count(Lamp) == 0)')[0]!.slice(2, 3)).toEqual([
+      '`shop` is where this exit leads, and its `when` reads that place itself, not what is in it, so `shop.count(…)` cannot be asked here.',
+    ]);
+  });
+
   it('refuses a `when` that draws, since it is asked to show the ways out', () => {
     expect(said('exit in "in" -> shop when (chance(2))')[0]!.slice(2)).toEqual([
       "An exit's `when` may not use `chance`: it is asked to show a visitor the ways out, so a roll would offer a way that vanishes when taken.",

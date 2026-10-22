@@ -38,7 +38,7 @@ import { matches } from './check/values.js';
 import { memberPathType, pathSteps } from './names.js';
 import type { ValueType } from '../declare/types.js';
 
-export type { ActSetting, CheckContext, MessageSetting } from './check/checker.js';
+export type { ActSetting, CheckContext, MessageSetting, WayEnds } from './check/checker.js';
 export { bindingType } from './check/leaves.js';
 export { resolveKind } from './check/arguments.js';
 export { branchScope, narrowingOf } from './check/narrowing.js';

@@ -1,0 +1,47 @@
+// Quotation marks in a typed line (the spec's Parsing › Matching a line):
+// a mark that opens or closes a word is dropped before the line is read,
+// paired or not, so `answer "a well" to door` reads as `answer a well to
+// door`, whose article is then dropped too; an apostrophe inside a word,
+// `king's`, is kept.
+import * as sprout from 'sprout'
+
+world quoted_words is sprout.World {
+  visitors are Person
+  visitors arrive at vault
+
+  object vault is sprout.Place {
+    grammar { article the }
+    object door is Riddler { grammar { name "stone door"  nouns "door" } }
+    object crown is Crown { grammar { name "king's crown"  nouns "crown" "king's" } }
+  }
+}
+
+kind Person is sprout.Visitor { }
+
+enum Answer { well, echo }
+
+verb answer {
+  role target
+  role word: symbol
+  "answer [word] to [target]"
+  "say [word] to [target]"
+}
+
+verb touch { role target  "touch [target]" }
+
+kind Riddler {
+  :answers [Answer] default [well]
+
+  as target for answer {
+    word from :answers
+    do {
+      if (bound word) { say "The door grinds open." }
+      else            { say "The door laughs, hollow and long." }
+    }
+  }
+  as target for touch { do { say "The stone is cold." } }
+}
+
+kind Crown {
+  as target for touch { do { say "The crown is heavy with gold." } }
+}
