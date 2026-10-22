@@ -7,8 +7,9 @@
  * is: the ways out of the actor's place, then the words, then what the actor can reach, then each placement of each
  * phrase, a step, with what its slots' words fill their roles with and the readings they make. The best reading is
  * the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with `cannot` or
- * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; naming nothing in reach, with
- * `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
+ * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; `all` in a role whose things the
+ * visitor carries, with nothing in their hands, with `empty_handed`; naming nothing in reach, with `not_here`; and
+ * otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
  * handed on as words; `again` runs the last reading again; and a later turn of a line is read as it was handed, a
  * planned reading or an item of a run to read afresh (the spec's Parsing > Sequences, again and all).
  */
@@ -186,6 +187,7 @@ typedef struct trying {
   parse_filled going;        /* the first: an exit that refuses, or a direction none answers */
   bool not_here;             /* a placement's noun names nothing in reach, or `all` leaves nothing */
   bool narrowed_nothing;     /* every slot of a placement read, and `all` narrowed by a noun or a holder leaves nothing */
+  bool empty_handed;         /* every slot of a placement read, and `all` in a role whose things the visitor carries leaves nothing, their hands empty */
 } trying;
 
 static parse_words words_between(parse_words words, size_t start, size_t end) {
@@ -251,6 +253,25 @@ static bool any_fills(const parse_filled *const *fills, size_t count, parse_fill
   return false;
 }
 
+/*
+ * Whether the visitor's hands hold nothing they can see and `fill`, `all` that left nothing, is in a role whose things
+ * they carry: a carried role, or one the actor's own sure move takes away from them.
+ */
+static sprout_eval_status empty_handed_all(const trying *t, const parse_span *span, const parse_filled *fill, bool *out) {
+  const sprout_role *role;
+  size_t i;
+  *out = false;
+  if (t->phrase == NULL || !fill->all || (fill->fills != PARSE_FILLS_ALL && fill->fills != PARSE_FILLS_NOTHING))
+    return SPROUT_EVAL_OK;
+  if (fill->fills == PARSE_FILLS_NOTHING && (fill->start != 0 || fill->end != 1)) return SPROUT_EVAL_OK;
+  for (i = 0; i < t->all.fill.candidate_count; i++)
+    if (t->all.fill.candidates[i].carried) return SPROUT_EVAL_OK;
+  role = &t->phrase->verb->roles[span->role];
+  *out = role->carried;
+  if (!*out) EXPR_NEED(sprout_moves_its_filler_away(t->all.fill.nouns.frame, t->phrase->verb, role, t->all.actor, out));
+  return SPROUT_EVAL_OK;
+}
+
 /* One placement of the phrase's slots: a step, its fills, what they come to, and the readings they make. */
 static sprout_eval_status placed(void *context, const parse_span *spans, size_t count) {
   trying *t = (trying *)context;
@@ -258,7 +279,7 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   const parse_filled **fills = t->fills;
   parse_placement placement;
   size_t i, at, several = 0;
-  bool nothing = false, named;
+  bool nothing = false, named, empty;
   EXPR_NEED(expr_spend(frame));
   for (i = 0; i < count; i++) EXPR_NEED(fill_of(t, &spans[i], &at));
   /* The memos may move as they grow, so each is found once they are all filled. */
@@ -286,6 +307,11 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   for (i = 0; i < count; i++)
     if (fills[i]->narrowed && fills[i]->fills == PARSE_FILLS_NOTHING && fills[i]->start == 0 && fills[i]->end == 1)
       t->narrowed_nothing = true;
+  for (i = 0; i < count && !t->empty_handed; i++)
+    if (fills[i]->fills == PARSE_FILLS_NOTHING) {
+      EXPR_NEED(empty_handed_all(t, &spans[i], fills[i], &empty));
+      t->empty_handed = empty;
+    }
   if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
     /* An object's synonym typed where the object is out of reach. */
     if (t->phrase != NULL && t->phrase->only != NULL) {
@@ -303,6 +329,10 @@ static sprout_eval_status placed(void *context, const parse_span *spans, size_t 
   EXPR_NEED(parse_placement_readings(t->x, frame, t->all.actor, &placement, t->keep, &t->readings, &nothing));
   t->not_here = t->not_here || nothing;
   for (i = 0; i < count && nothing; i++) t->narrowed_nothing = t->narrowed_nothing || fills[i]->narrowed;
+  for (i = 0; i < count && nothing && !t->empty_handed; i++) {
+    EXPR_NEED(empty_handed_all(t, &spans[i], fills[i], &empty));
+    t->empty_handed = empty;
+  }
   return SPROUT_EVAL_OK;
 }
 
@@ -525,13 +555,16 @@ static sprout_status understood(reader *r, const parse_readings *readings, parse
 }
 
 /*
- * The world's answer to a line no reading reads: `not_here` where `all` narrowed by a noun or a holder leaves
+ * The world's answer to a line no reading reads: `empty_handed` where `all` in a role whose things the visitor
+ * carries leaves nothing and their hands are empty; else `not_here` where `all` narrowed by a noun or a holder leaves
  * nothing; else the partial reading chosen, a tie drawn, as `cannot` or
  * `not_carrying`; else the first way out named that does not go, `no_way` or the exit's own words; else `not_here`
  * where a noun names nothing in reach, and `unknown` otherwise.
  */
 static sprout_status unread(reader *r, const trying *t) {
   sprout_said_binding given;
+  /* A line read whole whose `all` found nothing because the hands are empty is told so, before anything else. */
+  if (t->empty_handed) return answer(r, "empty_handed", NULL);
   /* A line read whole, `all` narrowed to what is in reach, is owed `not_here` rather than another phrase's part. */
   if (t->narrowed_nothing) return answer(r, "not_here", NULL);
   if (t->partials.count > 0) {

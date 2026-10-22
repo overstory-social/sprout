@@ -9,7 +9,7 @@
     {
       "name": "sprout",
       "version": "0.1.0",
-      "sha": "288fb32a046731445e67b4f5794e445fc3bb1de81d98420b9ab26e2f5cb22e41"
+      "sha": "cec6a1293551cb3bda582c9aca4d2a9c9e2b270c23efc0b1c240fdedd54faeb3"
     }
   ],
   "files": ["wake_below_nothing.sprout", "person.sprout", "timer.sprout"]

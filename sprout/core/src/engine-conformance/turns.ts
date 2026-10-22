@@ -476,6 +476,27 @@ export const turnCases: EngineCase[] = [
     },
   },
   {
+    name: '`drop all` with empty hands is told so',
+    proves:
+      '`all` in a role whose things the visitor carries, leaving nothing while their hands are empty, is answered with `empty_handed` in the standard library’s words',
+    async run(make) {
+      const store = await seeded(BELFRY, [[MARTA, TOWER, 'Marta']]);
+      const host = played(make, BELFRY);
+      const dropped = await runCommand(store, 'w', host, command('drop all'));
+      match(
+        dropped.effects,
+        [{ visit: MARTA, paragraphs: ["You aren't carrying anything."] }],
+        'dropping all from empty hands',
+      );
+      const step = host.engine!.command(await storedIn(store), command('drop all'));
+      equal(
+        step.account,
+        { ran: [], answered: 'empty_handed', refused: false },
+        'the account of it',
+      );
+    },
+  },
+  {
     name: 'a displaced command accounts for coming in',
     proves:
       'a command whose visitor’s place is gone reads nothing they typed, and accounts for what their coming in at the arrival place ran',

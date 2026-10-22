@@ -303,6 +303,13 @@ static uint32_t word_at(const unsigned char *bytes) {
   return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
 }
 
+/* Overwrites the first digit of the first hash in `text` with `digit`, which it must not already be. */
+static void redigit_hash(char *text, char digit) {
+  char *at = strstr(text, "\"hash\":\"");
+  CHECK(at != NULL && at[8] != digit, "the teashop's header has a hash not beginning %c", digit);
+  if (at != NULL) at[8] = digit;
+}
+
 static void put_word(unsigned char *bytes, size_t value) {
   size_t i;
   for (i = 0; i < 4; i++) bytes[i] = (unsigned char)((value >> (8 * i)) & 0xff);
@@ -339,8 +346,7 @@ void build_of(const char *path, const char *version, const char *author, char di
   if (body != NULL && overwrite(body, "\"version\":\"0.1.0\"", field)) {
     snprintf(field, sizeof field, "\"author\":\"%s\"", author);
     overwrite(body, "\"author\":\"Ada\"", field);
-    snprintf(field, sizeof field, "\"hash\":\"%c", digit);
-    overwrite(body, "\"hash\":\"2", field);
+    redigit_hash(body, digit);
     gzipped = (unsigned char *)malloc(body_bytes + 5 * (body_bytes / 65535 + 1) + 18);
     gzipped_bytes = gzip_stored((const unsigned char *)body, body_bytes, gzipped);
     put_word(cartridge + 16, 24 + gzipped_bytes);
