@@ -5,7 +5,8 @@
  * runtime > Turns). A typed line's turns are driven through src/line.c as a host drives them: an intent's steps,
  * each a turn, a refusal or an answer ending the line (Parsing > Intents; Sequences, again and all), and words left
  * over dropped and the words read restated first (When nothing matches). Where the host asks, a command accounts for
- * the handlers it ran and the line it was answered with; a consent refusal is told apart.
+ * the handlers it ran and the line it was answered with; a consent refusal is told apart. A draw among partial
+ * readings is logged as a draw among readings is.
  */
 #include "turn_fixture.h"
 
@@ -351,6 +352,47 @@ static void a_command_asks_for_the_time_its_passes_count_lowered_to_the_longest_
   tw_close(&w);
 }
 
+/* `text` typed by `visit` under `seed`; the outcome is the caller's to free. */
+static void typed_under(turn_world *w, const char *visit, const char *text, uint64_t seed, sprout_outcome *out) {
+  sprout_turn_input input = tw_input(SPROUT_TURN_COMMAND, 1);
+  input.visit = visit;
+  input.text = text;
+  input.text_length = strlen(text);
+  CHECK_INT(tw_run(w, input, seed, out), SPROUT_OK);
+}
+
+/*
+ * A line answered with the partial reading the rules chose draws nothing, under every seed; one answered with a
+ * partial reading drawn from a tie logs the draw as a warning, as a drawn reading does (the spec's Parsing >
+ * Choosing a reading).
+ */
+static void a_line_answered_by_a_partial_reading_drawn_from_a_tie_logs_the_draw(void) {
+  turn_world w;
+  sprout_outcome out;
+  uint64_t seed;
+  size_t brass = 0, iron = 0;
+  tw_open(&w, "partial-nearness");
+  tw_arrive(&w, "v-marta", "Marta", 0, &out);
+  sprout_outcome_free(&out);
+  for (seed = 0; seed < 8; seed++) {
+    typed_under(&w, "v-marta", "look behind house", seed, &out);
+    CHECK(out.committed && out.answered);
+    CHECK(tw_told(&out, "v-marta", "You can't look behind the white house."));
+    CHECK_INT(out.drawn_among, 0);
+    CHECK_INT(out.log.drawn_among, 0);
+    sprout_outcome_free(&out);
+    typed_under(&w, "v-marta", "look behind bell", seed, &out);
+    CHECK(out.committed && out.answered);
+    CHECK_INT(out.drawn_among, 2);
+    CHECK_INT(out.log.drawn_among, 2);
+    if (tw_told(&out, "v-marta", "You can't look behind the brass bell.")) brass++;
+    else if (tw_told(&out, "v-marta", "You can't look behind the iron bell.")) iron++;
+    sprout_outcome_free(&out);
+  }
+  CHECK(brass > 0 && iron > 0 && brass + iron == 8);
+  tw_close(&w);
+}
+
 int main(void) {
   RUN(a_command_that_acts_writes_what_it_changed_and_leaves_a_log_entry);
   RUN(a_command_that_faults_tells_the_actor_and_leaves_the_world_byte_for_byte);
@@ -364,5 +406,6 @@ int main(void) {
   RUN(a_command_accounts_for_the_handlers_it_ran_where_the_host_asks);
   RUN(a_command_tells_a_consent_refusal_apart_and_names_the_line_it_was_answered_with);
   RUN(a_command_asks_for_the_time_its_passes_count_lowered_to_the_longest_pass);
+  RUN(a_line_answered_by_a_partial_reading_drawn_from_a_tie_logs_the_draw);
   return REPORT();
 }

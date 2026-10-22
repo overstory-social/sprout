@@ -74,7 +74,8 @@
       { "reader": "Ana", "kind": "told", "words": "Marta takes a cup." }
     ] },
     { "as": "Marta", "type": "drop all on the lamp", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You can't drop the red cake on the lamp." }
+      { "reader": "Marta", "kind": "notice", "words": "You can't drop the cup on the lamp." },
+      { "level": "warning", "text": "drawn: the line read 4 ways that tied, and one was drawn" }
     ] },
     { "as": "Marta", "type": "close the sack", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You shut the sack." },

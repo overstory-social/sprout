@@ -78,6 +78,7 @@
 "out-of-reach-exit":{"world":"out_of_reach_exit","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "out-of-reach-synonym":{"world":"out_of_reach_synonym","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "own-place":{"world":"own_place","serial":0,"instances":[],"visitors":[],"tombstones":[]},
+"partial-nearness":{"world":"partial_nearness","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "passage-composition":{"world":"passage_composition","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "passages":{"world":"passages","serial":0,"instances":[],"visitors":[],"tombstones":[]},
 "passing-time":{"world":"passing_time","serial":0,"instances":[],"visitors":[],"tombstones":[]},

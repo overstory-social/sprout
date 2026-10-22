@@ -83,7 +83,7 @@ static sprout_json *account(wasm_engine *e, const sprout_outcome *outcome) {
  * what the store writes, null where it wrote nothing; `stale` whose views it made stale, null where it faulted.
  * `entry` is what the log keeps of it at this instance's depth, and `account` what it ran. A command also gives `answered`, that no reading
  * ran; `displaced`, that its visitor's place was gone, so what they typed was not read; `drawn`, how many readings
- * tied where its reading was drawn, or null; `step`, the reading it ran as a step of a line of several, or null;
+ * tied where its reading, or the partial reading it was answered by, was drawn, or null; `step`, the reading it ran as a step of a line of several, or null;
  * `next`, the turns its line runs after it; `goesOn`, that the line goes on; and `passes`, the seconds the host is to
  * let pass once it is over (the spec's Time > Passing time).
  */

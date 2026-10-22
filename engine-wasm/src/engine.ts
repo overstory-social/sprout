@@ -67,7 +67,8 @@ function unexpected(told: Told, kind: string): Error {
 
 /** What a command turn that committed says of its line, as a host logs it. */
 function notesOf(told: Told): CommandNotes {
-  if (told.answered === true) return { answered: {} };
+  const drawn = told.drawn === null || told.drawn === undefined ? null : { among: told.drawn };
+  if (told.answered === true) return { answered: { drawn } };
   if (told.displaced === true) return { displaced: {} };
   const step = told.step ?? null;
   const at = step === null ? -1 : step.verb.lastIndexOf('.');
@@ -76,7 +77,7 @@ function notesOf(told: Told): CommandNotes {
       step === null
         ? null
         : { verb: { library: step.verb.slice(0, at), name: step.verb.slice(at + 1) } },
-    drawn: told.drawn === null || told.drawn === undefined ? null : { among: told.drawn },
+    drawn,
     passes: told.passes ?? 0,
   };
 }

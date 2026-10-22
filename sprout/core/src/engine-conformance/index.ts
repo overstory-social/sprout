@@ -2,6 +2,7 @@ import { admissionCases } from './admission.js';
 import { pollCases } from './polls.js';
 import { questionCases } from './questions.js';
 import { replayCases } from './replay.js';
+import { tieCases } from './ties.js';
 import { tickerCases } from './ticker.js';
 import { turnCases } from './turns.js';
 import { versionCases } from './versions.js';
@@ -20,9 +21,10 @@ import type { EngineCase, MakeEngine } from './worlds.js';
 export * from './worlds.js';
 export { bundleOn, playedTally } from './replay.js';
 
-/** Every case, by area: turns, admission and the log, polls, rounds of ticks, the engine reached directly, replay, and saves across versions. */
+/** Every case, by area: turns, ties among partial readings, admission and the log, polls, rounds of ticks, the engine reached directly, replay, and saves across versions. */
 export const engineCases: readonly EngineCase[] = [
   ...turnCases,
+  ...tieCases,
   ...admissionCases,
   ...pollCases,
   ...tickerCases,

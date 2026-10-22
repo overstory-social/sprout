@@ -307,18 +307,20 @@ function notes(context: ServerContext, connection: Connection, turn: GivenComman
     return;
   }
   const done = turn.value;
-  if ('answered' in done || 'displaced' in done) return;
-  if (done.step !== null) {
+  if ('displaced' in done) return;
+  if ('step' in done && done.step !== null) {
     record(context, connection, 'info', `step: ${done.step.verb.library}.${done.step.verb.name}`);
   }
-  if (done.drawn !== null) {
-    const text = `drawn: the line read ${done.drawn.among} ways that tied, and one was drawn`;
+  // A reading drawn from a tie, or the partial reading a line was answered by, is logged as a warning.
+  const drawn = 'answered' in done ? done.answered.drawn : done.drawn;
+  if (drawn !== null) {
+    const text = `drawn: the line read ${drawn.among} ways that tied, and one was drawn`;
     context.log.write('warning', text, world);
     record(context, connection, 'warning', text);
   }
   // The server's clock is the wall's, shared by everyone in the world, so
   // it grants no time a command asks to pass (the spec's Time › Passing time).
-  if (done.passes > 0) {
+  if ('passes' in done && done.passes > 0) {
     const text = `passes: none of ${done.passes} seconds, the command's ask up to the longest pass, since this host's clock is the wall's`;
     context.log.write('info', text, world);
     record(context, connection, 'info', text);

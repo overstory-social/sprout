@@ -452,6 +452,8 @@ typedef struct parse_partial {
   sprout_str words;      /* as a visitor would type it */
   size_t literal;        /* the line's words it matched literally, what a role cannot take included */
   size_t bound;          /* the roles its slots fill */
+  const size_t *near;    /* how near what fills each role is, in declared order, 0 where a role holds no thing */
+  size_t near_count;
   sprout_str uncarried;  /* the thing a carried role names that the actor does not carry, where that is all that is wrong; no bytes for `cannot` */
 } parse_partial;
 
@@ -461,7 +463,7 @@ typedef struct parse_partials {
   size_t count, capacity;
 } parse_partials;
 
-/* Negative where `a` ranks before `b`: more words matched, then more roles filled; 0 where they tie. */
+/* Negative where `a` ranks before `b`: more words matched, then more roles filled, then nearer things; 0 where they tie. */
 int parse_compare_partial(const parse_partial *a, const parse_partial *b);
 
 /*

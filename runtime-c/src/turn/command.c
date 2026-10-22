@@ -445,6 +445,7 @@ static sprout_status read_command(turn_run *run, const sprout_frame *frame, cons
       return SPROUT_OK;
     case SPROUT_PARSED_ANSWERED:
       out->answered = out->stops = true;
+      out->drawn_among = parsed.drawn ? parsed.drawn_among : 0;
       if (turned.said.tried != NULL) {
         out->exit_refused = true;
         out->tried.bytes = turned.said.tried;
@@ -629,8 +630,8 @@ sprout_status turn_command(sprout_world *world, sprout_state *state, const sprou
     /* A line goes on past a reading that refused its actor nothing, and past an answer that does not stop it. */
     outcome->answered = c.answered;
     if (c.answered) outcome->goes_on = !c.stops;
+    outcome->drawn_among = c.drawn_among;
     if (c.reads) {
-      outcome->drawn_among = c.drawn_among;
       /* A turn of a line of several readings planned at once, an intent's, `all`'s or a run's, is a step the host logs. */
       if (input->planned != NULL || c.several) outcome->step = c.read;
     }

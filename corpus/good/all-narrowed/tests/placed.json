@@ -13,7 +13,8 @@
       { "reader": "Marta", "kind": "said", "words": "You take a red cake." }
     ] },
     { "as": "Marta", "type": "drop all on the table", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You can't drop the berry on the table." }
+      { "reader": "Marta", "kind": "notice", "words": "You can't drop the red cake on the table." },
+      { "level": "warning", "text": "drawn: the line read 3 ways that tied, and one was drawn" }
     ] },
     { "as": "Marta", "type": "drop all from the table", "expect": [
       { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }

@@ -552,6 +552,34 @@ export const OWN_FOLLOWED = declaredId('own_followed', []);
 export const OWN_FOLLOWED_HALL = declaredId('own_followed', ['hall']);
 export const OWN_FOLLOWED_BELL = declaredId('own_followed', ['hall', 'bell']);
 
+/**
+ * West of House: the place answers to `house` from its name, as the white
+ * house in it does, and neither may be looked behind; the two bells in it
+ * are equally near, and neither may be looked behind either.
+ */
+export const WEST = compiled('west', {
+  'west.sprout': `world west is sprout.World {
+  visitors are Person
+  visitors arrive at west_of_house
+  object west_of_house is sprout.Place {
+    grammar { name "West of House" }
+    object house is Thing { grammar { name "white house"  nouns "house" } }
+    object brass_bell is Thing
+    object iron_bell is Thing
+    object curtain is Hiding
+  }
+}
+verb look_behind { role target: Hiding  "look behind [target]" }
+`,
+  'person.sprout': 'kind Person is sprout.Visitor { }\n',
+  'thing.sprout': `kind Thing { grammar { article the } }
+kind Hiding is Thing {
+  as target for look_behind { do { say "Nothing is hidden there." } }
+}
+`,
+});
+export const WEST_OF_HOUSE = declaredId('west', ['west_of_house']);
+
 export const MARTA = visitKey('v-marta');
 export const INES = visitKey('v-ines');
 export const PAT = visitKey('v-pat');
