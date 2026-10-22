@@ -4,6 +4,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { compileWorld } from '../../fixtures/bundle.js';
+
 import { objectOf, OPEN_OBJECT, roleBinding, showBindingType, valueOf } from '../bindings.js';
 import { ACTOR } from '../../declare/actors.js';
 import { BOOLEAN, integer } from '../../declare/types.js';
@@ -281,5 +283,35 @@ describe('the readings, asked directly', () => {
       '`Key` holds nothing, so there is nothing to count.',
       '`includes` asks what a list or a set holds, and this is shop.Vessel.',
     ]);
+  });
+});
+
+describe('an exit’s `when` reading the place it leads to', () => {
+  /** What compiling a hall whose way north to the yard is guarded by `when` refused, as messages. */
+  function refused(when: string): string[] {
+    const { diagnostics } = compileWorld('yards', {
+      'yards.sprout': `world yards is sprout.World {
+  visitors are Person
+  visitors arrive at hall
+  object hall is sprout.Place { grammar { exit north "north" -> yard when (${when}) } }
+  object yard is sprout.Place { :open true  object toy is Toy }
+}
+kind Person is sprout.Visitor { }
+kind Toy { }
+`,
+    });
+    return diagnostics.filter((one) => one.severity === 'refusal').map((one) => one.message);
+  }
+  const holding = (reading: string): string =>
+    `\`yard\` is where this exit leads, and its \`when\` reads that place itself, not what is in it, so \`yard.${reading}\` cannot be asked here.`;
+
+  it('takes `get` and `is` through it', () => {
+    expect(refused('yard.get(:open) && yard.is(sprout.Place)')).toEqual([]);
+  });
+
+  it('refuses `count`, written either way, and `holds`, since what it holds stays out of range', () => {
+    expect(refused('yard.count == 0')).toEqual([holding('count')]);
+    expect(refused('yard.count(Toy) == 0')).toEqual([holding('count(…)')]);
+    expect(refused('yard.holds(yards.yard.toy)')).toEqual([holding('holds(…)')]);
   });
 });
