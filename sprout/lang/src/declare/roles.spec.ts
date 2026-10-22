@@ -7,7 +7,15 @@ import { parseDeclarations } from '../syntax/parse.js';
 import { locationOf, SourceFile } from '../source/source.js';
 import { EnumTable } from './enums.js';
 import { KindTable } from './kinds.js';
-import { anyKey, anyPlaysOf, playKey, playsOf, VerbNames, type ResolvedPlay } from './roles.js';
+import {
+  anyKey,
+  anyPlaysOf,
+  heardEnums,
+  playKey,
+  playsOf,
+  VerbNames,
+  type ResolvedPlay,
+} from './roles.js';
 
 /** The standard library's part: a verb of its own, and one the world may declare over. */
 const SPROUT_TEXT = `verb take { role target  "take [target]" }
@@ -50,8 +58,14 @@ function world(text: string, options: { onUnknownVerb?: boolean } = {}) {
     shop.filter((d): d is KindDeclaration => d.kind === 'kind'),
     diagnostics,
   );
+  const enums = new EnumTable();
+  enums.add(
+    'shop',
+    shop.filter((d) => d.kind === 'enum'),
+    diagnostics,
+  );
   const unknown: PlayDeclaration[] = [];
-  kinds.resolve('shop', new EnumTable(), diagnostics, undefined, {
+  kinds.resolve('shop', enums, diagnostics, undefined, {
     verbs,
     ...(options.onUnknownVerb === true ? { onUnknownVerb: (play) => unknown.push(play) } : {}),
   });
@@ -234,6 +248,27 @@ kind Clerk {
         'Name a property declared outside a `remembers` block.',
       ],
     ]);
+  });
+});
+
+describe('the enums a value role is heard as, which an `act` may give it', () => {
+  const ask = { library: 'shop', name: 'ask', roles: [{ name: 'target' }, { name: 'topic' }] };
+
+  it('gathers each enum a `from` names through any part, once, and leaves out a range', () => {
+    const { said, kinds } = world(`${UNLOCK}enum Topic { toll, bridge }
+enum Mood { calm }
+kind Guard { :knows [Topic] default []  as target for ask { topic from :knows  do { } } }
+kind Clerk { :knows [Topic] default []  as target for ask { topic from :knows  do { } } }
+kind Owl is sprout.Actor { :moods [Mood] default []  as actor for ask { topic from :moods  do { } } }
+kind Dial { as target for ask { topic from 1 to 12  do { } } }
+kind Deaf { as target for ask { do { } } }`);
+    expect(said).toEqual([]);
+    const plays = (...names: string[]) => names.map((name) => kinds.qualified('shop', name)!.plays);
+    const heard = (...names: string[]) =>
+      heardEnums(plays(...names), ask, 'topic').map((one) => one.name);
+    expect(heard('Guard', 'Clerk', 'Owl', 'Dial', 'Deaf')).toEqual(['Topic', 'Mood']);
+    expect(heard('Dial', 'Deaf')).toEqual([]);
+    expect(heardEnums(plays('Guard'), ask, 'target')).toEqual([]);
   });
 });
 

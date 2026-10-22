@@ -97,6 +97,8 @@ sprout_eval_status expr_recalled(const sprout_frame *frame, sprout_str actor, co
 /* ---- range.c, passes.c: what is in range of what ---- */
 
 bool expr_live(const sprout_frame *frame, sprout_str id);
+/* Whether `id` is a place, holding actors: the wall a refusing container is never lifted across (Range). */
+bool expr_holds_actors(const sprout_frame *frame, sprout_str id);
 /* Whether a container lets `asking` through (a message's qualified name, or NULL for any). */
 sprout_eval_status expr_passes(const sprout_frame *frame, sprout_str container, const char *asking, bool *open);
 /* Whether `target` is in range of `asker` by the path between them alone. */

@@ -24,7 +24,8 @@ kind Cat is Creature {
     }
   }
 
-  // A value tool is handed on only where `bound` has said it is there.
+  // A value tool is handed on only where `bound` has said it is there,
+  // and `mew` hears it through the cat's own `from`.
   as target for quiz {
     topic from :moods
     do {
@@ -34,6 +35,6 @@ kind Cat is Creature {
   }
 
   as actor for bat   { do { say "The cat bats at {target}." } }
-  as actor for mew   { do { say "Mew." } }
+  as actor for mew   { mood from :moods  do { say "Mew." } }
   as actor for knead { do { say "The cat kneads the blanket." } }
 }

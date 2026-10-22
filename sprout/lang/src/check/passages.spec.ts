@@ -81,7 +81,7 @@ function passagesOf(text: string): { said: Diagnostic[]; unheard: string[] } {
   const here = hereKindOf(kinds.all(), kinds);
   for (const kind of kinds.all()) {
     const own = kindName(kind);
-    const setting = { kinds, here, verbs, diagnostics, speech: { sites } };
+    const setting = { kinds, here, verbs, heard: () => [], diagnostics, speech: { sites } };
     for (const name of GUARD_NAMES) {
       for (const guard of kind.guards[name]) {
         if (guard.origin === own) checkGuard(guard.declaration, kind, setting);

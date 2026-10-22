@@ -1406,6 +1406,18 @@ is shown. Otherwise every rule that governs a visitor governs a character.
 Its own part speaks to whoever its act is aimed at with `tell target`, as
 under The actor's own part.
 
+A value role is given a value of its type: an option written bare, a
+whole number worked out where the `act` stands, or a binding that holds
+one. Whoever plays the verb still narrows it with `from`, so a value
+outside its options arrives unbound, just as a typed one would:
+
+```sprout
+verb enchant { role target  role spell: symbol }
+
+act enchant (target: actor, spell: :feeble)
+act chime (target: actor, count: self.get(:rings) + 1)
+```
+
 Where a verb's role is filled by a kind, the binding given to `act` must
 be that kind first, so a character acting on whoever arrives reads them
 with `is()`:
@@ -1725,7 +1737,10 @@ through containment:
 2. The sender's container receives it if it passes that message, and
    delivers it on to its other contents (a container among them passes it
    in only if its own rule says so).
-3. And so on outward, until a container refuses.
+3. And so on outward, until a container refuses. Everything else that
+   container holds still receives it, being shut in with the sender, unless
+   a place stands in between: rooms in a shut house, like the world's
+   places, do not hear each other.
 
 So a lamp broadcasting inside a shut cabinet lights nothing outside it,
 and a room's broadcast stops at the world, which passes nothing unless you
@@ -1806,6 +1821,11 @@ containment tree refuses to pass. In practice:
   can still count what is in it.
 - It always reaches **the container it is in**, as a surface — so a
   visitor shut in a wardrobe can still open the wardrobe.
+- It reaches **what is shut in with it** — the other contents of the
+  first container out that refuses — so two visitors shut in one wardrobe
+  can name each other. A shut box beside them still hides what is in it.
+  A place is a wall of its own: rooms in a house that refuses, like the
+  world's places, are not in each other's range.
 - It reaches further containers outward while each container in between
   passes, and their other contents while they pass too.
 

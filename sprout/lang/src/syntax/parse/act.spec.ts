@@ -12,7 +12,10 @@ import { block, onItsOwn } from './statements.js';
 
 /** An `act` as the parser holds it, written back: `act nuzzle (target: p)`. */
 function actShape(act: ActStatement): string {
-  const roles = act.roles.map((role) => `${role.role.text}: ${writtenPath(role.filler)}`);
+  const roles = act.roles.map(
+    (role) =>
+      `${role.role.text}: ${role.kind === 'act-role' ? writtenPath(role.filler) : textOf(role.value.at)}`,
+  );
   return `act ${act.verb.text} (${roles.join(', ')})`;
 }
 
@@ -53,16 +56,54 @@ describe('`act` performs a verb with `self` as the actor', () => {
     expect(rest(p)).toBe('after');
     expect(textOf(read!.at)).toBe('act unlock (target: door,  tool: key)');
     expect(read!.roles.map((role) => textOf(role.at))).toEqual(['target: door', 'tool: key']);
-    expect(locationOf(read!.roles[1]!.filler.at)).toBe('body.sprout:1:34');
+    const tool = read!.roles[1]!;
+    expect(tool.kind === 'act-role' && locationOf(tool.filler.at)).toBe('body.sprout:1:34');
   });
 
   it('takes a comma after the last role, and a role written against its colon', () => {
     expect(actShape(readAct('act nuzzle (target: p,)').read!)).toBe('act nuzzle (target: p)');
     const joined = readAct('act nuzzle (target:p)');
     expect(joined.refusals).toEqual([]);
-    const filler = joined.read!.roles[0]!.filler;
-    expect(writtenPath(filler)).toBe('p');
-    expect(locationOf(filler.at)).toBe('body.sprout:1:20');
+    const role = joined.read!.roles[0]!;
+    if (role.kind !== 'act-role') throw new Error('`target:p` was not read as a name');
+    expect(writtenPath(role.filler)).toBe('p');
+    expect(locationOf(role.filler.at)).toBe('body.sprout:1:20');
+  });
+
+  it('reads a filler that is not a name standing alone as a value', () => {
+    const table: [string, string][] = [
+      ['act enchant (target: p, spell: :feeble)', 'symbol-expr'],
+      ['act dial (target: p, number: 3)', 'integer'],
+      ['act dial (target: p, number: -3)', 'unary'],
+      ['act dial (target: p, number: n + 1)', 'binary'],
+      ['act dial (target: p, number: self.get(:dial))', 'call'],
+      ['act dial (target: p, number: chance(4))', 'free-call'],
+      ['act flag (target: p, up: true)', 'boolean'],
+      ['act enchant (target: p, spell: Spell)', 'kind-expr'],
+    ];
+    for (const [text, kind] of table) {
+      const { read, refusals, p } = readAct(text);
+      expect(refusals, text).toEqual([]);
+      expect(p.done, text).toBe(true);
+      expect(actShape(read!), text).toBe(text);
+      const [first, second] = read!.roles;
+      expect(first!.kind, text).toBe('act-role');
+      expect(second!.kind === 'act-value' && second!.value.kind, text).toBe(kind);
+    }
+  });
+
+  it('reads a name, or a dotted path, standing alone as a name whatever it holds', () => {
+    for (const text of [
+      'act dial (target: p, number: n)',
+      'act take (target: kiln.cup, tool: t)',
+    ]) {
+      const { read, refusals } = readAct(text);
+      expect(refusals, text).toEqual([]);
+      expect(
+        read!.roles.map((role) => role.kind),
+        text,
+      ).toEqual(['act-role', 'act-role']);
+    }
   });
 
   it('refuses each part missing or written wrong, once, where it is', () => {
@@ -128,16 +169,10 @@ describe('`act` performs a verb with `self` as the actor', () => {
         'Write `target: <what fills it>`, as in `act nuzzle (target: p)`.',
       ],
       [
-        'act ask (target: guard, topic: :toll)',
+        'act ask (target: guard, topic: ->)',
         'body.sprout:1:32',
-        '`topic` is filled by the name of something in reach, and `:toll` is not one.',
-        'Name something in reach in lower case, as in `topic: p`, where `p` is a binding or a role.',
-      ],
-      [
-        'act nuzzle (target: Cat)',
-        'body.sprout:1:21',
-        '`target` is filled by the name of something in reach, and `Cat` is not one.',
-        'Name something in reach in lower case, as in `target: p`, where `p` is a binding or a role.',
+        '`topic` is filled by a name or a value, and `->` is neither.',
+        'Name something in reach in lower case, as in `topic: p`, or write a value its role takes, as in `topic: :toll` or `topic: 3`.',
       ],
       [
         'act unlock (target: door tool: key)',
@@ -169,7 +204,12 @@ const DEFECTIVE = [
   'act nuzzle (target:',
   'act nuzzle (target: p',
   'act nuzzle (target: p tool: q)',
-  'act nuzzle (target: :toll)',
+  'act nuzzle (target: ->)',
+  'act dial (number: 3 +)',
+  'act dial (number: 3 +',
+  'act dial (number: (3',
+  'act dial (number: self.get(:x)',
+  'act dial (number: n +',
   'act nuzzle (7)',
   'act sprout.take (target: p)',
 ];

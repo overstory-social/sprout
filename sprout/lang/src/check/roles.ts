@@ -48,6 +48,7 @@ export interface PlaySetting {
   /** What `here` is typed as in this world. */
   readonly here: HereKind;
   readonly verbs: ActSetting['verbs'];
+  readonly heard: ActSetting['heard'];
   readonly diagnostics: Diagnostics;
   /** Where the body's identifiers resolve from; with none, only bindings are names. */
   readonly names?: NameScope;
@@ -143,7 +144,7 @@ function contextOf(
     self,
     diagnostics: setting.diagnostics,
     ...(verb === null ? {} : { verb }),
-    acting: { verbs: setting.verbs },
+    acting: { verbs: setting.verbs, heard: setting.heard },
     ...(setting.names === undefined ? {} : { names: setting.names }),
     ...(setting.messages === undefined ? {} : { messages: setting.messages }),
     ...(setting.extensions === undefined ? {} : { extensions: setting.extensions }),

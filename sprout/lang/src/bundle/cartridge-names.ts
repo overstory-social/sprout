@@ -23,6 +23,7 @@ type NameField = 'name' | 'path' | 'names';
 export const NAME_FIELDS: Readonly<Record<string, Readonly<Record<string, NameField>>>> = {
   act: { verb: 'name' },
   'act-role': { role: 'name', filler: 'path' },
+  'act-value': { role: 'name' },
   binding: { name: 'name' },
   bound: { name: 'name' },
   broadcast: { message: 'name' },

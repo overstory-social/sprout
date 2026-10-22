@@ -1,0 +1,15 @@
+import * as sprout from 'sprout'
+import {Person} from 'person'
+
+world act_option_unheard is sprout.World {
+  contains actors
+  visitors are Person
+  visitors arrive at hall
+
+  object hall is sprout.Place
+}
+
+enum Topic { bridge, toll }
+
+verb pet    { role target  "pet [target]" }
+verb quiz   { role target  role topic: symbol  "quiz [target] about [topic]" }
