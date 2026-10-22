@@ -119,8 +119,8 @@ static sprout_eval_status ask(sprout_exec *x, const sprout_frame *frame, sprout_
 
 /*
  * Who is told that `actor` left or entered `place`, walking its range as `message` is routed, so a `pass :arrived`
- * or `pass :departed` bounds it (the spec's Places): the visitors, who read the notice, and everything else, who is
- * sent the message.
+ * or `pass :departed` bounds it (the spec's Places): the visitors, who read the notice, and everyone but the one
+ * who moved, visitors among them, who is sent the message.
  */
 typedef struct told {
   sprout_str *read, *sent;
@@ -139,7 +139,7 @@ static sprout_eval_status told_of(const sprout_frame *frame, sprout_str place, s
   for (i = 0; i < count; i++) {
     if (sprout_str_same(walked[i].node, actor)) continue;
     if (sprout_is_person(frame, walked[i].node)) out->read[out->read_count++] = walked[i].node;
-    else out->sent[out->sent_count++] = walked[i].node;
+    out->sent[out->sent_count++] = walked[i].node;
   }
   return SPROUT_EVAL_OK;
 }
@@ -147,8 +147,8 @@ static sprout_eval_status told_of(const sprout_frame *frame, sprout_str place, s
 /*
  * What `place` says and sends of `actor` leaving it for `to` or entering it
  * from `to`: the engine's `leaves` or `arrives` to the visitors in its range,
- * and `:departed (actor, to)` or `:arrived (actor, from)` to everything else
- * there. The other end is left unbound where it is the world, and the way
+ * and `:departed (actor, to)` or `:arrived (actor, from)` to everything there,
+ * the visitors too, but the one who moved. The other end is left unbound where it is the world, and the way
  * where the move went through no exit or link.
  */
 sprout_eval_status sprout_move_spoken(sprout_exec *x, const sprout_frame *frame, bool leaving, sprout_str place,
