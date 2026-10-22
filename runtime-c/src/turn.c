@@ -265,6 +265,39 @@ static sprout_status ran_kept(const turn_run *run, sprout_outcome *outcome) {
   return SPROUT_OK;
 }
 
+static bool kept_text(sprout_arena *keep, const char *from, const char **to) {
+  if (from == NULL) {
+    *to = NULL;
+    return true;
+  }
+  *to = sprout_arena_copy(keep, from, strlen(from));
+  return *to != NULL;
+}
+
+/* What the attempt did that nobody was told of, after the turn's earlier commits', copied into the outcome's arena. */
+static sprout_status warnings_kept(const turn_run *run, sprout_outcome *outcome) {
+  sprout_arena *keep = turn_keep(outcome);
+  sprout_warning *warnings;
+  size_t i;
+  if (run->x.warning_count == 0) return SPROUT_OK;
+  warnings = (sprout_warning *)sprout_arena_take(keep, (outcome->warning_count + run->x.warning_count) * sizeof *warnings);
+  if (warnings == NULL) return SPROUT_NO_MEMORY;
+  if (outcome->warning_count > 0) memcpy(warnings, outcome->warnings, outcome->warning_count * sizeof *warnings);
+  for (i = 0; i < run->x.warning_count; i++) {
+    const sprout_warning *one = &run->x.warnings[i];
+    sprout_warning *kept = &warnings[outcome->warning_count + i];
+    kept->kind = one->kind;
+    if (!keep_str(keep, one->by, &kept->by) || !keep_str(keep, one->item, &kept->item) ||
+        !keep_str(keep, one->to, &kept->to) || !keep_str(keep, one->refuser, &kept->refuser) ||
+        !kept_text(keep, one->guard, &kept->guard) || !kept_text(keep, one->words, &kept->words) ||
+        !kept_text(keep, one->target, &kept->target) || !kept_text(keep, one->message, &kept->message))
+      return SPROUT_NO_MEMORY;
+  }
+  outcome->warnings = warnings;
+  outcome->warning_count += run->x.warning_count;
+  return SPROUT_OK;
+}
+
 sprout_status turn_commit(turn_run *run, sprout_outcome *outcome) {
   sprout_changes changes;
   sprout_str *made;
@@ -277,7 +310,8 @@ sprout_status turn_commit(turn_run *run, sprout_outcome *outcome) {
     if (sprout_state_find(run->state, run->draft.written[i].id) == NULL) made[made_count++] = run->draft.written[i].id;
   if (sprout_draft_commit(&run->draft, &changes) != SPROUT_DRAFT_OK) return SPROUT_NO_MEMORY;
   status = turn_changes_add(outcome, &changes, made, made_count);
-  return status == SPROUT_OK ? ran_kept(run, outcome) : status;
+  if (status == SPROUT_OK) status = ran_kept(run, outcome);
+  return status == SPROUT_OK ? warnings_kept(run, outcome) : status;
 }
 
 sprout_status turn_log(turn_run *run, sprout_outcome *outcome, const char *who, size_t who_length) {

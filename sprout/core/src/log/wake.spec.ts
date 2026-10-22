@@ -11,6 +11,7 @@ const woke = {
   fault: null,
   effects: [SAID],
   cutShort: [],
+  warnings: [],
 } as const;
 
 describe('a wake in the log', () => {

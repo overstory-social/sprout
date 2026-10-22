@@ -10,7 +10,14 @@ import {
   type Reading,
 } from '@overstory/sprout/lang';
 
-import { LoggedCut, LoggedEffect, LoggedFault, TurnInputs, writeInputsOf } from './parts.js';
+import {
+  LoggedCut,
+  LoggedWarning,
+  LoggedEffect,
+  LoggedFault,
+  TurnInputs,
+  writeInputsOf,
+} from './parts.js';
 import { LoggedDigest } from './depth.js';
 
 // A command in the log (the spec's The runtime › The log, Faults; Parsing
@@ -77,6 +84,8 @@ export const CommandEntry = TurnInputs.extend({
   drawn: z.object({ level: z.literal('warning'), among: z.number().int().min(2) }).nullable(),
   /** Who a line would have taken past their output, each a warning. */
   cutShort: z.array(LoggedCut),
+  /** What its bodies did that nobody was told of, each a warning. */
+  warnings: z.array(LoggedWarning),
 });
 export type CommandEntry = z.infer<typeof CommandEntry>;
 

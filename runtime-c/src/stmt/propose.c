@@ -2,7 +2,8 @@
  * `move` and `act` (the spec's Verbs > Moving something, Acting). A `move` is
  * a proposal that the engine move a thing into a container through consent,
  * with the object whose body runs it as the mover; a refusal is said to
- * whoever the body speaks to, and ends the body. An `act` is a reading with
+ * whoever the body speaks to, kept for the log as a warning where that is
+ * nobody, and ends the body. An `act` is a reading with
  * `self` as the actor and each named role filled, by a name or by a value
  * worked out where the `act` stands, run on the spot through
  * the reading pass; a refused one ends the body, as a refused `move` does,
@@ -16,10 +17,12 @@ sprout_eval_status stmt_move(sprout_run *run, const sprout_frame *frame, const s
   sprout_move_refusal refusal;
   EXPR_NEED(stmt_acting(run, frame, "`move`"));
   EXPR_NEED(stmt_object_at(frame, sprout_node_get(frame->graph, statement, "thing"), &item));
-  EXPR_NEED(stmt_destination_at(frame, sprout_node_get(frame->graph, statement, "destination"), &to));
+  EXPR_NEED(stmt_destination_at(frame, sprout_node_get(frame->graph, statement, "destination"), item, &to));
   EXPR_NEED(sprout_move_instance(run->x, frame, frame->self, item, to, SPROUT_REACH_RANGE, NULL, &end, &refusal));
   if (end != SPROUT_MOVE_DONE) {
-    EXPR_NEED(sprout_record_refusal(run->x, frame, &refusal));
+    size_t readers;
+    EXPR_NEED(sprout_record_refusal(run->x, frame, &refusal, &readers));
+    if (readers == 0) EXPR_NEED(sprout_warn_unread(run->x, frame, item, to, &refusal));
     run->stopped = SPROUT_STOPPED_REFUSED;
   }
   return SPROUT_EVAL_OK;

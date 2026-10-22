@@ -390,6 +390,45 @@ export const STONE = declaredId('yard', ['court', 'stone']);
 export const PEBBLE = declaredId('yard', ['court', 'pebble']);
 
 /**
+ * The glade: touching the pedestal sends the visitor a message whose
+ * handler moves the gem, which the pedestal refuses with nobody to tell;
+ * blowing the horn calls a bell in a shed out of range, which reaches
+ * nothing.
+ */
+export const GLADE = compiled('glade', {
+  'glade.sprout': `world glade is sprout.World {
+  visitors are Person
+  visitors arrive at lawn
+  object lawn is sprout.Place {
+    object pedestal is Pedestal { object gem is Gem }
+    object horn is Horn
+  }
+  object shed is sprout.Place {
+    object bell is Gem
+  }
+}
+verb touch { role target  "touch [target]" }
+verb blow  { role target  "blow [target]" }
+message :granted
+message :called
+`,
+  'person.sprout': `kind Taker is sprout.Actor {
+  on :granted { move lawn.pedestal.gem to self  tell "Yours." }
+}
+kind Person is Taker, sprout.Visitor { }
+`,
+  'pedestal.sprout': `kind Pedestal {
+  contains
+  release (item, to) { if (mover != self) { refuse "The pedestal keeps its gem." } }
+  as target for touch { do { say "You touch it."  send actor :granted } }
+}
+kind Gem { on :called { } }
+kind Horn { as target for blow { do { say "You blow it."  send shed.bell :called } } }
+`,
+});
+export const LAWN = declaredId('glade', ['lawn']);
+
+/**
  * The hideout: a thief in the hall who is unseen, and a bell whose ringing
  * sends him into the vault, where he stays unseen.
  */

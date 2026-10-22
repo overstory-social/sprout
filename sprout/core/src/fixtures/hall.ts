@@ -112,6 +112,7 @@ function inputs(given: WriteInputs, effects: readonly Effect[]) {
     budgets: DEFAULT_LIMITS.budgets,
     effects: loggedEffects(effects),
     cutShort: [],
+    warnings: [],
   };
 }
 

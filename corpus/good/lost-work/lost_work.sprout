@@ -1,0 +1,37 @@
+// What a body does that nobody is told of (The runtime › The log): a
+// `move` its guard refuses where nobody reads the refusal, and a `send`
+// to a name that reaches nothing. The visitor reads nothing of either;
+// the log keeps each as a warning, and `sprout play` and `sprout test`
+// show it as a host line. Touching the pedestal sends the visitor a
+// message whose handler moves the gem, which the pedestal refuses with
+// nobody to tell; blowing the horn calls the stag by a path that names
+// nothing once it has bounded off into the thicket.
+import * as sprout from 'sprout'
+import {Person} from 'person'
+import {Pedestal, Gem, Horn} from 'pedestal'
+import {Stag} from 'stag'
+
+world lost_work is sprout.World {
+  visitors are Person
+  visitors arrive at glade
+
+  object glade is sprout.Place {
+    describe { text "A glade, with a pedestal, a horn and a stag." }
+    object pedestal is Pedestal {
+      object gem is Gem
+    }
+    object horn is Horn
+    object stag is Stag
+  }
+
+  object thicket is sprout.Place {
+    describe { text "A thicket." }
+  }
+}
+
+verb touch { role target  "touch [target]" }
+verb blow  { role target  "blow [target]" }
+verb shoo  { role target  "shoo [target]" }
+
+message :granted
+message :called

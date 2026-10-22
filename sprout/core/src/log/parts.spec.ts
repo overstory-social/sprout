@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS, SEED_MAX, type Effect, type Fault } from '@overstory/sprout/lang';
 
 import { COUNTER, MARTA } from '../fixtures/tally.js';
-import { LoggedEffect, loggedEffects, loggedFault, TurnInputs, writeInputsOf } from './parts.js';
+import {
+  LoggedEffect,
+  loggedEffects,
+  loggedFault,
+  LoggedWarning,
+  TurnInputs,
+  writeInputsOf,
+} from './parts.js';
 
 describe('a turn’s inputs as the log keeps them', () => {
   const kept = { seed: SEED_MAX, mayHold: 40, now: 3_000_000_000, budgets: DEFAULT_LIMITS.budgets };
@@ -98,5 +105,41 @@ describe('effects and faults as the log keeps them', () => {
     expect(loggedFault({ ...fault, extra: 1 } as Fault)).toEqual({ level: 'error', ...fault });
     const extension: Fault = { ...fault, name: 'ExtensionFault', extension: 'media' };
     expect(loggedFault(extension)).toEqual({ level: 'error', ...extension });
+  });
+});
+
+describe('what nobody was told of, as the log keeps it', () => {
+  const unread = {
+    level: 'warning',
+    what: 'unread-refusal',
+    by: 'w#1',
+    item: 'w.hall.gem',
+    to: 'w#1',
+    refuser: 'w.hall.pedestal',
+    guard: 'release',
+    words: '"The pedestal keeps its gem."',
+  };
+  const lost = {
+    level: 'warning',
+    what: 'lost-send',
+    by: 'w.hall.horn',
+    target: 'shed.bell',
+    message: 'w.called',
+  };
+
+  it('keeps a refused move by its guard, or the engine’s, and a lost send by the name as written', () => {
+    expect(LoggedWarning.parse(unread)).toEqual(unread);
+    expect(
+      LoggedWarning.parse({ ...unread, guard: null, words: 'passage too_heavy' }),
+    ).toMatchObject({
+      guard: null,
+    });
+    expect(LoggedWarning.parse(lost)).toEqual(lost);
+  });
+
+  it('refuses a guard no move asks, a warning at another level, and a send with no name', () => {
+    expect(LoggedWarning.safeParse({ ...unread, guard: 'permit' }).success).toBe(false);
+    expect(LoggedWarning.safeParse({ ...unread, level: 'info' }).success).toBe(false);
+    expect(LoggedWarning.safeParse({ ...lost, target: '' }).success).toBe(false);
   });
 });
