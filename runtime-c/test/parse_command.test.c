@@ -485,16 +485,37 @@ static void a_noun_naming_nothing_in_reach_is_not_here_whatever_its_words_and_a_
   read_as(&p, "take jewels");
   answered(&p, "not_here");
   CHECK_INT(p.out.binding_count, 2);
-  read_as(&p, "take ball again");
-  answered(&p, "not_here");
   read_as(&p, "examine through the ball");
   answered(&p, "not_here");
   read_as(&p, "take gong");
   answered(&p, "not_here");
-  read_as(&p, "take the ball in the box");
-  answered(&p, "not_here");
   read_as(&p, "xyzzy jewels");
   answered(&p, "unknown");
+  close_hall(&p);
+}
+
+static void words_left_over_are_dropped_and_what_was_read_is_restated_first(void) {
+  parsing p;
+  open_world(&p, "unknown-word");
+  /* `take [target]` takes `ball again` whole, which names nothing; `take ball` reads. */
+  read_as(&p, "take ball again");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.reading.verb, "sprout.take");
+  CHECK_STR(bound_to(&p, "target"), "unknown_word.hall.ball");
+  CHECK_INT(p.out.aside_count, 1);
+  CHECK_STR(p.out.asides[0].line, "understood");
+  CHECK_STR(p.out.asides[0].reading, "take ball");
+  CHECK(p.out.asides[0].thing == NULL);
+  /* A relative phrase that names nothing is left over too, as typed. */
+  read_as(&p, "Take The Ball in the box");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.asides[0].reading, "take the ball");
+  /* The gong is named in a slot of its own, and is in the cellar. */
+  read_as(&p, "put ball in gong");
+  answered(&p, "not_here");
+  /* A line read whole restates nothing. */
+  read_as(&p, "take ball");
+  CHECK_INT(p.out.aside_count, 0);
   close_hall(&p);
 }
 
@@ -527,9 +548,13 @@ static void drop_all_on_a_thing_puts_what_is_held_there_and_is_never_narrowed_to
   read_as(&p, "put all on the table");
   CHECK_INT(p.out.end, SPROUT_PARSED_READING);
   CHECK_STR(bound_to(&p, "surface"), "drop_all_on.tea_room.table");
-  /* No phrase that begins `drop` reads `in`, and `in` is no holder in drop's target. */
+  /* No phrase that begins `drop` reads `in`, and `in` is no holder in drop's target, so `in the sack` is left over. */
   read_as(&p, "drop all in the sack");
-  answered(&p, "unknown");
+  CHECK_INT(p.out.end, SPROUT_PARSED_READING);
+  CHECK_STR(p.out.reading.verb, "sprout.drop");
+  CHECK_INT(p.out.aside_count, 1);
+  CHECK_STR(p.out.asides[0].line, "understood");
+  CHECK_STR(p.out.asides[0].reading, "drop all");
   close_hall(&p);
   open_world(&p, "all-narrowed");
   command(&p, "sprout.take", "all_narrowed.tea_room.blue_cake");
@@ -597,6 +622,7 @@ static void an_objects_synonym_out_of_reach_is_not_here_where_its_noun_names_the
 int main(void) {
   RUN(a_noun_naming_nothing_in_reach_is_not_here_whatever_its_words_and_a_line_no_verb_reads_is_unknown);
   RUN(a_way_that_does_not_go_is_answered_by_the_exit_or_the_worlds_no_way);
+  RUN(words_left_over_are_dropped_and_what_was_read_is_restated_first);
   RUN(a_narrowed_all_that_leaves_nothing_is_not_here_before_another_phrase_read_in_part);
   RUN(a_noun_after_all_naming_nothing_in_reach_is_not_here_as_any_noun_is);
   RUN(drop_all_on_a_thing_puts_what_is_held_there_and_is_never_narrowed_to_what_it_holds);

@@ -18,6 +18,7 @@ static const struct {
     {"no_way", "You can't go that way."},
     {"cannot", "You can't {reading}."},
     {"not_carrying", "You aren't carrying {thing}."},
+    {"understood", "({reading})"},
     {"meant", "({thing})"},
     {"pronoun_correction", "{thing} is a {pronoun}."},
     {"nothing_happens", "Nothing much comes of that."},

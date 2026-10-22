@@ -1,0 +1,16 @@
+{
+  "name": "trailing_words",
+  "version": "0.1.0",
+  "author": "corpus",
+  "license": "MIT",
+  "level": 1,
+  "extensions": [],
+  "libraries": [
+    {
+      "name": "sprout",
+      "version": "0.1.0",
+      "sha": "532ee3631bbff5bb41462d66a35c63107bc81357e3f0718833f16119e69186ef"
+    }
+  ],
+  "files": ["trailing_words.sprout", "person.sprout"]
+}

@@ -1,5 +1,5 @@
 {
-  "about": "`drop all on the table` and `put all on the table` put each thing in hand on it, and someone there sees it; `take all on the table` and `hold all on the table`, whose actor writes `move thing to actor`, still take what it holds; `drop all in the sack` is read by nothing, and the lamp, no container, holds nothing put on it.",
+  "about": "`drop all on the table` and `put all on the table` put each thing in hand on it, and someone there sees it; `take all on the table` and `hold all on the table`, whose actor writes `move thing to actor`, still take what it holds; the lamp, no container, holds nothing put on it; and no phrase that begins `drop` reads `in`, so `drop all in the sack` is read as `drop all`, the words left over dropped and what was read restated.",
   "steps": [
     { "arrive": "Marta", "expect": [
       { "reader": "Marta", "kind": "described", "words": "There is nothing special about the tea room." }
@@ -73,11 +73,8 @@
       { "reader": "Marta", "kind": "said", "words": "You take a cup." },
       { "reader": "Ana", "kind": "told", "words": "Marta takes a cup." }
     ] },
-    { "as": "Marta", "type": "drop all in the sack", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "That is not something you can do here." }
-    ] },
     { "as": "Marta", "type": "drop all on the lamp", "expect": [
-      { "reader": "Marta", "kind": "notice", "words": "You can't drop the orange cake on the lamp." }
+      { "reader": "Marta", "kind": "notice", "words": "You can't drop the red cake on the lamp." }
     ] },
     { "as": "Marta", "type": "close the sack", "expect": [
       { "reader": "Marta", "kind": "said", "words": "You shut the sack." },
@@ -86,6 +83,21 @@
     { "as": "Marta", "type": "drop all on the sack", "expect": [
       { "level": "info", "text": "step: sprout.put_on" },
       { "reader": "Marta", "kind": "refused", "words": "The sack is shut." }
+    ] },
+    { "as": "Marta", "type": "drop all in the sack", "expect": [
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "notice", "words": "(drop all)" },
+      { "reader": "Marta", "kind": "said", "words": "You put an orange cake down." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts an orange cake down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a red cake down." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a red cake down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a lamp down." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a lamp down." },
+      { "level": "info", "text": "step: sprout.drop" },
+      { "reader": "Marta", "kind": "said", "words": "You put a cup down." },
+      { "reader": "Ana", "kind": "told", "words": "Marta puts a cup down." }
     ] }
   ]
 }

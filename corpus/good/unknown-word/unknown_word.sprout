@@ -2,7 +2,9 @@
 // When nothing matches). Where a verb's phrase reads the line, a noun that
 // names nothing here is `not_here`, whether its words name something
 // elsewhere, as `gong` does from the cellar, or nothing in the world at all,
-// as `jewels` and `ball again` do. A line no phrase reads is `unknown`.
+// as `jewels` does; where the line's first words read, as `take ball` in
+// `take ball again`, the rest is dropped. A line no phrase reads is
+// `unknown`.
 import * as sprout from 'sprout'
 import {Person} from 'person'
 

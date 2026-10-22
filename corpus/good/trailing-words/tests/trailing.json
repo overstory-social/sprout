@@ -1,0 +1,59 @@
+{
+  "about": "Words left over after a reading are dropped, and what was read is restated before it through the world's `understood`: `push` has no `with` phrase, so `push the menhir with the sword` is `push the menhir`, and a trailing word or clause no phrase reads goes the same way, `and` and a command after it included. A noun dropped with them is dropped whatever it names, `in case` after `drop sword` among them. A relative phrase that names something is read whole, and `again` runs what was read. A noun that names nothing in reach in a slot of its own is never dropped: `drop sword on gong` and `look at gong` are `not_here`, though `drop sword` and `look` would read, and so is a line whose first words name nothing.",
+  "steps": [
+    { "arrive": "Marta", "expect": [
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the clearing." }
+    ] },
+    { "as": "Marta", "type": "push the menhir with the sword", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(push the menhir)" },
+      { "reader": "Marta", "kind": "said", "words": "The menhir does not budge." }
+    ] },
+    { "as": "Marta", "type": "take the sword too", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(take the sword)" },
+      { "reader": "Marta", "kind": "said", "words": "You take a sword." }
+    ] },
+    { "as": "Marta", "type": "drop sword on gong", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "put sword in case quickly", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(put sword in case)" },
+      { "reader": "Marta", "kind": "said", "words": "You put a sword in a case." }
+    ] },
+    { "as": "Marta", "type": "take the sword in the case", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You take a sword." }
+    ] },
+    { "as": "Marta", "type": "pull the place mat back", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(pull the place mat)" },
+      { "reader": "Marta", "kind": "said", "words": "You tug at a place mat." }
+    ] },
+    { "as": "Marta", "type": "g", "expect": [
+      { "reader": "Marta", "kind": "said", "words": "You tug at a place mat." }
+    ] },
+    { "as": "Marta", "type": "wait for the floating to stop", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(wait)" },
+      { "reader": "Marta", "kind": "said", "words": "Time passes." }
+    ] },
+    { "as": "Marta", "type": "look at gong", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "examine gong closely", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "push the gong with the sword", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "You see nothing like that here." }
+    ] },
+    { "as": "Marta", "type": "drop sword in case", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(drop sword)" },
+      { "reader": "Marta", "kind": "said", "words": "You put a sword down." }
+    ] },
+    { "as": "Marta", "type": "take the mat too and look", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(take the mat)" },
+      { "reader": "Marta", "kind": "said", "words": "You take a place mat." },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the clearing." }
+    ] },
+    { "as": "Marta", "type": "take the passage that climbs", "expect": [
+      { "reader": "Marta", "kind": "notice", "words": "(take the passage)" },
+      { "reader": "Marta", "kind": "described", "words": "There is nothing special about the ledge." }
+    ] }
+  ]
+}

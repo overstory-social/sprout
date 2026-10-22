@@ -5,10 +5,11 @@
  * turn's meter and the stream begun from the host's seed (sprout_parse), so the steps it spends and the draws it
  * makes are the turn's own. The order is fixed, since every step is charged where it
  * is: the ways out of the actor's place, then the words, then what the actor can reach, then each placement of each
- * phrase, a step, with what its slots' words fill their roles with and the readings they make. The best reading is
- * the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with `cannot` or
- * `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; naming nothing in reach, with
- * `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
+ * phrase, a step, with what its slots' words fill their roles with and the readings they make (phrases.c). The best
+ * reading is the one understood, a tie drawn; a line no reading reads is answered (answers.c): read in part, with
+ * `cannot` or `not_carrying`; naming a way that does not go, with `no_way` or the exit's words; else, where its first
+ * words make a reading, understood as them, the words read restated through `understood`; naming nothing in reach,
+ * with `not_here`; and otherwise `unknown`. A line `and` or a comma splits is read up to the split, the command after it
  * handed on as words; `again` runs the last reading again; and a later turn of a line is read as it was handed, a
  * planned reading or an item of a run to read afresh (the spec's Parsing > Sequences, again and all).
  */
@@ -166,210 +167,6 @@ static bool kept(sprout_arena *keep, sprout_str from, sprout_str *to) {
   return to->bytes != NULL;
 }
 
-/* One slot's words, filled for one role, kept while its phrase is tried. */
-typedef struct memo {
-  size_t role, start, end;
-  parse_filled filled;
-} memo;
-
-/* What every phrase tried against the line came to, and where the readings are kept. */
-typedef struct trying {
-  const sprout_typed_phrase *phrase;        /* a verb's phrase, or NULL for an intent's */
-  const sprout_typed_intent_phrase *intent; /* an intent's phrase, or NULL */
-  parse_words words;
-  parse_all_context all;
-  sprout_exec *x;
-  sprout_arena *keep; /* the turn's arena, where a reading made outlives its phrase */
-  memo *memos;
-  size_t memo_count, memo_capacity;
-  const parse_filled **fills; /* the placement's, by span */
-  parse_readings readings;
-  parse_partials partials;   /* the partial readings tied for best, which the line is answered by where nothing reads */
-  bool has_going;            /* a way out named does not go */
-  parse_filled going;        /* the first: an exit that refuses, or a direction none answers */
-  bool not_here;             /* a placement's noun names nothing in reach, or `all` leaves nothing */
-  bool narrowed_nothing;     /* every slot of a placement read, and `all` narrowed by a noun or a holder leaves nothing */
-} trying;
-
-static parse_words words_between(parse_words words, size_t start, size_t end) {
-  parse_words part;
-  part.words = words.words + start;
-  part.count = end - start;
-  return part;
-}
-
-/* The roles an intent's slot is given to, every step's in order. */
-static sprout_eval_status slot_roles(const trying *t, size_t slot, const sprout_role ***roles, size_t *count) {
-  const sprout_intent *intent = t->intent->intent;
-  size_t s, f, r, room = 0;
-  for (s = 0; s < intent->step_count; s++) room += intent->steps[s].filler_count;
-  *count = 0;
-  *roles = (const sprout_role **)sprout_arena_take(t->all.fill.nouns.frame->turn, (room + 1) * sizeof **roles);
-  if (*roles == NULL) return SPROUT_EVAL_NO_MEMORY;
-  for (s = 0; s < intent->step_count; s++) {
-    const sprout_intent_step *step = &intent->steps[s];
-    for (f = 0; f < step->filler_count; f++) {
-      if (step->filler_slots[f] != slot) continue;
-      for (r = 0; r < step->verb->role_count; r++)
-        if (strcmp(step->verb->roles[r].name, step->filler_roles[f]) == 0) (*roles)[(*count)++] = &step->verb->roles[r];
-    }
-  }
-  return SPROUT_EVAL_OK;
-}
-
-/* The memo of what the words of `span` fill its role with, `all` read first, filled once for the phrase: its index. */
-static sprout_eval_status fill_of(trying *t, const parse_span *span, size_t *at) {
-  parse_words words = words_between(t->words, span->start, span->end);
-  memo *slot;
-  parse_filled filled;
-  for (*at = 0; *at < t->memo_count; (*at)++)
-    if (t->memos[*at].role == span->role && t->memos[*at].start == span->start && t->memos[*at].end == span->end)
-      return SPROUT_EVAL_OK;
-  if (t->phrase != NULL) {
-    const sprout_role *role = &t->phrase->verb->roles[span->role];
-    bool all;
-    EXPR_NEED(parse_all_in(&t->all, words, role, t->phrase->verb, &all, &filled));
-    if (!all) EXPR_NEED(parse_fill_slot(&t->all.fill, role, words, &filled));
-  } else {
-    const sprout_role **roles;
-    size_t count;
-    EXPR_NEED(slot_roles(t, span->role, &roles, &count));
-    EXPR_NEED(parse_fill_intent_slot(&t->all.fill, roles, count, words, &filled));
-  }
-  slot = (memo *)sprout_exec_grow(t->all.fill.nouns.frame->turn, (void **)&t->memos, &t->memo_count,
-                                  &t->memo_capacity, sizeof *t->memos);
-  if (slot == NULL) return SPROUT_EVAL_NO_MEMORY;
-  slot->role = span->role;
-  slot->start = span->start;
-  slot->end = span->end;
-  slot->filled = filled;
-  *at = t->memo_count - 1;
-  return SPROUT_EVAL_OK;
-}
-
-static bool any_fills(const parse_filled *const *fills, size_t count, parse_fills which) {
-  size_t i;
-  for (i = 0; i < count; i++)
-    if (fills[i]->fills == which) return true;
-  return false;
-}
-
-/* One placement of the phrase's slots: a step, its fills, what they come to, and the readings they make. */
-static sprout_eval_status placed(void *context, const parse_span *spans, size_t count) {
-  trying *t = (trying *)context;
-  const sprout_frame *frame = t->all.fill.nouns.frame;
-  const parse_filled **fills = t->fills;
-  parse_placement placement;
-  size_t i, at, several = 0;
-  bool nothing = false, named;
-  EXPR_NEED(expr_spend(frame));
-  for (i = 0; i < count; i++) EXPR_NEED(fill_of(t, &spans[i], &at));
-  /* The memos may move as they grow, so each is found once they are all filled. */
-  for (i = 0; i < count; i++) {
-    EXPR_NEED(fill_of(t, &spans[i], &at));
-    fills[i] = &t->memos[at].filled;
-  }
-  placement.phrase = t->phrase;
-  placement.intent = t->intent;
-  placement.words = t->words;
-  placement.spans = spans;
-  placement.count = count;
-  placement.fills = fills;
-  /* An object's synonym reads only where the object takes part, so what it names in part is not about it. */
-  if (t->phrase == NULL || t->phrase->only == NULL) EXPR_NEED(parse_partials_of(frame, &placement, t->keep, &t->partials));
-  if (any_fills(fills, count, PARSE_FILLS_UNFIT) || any_fills(fills, count, PARSE_FILLS_OUTWARD)) return SPROUT_EVAL_OK;
-  for (i = 0; i < count; i++) {
-    if (fills[i]->fills != PARSE_FILLS_REFUSED && fills[i]->fills != PARSE_FILLS_NO_WAY) continue;
-    if (!t->has_going && t->phrase != NULL && t->phrase->only == NULL) {
-      t->has_going = true;
-      t->going = *fills[i];
-    }
-    return SPROUT_EVAL_OK;
-  }
-  for (i = 0; i < count; i++)
-    if (fills[i]->narrowed && fills[i]->fills == PARSE_FILLS_NOTHING && fills[i]->start == 0 && fills[i]->end == 1)
-      t->narrowed_nothing = true;
-  if (any_fills(fills, count, PARSE_FILLS_NOTHING)) {
-    /* An object's synonym typed where the object is out of reach. */
-    if (t->phrase != NULL && t->phrase->only != NULL) {
-      EXPR_NEED(parse_offered_out_of_reach(&t->all.fill, &placement, &named));
-      t->not_here = t->not_here || named;
-    } else {
-      t->not_here = true;
-    }
-    return SPROUT_EVAL_OK;
-  }
-  /* One role runs once for each of several things, never two. */
-  for (i = 0; i < count; i++)
-    if (fills[i]->fills == PARSE_FILLS_RUN || fills[i]->fills == PARSE_FILLS_ALL) several++;
-  if (several > 1) return SPROUT_EVAL_OK;
-  EXPR_NEED(parse_placement_readings(t->x, frame, t->all.actor, &placement, t->keep, &t->readings, &nothing));
-  t->not_here = t->not_here || nothing;
-  for (i = 0; i < count && nothing; i++) t->narrowed_nothing = t->narrowed_nothing || fills[i]->narrowed;
-  return SPROUT_EVAL_OK;
-}
-
-/*
- * Tries every phrase of the world's and its intents' against `words`, each with its fills in an arena rewound for the
- * next, the readings they make, and the partial readings kept in the turn's.
- */
-static sprout_eval_status phrases_read(reader *r, parse_words words, const parse_candidate *candidates,
-                                       size_t candidate_count, const sprout_way *ways, size_t way_count, trying *t) {
-  const sprout_world *world = r->run->world;
-  sprout_arena scratch, *turn = r->run->x.turn;
-  sprout_frame frame = r->frame;
-  size_t i, most = 0;
-  sprout_eval_status status = SPROUT_EVAL_OK;
-  for (i = 0; i < world->phrase_count; i++)
-    if (world->phrases[i].part_count > most) most = world->phrases[i].part_count;
-  for (i = 0; i < world->intent_phrase_count; i++)
-    if (world->intent_phrases[i].part_count > most) most = world->intent_phrases[i].part_count;
-  if (sprout_arena_init(&scratch, r->run->host) != SPROUT_OK) return SPROUT_EVAL_NO_MEMORY;
-  /* What a consent pass builds is scratch too, so the exec takes it from the phrase's arena while the phrases are tried. */
-  frame.turn = &scratch;
-  r->run->x.turn = &scratch;
-  memset(t, 0, sizeof *t);
-  t->words = words;
-  t->x = &r->run->x;
-  t->keep = turn;
-  t->all.actor = r->actor;
-  t->all.here = r->here;
-  t->all.fill.nouns.frame = &frame;
-  t->all.fill.nouns.referents = r->referents;
-  t->all.fill.nouns.referent_count = r->referent_count;
-  t->all.fill.candidates = candidates;
-  t->all.fill.candidate_count = candidate_count;
-  t->all.fill.ways = ways;
-  t->all.fill.way_count = way_count;
-  for (i = 0; status == SPROUT_EVAL_OK && i < world->phrase_count + world->intent_phrase_count; i++) {
-    const sprout_typed_part *parts;
-    size_t part_count;
-    sprout_arena_rewind(&scratch);
-    t->memos = NULL;
-    t->memo_count = t->memo_capacity = 0;
-    t->fills = (const parse_filled **)sprout_arena_take(&scratch, (most + 1) * sizeof *t->fills);
-    if (t->fills == NULL) {
-      status = SPROUT_EVAL_NO_MEMORY;
-      break;
-    }
-    if (i < world->phrase_count) {
-      t->phrase = &world->phrases[i];
-      t->intent = NULL;
-      parts = t->phrase->parts;
-      part_count = t->phrase->part_count;
-    } else {
-      t->phrase = NULL;
-      t->intent = &world->intent_phrases[i - world->phrase_count];
-      parts = t->intent->parts;
-      part_count = t->intent->part_count;
-    }
-    status = parse_slot_spans(&scratch, parts, part_count, words.words, words.count, placed, t);
-  }
-  r->run->x.turn = turn;
-  sprout_arena_reset(&scratch);
-  return status;
-}
-
 static bool is_word(sprout_str word, const char *text) {
   return word.length == strlen(text) && memcmp(word.bytes, text, word.length) == 0;
 }
@@ -426,16 +223,23 @@ static void faulted(reader *r, sprout_eval_status status) {
 }
 
 /*
- * The asides said before the reading, in order: the world's `pronoun_correction` for each thing a pronoun named that
- * declares another pronoun, each once (the spec's Parsing > Pronouns), then the engine's `meant` for a drawn reading.
+ * The asides said before the reading, in order: the engine's `understood` with the words read where words left over
+ * were dropped (the spec's Parsing > When nothing matches), the world's `pronoun_correction` for each thing a pronoun
+ * named that declares another pronoun, each once (Pronouns), then the engine's `meant` for a drawn reading.
  */
-static sprout_eval_status asides_of(reader *r, const parse_chosen *chosen, sprout_aside **out, size_t *count) {
+static sprout_eval_status asides_of(reader *r, const parse_chosen *chosen, const char *restated, sprout_aside **out,
+                                    size_t *count) {
   const parse_ranked *ranked = chosen->ranked;
-  sprout_aside *asides = (sprout_aside *)sprout_arena_take(r->keep, (ranked->pronoun_count + 2) * sizeof *asides);
+  sprout_aside *asides = (sprout_aside *)sprout_arena_take(r->keep, (ranked->pronoun_count + 3) * sizeof *asides);
   size_t i, j;
   *out = asides;
   *count = 0;
   if (asides == NULL) return SPROUT_EVAL_NO_MEMORY;
+  memset(asides, 0, (ranked->pronoun_count + 3) * sizeof *asides);
+  if (restated != NULL) {
+    asides[*count].line = "understood";
+    asides[(*count)++].reading = restated;
+  }
   for (i = 0; i < ranked->pronoun_count; i++) {
     const parse_pronoun_thing *named = &ranked->pronouns[i];
     const sprout_stored_instance *thing = expr_instance(&r->frame, named->id);
@@ -455,7 +259,7 @@ static sprout_eval_status asides_of(reader *r, const parse_chosen *chosen, sprou
     asides[(*count)++].thing = kept_id(r->keep, *chosen->meant);
   }
   for (i = 0; i < *count; i++)
-    if (asides[i].thing == NULL) return SPROUT_EVAL_NO_MEMORY;
+    if (asides[i].thing == NULL && asides[i].reading == NULL) return SPROUT_EVAL_NO_MEMORY;
   return SPROUT_EVAL_OK;
 }
 
@@ -494,9 +298,10 @@ static sprout_eval_status rest_of(reader *r, const parse_ranked *chosen, parse_w
 
 /*
  * The line understood: the best of the readings it made of `words`, a tie drawn, with what it runs after it, the
- * command `after` last where a line split, and what is said before it.
+ * command `after` last where a line split, and what is said before it, `restated` first where words were dropped.
  */
-static sprout_status understood(reader *r, const parse_readings *readings, parse_words words, const char *after) {
+static sprout_status understood(reader *r, const parse_readings *readings, parse_words words, const char *after,
+                                const char *restated) {
   sprout_parsed *out = r->out;
   parse_chosen chosen;
   sprout_aside *asides;
@@ -511,7 +316,7 @@ static sprout_status understood(reader *r, const parse_readings *readings, parse
     out->draw_count = 1;
   }
   if (status == SPROUT_EVAL_OK) status = rest_of(r, chosen.ranked, words, after);
-  if (status == SPROUT_EVAL_OK) status = asides_of(r, &chosen, &asides, &aside_count);
+  if (status == SPROUT_EVAL_OK) status = asides_of(r, &chosen, restated, &asides, &aside_count);
   if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
   if (status != SPROUT_EVAL_OK) {
     faulted(r, status);
@@ -527,14 +332,33 @@ static sprout_status understood(reader *r, const parse_readings *readings, parse
   return SPROUT_OK;
 }
 
+/* `words` joined by single spaces, in `arena`; NULL where it has no room. */
+static const char *joined(sprout_arena *arena, parse_words words) {
+  size_t length = 0, at = 0, i;
+  char *text;
+  for (i = 0; i < words.count; i++) length += words.words[i].length + 1;
+  text = (char *)sprout_arena_take_aligned(arena, length + 1, 1);
+  if (text == NULL) return NULL;
+  for (i = 0; i < words.count; i++) {
+    if (i > 0) text[at++] = ' ';
+    memcpy(text + at, words.words[i].bytes, words.words[i].length);
+    at += words.words[i].length;
+  }
+  text[at] = '\0';
+  return text;
+}
+
 /*
  * The world's answer to a line no reading reads: `not_here` where `all` narrowed by a noun or a holder leaves
- * nothing; else the partial reading chosen, a tie drawn, as `cannot` or
- * `not_carrying`; else the first way out named that does not go, `no_way` or the exit's own words; else `not_here`
- * where a noun names nothing in reach, and `unknown` otherwise.
+ * nothing; else the partial reading chosen, a tie drawn, as `cannot` or `not_carrying`; else the first way out named
+ * that does not go, `no_way` or the exit's own words; else the reading its first words make, the words left over
+ * dropped and the words read restated; else `not_here` where a noun names nothing in reach, and `unknown` otherwise.
  */
-static sprout_status unread(reader *r, const trying *t) {
+static sprout_status unread(reader *r, const parse_line *line, const parse_tried *t, const char *after) {
   sprout_said_binding given;
+  parse_tried first;
+  bool read;
+  sprout_eval_status status;
   /* A line read whole, `all` narrowed to what is in reach, is owed `not_here` rather than another phrase's part. */
   if (t->narrowed_nothing) return answer(r, "not_here", NULL);
   if (t->partials.count > 0) {
@@ -570,6 +394,17 @@ static sprout_status unread(reader *r, const trying *t) {
     given.text.length = strlen(t->going.direction);
     return answer(r, "no_way", &given);
   }
+  status = parse_first_words_read(line, t, &first, &read);
+  if (status == SPROUT_EVAL_NO_MEMORY) return SPROUT_NO_MEMORY;
+  if (status != SPROUT_EVAL_OK) {
+    faulted(r, status);
+    return SPROUT_OK;
+  }
+  if (read) {
+    const char *restated = joined(r->keep, first.words);
+    if (restated == NULL) return SPROUT_NO_MEMORY;
+    return understood(r, &first.readings, first.words, after, restated);
+  }
   return answer(r, t->not_here ? "not_here" : "unknown", NULL);
 }
 
@@ -581,9 +416,9 @@ static sprout_status stopped(reader *r, sprout_eval_status status) {
 }
 
 /* One command's words read: understood where they make a reading, the command `after` run after it, else answered. */
-static sprout_status answering(reader *r, const trying *t, const char *after) {
-  if (t->readings.count > 0) return understood(r, &t->readings, t->words, after);
-  return unread(r, t);
+static sprout_status answering(reader *r, const parse_line *line, const parse_tried *t, const char *after) {
+  if (t->readings.count > 0) return understood(r, &t->readings, t->words, after, NULL);
+  return unread(r, line, t, after);
 }
 
 /* The readings that read every word the line holds, in the order made, in the turn arena. */
@@ -608,17 +443,28 @@ static sprout_status read_words(reader *r, parse_words typed, const parse_candid
                                 const sprout_way *ways, size_t way_count) {
   size_t *points = (size_t *)sprout_arena_take(r->run->x.turn, (typed.count + 1) * sizeof *points);
   size_t point_count, i;
-  trying whole, before;
+  parse_tried whole, before;
   parse_readings reads;
   parse_noun_context nouns;
+  parse_line line;
   sprout_eval_status status;
   if (points == NULL) return SPROUT_NO_MEMORY;
+  line.run = r->run;
+  line.frame = r->frame;
+  line.actor = r->actor;
+  line.here = r->here;
+  line.referents = r->referents;
+  line.referent_count = r->referent_count;
+  line.candidates = candidates;
+  line.candidate_count = candidate_count;
+  line.ways = ways;
+  line.way_count = way_count;
   point_count = parse_chain_points(r->run->world, typed, points);
-  status = phrases_read(r, typed, candidates, candidate_count, ways, way_count, &whole);
+  status = parse_phrases_read(&line, typed, &whole);
   if (status != SPROUT_EVAL_OK) return stopped(r, status);
-  if (point_count == 0) return answering(r, &whole, NULL);
+  if (point_count == 0) return answering(r, &line, &whole, NULL);
   if (!whole_of(r->run->x.turn, &whole.readings, &reads)) return SPROUT_NO_MEMORY;
-  if (reads.count > 0) return understood(r, &reads, typed, NULL);
+  if (reads.count > 0) return understood(r, &reads, typed, NULL, NULL);
   nouns.frame = &r->frame;
   nouns.referents = r->referents;
   nouns.referent_count = r->referent_count;
@@ -628,10 +474,10 @@ static sprout_status read_words(reader *r, parse_words typed, const parse_candid
     if (status != SPROUT_EVAL_OK) return stopped(r, status);
     if (!named) break;
   }
-  if (i == point_count) return answering(r, &whole, NULL);
-  status = phrases_read(r, parse_command_before(typed, points[i]), candidates, candidate_count, ways, way_count, &before);
+  if (i == point_count) return answering(r, &line, &whole, NULL);
+  status = parse_phrases_read(&line, parse_command_before(typed, points[i]), &before);
   if (status != SPROUT_EVAL_OK) return stopped(r, status);
-  return answering(r, &before, parse_command_after(r->keep, typed, points[i]));
+  return answering(r, &line, &before, parse_command_after(r->keep, typed, points[i]));
 }
 
 /*
@@ -691,7 +537,7 @@ static sprout_status read_handed(reader *r, const sprout_handed *handed, const s
     if (status != SPROUT_EVAL_OK) return stopped(r, status);
     if (item.answer != NULL) return answer(r, item.answer, item.given ? &item.binding : NULL);
     memset(&none, 0, sizeof none);
-    return understood(r, &item.readings, none, NULL);
+    return understood(r, &item.readings, none, NULL, NULL);
   }
   status = parse_reach_of(&r->frame, r->actor, &candidates, &candidate_count);
   if (status != SPROUT_EVAL_OK) return stopped(r, status);

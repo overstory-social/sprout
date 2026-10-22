@@ -239,7 +239,7 @@ static sprout_eval_status asides_told(const sprout_frame *frame, sprout_str acto
     sprout_effect_binding *bound;
     sprout_str *to = (sprout_str *)sprout_arena_take(frame->turn, sizeof *to);
     size_t n = 0;
-    bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, 4 * sizeof *bound);
+    bound = (sprout_effect_binding *)sprout_arena_take(frame->turn, 5 * sizeof *bound);
     if (to == NULL || bound == NULL) return SPROUT_EVAL_NO_MEMORY;
     *to = actor;
     memset(effect, 0, sizeof *effect);
@@ -251,8 +251,16 @@ static sprout_eval_status asides_told(const sprout_frame *frame, sprout_str acto
     bound[n++].bound = sprout_evaluated_object(actor);
     bound[n].name = "here";
     bound[n++].bound = sprout_evaluated_object(standing->container);
-    bound[n].name = "thing";
-    bound[n++].bound = sprout_evaluated_object(expr_str(aside->thing));
+    if (aside->thing != NULL) {
+      bound[n].name = "thing";
+      bound[n++].bound = sprout_evaluated_object(expr_str(aside->thing));
+    }
+    if (aside->reading != NULL) {
+      sprout_value reading;
+      if (!sprout_string(frame->turn, aside->reading, strlen(aside->reading), &reading)) return SPROUT_EVAL_NO_MEMORY;
+      bound[n].name = "reading";
+      bound[n++].bound = sprout_evaluated_value(reading);
+    }
     if (aside->pronoun != NULL) {
       sprout_value pronoun;
       if (!sprout_string(frame->turn, aside->pronoun, strlen(aside->pronoun), &pronoun)) return SPROUT_EVAL_NO_MEMORY;
