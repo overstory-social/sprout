@@ -387,7 +387,7 @@ describe('the standard library', () => {
       ...STANDARD_LIBRARY,
       files: STANDARD_LIBRARY.files.map((file) =>
         file.name === 'sprout/place.sprout'
-          ? new SourceFile('sprout/place.sprout', 'kind Place {\n  %\n}\n')
+          ? new SourceFile('sprout/place.sprout', 'kind Place {\n  @\n}\n')
           : file,
       ),
     };

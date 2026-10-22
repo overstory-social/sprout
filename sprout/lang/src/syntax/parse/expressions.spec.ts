@@ -57,6 +57,27 @@ describe('an expression', () => {
     for (const [text, expected] of table) expect(readExpression(text).shape, text).toBe(expected);
   });
 
+  it('binds `*`, `/` and `%` tighter than `+` and `-`, and looser than a prefix', () => {
+    const table: [string, string][] = [
+      ['a + b * c', '(a + (b * c))'],
+      ['a * b + c', '((a * b) + c)'],
+      ['a - b / c', '(a - (b / c))'],
+      ['a % b - c', '((a % b) - c)'],
+      ['a * b / c % d', '(((a * b) / c) % d)'],
+      ['a / b / c', '((a / b) / c)'],
+      ['-a * b', '((-a) * b)'],
+      ['a * -b', '(a * (-b))'],
+      ['(a + b) * c', '((a + b) * c)'],
+      ['a < b * c', '(a < (b * c))'],
+      ['a.get(:n) * 2', '(a.get(:n) * 2)'],
+    ];
+    for (const [text, expected] of table) {
+      const read = readExpression(text);
+      expect(read.refusals, text).toEqual([]);
+      expect(read.shape, text).toBe(expected);
+    }
+  });
+
   it('tells a library’s kind from a reading, by what follows the dot', () => {
     // `sprout.Container` is a kind and `actor.recall` is a reading, and
     // the only difference is the capital letter after the dot.
@@ -85,7 +106,7 @@ describe('an expression', () => {
   });
 
   it('keeps the well-formed neighbour of an argument it could not read', () => {
-    const read = readExpression('self.set(:wear % , 1)');
+    const read = readExpression('self.set(:wear @ , 1)');
     expect(read.shape).toBe('self.set(:wear, 1)');
   });
 

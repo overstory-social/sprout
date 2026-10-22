@@ -49,38 +49,38 @@ function readExpression(text: string) {
 
 describe('a lexical problem is reported once, and the parser reads around it', () => {
   it('reports the bad character and still reads the enums either side of it', () => {
-    const { declarations, refusals } = read('enum Ward { oak, silver }\n% \nenum Cuff { dry }');
+    const { declarations, refusals } = read('enum Ward { oak, silver }\n@ \nenum Cuff { dry }');
     // The lexer steps over the character it refused, so the parser never
     // sees one and does not report the same mistake a second time.
-    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "@".']);
     expect(declarations).toHaveLength(2);
   });
 
   it('reads an enum whose own name is misspelt into the lexer’s hands', () => {
-    const { refusals } = read('enum Wa%rd { oak }');
-    expect(refusals.map((d) => d.message)).toContain('Sprout does not use the character "%".');
+    const { refusals } = read('enum Wa@rd { oak }');
+    expect(refusals.map((d) => d.message)).toContain('Sprout does not use the character "@".');
   });
 });
 
 describe('a character the lexer stepped over is not reported again as a missing separator', () => {
   it('says only what the lexer said, inside an enum', () => {
-    const { refusals } = read('enum Ward {\n  oak % silver\n}');
-    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+    const { refusals } = read('enum Ward {\n  oak @ silver\n}');
+    expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "@".']);
   });
 
   it('says only what the lexer said, inside a list', () => {
     const diagnostics = new Diagnostics();
-    over(property, ':a [Ward] default [oak % silver]', diagnostics);
+    over(property, ':a [Ward] default [oak @ silver]', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'Sprout does not use the character "%".',
+      'Sprout does not use the character "@".',
     ]);
   });
 
   it('says only what the lexer said, inside a `remembers` block', () => {
     const diagnostics = new Diagnostics();
-    over(rememberBlock, 'remembers { :a 0 %\n  :b 1 }', diagnostics);
+    over(rememberBlock, 'remembers { :a 0 @\n  :b 1 }', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'Sprout does not use the character "%".',
+      'Sprout does not use the character "@".',
     ]);
   });
 
@@ -176,14 +176,14 @@ describe('a stepped-over character beside a separator that is, or is not, there'
   }
 
   const onlyTheLexer: string[] = [
-    'enum Ward {\n  oak % silver\n}', // no comma written: the gap explains it
-    'enum Ward { oak % , silver }', // a comma IS written, right after the character
-    'enum Ward { oak, % silver }',
+    'enum Ward {\n  oak @ silver\n}', // no comma written: the gap explains it
+    'enum Ward { oak @ , silver }', // a comma IS written, right after the character
+    'enum Ward { oak, @ silver }',
   ];
   for (const text of onlyTheLexer) {
     it(`says only what the lexer said for ${JSON.stringify(text)}`, () => {
       const { declarations, refusals } = read(text);
-      expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "%".']);
+      expect(refusals.map((d) => d.message)).toEqual(['Sprout does not use the character "@".']);
       // The comma the author did write is never blamed, and nothing
       // after it is lost.
       expect(optionsOf(declarations[0] as EnumDeclaration)).toEqual(['oak', 'silver']);
@@ -192,9 +192,9 @@ describe('a stepped-over character beside a separator that is, or is not, there'
 
   it('keeps every element of a list whose separator sits beside the character', () => {
     const diagnostics = new Diagnostics();
-    const declared = over(property, ':a [Ward] default [oak % , silver]', diagnostics);
+    const declared = over(property, ':a [Ward] default [oak @ , silver]', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'Sprout does not use the character "%".',
+      'Sprout does not use the character "@".',
     ]);
     const value = declared!.default!;
     expect(value.kind === 'list-literal' && value.elements).toHaveLength(2);
@@ -202,9 +202,9 @@ describe('a stepped-over character beside a separator that is, or is not, there'
 
   it('keeps every entry of a `remembers` block beside the character', () => {
     const diagnostics = new Diagnostics();
-    const declared = over(rememberBlock, 'remembers { :a 0 % :b 1 }', diagnostics);
+    const declared = over(rememberBlock, 'remembers { :a 0 @ :b 1 }', diagnostics);
     expect(diagnostics.refusals.map((d) => d.message)).toEqual([
-      'Sprout does not use the character "%".',
+      'Sprout does not use the character "@".',
     ]);
     expect(declared!.properties.map((p) => p.name.text)).toEqual(['a', 'b']);
   });
@@ -748,7 +748,7 @@ describe('what the parser says about the passages the lexer hands it', () => {
       ['passage greeting { Hello, {actor}.', true],
       ['/* the rest', true],
       ['passage greeting { Hello. }', false],
-      ['%', false],
+      ['@', false],
     ] as const) {
       const p = parserAt(text);
       while (!p.done) p.next();
