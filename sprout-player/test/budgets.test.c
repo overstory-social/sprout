@@ -38,13 +38,13 @@ static void a_cartridge_recording_larger_caps_is_refused_cap_by_cap(void) {
   sprout_world world;
   char words[900];
   memset(&world, 0, sizeof world);
-  world.caps = (sprout_caps){100, 8, 8, 8, 80, 8, 40, 8, 16, 600};
+  world.caps = (sprout_caps){100, 8, 8, 8, 80, 8, 40, 32, 16, 600};
   CHECK(player_caps_fit(&world, words, sizeof words), "the defaults fit: %s", words);
-  world.caps.exits_per_place = 12;
+  world.caps.exits_per_place = 40;
   world.caps.nouns_per_object = 9;
   CHECK(!player_caps_fit(&world, words, sizeof words), "larger caps fit");
   CHECK(HAS(words, "This world was published allowing 9 nouns on one object. This host allows 8, 1 fewer."), "%s", words);
-  CHECK(HAS(words, "This world was published allowing 12 exits on one place. This host allows 8, 4 fewer."), "%s", words);
+  CHECK(HAS(words, "This world was published allowing 40 exits on one place. This host allows 32, 8 fewer."), "%s", words);
   CHECK(HAS(words, "Publish it again under this host's limits."), "%s", words);
   world.caps.exits_per_place = 3;
   world.caps.nouns_per_object = 1;
@@ -59,7 +59,7 @@ static void every_cap_with_a_figure_is_checked_and_a_small_buffer_is_not_overrun
   sprout_world world;
   char words[40];
   memset(&world, 0, sizeof world);
-  world.caps = (sprout_caps){101, 9, 9, 9, 81, 9, 41, 9, 17, 601};
+  world.caps = (sprout_caps){101, 9, 9, 9, 81, 9, 41, 33, 17, 601};
   CHECK(!player_caps_fit(&world, words, sizeof words), "every cap is larger");
   CHECK(strlen(words) < sizeof words, "the words are cut to the buffer");
   {

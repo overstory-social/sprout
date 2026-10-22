@@ -850,7 +850,7 @@ Every figure is the host’s; these are the ones this skill was generated with. 
 | `phraseCharacters` | characters in one phrase | 80 | the world is refused |
 | `nounsPerObject` | nouns on one object | 8 | the world is refused |
 | `nounCharacters` | characters in one noun word | 40 | the world is refused |
-| `exitsPerPlace` | exits on one place | 8 | the world is refused |
+| `exitsPerPlace` | exits on one place | 32 | the world is refused |
 | `listElements` | elements in one list | 16 | the world is refused |
 | `literalCharacters` | characters in a say, tell or text written as a literal | 600 | the world is refused |
 | `places` | places in a world | the host’s to set; none by default | the world is refused |

@@ -172,7 +172,7 @@ export const DEFAULT_LIMITS: Limits = {
     phraseCharacters: 80,
     nounsPerObject: 8,
     nounCharacters: 40,
-    exitsPerPlace: 8,
+    exitsPerPlace: 32,
     listElements: 16,
     literalCharacters: 600,
     places: null,
