@@ -11,7 +11,9 @@
 // index made again over published files names them as they are. Two
 // builds of one world in the folder are held to each other by version as
 // `sprout compat` holds them (compat.ts), so an index never offers a build
-// that claims to keep saves it would break.
+// that claims to keep saves it would break. A build the index being
+// replaced lists is already published and is not held again; only new
+// builds are held, to the published ones and to each other.
 
 import { createHash, type KeyObject } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -141,29 +143,97 @@ function cartridgesIn(folder: string, baseUrl: string): Published[] {
 }
 
 /**
- * Each build of a world among `published` held to the one before it by
- * version, as `sprout compat` holds it; thrown, in its words, at the first
- * that fails.
+ * The builds `file`, an index published earlier, lists, each as its bundle
+ * hash and SHA-256; thrown in words where it is not an index. Its signature
+ * is not read: it only says which builds are spared the check, and the
+ * index written over them is signed anew.
  */
-function checkBuilds(published: readonly Published[]): void {
-  const byWorld = new Map<string, { from: string; build: Build }[]>();
+function listedBuilds(file: string): Set<string> {
+  let text: string;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch {
+    throw new Error(
+      `--previous ${file} cannot be read: name the index being replaced, as in --previous live/index.json.`,
+    );
+  }
+  let worlds: unknown;
+  try {
+    worlds = (JSON.parse(text) as { worlds?: unknown }).worlds;
+  } catch {
+    worlds = undefined;
+  }
+  const listed = new Set<string>();
+  const notIndex = new Error(
+    `--previous ${file} is not an index \`sprout index\` wrote: it should be { "worlds": [ … ], "signed": "…" }, each world with its hash and sha256.`,
+  );
+  if (!Array.isArray(worlds)) throw notIndex;
+  for (const world of worlds as unknown[]) {
+    const { hash, sha256 } = (world ?? {}) as { hash?: unknown; sha256?: unknown };
+    if (typeof hash !== 'string' || typeof sha256 !== 'string') throw notIndex;
+    listed.add(`${hash} ${sha256}`);
+  }
+  return listed;
+}
+
+/** One build of a world among those to publish, and whether it is already published. */
+interface Held {
+  from: string;
+  build: Build;
+  listed: boolean;
+}
+
+/** Thrown, in `sprout compat`'s words, where a save of `old` does not open in `next` as its version says. */
+function hold(old: Held, next: Held): void {
+  const compared = compareBuilds(old.build, next.build);
+  if (!compared.ok) {
+    throw new Error(
+      `${old.from} and then ${next.from} cannot both be published:\n${compared.page}`,
+    );
+  }
+}
+
+const versionOrder = (a: string, b: string): number => {
+  const p = readVersion(a);
+  const q = readVersion(b);
+  return p === null || q === null ? 0 : compareVersions(p, q);
+};
+
+/**
+ * Each build of a world among `published` held to the builds before it by
+ * version, as `sprout compat` holds it; thrown, in its words, at the first
+ * that fails. Without `listed`, each is held to the one before it. With it,
+ * a build it lists is already published and is never held again; each
+ * other is held to the newest listed build at or below its version and to
+ * the unlisted build before it (the spec's State › Across versions).
+ */
+function checkBuilds(published: readonly Published[], listed: Set<string> | null): void {
+  const byWorld = new Map<string, Held[]>();
   for (const one of published) {
     const build = cartridgeBuild(one.bytes);
-    byWorld.set(build.name, [...(byWorld.get(build.name) ?? []), { from: one.from, build }]);
+    const held: Held = {
+      from: one.from,
+      build,
+      listed: listed?.has(`${one.world.hash} ${one.world.sha256}`) ?? false,
+    };
+    byWorld.set(build.name, [...(byWorld.get(build.name) ?? []), held]);
   }
   for (const builds of byWorld.values()) {
-    builds.sort((a, b) => {
-      const p = readVersion(a.build.version);
-      const q = readVersion(b.build.version);
-      return p === null || q === null ? 0 : compareVersions(p, q);
-    });
-    for (let i = 1; i < builds.length; i++) {
-      const compared = compareBuilds(builds[i - 1]!.build, builds[i]!.build);
-      if (!compared.ok) {
-        throw new Error(
-          `${builds[i - 1]!.from} and then ${builds[i]!.from} cannot both be published:\n${compared.page}`,
-        );
+    builds.sort((a, b) => versionOrder(a.build.version, b.build.version));
+    if (listed === null) {
+      for (let i = 1; i < builds.length; i++) hold(builds[i - 1]!, builds[i]!);
+      continue;
+    }
+    let before: Held | null = null;
+    for (const next of builds) {
+      if (next.listed) continue;
+      let newest: Held | null = null;
+      for (const one of builds) {
+        if (one.listed && versionOrder(one.build.version, next.build.version) <= 0) newest = one;
       }
+      if (newest !== null) hold(newest, next);
+      if (before !== null) hold(before, next);
+      before = next;
     }
   }
 }
@@ -177,6 +247,8 @@ export interface IndexRequest {
   privateKey: KeyObject;
   /** The index file to write; the cartridges are written beside it. */
   out: string;
+  /** The index being replaced, whose builds are already published; every build is new without it. */
+  previous?: string;
 }
 
 /** What `sprout index` wrote. */
@@ -188,19 +260,26 @@ export interface IndexWritten {
 
 /**
  * Writes the signed index to `out` and each cartridge beside it under its
- * published name, once every build of a world keeps the saves it says it
- * keeps. A file already there under that name is kept where its
+ * published name, once every new build of a world keeps the saves it says
+ * it keeps. A file already there under that name is kept where its
  * bytes are the cartridge's, and refused where they are not.
  */
-export function writeIndex({ folder, baseUrl, privateKey, out }: IndexRequest): IndexWritten {
+export function writeIndex({
+  folder,
+  baseUrl,
+  privateKey,
+  out,
+  previous,
+}: IndexRequest): IndexWritten {
   if (!/^https?:\/\/[^/]/.test(baseUrl))
     throw new Error(
       `--base-url ${baseUrl} should be an address beginning http:// or https://, where the cartridges will be served.`,
     );
   if (existsSync(out) && statSync(out).isDirectory())
     throw new Error(`-o names the index file to write, as in \`-o site/worlds/index.json\`.`);
+  const listed = previous === undefined ? null : listedBuilds(previous);
   const published = cartridgesIn(resolve(folder), baseUrl);
-  checkBuilds(published);
+  checkBuilds(published, listed);
   const worlds = published.map((one) => one.world);
   const index: WorldIndex = { worlds, signed: signWorlds(worlds, privateKey) };
   const beside = dirname(resolve(out));

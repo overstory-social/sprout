@@ -853,7 +853,11 @@ each `.sproutworld` in the folder under the name the device gives it,
 `<stem>-<hash8>.sproutworld`, at `<url>` followed by that name. A file
 already there under that name is kept if its bytes are the same and refused
 if they differ, so an index can be made again over cartridges published
-earlier, and a published build is never replaced. The index has no expiry,
+earlier, and a published build is never replaced. Each new build of a world
+is held to the builds before it as `sprout compat` holds them;
+`--previous <old index.json>`, the index being replaced, says which builds are
+already published, and those are never checked again (the spec's The command
+line). The index has no expiry,
 revocation list or version counter, so an old signed index can be replayed
 to a device. A world the publisher withdraws is one the next index leaves
 out; a cartridge already downloaded stays on the shelf.
