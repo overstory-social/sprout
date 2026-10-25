@@ -162,13 +162,15 @@ sprout — a Sprout microworld on the command line
   sprout keygen prefix                write a new publisher's key pair: prefix.key, the private key, readable
                                       by its owner only, and prefix.pub, the public key the Playdate app is
                                       built with; refuses to replace either
-  sprout index dir --base-url url --key prefix.key [-o index.json]
+  sprout index dir --base-url url --key prefix.key [-o index.json] [--previous old-index.json]
                                       sign an index of the .sproutworld cartridges in dir for the Playdate app's
                                       downloads: writes the index (dir/index.json without -o) and, beside it,
                                       each cartridge as <title>-<first 8 of its hash>.sproutworld, served at
                                       url followed by that name; two builds of one world are checked as
                                       compat checks them, each against the next by version, and nothing is
-                                      written where one fails
+                                      written where one fails; with --previous, the index being replaced,
+                                      a build it lists is already published and not checked again, and each
+                                      new one is checked against the newest it lists at or below its version
   sprout skill                        the builder's reference, generated from this compiler's own tables,
                                       as a skill for a model: sprout skill > .claude/skills/sprout/SKILL.md
   sprout client connect host:port [--world w] [--as name] [--plain]

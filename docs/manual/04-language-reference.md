@@ -2996,7 +2996,7 @@ sprout play dir [--at place] [--as name] [--seed n] [--debug] [--record file.jso
 sprout test [dir] [script ...] [--report file.json]
 sprout compat old new
 sprout keygen prefix
-sprout index dir --base-url url --key prefix.key [-o index.json]
+sprout index dir --base-url url --key prefix.key [-o index.json] [--previous old-index.json]
 sprout skill
 sprout client connect host:port [--world w] [--as name] [--plain]
 sprout server start --config server.toml [--watch] [--log-format text|json]
@@ -3019,7 +3019,7 @@ world refuses a flag it does not take, naming the ones it does.
 | `test`         | runs every `.json` in the world's `tests/` folder, or the scripts named. Exits 1 on any failure.                          |
 | `compat`       | whether a save of an older build of a world opens in a newer one; each may be a world folder or a `.sproutworld`. A later version is a _breaking_ one where semver's caret says so (0.1.0 → 0.2.0, 1.0.0 → 2.0.0; 0.1.0 → 0.1.1 and 1.0.0 → 1.1.0 are not). Prints every change that would break a save of the old build, with its file, line and column, and what to write instead: a place or object renamed or moved, a kind gone, a property gone or whose type no longer holds every value it held (an enum option removed, a range narrowed), a default changed, or a thing newly given to everything of a kind. Adding places, objects, properties with defaults, options and prose breaks nothing. Exits 1 where the new version is earlier, or is not a breaking one and something breaks a save. `index` runs the same check between two builds of one world. |
 | `keygen`       | writes a publisher's Ed25519 key pair: `prefix.key`, the private key, readable by its owner only, and `prefix.pub`, the public key a Playdate app is built to trust. Refuses to replace either. |
-| `index`        | signs an index of the `.sproutworld` cartridges in a folder for the Playdate app's downloads: writes `dir/index.json` (or `-o`) and, beside it, each cartridge under the name the device gives it, `<title>-<first 8 of its hash>.sproutworld`, served at the base URL followed by that name. A cartridge already there is kept where its bytes match and refused where they differ. |
+| `index`        | signs an index of the `.sproutworld` cartridges in a folder for the Playdate app's downloads: writes `dir/index.json` (or `-o`) and, beside it, each cartridge under the name the device gives it, `<title>-<first 8 of its hash>.sproutworld`, served at the base URL followed by that name. A cartridge already there is kept where its bytes match and refused where they differ. Each new build of a world is checked as `compat` checks it against the builds before it, and nothing is written where one fails; `--previous`, the index being replaced, names the builds already published, which are not checked again. |
 | `skill`        | prints the builder's reference, generated from the compiler, as a skill for an AI assistant: `sprout skill > .claude/skills/sprout/SKILL.md`. |
 | `client`       | plays on a server as one visitor, in the terminal client; see [Serving a world](05-serving.md). Needs `@overstory/sprout-tui` installed. |
 | `server`       | serves the worlds a config names until stopped; see [Serving a world](05-serving.md). Needs `@overstory/sprout-server` installed. |

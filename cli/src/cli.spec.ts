@@ -759,7 +759,24 @@ describe('keygen and index', () => {
       ],
       [
         ['index', '.', '--seed', '1'],
-        'index takes no --seed; it takes --base-url, --key and --out.',
+        'index takes no --seed; it takes --base-url, --key, --out and --previous.',
+      ],
+      [
+        ['index', '.', '--base-url', 'https://w.example/', '--key', key, '--previous'],
+        '--previous wants the index being replaced after it',
+      ],
+      [
+        [
+          'index',
+          '.',
+          '--base-url',
+          'https://w.example/',
+          '--key',
+          key,
+          '--previous',
+          'absent.json',
+        ],
+        '--previous absent.json cannot be read',
       ],
     ];
     for (const [argv, words] of cases) {

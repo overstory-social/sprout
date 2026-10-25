@@ -1,4 +1,5 @@
 import {
+  cpSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -15,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { emitCartridge } from '@overstory/sprout/lang';
+import { emitCartridge, readCartridge } from '@overstory/sprout/lang';
 
 import { checkWorld } from './check.js';
 import { publishedName, publishedStem, writeIndex, type WorldIndex } from './publish.js';
@@ -262,6 +263,120 @@ describe('writeIndex', () => {
       'lamplight-new.sproutworld',
       'lamplight-old.sproutworld',
     ]);
+  });
+
+  describe('with --previous, the index being replaced', () => {
+    /** A cartridge of the compat corpus's world `pair/which`, its manifest's version set to `version`. */
+    const lamplight = (pair: string, which: string, version: string): Uint8Array => {
+      const world = join(mkdtempSync(join(tmpdir(), 'sprout-lamplight-')), 'world');
+      cpSync(join(root, 'corpus/compat', pair, which), world, { recursive: true });
+      const manifest = join(world, 'sprout.json');
+      const fields = JSON.parse(readFileSync(manifest, 'utf8')) as { version: string };
+      writeFileSync(manifest, JSON.stringify({ ...fields, version }));
+      return emitCartridge(checkWorld(world).bundle!);
+    };
+    const folderOf = (builds: Record<string, Uint8Array>): string => {
+      const dir = mkdtempSync(join(tmpdir(), 'sprout-builds-'));
+      for (const [file, bytes] of Object.entries(builds)) writeFileSync(join(dir, file), bytes);
+      return dir;
+    };
+    const indexAt = (folder: string, previous?: string) => () =>
+      writeIndex({
+        folder,
+        baseUrl: 'https://w.example/',
+        privateKey: TEST_KEY,
+        out: join(mkdtempSync(join(tmpdir(), 'sprout-site-')), 'index.json'),
+        previous,
+      });
+    // Three builds at 0.1.0 that each break a save of another, as the studio's three Caverns builds do.
+    const published = {
+      'a.sproutworld': lamplight('refused/renamed-room', 'old', '0.1.0'),
+      'b.sproutworld': lamplight('refused/renamed-room', 'new', '0.1.0'),
+      'c.sproutworld': lamplight('refused/enum-option-removed', 'new', '0.1.0'),
+    };
+    const live = (): string => {
+      const out = join(mkdtempSync(join(tmpdir(), 'sprout-live-')), 'index.json');
+      // Listed before the version rule held them to each other: signed here without it.
+      writeFileSync(
+        out,
+        JSON.stringify({
+          worlds: Object.values(published).map((bytes) => {
+            const header = readCartridge(bytes).header;
+            return { hash: header.hash, sha256: createHash('sha256').update(bytes).digest('hex') };
+          }),
+          signed: '',
+        }),
+      );
+      return out;
+    };
+
+    it('does not hold builds it lists to each other, and holds a new one to the newest it lists', () => {
+      const folder = folderOf({
+        ...published,
+        'd.sproutworld': lamplight('accepted/added-room', 'new', '0.4.1'),
+      });
+      expect(indexAt(folder)).toThrow(/cannot both be published:\nlamplight 0\.1\.0 → 0\.1\.0:/);
+      const { index } = indexAt(folder, live())();
+      expect(index.worlds.map((world) => world.version).sort()).toEqual([
+        '0.1.0',
+        '0.1.0',
+        '0.1.0',
+        '0.4.1',
+      ]);
+      expect(worldsAreSigned(index.worlds, index.signed, TEST_PUBLIC)).toBe(true);
+    });
+
+    it('still refuses a new build that breaks a save of the newest it lists, or of a new one before it', () => {
+      const old = lamplight('refused/enum-option-removed', 'old', '0.1.0');
+      const breaking = lamplight('refused/enum-option-removed', 'new', '0.1.1');
+      const listing = join(mkdtempSync(join(tmpdir(), 'sprout-live-')), 'index.json');
+      const listOnly = (bytes: Uint8Array) =>
+        writeFileSync(
+          listing,
+          JSON.stringify({
+            worlds: [
+              {
+                hash: readCartridge(bytes).header.hash,
+                sha256: createHash('sha256').update(bytes).digest('hex'),
+              },
+            ],
+            signed: '',
+          }),
+        );
+      listOnly(old);
+      const broken =
+        /old\.sproutworld and then .*new\.sproutworld cannot both be published:\nlamplight 0\.1\.0 → 0\.1\.1: 0\.1\.1 keeps saves of 0\.1\.0, and 1 change would break one:[^]*`roaring` is no longer one of its options/;
+      expect(
+        indexAt(folderOf({ 'old.sproutworld': old, 'new.sproutworld': breaking }), listing),
+      ).toThrow(broken);
+      // Both new: the later held to the earlier, as without --previous.
+      listOnly(lamplight('accepted/added-room', 'old', '0.0.1'));
+      expect(
+        indexAt(folderOf({ 'old.sproutworld': old, 'new.sproutworld': breaking }), listing),
+      ).toThrow(broken);
+      // A new build under a version already published, with other files.
+      listOnly(old);
+      const same = lamplight('refused/renamed-room', 'new', '0.1.0');
+      expect(
+        indexAt(folderOf({ 'old.sproutworld': old, 'same.sproutworld': same }), listing),
+      ).toThrow(
+        /old\.sproutworld and then .*same\.sproutworld cannot both be published:\nlamplight 0\.1\.0 → 0\.1\.0: 0\.1\.0 keeps saves of 0\.1\.0/,
+      );
+    });
+
+    it('refuses in words an index it cannot read', () => {
+      const folder = packed();
+      const dir = mkdtempSync(join(tmpdir(), 'sprout-live-'));
+      expect(indexAt(folder, join(dir, 'absent.json'))).toThrow(
+        /--previous .*absent\.json cannot be read: name the index being replaced/,
+      );
+      for (const text of ['not json', '{}', '{"worlds":[{"hash":"ab"}]}']) {
+        writeFileSync(join(dir, 'bad.json'), text);
+        expect(indexAt(folder, join(dir, 'bad.json'))).toThrow(
+          /--previous .*bad\.json is not an index `sprout index` wrote/,
+        );
+      }
+    });
   });
 
   it('refuses two different cartridges that would be published under one name', () => {
